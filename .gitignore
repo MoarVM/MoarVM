@@ -1,1 +1,7 @@
 Makefile
+3rdparty/apr/LibR/
+3rdparty/apr/Release/
+3rdparty/apr/build/
+3rdparty/apr/include/apr.h
+3rdparty/apr/test/
+3rdparty/apr/x64/
