@@ -2,5 +2,24 @@
 CC   = @cc@
 LINK = @link@
 
+# File extensions
+EXE = @exe@
+O   = @o@
+
 # Tool configuration
 MAKE = @make@
+
+# APR related
+APR_LIB = @apr_lib@
+APR_BUILD_LINE = @apr_build_line@
+
+# Various collections of sources.
+THIRDPARTY_LIBS = $(APR_LIB)
+
+# Main target.
+moarvm$(EXE): $(THIRDPARTY_LIBS)
+	echo "Nothing to see here yet"
+
+# APR
+$(APR_LIB):
+	$(APR_BUILD_LINE)
