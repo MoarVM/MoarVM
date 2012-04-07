@@ -1,0 +1,6 @@
+# Compiler configuration
+CC   = @cc@
+LINK = @link@
+
+# Tool configuration
+MAKE = @make@
