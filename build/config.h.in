@@ -1,0 +1,22 @@
+/* !!!
+ * If you're looking at config.h and thinking of editing - this is a
+ * generated file. See build/config.h.in, unless you're just twiddling
+ * to get things to work on your platform before updating Configure,
+ * in which case go right ahead. :-)
+ * !!!
+ */
+
+/* This will eventually get really filled out from configuration.
+ * For now, just hardcoded so more interesting things can be done. */
+
+/* Sized types. */
+#define MVMint8        char
+#define MVMuint8       unsigned char
+#define MVMint16       short
+#define MVMuint16      unsigned short
+#define MVMint32       int
+#define MVMuint32      unsigned int
+#define MVMint64       long long
+#define MVMuint64      unsigned long long
+#define MVMnum32       float
+#define MVMnum64       double

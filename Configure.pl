@@ -28,6 +28,10 @@ else {
     die "    $config{'excuse'}\n";
 }
 
+print "Generating config.h ...";
+Config::Generate::file('build/config.h.in', 'src/gen/config.h', %config);
+print "................................ OK\n";
+
 print "Generating Makefile ...";
 Config::Generate::file('build/Makefile.in', 'Makefile', %config);
 print "................................ OK\n";
