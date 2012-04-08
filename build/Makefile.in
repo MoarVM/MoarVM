@@ -1,6 +1,7 @@
 # Compiler configuration
-CC   = @cc@
-LINK = @link@
+CC       = @cc@
+CINCLUDE = -I3rdparty/apr/include -Isrc
+LD       = @link@
 
 # File extensions
 EXE = @exe@
@@ -13,13 +14,22 @@ MAKE = @make@
 APR_LIB = @apr_lib@
 APR_BUILD_LINE = @apr_build_line@
 
-# Various collections of sources.
+# Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
+CORE_OBJS = src/moarvm$(O)
+MAIN_OBJ = src/main$(O)
+HEADERS = src/moarvm.h
 
-# Main target.
-moarvm$(EXE): $(THIRDPARTY_LIBS)
-	echo "Nothing to see here yet"
+# Main target
+moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
+	$(LD) -out:moarvm$(EXE) $(CORE_OBJS) $(MAIN_OBJ) $(THIRDPARTY_LIBS)
 
 # APR
 $(APR_LIB):
 	$(APR_BUILD_LINE)
+
+# VM core compilation.
+src/main$(O): src/main.c $(HEADERS)
+	$(CC) $(CINCLUDE) -c -Fosrc/main$(O) src/main.c
+src/moarvm$(O): src/moarvm.c $(HEADERS)
+	$(CC) $(CINCLUDE) -c -Fosrc/moarvm$(O) src/moarvm.c
