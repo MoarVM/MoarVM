@@ -5,3 +5,7 @@ Makefile
 3rdparty/apr/include/apr.h
 3rdparty/apr/test/
 3rdparty/apr/x64/
+*.obj
+*.exe
+*.o
+moarvm
