@@ -8,15 +8,16 @@ typedef enum {
 } MVMInteruptType;
 
 /* Information associated with an executing thread. */
-typedef struct {
+struct _MVMInstance;
+typedef struct _MVMThreadContext {
     /* Execution interupt flag. */
     MVMInteruptType interupt;
     
     /* Internal ID of the thread. */
-    uint16 thread_id;
+    MVMuint16 thread_id;
     
     /* The VM instance that this thread belongs to. */
-    MVMInstance *instance;
+    struct _MVMInstance *instance;
     
     /* The current allocation pointer, where the next object to be allocated
      * should be placed. */
@@ -33,5 +34,5 @@ typedef struct {
     void *tospace;
     
     /* OS thread handle. */
-    void *os_thread; /* XXX Something better than void *... */
+    void *os_thread; /* XXX Whatever APR uses for thread handles... */
 } MVMThreadContext;

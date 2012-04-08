@@ -1,8 +1,8 @@
 /* Represents a MoarVM instance. */
-typedef struct {
+typedef struct _MVMInstance {
     /* The list of active threads. */
     MVMThreadContext **threads;
     
     /* The number of active threads. */
-    uint16 num_threads;
+    MVMuint16 num_threads;
 } MVMInstance;
