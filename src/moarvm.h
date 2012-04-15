@@ -1,6 +1,6 @@
 /* Pull in the APR. */
 #define APR_DECLARE_STATIC 1
-#include "apr.h"
+#include <apr_general.h>
 
 /* Configuration. */
 #include "gen/config.h"
@@ -10,4 +10,5 @@
 #include "core/instance.h"
 
 /* Top level VM API functions. */
-void MVM_vm_create_instance(void);
+MVMInstance * MVM_vm_create_instance(void);
+void MVM_vm_destroy_instance(MVMInstance *instance);
