@@ -18,12 +18,13 @@ sub detect {
                 unless can_run('nmake /nologo /?');
             
             # Set configuration flags.
-            $config{'cc'}     = 'cl';
-            $config{'cflags'} = '-DWIN32';
-            $config{'link'}   = 'link';
-            $config{'make'}   = 'nmake';
-            $config{'exe'}    = '.exe';
-            $config{'o'}      = '.obj';
+            $config{'cc'}      = 'cl';
+            $config{'cflags'}  = '-DWIN32';
+            $config{'link'}    = 'link';
+            $config{'ldflags'} = '/NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib oldnames.lib advapi32.lib shell32.lib';
+            $config{'make'}    = 'nmake';
+            $config{'exe'}     = '.exe';
+            $config{'o'}       = '.obj';
         }
         else {
             return (excuse => 'So far, we only building with the Microsoft toolchain on Windows.');

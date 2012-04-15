@@ -1,8 +1,9 @@
 # Compiler configuration
 CC       = @cc@
-CFLAGS    = @cflags@
+CFLAGS   = @cflags@
 CINCLUDE = -I3rdparty/apr/include -Isrc
 LD       = @link@
+LDFLAGS  = @ldflags@
 
 # File extensions
 EXE = @exe@
@@ -23,7 +24,7 @@ HEADERS = src/moarvm.h
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
-	$(LD) -out:moarvm$(EXE) $(CORE_OBJS) $(MAIN_OBJ) $(THIRDPARTY_LIBS)
+	$(LD) -out:moarvm$(EXE) $(LDFLAGS) $(CORE_OBJS) $(MAIN_OBJ) $(THIRDPARTY_LIBS)
 
 # APR
 $(APR_LIB):
