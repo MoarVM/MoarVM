@@ -1,5 +1,6 @@
 # Compiler configuration
 CC       = @cc@
+CFLAGS    = @cflags@
 CINCLUDE = -I3rdparty/apr/include -Isrc
 LD       = @link@
 
@@ -30,6 +31,6 @@ $(APR_LIB):
 
 # VM core compilation.
 src/main$(O): src/main.c $(HEADERS)
-	$(CC) $(CINCLUDE) -c -Fosrc/main$(O) src/main.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/main$(O) src/main.c
 src/moarvm$(O): src/moarvm.c $(HEADERS)
-	$(CC) $(CINCLUDE) -c -Fosrc/moarvm$(O) src/moarvm.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/moarvm$(O) src/moarvm.c
