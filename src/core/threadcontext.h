@@ -28,11 +28,14 @@ typedef struct _MVMThreadContext {
     
     /* Start of the mutator's thread-local allocation space; put another way,
      * the current nursery. */
-    void *fromspace;
+    void *nursery_fromspace;
     
     /* Where we evacuate objects to when collection this thread's nursery. */
-    void *tospace;
+    void *nursery_tospace;
     
     /* OS thread handle. */
     void *os_thread; /* XXX Whatever APR uses for thread handles... */
 } MVMThreadContext;
+
+MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);
+void MVM_tc_destroy(MVMThreadContext *tc);

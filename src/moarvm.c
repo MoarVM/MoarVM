@@ -15,15 +15,28 @@ MVMInstance * MVM_vm_create_instance(void) {
     }
 
     /* Set up instance data structure. */
-    instance = malloc(sizeof(MVMInstance));
-    memset(instance, 0, sizeof(MVMInstance));
+    instance = calloc(1, sizeof(MVMInstance));
+    
+    /* The main (current) thread gets a ThreadContext. */
+    instance->num_threads = 1;
+    instance->threads     = malloc(sizeof(MVMThreadContext *));
+    instance->threads[0]  = MVM_tc_create(instance);
     
     return instance;
 }
 
 /* Destroys a VM instance. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
+    MVMuint16 i;
+    
+    /* TODO: Lots of cleanup. */
+    
+    /* Destory all thread contexts. */
+    for (i = 0; i < instance->num_threads; i++)
+        MVM_tc_destroy(instance->threads[i]);
+    
     /* Clear up VM instance memory. */
+    free(instance->threads);
     free(instance);
     
     /* Terminate APR. */
