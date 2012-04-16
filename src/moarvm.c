@@ -11,7 +11,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         char error[256];
         fprintf(stderr, "MoarVM: Initialization of APR failed\n    %s\n",
             apr_strerror(apr_init_stat, error, 256));
-        exit(0);
+        exit(1);
     }
 
     /* Set up instance data structure. */
