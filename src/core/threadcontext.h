@@ -10,6 +10,13 @@ typedef enum {
 /* Information associated with an executing thread. */
 struct _MVMInstance;
 typedef struct _MVMThreadContext {
+    /* The current allocation pointer, where the next object to be allocated
+     * should be placed. */
+    void *nursery_alloc;
+    
+    /* The end of the space we're allowed to allocate to. */
+    void *nursery_alloc_limit;
+    
     /* Execution interupt flag. */
     MVMInteruptType interupt;
     
@@ -18,13 +25,6 @@ typedef struct _MVMThreadContext {
     
     /* The VM instance that this thread belongs to. */
     struct _MVMInstance *instance;
-    
-    /* The current allocation pointer, where the next object to be allocated
-     * should be placed. */
-    void *alloc;
-    
-    /* The end of the space we're allowed to allocate to. */
-    void *alloc_limit;
     
     /* Start of the mutator's thread-local allocation space; put another way,
      * the current nursery. */
