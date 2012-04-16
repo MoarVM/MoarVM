@@ -8,6 +8,9 @@
 /* Headers for APIs for various other data structures and APIs. */
 #include "core/threadcontext.h"
 #include "core/instance.h"
+#include "core/exceptions.h"
+#include "gc/allocation.h"
+#include "gc/nursery.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);

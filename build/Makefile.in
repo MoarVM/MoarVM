@@ -18,9 +18,10 @@ APR_BUILD_LINE = @apr_build_line@
 
 # Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
-CORE_OBJS = src/moarvm$(O)
+CORE_OBJS = src/core/exceptions$(O) src/gc/allocation$(O) src/moarvm$(O)
 MAIN_OBJ = src/main$(O)
-HEADERS = src/moarvm.h
+HEADERS = src/moarvm.h src/core/instance.h src/core/threadcontext.h \
+          src/core/exceptions.h src/gc/allocation.h src/gc/nursery.h
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
@@ -31,7 +32,11 @@ $(APR_LIB):
 	$(APR_BUILD_LINE)
 
 # VM core compilation.
-src/main$(O): src/main.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/main$(O) src/main.c
+src/core/exceptions$(O): src/core/exceptions.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/exceptions$(O) src/core/exceptions.c
+src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/gc/allocation$(O) src/gc/allocation.c
 src/moarvm$(O): src/moarvm.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/moarvm$(O) src/moarvm.c
+src/main$(O): src/main.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/main$(O) src/main.c
