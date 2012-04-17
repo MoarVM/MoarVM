@@ -6,6 +6,7 @@
 #include "gen/config.h"
 
 /* Headers for APIs for various other data structures and APIs. */
+#include "6model/6model.h"
 #include "core/threadcontext.h"
 #include "core/instance.h"
 #include "core/exceptions.h"
