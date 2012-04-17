@@ -1,4 +1,9 @@
 typedef struct _MVMString {
+    /* A string is a normal 6model object really (so plays by the same
+     * rules with regard to GC and so forth). In that sense, it's a
+     * kind of representation. */
+    MVMObject *header;
+    
     /* The string data. */
     MVMint32 *data;
     
