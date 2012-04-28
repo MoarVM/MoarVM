@@ -76,16 +76,16 @@ typedef struct _MVMStorageSpec {
 /* Flags that may be set on an object. */
 typedef enum {
     /* Is concrete instance. */
-    MVMOF_CONCRETE = 1,
+    MVM_OF_CONCRETE = 1,
     
     /* Has already been seen once in GC nursery. */
-    MVMOF_NURSERY_SEEN = 2,
+    MVM_OF_NURSERY_SEEN = 2,
 
     /* Has been promoted to the old generation. */
-    MVMOF_SECOND_GEN = 4,
+    MVM_OF_SECOND_GEN = 4,
     
     /* Is shared - that is, more than one thread knows about it. */
-    MVMOF_SHARED = 8
+    MVM_OF_SHARED = 8
 } MVMObjectFlags;
 
 /* The common things every object has. */
