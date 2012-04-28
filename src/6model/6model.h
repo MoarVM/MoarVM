@@ -109,6 +109,13 @@ typedef struct _MVMObject {
     struct _MVMObject *forwarder;
 } MVMObject;
 
+/* An dummy object, mostly used to compute the offset of the data part of
+ * a 6model object. */
+struct _MVMObjectStooge {
+    MVMObject common;
+    void *data;
+};
+
 /* This is used to identify an attribute for various types of cache. */
 typedef struct {
     MVMObject         *class_handle;   /* Class handle */
@@ -395,3 +402,12 @@ typedef struct _MVMREPROps {
     /* The representation's ID. */
     MVMint32 ID;
 } MVMREPROps;
+
+/* Various handy macros for getting at important stuff. */
+#define STABLE(o)        (((MVMObject *)o)->st)
+#define REPR(o)          (STABLE(o)->REPR)
+#define OBJECT_BODY(o)   (&(((struct _MVMObjectStooge *)o)->data))
+
+/* Macros for getting/setting type-objectness. */
+#define IS_CONCRETE(o)         (((MVMObject *)o)->flags & MVM_OF_CONCRETE)
+#define MARK_AS_TYPE_OBJECT(o) (((MVMObject *)o)->flags ||= MVM_OF_CONCRETE)
