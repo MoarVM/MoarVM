@@ -2,6 +2,9 @@
 struct _MVMREPROps;
 struct _MVMSTable;
 struct _MVMString;
+struct _MVMSerializationReader;
+struct _MVMSerializationWriter;
+struct _MVMThreadContext;
 
 /* Boolification mode flags. */
 #define MVM_BOOL_MODE_CALL_METHOD                   0
@@ -31,6 +34,44 @@ struct _MVMString;
 /* Hint value to indicate the absence of an attribute lookup or method
  * dispatch hint. */
 #define MVM_NO_HINT -1
+
+/* This data structure describes what storage a given representation
+ * needs if something of that representation is to be embedded in
+ * another place. For any representation that expects to be used
+ * as a kind of reference type, it will just want to be a pointer.
+ * But for other things, they would prefer to be "inlined" into
+ * the object. */
+typedef struct _MVMStorageSpec {
+    /* 0 if this is to be referenced, anything else otherwise. */
+    MVMuint16 inlineable;
+
+    /* For things that want to be inlined, the number of bits of
+     * storage they need. Ignored otherwise. */
+    MVMuint16 bits;
+
+    /* For things that are inlined, if they are just storage of a
+     * primitive type and can unbox, this says what primitive type
+     * that they unbox to. */
+    MVMuint16 boxed_primitive;
+    
+    /* The types that this one can box/unbox to. */
+    MVMuint16 can_box;
+} MVMStorageSpec;
+
+/* Inlined or not. */
+#define MVM_STORAGE_SPEC_REFERENCE      0
+#define MVM_STORAGE_SPEC_INLINED        1
+
+/* Possible options for boxed primitives. */
+#define MVM_STORAGE_SPEC_BP_NONE        0
+#define MVM_STORAGE_SPEC_BP_INT         1
+#define MVM_STORAGE_SPEC_BP_NUM         2
+#define MVM_STORAGE_SPEC_BP_STR         3
+
+/* can_box bit field values. */
+#define MVM_STORAGE_SPEC_CAN_BOX_INT    1
+#define MVM_STORAGE_SPEC_CAN_BOX_NUM    2
+#define MVM_STORAGE_SPEC_CAN_BOX_STR    4
 
 /* Flags that may be set on an object. */
 typedef enum {
@@ -88,27 +129,12 @@ typedef struct {
     MVMuint32  mode;
 } MVMBoolificationSpec;
 
-/* The representation operations table. Note that representations are not
- * classes - there's no inheritance, so there's no polymprhism. If you know
- * a representation statically, you can statically dereferene the call to
- * the representation op in question. In the dynamic case, you have to go
- * following the pointer, however. */
-typedef struct _MVMREPROps {
-    /* XXX TODO: REPR ops. */
-    
-    /* The representation's name. */
-    struct _MVMString *name;
-
-    /* The representation's ID. */
-    MVMint32 ID;
-} MVMREPROps;
-
 /* S-table, representing a meta-object/representation pairing. Note that the
  * items are grouped in hope that it will pack decently and do decently in
  * terms of cache lines. */
 typedef struct _MVMSTable {
     /* The representation operation table. */
-    MVMREPROps *REPR;
+    struct _MVMREPROps *REPR;
     
     /* Any data specific to this type that the REPR wants to keep. */
     void *REPR_data;
@@ -159,3 +185,81 @@ typedef struct _MVMSTable {
     MVMObject *WHO;
 } MVMSTable;
 
+/* The representation operations table. Note that representations are not
+ * classes - there's no inheritance, so there's no polymprhism. If you know
+ * a representation statically, you can statically dereferene the call to
+ * the representation op in question. In the dynamic case, you have to go
+ * following the pointer, however. */
+typedef struct _MVMREPROps {
+    /* Creates a new type object of this representation, and
+     * associates it with the given HOW. Also sets up a new
+     * representation instance if needed. */
+    MVMObject * (*type_object_for) (struct _MVMThreadContext *tc, MVMObject *HOW);
+
+    /* Allocates a new, but uninitialized object, based on the
+     * specified s-table. */
+    MVMObject * (*allocate) (struct _MVMThreadContext *tc, MVMSTable *st);
+
+    /* Used to initialize the body of an object representing the type
+     * describe by the specified s-table. DATA points to the body. It
+     * may recursively call initialize for any flattened objects. */
+    void (*initialize) (struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
+    
+    /* For the given type, copies the object data from the source memory
+     * location to the destination one. Note that it may actually be more
+     * involved than a straightforward bit of copying; what's important is
+     * that the representation knows about that. Note that it may have to
+     * call copy_to recursively on representations of any flattened objects
+     * within its body. */
+    void (*copy_to) (struct _MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest);
+    
+    /* Gets the storage specification for this representation. */
+    MVMStorageSpec (*get_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
+    
+    /* Handles an object changing its type. The representation is responsible
+     * for doing any changes to the underlying data structure, and may reject
+     * changes that it's not willing to do (for example, a representation may
+     * choose to only handle switching to a subclass). It is also left to update
+     * the S-Table pointer as needed; while in theory this could be factored
+     * out, the representation probably knows more about timing issues and
+     * thread safety requirements. */
+    void (*change_type) (struct _MVMThreadContext *tc, MVMObject *Object, MVMObject *NewType);
+    
+    /* Object serialization. Writes the objects body out using the passed
+     * serialization writer. */
+    void (*serialize) (struct _MVMThreadContext *tc, MVMSTable *st, void *data, struct _MVMSerializationWriter *writer);
+    
+    /* Object deserialization. Reads the objects body in using the passed
+     * serialization reader. */
+    void (*deserialize) (struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, struct _MVMSerializationReader *reader);
+    
+    /* REPR data serialization. Seserializes the per-type representation data that
+     * is attached to the supplied STable. */
+    void (*serialize_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationWriter *writer);
+    
+    /* REPR data deserialization. Deserializes the per-type representation data and
+     * attaches it to the supplied STable. */
+    void (*deserialize_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationReader *reader);
+    
+    /* MoarVM-specific REPR API addition used to mark an object. */
+    void (*gc_mark) (struct _MVMThreadContext *tc, MVMSTable *st, void *data);
+
+    /* MoarVM-specific REPR API addition used to free an object. */
+    void (*gc_free) (struct _MVMThreadContext *tc, MVMObject *object);
+
+    /* This is called to do any cleanup of resources when an object gets
+     * embedded inside another one. Never called on a top-level object. */
+    void (*gc_cleanup) (struct _MVMThreadContext *tc, MVMSTable *st, void *data);
+
+    /* MoarVM-specific REPR API addition used to mark a REPR instance. */
+    void (*gc_mark_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
+
+    /* MoarVM-specific REPR API addition used to free a REPR instance. */
+    void (*gc_free_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
+    
+    /* The representation's name. */
+    struct _MVMString *name;
+
+    /* The representation's ID. */
+    MVMint32 ID;
+} MVMREPROps;
