@@ -190,6 +190,129 @@ typedef struct _MVMSTable {
  * a representation statically, you can statically dereferene the call to
  * the representation op in question. In the dynamic case, you have to go
  * following the pointer, however. */
+typedef struct _MVMREPROps_Attribute {
+    /* Gets the current value for an object attribute. For non-flattened
+     * objects - that is, reference types - this just returns the object
+     * stored in the attribute. For the flattened case, this will auto-box. */
+    MVMObject * (*get_attribute_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
+        MVMint64 hint);
+
+    /* Gets a reference to the memory location of an attribute. Note
+     * that this is only valid so long as the object itself is alive. */
+    void * (*get_attribute_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
+        MVMint64 hint);
+
+    /* Binds the given object value to the specified attribute. If it's
+     * a reference type attribute, this just simply sets the value in 
+     * place. If instead it's some other flattened in representation, then
+     * the value should be a boxed form of the data to store.*/
+    void (*bind_attribute_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
+        MVMint64 hint, MVMObject *value);
+
+    /* Binds a flattened in attribute to the value at the passed reference.
+     * Like with the get_attribute_ref function, presumably the thing calling
+     * this knows about the type of the attribute it is supplying data for.
+     * copy_to will be used to copy the data in to place. */
+    void (*bind_attribute_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
+        MVMint64 hint, void *value);
+
+    /* Gets the hint for the given attribute ID. */
+    MVMint64 (*hint_for) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *class_handle, struct _MVMString *name);
+
+    /* Checks if an attribute has been initialized. */
+    MVMint32 (*is_attribute_initialized) (struct _MVMThreadContext *tc, MVMSTable *st,
+        void *data, MVMObject *class_handle, struct _MVMString *name,
+        MVMint64 hint);
+} MVMREPROps_Attribute;
+typedef struct _MVMREPROps_Boxing {
+    /* Used with boxing. Sets an integer value, for representations that
+     * can hold one. */
+    void (*set_int) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 value);
+
+    /* Used with boxing. Gets an integer value, for representations that
+     * can hold one. */
+    MVMint64 (*get_int) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+
+    /* Used with boxing. Sets a floating point value, for representations that
+     * can hold one. */
+    void (*set_num) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMnum64 value);
+
+    /* Used with boxing. Gets a floating point value, for representations that
+     * can hold one. */
+    MVMnum64 (*get_num) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+
+    /* Used with boxing. Sets a string value, for representations that
+     * can hold one. */
+    void (*set_str) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, struct _MVMString *value);
+
+    /* Used with boxing. Gets a string value, for representations that
+     * can hold one. */
+    struct _MVMString * (*get_str) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+
+    /* Some objects serve primarily as boxes of others, inlining them. This gets
+     * gets the reference to such things, using the representation ID to distinguish
+     * them. */
+    void * (*get_boxed_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 repr_id);
+} MVMREPROps_Boxing;
+typedef struct _MVMREPROps_Positional {
+    /* Get the address of the element at the specified position. May return null if
+     * nothing is there, or throw to indicate out of bounds, or vivify. */
+    void * (*at_pos_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 index);
+
+    /* Get a boxed object representing the element at the specified position. If the
+     * object is already a reference type, simply returns that. */
+    MVMObject * (*at_pos_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 index);
+
+    /* Binds the value at the specified address into the array at the specified index.
+     * may auto-vivify or throw. */
+    void (*bind_pos_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 index, void *addr);
+
+    /* Binds the object at the specified address into the array at the specified index.
+     * For arrays of non-reference types, expects a compatible type. */
+    void (*bind_pos_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 index, MVMObject *obj);
+
+    /* Gets the number of elements. */
+    MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+
+    /* Pre-allocates the specified number of slots. */
+    void (*preallocate) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 count);
+
+    /* Trim to the specified number of slots. */
+    void (*trim_to) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 count);
+
+    /* Make a "hole" the specified number of elements in size at the specified index.
+     * Used for implementing things like unshift, splice, etc. */
+    void (*make_hole) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count);
+
+    /* Delete the specified number of elements (that is, actually shuffle the ones
+     * after them into their place). Used for implementing things like shift, splice,
+     * etc. */
+    void (*delete_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count);
+
+    /* Gets the STable representing the declared element type. */
+    MVMSTable * (*get_elem_stable) (struct _MVMThreadContext *tc, MVMSTable *st);
+} MVMREPROps_Positional;
 typedef struct _MVMREPROps {
     /* Creates a new type object of this representation, and
      * associates it with the given HOW. Also sets up a new
@@ -212,6 +335,15 @@ typedef struct _MVMREPROps {
      * call copy_to recursively on representations of any flattened objects
      * within its body. */
     void (*copy_to) (struct _MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest);
+    
+    /* Attribute access REPR function table. */
+    MVMREPROps_Attribute *attr_funcs;
+    
+    /* Boxing REPR function table. */
+    MVMREPROps_Boxing *box_funcs;
+
+    /* Indexing REPR function table. */
+    MVMREPROps_Positional *idx_funcs;
     
     /* Gets the storage specification for this representation. */
     MVMStorageSpec (*get_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
