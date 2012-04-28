@@ -400,7 +400,7 @@ typedef struct _MVMREPROps {
     struct _MVMString *name;
 
     /* The representation's ID. */
-    MVMint32 ID;
+    MVMuint32 ID;
 } MVMREPROps;
 
 /* Various handy macros for getting at important stuff. */
