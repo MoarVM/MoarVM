@@ -73,40 +73,58 @@ typedef struct _MVMStorageSpec {
 #define MVM_STORAGE_SPEC_CAN_BOX_NUM    2
 #define MVM_STORAGE_SPEC_CAN_BOX_STR    4
 
-/* Flags that may be set on an object. */
+/* Flags that may be set on any collectable. */
 typedef enum {
     /* Is concrete instance. */
-    MVM_OF_CONCRETE = 1,
+    MVM_CF_CONCRETE = 1,
+    
+    /* Is an STable. */
+    MVM_CF_STABLE = 2,
+    
+    /* Is a serialization context. */
+    MVM_CF_SC = 4,
     
     /* Has already been seen once in GC nursery. */
-    MVM_OF_NURSERY_SEEN = 2,
+    MVM_CF_NURSERY_SEEN = 8,
 
     /* Has been promoted to the old generation. */
-    MVM_OF_SECOND_GEN = 4,
+    MVM_CF_SECOND_GEN = 16,
     
     /* Is shared - that is, more than one thread knows about it. */
-    MVM_OF_SHARED = 8
-} MVMObjectFlags;
+    MVM_CF_SHARED = 32
+} MVMCollectableFlags;
 
-/* The common things every object has. */
-typedef struct _MVMObject {
-    /* The s-table for the object. */
-    struct _MVMSTable *st;
-    
-    /* Identifier for the serialization context this object lives in, if any. */
-    MVMuint16 sc_id;
-    
+/* Things that every GC-collectable entity has. These fall into three
+ * categories:
+ *   * MVMObject - objects. Almost everything is one of these.
+ *   * MVMSTable - shared tables; one per (HOW, REPR) pairing.
+ *   * MVMSerializationContext - serialization contexts; one per comp unit.
+ * Only the first can vary in size.
+ */
+typedef struct _MVMCollectable {
     /* Identifier of the thread that currently owns the object, if any. If the
      * object is unshared, then this is always the creating thread. If it is
      * shared then it's whoever currently holds the mutex on it, or 0 if there
      * is no held mutex. */
-    MVMuint16 cur_owner;
+    MVMuint32 cur_owner;
     
-    /* Flags. */
+    /* Collectable flags (see MVMCollectableFlags). */
     MVMuint32 flags;
     
     /* Forwarding pointer, for copying/compacting GC purposes. */
     struct _MVMObject *forwarder;
+} MVMCollectable;
+
+/* The common things every object has. */
+typedef struct _MVMObject {
+    /* Commonalities that all collectable entities have. */
+    MVMCollectable header;
+    
+    /* The s-table for the object. */
+    struct _MVMSTable *st;
+    
+    /* Pointer to the serialization context this object lives in, if any. */
+    struct _MVMSerializationContext *sc;
 } MVMObject;
 
 /* An dummy object, mostly used to compute the offset of the data part of
@@ -140,6 +158,9 @@ typedef struct {
  * items are grouped in hope that it will pack decently and do decently in
  * terms of cache lines. */
 typedef struct _MVMSTable {
+    /* Commonalities that all collectable entities have. */
+    MVMCollectable header;
+    
     /* The representation operation table. */
     struct _MVMREPROps *REPR;
     
