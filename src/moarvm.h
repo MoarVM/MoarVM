@@ -13,6 +13,7 @@
 #include "6model/reprs.h"
 #include "gc/allocation.h"
 #include "gc/nursery.h"
+#include "strings/ascii.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);

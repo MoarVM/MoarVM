@@ -19,11 +19,12 @@ APR_BUILD_LINE = @apr_build_line@
 # Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/exceptions$(O) src/core/threadcontext$(O) src/gc/allocation$(O) \
-            src/6model/reprs/MVMString$(O) src/moarvm$(O)
+            src/6model/reprs/MVMString$(O) src/strings/ascii$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/exceptions.h src/gc/allocation.h src/gc/nursery.h \
-            src/6model/reprs.h src/6model/reprs/MVMString.h
+            src/6model/reprs.h src/6model/reprs/MVMString.h \
+            src/strings/ascii.h
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
@@ -42,6 +43,8 @@ src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/gc/allocation$(O) src/gc/allocation.c
 src/6model/reprs/MVMString$(O): src/6model/reprs/MVMString.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/MVMString$(O) src/6model/reprs/MVMString.c
+src/strings/ascii$(O): src/strings/ascii.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/strings/ascii$(O) src/strings/ascii.c
 src/moarvm$(O): src/moarvm.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/moarvm$(O) src/moarvm.c
 src/main$(O): src/main.c $(HEADERS)
