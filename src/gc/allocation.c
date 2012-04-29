@@ -30,3 +30,11 @@ void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
     
     return allocated;
 }
+
+/* Same as MVM_gc_allocate, but explicitly zeroes the memory that is
+ * returned. */
+void * MVM_gc_allocate_zeroed(MVMThreadContext *tc, size_t size) {
+    void *allocated = MVM_gc_allocate(tc, size);
+    memset(allocated, 0, size);
+    return allocated;
+}
