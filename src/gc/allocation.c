@@ -38,3 +38,30 @@ void * MVM_gc_allocate_zeroed(MVMThreadContext *tc, size_t size) {
     memset(allocated, 0, size);
     return allocated;
 }
+
+/* Allocates a new STable, based on the specified thread context, REPR
+ * and meta-object. */
+MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, MVMREPROps *repr, MVMObject *how) {
+    MVMSTable *st    = MVM_gc_allocate_zeroed(tc, sizeof(MVMSTable));
+    st->header.flags = MVM_CF_STABLE;
+    st->header.owner = tc->thread_id;
+    st->REPR         = repr;
+    st->HOW          = how;
+    return st;
+}
+
+/* Allocates a new type object. */
+MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc) {
+    MVMObject *obj    = MVM_gc_allocate_zeroed(tc, sizeof(MVMObject));
+    obj->header.flags = MVM_CF_TYPE_OBJECT;
+    obj->header.owner = tc->thread_id;
+    return obj;
+}
+
+/* Allocates a new object, and points it at the specified STable. */
+MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st, size_t size) {
+    MVMObject *obj    = MVM_gc_allocate_zeroed(tc, size);
+    obj->header.owner = tc->thread_id;
+    obj->st           = st;
+    return obj;
+}

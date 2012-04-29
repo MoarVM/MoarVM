@@ -106,7 +106,7 @@ typedef struct _MVMCollectable {
      * object is unshared, then this is always the creating thread. If it is
      * shared then it's whoever currently holds the mutex on it, or 0 if there
      * is no held mutex. */
-    MVMuint32 cur_owner;
+    MVMuint32 owner;
     
     /* Collectable flags (see MVMCollectableFlags). */
     MVMuint32 flags;
