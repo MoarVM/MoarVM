@@ -10,9 +10,9 @@
 #include "core/threadcontext.h"
 #include "core/instance.h"
 #include "core/exceptions.h"
+#include "6model/reprs.h"
 #include "gc/allocation.h"
 #include "gc/nursery.h"
-#include "strings/string.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);

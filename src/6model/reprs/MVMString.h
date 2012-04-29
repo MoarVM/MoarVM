@@ -1,10 +1,9 @@
+/* Representation used by VM-level strings. */
 typedef struct _MVMString {
-    /* A string is a normal 6model object really (so plays by the same
-     * rules with regard to GC and so forth). In that sense, it's a
-     * kind of representation. */
-    MVMObject *header;
+    /* Has the usual common object things. */
+    MVMObject common;
     
-    /* The string data. */
+    /* The string data (signed integer array of graphemes). */
     MVMint32 *data;
     
     /* The number of graphemes that make up the string (and in turn, the
