@@ -21,7 +21,7 @@ typedef struct _MVMThreadContext {
     MVMInteruptType interupt;
     
     /* Internal ID of the thread. */
-    MVMuint16 thread_id;
+    MVMuint32 thread_id;
     
     /* The VM instance that this thread belongs to. */
     struct _MVMInstance *instance;
