@@ -75,8 +75,8 @@ typedef struct _MVMStorageSpec {
 
 /* Flags that may be set on any collectable. */
 typedef enum {
-    /* Is concrete instance. */
-    MVM_CF_CONCRETE = 1,
+    /* Is a type object (and thus not a concrete instance). */
+    MVM_CF_TYPE_OBJECT = 1,
     
     /* Is an STable. */
     MVM_CF_STABLE = 2,
@@ -430,5 +430,4 @@ typedef struct _MVMREPROps {
 #define OBJECT_BODY(o)   (&(((struct _MVMObjectStooge *)o)->data))
 
 /* Macros for getting/setting type-objectness. */
-#define IS_CONCRETE(o)         (((MVMObject *)o)->flags & MVM_OF_CONCRETE)
-#define MARK_AS_TYPE_OBJECT(o) (((MVMObject *)o)->flags ||= MVM_OF_CONCRETE)
+#define IS_CONCRETE(o)         (!(((MVMObject *)o)->flags & MVM_OF_TYPE_OBJECT))
