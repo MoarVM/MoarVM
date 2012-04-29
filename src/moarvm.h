@@ -11,6 +11,7 @@
 #include "core/instance.h"
 #include "core/exceptions.h"
 #include "6model/reprs.h"
+#include "6model/bootstrap.h"
 #include "gc/allocation.h"
 #include "gc/nursery.h"
 #include "strings/ascii.h"

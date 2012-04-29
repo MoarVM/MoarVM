@@ -16,11 +16,15 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up instance data structure. */
     instance = calloc(1, sizeof(MVMInstance));
+    instance->boot_types = calloc(1, sizeof(struct _MVMBootTypes));
     
     /* The main (current) thread gets a ThreadContext. */
     instance->num_threads = 1;
     instance->threads     = malloc(sizeof(MVMThreadContext *));
     instance->threads[0]  = MVM_tc_create(instance);
+    
+    /* Bootstrap 6model. */
+    MVM_6model_bootstrap(instance->threads[0]);
     
     return instance;
 }

@@ -50,14 +50,18 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Initializes the P6str representation. */
 MVMREPROps * MVMString_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec;
+    /* Allocate and populate the representation function table. Note
+     * that to support the bootstrap, this one REPR guards against a
+     * duplicate initialization (which we actually will do). */
+    if (!this_repr) {
+        this_repr = malloc(sizeof(MVMREPROps));
+        memset(this_repr, 0, sizeof(MVMREPROps));
+        this_repr->type_object_for = type_object_for;
+        this_repr->allocate = allocate;
+        this_repr->initialize = initialize;
+        this_repr->copy_to = copy_to;
+        this_repr->gc_free = gc_free;
+        this_repr->get_storage_spec = get_storage_spec;
+    }
     return this_repr;
 }
