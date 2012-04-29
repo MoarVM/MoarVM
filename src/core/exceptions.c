@@ -4,7 +4,7 @@
  * unrecoverable.
  * TODO: Some hook for embedders.
  */
-void MVM_panic(char *reason) {
+void MVM_panic(const char *reason) {
     fprintf(stderr, reason);
     exit(1);
 }
