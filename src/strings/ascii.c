@@ -9,14 +9,14 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
     /* There's no combining chars and such stuff in ASCII, so the codes
      * count and grapheme count are trivially the same as the buffer
      * length. */
-    result->codes  = bytes;
-    result->graphs = bytes;
+    result->body.codes  = bytes;
+    result->body.graphs = bytes;
     
     /* Allocate grapheme buffer and decode the ASCII string. */
-    result->data = malloc(sizeof(MVMint32) * bytes);
+    result->body.data = malloc(sizeof(MVMint32) * bytes);
     for (i = 0; i < bytes; i++)
         if (ascii[i] <= 127)
-            result->data[i] = ascii[i];
+            result->body.data[i] = ascii[i];
         else
             MVM_exception_throw_adhoc(tc,
                 "Will not decode invalid ASCII (code point > 127 found)");

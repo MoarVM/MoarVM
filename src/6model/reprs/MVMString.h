@@ -1,8 +1,5 @@
 /* Representation used by VM-level strings. */
-typedef struct _MVMString {
-    /* Has the usual common object things. */
-    MVMObject common;
-    
+typedef struct _MVMStringBody {
     /* The string data (signed integer array of graphemes). */
     MVMint32 *data;
     
@@ -15,4 +12,8 @@ typedef struct _MVMString {
     MVMuint32 codes;
     
     /* XXX TODO: table for deriveds. */
+} MVMStringBody;
+typedef struct _MVMString {
+    MVMObject common;
+    MVMStringBody body;
 } MVMString;
