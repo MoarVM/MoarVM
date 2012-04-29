@@ -51,10 +51,11 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, MVMREPROps *repr, MVMOb
 }
 
 /* Allocates a new type object. */
-MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc) {
+MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *obj    = MVM_gc_allocate_zeroed(tc, sizeof(MVMObject));
     obj->header.flags = MVM_CF_TYPE_OBJECT;
     obj->header.owner = tc->thread_id;
+    obj->st           = st;
     return obj;
 }
 
