@@ -19,17 +19,24 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    
 }
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    
+    MVMStringBody *src_body  = (MVMStringBody *)src;
+    MVMStringBody *dest_body = (MVMStringBody *)dest;
+    dest_body->graphs = src_body->graphs;
+    dest_body->codes  = src_body->codes;
+    dest_body->data   = malloc(sizeof(MVMint32) * dest_body->graphs);
+    memcpy(dest_body->data, src_body->data, sizeof(MVMint32) * dest_body->graphs);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    
+    MVMString *str = (MVMString *)obj;
+    free(str->body.data);
+    str->body.data = NULL;
+    str->body.graphs = str->body.codes = 0;
 }
 
 /* Gets the storage specification for this representation. */
