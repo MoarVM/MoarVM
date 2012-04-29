@@ -12,6 +12,7 @@ sub file {
     
     while (<$fh_s>) {
         s/@(\w+)@/$config{$1}/g;
+        s/(\w)\/(\w|\*)/$1\\$2/g if $target =~ /Makefile/ && $^O =~ /MSWin32/;
         print $fh_t $_;
     }
     

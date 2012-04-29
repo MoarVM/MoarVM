@@ -11,6 +11,7 @@ O   = @o@
 
 # Tool configuration
 MAKE = @make@
+RM   = @rm@
 
 # APR related
 APR_LIB = @apr_lib@
@@ -49,3 +50,8 @@ src/moarvm$(O): src/moarvm.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/moarvm$(O) src/moarvm.c
 src/main$(O): src/main.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/main$(O) src/main.c
+
+# Cleanup.
+clean:
+	$(RM) moarvm$(EXE)
+	$(RM) src/*$(O) src/6model/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O)

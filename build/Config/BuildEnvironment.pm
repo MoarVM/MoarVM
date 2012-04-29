@@ -25,6 +25,7 @@ sub detect {
             $config{'make'}    = 'nmake';
             $config{'exe'}     = '.exe';
             $config{'o'}       = '.obj';
+            $config{'rm'}      = 'del';
         }
         else {
             return (excuse => 'So far, we only building with the Microsoft toolchain on Windows.');
