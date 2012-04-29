@@ -292,7 +292,7 @@ typedef struct _MVMREPROps_Boxing {
      * gets the reference to such things, using the representation ID to distinguish
      * them. */
     void * (*get_boxed_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 repr_id);
+        MVMObject *root, void *data, MVMuint32 repr_id);
 } MVMREPROps_Boxing;
 typedef struct _MVMREPROps_Positional {
     /* Get the address of the element at the specified position. May return null if
