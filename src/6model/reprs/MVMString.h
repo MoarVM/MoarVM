@@ -17,3 +17,6 @@ typedef struct _MVMString {
     MVMObject common;
     MVMStringBody body;
 } MVMString;
+
+/* Function for REPR setup. */
+MVMREPROps * MVMString_initialize(MVMThreadContext *tc);

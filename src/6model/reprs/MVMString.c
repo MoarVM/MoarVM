@@ -49,7 +49,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 }
 
 /* Initializes the P6str representation. */
-MVMREPROps * P6str_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMString_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
