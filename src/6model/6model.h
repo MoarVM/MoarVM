@@ -113,6 +113,9 @@ typedef struct _MVMCollectable {
     
     /* Forwarding pointer, for copying/compacting GC purposes. */
     struct _MVMObject *forwarder;
+    
+    /* Pointer to the serialization context this collectable lives in, if any. */
+    struct _MVMSerializationContext *sc;
 } MVMCollectable;
 
 /* The common things every object has. */
@@ -122,9 +125,6 @@ typedef struct _MVMObject {
     
     /* The s-table for the object. */
     struct _MVMSTable *st;
-    
-    /* Pointer to the serialization context this object lives in, if any. */
-    struct _MVMSerializationContext *sc;
 } MVMObject;
 
 /* An dummy object, mostly used to compute the offset of the data part of
