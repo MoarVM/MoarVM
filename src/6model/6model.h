@@ -469,4 +469,4 @@ typedef struct _MVMREPROps {
 #define OBJECT_BODY(o)   (&(((struct _MVMObjectStooge *)o)->data))
 
 /* Macros for getting/setting type-objectness. */
-#define IS_CONCRETE(o)         (!(((MVMObject *)o)->flags & MVM_OF_TYPE_OBJECT))
+#define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))
