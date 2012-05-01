@@ -96,6 +96,35 @@ static void default_delete_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject 
 static MVMStorageSpec default_get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     die_no_pos(tc, st->REPR->name);
 }
+MVM_NO_RETURN
+static void die_no_ass(MVMThreadContext *tc, MVMString *repr_name) {
+    MVM_exception_throw_adhoc(tc,
+        "This representation does not support associative access");
+}
+void * default_at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    die_no_ass(tc, st->REPR->name);
+}
+MVMObject * default_at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    die_no_ass(tc, st->REPR->name);
+}
+void default_bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
+    die_no_ass(tc, st->REPR->name);
+}
+void default_bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+    die_no_ass(tc, st->REPR->name);
+}
+MVMuint64 default_elems_ass(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    die_no_ass(tc, st->REPR->name);
+}
+MVMuint64 default_exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    die_no_ass(tc, st->REPR->name);
+}
+void default_delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    die_no_ass(tc, st->REPR->name);
+}
+MVMStorageSpec default_get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    die_no_ass(tc, st->REPR->name);
+}
 
 /* Set default attribute functions on a REPR that lacks them. */
 static void add_default_attr_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
@@ -135,6 +164,19 @@ static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->pos_funcs->get_elem_storage_spec = default_get_elem_storage_spec;
 }
 
+/* Set default associative functions on a REPR that lacks them. */
+static void add_default_ass_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
+    repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
+    repr->ass_funcs->at_key_ref = default_at_key_ref;
+    repr->ass_funcs->at_key_boxed = default_at_key_boxed;
+    repr->ass_funcs->bind_key_ref = default_bind_key_ref;
+    repr->ass_funcs->bind_key_boxed = default_bind_key_boxed;
+    repr->ass_funcs->elems = default_elems_ass;
+    repr->ass_funcs->exists_key = default_exists_key;
+    repr->ass_funcs->delete_key = default_delete_key;
+    repr->ass_funcs->get_value_storage_spec = default_get_value_storage_spec;
+}
+
 /* Registers a representation. It this is ever made public, it should first be
  * made thread-safe. */
 static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *repr) {
@@ -154,6 +196,8 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
         add_default_box_funcs(tc, repr);
     if (!repr->pos_funcs)
         add_default_pos_funcs(tc, repr);
+    if (!repr->ass_funcs)
+        add_default_ass_funcs(tc, repr);
 }
 
 /* Initializes the representations registry, building up all of the various
