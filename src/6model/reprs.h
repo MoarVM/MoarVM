@@ -8,3 +8,9 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc);
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name);
 MVMREPROps * MVM_repr_get_by_id(MVMThreadContext *tc, MVMuint32 id);
 MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
+
+/* Core representation IDs (determined by the order we add them
+ * to the registery in reprs.c). */
+#define MVM_REPR_ID_MVMString   0
+#define MVM_REPR_ID_MVMArray    1
+#define MVM_REPR_ID_MVMHash     2

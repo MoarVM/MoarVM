@@ -205,7 +205,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     /* XXX Initialize name to ID map. */
     
-    /* Add all core representations. */
+    /* Add all core representations. (If order changed, update reprs.h IDs.) */
     register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMString"),
         MVMString_initialize(tc));
