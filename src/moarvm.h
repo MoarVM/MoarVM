@@ -1,6 +1,7 @@
 /* Pull in the APR. */
 #define APR_DECLARE_STATIC 1
 #include <apr_general.h>
+#include <apr_hash.h>
 
 /* Configuration. */
 #include "gen/config.h"
