@@ -48,20 +48,99 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
+static void expand_to_at_least(MVMArrayBody *body, MVMuint64 min_elems) {
+    MVMuint64 alloc = body->alloc + 4 > min_elems ? body->alloc + 4 : min_elems;
+    if (body->alloc == 0)
+        body->data = malloc(sizeof(MVMObject *) * alloc);
+    else
+        body->data = realloc(body->data, sizeof(MVMObject *) * alloc);
+    body->alloc = alloc;
+}
+
+static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation does not support native type storage");
+}
+
+static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    return index < body->elems ? body->data[index] : tc->instance->null;
+}
+
+static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *addr) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation does not support native type storage");
+}
+
+static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, MVMObject *obj) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    if (index >= body->alloc)
+        expand_to_at_least(body, index + 1);
+    if (index >= body->elems)
+        index = body->elems + 1;
+    MVM_WB(tc, root, obj);
+    body->data[index] = obj;
+}
+
+static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    return body->elems;
+}
+
+static void preallocate(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    expand_to_at_least(body, count);
+}
+
+static void trim_to(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    if (count > body->elems)
+        MVM_exception_throw_adhoc(tc,
+            "Trimming an array should not increase its number of elements");
+    body->elems = count;
+}
+
+static void make_hole(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    MVMuint64 new_elems = body->elems + count;
+    if (new_elems > body->alloc)
+        expand_to_at_least(body, new_elems);
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray does not yet implement make_hole");
+}
+
+static void delete_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray does not yet implement delete_elems");
+}
+
+static MVMSTable * get_elem_stable(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray does not yet implement get_elem_stable");
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. Note
-     * that to support the bootstrap, this one REPR guards against a
-     * duplicate initialization (which we actually will do). */
-    if (!this_repr) {
-        this_repr = malloc(sizeof(MVMREPROps));
-        memset(this_repr, 0, sizeof(MVMREPROps));
-        this_repr->type_object_for = type_object_for;
-        this_repr->allocate = allocate;
-        this_repr->initialize = initialize;
-        this_repr->copy_to = copy_to;
-        this_repr->gc_free = gc_free;
-        this_repr->get_storage_spec = get_storage_spec;
-    }
+    /* Allocate and populate the representation function table. */
+    this_repr = malloc(sizeof(MVMREPROps));
+    memset(this_repr, 0, sizeof(MVMREPROps));
+    this_repr->type_object_for = type_object_for;
+    this_repr->allocate = allocate;
+    this_repr->initialize = initialize;
+    this_repr->copy_to = copy_to;
+    this_repr->gc_free = gc_free;
+    this_repr->get_storage_spec = get_storage_spec; 
+    this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
+    this_repr->pos_funcs->at_pos_ref = at_pos_ref;
+    this_repr->pos_funcs->at_pos_boxed = at_pos_boxed;
+    this_repr->pos_funcs->bind_pos_ref = bind_pos_ref;
+    this_repr->pos_funcs->bind_pos_boxed = bind_pos_boxed;
+    this_repr->pos_funcs->elems = elems;
+    this_repr->pos_funcs->preallocate = preallocate;
+    this_repr->pos_funcs->trim_to = trim_to;
+    this_repr->pos_funcs->make_hole = make_hole;
+    this_repr->pos_funcs->delete_elems = delete_elems;
+    this_repr->pos_funcs->get_elem_stable = get_elem_stable;
     return this_repr;
 }
