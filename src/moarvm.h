@@ -14,6 +14,7 @@
 #include "6model/bootstrap.h"
 #include "gc/allocation.h"
 #include "gc/nursery.h"
+#include "gc/wb.h"
 #include "strings/ascii.h"
 
 /* Top level VM API functions. */

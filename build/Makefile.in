@@ -20,11 +20,11 @@ APR_BUILD_LINE = @apr_build_line@
 # Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/exceptions$(O) src/core/threadcontext$(O) src/gc/allocation$(O) \
-            src/6model/reprs$(O) src/6model/reprs/MVMString$(O) src/6model/reprs/MVMArray$(O) \
+            src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) src/6model/reprs/MVMArray$(O) \
             src/6model/bootstrap$(O) src/strings/ascii$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
-            src/core/exceptions.h src/gc/allocation.h src/gc/nursery.h \
+            src/core/exceptions.h src/gc/allocation.h src/gc/nursery.h src/gc/wb.h \
             src/6model/reprs.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/strings/ascii.h
 
@@ -43,6 +43,8 @@ src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/threadcontext$(O) src/core/threadcontext.c
 src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/gc/allocation$(O) src/gc/allocation.c
+src/gc/wb$(O): src/gc/wb.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/gc/wb$(O) src/gc/wb.c
 src/6model/reprs$(O): src/6model/reprs.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs$(O) src/6model/reprs.c
 src/6model/reprs/MVMString$(O): src/6model/reprs/MVMString.c $(HEADERS)
