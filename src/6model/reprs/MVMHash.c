@@ -55,6 +55,73 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     h->body.hash = NULL;
 }
 
+static void extract_key(MVMThreadContext *tc, void **kdata, apr_ssize_t *klen, MVMObject *key) {
+    if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) {
+        *kdata = ((MVMString *)key)->body.data;
+        *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMint32);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "MVMHash representation requires MVMString keys");
+    }
+}
+
+static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMHash representation does not support native type storage");
+}
+
+static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    void *kdata, *value;
+    apr_ssize_t klen;
+    extract_key(tc, &kdata, &klen, key);
+    value = apr_hash_get(body->hash, key, klen);
+    return value ? (MVMObject *)value : tc->instance->null;
+}
+
+static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMHash representation does not support native type storage");
+}
+
+static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    void *kdata;
+    apr_ssize_t klen;
+    extract_key(tc, &kdata, &klen, key);
+    apr_hash_set(body->hash, key, klen, value);
+}
+
+static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    return apr_hash_count(body->hash);
+}
+
+static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    void *kdata;
+    apr_ssize_t klen;
+    extract_key(tc, &kdata, &klen, key);
+    return apr_hash_get(body->hash, key, klen) != NULL;
+}
+
+static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    void *kdata;
+    apr_ssize_t klen;
+    extract_key(tc, &kdata, &klen, key);
+    apr_hash_set(body->hash, key, klen, NULL);
+}
+
+static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    MVMStorageSpec spec;
+    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec.can_box         = 0;
+    return spec;
+}
+
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
@@ -75,5 +142,14 @@ MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     this_repr->copy_to = copy_to;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
+    this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
+    this_repr->ass_funcs->at_key_ref = at_key_ref;
+    this_repr->ass_funcs->at_key_boxed = at_key_boxed;
+    this_repr->ass_funcs->bind_key_ref = bind_key_ref;
+    this_repr->ass_funcs->bind_key_boxed = bind_key_boxed;
+    this_repr->ass_funcs->elems = elems;
+    this_repr->ass_funcs->exists_key = exists_key;
+    this_repr->ass_funcs->delete_key = delete_key;
+    this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
     return this_repr;
 }
