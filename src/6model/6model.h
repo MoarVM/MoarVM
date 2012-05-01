@@ -341,6 +341,42 @@ typedef struct _MVMREPROps_Positional {
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
 } MVMREPROps_Positional;
+typedef struct _MVMREPROps_Associative {
+    /* Get the address of the element at the specified key. May return null if
+     * nothing is there, or throw to indicate the key does not exist, or vivify. */
+    void * (*at_key_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *key);
+
+    /* Get a boxed object representing the element at the specified key. If the
+     * object is already a reference type, simply returns that. */
+    MVMObject * (*at_key_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *key);
+
+    /* Binds the value at the specified address into the hash at the specified
+     * key. */
+    void (*bind_key_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *key, void *value_addr);
+
+    /* Binds the object at the specified address into the hash at the specified
+     * key. */
+    void (*bind_key_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *key, MVMObject *value);
+
+    /* Gets the number of elements. */
+    MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+
+    /* Returns a true value of the key exists, and a false one if not. */
+    MVMuint64 (*exists_key) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *key);
+
+    /* Deletes the specified key. */
+    void (*delete_key) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *key);
+
+    /* Gets the storage spec of the hash value type. */
+    MVMStorageSpec (*get_value_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
+} MVMREPROps_Associative;
 typedef struct _MVMREPROps {
     /* Creates a new type object of this representation, and
      * associates it with the given HOW. Also sets up a new
@@ -372,6 +408,9 @@ typedef struct _MVMREPROps {
 
     /* Positional indexing REPR function table. */
     MVMREPROps_Positional *pos_funcs;
+
+    /* Associative indexing REPR function table. */
+    MVMREPROps_Associative *ass_funcs;
     
     /* Gets the storage specification for this representation. */
     MVMStorageSpec (*get_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
