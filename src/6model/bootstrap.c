@@ -27,6 +27,18 @@ static void create_stub_BOOTStr(MVMThreadContext *tc) {
      * object (this is completely normal). */
     st->WHAT = tc->instance->boot_types->BOOTStr;
 }
+
+/* Creates a stub BOOTArray (missing a meta-object). */
+static void create_stub_BOOTArray(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
+    tc->instance->boot_types->BOOTArray = repr->type_object_for(tc, NULL);
+}
+
+/* Creates a stub BOOTHash (missing a meta-object). */
+static void create_stub_BOOTHash(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMHash);
+    tc->instance->boot_types->BOOTHash = repr->type_object_for(tc, NULL);
+}
  
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
@@ -37,6 +49,10 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
+    
+    /* Create stub BOOTArray and BOOTHash types. */
+    create_stub_BOOTArray(tc);
+    create_stub_BOOTHash(tc);
     
     /* XXX Much more to come... */
 }
