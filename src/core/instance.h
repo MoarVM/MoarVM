@@ -18,6 +18,9 @@ typedef struct _MVMInstance {
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
     
+    /* The MoarVM-level NULL. */
+    MVMObject *null;
+    
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */
     MVMObject *KnowHOW;
