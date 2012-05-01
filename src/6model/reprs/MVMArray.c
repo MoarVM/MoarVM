@@ -33,10 +33,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMArray *str = (MVMArray *)obj;
-    free(str->body.data);
-    str->body.data = NULL;
-    str->body.elems = str->body.alloc = 0;
+    MVMArray *arr = (MVMArray *)obj;
+    free(arr->body.data);
+    arr->body.data = NULL;
+    arr->body.elems = arr->body.alloc = 0;
 }
 
 /* Gets the storage specification for this representation. */
