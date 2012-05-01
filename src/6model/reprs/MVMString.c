@@ -48,7 +48,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-/* Initializes the P6str representation. */
+/* Initializes the representation. */
 MVMREPROps * MVMString_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. Note
      * that to support the bootstrap, this one REPR guards against a
