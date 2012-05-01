@@ -339,7 +339,7 @@ typedef struct _MVMREPROps_Positional {
         MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count);
 
     /* Gets the STable representing the declared element type. */
-    MVMSTable * (*get_elem_stable) (struct _MVMThreadContext *tc, MVMSTable *st);
+    MVMStorageSpec (*get_elem_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
 } MVMREPROps_Positional;
 typedef struct _MVMREPROps {
     /* Creates a new type object of this representation, and

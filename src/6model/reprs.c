@@ -93,7 +93,7 @@ static void default_make_hole(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
 static void default_delete_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
-static MVMSTable * default_get_elem_stable(MVMThreadContext *tc, MVMSTable *st) {
+static MVMStorageSpec default_get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     die_no_pos(tc, st->REPR->name);
 }
 
@@ -132,7 +132,7 @@ static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->pos_funcs->trim_to = default_trim_to;
     repr->pos_funcs->make_hole = default_make_hole;
     repr->pos_funcs->delete_elems = default_delete_elems;
-    repr->pos_funcs->get_elem_stable = default_get_elem_stable;
+    repr->pos_funcs->get_elem_storage_spec = default_get_elem_storage_spec;
 }
 
 /* Registers a representation. It this is ever made public, it should first be

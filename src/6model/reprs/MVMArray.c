@@ -115,9 +115,12 @@ static void delete_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
         "MVMArray does not yet implement delete_elems");
 }
 
-static MVMSTable * get_elem_stable(MVMThreadContext *tc, MVMSTable *st) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray does not yet implement get_elem_stable");
+static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    MVMStorageSpec spec;
+    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec.can_box         = 0;
+    return spec;
 }
 
 /* Initializes the representation. */
@@ -141,6 +144,6 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->trim_to = trim_to;
     this_repr->pos_funcs->make_hole = make_hole;
     this_repr->pos_funcs->delete_elems = delete_elems;
-    this_repr->pos_funcs->get_elem_stable = get_elem_stable;
+    this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
     return this_repr;
 }
