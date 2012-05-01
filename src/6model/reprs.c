@@ -122,17 +122,17 @@ static void add_default_box_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
 
 /* Set default positional functions on a REPR that lacks them. */
 static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
-    repr->idx_funcs = malloc(sizeof(MVMREPROps_Positional));
-    repr->idx_funcs->at_pos_ref = default_at_pos_ref;
-    repr->idx_funcs->at_pos_boxed = default_at_pos_boxed;
-    repr->idx_funcs->bind_pos_ref = default_bind_pos_ref;
-    repr->idx_funcs->bind_pos_boxed = default_bind_pos_boxed;
-    repr->idx_funcs->elems = default_elems;
-    repr->idx_funcs->preallocate = default_preallocate;
-    repr->idx_funcs->trim_to = default_trim_to;
-    repr->idx_funcs->make_hole = default_make_hole;
-    repr->idx_funcs->delete_elems = default_delete_elems;
-    repr->idx_funcs->get_elem_stable = default_get_elem_stable;
+    repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
+    repr->pos_funcs->at_pos_ref = default_at_pos_ref;
+    repr->pos_funcs->at_pos_boxed = default_at_pos_boxed;
+    repr->pos_funcs->bind_pos_ref = default_bind_pos_ref;
+    repr->pos_funcs->bind_pos_boxed = default_bind_pos_boxed;
+    repr->pos_funcs->elems = default_elems;
+    repr->pos_funcs->preallocate = default_preallocate;
+    repr->pos_funcs->trim_to = default_trim_to;
+    repr->pos_funcs->make_hole = default_make_hole;
+    repr->pos_funcs->delete_elems = default_delete_elems;
+    repr->pos_funcs->get_elem_stable = default_get_elem_stable;
 }
 
 /* Registers a representation. It this is ever made public, it should first be
@@ -152,7 +152,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
         add_default_attr_funcs(tc, repr);
     if (!repr->box_funcs)
         add_default_box_funcs(tc, repr);
-    if (!repr->idx_funcs)
+    if (!repr->pos_funcs)
         add_default_pos_funcs(tc, repr);
 }
 

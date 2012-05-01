@@ -370,8 +370,8 @@ typedef struct _MVMREPROps {
     /* Boxing REPR function table. */
     MVMREPROps_Boxing *box_funcs;
 
-    /* Indexing REPR function table. */
-    MVMREPROps_Positional *idx_funcs;
+    /* Positional indexing REPR function table. */
+    MVMREPROps_Positional *pos_funcs;
     
     /* Gets the storage specification for this representation. */
     MVMStorageSpec (*get_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
