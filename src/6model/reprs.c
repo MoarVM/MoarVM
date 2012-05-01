@@ -163,8 +163,11 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     
     /* Add all core representations. */
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMString"), 
+        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMString"),
         MVMString_initialize(tc));
+    register_repr(tc,
+        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMArray"),
+        MVMArray_initialize(tc));
 }
 
 /* Get a representation's ID from its name. Note that the IDs may change so
