@@ -10,6 +10,7 @@
 #include "6model/6model.h"
 #include "core/threadcontext.h"
 #include "core/instance.h"
+#include "core/args.h"
 #include "core/exceptions.h"
 #include "6model/reprs.h"
 #include "6model/bootstrap.h"
