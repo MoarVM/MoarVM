@@ -5,6 +5,8 @@ struct _MVMString;
 struct _MVMSerializationReader;
 struct _MVMSerializationWriter;
 struct _MVMThreadContext;
+struct _MVMCallsite;
+union  _MVMArg;
 
 /* Boolification mode flags. */
 #define MVM_BOOL_MODE_CALL_METHOD                   0
@@ -199,6 +201,15 @@ typedef struct _MVMSTable {
      * type directory based upon this ID. Otherwise you'll create memory
      * leaks for anonymous types, and other such screwups. */
     MVMuint64 type_cache_id;
+    
+    /* Invocation handler. If something tries to invoke this object,
+     * whatever hangs off this function pointer gets invoked to handle
+     * the invocation. If it's a call into C code it may do stuff right
+     * off the bat. However, normally it will do whatever is needed to
+     * arrange for setting up a callframe, twiddle the interpreter's
+     * PC as needed and return. */
+    void (*invoke) (struct _MVMThreadContext *tc, MVMObject *invokee,
+        struct _MVMCallsite *callsite, union _MVMArg *args);
 
     /* If this is a container, then this contains information needed in
      * order to fetch the value in it. If not, it'll be null, which can
