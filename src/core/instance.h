@@ -4,6 +4,7 @@ struct _MVMBootTypes {
     MVMObject *BOOTStr;
     MVMObject *BOOTArray;
     MVMObject *BOOTHash;
+    MVMObject *BOOTCCode;
     MVMObject *BOOTCode;
 };
 
