@@ -216,6 +216,9 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
         MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMHash"),
         MVMHash_initialize(tc));
     register_repr(tc,
+        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMCFunction"),
+        MVMCFunction_initialize(tc));
+    register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "KnowHOWREPR"),
         MVMKnowHOWREPR_initialize(tc));
 }
