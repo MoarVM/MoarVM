@@ -9,4 +9,7 @@ src/gen/
 *.obj
 *.exe
 *.o
+*.pdb
+*.suo
+*.ilk
 moarvm
