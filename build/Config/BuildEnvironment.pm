@@ -19,9 +19,9 @@ sub detect {
             
             # Set configuration flags.
             $config{'cc'}      = 'cl';
-            $config{'cflags'}  = '/nologo -DWIN32';
+            $config{'cflags'}  = '/nologo /Zi -DWIN32';
             $config{'link'}    = 'link';
-            $config{'ldflags'} = '/nologo /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib oldnames.lib advapi32.lib shell32.lib';
+            $config{'ldflags'} = '/nologo /debug /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib oldnames.lib advapi32.lib shell32.lib';
             $config{'make'}    = 'nmake';
             $config{'exe'}     = '.exe';
             $config{'o'}       = '.obj';
