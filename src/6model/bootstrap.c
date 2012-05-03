@@ -39,6 +39,57 @@ static void create_stub_BOOTHash(MVMThreadContext *tc) {
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMHash);
     tc->instance->boot_types->BOOTHash = repr->type_object_for(tc, NULL);
 }
+
+/* Creates a stub BOOTCCode (missing a meta-object). */
+static void create_stub_BOOTCCode(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMCFunction);
+    tc->instance->boot_types->BOOTCCode = repr->type_object_for(tc, NULL);
+}
+
+/* Bootstraps the KnowHOW type. */
+static void bootstrap_KnowHOW(MVMThreadContext *tc) {
+    MVMObject *BOOTStr   = tc->instance->boot_types->BOOTStr;
+    MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
+    MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
+    
+    /* Create our KnowHOW type object. Note we don't have a HOW just yet, so
+     * pass in NULL. */
+    MVMREPROps *REPR    = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWREPR);
+    MVMObject  *knowhow = REPR->type_object_for(tc, NULL);
+
+    /* We create a KnowHOW instance that can describe itself. This means
+     * (once we tie the knot) that .HOW.HOW.HOW.HOW etc will always return
+     * that, which closes the model up. */
+    MVMKnowHOWREPR *knowhow_how = (MVMKnowHOWREPR *)REPR->allocate(tc, NULL);
+    
+    /* Create an STable for the knowhow_how. */
+    MVMSTable *st = MVM_gc_allocate_stable(tc, REPR, (MVMObject *)knowhow_how);
+    st->WHAT = (MVMObject *)knowhow;
+    knowhow_how->common.st = st;
+    
+    /* Add various methods to the KnowHOW's HOW. */
+    knowhow_how->body.methods    = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+    knowhow_how->body.attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    /* XXX TODO: add the methods */
+    
+    /* Set name KnowHOW for the KnowHOW's HOW. */
+    knowhow_how->body.name = MVM_string_ascii_decode_nt(tc, BOOTStr, "KnowHOW");
+
+    /* Set this built up HOW as the KnowHOW's HOW. */
+    STABLE(knowhow)->HOW = (MVMObject *)knowhow_how;
+    
+    /* Give it an authoritative method cache; this in turn will make the
+     * method dispatch bottom out. */
+    STABLE(knowhow)->method_cache = knowhow_how->body.methods;
+    STABLE(knowhow)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
+    
+    /* Associate the created objects with the intial core serialization
+     * context. */
+    /* XXX TODO */
+
+    /* Stash the created KnowHOW. */
+    tc->instance->KnowHOW = (MVMObject *)knowhow;
+}
  
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
@@ -50,9 +101,13 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
     
-    /* Create stub BOOTArray and BOOTHash types. */
+    /* Create stub BOOTArray, BOOTHash and BOOTCCode types. */
     create_stub_BOOTArray(tc);
     create_stub_BOOTHash(tc);
+    create_stub_BOOTCCode(tc);
     
-    /* XXX Much more to come... */
+    /* Bootstrap the KnowHOW type, giving it a meta-object. */
+    bootstrap_KnowHOW(tc);
+    
+    /* XXX Give BOOTStr, BOOTArray, BOOTHash and BOOTCode meta-objects... */
 }
