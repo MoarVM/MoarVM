@@ -18,6 +18,7 @@
 #include "gc/nursery.h"
 #include "gc/wb.h"
 #include "strings/ascii.h"
+#include "strings/ops.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);
