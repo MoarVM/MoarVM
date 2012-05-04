@@ -68,8 +68,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     knowhow_how->common.st = st;
     
     /* Add various methods to the KnowHOW's HOW. */
-    knowhow_how->body.methods    = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
-    knowhow_how->body.attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    REPR->initialize(tc, NULL, (MVMObject *)knowhow_how, &knowhow_how->body);
     /* XXX TODO: add the methods */
     
     /* Set name KnowHOW for the KnowHOW's HOW. */

@@ -19,6 +19,18 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMObject *methods, *attributes;
+    MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
+    MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
+    MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
+    
+    methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+    MVM_WB(tc, root, methods);
+    body->methods = methods;
+    
+    attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_WB(tc, root, attributes);
+    body->attributes = attributes;
 }
 
 /* Copies to the body of one object to another. */
