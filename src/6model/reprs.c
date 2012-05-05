@@ -171,19 +171,29 @@ static void add_default_ass_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
 /* Registers a representation. It this is ever made public, it should first be
  * made thread-safe. */
 static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *repr) {
+    /* Allocate an ID. */
     MVMuint32 ID = tc->instance->num_reprs;
     tc->instance->num_reprs++;
+    
+    /* Stash ID and name. */
+    repr->ID = ID;
+    repr->name = name;
+    
+    /* Name should become a pernament GC root. */
+    MVM_gc_root_add_pernament(tc, (MVMCollectable *)name);
+    
+    /* Enter into registry. */
     if (tc->instance->repr_registry)
         tc->instance->repr_registry = realloc(tc->instance->repr_registry,
             tc->instance->num_reprs * sizeof(MVMREPROps *));
     else
         tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
     tc->instance->repr_registry[ID] = repr;
-    repr->ID = ID;
-    repr->name = name;
     apr_hash_set(tc->instance->repr_name_to_id_hash,
         name->body.data, name->body.graphs * sizeof(MVMint32),
         &repr->ID);
+        
+    /* Add default "not implemented" function table implementations. */
     if (!repr->attr_funcs)
         add_default_attr_funcs(tc, repr);
     if (!repr->box_funcs)
