@@ -19,7 +19,7 @@ APR_BUILD_LINE = @apr_build_line@
 
 # Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
-CORE_OBJS = src/core/exceptions$(O) src/core/threadcontext$(O) src/gc/allocation$(O) \
+CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/threadcontext$(O) src/gc/allocation$(O) \
             src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
@@ -40,6 +40,8 @@ $(APR_LIB):
 	$(APR_BUILD_LINE)
 
 # VM core compilation.
+src/core/args$(O): src/core/args.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/args$(O) src/core/args.c
 src/core/exceptions$(O): src/core/exceptions.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/exceptions$(O) src/core/exceptions.c
 src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
