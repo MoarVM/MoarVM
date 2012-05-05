@@ -42,3 +42,34 @@ typedef union _MVMArg {
     struct _MVMString *s;
     MVMObject         *o;
 } MVMArg;
+
+/* Argument processing context. */
+typedef struct _MVMArgProcContext {
+    /* The callsite we're processing. */
+    MVMCallsite *callsite;
+    
+    /* The arguments. */
+    MVMArg      *args;
+} MVMArgProcContext;
+
+/* Argument processing context handling. */
+void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMArg *args);
+void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
+
+/* Argument access by position. */
+MVMArg * MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
+MVMArg * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
+MVMArg * MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
+MVMArg * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
+MVMArg * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
+
+/* Argument access by name. */
+MVMArg * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
+MVMArg * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
+MVMArg * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
+MVMArg * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
+MVMArg * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
+
+/* Required/optional constants. */
+#define MVM_ARG_OPTIONAL    0
+#define MVM_ARG_REQUIRED    1
