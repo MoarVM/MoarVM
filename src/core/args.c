@@ -138,3 +138,20 @@ MVMArg * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
         MVM_exception_throw_adhoc(tc, "Expected string");
     return result.arg;
 }
+
+/* Result setting. */
+void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result) {
+    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+}
+void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result) {
+    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+}
+void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result) {
+    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+}
+void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result) {
+    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+}
+void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result) {
+    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+}

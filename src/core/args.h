@@ -76,6 +76,13 @@ MVMArg * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, s
 MVMArg * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 MVMArg * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 
+/* Result setting. */
+void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result);
+void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result);
+void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result);
+void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result);
+void MVM_args_set_result_str(MVMThreadContext *tc, struct _MVMString *result);
+
 /* Required/optional constants. */
 #define MVM_ARG_OPTIONAL    0
 #define MVM_ARG_REQUIRED    1
