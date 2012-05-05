@@ -132,8 +132,8 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
     
     /* Fill out STable. */
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
-    WB(tc, STABLE(type_obj), method_table);
-    WB(tc, STABLE(type_obj), type_obj);
+    MVM_WB(tc, STABLE(type_obj), method_table);
+    MVM_WB(tc, STABLE(type_obj), type_obj);
     STABLE(type_obj)->method_cache            = method_table;
     STABLE(type_obj)->mode_flags              = MVM_METHOD_CACHE_AUTHORITATIVE;
     STABLE(type_obj)->type_check_cache_length = 1;
@@ -142,6 +142,26 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
     
     /* Return type object. */
     MVM_args_set_result_obj(tc, type_obj);
+}
+
+/* Adds a method into the KnowHOW.HOW method table. */
+static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow_how,
+        char *name, void (*func) (MVMThreadContext *, MVMCallsite *, MVMArg *)) {
+    MVMObject *BOOTCCode, *code_obj, *method_table, *name_str;
+    
+    /* Create string for name. */
+    name_str = (MVMObject *)MVM_string_ascii_decode_nt(tc,
+        tc->instance->boot_types->BOOTStr, name);
+    
+    /* Allocate a BOOTCCode and put pointer in. */
+    BOOTCCode = tc->instance->boot_types->BOOTCCode;
+    code_obj = REPR(BOOTCCode)->allocate(tc, STABLE(BOOTCCode));
+    ((MVMCFunction *)code_obj)->body.func = func;
+    
+    /* Add into the table. */
+    method_table = knowhow_how->body.methods;
+    REPR(method_table)->ass_funcs->bind_key_boxed(tc, STABLE(method_table),
+        method_table, OBJECT_BODY(method_table), name_str, code_obj);
 }
 
 /* Bootstraps the KnowHOW type. */
@@ -167,7 +187,9 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     
     /* Add various methods to the KnowHOW's HOW. */
     REPR->initialize(tc, NULL, (MVMObject *)knowhow_how, &knowhow_how->body);
-    /* XXX TODO: add the methods */
+    add_knowhow_how_method(tc, knowhow_how, "new_type", new_type);
+    add_knowhow_how_method(tc, knowhow_how, "add_method", add_method);
+    add_knowhow_how_method(tc, knowhow_how, "compose", compose);
     
     /* Set name KnowHOW for the KnowHOW's HOW. */
     knowhow_how->body.name = MVM_string_ascii_decode_nt(tc, BOOTStr, "KnowHOW");
