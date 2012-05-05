@@ -1,15 +1,5 @@
 #include "moarvm.h"
 
-/* An array mapping representation IDs to function tables. */
-static MVMREPROps **repr_registry = NULL;
-
-/* Number of representations registered so far. */
-static MVMuint32 num_reprs = 0;
-
-/* Hash mapping representation names to IDs. */
-static apr_pool_t *repr_name_to_id_pool = NULL;
-static apr_hash_t *repr_name_to_id_hash = NULL;
-
 /* Default REPR function handlers. */
 MVM_NO_RETURN
 static void die_no_attrs(MVMThreadContext *tc, MVMString *repr_name) {
@@ -181,16 +171,17 @@ static void add_default_ass_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
 /* Registers a representation. It this is ever made public, it should first be
  * made thread-safe. */
 static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *repr) {
-    MVMuint32 ID = num_reprs;
-    num_reprs++;
-    if (repr_registry)
-        repr_registry = realloc(repr_registry, num_reprs * sizeof(MVMREPROps *));
+    MVMuint32 ID = tc->instance->num_reprs;
+    tc->instance->num_reprs++;
+    if (tc->instance->repr_registry)
+        tc->instance->repr_registry = realloc(tc->instance->repr_registry,
+            tc->instance->num_reprs * sizeof(MVMREPROps *));
     else
-        repr_registry = malloc(num_reprs * sizeof(MVMREPROps *));
-    repr_registry[ID] = repr;
+        tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
+    tc->instance->repr_registry[ID] = repr;
     repr->ID = ID;
     repr->name = name;
-    apr_hash_set(repr_name_to_id_hash,
+    apr_hash_set(tc->instance->repr_name_to_id_hash,
         name->body.data, name->body.graphs * sizeof(MVMint32),
         &repr->ID);
     if (!repr->attr_funcs)
@@ -207,8 +198,8 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
  * representations. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     /* Initialize name to ID map. */
-    apr_pool_create(&repr_name_to_id_pool, NULL);
-    repr_name_to_id_hash = apr_hash_make(repr_name_to_id_pool);
+    apr_pool_create(&tc->instance->repr_name_to_id_pool, NULL);
+    tc->instance->repr_name_to_id_hash = apr_hash_make(tc->instance->repr_name_to_id_pool);
     
     /* Add all core representations. (If order changed, update reprs.h IDs.) */
     register_repr(tc,
@@ -231,7 +222,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
 /* Get a representation's ID from its name. Note that the IDs may change so
  * it's best not to store references to them in e.g. the bytecode stream. */
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
-    MVMuint32 *value = (MVMuint32 *)apr_hash_get(repr_name_to_id_hash,
+    MVMuint32 *value = (MVMuint32 *)apr_hash_get(tc->instance->repr_name_to_id_hash,
         name->body.data, name->body.graphs * sizeof(MVMint32));
     if (value == NULL)
         MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR");
@@ -240,10 +231,10 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
 
 /* Gets a representation by ID. */
 MVMREPROps * MVM_repr_get_by_id(MVMThreadContext *tc, MVMuint32 id) {
-    return repr_registry[id];
+    return tc->instance->repr_registry[id];
 }
 
 /* Gets a representation by name. */
 MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name) {
-    return repr_registry[MVM_repr_name_to_id(tc, name)];
+    return tc->instance->repr_registry[MVM_repr_name_to_id(tc, name)];
 }

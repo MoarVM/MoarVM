@@ -16,13 +16,23 @@ typedef struct _MVMInstance {
     /* The number of active threads. */
     MVMuint16 num_threads;
     
-    /* Set of bootstrapping types. */
-    struct _MVMBootTypes *boot_types;
-    
     /* The MoarVM-level NULL. */
     MVMObject *null;
     
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */
     MVMObject *KnowHOW;
+    
+    /* Set of bootstrapping types. */
+    struct _MVMBootTypes *boot_types;
+    
+    /* An array mapping representation IDs to function tables. */
+    MVMREPROps **repr_registry;
+
+    /* Number of representations registered so far. */
+    MVMuint32 num_reprs;
+
+    /* Hash mapping representation names to IDs. */
+    apr_pool_t *repr_name_to_id_pool;
+    apr_hash_t *repr_name_to_id_hash;
 } MVMInstance;
