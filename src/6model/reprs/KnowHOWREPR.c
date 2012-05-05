@@ -25,10 +25,12 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
     
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+    REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
     MVM_WB(tc, root, methods);
     body->methods = methods;
     
     attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    REPR(attributes)->initialize(tc, STABLE(attributes), attributes, OBJECT_BODY(attributes));
     MVM_WB(tc, root, attributes);
     body->attributes = attributes;
 }
