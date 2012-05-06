@@ -144,6 +144,43 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
     MVM_args_set_result_obj(tc, type_obj);
 }
 
+/* Introspects the attributes. For now just hand back real list. */
+static void attributes(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+    MVMObject *self, *type_obj, *attributes;
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
+    MVM_args_set_result_obj(tc, attributes);
+}
+
+/* Introspects the methods. */
+static void methods(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+    MVMObject *self, *type_obj, *method_table;
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    method_table = ((MVMKnowHOWREPR *)self)->body.methods;
+    MVM_args_set_result_obj(tc, method_table);
+}
+
+/* Introspects the name. */
+static void name(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+    MVMObject *self, *type_obj;
+    MVMString *name;
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    name = ((MVMKnowHOWREPR *)self)->body.name;
+    MVM_args_set_result_str(tc, name);
+}
+
 /* Adds a method into the KnowHOW.HOW method table. */
 static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow_how,
         char *name, void (*func) (MVMThreadContext *, MVMCallsite *, MVMArg *)) {
@@ -190,6 +227,9 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     add_knowhow_how_method(tc, knowhow_how, "new_type", new_type);
     add_knowhow_how_method(tc, knowhow_how, "add_method", add_method);
     add_knowhow_how_method(tc, knowhow_how, "compose", compose);
+    add_knowhow_how_method(tc, knowhow_how, "attributes", attributes);
+    add_knowhow_how_method(tc, knowhow_how, "methods", methods);
+    add_knowhow_how_method(tc, knowhow_how, "name", name);
     
     /* Set name KnowHOW for the KnowHOW's HOW. */
     knowhow_how->body.name = MVM_string_ascii_decode_nt(tc, BOOTStr, "KnowHOW");
