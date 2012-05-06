@@ -250,6 +250,27 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     tc->instance->KnowHOW = (MVMObject *)knowhow;
 }
  
+/* Takes a stub object that existed before we had bootstrapped things and
+ * gives it a meta-object. */
+static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *name) {
+    MVMObject *knowhow_how, *meta_obj;
+    MVMString *name_str;
+    
+    /* Create meta-object. */
+    knowhow_how = STABLE(tc->instance->KnowHOW)->HOW;
+    meta_obj    = REPR(knowhow_how)->allocate(tc, STABLE(knowhow_how));
+    REPR(meta_obj)->initialize(tc, STABLE(meta_obj), meta_obj, OBJECT_BODY(meta_obj));
+    
+    /* Put it in place. */
+    MVM_WB(tc, STABLE(type_obj), meta_obj);
+    STABLE(type_obj)->HOW = meta_obj;
+    
+    /* Set name. */
+    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, name);
+    MVM_WB(tc, meta_obj, name_str);
+    ((MVMKnowHOWREPR *)meta_obj)->body.name = name_str;
+}
+ 
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* First, we have to get the BOOTStr type to exist; this has to
@@ -278,5 +299,9 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
     
-    /* XXX Give BOOTStr, BOOTArray, BOOTHash and BOOTCode meta-objects... */
+    /* Give BOOTStr, BOOTArray, BOOTHash and BOOTCode meta-objects. */
+    add_meta_object(tc, tc->instance->boot_types->BOOTStr, "BOOTStr");
+    add_meta_object(tc, tc->instance->boot_types->BOOTArray, "BOOTArray");
+    add_meta_object(tc, tc->instance->boot_types->BOOTHash, "BOOTHash");
+    add_meta_object(tc, tc->instance->boot_types->BOOTCCode, "BOOTCCode");
 }
