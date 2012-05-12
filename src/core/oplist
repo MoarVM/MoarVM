@@ -1,0 +1,40 @@
+BANK 0 primitives
+0x00    no_op
+0x01    goto        ins
+0x02    if_i        r(int64) ins
+0x03    unless_i    r(int64) ins
+0x04    if_n        r(num64) ins
+0x05    unless_n    r(num64) ins
+0x06    if_s        r(str) ins
+0x07    unless_s    r(str) ins
+0x08    if_s0       r(str) ins
+0x09    unless_s0   r(str) ins
+0x0A    if_o        r(obj) ins
+0x0B    unless_o    r(obj) ins
+0x0C    set         r(`1) r(`1)
+0x0D    extend_u8   w(int64) r(int8)
+0x0E    extend_u16  w(int64) r(int16)
+0x0F    extend_u32  w(int64) r(int32)
+0x10    extend_i8   w(int64) r(int8)
+0x11    extend_i16  w(int64) r(int16)
+0x12    extend_i32  w(int64) r(int32)
+0x13    trunc_u8    w(int8) r(int64)
+0x14    trunc_u16   w(int16) r(int64)
+0x15    trunc_u32   w(int32) r(int64)
+0x16    trunc_i8    w(int8) r(int64)
+0x17    trunc_i16   w(int16) r(int64)
+0x18    trunc_i32   w(int32) r(int64)
+0x19    extend_n32  w(num64) r(num32)
+0x1A    trunc_n32   w(num32) r(num64)
+0x1B    get_lex     w(`1) rl(`l)
+0x1C    bind_lex    wl(`1) r(`l)
+0x1D    get_lex_lo  w(`1) lo rl(`l)
+0x1E    bind_lex_lo wl(`1) lo r(`l)
+0x1F    get_lex_ni  w(int64) str
+0x20    get_lex_nn  w(num64) str
+0x21    get_lex_ns  w(str) str
+0x22    get_lex_no  w(obj) str
+0x23    bind_lex_ni str r(int64)
+0x24    bind_lex_nn str r(num64)
+0x25    bind_lex_ns str r(str)
+0x26    bind_lex_no str r(obj)
