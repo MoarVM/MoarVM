@@ -13,6 +13,7 @@
 #include "core/args.h"
 #include "core/exceptions.h"
 #include "core/interp.h"
+#include "core/frame.h"
 #include "core/ops.h"
 #include "6model/reprs.h"
 #include "6model/bootstrap.h"
