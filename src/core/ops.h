@@ -125,7 +125,7 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         MVM_OP_set,
         "set",
         2,
-        { MVM_operand_read_reg | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
+        { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
     },
     {
         MVM_OP_extend_u8,

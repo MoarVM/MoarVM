@@ -11,7 +11,7 @@ BANK 0 primitives
 0x09    unless_s0   r(str) ins
 0x0A    if_o        r(obj) ins
 0x0B    unless_o    r(obj) ins
-0x0C    set         r(`1) r(`1)
+0x0C    set         w(`1) r(`1)
 0x0D    extend_u8   w(int64) r(int8)
 0x0E    extend_u16  w(int64) r(int16)
 0x0F    extend_u32  w(int64) r(int32)
