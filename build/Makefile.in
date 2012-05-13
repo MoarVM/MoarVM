@@ -19,7 +19,7 @@ APR_BUILD_LINE = @apr_build_line@
 
 # Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
-CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/threadcontext$(O) \
+CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/gc/allocation$(O) src/gc/roots$(O) src/gc/wb$(O) \
             src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
@@ -28,8 +28,8 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/threadcontext$(O)
             src/6model/bootstrap$(O) src/strings/ascii$(O) src/strings/ops$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
-            src/core/args.h src/core/exceptions.h src/core/ops.h src/gc/allocation.h \
-            src/gc/nursery.h src/gc/roots.h src/gc/wb.h \
+            src/core/args.h src/core/exceptions.h src/core/interp.h src/core/ops.h \
+            src/gc/allocation.h src/gc/nursery.h src/gc/roots.h src/gc/wb.h \
             src/6model/reprs.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
             src/6model/reprs/KnowHOWREPR.h src/6model/reprs/P6opaque.h src/strings/ascii.h src/strings/ops.h
@@ -47,6 +47,8 @@ src/core/args$(O): src/core/args.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/args$(O) src/core/args.c
 src/core/exceptions$(O): src/core/exceptions.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/exceptions$(O) src/core/exceptions.c
+src/core/interp$(O): src/core/interp.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/interp$(O) src/core/interp.c
 src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/threadcontext$(O) src/core/threadcontext.c
 src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)

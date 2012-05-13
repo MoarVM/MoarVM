@@ -20,6 +20,17 @@ typedef struct _MVMThreadContext {
     /* Execution interupt flag. */
     MVMInteruptType interupt;
     
+    /* Pointer to where the interpreter's current opcode is held. */
+    MVMuint8 **interp_cur_op;
+    
+    /* Pointer to where the interpreter's base of the current register
+     * set is stored. */
+    union _MVM_Register **interp_reg_base;
+    
+    /* Pointer to where the interpreter's base of the current pre-deref'd
+     * SC object pointer is stored. */
+    struct _MVMObject **interp_sc_deref_base;
+    
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
     
