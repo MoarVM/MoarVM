@@ -1,9 +1,9 @@
 # MoarVM AST nodes
-# ================
-# The set of nodes that may appear in a MAST (MoarVM AST) tree.
-# This is the low level AST for the VM; we persist this tree in
-# an encoded binary form, and it is used to interpret, JIT from
-# and so forth.
+# This file contains a set of nodes that are compiled into MoarVM
+# bytecode. These nodes constitute the official high-level interface
+# to the VM. At some point, the bytecode itself will be declared
+# official also. Note that no text-based mapping to/from these nodes
+# will ever be official, however.
 
 # The base class for all nodes.
 class MAST::Node {
@@ -11,7 +11,9 @@ class MAST::Node {
 
 # Everything lives within a compilation unit. Note that this may
 # or may not map to a HLL notion of compilation unit; it is always
-# a set of things that we're going to compile "in one go".
+# a set of things that we're going to compile "in one go". The
+# input to the AST to bytecode convertor should always be one of
+# these.
 class MAST::CompUnit is MAST::Node {
     # Array of REPR types we depend on, with the ID of each
     # one being the array index.
@@ -47,6 +49,9 @@ class MAST::Frame is MAST::Node {
     # they do not get a name.
     has @!local_types;
     
+    # The instructions for this frame.
+    has @!instructions;
+    
     method add_lexical($type, $name) {
         my $index := +@!lexical_types;
         @!lexical_types[$index] := $type;
@@ -67,33 +72,13 @@ class MAST::Frame is MAST::Node {
     }
 }
 
-# A sequence of instructions. Evaluates to the result of the last
-# statement.
-class MAST::Stmts is MAST::Node {
-    has @!stmts;
-}
-
 # An operation to be executed. Includes the operation code and the
-# argument count.
+# operation bank it comes from. The operands must be either registers,
+# literals or labels (depending on what the instruction needs).
 class MAST::Op is MAST::Node {
-    has $!op;
+    has int $!bank;
+    has int $!op;
     has @!operands;
-}
-
-# A call. The first child is the thing that is to be called, and the
-# rest represent the arguments.
-class MAST::Call is MAST::Node {
-    has $!lookup;
-    has @!arg_flags;
-    has @!args;
-}
-
-# A method call. The arguments will be computed, and the first used
-# as the object to make the call on. The name is 
-class MAST::CallMethod is MAST::Node {
-    has $!name;
-    has @!arg_flags;
-    has @!args;
 }
 
 # Literal values.
@@ -119,32 +104,32 @@ class MAST::NumLit is MAST::Node {
     has int $!size;
 }
 
-# Executes the condition code. If it's true, runs the "then" code if any.
-# If it's false, runs the "else" code if any. Note that this can serve
-# as both an "if", an "unless" and an "if/else", since either or both of
-# the "then" and "else" can be provided.
-class MAST::If is MAST::Node {
-    has $!condition;
-    has $!then;
-    has $!else;
+# Labels (used directly in the instruction stream indicates where the
+# label goes; can also be used as an instruction operand).
+class MAST::Label is MAST::Node {
+    has str $!name;
 }
 
-# Represents a while loop. Keeps executing while the condition is true,
-# or if "negate" is set while the condition is false. If the "postcheck"
-# flag is set then the body is always done once and the check comes at
-# the end.
-class MAST::While is MAST::Node {
-    has $!condition;
-    has $!body;
-    has int $!negate;
-    has int $!postcheck;
+# A local lookup.
+class MAST::Local is MAST::Node {
+    has int $!index;
 }
 
-# Represents a jump table.
-class MAST::JumpTable is MAST::Node {
-    # The instructions to execute in order to get the place to jump to.
-    has $!index_source;
-    
-    # Mapping of indexes to the thing to do for each index.
-    has %!index_to_ops;
+# A lexical lookup.
+class MAST::Lexical is MAST::Node {
+    has int $!index;
+    has int $!frames_out;
+}
+
+# A call. The first child is the thing that is to be called, and the
+# rest represent the arguments.
+class MAST::Call is MAST::Node {
+    has $!callsite
+}
+
+# A method call. The arguments will be computed, the first used
+# as the object to make the call on, the second used to get the
+# name of the method.
+class MAST::CallMethod is MAST::Node {
+    has $!callsite;
 }
