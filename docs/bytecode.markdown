@@ -6,28 +6,121 @@ describes the way the executable segment of things look. (In a sense, this
 is the low-level reification of the Actions/World distinction at the level
 of the compiler).
 
-## Header
+## Endianness
+All integer values are stored in little endian format.
 
+## Floats
+Floating point numbers are represented according to IEEE 754.
+
+## Header
+The header appears at the start of the MoarVM bytecode file, and indicates
+what it contains.
+
+    +---------------------------------------------------------+
+    | "MOARVM\r\n"                                            |
+    |    8-byte magic string; includes \r\n to catch mangling |
+    |    of line endings                                      |
+    +---------------------------------------------------------+
+    | Version                                                 |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the SC dependencies      |
+    | table                                                   |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of entries in the SC dependencies table          |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the referenced objects   |
+    | table                                                   |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of entries in the referenced objects table       |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the frames data segment  |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of frames we should end up finding in the frames |
+    | data segment                                            |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the callsites data       |
+    | segment                                                 |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of callsites we should end up finding in the     |
+    | callsites data segment                                  |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the strings heap         |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of entries in the strings heap                   |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the SC data segment      |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Length of the SC data segment                           |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the bytecode segment     |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Length of the bytecode segment                          |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+
+## SC Dependencies Table
+This table describes the SCs that the bytecode in this file references
+objects from. The index in this table will be used in the referenced
+objects table; this table just contains information on how to locate the
+SCs.
+
+    +---------------------------------------------------------+
+    | Index into the string heap of the SC unique ID          |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
 ## Referenced Objects Table
 This table describes the objects from serialization contexts that are
 referenced throughout the bytecode in the compilation unit specified by
 this chunk. These will all be dereferenced at the point of loading the
 bytecode, so every referenced object will just be a pointer + offset
-away.
+away. The index in this table is used in the bytecode stream to refer
+to the object.
 
+    +---------------------------------------------------------+
+    | Index into the SC dependencies table, stating which SC  |
+    | the object comes from                                   |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Index of the object in the referenced SC                |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
-## Blocks Table
-The blocks table describes all of the blocks in the compilation unit. It
-points into the block static data segment, which contains descriptions of
-the locals and lexicals that the block has. It also points into the block
-code data segment, which contains the bytecode we will execute. This at
-first slightly curious arrangement is mostly for the sake of demand paging
-and CPU cache efficiency; once we processed the static data, it's not very
-interesting at runtime, so there's no real reason for it to stay in memory,
-let alone be cached by the CPU. The actual bytecode itself, on the other
-hand, is (at least until JIT happens) of interest for execution.
+## Frames Data
+The frames data segment contains data that describes all of the frames in
+the compilation unit. It also points into the bytecode segment, which contains
+the bytecode we will execute for this frame. This is stored elsewhere at least
+partly for the sake of demand paging and CPU cache efficiency; once we
+processed the static data, it's not very interesting at runtime, so there's no
+real reason for it to stay in memory, let alone be cached by the CPU. The
+actual bytecode itself, on the other hand, is (at least until JIT happens) of
+interest for execution.
 
+Each block has the following data.
+
+    +---------------------------------------------------------+
+    | Bytecode segment offset                                 |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Bytecode length in bytes                                |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+
+XXX Much more to do here.
 
 ## Callsites Data
 This data blob contains all of the callsite descriptors that are used in
@@ -35,11 +128,9 @@ the compilation unit. At the point of loading the bytecode, they will
 be set up, and a table pointing to them created. This means that a
 callsite descriptor will always be a pointer + offset away.
 
+XXX TODO
 
-## Block Static Data
-
-
-## Block Code Data
+## Bytecode segment
 This consists of a sequence of instructions. Instruction codes are always
 16 bits in length. The first 8 bits describe an instruction "bank", and the
 following 8 bits identify the instruction within that bank. Instruction banks
@@ -64,6 +155,8 @@ have the needed operands described by the following set of descriptors.
     sci     Serialization Context object table index, 16 bits unsigned
     csi     Callsite table index, 16 bits unsigned
     ins     Instruction offset (for goto), 16 bits signed
+
+Note that this ensures we always keep at least 16-bit alignment for ops.
 
 Some instructions place demands on the type of value in the register.
 This is perhaps most noticable when it comes to integers of different
