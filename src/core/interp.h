@@ -9,7 +9,7 @@
     }
 
 /* Different views of a register. */
-typedef union _MVM_Register {
+typedef union _MVMRegister {
     MVMObject         *o;
     struct _MVMString *s;
     MVMint8            i8;
@@ -22,4 +22,4 @@ typedef union _MVM_Register {
     MVMuint64          ui64;
     MVMnum32           n32;
     MVMnum64           n64;
-} MVM_Register;
+} MVMRegister;

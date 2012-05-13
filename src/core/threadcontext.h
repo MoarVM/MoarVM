@@ -25,7 +25,7 @@ typedef struct _MVMThreadContext {
     
     /* Pointer to where the interpreter's base of the current register
      * set is stored. */
-    union _MVM_Register **interp_reg_base;
+    union _MVMRegister **interp_reg_base;
     
     /* Pointer to where the interpreter's base of the current pre-deref'd
      * SC object pointer is stored. */

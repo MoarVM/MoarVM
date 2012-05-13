@@ -7,7 +7,7 @@ void MVM_interp_run(MVMThreadContext *tc) {
     
     /* Points to the base of the current register set for the frame we
      * are presently in. */
-    MVM_Register *reg_base; /* XXX set... */
+    MVMRegister *reg_base; /* XXX set... */
     
     /* Points to the base of the current pre-deref'd SC object set for the
      * compilation unit we're running in. */
