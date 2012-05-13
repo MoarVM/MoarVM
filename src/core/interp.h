@@ -24,5 +24,11 @@ typedef union _MVMRegister {
     MVMnum64           n64;
 } MVMRegister;
 
+/* Information about an opcode. */
+typedef struct _MVMOpInfo {
+    MVMuint8    opcode;
+    const char *name;
+} MVMOpInfo;
+
 /* Functions. */
 void MVM_interp_run(MVMThreadContext *tc, struct _MVMFrame *initial_frame);

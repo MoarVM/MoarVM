@@ -22,6 +22,7 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("");
     $hf.say(bank_defines(@banks));
     $hf.say(opcode_defines(@banks));
+    $hf.say(opcode_details(@banks));
     $hf.close;
 }
 
@@ -67,6 +68,22 @@ sub opcode_defines(@banks) {
                 take "#define MVM_OP_$op.name() $op.code()";
             }
             take "";
+        }
+    }
+}
+
+# Creates the static array of opcode info.
+sub opcode_details(@banks) {
+    join "\n", gather {
+        for @banks -> $b {
+            take "static MVMOpInfo MVM_op_info_{$b.name()}[] = \{";
+            for $b.ops -> $op {
+                take "    \{";
+                take "        MVM_OP_$op.name(),";
+                take "        \"$op.name()\"";
+                take "    },"
+            }
+            take "};";
         }
     }
 }
