@@ -26,10 +26,10 @@ BANK 0 primitives
 0x18    trunc_i32   w(int32) r(int64)
 0x19    extend_n32  w(num64) r(num32)
 0x1A    trunc_n32   w(num32) r(num64)
-0x1B    get_lex     w(`1) rl(`l)
-0x1C    bind_lex    wl(`1) r(`l)
-0x1D    get_lex_lo  w(`1) lo rl(`l)
-0x1E    bind_lex_lo wl(`1) lo r(`l)
+0x1B    get_lex     w(`1) rl(`1)
+0x1C    bind_lex    wl(`1) r(`1)
+0x1D    get_lex_lo  w(`1) lo rl(`1)
+0x1E    bind_lex_lo wl(`1) lo r(`1)
 0x1F    get_lex_ni  w(int64) str
 0x20    get_lex_nn  w(num64) str
 0x21    get_lex_ns  w(str) str
@@ -42,4 +42,4 @@ BANK 0 primitives
 0x28    return_n    r(num64)
 0x29    return_s    r(str)
 0x2A    return_o    r(obj)
-0x2B    return      
+0x2B    return
