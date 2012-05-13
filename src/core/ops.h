@@ -43,4 +43,9 @@
 #define MVM_OP_bind_lex_nn 36
 #define MVM_OP_bind_lex_ns 37
 #define MVM_OP_bind_lex_no 38
+#define MVM_OP_return_i 39
+#define MVM_OP_return_n 40
+#define MVM_OP_return_s 41
+#define MVM_OP_return_o 42
+#define MVM_OP_return 43
 

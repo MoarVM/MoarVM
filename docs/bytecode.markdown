@@ -117,5 +117,10 @@ Bank 0 is for control flow and primitive operations.
     0x24    bind_lex_nn str, r(num64)           bind number lexical by name
     0x25    bind_lex_ns str, r(str)             bind string lexical by name
     0x26    bind_lex_no str, r(obj)             bind object lexical by name
+    0x27    return_i    r(int64)                return an integer
+    0x28    return_n    r(num64)                return a number
+    0x29    return_s    r(str)                  return a string
+    0x2A    return_o    r(obj)                  return an object
+    0x2B    return                              return (presumably to void context)
 
 Bank 1 is for 6model related operations.
