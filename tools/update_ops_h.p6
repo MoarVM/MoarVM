@@ -4,7 +4,7 @@
 class Op {
     has $.code;
     has $.name;
-    has @.args;
+    has @.operands;
 }
 class Bank {
     has $.name;
@@ -37,11 +37,11 @@ sub parse_ops($file) {
         }
         elsif $line !~~ /^\s*$/ {
             die "Op declaration before bank declaration" unless @banks[$cur_bank];
-            my ($code, $name, @args) = $line.split(/\s+/);
+            my ($code, $name, @operands) = $line.split(/\s+/);
             @banks[$cur_bank].ops.push(Op.new(
-                code => :16($code.substr(2)),
-                name => $name,
-                args => @args
+                code     => :16($code.substr(2)),
+                name     => $name,
+                operands => @operands
             ));
         }
     }
@@ -80,10 +80,55 @@ sub opcode_details(@banks) {
             for $b.ops -> $op {
                 take "    \{";
                 take "        MVM_OP_$op.name(),";
-                take "        \"$op.name()\"";
+                take "        \"$op.name()\",";
+                take "        $op.operands.elems(),";
+                if $op.operands {
+                    take "        \{ $op.operands.map(&operand_flags).join(', ') }";
+                }
                 take "    },"
             }
             take "};";
         }
+    }
+}
+
+# Figures out the various flags for an operand type.
+grammar OperandFlag {
+    token TOP {
+        | <rw> '(' [ <type> | <type_var> ] ')'
+        | <type>
+        | <special>
+    }
+    token rw       { < rl wl r w > }
+    token type     { < int8 int16 int32 int64 num32 num64 str obj > }
+    token type_var { '`1' }
+    token special  { < ins lo > }
+}
+my %rwflags = (
+    r  => 'MVM_operand_read_reg',
+    w  => 'MVM_operand_write_reg',
+    rl => 'MVM_operand_read_lex',
+    wl => 'MVM_operand_write_lex'
+);
+sub operand_flags($operand) {
+    if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+        if $rw {
+            %rwflags{$rw} ~ ' | ' ~ ($type ?? "MVM_operand_$type" !! 'MVM_operand_type_var')
+        }
+        elsif $type {
+            "MVM_operand_$type"
+        }
+        elsif $special eq 'ins' {
+            'MVM_operand_ins'
+        }
+        elsif $special eq 'lo' {
+            'MVM_operand_lex_outer'
+        }
+        else {
+            die "Failed to process operand '$operand'";
+        }
+    }
+    else {
+        die "Cannot parse operand '$operand'";
     }
 }
