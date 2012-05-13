@@ -23,3 +23,6 @@ typedef union _MVMRegister {
     MVMnum32           n32;
     MVMnum64           n64;
 } MVMRegister;
+
+/* Functions. */
+void MVM_interp_run(MVMThreadContext *tc, struct _MVMFrame *initial_frame);

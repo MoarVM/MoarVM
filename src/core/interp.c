@@ -1,13 +1,13 @@
 #include "moarvm.h"
 
 /* This is the interpreter run loop. We have one of these per thread. */
-void MVM_interp_run(MVMThreadContext *tc) {
+void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
     /* Points to the current opcode. */
-    MVMuint8 *cur_op; /* XXX set... */
+    MVMuint8 *cur_op = initial_frame->static_info->bytecode;
     
     /* Points to the base of the current register set for the frame we
      * are presently in. */
-    MVMRegister *reg_base; /* XXX set... */
+    MVMRegister *reg_base = initial_frame->work;
     
     /* Points to the base of the current pre-deref'd SC object set for the
      * compilation unit we're running in. */

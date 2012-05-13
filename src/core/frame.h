@@ -28,5 +28,5 @@ typedef struct _MVMFrame {
 
     /* The static frame information. Holds all we statically know about
      * this kind of frame, including information needed to GC-trace it. */
-    MVMStaticFrame *static_frame;
+    MVMStaticFrame *static_info;
 } MVMFrame;
