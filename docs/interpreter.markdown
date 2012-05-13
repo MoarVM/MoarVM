@@ -1,1 +1,19 @@
-# MoarVM IntepreterJIT compilation takes time, and that is time wasted if we're only going to everrun a piece of code a single time. Thus, MoarVM can also interpret. While the ASTisn't so ideal for directly interpreting, it has to be walked in full at a framelevel before we interpret it anyway, for the purpose of validation. This processas a side-effect produces a set of interpretation hints, which are then used bythe interpreter for efficient execution. Note that by defualt validation of theAST is lazy - that is, it is performed upon the first execution. Thus this datais only calculated for code that actually gets run.## The interpretation lookasideThe interpretation lookaside table can store a 64-bit value per 16 bits ofthe binary AST. The use of this is polymorphic on the type of AST node thatis at this location. Indexes are relative to the start of the AST for theframe in question.### Calls and method callsWe get two lookaside slots here since these always "own" 32 bits. The firststores the pointer to the callsite data. The second stores the address in theAST where we're done generating args and looking up the thing to call (atwhich point we know to do the call).### String literalA pointer to the string in the string heap is stored in the lookaside slot.### Integer and float literalsThe literal value is stored provided it fits in the available space (so on 32bit platforms, a 64-bit float or 64-bit int won't be stored in the lookaside).### SC lookupsThe object is looked up and the pointer to it stored in the lookaside slot.### OpsPoint to the C function that will execute the op.## Thread SafetyIt's possible that two threads will try to validate the AST and install hintsat the same time. Thus an atomic op should be used to install the hint, makingsure that the hints pointer is still NULL. If not, we just throw away the workand use that done by the thread that beat us. The same thing should be computedall the time anyway.## JIT interactionOnce the code has been JIT-compiled, there's no use for the interpretationlookaside data any more. Thus it could be thrown away to save memory. Note thatsome of it will likely be useful to the JIT compiler and save it some work, soit won't throw it away until afterwards.
+# MoarVM Intepreter
+
+## Ops and Op Banks
+The interpreter first dispatches on op bank, then on the code within that.
+For the core and primitive operations, that is done through a switch that
+is inlined directly inside of the interpreter.
+
+The list of ops is held in src/core/oplist. This is processed by a the
+tools/update_pos_h.p6 tool to generate src/core/ops.h, which contains all
+of the metadata about the operations and operation banks.
+
+## Nested Runloops - Just Say No
+There is no notion of "nested runloop"; any call into C land that wants to
+call back into the interpreter must persist enough information to allow it
+to continue its work later. It does this by saving that info into a frame
+and specifying a callback to resume the work. In essence, it needs to be
+written out as a state machine. That state machine will be called back into
+when a C frame is returned to. This is not particularly fun. Nested runloops
+and continuation barrier issues are even less fun, though.
