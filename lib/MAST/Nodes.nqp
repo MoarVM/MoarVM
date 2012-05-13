@@ -29,6 +29,14 @@ class MAST::CompUnit is MAST::Node {
     # Has a set of static callsite descriptors, which describe the
     # types passed for a given call site.
     has @!callsites;
+    
+    method new() {
+        nqp::create(self)
+    }
+    
+    method add_frame($frame) {
+        @!frames[+@!frames] := $frame;
+    }
 }
 
 # Represents a frame, which is a unit of invocation. This captures the
@@ -52,6 +60,10 @@ class MAST::Frame is MAST::Node {
     # The instructions for this frame.
     has @!instructions;
     
+    method new() {
+        nqp::create(self)
+    }
+    
     method add_lexical($type, $name) {
         my $index := +@!lexical_types;
         @!lexical_types[$index] := $type;
@@ -70,6 +82,10 @@ class MAST::Frame is MAST::Node {
         @!local_types[$index] := $type;
         $index
     }
+    
+    method instructions() {
+        @!instructions
+    }
 }
 
 # An operation to be executed. Includes the operation code and the
@@ -79,12 +95,29 @@ class MAST::Op is MAST::Node {
     has int $!bank;
     has int $!op;
     has @!operands;
+    
+    method new(:$bank!, :$op!, *@operands) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::Op, '$!bank', $bank);
+        nqp::bindattr_i($obj, MAST::Op, '$!op', $op);
+        nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
+        $obj
+    }
+    
+    method bank() { $!bank }
+    method op() { $!op }
+    method operands() { @!operands }
 }
 
 # Literal values.
 class MAST::StrLit is MAST::Node {
-    # The string value.
     has str $!value;
+    
+    method new(:$value!) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_s($obj, MAST::Op, '$!value', $value);
+        $obj
+    }
 }
 class MAST::IntLit is MAST::Node {
     # The integer value.
@@ -95,6 +128,14 @@ class MAST::IntLit is MAST::Node {
     
     # Whether or not it's signed.
     has int $!signed;
+    
+    method new(:$value!, :$size = 64, :$signed = 1) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::Op, '$!value', $value);
+        nqp::bindattr_i($obj, MAST::Op, '$!size', $size);
+        nqp::bindattr_i($obj, MAST::Op, '$!signed', $signed);
+        $obj
+    }
 }
 class MAST::NumLit is MAST::Node {
     # The floating point value.
@@ -102,12 +143,27 @@ class MAST::NumLit is MAST::Node {
     
     # Size in bits (32, 64).
     has int $!size;
+    
+    method new(:$value!, :$size = 64) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_n($obj, MAST::Op, '$!value', $value);
+        nqp::bindattr_i($obj, MAST::Op, '$!size', $size);
+        $obj
+    }
 }
 
 # Labels (used directly in the instruction stream indicates where the
 # label goes; can also be used as an instruction operand).
 class MAST::Label is MAST::Node {
     has str $!name;
+    
+    method new(:$name!) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_s($obj, MAST::Op, '$!name', $name);
+        $obj
+    }
+    
+    method name() { $!name }
 }
 
 # A local lookup.
