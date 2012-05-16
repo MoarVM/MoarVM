@@ -61,7 +61,16 @@ class MAST::Frame is MAST::Node {
     has @!instructions;
     
     method new() {
-        nqp::create(self)
+        my $obj := nqp::create(self);
+        $obj.BUILD();
+        $obj
+    }
+    
+    method BUILD() {
+        @!lexical_types := nqp::list();
+        %!lexical_names := nqp::hash();
+        @!local_types   := nqp::list();
+        @!instructions  := nqp::list();
     }
     
     method add_lexical($type, $name) {
