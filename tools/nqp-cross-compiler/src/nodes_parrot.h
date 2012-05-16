@@ -72,12 +72,6 @@ typedef struct {
 
 /* XXX MAST::Call and MAST::CallMethod todo. */
 
-/* This means we can talk about MASTNode in the compiler, not PMC. */
-typedef PMC MASTNode;
-
-/* Way of talking about the interpreter. */
-#define VM PARROT_INTERP
-
 /* Node types structure. */
 typedef struct {
     PMC *CompUnit;
@@ -90,3 +84,19 @@ typedef struct {
     PMC *Local;
     PMC *Lexical;
 } MASTNodeTypes;
+
+/* This means we can talk about MASTNode in the compiler, not PMC. */
+typedef PMC MASTNode;
+
+/* Way of talking about the interpreter. */
+#define VM PARROT_INTERP
+#define vm interp
+
+/* Some macros for getting at and examining nodes data. */
+#define ISTYPE(VM, s, t)    (STABLE(s)->type_check(VM, s, t))
+#define DIE(vm, msg)        Parrot_ex_throw_from_c_args(interp, NULL, EXCEPTION_INVALID_OPERATION, msg)
+#define GET_CompUnit(n)     ((MAST_CompUnit *)PMC_data(n))
+#define GET_Frame(n)        ((MAST_Frame *)PMC_data(n))
+#define GET_Op(n)           ((MAST_Op *)PMC_data(n))
+#define ELEMS(vm, arr)      ((unsigned int )VTABLE_elements(vm, arr))
+#define ATPOS(vm, arr, i)   (VTABLE_get_pmc_keyed_int(vm, arr, i))
