@@ -74,7 +74,7 @@ $(DYNEXT_TARGET): $(DYNOPS)
 	$(CP) $(DYNOPS) $(DYNEXT_DIR)
 	$(CHMOD) 755 $(DYNEXT_DIR)/$(OPS)$(LOAD_EXT)
 
-$(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) $(DYNPMC)
+$(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) src/nodes_parrot.h ../../src/mast/compiler.c
 	cd $(OPS_DIR) && $(OPS2C) C --dynamic $(OPS_SOURCE)
 	cd $(OPS_DIR) && $(CC) -c @cc_o_out@$(OPS)$(O) $(CINCLUDES) $(CFLAGS) -I.. $(OPS).c
 	cd src && $(CC) -c @cc_o_out@compiler$(O) $(CINCLUDES) $(CFLAGS) -I. -DPARROT_OPS_BUILD ../../../src/mast/compiler.c
