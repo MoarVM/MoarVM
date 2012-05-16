@@ -1,0 +1,10 @@
+dynext/*.dll
+dynext/*.so
+src/ops/*.c
+src/ops/*.h
+src/ops/*.obj
+src/ops/*.o
+src/ops/*.exp
+src/ops/*.lib
+src/ops/*.dll
+config.status

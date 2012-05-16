@@ -1,0 +1,96 @@
+# Copyright (C) 2006-2012, The Perl Foundation.
+# (Copy/paste/hack from NQP itself...)
+# $Id$
+
+PARROT_ARGS      =
+
+# values from parrot_config
+PARROT_BIN_DIR     = @bindir@
+PARROT_LIB_SHARED  = @libparrot_shared@
+PARROT_VERSION     = @versiondir@
+PARROT_INCLUDE_DIR = @includedir@$(PARROT_VERSION)
+PARROT_LIB_DIR     = @libdir@$(PARROT_VERSION)
+PARROT_SRC_DIR     = @srcdir@$(PARROT_VERSION)
+PARROT_LIBRARY_DIR = $(PARROT_LIB_DIR)/library
+NQP_LANG_DIR       = $(PARROT_LIB_DIR)/languages/nqp
+HAS_ICU            = @has_icu@
+
+CC            = @cc@
+CFLAGS        = @ccflags@ @cc_shared@ @cc_debug@ @ccwarn@ @gc_flag@
+EXE           = @exe@
+LD            = @ld@
+LDFLAGS       = @ldflags@ @ld_debug@
+LD_LOAD_FLAGS = @ld_load_flags@
+LIBPARROT     = @inst_libparrot_ldflags@
+O             = @o@
+A             = @a@
+LOAD_EXT      = @load_ext@
+PERL          = @perl@
+CP            = @cp@
+MV            = @mv@
+RM_F          = @rm_f@
+MKPATH        = $(PERL) -MExtUtils::Command -e mkpath
+CHMOD         = $(PERL) -MExtUtils::Command -e chmod
+
+# locations of parrot resources
+PARROT            = $(PARROT_BIN_DIR)/parrot$(EXE)
+PARROT_DLL        = @dll@
+PARROT_DLL_COPY   = @dllcopy@
+PARROT_NQP        = $(PARROT_BIN_DIR)/parrot_nqp$(EXE)
+PBC_TO_EXE        = $(PARROT_BIN_DIR)/pbc_to_exe$(EXE)
+PARROT_TOOLS_DIR  = $(PARROT_LIB_DIR)/tools
+PARROT_PERL_LIB   = $(PARROT_TOOLS_DIR)/lib
+OPS2C             = $(PARROT_BIN_DIR)/ops2c$(EXE)
+PMC2C             = $(PERL) $(PARROT_TOOLS_DIR)/build/pmc2c.pl
+PMC2C_INCLUDES    = --include src/pmc --include $(PARROT_SRC_DIR) --include $(PARROT_SRC_DIR)/pmc
+CINCLUDES         = -I$(PARROT_INCLUDE_DIR) -I$(PARROT_INCLUDE_DIR)/pmc
+LINKARGS          = $(LDFLAGS) $(LD_LOAD_FLAGS) $(LIBPARROT) @libs@ @icu_shared@
+
+# output directories
+DYNEXT_DIR       = dynext
+OPS_DIR          = src/ops
+
+OPS             = mvmcc_ops
+DYNEXT_TARGET   = $(DYNEXT_DIR)/$(GROUP)$(LOAD_EXT)
+DYNOPS          = $(OPS_DIR)/$(OPS)$(LOAD_EXT)
+
+OPS_SOURCE      = mvmcc.ops
+
+CLEANUPS = \
+  *.manifest \
+  *.pdb \
+  $(PARROT_DLL_COPY) \
+  $(OPS_DIR)/*.h \
+  $(OPS_DIR)/*.c \
+  $(OPS_DIR)/*$(O) \
+  $(OPS_DIR)/*$(LOAD_EXT) \
+  $(DYNEXT_DIR)/*$(LOAD_EXT) \
+
+all: $(DYNEXT_TARGET)
+
+@make_dllcopy@
+
+$(DYNEXT_TARGET): $(DYNOPS)
+	$(CP) $(DYNOPS) $(DYNEXT_DIR)
+	$(CHMOD) 755 $(DYNEXT_DIR)/$(OPS)$(LOAD_EXT)
+
+$(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) $(DYNPMC)
+	cd $(OPS_DIR) && $(OPS2C) C --dynamic $(OPS_SOURCE)
+	cd $(OPS_DIR) && $(CC) -c @cc_o_out@$(OPS)$(O) $(CINCLUDES) $(CFLAGS) -I.. $(OPS).c
+	cd src && $(CC) -c @cc_o_out@compiler$(O) $(CINCLUDES) $(CFLAGS) -I. -DPARROT_OPS_BUILD ../../../src/mast/compiler.c
+	cd $(OPS_DIR) && $(LD) @ld_out@$(OPS)$(LOAD_EXT) $(OPS)$(O) ../compiler$(O) $(LINKARGS)
+
+## cleaning
+
+clean:
+	$(RM_F) $(CLEANUPS)
+
+distclean: realclean
+
+realclean: clean
+	$(RM_F) Makefile
+
+testclean:
+
+# nqp::makefile <-- tells Configure.pm to convert / to \ in the above
+#                   template for Win32 systems

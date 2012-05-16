@@ -1,0 +1,21 @@
+BEGIN_OPS_PREAMBLE
+
+#include "parrot/parrot.h"
+#include "parrot/extend.h"
+#include "parrot/dynext.h"
+#include "nodes_parrot.h"
+
+END_OPS_PREAMBLE
+
+/*
+
+=item mvm_compiler_setup()
+
+Does various setup tasks for the benefit of the other dynops.
+
+=cut
+
+*/
+inline op mvm_compiler_setup() :base_core {
+    printf("Hello world\n");
+}
