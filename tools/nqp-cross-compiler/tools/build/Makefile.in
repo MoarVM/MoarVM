@@ -66,7 +66,7 @@ CLEANUPS = \
   $(OPS_DIR)/*$(LOAD_EXT) \
   $(DYNEXT_DIR)/*$(LOAD_EXT) \
 
-all: $(DYNEXT_TARGET)
+all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc
 
 @make_dllcopy@
 
@@ -79,6 +79,18 @@ $(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) src/nodes_parrot.h ../../
 	cd $(OPS_DIR) && $(CC) -c @cc_o_out@$(OPS)$(O) $(CINCLUDES) $(CFLAGS) -I.. $(OPS).c
 	cd src && $(CC) -c @cc_o_out@compiler$(O) $(CINCLUDES) $(CFLAGS) -I. -DPARROT_OPS_BUILD ../../../src/mast/compiler.c
 	cd $(OPS_DIR) && $(LD) @ld_out@$(OPS)$(LOAD_EXT) $(OPS)$(O) ../compiler$(O) $(LINKARGS)
+
+MASTNodes.pbc: ../../lib/MAST/Nodes.nqp
+	nqp --target=pir ../../lib/MAST/Nodes.nqp > MASTNodes.pir
+	parrot --output=MASTNodes.pbc MASTNodes.pir
+
+MASTOps.pbc: ../../lib/MAST/Ops.nqp
+	nqp --target=pir ../../lib/MAST/Ops.nqp > MASTOps.pir
+	parrot --output=MASTOps.pbc MASTOps.pir
+
+MASTCompiler.pbc: src/MASTCompiler.nqp MASTNodes.pbc MASTOps.pbc
+	nqp --vmlibs=mvmcc_ops --target=pir src/MASTCompiler.nqp > MASTCompiler.pir
+	parrot --output=MASTCompiler.pbc MASTCompiler.pir
 
 ## cleaning
 

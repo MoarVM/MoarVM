@@ -8,3 +8,5 @@ src/ops/*.exp
 src/ops/*.lib
 src/ops/*.dll
 config.status
+*.pir
+*.pbc
