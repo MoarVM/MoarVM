@@ -5,17 +5,32 @@ BEGIN_OPS_PREAMBLE
 #include "parrot/dynext.h"
 #include "nodes_parrot.h"
 
+/* Prototype for compiler. */
+char * MVM_mast_compile(MASTNode *node, MASTNodeTypes *types);
+
+/* Node types we're set up with. Not the best design, but hey, this code is
+ * throwaway. */
+static MASTNodeTypes node_types;
+
 END_OPS_PREAMBLE
 
 /*
 
 =item mvm_compiler_setup()
 
-Does various setup tasks for the benefit of the other dynops.
+Initializes the compiler with the types it will work on.
 
 =cut
 
 */
-inline op mvm_compiler_setup() :base_core {
-    printf("Hello world\n");
+inline op mvm_compiler_setup(in PMC, in PMC, in PMC, in PMC, in PMC, in PMC, in PMC, in PMC, in PMC) :base_core {
+    node_types.CompUnit = $1;
+    node_types.Frame    = $2;
+    node_types.Op       = $3;
+    node_types.StrLit   = $4;
+    node_types.IntLit   = $5;
+    node_types.NumLit   = $6;
+    node_types.Label    = $7;
+    node_types.Local    = $8;
+    node_types.Lexical  = $9;
 }

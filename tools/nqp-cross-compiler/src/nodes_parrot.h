@@ -71,3 +71,19 @@ typedef struct {
 } MAST_Lexical;
 
 /* XXX MAST::Call and MAST::CallMethod todo. */
+
+/* This means we can talk about MASTNode in the compiler, not PMC. */
+typedef PMC MASTNode;
+
+/* Node types structure. */
+typedef struct {
+    PMC *CompUnit;
+    PMC *Frame;
+    PMC *Op;
+    PMC *StrLit;
+    PMC *IntLit;
+    PMC *NumLit;
+    PMC *Label;
+    PMC *Local;
+    PMC *Lexical;
+} MASTNodeTypes;

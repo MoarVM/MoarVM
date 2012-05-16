@@ -8,5 +8,6 @@
 #include "moarvm.h"
 #endif
 
-void MVM_mast_compile() {
+char * MVM_mast_compile(MASTNode *node, MASTNodeTypes *types) {
+    return NULL;
 }
