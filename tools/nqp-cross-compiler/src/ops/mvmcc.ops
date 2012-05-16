@@ -6,7 +6,7 @@ BEGIN_OPS_PREAMBLE
 #include "nodes_parrot.h"
 
 /* Prototype for compiler. */
-char * MVM_mast_compile(MASTNode *node, MASTNodeTypes *types);
+char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *size);
 
 /* Node types we're set up with. Not the best design, but hey, this code is
  * throwaway. */
@@ -33,4 +33,21 @@ inline op mvm_compiler_setup(invar PMC, invar PMC, invar PMC, invar PMC, invar P
     node_types.Label    = $7;
     node_types.Local    = $8;
     node_types.Lexical  = $9;
+}
+
+/*
+
+=item mvm_compiler_setup()
+
+Calls the MoarVM MAST to bytecode compiler.
+
+=cut
+
+*/
+inline op mvm_compile(invar PMC, in STR) :base_core {
+    unsigned int output_size;
+    char *output = MVM_mast_compile(interp, $1, &node_types, &output_size);
+    FILE *fh = fopen(Parrot_str_cstring(interp, $2), "w+");
+    fwrite(output, 1, output_size, fh);
+    fclose(fh);
 }

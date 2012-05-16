@@ -75,6 +75,9 @@ typedef struct {
 /* This means we can talk about MASTNode in the compiler, not PMC. */
 typedef PMC MASTNode;
 
+/* Way of talking about the interpreter. */
+#define VM PARROT_INTERP
+
 /* Node types structure. */
 typedef struct {
     PMC *CompUnit;

@@ -13,6 +13,6 @@ class MAST::Compiler {
             MAST::Label,
             MAST::Local,
             MAST::Lexical);
-        say("NYI");
+        pir::mvm_compile__vPs($node, $target_file);
     }
 }
