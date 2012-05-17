@@ -18,6 +18,7 @@
 #include "core/interp.h"
 #include "core/frame.h"
 #include "core/compunit.h"
+#include "core/bytecode.h"
 #include "core/ops.h"
 #include "6model/reprs.h"
 #include "6model/bootstrap.h"

@@ -7,8 +7,8 @@ typedef struct _MVMCompUnit {
     apr_pool_t *pool;
     
     /* The start and size of the raw data for this compilation unit. */
-    char   *data_start;
-    size_t  data_size;
+    MVMuint8  *data_start;
+    MVMuint32  data_size;
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);

@@ -32,11 +32,11 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     cu = malloc(sizeof(MVMCompUnit));
     memset(cu, 0, sizeof(MVMCompUnit));
     cu->pool       = pool;
-    cu->data_start = (char *)mmap_handle->mm;
-    cu->data_size  = mmap_handle->size;
+    cu->data_start = (MVMuint8 *)mmap_handle->mm;
+    cu->data_size  = (MVMuint32)mmap_handle->size;
     
     /* Process the input. */
-    /* XXX */
+    MVM_bytecode_unpack(tc, cu);
     
     return cu;
 }
