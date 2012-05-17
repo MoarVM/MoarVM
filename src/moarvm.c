@@ -35,8 +35,14 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     MVMThreadContext *tc = instance->threads[0];
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
     
-    /* Run the code (first frame taken as entry point). */
-    printf("Will run %s\n", filename);
+    /* Run the code.
+     * XXX This whole frame creation will need factoring out;
+     * this is just to get us able to run something.
+     */
+    MVMFrame *f = malloc(sizeof(MVMFrame));
+    f->tc = tc;
+    f->static_info = cu->frames[0];
+    MVM_interp_run(tc, f);
 }
 
 /* Destroys a VM instance. */

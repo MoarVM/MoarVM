@@ -91,4 +91,15 @@ static ReaderState * disect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Disect the bytecode into its parts. */
     ReaderState *rs = disect_bytecode(tc, cu);
+    
+    /* XXX Hack to get us running something at all. The whole stream is
+     * the first static frame. */
+    cu->frames = malloc(sizeof(MVMStaticFrame *));
+    cu->frames[0] = malloc(sizeof(MVMStaticFrame));
+    cu->frames[0]->bytecode = rs->bytecode_seg;
+    cu->frames[0]->bytecode_size = rs->bytecode_size;
+    cu->num_frames = 1;
+    
+    /* Clean up reader state. */
+    /* XXX */
 }

@@ -28,7 +28,10 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
             case MVM_OP_BANK_primitives: {
                 switch (*(cur_op++)) {
                     case MVM_OP_no_op:
+                        printf("no_op executed\n");
                         break;
+                    case MVM_OP_return:
+                        return;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
