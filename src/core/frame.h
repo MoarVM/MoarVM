@@ -3,8 +3,8 @@ typedef struct _MVMStaticFrame {
     /* The start of the stream of bytecode for this routine. */
     MVMuint8 *bytecode;
 
-    /* The length of the bytecode. */
-    MVMuint32 bytecode_length;
+    /* The size of the bytecode. */
+    MVMuint32 bytecode_size;
 } MVMStaticFrame;
 
 /* This represents an active call frame. */
