@@ -9,6 +9,10 @@ typedef struct _MVMCompUnit {
     /* The start and size of the raw data for this compilation unit. */
     MVMuint8  *data_start;
     MVMuint32  data_size;
+    
+    /* The various static frames in the compilation unit. */
+    MVMStaticFrame **frames;
+    MVMuint32        num_frames;
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);
