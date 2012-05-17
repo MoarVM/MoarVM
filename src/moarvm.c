@@ -29,6 +29,16 @@ MVMInstance * MVM_vm_create_instance(void) {
     return instance;
 }
 
+/* Loads bytecode from the specified file name and runs it. */
+void MVM_vm_run_file(MVMInstance *instance, char *filename) {
+    /* Map the compilation unit into memory and disect it. */
+    MVMThreadContext *tc = instance->threads[0];
+    MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
+    
+    /* Run the code (first frame taken as entry point). */
+    printf("Will run %s\n", filename);
+}
+
 /* Destroys a VM instance. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVMuint16 i;

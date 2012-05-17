@@ -1,10 +1,17 @@
 #include <stdio.h>
 #include <moarvm.h>
 
-int main() {
-    MVMInstance *instance = MVM_vm_create_instance();
-    printf("Created VM instance (but it does nothing)\n");
+int main(int argc, char *argv[]) {
+    MVMInstance *instance;
+    
+    if (argc != 2) {
+        fprintf(stderr, "Usage: moarvm bytecode-file.moarvm\n");
+        exit(1);
+    }
+    
+    instance = MVM_vm_create_instance();
+    MVM_vm_run_file(instance, argv[1]);
     MVM_vm_destroy_instance(instance);
-    printf("Cleared up OK\n");
+    
     return 0;
 }
