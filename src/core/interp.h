@@ -43,16 +43,26 @@ typedef struct _MVMOpInfo {
 #define MVM_operand_write_lex   4
 #define MVM_operand_rw_mask     7
 
+/* Register data types. */
+#define MVM_reg_int8            1
+#define MVM_reg_int16           2
+#define MVM_reg_int32           3
+#define MVM_reg_int64           4
+#define MVM_reg_num32           5
+#define MVM_reg_num64           6
+#define MVM_reg_str             7
+#define MVM_reg_obj             8
+
 /* Operand data types. */
-#define MVM_operand_ins         (1 << 3)
-#define MVM_operand_int8        (2 << 3)
-#define MVM_operand_int16       (3 << 3)
-#define MVM_operand_int32       (4 << 3)
-#define MVM_operand_int64       (5 << 3)
-#define MVM_operand_num32       (6 << 3)
-#define MVM_operand_num64       (7 << 3)
-#define MVM_operand_str         (8 << 3)
-#define MVM_operand_obj         (9 << 3)
+#define MVM_operand_int8        (MVM_reg_int8 << 3)
+#define MVM_operand_int16       (MVM_reg_int16 << 3)
+#define MVM_operand_int32       (MVM_reg_int32 << 3)
+#define MVM_operand_int64       (MVM_reg_int64 << 3)
+#define MVM_operand_num32       (MVM_reg_num32 << 3)
+#define MVM_operand_num64       (MVM_reg_num64 << 3)
+#define MVM_operand_str         (MVM_reg_str << 3)
+#define MVM_operand_obj         (MVM_reg_obj << 3)
+#define MVM_operand_ins         (9 << 3)
 #define MVM_operand_type_var    (10 << 3)
 #define MVM_operand_lex_outer   (11 << 3)
 #define MVM_operand_type_mask   (15 << 3)
