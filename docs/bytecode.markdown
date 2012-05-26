@@ -110,7 +110,7 @@ real reason for it to stay in memory, let alone be cached by the CPU. The
 actual bytecode itself, on the other hand, is (at least until JIT happens) of
 interest for execution.
 
-Each block has the following data.
+Each frame starts with the following data.
 
     +---------------------------------------------------------+
     | Bytecode segment offset                                 |
@@ -119,8 +119,29 @@ Each block has the following data.
     | Bytecode length in bytes                                |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | Number of locals/registers                              |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of lexicals                                      |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
-XXX Much more to do here.
+This is followed, for each local, by a number indicating what kind of
+local it is. These are stored as 16-bit unsigned integers.
+
+    int8        1
+    int16       2
+    int32       3
+    int64       4
+    num32       5
+    num64       6
+    str         7
+    obj         8
+
+Lexicals are similar, apart from each entry is preceded by a 32-bit unsigned
+index into the string heap, which gives the name of the lexical.
+
+[Conjectural: a future MoarVM may instead do these in terms of REPRs.]
 
 ## Callsites Data
 This data blob contains all of the callsite descriptors that are used in
