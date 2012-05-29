@@ -2,6 +2,7 @@
 
 /* Bank name defines. */
 #define MVM_OP_BANK_primitives 0
+#define MVM_OP_BANK_dev 1
 
 /* Op name defines for bank primitives. */
 #define MVM_OP_no_op 0
@@ -48,6 +49,25 @@
 #define MVM_OP_return_s 41
 #define MVM_OP_return_o 42
 #define MVM_OP_return 43
+#define MVM_OP_const_i8 44
+#define MVM_OP_const_i16 45
+#define MVM_OP_const_i32 46
+#define MVM_OP_const_i64 47
+#define MVM_OP_const_n32 48
+#define MVM_OP_const_n64 49
+#define MVM_OP_const_s 50
+#define MVM_OP_add_i 51
+#define MVM_OP_sub_i 52
+#define MVM_OP_mul_i 53
+#define MVM_OP_div_i 54
+#define MVM_OP_div_u 55
+#define MVM_OP_mod_i 56
+#define MVM_OP_mod_u 57
+#define MVM_OP_neg_i 58
+#define MVM_OP_abs_i 59
+
+/* Op name defines for bank dev. */
+#define MVM_OP_say_i 0
 
 static MVMOpInfo MVM_op_info_primitives[] = {
     {
@@ -311,5 +331,109 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         MVM_OP_return,
         "return",
         0,
+    },
+    {
+        MVM_OP_const_i8,
+        "const_i8",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int8, MVM_operand_int8 }
+    },
+    {
+        MVM_OP_const_i16,
+        "const_i16",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int16, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_const_i32,
+        "const_i32",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int32, MVM_operand_int32 }
+    },
+    {
+        MVM_OP_const_i64,
+        "const_i64",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_int64 }
+    },
+    {
+        MVM_OP_const_n32,
+        "const_n32",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num32, MVM_operand_num32 }
+    },
+    {
+        MVM_OP_const_n64,
+        "const_n64",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_num64 }
+    },
+    {
+        MVM_OP_const_s,
+        "const_s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_str }
+    },
+    {
+        MVM_OP_add_i,
+        "add_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_sub_i,
+        "sub_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_mul_i,
+        "mul_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_div_i,
+        "div_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_div_u,
+        "div_u",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_mod_i,
+        "mod_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_mod_u,
+        "mod_u",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_neg_i,
+        "neg_i",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_abs_i,
+        "abs_i",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+};
+static MVMOpInfo MVM_op_info_dev[] = {
+    {
+        MVM_OP_say_i,
+        "say_i",
+        1,
+        { MVM_operand_read_reg | MVM_operand_int64 }
     },
 };

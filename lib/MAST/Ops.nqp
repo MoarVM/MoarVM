@@ -1,7 +1,8 @@
-# This file is generated from src/core/oplist by tools/update_lib_mast_ops.p6.
+# This file is generated from src\core\oplist by tools/update_lib_mast_ops.p6.
 
 class MAST::OpBanks {
     our $primitives := 0;
+    our $dev := 1;
 }
 class MAST::Ops {
     our $no_op := 0;
@@ -48,4 +49,21 @@ class MAST::Ops {
     our $return_s := 41;
     our $return_o := 42;
     our $return := 43;
+    our $const_i8 := 44;
+    our $const_i16 := 45;
+    our $const_i32 := 46;
+    our $const_i64 := 47;
+    our $const_n32 := 48;
+    our $const_n64 := 49;
+    our $const_s := 50;
+    our $add_i := 51;
+    our $sub_i := 52;
+    our $mul_i := 53;
+    our $div_i := 54;
+    our $div_u := 55;
+    our $mod_i := 56;
+    our $mod_u := 57;
+    our $neg_i := 58;
+    our $abs_i := 59;
+    our $say_i := 0;
 }

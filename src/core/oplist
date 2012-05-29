@@ -43,3 +43,22 @@ BANK 0 primitives
 0x29    return_s    r(str)
 0x2A    return_o    r(obj)
 0x2B    return
+0x2C    const_i8    w(int8) int8
+0x2D    const_i16   w(int16) int16
+0x2E    const_i32   w(int32) int32
+0x2F    const_i64   w(int64) int64
+0x30    const_n32   w(num32) num32
+0x31    const_n64   w(num64) num64
+0x32    const_s     w(str) str
+0x33    add_i       w(int64) r(int64) r(int64)
+0x34    sub_i       w(int64) r(int64) r(int64)
+0x35    mul_i       w(int64) r(int64) r(int64)
+0x36    div_i       w(int64) r(int64) r(int64)
+0x37    div_u       w(int64) r(int64) r(int64)
+0x38    mod_i       w(int64) r(int64) r(int64)
+0x39    mod_u       w(int64) r(int64) r(int64)
+0x3A    neg_i       w(int64) r(int64)
+0x3B    abs_i       w(int64) r(int64)
+
+BANK 1 dev
+0x00    say_i       r(int64)
