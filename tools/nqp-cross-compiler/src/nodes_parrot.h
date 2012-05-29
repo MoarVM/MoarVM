@@ -100,3 +100,16 @@ typedef PMC MASTNode;
 #define GET_Op(n)           ((MAST_Op *)PMC_data(n))
 #define ELEMS(vm, arr)      ((unsigned int )VTABLE_elements(vm, arr))
 #define ATPOS(vm, arr, i)   (VTABLE_get_pmc_keyed_int(vm, arr, i))
+
+/* Copies of register data type constants. */
+#define MVM_reg_int8        1
+#define MVM_reg_int16       2
+#define MVM_reg_int32       3
+#define MVM_reg_int64       4
+#define MVM_reg_num32       5
+#define MVM_reg_num64       6
+#define MVM_reg_str         7
+#define MVM_reg_obj         8
+
+/* Type mappings. */
+#define MVMStorageSpec      storage_spec
