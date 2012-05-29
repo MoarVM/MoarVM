@@ -1,3 +1,5 @@
+use MASTOps;
+
 # MoarVM AST nodes
 # This file contains a set of nodes that are compiled into MoarVM
 # bytecode. These nodes constitute the official high-level interface
@@ -107,8 +109,14 @@ class MAST::Op is MAST::Node {
     
     method new(:$bank!, :$op!, *@operands) {
         my $obj := nqp::create(self);
-        nqp::bindattr_i($obj, MAST::Op, '$!bank', $bank);
-        nqp::bindattr_i($obj, MAST::Op, '$!op', $op);
+        unless nqp::existskey(MAST::OpBanks.WHO, '$' ~ $bank) {
+            nqp::die("Invalid MAST op bank '$bank'");
+        }
+        unless nqp::existskey(MAST::Ops.WHO, '$' ~ $op) {
+            nqp::die("Invalid MAST op '$op'");
+        }
+        nqp::bindattr_i($obj, MAST::Op, '$!bank', MAST::OpBanks.WHO{'$' ~ $bank});
+        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$' ~ $op});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
         $obj
     }
