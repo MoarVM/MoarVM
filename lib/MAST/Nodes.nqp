@@ -127,16 +127,16 @@ class MAST::Op is MAST::Node {
 }
 
 # Literal values.
-class MAST::StrLit is MAST::Node {
+class MAST::SVal is MAST::Node {
     has str $!value;
     
     method new(:$value!) {
         my $obj := nqp::create(self);
-        nqp::bindattr_s($obj, MAST::Op, '$!value', $value);
+        nqp::bindattr_s($obj, MAST::SVal, '$!value', $value);
         $obj
     }
 }
-class MAST::IntLit is MAST::Node {
+class MAST::IVal is MAST::Node {
     # The integer value.
     has int $!value;
     
@@ -148,13 +148,13 @@ class MAST::IntLit is MAST::Node {
     
     method new(:$value!, :$size = 64, :$signed = 1) {
         my $obj := nqp::create(self);
-        nqp::bindattr_i($obj, MAST::Op, '$!value', $value);
-        nqp::bindattr_i($obj, MAST::Op, '$!size', $size);
-        nqp::bindattr_i($obj, MAST::Op, '$!signed', $signed);
+        nqp::bindattr_i($obj, MAST::IVal, '$!value', $value);
+        nqp::bindattr_i($obj, MAST::IVal, '$!size', $size);
+        nqp::bindattr_i($obj, MAST::IVal, '$!signed', $signed);
         $obj
     }
 }
-class MAST::NumLit is MAST::Node {
+class MAST::NVal is MAST::Node {
     # The floating point value.
     has num $!value;
     
@@ -163,8 +163,8 @@ class MAST::NumLit is MAST::Node {
     
     method new(:$value!, :$size = 64) {
         my $obj := nqp::create(self);
-        nqp::bindattr_n($obj, MAST::Op, '$!value', $value);
-        nqp::bindattr_i($obj, MAST::Op, '$!size', $size);
+        nqp::bindattr_n($obj, MAST::NVal, '$!value', $value);
+        nqp::bindattr_i($obj, MAST::NVal, '$!size', $size);
         $obj
     }
 }
@@ -176,7 +176,7 @@ class MAST::Label is MAST::Node {
     
     method new(:$name!) {
         my $obj := nqp::create(self);
-        nqp::bindattr_s($obj, MAST::Op, '$!name', $name);
+        nqp::bindattr_s($obj, MAST::Label, '$!name', $name);
         $obj
     }
     
@@ -186,6 +186,12 @@ class MAST::Label is MAST::Node {
 # A local lookup.
 class MAST::Local is MAST::Node {
     has int $!index;
+
+    method new(:$index!) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::Local, '$!index', $index);
+        $obj
+    }
 }
 
 # A lexical lookup.
