@@ -66,7 +66,7 @@ CLEANUPS = \
   $(OPS_DIR)/*$(LOAD_EXT) \
   $(DYNEXT_DIR)/*$(LOAD_EXT) \
 
-all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc
+all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc
 
 @make_dllcopy@
 
@@ -91,6 +91,10 @@ MASTNodes.pbc: ../../lib/MAST/Nodes.nqp MASTOps.pbc
 MASTCompiler.pbc: src/MASTCompiler.nqp MASTNodes.pbc MASTOps.pbc
 	nqp --vmlibs=mvmcc_ops --target=pir src/MASTCompiler.nqp > MASTCompiler.pir
 	parrot --output=MASTCompiler.pbc MASTCompiler.pir
+
+MASTTesting.pbc : MASTCompiler.pbc src/MASTTesting.nqp
+	nqp --vmlibs=mvmcc_ops --target=pir src/MASTTesting.nqp > MASTTesting.pir
+	parrot --output=MASTTesting.pbc MASTTesting.pir
 
 ## cleaning
 
