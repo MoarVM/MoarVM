@@ -118,7 +118,7 @@ static ReaderState * disect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMStaticFrame **frames;
     MVMuint8        *pos;
-    MVMuint32        bytecode_pos, bytecode_size, num_locals, i;
+    MVMuint32        bytecode_pos, bytecode_size, num_locals, i, j;
     
     /* Allocate frames array. */
     if (rs->expected_frames == 0) {
@@ -148,7 +148,19 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         frames[i]->bytecode = rs->bytecode_seg + bytecode_pos;
         frames[i]->bytecode_size = bytecode_size;
         
-        /* XXX Locals */
+        /* Get number of locals and lexicals. */
+        frames[i]->num_locals = read_int32(pos, 8);
+        frames[i]->num_lexicals = read_int32(pos, 12);
+        pos += FRAME_HEADER_SIZE;
+        
+        /* Read the local types. */
+        if (frames[i]->num_locals) {
+            ensure_can_read(tc, cu, rs, pos, 2 * frames[i]->num_locals);
+            frames[i]->local_types = malloc(sizeof(MVMuint16) * frames[i]->num_locals);
+            for (j = 0; j < frames[i]->num_locals; j++)
+                frames[i]->local_types[j] = read_int16(pos, 2 * j);
+            pos += 2 * frames[i]->num_locals;
+        }
     }
     
     return frames;
