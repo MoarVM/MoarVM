@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(4);
+plan(5);
 
 mast_frame_output_is(-> $frame {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
@@ -103,3 +103,39 @@ mast_frame_output_is(-> $frame {
     },
     "50\n",
     "integer multiplication");
+
+mast_frame_output_is(-> $frame {
+        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
+        my @ins := $frame.instructions;
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('const_i64'),
+                $r0,
+                MAST::IVal.new( :value(-10) )
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('neg_i'),
+                $r0,
+                $r0
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('dev'), :op('say_i'),
+                $r0
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('const_i64'),
+                $r0,
+                MAST::IVal.new( :value(20) )
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('neg_i'),
+                $r0,
+                $r0
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('dev'), :op('say_i'),
+                $r0
+            ));
+        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+    },
+    "10\n-20\n",
+    "integer negation");
