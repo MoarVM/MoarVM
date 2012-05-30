@@ -19,7 +19,7 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc) {
     
     # Read it and check it is OK.
     my $output := slurp('temp.output');
-    $output := subst($output, /\r\n/, "\n");
+    $output := subst($output, /\r\n/, "\n", :global);
     my $okness := $output eq $expected;
     ok($okness, $desc);
     unless $okness {
