@@ -93,15 +93,28 @@ typedef PMC MASTNode;
 #define vm interp
 
 /* Some macros for getting at and examining nodes data. */
-#define ISTYPE(VM, s, t)    (STABLE(s)->type_check(VM, s, t))
-#define DIE(vm, msg)        Parrot_ex_throw_from_c_args(interp, NULL, EXCEPTION_INVALID_OPERATION, msg)
-#define GET_CompUnit(n)     ((MAST_CompUnit *)PMC_data(n))
-#define GET_Frame(n)        ((MAST_Frame *)PMC_data(n))
-#define GET_Op(n)           ((MAST_Op *)PMC_data(n))
-#define GET_Local(n)        ((MAST_Local *)PMC_data(n))
-#define GET_IVal(n)         ((MAST_IVal *)PMC_data(n))
-#define ELEMS(vm, arr)      ((unsigned int )VTABLE_elements(vm, arr))
-#define ATPOS(vm, arr, i)   (VTABLE_get_pmc_keyed_int(vm, arr, i))
+#define ISTYPE(VM, s, t)            (STABLE(s)->type_check(VM, s, t))
+#define DIE(vm, msg)                Parrot_ex_throw_from_c_args(interp, NULL, EXCEPTION_INVALID_OPERATION, msg)
+#define GET_CompUnit(n)             ((MAST_CompUnit *)PMC_data(n))
+#define GET_Frame(n)                ((MAST_Frame *)PMC_data(n))
+#define GET_Op(n)                   ((MAST_Op *)PMC_data(n))
+#define GET_Label(n)                ((MAST_Label *)PMC_data(n))
+#define GET_Local(n)                ((MAST_Local *)PMC_data(n))
+#define GET_IVal(n)                 ((MAST_IVal *)PMC_data(n))
+#define NEWLIST_I(vm)               (Parrot_pmc_new(interp, enum_class_ResizableIntegerArray))
+#define ELEMS(vm, arr)              ((unsigned int )VTABLE_elements(vm, arr))
+#define ATPOS(vm, arr, i)           (VTABLE_get_pmc_keyed_int(vm, arr, i))
+#define ATPOS_I(vm, arr, i)         (VTABLE_get_integer_keyed_int(vm, arr, i))
+#define BINDPOS(vm, arr, i, v)      (VTABLE_set_pmc_keyed_int(vm, arr, i, v))
+#define BINDPOS_I(vm, arr, i, v)    (VTABLE_set_integer_keyed_int(vm, arr, i, v))
+#define NEWHASH(vm)                 (Parrot_pmc_new(interp, enum_class_Hash))
+#define HASHELEMS(vm, hash)         ((unsigned int )VTABLE_elements(vm, hash))
+#define ATKEY(vm, hash, k)          (VTABLE_get_pmc_keyed_str(vm, hash, k))
+#define ATKEY_I(vm, hash, k)        (VTABLE_get_integer_keyed_str(vm, hash, k))
+#define BINDKEY(vm, hash, k, v)     (VTABLE_set_pmc_keyed_str(vm, hash, k, v))
+#define BINDKEY_I(vm, hash, k, v)   (VTABLE_set_integer_keyed_str(vm, hash, k, v))
+#define EXISTSKEY(vm, hash, k)      (VTABLE_exists_keyed_str(vm, hash, k))
+#define DELETEKEY(vm, hash, k)      (VTABLE_delete_keyed_str(vm, hash, k))
 
 /* Copies of MVM operand read/write/literal flags. */
 #define MVM_operand_literal     0

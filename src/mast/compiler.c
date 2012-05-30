@@ -25,6 +25,14 @@ typedef struct {
     /* Types of locals, along with the number of them we have. */
     unsigned short *local_types;
     unsigned int num_locals;
+    
+    /* Labels that we have seen and know the address of. Hash of name to
+     * index. */
+    MASTNode *known_labels;
+    
+    /* Labels that are currently unresolved, that we need to fix up. Hash
+     * of name to a list of positions needing a fixup. */
+    MASTNode *labels_to_resolve;
 } FrameState;
 
 /* Describes the current writer state for the compilation unit as a whole. */
@@ -167,6 +175,36 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                 }
                 break;
             }
+            case MVM_operand_ins: {
+                if (ISTYPE(vm, operand, ws->types->Label)) {
+                    MAST_Label *l = GET_Label(operand);
+                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
+                    if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
+                        /* Label offset already known; just write it. */
+                        write_int32(ws->bytecode_seg, ws->bytecode_pos,
+                            (unsigned int)ATKEY_I(vm, ws->cur_frame->known_labels, l->name));
+                    }
+                    else {
+                        /* Add this as a position to fix up. */
+                        MASTNode *fixup_list;
+                        if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
+                            fixup_list = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
+                        }
+                        else {
+                            fixup_list = NEWLIST_I(vm);
+                            BINDKEY(vm, ws->cur_frame->labels_to_resolve, l->name, fixup_list);
+                        }
+                        BINDPOS_I(vm, fixup_list, ELEMS(vm, fixup_list), ws->bytecode_pos);
+                        write_int32(ws->bytecode_seg, ws->bytecode_pos, 0);
+                    }
+                    ws->bytecode_pos += 4;
+                }
+                else {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "Expected MAST::Label, but didn't get one");
+                }
+                break;
+            }
             default:
                 cleanup_all(vm, ws);
                 DIE(vm, "Unhandled literal type in MAST compiler");
@@ -246,9 +284,33 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         for (i = 0; i < info->num_operands; i++)
             compile_operand(vm, ws, info->operands[i], ATPOS(vm, o->operands, i));
     }
+    else if (ISTYPE(vm, node, ws->types->Label)) {
+        /* Duplicate check, then insert. */
+        MAST_Label *l = GET_Label(node);
+        unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
+        if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
+            cleanup_all(vm, ws);
+            DIE(vm, "Duplicate label");
+        }
+        BINDKEY_I(vm, ws->cur_frame->known_labels, l->name, offset);
+        
+        /* Resolve any existing usages. */
+        if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
+            MASTNode *res_list   = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
+            unsigned int num_res = ELEMS(vm, res_list);
+            unsigned int i;
+            for (i = 0; i < num_res; i++) {
+                unsigned int res_pos = (unsigned int)ATPOS_I(vm, res_list, i);
+                write_int32(ws->bytecode_seg,
+                    ws->cur_frame->bytecode_start + res_pos,
+                    offset);
+            }
+            DELETEKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
+        }
+    }
     else {
         cleanup_all(vm, ws);
-        DIE(vm, "Invalid MAST node in instruction list (must be Op or Frame)");
+        DIE(vm, "Invalid MAST node in instruction list (must be Op or Label)");
     }
 }
 
@@ -266,9 +328,11 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     f = GET_Frame(node);
     
     /* Allocate frame state. */
-    fs = ws->cur_frame = malloc(sizeof(FrameState));
-    fs->bytecode_start = ws->bytecode_pos;
-    fs->frame_start    = ws->frame_pos;
+    fs = ws->cur_frame    = malloc(sizeof(FrameState));
+    fs->bytecode_start    = ws->bytecode_pos;
+    fs->frame_start       = ws->frame_pos;
+    fs->known_labels      = NEWHASH(vm);
+    fs->labels_to_resolve = NEWHASH(vm);
     
     /* Count locals and lexicals. */
     fs->num_locals   = ELEMS(vm, f->local_types);
@@ -305,6 +369,12 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     
     /* Fill in bytecode length. */
     /* XXX */
+    
+    /* Any leftover labels? */
+    if (HASHELEMS(vm, fs->labels_to_resolve)) {
+        cleanup_all(vm, ws);
+        DIE(vm, "Frame has unresolved labels");
+    }
     
     /* Free the frame state. */
     cleanup_frame(vm, fs);
