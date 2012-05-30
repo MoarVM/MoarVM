@@ -42,6 +42,7 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     MVMFrame *f = malloc(sizeof(MVMFrame));
     f->tc = tc;
     f->static_info = cu->frames[0];
+    f->work = malloc(cu->frames[0]->num_locals * sizeof(MVMRegister));
     MVM_interp_run(tc, f);
 }
 
