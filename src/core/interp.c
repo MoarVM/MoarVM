@@ -1,5 +1,9 @@
 #include "moarvm.h"
 
+/* Macros for getting things from the bytecode stream. */
+#define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
+#define GET_I64(pc, idx)    *((MVMint64 *)(pc + idx))
+
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
     /* Points to the current opcode. */
@@ -28,10 +32,32 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
             case MVM_OP_BANK_primitives: {
                 switch (*(cur_op++)) {
                     case MVM_OP_no_op:
-                        printf("no_op executed\n");
                         break;
                     case MVM_OP_return:
                         return;
+                    case MVM_OP_const_i64:
+                        GET_REG(cur_op, 0).i64 = GET_I64(cur_op, 2);
+                        cur_op += 10;
+                        break;
+                    case MVM_OP_add_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 + GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    default: {
+                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                    }
+                    break;
+                }
+            }
+            break;
+            
+            /* Development operations. */
+            case MVM_OP_BANK_dev: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_say_i:
+                        printf("%d\n", GET_REG(cur_op, 0).i64); /* XXX %d is 32-bit only, I guess... */
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
