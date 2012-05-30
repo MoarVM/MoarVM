@@ -7,9 +7,9 @@ class MAST::Compiler {
             MAST::CompUnit,
             MAST::Frame,
             MAST::Op,
-            MAST::StrLit,
-            MAST::IntLit,
-            MAST::NumLit,
+            MAST::SVal,
+            MAST::IVal,
+            MAST::NVal,
             MAST::Label,
             MAST::Local,
             MAST::Lexical);

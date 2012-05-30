@@ -4,6 +4,7 @@
 #include "parrot/extend.h"
 #include "sixmodelobject.h"
 #include "nodes_parrot.h"
+#include "../../src/core/ops.h"
 #else
 #include "moarvm.h"
 #endif
@@ -20,6 +21,10 @@ typedef struct {
     
     /* Position of start of frame entry. */
     unsigned int frame_start;
+    
+    /* Types of locals, along with the number of them we have. */
+    unsigned short *local_types;
+    unsigned int num_locals;
 } FrameState;
 
 /* Describes the current writer state for the compilation unit as a whole. */
@@ -80,6 +85,8 @@ void ensure_space(VM, void **buffer, unsigned int *alloc, unsigned int pos, unsi
 
 /* Cleans up all allocated memory related to a frame. */
 void cleanup_frame(VM, FrameState *fs) {
+    if (fs->local_types)
+        free(fs->local_types);
     free(fs);
 }
 
@@ -94,53 +101,108 @@ void cleanup_all(VM, WriterState *ws) {
     free(ws);
 }
 
-/* Writes a type into the frame segment at the current position, and
- * increments the position. */
-void write_type_into_frame_seg(VM, WriterState *ws, MASTNode *type) {
+/* Takes a 6model object type and turns it into a local/lexical type flag. */
+unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
     MVMStorageSpec ss = REPR(type)->get_storage_spec(vm, STABLE(type));
     if (ss.inlineable) {
         switch (ss.boxed_primitive) {
             case STORAGE_SPEC_BP_INT:
                 switch (ss.bits) {
                     case 8:
-                        write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_int8);
-                        break;
+                        return MVM_reg_int8;
                     case 16:
-                        write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_int16);
-                        break;
+                        return MVM_reg_int16;
                     case 32:
-                        write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_int32);
-                        break;
+                        return MVM_reg_int32;
                     case 64:
-                        write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_int64);
-                        break;
+                        return MVM_reg_int64;
                     default:
+                        cleanup_all(vm, ws);
                         DIE(vm, "Invalid int size for local/lexical");
                 }
                 break;
             case STORAGE_SPEC_BP_NUM:
                 switch (ss.bits) {
                     case 32:
-                        write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_num32);
-                        break;
+                        return MVM_reg_num32;
                     case 64:
-                        write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_num64);
-                        break;
+                        return MVM_reg_num64;
                     default:
+                        cleanup_all(vm, ws);
                         DIE(vm, "Invalid num size for local/lexical");
                 }
                 break;
             case STORAGE_SPEC_BP_STR:
-                write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_str);
+                return MVM_reg_str;
                 break;
             default:
+                cleanup_all(vm, ws);
                 DIE(vm, "Type used for local/lexical has invalid boxed primitive in storage spec");
         }
     }
     else {
-        write_int16(ws->frame_seg, ws->frame_pos, MVM_reg_obj);
+        return MVM_reg_obj;
     }
-    ws->frame_pos += 2;
+}
+
+/* Compiles the operand to an instruction; this involves checking
+ * that we have a node of the correct type for it and writing out
+ * the appropriate thing to the bytecode stream. */
+void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand) {
+    unsigned char op_rw   = op_flags & MVM_operand_rw_mask;
+    unsigned char op_type = op_flags & MVM_operand_type_mask;
+    if (op_rw == MVM_operand_literal) {
+        /* Literal; go by type. */
+        switch (op_type) {
+            case MVM_operand_int64: {
+                if (ISTYPE(vm, operand, ws->types->IVal)) {
+                    MAST_IVal *iv = GET_IVal(operand);
+                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 8);
+                    write_int64(ws->bytecode_seg, ws->bytecode_pos, iv->value);
+                    ws->bytecode_pos += 8;
+                }
+                else {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "Expected MAST::IVal, but didn't get one");
+                }
+                break;
+            }
+            default:
+                cleanup_all(vm, ws);
+                DIE(vm, "Unhandled literal type in MAST compiler");
+        }
+    }
+    else if (op_rw == MVM_operand_read_reg || op_rw == MVM_operand_write_reg) {
+        /* The operand node had best be a MAST::Local. */
+        if (ISTYPE(vm, operand, ws->types->Local)) {
+            MAST_Local *l = GET_Local(operand);
+            
+            /* Ensure it's within the set of known locals. */
+            if (l->index > ws->cur_frame->num_locals) {
+                cleanup_all(vm, ws);
+                DIE(vm, "MAST::Local index out of range");
+            }
+            
+            /* Check the type matches. */
+            if (op_type != ws->cur_frame->local_types[l->index] << 3) {
+                cleanup_all(vm, ws);
+                DIE(vm, "MAST::Local of wrong type specified");
+            }
+            
+            /* Write the operand type. */
+            ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->index);
+            ws->bytecode_pos += 2;
+        }
+        else {
+            cleanup_all(vm, ws);
+            DIE(vm, "Expected MAST::Local, but didn't get one");
+        }
+    }
+    else {
+        cleanup_all(vm, ws);
+        DIE(vm, "Unknown operand type cannot be compiled");
+    }
 }
 
 /* Compiles an instruction (which may actaully be any of the
@@ -148,22 +210,41 @@ void write_type_into_frame_seg(VM, WriterState *ws, MASTNode *type) {
  * means labels are valid too). */
 void compile_instruction(VM, WriterState *ws, MASTNode *node) {
     if (ISTYPE(vm, node, ws->types->Op)) {
-        MAST_Op *o = GET_Op(node);
+        MAST_Op   *o = GET_Op(node);
+        MVMOpInfo *info;
+        int        i;
         
         /* Look up opcode and get argument info. */
+        /* XXX Generalize these lookups. */
+        /* XXX Bank bounds check. */
+        /* XXX Op bounds check. */
         unsigned char bank = (unsigned char)o->bank;
         unsigned char op   = (unsigned char)o->op;
-        /* XXX yeah, loads to do here :-) */
+        if (bank == 0) {
+            info = &MVM_op_info_primitives[op];
+        }
+        else if (bank == 1) {
+            info = &MVM_op_info_dev[op];
+        }
+        else {
+            cleanup_all(vm, ws);
+            DIE(vm, "Invalid op bank specified in instruction");
+        }
         
-        /* Ensure there is space to write the op. */
-        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+        /* Ensure argument count matches up. */
+        if (ELEMS(vm, o->operands) != info->num_operands) {
+            cleanup_all(vm, ws);
+            DIE(vm, "Op has invalid number of operands");
+        }
         
         /* Write bank and opcode. */
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, bank);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, op);
         
         /* Write operands. */
-        /* XXX todo */
+        for (i = 0; i < info->num_operands; i++)
+            compile_operand(vm, ws, info->operands[i], ATPOS(vm, o->operands, i));
     }
     else {
         cleanup_all(vm, ws);
@@ -175,7 +256,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 void compile_frame(VM, WriterState *ws, MASTNode *node) {
     MAST_Frame  *f;
     FrameState  *fs;
-    unsigned int i, num_locals, num_lexicals, num_ins;
+    unsigned int i, num_lexicals, num_ins;
     
     /* Ensure we have a node of the right type. */
     if (!ISTYPE(vm, node, ws->types->Frame)) {
@@ -190,23 +271,28 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     fs->frame_start    = ws->frame_pos;
     
     /* Count locals and lexicals. */
-    num_locals   = ELEMS(vm, f->local_types);
-    num_lexicals = ELEMS(vm, f->lexical_types);
+    fs->num_locals   = ELEMS(vm, f->local_types);
+    num_lexicals     = ELEMS(vm, f->lexical_types);
     
     /* Ensure space is available to write frame entry, and write the
      * header, apart from the bytecode length, which we'll fill in
      * later. */
     ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
-        FRAME_HEADER_SIZE + num_locals * 2 + num_lexicals * 6);
+        FRAME_HEADER_SIZE + fs->num_locals * 2 + num_lexicals * 6);
     write_int32(ws->frame_seg, ws->frame_pos, fs->bytecode_start);
     write_int32(ws->frame_seg, ws->frame_pos + 4, 0); /* Filled in later. */
-    write_int32(ws->frame_seg, ws->frame_pos + 8, num_locals);
+    write_int32(ws->frame_seg, ws->frame_pos + 8, fs->num_locals);
     write_int32(ws->frame_seg, ws->frame_pos + 12, num_lexicals);
     ws->frame_pos += FRAME_HEADER_SIZE;
     
-    /* Write locals. */
-    for (i = 0; i < num_locals; i++)
-        write_type_into_frame_seg(vm, ws, ATPOS(vm, f->local_types, i));
+    /* Write locals, as well as collecting our own array of type info. */
+    fs->local_types = malloc(sizeof(unsigned short) * fs->num_locals);
+    for (i = 0; i < fs->num_locals; i++) {
+        unsigned short local_type = type_to_local_type(vm, ws, ATPOS(vm, f->local_types, i));
+        fs->local_types[i] = local_type;
+        write_int16(ws->frame_seg, ws->frame_pos, local_type);
+        ws->frame_pos += 2;
+    }
 
     /* Write lexicals. */
     if (num_lexicals)

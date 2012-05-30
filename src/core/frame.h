@@ -5,6 +5,21 @@ typedef struct _MVMStaticFrame {
 
     /* The size of the bytecode. */
     MVMuint32 bytecode_size;
+    
+    /* The list of local types. */
+    MVMuint16 *local_types;
+    
+    /* Count of locals. */
+    MVMuint32 num_locals;
+    
+    /* The list of lexical types. */
+    MVMuint16 *lexical_types;
+    
+    /* Count of lexicals. */
+    MVMuint32 num_lexicals;
+    
+    /* Lexicals name map. */
+    /* XXX */
 } MVMStaticFrame;
 
 /* This represents an active call frame. */
