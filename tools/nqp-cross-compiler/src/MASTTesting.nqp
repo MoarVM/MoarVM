@@ -20,7 +20,12 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc) {
     # Read it and check it is OK.
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n");
-    ok($output eq $expected, $desc);
+    my $okness := $output eq $expected;
+    ok($okness, $desc);
+    unless $okness {
+        say("GOT:\n$output");
+        say("EXPECTED:\n$expected");
+    }
     
     # Clean up.
     pir::spawnw__Is("del /Q temp.moarvm");
