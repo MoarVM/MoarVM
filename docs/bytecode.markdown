@@ -175,7 +175,7 @@ have the needed operands described by the following set of descriptors.
     si      Strings table index, 16 bits unsigned
     sci     Serialization Context object table index, 16 bits unsigned
     csi     Callsite table index, 16 bits unsigned
-    ins     Instruction offset (for goto), 16 bits signed
+    ins     Instruction offset from frame start (for goto), 32 bits unsigned
 
 Note that this ensures we always keep at least 16-bit alignment for ops.
 
