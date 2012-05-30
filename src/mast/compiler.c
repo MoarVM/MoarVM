@@ -287,6 +287,7 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->frame_pos      = 0;
     ws->frame_alloc    = 4096;
     ws->frame_seg      = malloc(ws->frame_alloc);
+    ws->num_frames     = 0; 
     ws->bytecode_pos   = 0;
     ws->bytecode_alloc = 4096;
     ws->bytecode_seg   = malloc(ws->bytecode_alloc);
