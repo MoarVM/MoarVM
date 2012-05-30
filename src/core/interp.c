@@ -2,12 +2,18 @@
 
 /* Macros for getting things from the bytecode stream. */
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
+#define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
+#define GET_UI32(pc, idx)   *((MVMuint32 *)(pc + idx))
 #define GET_I64(pc, idx)    *((MVMint64 *)(pc + idx))
+#define GET_UI64(pc, idx)   *((MVMuint64 *)(pc + idx))
 
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
     /* Points to the current opcode. */
     MVMuint8 *cur_op = initial_frame->static_info->bytecode;
+    
+    /* The current frame's bytecode start. */
+    MVMuint8 *bytecode_start = initial_frame->static_info->bytecode;
     
     /* Points to the base of the current register set for the frame we
      * are presently in. */
@@ -32,6 +38,9 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
             case MVM_OP_BANK_primitives: {
                 switch (*(cur_op++)) {
                     case MVM_OP_no_op:
+                        break;
+                    case MVM_OP_goto:
+                        cur_op = bytecode_start + GET_UI32(cur_op, 0);
                         break;
                     case MVM_OP_return:
                         return;
