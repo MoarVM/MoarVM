@@ -2,13 +2,18 @@
 
 /* Some constants. */
 #define HEADER_SIZE             72
-#define MIN_BYTECODE_VERSION     1
-#define MAX_BYTECODE_VERSION     1
+#define MIN_BYTECODE_VERSION    1
+#define MAX_BYTECODE_VERSION    1
+#define FRAME_HEADER_SIZE       4 * 4
 
 /* Describes the current reader state. */
 typedef struct {
     /* General info. */
     MVMuint32 version;
+    
+    /* The frame segment. */
+    MVMuint8  *frame_seg;
+    MVMuint32  expected_frames;
     
     /* The bytecode segment. */
     MVMuint8  *bytecode_seg;
@@ -51,6 +56,20 @@ static double read_double(char *buffer, size_t offset) {
     return value;
 }
 
+/* Cleans up reader state. */
+static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
+    free(rs);
+}
+
+/* Ensures we can read a certain amount of bytes without overrunning the end
+ * of the stream. */
+static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
+    if (pos + size > cu->data_start + cu->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
+    }
+}
+
 /* Disects the bytecode stream and hands back a reader pointing to the
  * various parts of it. */
 static ReaderState * disect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
@@ -72,17 +91,67 @@ static ReaderState * disect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = malloc(sizeof(ReaderState));
     rs->version = version;
     
+    /* Locate frames segment. */
+    offset = read_int32(cu->data_start, 28);
+    if (offset > cu->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
+    }
+    rs->frame_seg       = cu->data_start + offset;
+    rs->expected_frames = read_int32(cu->data_start, 32);
+    
     /* Locate bytecode segment. */
     offset = read_int32(cu->data_start, 64);
     size = read_int32(cu->data_start, 68);
     if (offset > cu->data_size || offset + size > cu->data_size) {
-        free(rs);
+        cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
     }
     rs->bytecode_seg  = cu->data_start + offset;
     rs->bytecode_size = size;
     
     return rs;
+}
+
+/* Loads the static frame information (what locals we have, bytecode offset,
+ * lexicals, etc.) */
+static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMStaticFrame **frames;
+    MVMuint8        *pos;
+    MVMuint32        bytecode_pos, bytecode_size, num_locals, i;
+    
+    /* Allocate frames array. */
+    if (rs->expected_frames == 0) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Bytecode file must have at least one frame");
+    }
+    frames = malloc(sizeof(MVMStaticFrame *) * rs->expected_frames);
+    
+    /* Load frames. */
+    pos = rs->frame_seg;
+    for (i = 0; i < rs->expected_frames; i++) {
+        /* Ensure we can read a frame here. */
+        ensure_can_read(tc, cu, rs, pos, FRAME_HEADER_SIZE);
+
+        /* Allocate frame and get/check bytecode start/length. */
+        frames[i] = malloc(sizeof(MVMStaticFrame));
+        bytecode_pos = read_int32(pos, 0);
+        bytecode_size = read_int32(pos, 4);
+        if (bytecode_pos >= rs->bytecode_size) {
+            cleanup_all(tc, rs);
+            MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point");
+        }
+        if (bytecode_pos + bytecode_size > rs->bytecode_size) {
+            cleanup_all(tc, rs);
+            MVM_exception_throw_adhoc(tc, "Frame bytecode overflows bytecode stream");
+        }
+        frames[i]->bytecode = rs->bytecode_seg + bytecode_pos;
+        frames[i]->bytecode_size = bytecode_size;
+        
+        /* XXX Locals */
+    }
+    
+    return frames;
 }
 
 /* Takes a compilation unit pointing at a bytecode stream (which actually
@@ -92,14 +161,13 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Disect the bytecode into its parts. */
     ReaderState *rs = disect_bytecode(tc, cu);
     
+    /* Load the static frame info. */
+    cu->frames = deserialize_frames(tc, cu, rs);
+    cu->num_frames = rs->expected_frames;
+    
     /* XXX Hack to get us running something at all. The whole stream is
      * the first static frame. */
-    cu->frames = malloc(sizeof(MVMStaticFrame *));
-    cu->frames[0] = malloc(sizeof(MVMStaticFrame));
-    cu->frames[0]->bytecode = rs->bytecode_seg;
-    cu->frames[0]->bytecode_size = rs->bytecode_size;
-    cu->num_frames = 1;
     
     /* Clean up reader state. */
-    /* XXX */
+    cleanup_all(tc, rs);
 }
