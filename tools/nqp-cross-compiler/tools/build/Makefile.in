@@ -96,6 +96,11 @@ MASTTesting.pbc : MASTCompiler.pbc src/MASTTesting.nqp
 	nqp --vmlibs=mvmcc_ops --target=pir src/MASTTesting.nqp > MASTTesting.pir
 	parrot --output=MASTTesting.pbc MASTTesting.pir
 
+## testing
+
+test:
+	prove t
+
 ## cleaning
 
 clean:
