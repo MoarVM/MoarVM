@@ -29,3 +29,22 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
 MVMString * MVM_string_ascii_decode_nt(MVMThreadContext *tc, MVMObject *result_type, char *ascii) {
     return MVM_string_ascii_decode(tc, result_type, ascii, strlen(ascii));
 }
+
+/* Encodes the specified string to ASCII. Anything outside of ASCII range
+ * will become a ?. The result string is NULL terminated, but the specified
+ * size is the non-null part. */
+MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
+    /* ASCII is a single byte encoding, so each grapheme will just become
+     * a single byte. */
+    MVMuint8 *result = malloc(str->body.graphs + 1);
+    size_t i;
+    for (i = 0; i < str->body.graphs; i++) {
+        MVMint32 ord = str->body.data[i];
+        if (ord >= 0 && ord <= 127)
+            result[i] = (MVMuint8)ord;
+        else
+            result[i] = '?';
+    }
+    *output_size = str->body.graphs;
+    return result;
+}
