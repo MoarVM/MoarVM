@@ -72,6 +72,7 @@
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
+#define MVM_OP_say_s 1
 
 static MVMOpInfo MVM_op_info_primitives[] = {
     {
@@ -463,5 +464,11 @@ static MVMOpInfo MVM_op_info_dev[] = {
         "say_i",
         1,
         { MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_say_s,
+        "say_s",
+        1,
+        { MVM_operand_read_reg | MVM_operand_str }
     },
 };

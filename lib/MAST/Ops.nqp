@@ -70,4 +70,5 @@ class MAST::Ops {
     our $dec_i := 62;
     our $dec_u := 63;
     our $say_i := 0;
+    our $say_s := 1;
 }

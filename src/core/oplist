@@ -66,3 +66,4 @@ BANK 0 primitives
 
 BANK 1 dev
 0x00    say_i       r(int64)
+0x01    say_s       r(str)
