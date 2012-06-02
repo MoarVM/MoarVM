@@ -20,6 +20,9 @@ typedef struct _MVMStaticFrame {
     
     /* Lexicals name map. */
     /* XXX */
+    
+    /* The compilation unit this frame belongs to. */
+    struct _MVMCompUnit *cu;
 } MVMStaticFrame;
 
 /* This represents an active call frame. */

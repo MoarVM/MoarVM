@@ -161,6 +161,9 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 frames[i]->local_types[j] = read_int16(pos, 2 * j);
             pos += 2 * frames[i]->num_locals;
         }
+        
+        /* Associated frame with compilation unit. */
+        frames[i]->cu = cu;
     }
     
     return frames;
