@@ -12,6 +12,8 @@ typedef struct {
 typedef struct {
     PMC    *st;
     PMC    *sc;
+    STRING *cuuid;
+    STRING *name;
     PMC    *lexical_types;
     PMC    *lexical_names;
     PMC    *local_types;

@@ -44,6 +44,12 @@ class MAST::CompUnit is MAST::Node {
 # Represents a frame, which is a unit of invocation. This captures the
 # static aspects of a frame.
 class MAST::Frame is MAST::Node {
+    # A compilation-unit unique identifier for the frame.
+    has str $!cuuid;
+    
+    # A name (need not be unique) for the frame.
+    has str $!name;
+    
     # The set of lexicals that we allocate space for and keep until
     # nothing references an "instance" of the frame. This is the
     # list of lexical types, the index being significant. Any type
@@ -62,13 +68,21 @@ class MAST::Frame is MAST::Node {
     # The instructions for this frame.
     has @!instructions;
     
-    method new() {
+    my $cuuid_src := 0;
+    sub fresh_id() {
+        $cuuid_src := $cuuid_src + 1;
+        "!MVM_CUUID_$cuuid_src"
+    }
+    
+    method new(:$cuuid = fresh_id(), :$name = '<anon>') {
         my $obj := nqp::create(self);
-        $obj.BUILD();
+        $obj.BUILD($cuuid, $name);
         $obj
     }
     
-    method BUILD() {
+    method BUILD($cuuid, $name) {
+        $!cuuid         := $cuuid;
+        $!name          := $name;
         @!lexical_types := nqp::list();
         %!lexical_names := nqp::hash();
         @!local_types   := nqp::list();
