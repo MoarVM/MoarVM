@@ -13,6 +13,10 @@ typedef struct _MVMCompUnit {
     /* The various static frames in the compilation unit. */
     MVMStaticFrame **frames;
     MVMuint32        num_frames;
+    
+    /* The string heap and number of strings. */
+    struct _MVMString **strings;
+    MVMuint32           num_strings;
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);

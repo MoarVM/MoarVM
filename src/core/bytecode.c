@@ -10,6 +10,10 @@
 typedef struct {
     /* General info. */
     MVMuint32 version;
+
+    /* The string heap. */
+    MVMuint8  *string_seg;
+    MVMuint32  expected_strings;
     
     /* The frame segment. */
     MVMuint8  *frame_seg;
@@ -100,6 +104,15 @@ static ReaderState * disect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->frame_seg       = cu->data_start + offset;
     rs->expected_frames = read_int32(cu->data_start, 32);
     
+    /* Locate strings segment. */
+    offset = read_int32(cu->data_start, 48);
+    if (offset > cu->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
+    }
+    rs->string_seg       = cu->data_start + offset;
+    rs->expected_strings = read_int32(cu->data_start, 52);
+    
     /* Locate bytecode segment. */
     offset = read_int32(cu->data_start, 64);
     size = read_int32(cu->data_start, 68);
@@ -111,6 +124,38 @@ static ReaderState * disect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->bytecode_size = size;
     
     return rs;
+}
+
+/* Loads the string heap. */
+static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMString **strings;
+    MVMuint8   *pos;
+    MVMuint32   i, ss;
+    
+    /* Allocate space for strings list. */
+    if (rs->expected_strings == 0)
+        return NULL;
+    strings = malloc(sizeof(MVMString *) * rs->expected_strings);
+
+    /* Load strings. */
+    pos = rs->string_seg;
+    for (i = 0; i < rs->expected_strings; i++) {
+        /* Ensure we can read at least a string size here and do so. */
+        ensure_can_read(tc, cu, rs, pos, 4);
+        ss = read_int32(pos, 0);
+        pos += 4;
+        
+        /* Ensure we can read in the string of this size, and decode
+         * it if so. */
+        /* XXX Should be UTF-8!! */
+        ensure_can_read(tc, cu, rs, pos, ss);
+        strings[i] = MVM_string_ascii_decode(tc, tc->instance->boot_types->BOOTStr, pos, ss);
+        
+        /* Add alignment. */
+        pos += ss & 3 ? 4 - (ss & 3) : 0;
+    }
+    
+    return strings;
 }
 
 /* Loads the static frame information (what locals we have, bytecode offset,
@@ -175,6 +220,10 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Disect the bytecode into its parts. */
     ReaderState *rs = disect_bytecode(tc, cu);
+    
+    /* Load the strings heap. */
+    cu->strings = deserialize_strings(tc, cu, rs);
+    cu->num_strings = rs->expected_strings;
     
     /* Load the static frame info. */
     cu->frames = deserialize_frames(tc, cu, rs);
