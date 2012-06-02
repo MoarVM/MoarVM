@@ -63,6 +63,17 @@ BANK 0 primitives
 0x3D    inc_u       w(int64)
 0x3E    dec_i       w(int64)
 0x3F    dec_u       w(int64)
+0x40    getcode     w(obj) coderef
+0x41    prepargs    callsite
+0x42    arg_i       int16 r(int64)
+0x43    arg_n       int16 r(num64)
+0x44    arg_s       int16 r(str)
+0x45    arg_o       int16 r(obj)
+0x46    invoke_v    r(obj)
+0x47    invoke_i    w(int64) r(obj)
+0x48    invoke_n    w(num64) r(obj)
+0x49    invoke_s    w(str) r(obj)
+0x4A    invoke_o    w(obj) r(obj)
 
 BANK 1 dev
 0x00    say_i       r(int64)

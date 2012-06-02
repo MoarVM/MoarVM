@@ -69,6 +69,17 @@
 #define MVM_OP_inc_u 61
 #define MVM_OP_dec_i 62
 #define MVM_OP_dec_u 63
+#define MVM_OP_getcode 64
+#define MVM_OP_prepargs 65
+#define MVM_OP_arg_i 66
+#define MVM_OP_arg_n 67
+#define MVM_OP_arg_s 68
+#define MVM_OP_arg_o 69
+#define MVM_OP_invoke_v 70
+#define MVM_OP_invoke_i 71
+#define MVM_OP_invoke_n 72
+#define MVM_OP_invoke_s 73
+#define MVM_OP_invoke_o 74
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -456,6 +467,72 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         "dec_u",
         1,
         { MVM_operand_write_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_getcode,
+        "getcode",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_coderef }
+    },
+    {
+        MVM_OP_prepargs,
+        "prepargs",
+        1,
+        { MVM_operand_callsite }
+    },
+    {
+        MVM_OP_arg_i,
+        "arg_i",
+        2,
+        { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_arg_n,
+        "arg_n",
+        2,
+        { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_arg_s,
+        "arg_s",
+        2,
+        { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_arg_o,
+        "arg_o",
+        2,
+        { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_invoke_v,
+        "invoke_v",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_invoke_i,
+        "invoke_i",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_invoke_n,
+        "invoke_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_invoke_s,
+        "invoke_s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_invoke_o,
+        "invoke_o",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
 };
 static MVMOpInfo MVM_op_info_dev[] = {

@@ -69,6 +69,17 @@ class MAST::Ops {
     our $inc_u := 61;
     our $dec_i := 62;
     our $dec_u := 63;
+    our $getcode := 64;
+    our $prepargs := 65;
+    our $arg_i := 66;
+    our $arg_n := 67;
+    our $arg_s := 68;
+    our $arg_o := 69;
+    our $invoke_v := 70;
+    our $invoke_i := 71;
+    our $invoke_n := 72;
+    our $invoke_s := 73;
+    our $invoke_o := 74;
     our $say_i := 0;
     our $say_s := 1;
 }
