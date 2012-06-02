@@ -420,8 +420,50 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
 /* Takes all of the strings and joins them into a heap, encoding them as
  * UTF-8. */
 char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
-    *string_heap_size = 0;
-    return NULL;
+    char         *heap;
+    unsigned int  i, num_strings, heap_size, heap_alloc;
+    
+    /* If we've nothing to do, just return immediately. */
+    num_strings = ELEMS(vm, ws->strings);
+    if (num_strings == 0) {
+        *string_heap_size = 0;
+        return NULL;
+    }
+    
+    /* Allocate heap starting point (just a guess). */
+    heap_size = 0;
+    heap_alloc = num_strings * 16;
+    heap = malloc(heap_alloc);
+    
+    /* Add each string to the heap. */
+    for (i = 0; i < num_strings; i++) {
+        /* Transcode string to UTF8. */
+        STRING *utf8 = Parrot_str_change_encoding(interp,
+            ATPOS_S(vm, ws->strings, i),
+            Parrot_utf8_encoding_ptr->num);
+        
+        /* Ensure we have space. */
+        unsigned int bytelen = (unsigned int)Parrot_str_byte_length(interp, utf8);
+        unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
+        if (heap_size + 4 + bytelen + align > heap_alloc) {
+            heap_alloc *= 2;
+            heap = realloc(heap, heap_alloc);
+        }
+        
+        /* Write byte length into heap. */
+        write_int32(heap, heap_size, bytelen);
+        heap_size += 4;
+        
+        /* Write string. */
+        memcpy(heap + heap_size, utf8->strstart, bytelen);
+        heap_size += bytelen;
+        
+        /* Add alignment. */
+        heap_size += align;
+    }
+    
+    *string_heap_size = heap_size;
+    return heap;
 }
 
 /* Takes all the pieces and forms the bytecode output. */
