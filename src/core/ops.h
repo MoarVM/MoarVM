@@ -65,6 +65,10 @@
 #define MVM_OP_mod_u 57
 #define MVM_OP_neg_i 58
 #define MVM_OP_abs_i 59
+#define MVM_OP_inc_i 60
+#define MVM_OP_inc_u 61
+#define MVM_OP_dec_i 62
+#define MVM_OP_dec_u 63
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -427,6 +431,30 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         "abs_i",
         2,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_inc_i,
+        "inc_i",
+        1,
+        { MVM_operand_write_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_inc_u,
+        "inc_u",
+        1,
+        { MVM_operand_write_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_dec_i,
+        "dec_i",
+        1,
+        { MVM_operand_write_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_dec_u,
+        "dec_u",
+        1,
+        { MVM_operand_write_reg | MVM_operand_int64 }
     },
 };
 static MVMOpInfo MVM_op_info_dev[] = {

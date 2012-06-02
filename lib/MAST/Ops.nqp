@@ -1,4 +1,4 @@
-# This file is generated from src\core\oplist by tools/update_lib_mast_ops.p6.
+# This file is generated from src/core/oplist by tools/update_lib_mast_ops.p6.
 
 class MAST::OpBanks {
     our $primitives := 0;
@@ -65,5 +65,9 @@ class MAST::Ops {
     our $mod_u := 57;
     our $neg_i := 58;
     our $abs_i := 59;
+    our $inc_i := 60;
+    our $inc_u := 61;
+    our $dec_i := 62;
+    our $dec_u := 63;
     our $say_i := 0;
 }
