@@ -88,6 +88,9 @@ typedef struct {
 /* This means we can talk about MASTNode in the compiler, not PMC. */
 typedef PMC MASTNode;
 
+/* Similar for strings. */
+typedef STRING VMSTR;
+
 /* Way of talking about the interpreter. */
 #define VM PARROT_INTERP
 #define vm interp
@@ -101,12 +104,16 @@ typedef PMC MASTNode;
 #define GET_Label(n)                ((MAST_Label *)PMC_data(n))
 #define GET_Local(n)                ((MAST_Local *)PMC_data(n))
 #define GET_IVal(n)                 ((MAST_IVal *)PMC_data(n))
+#define GET_SVal(n)                 ((MAST_SVal *)PMC_data(n))
 #define NEWLIST_I(vm)               (Parrot_pmc_new(interp, enum_class_ResizableIntegerArray))
+#define NEWLIST_S(vm)               (Parrot_pmc_new(interp, enum_class_ResizableStringArray))
 #define ELEMS(vm, arr)              ((unsigned int )VTABLE_elements(vm, arr))
 #define ATPOS(vm, arr, i)           (VTABLE_get_pmc_keyed_int(vm, arr, i))
 #define ATPOS_I(vm, arr, i)         (VTABLE_get_integer_keyed_int(vm, arr, i))
+#define ATPOS_S(vm, arr, i)         (VTABLE_get_string_keyed_int(vm, arr, i))
 #define BINDPOS(vm, arr, i, v)      (VTABLE_set_pmc_keyed_int(vm, arr, i, v))
 #define BINDPOS_I(vm, arr, i, v)    (VTABLE_set_integer_keyed_int(vm, arr, i, v))
+#define BINDPOS_S(vm, arr, i, v)    (VTABLE_set_string_keyed_int(vm, arr, i, v))
 #define NEWHASH(vm)                 (Parrot_pmc_new(interp, enum_class_Hash))
 #define HASHELEMS(vm, hash)         ((unsigned int )VTABLE_elements(vm, hash))
 #define ATKEY(vm, hash, k)          (VTABLE_get_pmc_keyed_str(vm, hash, k))

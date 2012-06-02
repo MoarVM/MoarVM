@@ -44,6 +44,10 @@ typedef struct {
     FrameState   *cur_frame;
     unsigned int  num_frames;
     
+    /* String heap and seen hash mapping known strings to indexes. */
+    MASTNode *strings;
+    MASTNode *seen_strings;
+    
     /* The frame segment. */
     char         *frame_seg;
     unsigned int  frame_pos;
@@ -107,6 +111,21 @@ void cleanup_all(VM, WriterState *ws) {
     if (ws->bytecode_seg)
         free(ws->bytecode_seg);
     free(ws);
+}
+
+/* Gets the index of a string already in the string heap, or
+ * adds it to the heap if it's not already there. */
+unsigned short get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
+    if (EXISTSKEY(vm, ws->seen_strings, strval)) {
+        return (unsigned short)ATKEY_I(vm, ws->seen_strings, strval);
+    }
+    else {
+        unsigned short index = (unsigned short)ELEMS(vm, ws->strings);
+        /* XXX Overflow check */
+        BINDPOS_S(interp, ws->strings, index, strval);
+        BINDKEY_I(interp, ws->seen_strings, strval, index);
+        return index;
+    }
 }
 
 /* Takes a 6model object type and turns it into a local/lexical type flag. */
@@ -175,6 +194,20 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                 }
                 break;
             }
+            case MVM_operand_str: {
+                if (ISTYPE(vm, operand, ws->types->SVal)) {
+                    MAST_SVal *sv = GET_SVal(operand);
+                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+                    write_int16(ws->bytecode_seg, ws->bytecode_pos,
+                        get_string_heap_index(vm, ws, sv->value));
+                    ws->bytecode_pos += 2;
+                }
+                else {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "Expected MAST::SVal, but didn't get one");
+                }
+                break;
+            };
             case MVM_operand_ins: {
                 if (ISTYPE(vm, operand, ws->types->Label)) {
                     MAST_Label *l = GET_Label(operand);
@@ -439,6 +472,8 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     /* Initialize the writer state structure. */
     ws = malloc(sizeof(WriterState));
     ws->types          = types;
+    ws->strings        = NEWLIST_S(vm);
+    ws->seen_strings   = NEWHASH(vm);
     ws->cur_frame      = NULL;
     ws->frame_pos      = 0;
     ws->frame_alloc    = 4096;
