@@ -115,6 +115,12 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         printf("%d\n", GET_REG(cur_op, 0).i64); /* XXX %d is 32-bit only, I guess... */
                         cur_op += 2;
                         break;
+                    case MVM_OP_say_s:
+                        /* XXX UTF-8, null bytes, etc. */
+                        printf("%s\n", MVM_string_ascii_encode(tc,
+                            GET_REG(cur_op, 0).s, NULL));
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
