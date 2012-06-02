@@ -74,7 +74,14 @@ BANK 0 primitives
 0x48    invoke_n    w(num64) r(obj)
 0x49    invoke_s    w(str) r(obj)
 0x4A    invoke_o    w(obj) r(obj)
+0x4B    add_n       w(num64) r(num64) r(num64)
+0x4C    sub_n       w(num64) r(num64) r(num64)
+0x4D    mul_n       w(num64) r(num64) r(num64)
+0x4E    div_n       w(num64) r(num64) r(num64)
+0x4F    neg_n       w(num64) r(num64)
+0x50    abs_n       w(num64) r(num64)
 
 BANK 1 dev
 0x00    say_i       r(int64)
 0x01    say_s       r(str)
+0x02    say_n       r(num64)

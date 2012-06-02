@@ -80,6 +80,13 @@ class MAST::Ops {
     our $invoke_n := 72;
     our $invoke_s := 73;
     our $invoke_o := 74;
+    our $add_n := 75;
+    our $sub_n := 76;
+    our $mul_n := 77;
+    our $div_n := 78;
+    our $neg_n := 79;
+    our $abs_n := 80;
     our $say_i := 0;
     our $say_s := 1;
+    our $say_n := 2;
 }

@@ -80,10 +80,17 @@
 #define MVM_OP_invoke_n 72
 #define MVM_OP_invoke_s 73
 #define MVM_OP_invoke_o 74
+#define MVM_OP_add_n 75
+#define MVM_OP_sub_n 76
+#define MVM_OP_mul_n 77
+#define MVM_OP_div_n 78
+#define MVM_OP_neg_n 79
+#define MVM_OP_abs_n 80
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
 #define MVM_OP_say_s 1
+#define MVM_OP_say_n 2
 
 static MVMOpInfo MVM_op_info_primitives[] = {
     {
@@ -534,6 +541,42 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_add_n,
+        "add_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_sub_n,
+        "sub_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_mul_n,
+        "mul_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_div_n,
+        "div_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_neg_n,
+        "neg_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_abs_n,
+        "abs_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
 };
 static MVMOpInfo MVM_op_info_dev[] = {
     {
@@ -547,5 +590,11 @@ static MVMOpInfo MVM_op_info_dev[] = {
         "say_s",
         1,
         { MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_say_n,
+        "say_n",
+        1,
+        { MVM_operand_read_reg | MVM_operand_num64 }
     },
 };
