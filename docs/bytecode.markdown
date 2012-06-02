@@ -72,6 +72,17 @@ what it contains.
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
 
+## Strings heap
+This segment contains a bunch of string data. Each string is laid out as:
+
+    +---------------------------------------------------------+
+    | String length in bytes                                  |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | String data encoded as UTF-8                            |
+    |    Bunch of bytes, padded at end to 32 bit boundary     |
+    +---------------------------------------------------------+
+
 ## SC Dependencies Table
 This table describes the SCs that the bytecode in this file references
 objects from. The index in this table will be used in the referenced
