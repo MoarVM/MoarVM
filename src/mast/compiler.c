@@ -417,14 +417,26 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     ws->num_frames++;
 }
 
+/* Takes all of the strings and joins them into a heap, encoding them as
+ * UTF-8. */
+char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
+    *string_heap_size = 0;
+    return NULL;
+}
+
 /* Takes all the pieces and forms the bytecode output. */
 char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     unsigned int size    = 0;
     unsigned int pos     = 0;
     char         *output = NULL;
     
+    /* Build string heap. */
+    unsigned int  string_heap_size;
+    char         *string_heap = form_string_heap(vm, ws, &string_heap_size);
+    
     /* Work out total size. */
     size += HEADER_SIZE;
+    size += string_heap_size;
     size += ws->frame_pos;
     size += ws->bytecode_pos;
     
@@ -442,6 +454,13 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     write_int32(output, 32, ws->num_frames);
     memcpy(output + pos, ws->frame_seg, ws->frame_pos);
     pos += ws->frame_pos;
+    
+    /* Add strings heap section and its header entries. */
+    write_int32(output, 48, pos);
+    write_int32(output, 52, ELEMS(vm, ws->strings));
+    memcpy(output + pos, string_heap, string_heap_size);
+    pos += string_heap_size;
+    free(string_heap);
     
     /* Add bytecode section and its header entries (offset, length). */
     write_int32(output, 64, pos);
