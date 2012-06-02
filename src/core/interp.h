@@ -65,6 +65,8 @@ typedef struct _MVMOpInfo {
 #define MVM_operand_ins         (9 << 3)
 #define MVM_operand_type_var    (10 << 3)
 #define MVM_operand_lex_outer   (11 << 3)
+#define MVM_operand_coderef     (12 << 3)
+#define MVM_operand_callsite    (13 << 3)
 #define MVM_operand_type_mask   (15 << 3)
 
 /* Functions. */
