@@ -93,11 +93,11 @@ mast_frame_output_is(-> $frame {
                 $r0, $loop_end
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('inc'),
+                :bank('primitives'), :op('inc_i'),
                 $r1
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('dec'),
+                :bank('primitives'), :op('dec_i'),
                 $r0
             ));
         nqp::push(@ins, MAST::Op.new(
