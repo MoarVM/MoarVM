@@ -140,7 +140,8 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
                     case 16:
                         return MVM_reg_int16;
                     case 32:
-                        return MVM_reg_int32;
+                        /* XXX Parrot specific hack... */
+                        return sizeof(INTVAL) == 32 ? MVM_reg_int64 : MVM_reg_int32;
                     case 64:
                         return MVM_reg_int64;
                     default:
