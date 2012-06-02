@@ -102,7 +102,7 @@ grammar OperandFlag {
     token rw       { < rl wl r w > }
     token type     { < int8 int16 int32 int64 num32 num64 str obj > }
     token type_var { '`1' }
-    token special  { < ins lo > }
+    token special  { < ins lo coderef callsite > }
 }
 my %rwflags = (
     r  => 'MVM_operand_read_reg',
@@ -123,6 +123,12 @@ sub operand_flags($operand) {
         }
         elsif $special eq 'lo' {
             'MVM_operand_lex_outer'
+        }
+        elsif $special eq 'coderef' {
+            'MVM_operand_coderef'
+        }
+        elsif $special eq 'callsite' {
+            'MVM_operand_callsite'
         }
         else {
             die "Failed to process operand '$operand'";
