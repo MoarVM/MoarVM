@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(2);
+plan(3);
 
 mast_frame_output_is(-> $frame {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
@@ -70,3 +70,46 @@ mast_frame_output_is(-> $frame {
     },
     "2\n",
     "unconditional forward and backward branching");
+
+mast_frame_output_is(-> $frame {
+        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
+        my $r1 := MAST::Local.new(:index($frame.add_local(int)));
+        my $loop := MAST::Label.new(:name('loop'));
+        my $loop_end := MAST::Label.new(:name('loop_end'));
+        my @ins := $frame.instructions;
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('const_i64'),
+                $r0,
+                MAST::IVal.new( :value(5) )
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('const_i64'),
+                $r1,
+                MAST::IVal.new( :value(0) )
+            ));
+        nqp::push(@ins, $loop);
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('unless_i'),
+                $r0, $loop_end
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('inc'),
+                $r1
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('dec'),
+                $r0
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('dev'), :op('say_i'),
+                $r1
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('goto'),
+                $loop
+            ));
+        nqp::push(@ins, $loop_end);
+        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+    },
+    "1\n2\n3\n4\n5\n",
+    "conditional on non-zero integer branching");
