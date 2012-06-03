@@ -27,7 +27,34 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc) {
         say("EXPECTED:\n$expected");
     }
     
-    # Clean up.
+    # Clean up. XXX handle other than Windows
     pir::spawnw__Is("del /Q temp.moarvm");
     pir::spawnw__Is("del /Q temp.output");
+}
+
+our sub op(@ins, $op, *@args) {
+    my $bank;
+    for MAST::Ops.WHO {
+        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
+    }
+    nqp::die("unable to resolve MAST op '$op'") unless $bank;
+    nqp::push(@ins, MAST::Op.new(
+            :bank(nqp::substr($bank, 1)), :op($op), |@args
+        ));
+}
+
+our sub lbl($name) {
+    MAST::Label.new( :name($name) )
+}
+
+our sub iv($val) {
+    MAST::IVal.new( :value($val) )
+}
+
+our sub nv($val) {
+    MAST::NVal.new( :value($val) )
+}
+
+our sub sv($val) {
+    MAST::SVal.new( :value($val) )
 }
