@@ -60,8 +60,14 @@ sub bank_constants(@banks) {
 sub op_constants(@banks) {
     join "\n", gather {
         take 'class MAST::Ops {';
-        for @banks>>.ops -> $op {
-            take "    our \$$op.name() := $op.code();";
+        for @banks -> $bank {
+            take "    our \$$bank.name() := nqp::hash(";
+            take join ",\n", gather {
+                for $bank.ops -> $op {
+                    take "        '$op.name()', $op.code()";
+                }
+            }
+            take "    );";
         }
         take '}';
     }

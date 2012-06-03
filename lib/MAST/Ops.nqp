@@ -5,100 +5,104 @@ class MAST::OpBanks {
     our $dev := 1;
 }
 class MAST::Ops {
-    our $no_op := 0;
-    our $goto := 1;
-    our $if_i := 2;
-    our $unless_i := 3;
-    our $if_n := 4;
-    our $unless_n := 5;
-    our $if_s := 6;
-    our $unless_s := 7;
-    our $if_s0 := 8;
-    our $unless_s0 := 9;
-    our $if_o := 10;
-    our $unless_o := 11;
-    our $set := 12;
-    our $extend_u8 := 13;
-    our $extend_u16 := 14;
-    our $extend_u32 := 15;
-    our $extend_i8 := 16;
-    our $extend_i16 := 17;
-    our $extend_i32 := 18;
-    our $trunc_u8 := 19;
-    our $trunc_u16 := 20;
-    our $trunc_u32 := 21;
-    our $trunc_i8 := 22;
-    our $trunc_i16 := 23;
-    our $trunc_i32 := 24;
-    our $extend_n32 := 25;
-    our $trunc_n32 := 26;
-    our $get_lex := 27;
-    our $bind_lex := 28;
-    our $get_lex_lo := 29;
-    our $bind_lex_lo := 30;
-    our $get_lex_ni := 31;
-    our $get_lex_nn := 32;
-    our $get_lex_ns := 33;
-    our $get_lex_no := 34;
-    our $bind_lex_ni := 35;
-    our $bind_lex_nn := 36;
-    our $bind_lex_ns := 37;
-    our $bind_lex_no := 38;
-    our $return_i := 39;
-    our $return_n := 40;
-    our $return_s := 41;
-    our $return_o := 42;
-    our $return := 43;
-    our $const_i8 := 44;
-    our $const_i16 := 45;
-    our $const_i32 := 46;
-    our $const_i64 := 47;
-    our $const_n32 := 48;
-    our $const_n64 := 49;
-    our $const_s := 50;
-    our $add_i := 51;
-    our $sub_i := 52;
-    our $mul_i := 53;
-    our $div_i := 54;
-    our $div_u := 55;
-    our $mod_i := 56;
-    our $mod_u := 57;
-    our $neg_i := 58;
-    our $abs_i := 59;
-    our $inc_i := 60;
-    our $inc_u := 61;
-    our $dec_i := 62;
-    our $dec_u := 63;
-    our $getcode := 64;
-    our $prepargs := 65;
-    our $arg_i := 66;
-    our $arg_n := 67;
-    our $arg_s := 68;
-    our $arg_o := 69;
-    our $invoke_v := 70;
-    our $invoke_i := 71;
-    our $invoke_n := 72;
-    our $invoke_s := 73;
-    our $invoke_o := 74;
-    our $add_n := 75;
-    our $sub_n := 76;
-    our $mul_n := 77;
-    our $div_n := 78;
-    our $neg_n := 79;
-    our $abs_n := 80;
-    our $eq_i := 81;
-    our $ne_i := 82;
-    our $lt_i := 83;
-    our $le_i := 84;
-    our $gt_i := 85;
-    our $ge_i := 86;
-    our $eq_n := 87;
-    our $ne_n := 88;
-    our $lt_n := 89;
-    our $le_n := 90;
-    our $gt_n := 91;
-    our $ge_n := 92;
-    our $say_i := 0;
-    our $say_s := 1;
-    our $say_n := 2;
+    our $primitives := nqp::hash(
+        'no_op', 0,
+        'goto', 1,
+        'if_i', 2,
+        'unless_i', 3,
+        'if_n', 4,
+        'unless_n', 5,
+        'if_s', 6,
+        'unless_s', 7,
+        'if_s0', 8,
+        'unless_s0', 9,
+        'if_o', 10,
+        'unless_o', 11,
+        'set', 12,
+        'extend_u8', 13,
+        'extend_u16', 14,
+        'extend_u32', 15,
+        'extend_i8', 16,
+        'extend_i16', 17,
+        'extend_i32', 18,
+        'trunc_u8', 19,
+        'trunc_u16', 20,
+        'trunc_u32', 21,
+        'trunc_i8', 22,
+        'trunc_i16', 23,
+        'trunc_i32', 24,
+        'extend_n32', 25,
+        'trunc_n32', 26,
+        'get_lex', 27,
+        'bind_lex', 28,
+        'get_lex_lo', 29,
+        'bind_lex_lo', 30,
+        'get_lex_ni', 31,
+        'get_lex_nn', 32,
+        'get_lex_ns', 33,
+        'get_lex_no', 34,
+        'bind_lex_ni', 35,
+        'bind_lex_nn', 36,
+        'bind_lex_ns', 37,
+        'bind_lex_no', 38,
+        'return_i', 39,
+        'return_n', 40,
+        'return_s', 41,
+        'return_o', 42,
+        'return', 43,
+        'const_i8', 44,
+        'const_i16', 45,
+        'const_i32', 46,
+        'const_i64', 47,
+        'const_n32', 48,
+        'const_n64', 49,
+        'const_s', 50,
+        'add_i', 51,
+        'sub_i', 52,
+        'mul_i', 53,
+        'div_i', 54,
+        'div_u', 55,
+        'mod_i', 56,
+        'mod_u', 57,
+        'neg_i', 58,
+        'abs_i', 59,
+        'inc_i', 60,
+        'inc_u', 61,
+        'dec_i', 62,
+        'dec_u', 63,
+        'getcode', 64,
+        'prepargs', 65,
+        'arg_i', 66,
+        'arg_n', 67,
+        'arg_s', 68,
+        'arg_o', 69,
+        'invoke_v', 70,
+        'invoke_i', 71,
+        'invoke_n', 72,
+        'invoke_s', 73,
+        'invoke_o', 74,
+        'add_n', 75,
+        'sub_n', 76,
+        'mul_n', 77,
+        'div_n', 78,
+        'neg_n', 79,
+        'abs_n', 80,
+        'eq_i', 81,
+        'ne_i', 82,
+        'lt_i', 83,
+        'le_i', 84,
+        'gt_i', 85,
+        'ge_i', 86,
+        'eq_n', 87,
+        'ne_n', 88,
+        'lt_n', 89,
+        'le_n', 90,
+        'gt_n', 91,
+        'ge_n', 92
+    );
+    our $dev := nqp::hash(
+        'say_i', 0,
+        'say_s', 1,
+        'say_n', 2
+    );
 }

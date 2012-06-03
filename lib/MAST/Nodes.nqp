@@ -123,14 +123,14 @@ class MAST::Op is MAST::Node {
     
     method new(:$bank!, :$op!, *@operands) {
         my $obj := nqp::create(self);
-        unless nqp::existskey(MAST::OpBanks.WHO, '$' ~ $bank) {
+        unless nqp::existskey(MAST::Ops.WHO, '$' ~ $bank) {
             nqp::die("Invalid MAST op bank '$bank'");
         }
-        unless nqp::existskey(MAST::Ops.WHO, '$' ~ $op) {
+        unless nqp::existskey(MAST::Ops.WHO{'$' ~ $bank}, $op) {
             nqp::die("Invalid MAST op '$op'");
         }
         nqp::bindattr_i($obj, MAST::Op, '$!bank', MAST::OpBanks.WHO{'$' ~ $bank});
-        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$' ~ $op});
+        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$' ~ $bank}{$op});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
         $obj
     }
