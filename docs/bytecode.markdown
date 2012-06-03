@@ -136,6 +136,12 @@ Each frame starts with the following data.
     | Number of lexicals                                      |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | Compilation unit unique ID                              |
+    |    16-bit string heap index                             |
+    +---------------------------------------------------------+
+    | Name                                                    |
+    |    16-bit string heap index                             |
+    +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of
 local it is. These are stored as 16-bit unsigned integers.
