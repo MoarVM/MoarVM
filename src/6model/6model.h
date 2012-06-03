@@ -226,7 +226,7 @@ typedef struct _MVMSTable {
 
 /* The representation operations table. Note that representations are not
  * classes - there's no inheritance, so there's no polymprhism. If you know
- * a representation statically, you can statically dereferene the call to
+ * a representation statically, you can statically dereference the call to
  * the representation op in question. In the dynamic case, you have to go
  * following the pointer, however. */
 typedef struct _MVMREPROps_Attribute {
@@ -435,15 +435,15 @@ typedef struct _MVMREPROps {
      * thread safety requirements. */
     void (*change_type) (struct _MVMThreadContext *tc, MVMObject *Object, MVMObject *NewType);
     
-    /* Object serialization. Writes the objects body out using the passed
+    /* Object serialization. Writes the object's body out using the passed
      * serialization writer. */
     void (*serialize) (struct _MVMThreadContext *tc, MVMSTable *st, void *data, struct _MVMSerializationWriter *writer);
     
-    /* Object deserialization. Reads the objects body in using the passed
+    /* Object deserialization. Reads the object's body in using the passed
      * serialization reader. */
     void (*deserialize) (struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, struct _MVMSerializationReader *reader);
     
-    /* REPR data serialization. Seserializes the per-type representation data that
+    /* REPR data serialization. Serializes the per-type representation data that
      * is attached to the supplied STable. */
     void (*serialize_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationWriter *writer);
     
