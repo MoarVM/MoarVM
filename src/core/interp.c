@@ -146,6 +146,54 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         GET_REG(cur_op, 0).n64 = -GET_REG(cur_op, 2).n64;
                         cur_op += 4;
                         break;
+                    case MVM_OP_eq_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 == GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_ne_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 != GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_lt_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 <  GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_le_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 <= GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_gt_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >  GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_ge_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >= GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_eq_n:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 == GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_ne_n:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 != GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_lt_n:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 <  GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_le_n:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 <= GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_gt_n:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 >  GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_ge_n:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 >= GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
