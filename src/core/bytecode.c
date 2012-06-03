@@ -150,6 +150,7 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
         /* XXX Should be UTF-8!! */
         ensure_can_read(tc, cu, rs, pos, ss);
         strings[i] = MVM_string_ascii_decode(tc, tc->instance->boot_types->BOOTStr, pos, ss);
+        pos += ss;
         
         /* Add alignment. */
         pos += ss & 3 ? 4 - (ss & 3) : 0;
