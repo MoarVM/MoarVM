@@ -106,6 +106,7 @@ typedef STRING VMSTR;
 #define GET_Label(n)                ((MAST_Label *)PMC_data(n))
 #define GET_Local(n)                ((MAST_Local *)PMC_data(n))
 #define GET_IVal(n)                 ((MAST_IVal *)PMC_data(n))
+#define GET_NVal(n)                 ((MAST_NVal *)PMC_data(n))
 #define GET_SVal(n)                 ((MAST_SVal *)PMC_data(n))
 #define NEWLIST_I(vm)               (Parrot_pmc_new(interp, enum_class_ResizableIntegerArray))
 #define NEWLIST_S(vm)               (Parrot_pmc_new(interp, enum_class_ResizableStringArray))

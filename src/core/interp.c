@@ -6,6 +6,8 @@
 #define GET_UI32(pc, idx)   *((MVMuint32 *)(pc + idx))
 #define GET_I64(pc, idx)    *((MVMint64 *)(pc + idx))
 #define GET_UI64(pc, idx)   *((MVMuint64 *)(pc + idx))
+#define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
+#define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
@@ -62,6 +64,10 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         return;
                     case MVM_OP_const_i64:
                         GET_REG(cur_op, 0).i64 = GET_I64(cur_op, 2);
+                        cur_op += 10;
+                        break;
+                    case MVM_OP_const_n64:
+                        GET_REG(cur_op, 0).n64 = GET_N64(cur_op, 2);
                         cur_op += 10;
                         break;
                     case MVM_OP_const_s:
@@ -121,6 +127,10 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                 switch (*(cur_op++)) {
                     case MVM_OP_say_i:
                         printf("%d\n", GET_REG(cur_op, 0).i64); /* XXX %d is 32-bit only, I guess... */
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_say_n:
+                        printf("%f\n", GET_REG(cur_op, 0).n64);
                         cur_op += 2;
                         break;
                     case MVM_OP_say_s:
