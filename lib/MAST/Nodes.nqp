@@ -53,7 +53,7 @@ class MAST::Frame is MAST::Node {
     # The set of lexicals that we allocate space for and keep until
     # nothing references an "instance" of the frame. This is the
     # list of lexical types, the index being significant. Any type
-    # that has a flatteing representation will be "flattened" in to
+    # that has a flattening representation will be "flattened" in to
     # the frame itself.
     has @!lexical_types;
     
@@ -123,6 +123,9 @@ class MAST::Op is MAST::Node {
     
     method new(:$bank!, :$op!, *@operands) {
         my $obj := nqp::create(self);
+        for @operands {
+            nqp::die("Operand not a MAST::Node") unless $_ ~~ MAST::Node;
+        }
         unless nqp::existskey(MAST::Ops.WHO, '$' ~ $bank) {
             nqp::die("Invalid MAST op bank '$bank'");
         }
