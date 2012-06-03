@@ -43,18 +43,22 @@ our sub op(@ins, $op, *@args) {
         ));
 }
 
-our sub lbl($name) {
+our sub label($name) {
     MAST::Label.new( :name($name) )
 }
 
-our sub iv($val) {
+our sub ival($val) {
     MAST::IVal.new( :value($val) )
 }
 
-our sub nv($val) {
+our sub nval($val) {
     MAST::NVal.new( :value($val) )
 }
 
-our sub sv($val) {
+our sub sval($val) {
     MAST::SVal.new( :value($val) )
+}
+
+our sub local($frame, $type) {
+    MAST::Local.new(:index($frame.add_local($type)));
 }

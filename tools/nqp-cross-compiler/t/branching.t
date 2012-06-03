@@ -4,29 +4,15 @@ use MASTTesting;
 plan(5);
 
 mast_frame_output_is(-> $frame {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my $l1 := MAST::Label.new(:name('foo'));
+        my $r0 := local($frame, int);
+        my $l1 := label('foo');
         my @ins := $frame.instructions;
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(1) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('goto'),
-                $l1
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(0) )
-            ));
+        op(@ins, 'const_i64', $r0, ival(1));
+        op(@ins, 'goto', $l1);
+        op(@ins, 'const_i64', $r0, ival(0));
         nqp::push(@ins, $l1);
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+        op(@ins, 'say_i', $r0);
+        op(@ins, 'return');
     },
     "1\n",
     "unconditional forward branching");
