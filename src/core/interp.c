@@ -60,6 +60,18 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         break;
+                    case MVM_OP_if_n:
+                        if (GET_REG(cur_op, 0).n64 != 0.0)
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        else
+                            cur_op += 6;
+                        break;
+                    case MVM_OP_unless_n:
+                        if (GET_REG(cur_op, 0).n64 != 0.0)
+                            cur_op += 6;
+                        else
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        break;
                     case MVM_OP_return:
                         return;
                     case MVM_OP_const_i64:
