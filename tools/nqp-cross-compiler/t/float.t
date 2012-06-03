@@ -45,97 +45,97 @@ mast_frame_output_is(-> $frame {
             ));
         nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
     },
-    "42\n",
-    "integer addition");
+    "9959070.012260\n",
+    "float addition");
 
 mast_frame_output_is(-> $frame {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r1 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r2 := MAST::Local.new(:index($frame.add_local(int)));
+        my $r0 := MAST::Local.new(:index($frame.add_local(num)));
+        my $r1 := MAST::Local.new(:index($frame.add_local(num)));
+        my $r2 := MAST::Local.new(:index($frame.add_local(num)));
         my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
+                :bank('primitives'), :op('const_n64'),
                 $r0,
-                MAST::IVal.new( :value(34) )
+                MAST::NVal.new( :value(3838890000.223) )
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
+                :bank('primitives'), :op('const_n64'),
                 $r1,
-                MAST::IVal.new( :value(8) )
+                MAST::NVal.new( :value(332424432.22222) )
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('sub_i'),
+                :bank('primitives'), :op('sub_n'),
                 $r2, $r0, $r1
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
+                :bank('dev'), :op('say_n'),
                 $r2
             ));
         nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
     },
-    "26\n",
-    "integer subtraction");
+    "3506465568.000780\n",
+    "float subtraction");
 
 mast_frame_output_is(-> $frame {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r1 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r2 := MAST::Local.new(:index($frame.add_local(int)));
+        my $r0 := MAST::Local.new(:index($frame.add_local(num)));
+        my $r1 := MAST::Local.new(:index($frame.add_local(num)));
+        my $r2 := MAST::Local.new(:index($frame.add_local(num)));
         my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
+                :bank('primitives'), :op('const_n64'),
                 $r0,
-                MAST::IVal.new( :value(10) )
+                MAST::NVal.new( :value(-332233.22333) )
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
+                :bank('primitives'), :op('const_n64'),
                 $r1,
-                MAST::IVal.new( :value(5) )
+                MAST::NVal.new( :value(382993.23) )
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('mul_i'),
+                :bank('primitives'), :op('mul_n'),
                 $r2, $r0, $r1
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
+                :bank('dev'), :op('say_n'),
                 $r2
             ));
         nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
     },
-    "50\n",
-    "integer multiplication");
+    "-127243075316.468050\n",
+    "float multiplication");
 
 mast_frame_output_is(-> $frame {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
+        my $r0 := MAST::Local.new(:index($frame.add_local(num)));
         my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
+                :bank('primitives'), :op('const_n64'),
                 $r0,
-                MAST::IVal.new( :value(-10) )
+                MAST::NVal.new( :value(-38838.000033332) )
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('neg_i'),
-                $r0,
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(20) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('neg_i'),
+                :bank('primitives'), :op('neg_n'),
                 $r0,
                 $r0
             ));
         nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
+                :bank('dev'), :op('say_n'),
+                $r0
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('const_n64'),
+                $r0,
+                MAST::NVal.new( :value(33223.22003374) )
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('primitives'), :op('neg_n'),
+                $r0,
+                $r0
+            ));
+        nqp::push(@ins, MAST::Op.new(
+                :bank('dev'), :op('say_n'),
                 $r0
             ));
         nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
     },
-    "10\n-20\n",
-    "integer negation");
+    "38838.000033\n-33223.220034\n",
+    "float negation");

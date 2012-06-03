@@ -114,6 +114,26 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         GET_REG(cur_op, 0).ui64--;
                         cur_op += 2;
                         break;
+                    case MVM_OP_add_n:
+                        GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 + GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_sub_n:
+                        GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 - GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_mul_n:
+                        GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 * GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_div_n:
+                        GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 / GET_REG(cur_op, 4).n64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_neg_n:
+                        GET_REG(cur_op, 0).n64 = -GET_REG(cur_op, 2).n64;
+                        cur_op += 4;
+                        break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
