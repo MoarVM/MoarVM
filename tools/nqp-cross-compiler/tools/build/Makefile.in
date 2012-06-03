@@ -100,7 +100,7 @@ MASTTesting.pbc : MASTCompiler.pbc src/MASTTesting.nqp
 
 ## testing
 
-test:
+test: all
 	prove t
 
 ## cleaning
