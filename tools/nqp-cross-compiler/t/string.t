@@ -4,17 +4,10 @@ use MASTTesting;
 plan(1);
 
 mast_frame_output_is(-> $frame, @ins {
-        my $r0 := MAST::Local.new(:index($frame.add_local(str)));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_s'),
-                $r0,
-                MAST::SVal.new( :value('OMG strings!') )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_s'),
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+        my $r0 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('OMG strings!'));
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
     },
     "OMG strings!\n",
     "string constant loading");
