@@ -103,6 +103,9 @@ MASTTesting.pbc : MASTCompiler.pbc src/MASTTesting.nqp
 test: all
 	prove t
 
+bench: all
+	prove -v bench
+
 ## cleaning
 
 clean:

@@ -2,7 +2,7 @@ use MASTCompiler;
 
 my $moarvm := '..\\..\\moarvm';
 
-our sub mast_frame_output_is($frame_filler, $expected, $desc) {
+our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     # Create frame; get it set up.
     my $frame := MAST::Frame.new();
     $frame_filler($frame, $frame.instructions);
@@ -15,13 +15,16 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc) {
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
 
     # Invoke and redirect output to a file.
+    my $start := nqp::time_n();
     pir::spawnw__Is("$moarvm temp.moarvm > temp.output");
+    my $end := nqp::time_n();
     
     # Read it and check it is OK.
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n", :global);
     my $okness := $output eq $expected;
     ok($okness, $desc);
+    say("                                     # " ~ ($end - $start) ~ " s") if $timeit;
     unless $okness {
         say("GOT:\n$output");
         say("EXPECTED:\n$expected");
