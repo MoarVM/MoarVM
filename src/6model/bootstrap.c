@@ -299,7 +299,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
     
-    /* Give BOOTStr, BOOTArray, BOOTHash and BOOTCode meta-objects. */
+    /* Give BOOTStr, BOOTArray, BOOTHash and BOOTCCode meta-objects. */
     add_meta_object(tc, tc->instance->boot_types->BOOTStr, "BOOTStr");
     add_meta_object(tc, tc->instance->boot_types->BOOTArray, "BOOTArray");
     add_meta_object(tc, tc->instance->boot_types->BOOTHash, "BOOTHash");
