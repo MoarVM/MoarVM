@@ -5,7 +5,7 @@ my $moarvm := '..\\..\\moarvm';
 our sub mast_frame_output_is($frame_filler, $expected, $desc) {
     # Create frame; get it set up.
     my $frame := MAST::Frame.new();
-    $frame_filler($frame);
+    $frame_filler($frame, $frame.instructions);
     
     # Wrap in a compilation unit.
     my $comp_unit := MAST::CompUnit.new();

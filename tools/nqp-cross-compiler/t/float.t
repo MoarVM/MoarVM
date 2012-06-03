@@ -3,9 +3,8 @@ use MASTTesting;
 
 plan(5);
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(num)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
                 $r0,
@@ -20,11 +19,10 @@ mast_frame_output_is(-> $frame {
     "233.232000\n",
     "float constant loading");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(num)));
         my $r1 := MAST::Local.new(:index($frame.add_local(num)));
         my $r2 := MAST::Local.new(:index($frame.add_local(num)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
                 $r0,
@@ -48,11 +46,10 @@ mast_frame_output_is(-> $frame {
     "9959070.012260\n",
     "float addition");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(num)));
         my $r1 := MAST::Local.new(:index($frame.add_local(num)));
         my $r2 := MAST::Local.new(:index($frame.add_local(num)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
                 $r0,
@@ -76,11 +73,10 @@ mast_frame_output_is(-> $frame {
     "3506465568.000780\n",
     "float subtraction");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(num)));
         my $r1 := MAST::Local.new(:index($frame.add_local(num)));
         my $r2 := MAST::Local.new(:index($frame.add_local(num)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
                 $r0,
@@ -104,9 +100,8 @@ mast_frame_output_is(-> $frame {
     "-127243075316.468050\n",
     "float multiplication");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(num)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
                 $r0,

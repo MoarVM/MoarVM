@@ -1,11 +1,10 @@
 #!nqp
 use MASTTesting;
 
-plan(5);
+plan(6);
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -20,11 +19,10 @@ mast_frame_output_is(-> $frame {
     "101\n",
     "integer constant loading");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
         my $r1 := MAST::Local.new(:index($frame.add_local(int)));
         my $r2 := MAST::Local.new(:index($frame.add_local(int)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -48,11 +46,10 @@ mast_frame_output_is(-> $frame {
     "42\n",
     "integer addition");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
         my $r1 := MAST::Local.new(:index($frame.add_local(int)));
         my $r2 := MAST::Local.new(:index($frame.add_local(int)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -76,11 +73,10 @@ mast_frame_output_is(-> $frame {
     "26\n",
     "integer subtraction");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
         my $r1 := MAST::Local.new(:index($frame.add_local(int)));
         my $r2 := MAST::Local.new(:index($frame.add_local(int)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -104,9 +100,8 @@ mast_frame_output_is(-> $frame {
     "50\n",
     "integer multiplication");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -139,3 +134,10 @@ mast_frame_output_is(-> $frame {
     },
     "10\n-20\n",
     "integer negation");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, int);
+        op(@ins, 'return');
+    },
+    "",
+    "integer equals");

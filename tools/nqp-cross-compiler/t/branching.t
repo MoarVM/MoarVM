@@ -3,10 +3,9 @@ use MASTTesting;
 
 plan(5);
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, int);
         my $l1 := label('foo');
-        my @ins := $frame.instructions;
         op(@ins, 'const_i64', $r0, ival(1));
         op(@ins, 'goto', $l1);
         op(@ins, 'const_i64', $r0, ival(0));
@@ -17,11 +16,10 @@ mast_frame_output_is(-> $frame {
     "1\n",
     "unconditional forward branching");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
         my $l1 := MAST::Label.new(:name('foo'));
         my $l2 := MAST::Label.new(:name('bar'));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -57,12 +55,11 @@ mast_frame_output_is(-> $frame {
     "2\n",
     "unconditional forward and backward branching");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
         my $r1 := MAST::Local.new(:index($frame.add_local(int)));
         my $loop := MAST::Label.new(:name('loop'));
         my $loop_end := MAST::Label.new(:name('loop_end'));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -100,11 +97,10 @@ mast_frame_output_is(-> $frame {
     "1\n2\n3\n4\n5\n",
     "conditional on zero integer branching");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(int)));
         my $r1 := MAST::Local.new(:index($frame.add_local(int)));
         my $loop := MAST::Label.new(:name('loop'));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
                 $r0,
@@ -137,14 +133,13 @@ mast_frame_output_is(-> $frame {
     "1\n2\n3\n",
     "conditional on non-zero integer branching");
 
-mast_frame_output_is(-> $frame {
+mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(num)));
         my $r1 := MAST::Local.new(:index($frame.add_local(num)));
         my $l0 := MAST::Label.new(:name('l0'));
         my $l1 := MAST::Label.new(:name('l1'));
         my $l2 := MAST::Label.new(:name('l2'));
         my $l3 := MAST::Label.new(:name('l3'));
-        my @ins := $frame.instructions;
         nqp::push(@ins, MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
                 $r0,
