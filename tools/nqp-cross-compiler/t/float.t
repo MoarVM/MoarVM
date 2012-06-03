@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(5);
+plan(11);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := MAST::Local.new(:index($frame.add_local(num)));
@@ -134,3 +134,141 @@ mast_frame_output_is(-> $frame, @ins {
     },
     "38838.000033\n-33223.220034\n",
     "float negation");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, num);
+        my $r1 := local($frame, num);
+        my $r2 := local($frame, num);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_n64', $r0, nval(23.5532));
+        op(@ins, 'const_n64', $r1, nval(23.5532));
+        op(@ins, 'const_n64', $r2, nval(555.33889009));
+        
+        op(@ins, 'eq_n', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'eq_n', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'eq_n', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "1\n0\n0\n",
+    "float equal to");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, num);
+        my $r1 := local($frame, num);
+        my $r2 := local($frame, num);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_n64', $r0, nval(23.5532));
+        op(@ins, 'const_n64', $r1, nval(23.5532));
+        op(@ins, 'const_n64', $r2, nval(555.33889009));
+        
+        op(@ins, 'ne_n', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ne_n', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ne_n', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "0\n1\n1\n",
+    "float not equal to");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, num);
+        my $r1 := local($frame, num);
+        my $r2 := local($frame, num);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_n64', $r0, nval(23.5532));
+        op(@ins, 'const_n64', $r1, nval(23.5532));
+        op(@ins, 'const_n64', $r2, nval(555.33889009));
+        
+        op(@ins, 'lt_n', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'lt_n', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'lt_n', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "0\n1\n0\n",
+    "float less than");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, num);
+        my $r1 := local($frame, num);
+        my $r2 := local($frame, num);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_n64', $r0, nval(23.5532));
+        op(@ins, 'const_n64', $r1, nval(23.5532));
+        op(@ins, 'const_n64', $r2, nval(555.33889009));
+        
+        op(@ins, 'le_n', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'le_n', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'le_n', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "1\n1\n0\n",
+    "float less than or equal to");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, num);
+        my $r1 := local($frame, num);
+        my $r2 := local($frame, num);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_n64', $r0, nval(23.5532));
+        op(@ins, 'const_n64', $r1, nval(23.5532));
+        op(@ins, 'const_n64', $r2, nval(555.33889009));
+        
+        op(@ins, 'gt_n', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'gt_n', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'gt_n', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "0\n0\n1\n",
+    "float greater than");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, num);
+        my $r1 := local($frame, num);
+        my $r2 := local($frame, num);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_n64', $r0, nval(23.5532));
+        op(@ins, 'const_n64', $r1, nval(23.5532));
+        op(@ins, 'const_n64', $r2, nval(555.33889009));
+        
+        op(@ins, 'ge_n', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ge_n', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ge_n', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "1\n0\n1\n",
+    "float greater than or equal to");

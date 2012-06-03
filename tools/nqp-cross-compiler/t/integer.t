@@ -1,143 +1,203 @@
 #!nqp
 use MASTTesting;
 
-plan(6);
+plan(11);
 
 mast_frame_output_is(-> $frame, @ins {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(101) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+        my $r0 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(101));
+        op(@ins, 'say_i', $r0);
+        op(@ins, 'return');
     },
     "101\n",
     "integer constant loading");
 
 mast_frame_output_is(-> $frame, @ins {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r1 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r2 := MAST::Local.new(:index($frame.add_local(int)));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(34) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r1,
-                MAST::IVal.new( :value(8) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('add_i'),
-                $r2, $r0, $r1
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r2
-            ));
-        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(34));
+        op(@ins, 'const_i64', $r1, ival(8));
+        op(@ins, 'add_i', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
     },
     "42\n",
     "integer addition");
 
 mast_frame_output_is(-> $frame, @ins {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r1 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r2 := MAST::Local.new(:index($frame.add_local(int)));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(34) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r1,
-                MAST::IVal.new( :value(8) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('sub_i'),
-                $r2, $r0, $r1
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r2
-            ));
-        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(34));
+        op(@ins, 'const_i64', $r1, ival(8));
+        op(@ins, 'sub_i', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
     },
     "26\n",
     "integer subtraction");
 
 mast_frame_output_is(-> $frame, @ins {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r1 := MAST::Local.new(:index($frame.add_local(int)));
-        my $r2 := MAST::Local.new(:index($frame.add_local(int)));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(10) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r1,
-                MAST::IVal.new( :value(5) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('mul_i'),
-                $r2, $r0, $r1
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r2
-            ));
-        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(10));
+        op(@ins, 'const_i64', $r1, ival(5));
+        op(@ins, 'mul_i', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
     },
     "50\n",
     "integer multiplication");
 
 mast_frame_output_is(-> $frame, @ins {
-        my $r0 := MAST::Local.new(:index($frame.add_local(int)));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(-10) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('neg_i'),
-                $r0,
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
-                $r0,
-                MAST::IVal.new( :value(20) )
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('primitives'), :op('neg_i'),
-                $r0,
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new(
-                :bank('dev'), :op('say_i'),
-                $r0
-            ));
-        nqp::push(@ins, MAST::Op.new( :bank('primitives'), :op('return') ));
+        my $r0 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(-10));
+        op(@ins, 'neg_i', $r0, $r0);
+        op(@ins, 'say_i', $r0);
+        op(@ins, 'const_i64', $r0, ival(20));
+        op(@ins, 'neg_i', $r0, $r0);
+        op(@ins, 'say_i', $r0);
+        op(@ins, 'return');
     },
     "10\n-20\n",
     "integer negation");
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(23));
+        op(@ins, 'const_i64', $r1, ival(23));
+        op(@ins, 'const_i64', $r2, ival(555));
+        
+        op(@ins, 'eq_i', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'eq_i', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'eq_i', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
         op(@ins, 'return');
     },
-    "",
-    "integer equals");
+    "1\n0\n0\n",
+    "integer equal to");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(23));
+        op(@ins, 'const_i64', $r1, ival(23));
+        op(@ins, 'const_i64', $r2, ival(555));
+        
+        op(@ins, 'ne_i', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ne_i', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ne_i', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "0\n1\n1\n",
+    "integer not equal to");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(23));
+        op(@ins, 'const_i64', $r1, ival(23));
+        op(@ins, 'const_i64', $r2, ival(555));
+        
+        op(@ins, 'lt_i', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'lt_i', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'lt_i', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "0\n1\n0\n",
+    "integer less than");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(23));
+        op(@ins, 'const_i64', $r1, ival(23));
+        op(@ins, 'const_i64', $r2, ival(555));
+        
+        op(@ins, 'le_i', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'le_i', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'le_i', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "1\n1\n0\n",
+    "integer less than or equal to");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(23));
+        op(@ins, 'const_i64', $r1, ival(23));
+        op(@ins, 'const_i64', $r2, ival(555));
+        
+        op(@ins, 'gt_i', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'gt_i', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'gt_i', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "0\n0\n1\n",
+    "integer greater than");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, int);
+        op(@ins, 'const_i64', $r0, ival(23));
+        op(@ins, 'const_i64', $r1, ival(23));
+        op(@ins, 'const_i64', $r2, ival(555));
+        
+        op(@ins, 'ge_i', $r3, $r0, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ge_i', $r3, $r1, $r2);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'ge_i', $r3, $r2, $r1);
+        op(@ins, 'say_i', $r3);
+        
+        op(@ins, 'return');
+    },
+    "1\n0\n1\n",
+    "integer greater than or equal to");
