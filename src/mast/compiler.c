@@ -12,7 +12,7 @@
 /* Some sizes. */
 #define HEADER_SIZE             72
 #define BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE       4 * 4
+#define FRAME_HEADER_SIZE       4 * 4 + 2 * 2
 
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
@@ -394,6 +394,10 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     write_int32(ws->frame_seg, ws->frame_pos + 4, 0); /* Filled in later. */
     write_int32(ws->frame_seg, ws->frame_pos + 8, fs->num_locals);
     write_int32(ws->frame_seg, ws->frame_pos + 12, num_lexicals);
+    write_int16(ws->frame_seg, ws->frame_pos + 16,
+        get_string_heap_index(vm, ws, f->cuuid));
+    write_int16(ws->frame_seg, ws->frame_pos + 18,
+        get_string_heap_index(vm, ws, f->name));
     ws->frame_pos += FRAME_HEADER_SIZE;
     
     /* Write locals, as well as collecting our own array of type info. */

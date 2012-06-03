@@ -4,7 +4,7 @@
 #define HEADER_SIZE             72
 #define MIN_BYTECODE_VERSION    1
 #define MAX_BYTECODE_VERSION    1
-#define FRAME_HEADER_SIZE       4 * 4
+#define FRAME_HEADER_SIZE       4 * 4 + 2 * 2
 
 /* Describes the current reader state. */
 typedef struct {
@@ -72,6 +72,17 @@ static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
     }
+}
+
+/* Reads a string index, looks up the string and returns it. Bounds
+ * checks the string heap index too. */
+static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, char *buffer, size_t offset) {
+    MVMuint16 heap_index = read_int16(buffer, offset);
+    if (heap_index >= cu->num_strings) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
+    }
+    return cu->strings[heap_index];
 }
 
 /* Dissects the bytecode stream and hands back a reader pointing to the
@@ -197,6 +208,10 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         /* Get number of locals and lexicals. */
         frames[i]->num_locals = read_int32(pos, 8);
         frames[i]->num_lexicals = read_int32(pos, 12);
+        
+        /* Get compilation unit unique ID and name. */
+        frames[i]->cuuid = get_heap_string(tc, cu, rs, pos, 16);
+        frames[i]->name  = get_heap_string(tc, cu, rs, pos, 18);
         pos += FRAME_HEADER_SIZE;
         
         /* Read the local types. */
@@ -221,11 +236,11 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Dissect the bytecode into its parts. */
     ReaderState *rs = dissect_bytecode(tc, cu);
-    
+
     /* Load the strings heap. */
     cu->strings = deserialize_strings(tc, cu, rs);
     cu->num_strings = rs->expected_strings;
-    
+
     /* Load the static frame info. */
     cu->frames = deserialize_frames(tc, cu, rs);
     cu->num_frames = rs->expected_frames;

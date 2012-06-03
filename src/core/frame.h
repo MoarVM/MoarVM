@@ -23,6 +23,12 @@ typedef struct _MVMStaticFrame {
     
     /* The compilation unit this frame belongs to. */
     struct _MVMCompUnit *cu;
+    
+    /* The compilation unit unique ID of this frame. */
+    struct _MVMString *cuuid;
+    
+    /* The name of this frame. */
+    struct _MVMString *name;
 } MVMStaticFrame;
 
 /* This represents an active call frame. */
