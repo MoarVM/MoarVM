@@ -80,6 +80,18 @@ BANK 0 primitives
 0x4E    div_n       w(num64) r(num64) r(num64)
 0x4F    neg_n       w(num64) r(num64)
 0x50    abs_n       w(num64) r(num64)
+0x51    eq_i        w(int64) r(int64) r(int64)
+0x52    ne_i        w(int64) r(int64) r(int64)
+0x53    lt_i        w(int64) r(int64) r(int64)
+0x54    le_i        w(int64) r(int64) r(int64)
+0x55    gt_i        w(int64) r(int64) r(int64)
+0x56    ge_i        w(int64) r(int64) r(int64)
+0x57    eq_n        w(int64) r(num64) r(num64)
+0x58    ne_n        w(int64) r(num64) r(num64)
+0x59    lt_n        w(int64) r(num64) r(num64)
+0x5A    le_n        w(int64) r(num64) r(num64)
+0x5B    gt_n        w(int64) r(num64) r(num64)
+0x5C    ge_n        w(int64) r(num64) r(num64)
 
 BANK 1 dev
 0x00    say_i       r(int64)

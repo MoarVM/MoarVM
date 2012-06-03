@@ -86,6 +86,18 @@
 #define MVM_OP_div_n 78
 #define MVM_OP_neg_n 79
 #define MVM_OP_abs_n 80
+#define MVM_OP_eq_i 81
+#define MVM_OP_ne_i 82
+#define MVM_OP_lt_i 83
+#define MVM_OP_le_i 84
+#define MVM_OP_gt_i 85
+#define MVM_OP_ge_i 86
+#define MVM_OP_eq_n 87
+#define MVM_OP_ne_n 88
+#define MVM_OP_lt_n 89
+#define MVM_OP_le_n 90
+#define MVM_OP_gt_n 91
+#define MVM_OP_ge_n 92
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -576,6 +588,78 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         "abs_n",
         2,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_eq_i,
+        "eq_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_ne_i,
+        "ne_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_lt_i,
+        "lt_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_le_i,
+        "le_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_gt_i,
+        "gt_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_ge_i,
+        "ge_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_eq_n,
+        "eq_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_ne_n,
+        "ne_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_lt_n,
+        "lt_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_le_n,
+        "le_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_gt_n,
+        "gt_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_ge_n,
+        "ge_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
 };
 static MVMOpInfo MVM_op_info_dev[] = {
