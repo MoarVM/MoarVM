@@ -2,6 +2,8 @@
 
 /* Macros for getting things from the bytecode stream. */
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
+#define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
+#define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
 #define GET_UI32(pc, idx)   *((MVMuint32 *)(pc + idx))
 #define GET_I64(pc, idx)    *((MVMint64 *)(pc + idx))
@@ -83,8 +85,8 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         cur_op += 10;
                         break;
                     case MVM_OP_const_s:
-                        GET_REG(cur_op, 0).s = string_heap[GET_UI32(cur_op, 0)];
-                        cur_op += 2;
+                        GET_REG(cur_op, 0).s = string_heap[GET_UI16(cur_op, 2)];
+                        cur_op += 4;
                         break;
                     case MVM_OP_add_i:
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 + GET_REG(cur_op, 4).i64;
