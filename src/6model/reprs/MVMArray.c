@@ -21,7 +21,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
 }
 
-/* Copies to the body of one object to another. */
+/* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMArrayBody *src_body  = (MVMArrayBody *)src;
     MVMArrayBody *dest_body = (MVMArrayBody *)dest;

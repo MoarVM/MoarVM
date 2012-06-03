@@ -242,7 +242,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     STABLE(knowhow)->method_cache = knowhow_how->body.methods;
     STABLE(knowhow)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
     
-    /* Associate the created objects with the intial core serialization
+    /* Associate the created objects with the initial core serialization
      * context. */
     /* XXX TODO */
 
@@ -288,13 +288,13 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "repr");
-    MVM_gc_root_add_pernament(tc, (MVMCollectable *)str_repr);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_repr);
     str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "name");
-    MVM_gc_root_add_pernament(tc, (MVMCollectable *)str_name);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_name);
     str_anon     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "<anon>");
-    MVM_gc_root_add_pernament(tc, (MVMCollectable *)str_anon);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_anon);
     str_P6opaque = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6opaque");
-    MVM_gc_root_add_pernament(tc, (MVMCollectable *)str_P6opaque);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_P6opaque);
     
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);

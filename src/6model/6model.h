@@ -30,7 +30,7 @@ union  _MVMArg;
 #define MVM_TYPE_CHECK_NEEDS_ACCEPTS       2
 #define MVM_TYPE_CHECK_CACHE_FLAG_MASK     3
 
-/* This flag is set if we consider the method cche authoritative. */
+/* This flag is set if we consider the method cache authoritative. */
 #define MVM_METHOD_CACHE_AUTHORITATIVE     4
 
 /* Hint value to indicate the absence of an attribute lookup or method

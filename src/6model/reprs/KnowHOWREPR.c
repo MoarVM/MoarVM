@@ -17,7 +17,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st, sizeof(MVMKnowHOWREPR));
 }
 
-/* Initialize a new instance. */
+/* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMObject *methods, *attributes;
     MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
@@ -35,7 +35,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     body->attributes = attributes;
 }
 
-/* Copies to the body of one object to another. */
+/* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMKnowHOWREPRBody *src_body  = (MVMKnowHOWREPRBody *)src;
     MVMKnowHOWREPRBody *dest_body = (MVMKnowHOWREPRBody *)dest;

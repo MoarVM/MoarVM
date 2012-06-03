@@ -31,7 +31,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
 /* Loads bytecode from the specified file name and runs it. */
 void MVM_vm_run_file(MVMInstance *instance, char *filename) {
-    /* Map the compilation unit into memory and disect it. */
+    /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->threads[0];
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
     

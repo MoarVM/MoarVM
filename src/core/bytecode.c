@@ -74,9 +74,9 @@ static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *
     }
 }
 
-/* Disects the bytecode stream and hands back a reader pointing to the
+/* Dissects the bytecode stream and hands back a reader pointing to the
  * various parts of it. */
-static ReaderState * disect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
+static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     ReaderState *rs = NULL;
     MVMuint32 version, offset, size;
     
@@ -207,7 +207,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             pos += 2 * frames[i]->num_locals;
         }
         
-        /* Associated frame with compilation unit. */
+        /* Associate frame with compilation unit. */
         frames[i]->cu = cu;
     }
     
@@ -218,8 +218,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
  * has more than just the executive bytecode, but also various declarations,
  * like frames). Unpacks it and populates the compilation unit. */
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
-    /* Disect the bytecode into its parts. */
-    ReaderState *rs = disect_bytecode(tc, cu);
+    /* Dissect the bytecode into its parts. */
+    ReaderState *rs = dissect_bytecode(tc, cu);
     
     /* Load the strings heap. */
     cu->strings = deserialize_strings(tc, cu, rs);

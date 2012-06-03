@@ -64,7 +64,7 @@ typedef struct {
 #define TYPE_CHECK_NEEDS_ACCEPTS       2
 #define TYPE_CHECK_CACHE_FLAG_MASK     3
 
-/* This flag is set if we consider the method cche authoritative. */
+/* This flag is set if we consider the method cache authoritative. */
 #define METHOD_CACHE_AUTHORITATIVE     4
 
 /* S-Tables (short for Shared Table) contains the commonalities shared between

@@ -9,13 +9,13 @@
 void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
     void *allocated;
     
-    /* Guard against 0-bye allocation. */
+    /* Guard against 0-byte allocation. */
     if (size > 0) {
         /* Do a GC run if this allocation won't fit in what we have
          * left in the nursery. */
         if ((char *)tc->nursery_alloc + size >= tc->nursery_alloc_limit) {
             if (size > MVM_NURSERY_SIZE)
-                MVM_panic("Attempt to allocate a more than the maximum nursery size");
+                MVM_panic("Attempt to allocate more than the maximum nursery size");
             /* XXX Call the GC. */
             MVM_panic("Out of memory; GC not yet implemented!");
         }

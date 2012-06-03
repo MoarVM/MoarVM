@@ -1,11 +1,11 @@
-/* Possible values for the thread execution interupt flag. */
+/* Possible values for the thread execution interrupt flag. */
 typedef enum {
-    /* No interuption needed, continue execution. */
-    MVMInterupt_NONE   = 0,
+    /* No interruption needed, continue execution. */
+    MVMInterrupt_NONE   = 0,
 
     /* Stop and do a GC scan. */
-    MVMInterupt_GCSCAN = 1
-} MVMInteruptType;
+    MVMInterrupt_GCSCAN = 1
+} MVMInterruptType;
 
 /* Information associated with an executing thread. */
 struct _MVMInstance;
@@ -17,8 +17,8 @@ typedef struct _MVMThreadContext {
     /* The end of the space we're allowed to allocate to. */
     void *nursery_alloc_limit;
     
-    /* Execution interupt flag. */
-    MVMInteruptType interupt;
+    /* Execution interrupt flag. */
+    MVMInterruptType interrupt;
     
     /* Pointer to where the interpreter's current opcode is held. */
     MVMuint8 **interp_cur_op;
@@ -41,7 +41,7 @@ typedef struct _MVMThreadContext {
      * the current nursery. */
     void *nursery_fromspace;
     
-    /* Where we evacuate objects to when collection this thread's nursery. */
+    /* Where we evacuate objects to when collecting this thread's nursery. */
     void *nursery_tospace;
     
     /* OS thread handle. */

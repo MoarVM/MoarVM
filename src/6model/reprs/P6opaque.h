@@ -64,7 +64,7 @@ typedef struct {
      * up in the offset table). Uses a final null entry as a sentinel. */
     P6opaqueNameMap *name_to_index_mapping;
 
-    /* Offsets into the object that are elligible for PMC GC marking, and how
+    /* Offsets into the object that are eligible for PMC GC marking, and how
      * many of them we have. */
     MVMuint16 *gc_obj_mark_offsets;
     MVMuint16 gc_obj_mark_offsets_count;
