@@ -4,7 +4,7 @@
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.graphs != b->body.graphs)
         return 0;
-    return (MVMint64)(memcmp(a->body.data, b->body.data, a->body.graphs * sizeof(MVMint32))?0:1);
+    return (MVMint64)(memcmp(a->body.data, b->body.data, a->body.graphs * sizeof(MVMuint32))?0:1);
 }
 
 /* Returns the location of one string in another or -1  */
@@ -18,7 +18,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
     /* brute force for now. */
     while (index <= haystack->body.graphs - needle->body.graphs) {
         if (0 == memcmp(needle->body.data, haystack->body.data + index,
-                needle->body.graphs * sizeof(MVMint32))) {
+                needle->body.graphs * sizeof(MVMuint32))) {
             result = (MVMint64)index;
             break;
         }
@@ -52,8 +52,8 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     result->body.graphs = length;
     
     if (length > 0) {
-        result->body.data = malloc(sizeof(MVMint32) * length);
-        memcpy(result->body.data, a->body.data + start, sizeof(MVMint32) * length);
+        result->body.data = malloc(sizeof(MVMuint32) * length);
+        memcpy(result->body.data, a->body.data + start, sizeof(MVMuint32) * length);
     }
     
     return result;
@@ -66,11 +66,11 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     result->body.graphs = a->body.graphs + b->body.graphs;
     
     if (result->body.graphs) {
-        result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
+        result->body.data = malloc(sizeof(MVMuint32) * result->body.graphs);
         if (a->body.graphs)
-            memcpy(result->body.data, a->body.data, sizeof(MVMint32) * a->body.graphs);
+            memcpy(result->body.data, a->body.data, sizeof(MVMuint32) * a->body.graphs);
         if (b->body.graphs)
-            memcpy(result->body.data + a->body.graphs, b->body.data, sizeof(MVMint32) * b->body.graphs);
+            memcpy(result->body.data + a->body.graphs, b->body.data, sizeof(MVMuint32) * b->body.graphs);
     }
     
     return result;
@@ -87,9 +87,9 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     result->body.graphs = a->body.graphs * count;
     
     if (count) {
-        result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
+        result->body.data = malloc(sizeof(MVMuint32) * result->body.graphs);
         while (count--)
-            memcpy(result->body.data + (i++ * a->body.graphs), a->body.data, sizeof(MVMint32) * a->body.graphs);
+            memcpy(result->body.data + (i++ * a->body.graphs), a->body.data, sizeof(MVMuint32) * a->body.graphs);
     }
     
     return result;
