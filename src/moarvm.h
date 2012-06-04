@@ -27,6 +27,7 @@
 #include "gc/roots.h"
 #include "gc/wb.h"
 #include "strings/ascii.h"
+#include "strings/utf8.h"
 #include "strings/ops.h"
 
 /* Top level VM API functions. */
