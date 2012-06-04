@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include "math.h"
 
 /* Macros for getting things from the bytecode stream. */
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
@@ -270,6 +271,70 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         GET_REG(cur_op, 0).i64 = (MVMint64)(MVM_string_equal(tc,
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s)?0:1);
                         cur_op += 6;
+                        break;
+                    default: {
+                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                    }
+                    break;
+                }
+            }
+            break;
+            
+            /* Math operations other than the primitives. */
+            case MVM_OP_BANK_math: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_sin_n:
+                        GET_REG(cur_op, 0).n64 = sin(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_asin_n:
+                        GET_REG(cur_op, 0).n64 = asin(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_cos_n:
+                        GET_REG(cur_op, 0).n64 = cos(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_acos_n:
+                        GET_REG(cur_op, 0).n64 = acos(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_tan_n:
+                        GET_REG(cur_op, 0).n64 = tan(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_atan_n:
+                        GET_REG(cur_op, 0).n64 = atan(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_atan2_n:
+                        GET_REG(cur_op, 0).n64 = atan2(GET_REG(cur_op, 2).n64,
+                            GET_REG(cur_op, 4).n64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_sec_n: /* XXX TODO: handle edge cases */
+                        GET_REG(cur_op, 0).n64 = 1.0 / cos(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_asec_n: /* XXX TODO: handle edge cases */
+                        GET_REG(cur_op, 0).n64 = acos(1.0 / GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_sinh_n:
+                        GET_REG(cur_op, 0).n64 = sinh(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_cosh_n:
+                        GET_REG(cur_op, 0).n64 = cosh(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_tanh_n:
+                        GET_REG(cur_op, 0).n64 = tanh(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_sech_n: /* XXX TODO: handle edge cases */
+                        GET_REG(cur_op, 0).n64 = 1.0 / cosh(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
                         break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
