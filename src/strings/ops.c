@@ -94,3 +94,14 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     
     return result;
 }
+
+void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
+    
+    MVMuint8 *utf8_encoded;
+    MVMuint64 utf8_encoded_length;
+    
+    utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
+    
+    fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
+    printf("\n");
+}

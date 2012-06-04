@@ -60,9 +60,128 @@ decode_utf8_byte(MVMuint32* state, MVMuint32* codep, MVMuint8 byte) {
   *state = utf8d[256 + *state + type];
   return *state;
 }
-/* end Bjoern Hoehrmann section */
+/* end Bjoern Hoehrmann section (some things were changed from the original) */
 
-#define UTF8_MAXINC 8 * 1024 * 1024
+/* begin not_gerd section
+// Copyright 2012 not_gerd
+// see http://irclog.perlgeek.de/perl6/2012-06-04#i_5681122
+
+Permission is granted to use, modify, and / or redistribute at will.
+
+This includes removing authorship notices, re-use of code parts in
+other software (with or without giving credit), and / or creating a
+commercial product based on it.
+
+This permission is not revocable by the author.
+
+This software is provided as-is. Use it at your own risk. There is
+no warranty whatsoever, neither expressed nor implied, and by using
+this software you accept that the author(s) shall not be held liable
+for any loss of data, loss of service, or other damages, be they
+incidental or consequential. Your only option other than accepting
+this is not to use the software at all.
+*/
+
+#include <stddef.h>
+#include <stdint.h>
+
+enum
+{
+    CP_CHAR            = 1 << 0,
+    CP_LOW_SURROGATE   = 1 << 1,
+    CP_HIGH_SURROGATE  = 1 << 2,
+    CP_NONCHAR         = 1 << 3,
+    CP_OVERFLOW        = 1 << 4,
+
+    U8_SINGLE          = 1 << 5,
+    U8_DOUBLE          = 1 << 6,
+    U8_TRIPLE          = 1 << 7,
+    U8_QUAD            = 1 << 8
+};
+
+static unsigned classify(MVMuint32 cp)
+{
+    if(cp == 0)
+        return CP_CHAR | U8_DOUBLE;
+
+    if(cp <= 0x7F)
+        return CP_CHAR | U8_SINGLE;
+
+    if(cp <= 0x07FF)
+        return CP_CHAR | U8_DOUBLE;
+
+    if(0xD800 <= cp && cp <= 0xDBFF)
+        return CP_HIGH_SURROGATE | U8_TRIPLE;
+
+    if(0xDC00 <= cp && cp <= 0xDFFF)
+        return CP_LOW_SURROGATE | U8_TRIPLE;
+
+    if(0xFDD0 <= cp && cp <= 0xFDEF)
+        return CP_NONCHAR | U8_TRIPLE;
+
+    if(cp <= 0xFFFD)
+        return CP_CHAR | U8_TRIPLE;
+
+    if(cp == 0xFFFE || cp == 0xFFFF)
+        return CP_NONCHAR | U8_TRIPLE;
+
+    if(cp <= 0x10FFFF && ((cp & 0xFFFF) == 0xFFFE || (cp & 0xFFFF) == 0xFFFF))
+        return CP_NONCHAR | U8_QUAD;
+
+    if(cp <= 0x10FFFF)
+        return CP_CHAR | U8_QUAD;
+
+    if(cp <= 0x1FFFFF)
+        return CP_OVERFLOW | U8_QUAD;
+
+    return 0;
+}
+
+static void *utf8_encode(void *bytes, MVMuint32 cp)
+{
+    unsigned cc = classify(cp);
+    MVMuint8 *bp = bytes;
+
+    if(!(cc & CP_CHAR))
+        return NULL;
+
+    if(cc & U8_SINGLE)
+    {
+        bp[0] = (MVMuint8)cp;
+        return bp + 1;
+    }
+
+    if(cc & U8_DOUBLE)
+    {
+        bp[0] = (MVMuint8)(( 6 << 5) |  (cp >> 6));
+        bp[1] = (MVMuint8)(( 2 << 6) |  (cp &  0x3F));
+        return bp + 2;
+    }
+
+    if(cc & U8_TRIPLE)
+    {
+        bp[0] = (MVMuint8)((14 << 4) |  (cp >> 12));
+        bp[1] = (MVMuint8)(( 2 << 6) | ((cp >> 6) & 0x3F));
+        bp[2] = (MVMuint8)(( 2 << 6) | ( cp       & 0x3F));
+        return bp + 3;
+    }
+
+    if(cc & U8_QUAD)
+    {
+        bp[0] = (MVMuint8)((30 << 3) |  (cp >> 18));
+        bp[1] = (MVMuint8)(( 2 << 6) | ((cp >> 12) & 0x3F));
+        bp[2] = (MVMuint8)(( 2 << 6) | ((cp >>  6) & 0x3F));
+        bp[3] = (MVMuint8)(( 2 << 6) | ( cp        & 0x3F));
+        return bp + 4;
+    }
+
+    return NULL;
+}
+
+
+ /* end not_gerd section */
+
+#define UTF8_MAXINC 32 * 1024 * 1024
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. 
  * Only bring in the raw codepoints for now. */
@@ -74,6 +193,10 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMuint32 bufsize = 16;
     MVMuint32 *buffer = malloc(sizeof(MVMuint32) * bufsize);
     MVMuint32 *newbuffer;
+    
+    /* XXX TODO strip BOM if it's there */
+    
+    /* XXX TODO track line and column numbers for malformed reporting */
     
     /* there's probably some (far better) buffer object in APR we can use instead. */
     for (; bytes; ++utf8, --bytes) {
@@ -87,13 +210,15 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
                     (bufsize *= 2) /* otherwise double it */
                 ));
                 /* copy the old buffer to the new buffer */
-                memcpy(newbuffer, buffer, sizeof(MVMint32) * count);
+                memcpy(newbuffer, buffer, sizeof(MVMuint32) * count);
                 free(buffer); /* free the old buffer's memory */
                 buffer = newbuffer; /* refer to the new buffer now */
             }
             buffer[count++] = codepoint; /* add the codepoint to the buffer */
             /* printf("U+%04X\n", codepoint); */
         }
+        /*else if (state == UTF8_REJECT)
+            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 string");*/
     }
     if (state != UTF8_ACCEPT)
         MVM_exception_throw_adhoc(tc, "Malformed UTF-8 string");
@@ -112,7 +237,11 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
 /* Encodes the specified string to UTF-8. */
 MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
     
-    MVMuint8 *result = malloc(str->body.graphs + 1);
-    /* XXX TODO */
+    /* allocate the resulting string. XXX TODO: grow as we go as needed if the string is huge */
+    MVMuint8 *result = malloc(sizeof(MVMuint32) * str->body.graphs);
+    MVMuint8 *arr = result;
+    size_t i = 0;
+    while (i < str->body.graphs && (arr = utf8_encode(arr, str->body.data[i++])));
+    *output_size = (MVMuint64)(arr - result);
     return result;
 }

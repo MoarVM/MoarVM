@@ -256,4 +256,4 @@ mast_frame_output_is(-> $frame, @ins {
         op(@ins, 'return');
     },
     '( « ]> > <term> <.ws>{$¢.add_enum($<na'~"\n",
-    "utf8 round trip");
+    "string utf8 round trip");

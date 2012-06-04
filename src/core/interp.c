@@ -217,9 +217,9 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         cur_op += 2;
                         break;
                     case MVM_OP_say_s:
-                        /* XXX UTF-8, null bytes, etc. */
-                        printf("%s\n", MVM_string_ascii_encode(tc,
-                            GET_REG(cur_op, 0).s, NULL));
+                        MVM_string_say(tc, GET_REG(cur_op, 0).s);
+                        /*printf("%s\n", MVM_string_ascii_encode(tc,
+                            GET_REG(cur_op, 0).s, NULL));*/
                         cur_op += 2;
                         break;
                     default: {
