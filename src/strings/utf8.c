@@ -50,7 +50,7 @@ static const MVMuint8 utf8d[] = {
 };
 
 static MVMuint32
-decode_utf8_byte(MVMuint32* state, MVMuint32* codep, MVMuint8 byte) {
+decode_utf8_byte(MVMuint32 *state, MVMuint32 *codep, MVMuint8 byte) {
   MVMuint32 type = utf8d[byte];
 
   *codep = (*state != UTF8_ACCEPT) ?
