@@ -52,6 +52,12 @@ static void create_stub_BOOTCCode(MVMThreadContext *tc) {
     tc->instance->boot_types->BOOTCCode = repr->type_object_for(tc, NULL);
 }
 
+/* Creates a stub BOOTCode (missing a meta-object). */
+static void create_stub_BOOTCode(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMCode);
+    tc->instance->boot_types->BOOTCode = repr->type_object_for(tc, NULL);
+}
+
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
 static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
     MVMObject  *self, *HOW, *type_object, *BOOTHash, *stash;
@@ -281,10 +287,11 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
 
-    /* Create stub BOOTArray, BOOTHash and BOOTCCode types. */
+    /* Create stub BOOTArray, BOOTHash, BOOTCCode and BOOTCode types. */
     create_stub_BOOTArray(tc);
     create_stub_BOOTHash(tc);
     create_stub_BOOTCCode(tc);
+    create_stub_BOOTCode(tc);
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "repr");
@@ -299,9 +306,10 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
     
-    /* Give BOOTStr, BOOTArray, BOOTHash and BOOTCCode meta-objects. */
+    /* Give BOOTStr, BOOTArray, BOOTHash, BOOTCCode and BOOTCode meta-objects. */
     add_meta_object(tc, tc->instance->boot_types->BOOTStr, "BOOTStr");
     add_meta_object(tc, tc->instance->boot_types->BOOTArray, "BOOTArray");
     add_meta_object(tc, tc->instance->boot_types->BOOTHash, "BOOTHash");
     add_meta_object(tc, tc->instance->boot_types->BOOTCCode, "BOOTCCode");
+    add_meta_object(tc, tc->instance->boot_types->BOOTCode, "BOOTCode");
 }
