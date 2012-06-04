@@ -119,17 +119,22 @@ class MAST::Ops {
     );
     our $math := nqp::hash(
         'sin_n', 0,
-        'asin_n', 2,
-        'cos_n', 3,
-        'acos_n', 4,
-        'tan_n', 5,
-        'atan_n', 6,
-        'atan2_n', 7,
-        'sec_n', 8,
-        'asec_n', 9,
-        'sinh_n', 11,
-        'cosh_n', 12,
-        'tanh_n', 13,
-        'sech_n', 14
+        'asin_n', 1,
+        'cos_n', 2,
+        'acos_n', 3,
+        'tan_n', 4,
+        'atan_n', 5,
+        'atan2_n', 6,
+        'cot_n', 7,
+        'acot_n', 8,
+        'sec_n', 9,
+        'asec_n', 10,
+        'csc_n', 11,
+        'acsc_n', 12,
+        'sinh_n', 13,
+        'cosh_n', 14,
+        'tanh_n', 15,
+        'sech_n', 16,
+        'csch_n', 17
     );
 }
