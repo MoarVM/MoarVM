@@ -101,8 +101,13 @@ enum
 
 static unsigned classify(MVMuint32 cp)
 {
-    if(cp == 0)
-        return CP_CHAR | U8_DOUBLE;
+    /* removing these two lines 
+    12:06 <not_gerd> if you want to encode NUL as a zero-byte
+                 (as in proper UTF-8), you need to delete the
+                 first 2 lines of classify()
+    
+    if(cp == 0) 
+        return CP_CHAR | U8_DOUBLE;*/
 
     if(cp <= 0x7F)
         return CP_CHAR | U8_SINGLE;
