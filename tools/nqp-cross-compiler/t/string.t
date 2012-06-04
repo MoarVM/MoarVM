@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(9);
+plan(13);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
@@ -115,3 +115,55 @@ mast_frame_output_is(-> $frame, @ins {
     },
     "3\n",
     "string index end");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('bar'));
+        op(@ins, 'eq_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "0\n",
+    "string equal not");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_s', $r1, sval('bar'));
+        op(@ins, 'eq_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "1\n",
+    "string equal");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('bar'));
+        op(@ins, 'ne_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "1\n",
+    "string not equal");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_s', $r1, sval('bar'));
+        op(@ins, 'ne_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "0\n",
+    "string not equal not");
