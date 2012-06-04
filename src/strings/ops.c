@@ -1,10 +1,12 @@
 #include "moarvm.h"
 
+#define GRAPHS_EQUAL(d1, d2, g) (memcmp(d1, d2, g * sizeof(MVMuint32)) == 0)
+
 /* Compares two strings for equality. */
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.graphs != b->body.graphs)
         return 0;
-    return (MVMint64)(memcmp(a->body.data, b->body.data, a->body.graphs * sizeof(MVMuint32))?0:1);
+    return (MVMint64)GRAPHS_EQUAL(a->body.data, b->body.data, a->body.graphs);
 }
 
 /* Returns the location of one string in another or -1  */
@@ -17,8 +19,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
         return -1;
     /* brute force for now. */
     while (index <= haystack->body.graphs - needle->body.graphs) {
-        if (0 == memcmp(needle->body.data, haystack->body.data + index,
-                needle->body.graphs * sizeof(MVMuint32))) {
+        if (GRAPHS_EQUAL(needle->body.data, haystack->body.data + index, needle->body.graphs)) {
             result = (MVMint64)index;
             break;
         }
@@ -62,7 +63,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     
-    result->body.codes  = a->body.codes + b->body.codes; /* XXX TODO this is wrong */
+    result->body.codes  = a->body.codes + b->body.codes;
     result->body.graphs = a->body.graphs + b->body.graphs;
     
     if (result->body.graphs) {
