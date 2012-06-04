@@ -45,6 +45,7 @@ MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint
         else
             result[i] = '?';
     }
+    result[i] = 0;
     if (output_size)
         *output_size = str->body.graphs;
     return result;
