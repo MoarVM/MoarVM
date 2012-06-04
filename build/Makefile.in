@@ -24,7 +24,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
-            src/6model/reprs/P6opaque$(O) \
+            src/6model/reprs/P6opaque$(O) src/6model/reprs/MVMCode$(O) \
             src/6model/bootstrap$(O) src/strings/ascii$(O) src/strings/utf8$(O) \
             src/strings/ops$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
@@ -34,8 +34,8 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/gc/allocation.h src/gc/nursery.h src/gc/roots.h src/gc/wb.h \
             src/6model/reprs.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
-            src/6model/reprs/KnowHOWREPR.h src/6model/reprs/P6opaque.h src/strings/ascii.h \
-            src/strings/utf8.h src/strings/ops.h
+            src/6model/reprs/KnowHOWREPR.h src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h \
+            src/strings/ascii.h src/strings/utf8.h src/strings/ops.h
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
@@ -78,6 +78,8 @@ src/6model/reprs/KnowHOWREPR$(O): src/6model/reprs/KnowHOWREPR.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/KnowHOWREPR$(O) src/6model/reprs/KnowHOWREPR.c
 src/6model/reprs/P6opaque$(O): src/6model/reprs/P6opaque.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/P6opaque$(O) src/6model/reprs/P6opaque.c
+src/6model/reprs/MVMCode$(O): src/6model/reprs/MVMCode.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/MVMCode$(O) src/6model/reprs/MVMCode.c
 src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/bootstrap$(O) src/6model/bootstrap.c
 src/strings/ascii$(O): src/strings/ascii.c $(HEADERS)
