@@ -232,10 +232,34 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
             /* String operations. */
             case MVM_OP_BANK_string: {
                 switch (*(cur_op++)) {
+                    case MVM_OP_concat_s:
+                        GET_REG(cur_op, 0).s = MVM_string_concatenate(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_repeat_s:
+                        GET_REG(cur_op, 0).s = MVM_string_repeat(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_substr_s:
+                        GET_REG(cur_op, 0).s = MVM_string_substring(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64,
+                            GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
+                        break;
                     case MVM_OP_index_s:
                         GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                         cur_op += 6;
+                        break;
+                    case MVM_OP_graphs_s:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s->body.graphs;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_codes_s:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s->body.codes;
+                        cur_op += 4;
                         break;
                     case MVM_OP_eq_s:
                         GET_REG(cur_op, 0).i64 = MVM_string_equal(tc,

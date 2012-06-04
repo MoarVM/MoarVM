@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(13);
+plan(17);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
@@ -167,3 +167,83 @@ mast_frame_output_is(-> $frame, @ins {
     },
     "0\n",
     "string not equal not");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_i64', $r1, ival(0));
+        op(@ins, 'const_i64', $r2, ival(3));
+        op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "bar\n",
+    "string substring full");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_i64', $r1, ival(0));
+        op(@ins, 'const_i64', $r2, ival(2));
+        op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "ba\n",
+    "string substring beginning");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_i64', $r1, ival(1));
+        op(@ins, 'const_i64', $r2, ival(1));
+        op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "a\n",
+    "string substring middle");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_i64', $r1, ival(1));
+        op(@ins, 'const_i64', $r2, ival(2));
+        op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "ar\n",
+    "string substring end");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_s', $r1, sval('foo'));
+        op(@ins, 'concat_s', $r0, $r1, $r0);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "foobar\n",
+    "string concat");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_i64', $r1, ival(4));
+        op(@ins, 'repeat_s', $r0, $r0, $r1);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "barbarbarbar\n", # doin' it like a barbarian
+    "string repeat");
