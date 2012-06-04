@@ -242,6 +242,6 @@ MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint6
     MVMuint8 *arr = result;
     size_t i = 0;
     while (i < str->body.graphs && (arr = utf8_encode(arr, str->body.data[i++])));
-    *output_size = (MVMuint64)(arr - result);
+    *output_size = (MVMuint64)(arr ? arr - result : 0);
     return result;
 }
