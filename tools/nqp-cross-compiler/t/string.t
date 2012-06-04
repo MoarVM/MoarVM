@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(17);
+plan(20);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
@@ -50,6 +50,19 @@ mast_frame_output_is(-> $frame, @ins {
     },
     "-1\n",
     "string index haystack empty");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval(''));
+        op(@ins, 'const_s', $r1, sval(''));
+        op(@ins, 'index_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "0\n",
+    "string index both empty");
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);

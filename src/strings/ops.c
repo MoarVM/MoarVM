@@ -11,6 +11,8 @@ MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle) {
     MVMint64 result = -1;
     size_t index    = 0;
+    if (needle->body.graphs == 0 && haystack->body.graphs == 0)
+        return 0; /* the empty strings are equal and start at zero */
     if (needle->body.graphs > haystack->body.graphs || needle->body.graphs < 1)
         return -1;
     /* brute force for now. */
