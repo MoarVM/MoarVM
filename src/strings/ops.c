@@ -97,7 +97,6 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
 }
 
 void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
-    
     MVMuint8 *utf8_encoded;
     MVMuint64 utf8_encoded_length;
     
@@ -105,4 +104,6 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
     
     fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
     printf("\n");
+    
+    free(utf8_encoded);
 }
