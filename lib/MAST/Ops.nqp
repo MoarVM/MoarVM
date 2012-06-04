@@ -3,6 +3,8 @@
 class MAST::OpBanks {
     our $primitives := 0;
     our $dev := 1;
+    our $string := 2;
+    our $math := 3;
 }
 class MAST::Ops {
     our $primitives := nqp::hash(
@@ -104,5 +106,30 @@ class MAST::Ops {
         'say_i', 0,
         'say_s', 1,
         'say_n', 2
+    );
+    our $string := nqp::hash(
+        'concat_s', 0,
+        'repeat_s', 1,
+        'substr_s', 2,
+        'index_s', 3,
+        'graphs_s', 4,
+        'codes_s', 5,
+        'eq_s', 6,
+        'ne_s', 7
+    );
+    our $math := nqp::hash(
+        'sin_n', 0,
+        'asin_n', 2,
+        'cos_n', 3,
+        'acos_n', 4,
+        'tan_n', 5,
+        'atan_n', 6,
+        'atan2_n', 7,
+        'sec_n', 8,
+        'asec_n', 9,
+        'sinh_n', 11,
+        'cosh_n', 12,
+        'tanh_n', 13,
+        'sech_n', 14
     );
 }

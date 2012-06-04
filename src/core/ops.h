@@ -3,6 +3,8 @@
 /* Bank name defines. */
 #define MVM_OP_BANK_primitives 0
 #define MVM_OP_BANK_dev 1
+#define MVM_OP_BANK_string 2
+#define MVM_OP_BANK_math 3
 
 /* Op name defines for bank primitives. */
 #define MVM_OP_no_op 0
@@ -103,6 +105,31 @@
 #define MVM_OP_say_i 0
 #define MVM_OP_say_s 1
 #define MVM_OP_say_n 2
+
+/* Op name defines for bank string. */
+#define MVM_OP_concat_s 0
+#define MVM_OP_repeat_s 1
+#define MVM_OP_substr_s 2
+#define MVM_OP_index_s 3
+#define MVM_OP_graphs_s 4
+#define MVM_OP_codes_s 5
+#define MVM_OP_eq_s 6
+#define MVM_OP_ne_s 7
+
+/* Op name defines for bank math. */
+#define MVM_OP_sin_n 0
+#define MVM_OP_asin_n 2
+#define MVM_OP_cos_n 3
+#define MVM_OP_acos_n 4
+#define MVM_OP_tan_n 5
+#define MVM_OP_atan_n 6
+#define MVM_OP_atan2_n 7
+#define MVM_OP_sec_n 8
+#define MVM_OP_asec_n 9
+#define MVM_OP_sinh_n 11
+#define MVM_OP_cosh_n 12
+#define MVM_OP_tanh_n 13
+#define MVM_OP_sech_n 14
 
 static MVMOpInfo MVM_op_info_primitives[] = {
     {
@@ -680,5 +707,135 @@ static MVMOpInfo MVM_op_info_dev[] = {
         "say_n",
         1,
         { MVM_operand_read_reg | MVM_operand_num64 }
+    },
+};
+static MVMOpInfo MVM_op_info_string[] = {
+    {
+        MVM_OP_concat_s,
+        "concat_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_repeat_s,
+        "repeat_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_substr_s,
+        "substr_s",
+        4,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_index_s,
+        "index_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_graphs_s,
+        "graphs_s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_codes_s,
+        "codes_s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_eq_s,
+        "eq_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_ne_s,
+        "ne_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+};
+static MVMOpInfo MVM_op_info_math[] = {
+    {
+        MVM_OP_sin_n,
+        "sin_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_asin_n,
+        "asin_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_cos_n,
+        "cos_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_acos_n,
+        "acos_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_tan_n,
+        "tan_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_atan_n,
+        "atan_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_atan2_n,
+        "atan2_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_sec_n,
+        "sec_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_asec_n,
+        "asec_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_sinh_n,
+        "sinh_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_cosh_n,
+        "cosh_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_tanh_n,
+        "tanh_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_sech_n,
+        "sech_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
 };

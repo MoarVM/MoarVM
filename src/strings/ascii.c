@@ -37,7 +37,7 @@ MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint
     /* ASCII is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint8 *result = malloc(str->body.graphs + 1);
-    size_t i;
+    size_t i = 0;
     for (i = 0; i < str->body.graphs; i++) {
         MVMint32 ord = str->body.data[i];
         if (ord >= 0 && ord <= 127)

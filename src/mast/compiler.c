@@ -311,6 +311,12 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         else if (bank == 1) {
             info = &MVM_op_info_dev[op];
         }
+        else if (bank == 2) {
+            info = &MVM_op_info_string[op];
+        }
+        else if (bank == 3) {
+            info = &MVM_op_info_math[op];
+        }
         else {
             cleanup_all(vm, ws);
             DIE(vm, "Invalid op bank specified in instruction");

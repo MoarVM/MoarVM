@@ -229,6 +229,22 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
             }
             break;
             
+            /* String operations. */
+            case MVM_OP_BANK_string: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_index_s:
+                        GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    default: {
+                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                    }
+                    break;
+                }
+            }
+            break;
+            
             /* Dispatch to bank function. */
             default:
             {

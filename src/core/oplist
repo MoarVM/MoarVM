@@ -97,3 +97,28 @@ BANK 1 dev
 0x00    say_i       r(int64)
 0x01    say_s       r(str)
 0x02    say_n       r(num64)
+
+BANK 2 string
+0x00    concat_s    w(str) r(str) r(str)
+0x01    repeat_s    w(str) r(str) r(int64)
+0x02    substr_s    w(str) r(str) r(int64) r(int64)
+0x03    index_s     w(int64) r(str) r(str)
+0x04    graphs_s    w(int64) r(str)
+0x05    codes_s     w(int64) r(str)
+0x06    eq_s        w(int64) r(str) r(str)
+0x07    ne_s        w(int64) r(str) r(str)
+
+BANK 3 math
+0x00    sin_n       w(num64) r(num64)
+0x02    asin_n      w(num64) r(num64)
+0x03    cos_n       w(num64) r(num64)
+0x04    acos_n      w(num64) r(num64)
+0x05    tan_n       w(num64) r(num64)
+0x06    atan_n      w(num64) r(num64)
+0x07    atan2_n     w(num64) r(num64) r(num64)
+0x08    sec_n       w(num64) r(num64)
+0x09    asec_n      w(num64) r(num64)
+0x0B    sinh_n      w(num64) r(num64)
+0x0C    cosh_n      w(num64) r(num64)
+0x0D    tanh_n      w(num64) r(num64)
+0x0E    sech_n      w(num64) r(num64)
