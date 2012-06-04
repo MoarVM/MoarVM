@@ -50,7 +50,7 @@ static const MVMuint8 utf8d[] = {
 };
 
 static MVMuint32
-decode_utf8_byte(MVMuint32* state, MVMuint32* codep, MVMuint32 byte) {
+decode_utf8_byte(MVMuint32* state, MVMuint32* codep, MVMuint8 byte) {
   MVMuint32 type = utf8d[byte];
 
   *codep = (*state != UTF8_ACCEPT) ?
@@ -62,7 +62,7 @@ decode_utf8_byte(MVMuint32* state, MVMuint32* codep, MVMuint32 byte) {
 }
 /* end Bjoern Hoehrmann section */
 
-#define UTF8_MAXINC 128 * 1024 * 1024
+#define UTF8_MAXINC 8 * 1024 * 1024
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. 
  * Only bring in the raw codepoints for now. */
@@ -71,7 +71,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMuint32 count = 0;
     MVMuint32 codepoint;
     MVMuint32 state = 0;
-    MVMuint32 bufsize = 256;
+    MVMuint32 bufsize = 16;
     MVMuint32 *buffer = malloc(sizeof(MVMuint32) * bufsize);
     MVMuint32 *newbuffer;
     
