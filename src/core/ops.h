@@ -124,17 +124,12 @@
 #define MVM_OP_tan_n 4
 #define MVM_OP_atan_n 5
 #define MVM_OP_atan2_n 6
-#define MVM_OP_cot_n 7
-#define MVM_OP_acot_n 8
-#define MVM_OP_sec_n 9
-#define MVM_OP_asec_n 10
-#define MVM_OP_csc_n 11
-#define MVM_OP_acsc_n 12
-#define MVM_OP_sinh_n 13
-#define MVM_OP_cosh_n 14
-#define MVM_OP_tanh_n 15
-#define MVM_OP_sech_n 16
-#define MVM_OP_csch_n 17
+#define MVM_OP_sec_n 7
+#define MVM_OP_asec_n 8
+#define MVM_OP_sinh_n 9
+#define MVM_OP_cosh_n 10
+#define MVM_OP_tanh_n 11
+#define MVM_OP_sech_n 12
 
 static MVMOpInfo MVM_op_info_primitives[] = {
     {
@@ -805,19 +800,7 @@ static MVMOpInfo MVM_op_info_math[] = {
         MVM_OP_atan2_n,
         "atan2_n",
         3,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
-    },
-    {
-        MVM_OP_cot_n,
-        "cot_n",
-        2,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
-    },
-    {
-        MVM_OP_acot_n,
-        "acot_n",
-        2,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_write_reg | MVM_operand_num64 }
     },
     {
         MVM_OP_sec_n,
@@ -828,18 +811,6 @@ static MVMOpInfo MVM_op_info_math[] = {
     {
         MVM_OP_asec_n,
         "asec_n",
-        2,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
-    },
-    {
-        MVM_OP_csc_n,
-        "csc_n",
-        2,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
-    },
-    {
-        MVM_OP_acsc_n,
-        "acsc_n",
         2,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
@@ -864,12 +835,6 @@ static MVMOpInfo MVM_op_info_math[] = {
     {
         MVM_OP_sech_n,
         "sech_n",
-        2,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
-    },
-    {
-        MVM_OP_csch_n,
-        "csch_n",
         2,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },

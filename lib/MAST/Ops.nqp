@@ -125,16 +125,11 @@ class MAST::Ops {
         'tan_n', 4,
         'atan_n', 5,
         'atan2_n', 6,
-        'cot_n', 7,
-        'acot_n', 8,
-        'sec_n', 9,
-        'asec_n', 10,
-        'csc_n', 11,
-        'acsc_n', 12,
-        'sinh_n', 13,
-        'cosh_n', 14,
-        'tanh_n', 15,
-        'sech_n', 16,
-        'csch_n', 17
+        'sec_n', 7,
+        'asec_n', 8,
+        'sinh_n', 9,
+        'cosh_n', 10,
+        'tanh_n', 11,
+        'sech_n', 12
     );
 }
