@@ -209,15 +209,11 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
         if (!decode_utf8_byte(&state, &codepoint, *utf8)) {
             /* got a codepoint */
             if (count == bufsize) { /* if the buffer's full */
-                newbuffer = malloc(sizeof(MVMuint32) * ( /* make a new one */
+                buffer = realloc(buffer, sizeof(MVMuint32) * ( /* make a new one */
                     bufsize >= UTF8_MAXINC ? /* if we've reached the increment limit */
                     (bufsize += UTF8_MAXINC) : /* increment by that amount */
                     (bufsize *= 2) /* otherwise double it */
                 ));
-                /* copy the old buffer to the new buffer */
-                memcpy(newbuffer, buffer, sizeof(MVMuint32) * count);
-                free(buffer); /* free the old buffer's memory */
-                buffer = newbuffer; /* refer to the new buffer now */
             }
             buffer[count++] = codepoint; /* add the codepoint to the buffer */
             /* printf("U+%04X\n", codepoint); */
