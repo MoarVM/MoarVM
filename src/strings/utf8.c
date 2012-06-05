@@ -197,13 +197,11 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMuint32 state = 0;
     MVMuint32 bufsize = 16;
     MVMuint32 *buffer = malloc(sizeof(MVMuint32) * bufsize);
-    MVMuint32 *newbuffer;
     
     /* XXX TODO strip BOM if it's there */
     
     /* XXX TODO track line and column numbers for malformed reporting */
     
-    /* there's probably some (far better) buffer object in APR we can use instead. */
     for (; bytes; ++utf8, --bytes) {
         /* send the next byte to the decoder */
         if (!decode_utf8_byte(&state, &codepoint, *utf8)) {
