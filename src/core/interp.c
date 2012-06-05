@@ -272,6 +272,22 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s)?0:1);
                         cur_op += 6;
                         break;
+                    case MVM_OP_startsw_s:
+                        GET_REG(cur_op, 0).i64 = MVM_string_starts_with(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_endsw_s:
+                        GET_REG(cur_op, 0).i64 = MVM_string_ends_with(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_isat_s:
+                        GET_REG(cur_op, 0).i64 = MVM_string_is_at(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
+                        break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }

@@ -107,6 +107,9 @@ BANK 2 string
 0x05    codes_s     w(int64) r(str)
 0x06    eq_s        w(int64) r(str) r(str)
 0x07    ne_s        w(int64) r(str) r(str)
+0x08    startsw_s   w(int64) r(str) r(str)
+0x09    endsw_s     w(int64) r(str) r(str)
+0x0A    isat_s      w(int64) r(str) r(str) r(int64)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)

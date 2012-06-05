@@ -32,8 +32,11 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
 MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 start, MVMint64 length) {
     MVMString *result;
     
-    if (start < 0)
-        MVM_exception_throw_adhoc(tc, "Substring start offset cannot be negative");
+    if (start < 0) {
+        start += a->body.graphs;
+        if (start < 0)
+            start = 0;
+    }
     
     if (start >= a->body.graphs)
         MVM_exception_throw_adhoc(tc, "Substring start offset cannot be past end of string");
@@ -63,6 +66,8 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     
+    /* there could be unattached combining chars at the beginning of b,
+       so, XXX TODO handle this */
     result->body.codes  = a->body.codes + b->body.codes;
     result->body.graphs = a->body.graphs + b->body.graphs;
     
@@ -106,4 +111,26 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
     printf("\n");
     
     free(utf8_encoded);
+}
+
+/* Test whether one string a starts with another b. */
+MVMint64 MVM_string_starts_with(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    return MVM_string_is_at(tc, a, b, 0);
+}
+
+/* Test whether one string a ends with another b. */
+MVMint64 MVM_string_ends_with(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    return MVM_string_is_at(tc, a, b, a->body.graphs - b->body.graphs);
+}
+
+/* Tests whether one string a has the other string b as a substring at that index */
+MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
+    if (a->body.graphs < b->body.graphs)
+        return 0;
+    if (offset < 0) {
+        offset += a->body.graphs;
+        if (offset < 0)
+            offset = 0; /* XXX I think this is the right behavior here */
+    }
+    return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)offset, b->body.data, b->body.graphs);
 }

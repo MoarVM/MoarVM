@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(21);
+plan(27);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
@@ -269,3 +269,83 @@ mast_frame_output_is(-> $frame, @ins {
     },
     '( « ]> > <term> <.ws>{$¢.add_enum($<na'~"\n",
     "string utf8 round trip");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('foo'));
+        op(@ins, 'startsw_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "1\n",
+    "string starts with true");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('afoo'));
+        op(@ins, 'startsw_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "0\n",
+    "string starts with false");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('bar'));
+        op(@ins, 'endsw_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "1\n",
+    "string ends with true");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('barz'));
+        op(@ins, 'endsw_s', $r2, $r0, $r1);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "0\n",
+    "string ends with true");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('oba'));
+        op(@ins, 'const_i64', $r2, ival(2));
+        op(@ins, 'isat_s', $r2, $r0, $r1, $r2);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "1\n",
+    "string isat true");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('oba'));
+        op(@ins, 'const_i64', $r2, ival(1));
+        op(@ins, 'isat_s', $r2, $r0, $r1, $r2);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "0\n",
+    "string isat false");
