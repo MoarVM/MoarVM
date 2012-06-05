@@ -1,0 +1,21 @@
+Software Copyright and License
+
+This software is copyright 2012 by Jonathan Worthington and others.
+
+The Artistic License 2.0 (see Artistic2.txt) applies to this project, but
+some portions are redistributed under other licenses and are marked as such.
+
+Unofficial summary of the intended application of the Artistic License 2.0:
+
+- All the source code is available for anyone to read and to submit patches.
+
+- You may "take" and re-use large portions of the source code at will.
+
+- There is a "Standard Version" of this software to protect its name and
+    namespace as it's used in redistributions by package maintainers.
+
+- "Downstream" package maintainers allow us to use their bug fixes/patches.
+
+- You may bundle it with software you sell, or you may link/embed it.
+
+- You may fork and release modified builds if you thoroughly rename it.
