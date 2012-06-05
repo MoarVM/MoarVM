@@ -24,9 +24,8 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
      * are presently in. */
     MVMRegister *reg_base = initial_frame->work;
     
-    /* Points to the base of the current string heap for the
-     * compilation unit we're running in. */
-    MVMString **string_heap = initial_frame->static_info->cu->strings;
+    /* Points to the current compilation unit. */
+    MVMCompUnit *cu = initial_frame->static_info->cu;
 
     /* Points to the base of the current pre-deref'd SC object set for the
      * compilation unit we're running in. */
@@ -86,7 +85,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                         cur_op += 10;
                         break;
                     case MVM_OP_const_s:
-                        GET_REG(cur_op, 0).s = string_heap[GET_UI16(cur_op, 2)];
+                        GET_REG(cur_op, 0).s = cu->strings[GET_UI16(cur_op, 2)];
                         cur_op += 4;
                         break;
                     case MVM_OP_add_i:
@@ -128,6 +127,18 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                     case MVM_OP_dec_u:
                         GET_REG(cur_op, 0).ui64--;
                         cur_op += 2;
+                        break;
+                    case MVM_OP_getcode:
+                        GET_REG(cur_op, 0).o = cu->coderefs[GET_UI16(cur_op, 2)];
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_invoke_v:
+                        {
+                            MVMObject *code = GET_REG(cur_op, 0).o;
+                            cur_op += 2;
+                            /* XXX Fill in callframe, args. */
+                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                        }
                         break;
                     case MVM_OP_add_n:
                         GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 + GET_REG(cur_op, 4).n64;
