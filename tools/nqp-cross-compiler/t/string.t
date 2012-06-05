@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(20);
+plan(21);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
@@ -248,6 +248,18 @@ mast_frame_output_is(-> $frame, @ins {
     },
     "foobar\n",
     "string concat");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_i64', $r1, ival(4));
+        op(@ins, 'repeat_s', $r0, $r0, $r1);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "barbarbarbar\n", # doin' it like a barbarian
+    "string repeat");
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
