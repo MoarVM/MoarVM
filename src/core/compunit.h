@@ -10,8 +10,10 @@ typedef struct _MVMCompUnit {
     MVMuint8  *data_start;
     MVMuint32  data_size;
     
-    /* The various static frames in the compilation unit. */
+    /* The various static frames in the compilation unit, along with a
+     * code object for each one. */
     MVMStaticFrame **frames;
+    MVMObject      **coderefs;
     MVMuint32        num_frames;
     
     /* The string heap and number of strings. */

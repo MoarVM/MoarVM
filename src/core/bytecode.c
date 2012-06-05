@@ -230,6 +230,21 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     return frames;
 }
 
+/* Creates code objects to go with each of the static frames. */
+static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
+    MVMuint32  i;
+    MVMObject *code_type;
+    
+    cu->coderefs = malloc(sizeof(MVMObject *) * cu->num_frames);
+    memset(cu->coderefs, 0, sizeof(MVMObject *) * cu->num_frames);
+    
+    code_type = tc->instance->boot_types->BOOTCode;
+    for (i = 0; i < cu->num_frames; i++) {
+        cu->coderefs[i] = REPR(code_type)->allocate(tc, STABLE(code_type));
+        ((MVMCode *)cu->coderefs[i])->body.sf = cu->frames[i];
+    }
+}
+
 /* Takes a compilation unit pointing at a bytecode stream (which actually
  * has more than just the executive bytecode, but also various declarations,
  * like frames). Unpacks it and populates the compilation unit. */
