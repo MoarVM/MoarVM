@@ -278,6 +278,13 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                             GET_REG(cur_op, 6).i64);
                         cur_op += 8;
                         break;
+                    case MVM_OP_hasat_s:
+                        GET_REG(cur_op, 0).i64 = MVM_string_has_at(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64,
+                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).s,
+                            GET_REG(cur_op, 10).i64);
+                        cur_op += 12;
+                        break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }

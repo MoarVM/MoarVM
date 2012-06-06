@@ -124,3 +124,16 @@ MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMi
     }
     return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)offset, b->body.data, b->body.graphs);
 }
+
+/* more general form of has_at; compares two substrings for equality */
+MVMint64 MVM_string_has_at(MVMThreadContext *tc, MVMString *a,
+        MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
+    if (starta < 0 || startb < 0)
+        return 0;
+    if (length == 0)
+        return 1;
+    if (starta + length > a->body.graphs || startb + length > b->body.graphs)
+        return 0;
+    return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)starta,
+            b->body.data + (size_t)startb, (size_t)length);
+}

@@ -116,6 +116,7 @@
 #define MVM_OP_eq_s 6
 #define MVM_OP_ne_s 7
 #define MVM_OP_isat_s 8
+#define MVM_OP_hasat_s 9
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
@@ -764,6 +765,12 @@ static MVMOpInfo MVM_op_info_string[] = {
         "isat_s",
         4,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_hasat_s,
+        "hasat_s",
+        6,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
 };
 static MVMOpInfo MVM_op_info_math[] = {

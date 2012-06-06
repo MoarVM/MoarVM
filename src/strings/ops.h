@@ -5,3 +5,4 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
 MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 start, MVMint64 length);
 void MVM_string_say(MVMThreadContext *tc, MVMString *a);
 MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset);
+MVMint64 MVM_string_has_at(MVMThreadContext *tc, MVMString *a, MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb);

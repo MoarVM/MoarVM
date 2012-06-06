@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(23);
+plan(24);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
@@ -297,3 +297,21 @@ mast_frame_output_is(-> $frame, @ins {
     },
     "0\n",
     "string isat false");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, str);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, int);
+        my $r4 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('foobar'));
+        op(@ins, 'const_s', $r1, sval('oba'));
+        op(@ins, 'const_i64', $r2, ival(2));
+        op(@ins, 'const_i64', $r3, ival(3));
+        op(@ins, 'const_i64', $r4, ival(0));
+        op(@ins, 'hasat_s', $r2, $r0, $r2, $r3, $r1, $r4);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "1\n",
+    "string hasat true");

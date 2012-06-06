@@ -108,6 +108,7 @@ BANK 2 string
 0x06    eq_s        w(int64) r(str) r(str)
 0x07    ne_s        w(int64) r(str) r(str)
 0x08    isat_s      w(int64) r(str) r(str) r(int64)
+0x09    hasat_s     w(int64) r(str) r(int64) r(int64) r(str) r(int64)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)
