@@ -117,6 +117,9 @@
 #define MVM_OP_ne_s 7
 #define MVM_OP_isat_s 8
 #define MVM_OP_hasat_s 9
+#define MVM_OP_getcp_s 10
+#define MVM_OP_setcp_s 11
+#define MVM_OP_indexcp_s 12
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
@@ -771,6 +774,24 @@ static MVMOpInfo MVM_op_info_string[] = {
         "hasat_s",
         6,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_getcp_s,
+        "getcp_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_setcp_s,
+        "setcp_s",
+        3,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_indexcp_s,
+        "indexcp_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
 };
 static MVMOpInfo MVM_op_info_math[] = {

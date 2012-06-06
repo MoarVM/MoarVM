@@ -285,6 +285,21 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
                             GET_REG(cur_op, 10).i64);
                         cur_op += 12;
                         break;
+                    case MVM_OP_getcp_s:
+                        GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_setcp_s:
+                        MVM_string_set_codepoint_at(tc, GET_REG(cur_op, 0).s,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_indexcp_s:
+                        GET_REG(cur_op, 0).i64 = MVM_string_index_of_codepoint(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
                     default: {
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }

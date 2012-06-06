@@ -137,3 +137,28 @@ MVMint64 MVM_string_has_at(MVMThreadContext *tc, MVMString *a,
     return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)starta,
             b->body.data + (size_t)startb, (size_t)length);
 }
+
+/* returns the codepoint (could be a negative synthetic) at a given index of the string */
+MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
+    if (index < 0 || index >= a->body.graphs)
+        MVM_exception_throw_adhoc(tc, "Invalid string index");
+    return (MVMint64)a->body.data[index];
+}
+
+/* sets the codepoint at a given index of a string.  Probably for internal use only.
+   Probably useful for transliteration. */
+void MVM_string_set_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index, MVMint64 codepoint) {
+    if (index < 0 || index >= a->body.graphs)
+        MVM_exception_throw_adhoc(tc, "Invalid string index");
+    /* TODO XXX MVMint32 bounds check */
+    a->body.data[index] = (MVMint32)codepoint;
+}
+
+/* finds the location of a codepoint in a string.  Useful for small character class lookup */
+MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint) {
+    size_t index = -1;
+    while (++index < a->body.graphs)
+        if (a->body.data[index] == codepoint)
+            return index;
+    return -1;
+}

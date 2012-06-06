@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(24);
+plan(27);
 
 mast_frame_output_is(-> $frame, @ins {
         my $r0 := local($frame, str);
@@ -315,3 +315,44 @@ mast_frame_output_is(-> $frame, @ins {
     },
     "1\n",
     "string hasat true");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('( « ]> > <term> <.ws>{$¢.add_enum($<na'));
+        op(@ins, 'const_i64', $r1, ival(2));
+        op(@ins, 'getcp_s', $r1, $r0, $r1);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "171\n",
+    "string get codepoint at index");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval(' '));
+        op(@ins, 'const_i64', $r1, ival(0));
+        op(@ins, 'const_i64', $r2, ival(171));
+        op(@ins, 'setcp_s', $r0, $r1, $r2);
+        op(@ins, 'repeat_s', $r0, $r0, $r2);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««"~
+    "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««"~
+    "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««\n",
+    "string set codepoint at index");
+
+mast_frame_output_is(-> $frame, @ins {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        op(@ins, 'const_s', $r0, sval('(  ]> > <term> <.ws>{$¢«.add_enum($<na'));
+        op(@ins, 'const_i64', $r1, ival(171));
+        op(@ins, 'indexcp_s', $r1, $r0, $r1);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "23\n",
+    "string index of codepoint");

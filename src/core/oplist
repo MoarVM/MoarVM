@@ -109,6 +109,9 @@ BANK 2 string
 0x07    ne_s        w(int64) r(str) r(str)
 0x08    isat_s      w(int64) r(str) r(str) r(int64)
 0x09    hasat_s     w(int64) r(str) r(int64) r(int64) r(str) r(int64)
+0x0A    getcp_s     w(int64) r(str) r(int64)
+0x0B    setcp_s     r(str) r(int64) r(int64)
+0x0C    indexcp_s   w(int64) r(str) r(int64)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)
