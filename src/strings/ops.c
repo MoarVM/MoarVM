@@ -113,16 +113,6 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
     free(utf8_encoded);
 }
 
-/* Test whether one string a starts with another b. */
-MVMint64 MVM_string_starts_with(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    return MVM_string_is_at(tc, a, b, 0);
-}
-
-/* Test whether one string a ends with another b. */
-MVMint64 MVM_string_ends_with(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    return MVM_string_is_at(tc, a, b, a->body.graphs - b->body.graphs);
-}
-
 /* Tests whether one string a has the other string b as a substring at that index */
 MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
     if (a->body.graphs < b->body.graphs)

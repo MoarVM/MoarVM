@@ -115,9 +115,7 @@
 #define MVM_OP_codes_s 5
 #define MVM_OP_eq_s 6
 #define MVM_OP_ne_s 7
-#define MVM_OP_startsw_s 8
-#define MVM_OP_endsw_s 9
-#define MVM_OP_isat_s 10
+#define MVM_OP_isat_s 8
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
@@ -758,18 +756,6 @@ static MVMOpInfo MVM_op_info_string[] = {
     {
         MVM_OP_ne_s,
         "ne_s",
-        3,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_startsw_s,
-        "startsw_s",
-        3,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_endsw_s,
-        "endsw_s",
         3,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
