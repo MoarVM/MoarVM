@@ -114,7 +114,7 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
 }
 
 /* Tests whether one string a has the other string b as a substring at that index */
-MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
+MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
     if (a->body.graphs < b->body.graphs)
         return 0;
     if (offset < 0) {
@@ -126,7 +126,7 @@ MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMi
 }
 
 /* more general form of has_at; compares two substrings for equality */
-MVMint64 MVM_string_has_at(MVMThreadContext *tc, MVMString *a,
+MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a,
         MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
     if (starta < 0 || startb < 0)
         return 0;
