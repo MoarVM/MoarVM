@@ -749,10 +749,10 @@ static MVMOpInfo MVM_op_info_math[] = {
 };
 
 static MVMOpInfo *MVM_op_info[] = {
-    &MVM_op_info_primitives,
-    &MVM_op_info_dev,
-    &MVM_op_info_string,
-    &MVM_op_info_math,
+    MVM_op_info_primitives,
+    MVM_op_info_dev,
+    MVM_op_info_string,
+    MVM_op_info_math,
 };
 
 static unsigned char MVM_op_banks = 4;
