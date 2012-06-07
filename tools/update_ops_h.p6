@@ -111,7 +111,7 @@ sub opcode_details(@banks) {
         }
         take "\nstatic MVMOpInfo *MVM_op_info[] = \{";
         for @banks -> $b {
-            take "    \&MVM_op_info_{$b.name()},";
+            take "    MVM_op_info_{$b.name()},";
         }
         take "\};\n";
         take "static unsigned char MVM_op_banks = {+@banks};\n";
