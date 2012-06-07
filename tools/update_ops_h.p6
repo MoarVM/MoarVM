@@ -22,8 +22,27 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("");
     $hf.say(bank_defines(@banks));
     $hf.say(opcode_defines(@banks));
-    $hf.say(opcode_details(@banks));
+    $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);');
     $hf.close;
+    my $cf = open("src/core/ops.c", :w);
+    $cf.say('#ifdef PARROT_OPS_BUILD');
+    $cf.say('#define PARROT_IN_EXTENSION');
+    $cf.say('#include "parrot/parrot.h"');
+    $cf.say('#include "parrot/extend.h"');
+    $cf.say('#include "sixmodelobject.h"');
+    $cf.say('#include "nodes_parrot.h"');
+    $cf.say('#include "../../src/core/ops.h"');
+    $cf.say('#else');
+    $cf.say('#include "moarvm.h"');
+    $cf.say('#endif');
+    $cf.say("/* This file is generated from $file by tools/update_ops_h.p6. */");
+    $cf.say(opcode_details(@banks));
+    $cf.say('MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {');
+    $cf.say('    if (bank >= MVM_op_banks || op >= MVM_opcounts_by_bank[bank])');
+    $cf.say('        return NULL;');
+    $cf.say('    return &MVM_op_info[bank][op];');
+    $cf.say('}');
+    $cf.close;
 }
 
 # Parses ops and produces a bunch of Op and Bank objects.
@@ -85,10 +104,22 @@ sub opcode_details(@banks) {
                 if $op.operands {
                     take "        \{ $op.operands.map(&operand_flags).join(', ') }";
                 }
+                #else { take "        \{ }"; }
                 take "    },"
             }
             take "};";
         }
+        take "\nstatic MVMOpInfo *MVM_op_info[] = \{";
+        for @banks -> $b {
+            take "    \&MVM_op_info_{$b.name()},";
+        }
+        take "\};\n";
+        take "static unsigned char MVM_op_banks = {+@banks};\n";
+        take "static unsigned char MVM_opcounts_by_bank[] = \{";
+        for @banks -> $b {
+            take "    {+$b.ops},";
+        }
+        take "\};\n";
     }
 }
 

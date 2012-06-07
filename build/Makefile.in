@@ -20,7 +20,8 @@ APR_BUILD_LINE = @apr_build_line@
 # Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
-            src/core/compunit$(O) src/core/bytecode$(O) src/gc/allocation$(O) src/gc/roots$(O)  \
+            src/core/compunit$(O) src/core/bytecode$(O) src/core/ops$(O) \
+            src/gc/allocation$(O) src/gc/roots$(O)  \
             src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
@@ -56,6 +57,8 @@ src/core/compunit$(O): src/core/compunit.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/compunit$(O) src/core/compunit.c
 src/core/bytecode$(O): src/core/bytecode.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/bytecode$(O) src/core/bytecode.c
+src/core/ops$(O): src/core/ops.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/ops$(O) src/core/ops.c
 src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/threadcontext$(O) src/core/threadcontext.c
 src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)

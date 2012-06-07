@@ -300,27 +300,11 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         int        i;
         
         /* Look up opcode and get argument info. */
-        /* XXX Generalize these lookups. */
-        /* XXX Bank bounds check. */
-        /* XXX Op bounds check. */
         unsigned char bank = (unsigned char)o->bank;
         unsigned char op   = (unsigned char)o->op;
-        if (bank == 0) {
-            info = &MVM_op_info_primitives[op];
-        }
-        else if (bank == 1) {
-            info = &MVM_op_info_dev[op];
-        }
-        else if (bank == 2) {
-            info = &MVM_op_info_string[op];
-        }
-        else if (bank == 3) {
-            info = &MVM_op_info_math[op];
-        }
-        else {
-            cleanup_all(vm, ws);
+        info = MVM_op_get_op(bank, op);
+        if (!info)
             DIE(vm, "Invalid op bank specified in instruction");
-        }
         
         /* Ensure argument count matches up. */
         if (ELEMS(vm, o->operands) != info->num_operands) {
