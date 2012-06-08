@@ -194,35 +194,72 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     MVMuint32 count = 0;
     MVMuint32 codepoint;
+    MVMuint32 line_ending = 0;
     MVMuint32 state = 0;
     MVMuint32 bufsize = 16;
     MVMuint32 *buffer = malloc(sizeof(MVMuint32) * bufsize);
-    MVMuint32 *newbuffer;
+    size_t orig_bytes;
+    char *orig_utf8;
+    MVMuint32 line;
+    MVMuint32 col;
     
-    /* XXX TODO strip BOM if it's there */
+    if (bytes >= 3 && utf8[0] == 0xEF && utf8[1] == 0xBB && utf8[0xBF]) {
+        /* disregard UTF-8 BOM if it's present */
+        utf8 += 3; bytes -= 3;
+    }
+    orig_bytes = bytes;
+    orig_utf8 = utf8;
     
-    /* XXX TODO track line and column numbers for malformed reporting */
-    
-    /* there's probably some (far better) buffer object in APR we can use instead. */
     for (; bytes; ++utf8, --bytes) {
-        /* send the next byte to the decoder */
-        if (!decode_utf8_byte(&state, &codepoint, *utf8)) {
-            /* got a codepoint */
-            if (count == bufsize) { /* if the buffer's full */
-                buffer = realloc(buffer, sizeof(MVMuint32) * ( /* make a new one */
-                    bufsize >= UTF8_MAXINC ? /* if we've reached the increment limit */
-                    (bufsize += UTF8_MAXINC) : /* increment by that amount */
-                    (bufsize *= 2) /* otherwise double it */
+        switch(decode_utf8_byte(&state, &codepoint, *utf8)) {
+        case UTF8_ACCEPT: /* got a codepoint */
+            if (count == bufsize) { /* if the buffer's full make a bigger one */
+                buffer = realloc(buffer, sizeof(MVMuint32) * (
+                    bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
                 ));
             }
-            buffer[count++] = codepoint; /* add the codepoint to the buffer */
-            /* printf("U+%04X\n", codepoint); */
+            buffer[count++] = codepoint;
+            break;
+        case UTF8_REJECT:
+            /* found a malformed sequence; parse it again this time tracking
+             * line and col numbers. */
+            bytes = orig_bytes; utf8 = orig_utf8; state = 0; line = 1; col = 1;
+            for (; bytes; ++utf8, --bytes) {
+                switch(decode_utf8_byte(&state, &codepoint, *utf8)) {
+                case UTF8_ACCEPT:
+                    /* this could be reorganized into several nested ugly if/else :/ */
+                    if (!line_ending && (codepoint == 10 || codepoint == 13)) {
+                        /* Detect the style of line endings.
+                         * Select whichever comes first.
+                         * First or only part of first line ending. */
+                        line_ending = codepoint;
+                        col = 1; line++;
+                    }
+                    else if (line_ending && codepoint == line_ending) {
+                        /* first or only part of next line ending */
+                        col = 1; line++;
+                    }
+                    else if (codepoint == 10 || codepoint == 13) {
+                        /* second part of line ending; ignore */
+                    }
+                    else /* non-line ending codepoint */
+                        col++;
+                    break;
+                case UTF8_REJECT:
+                    /* XXX HALP I don't know what I'm doing here.
+                     * memory leak if the exception is caught unless throw_adhoc
+                     * can be taught to free it */
+                    utf8 = malloc(50);
+                    sprintf(utf8, "Malformed UTF-8 at line %u col %u", line, col);
+                    MVM_exception_throw_adhoc(tc, utf8);
+                }
+            }
+            MVM_exception_throw_adhoc(tc, "Concurrent modification of UTF-8 input buffer!");
+            break;
         }
-        /*else if (state == UTF8_REJECT)
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 string");*/
     }
     if (state != UTF8_ACCEPT)
-        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 string");
+        MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
     
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
@@ -243,6 +280,8 @@ MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint6
     MVMuint8 *arr = result;
     size_t i = 0;
     while (i < str->body.graphs && (arr = utf8_encode(arr, str->body.data[i++])));
+    if (!arr)
+        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string");
     *output_size = (MVMuint64)(arr ? arr - result : 0);
     return result;
 }

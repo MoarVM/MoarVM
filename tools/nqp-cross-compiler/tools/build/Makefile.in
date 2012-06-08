@@ -76,11 +76,12 @@ $(DYNEXT_TARGET): $(DYNOPS)
 	$(CP) $(DYNOPS) $(DYNEXT_DIR)
 	$(CHMOD) 755 $(DYNEXT_DIR)/$(OPS)$(LOAD_EXT)
 
-$(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) src/nodes_parrot.h ../../src/mast/compiler.c
+$(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) src/nodes_parrot.h ../../src/mast/compiler.c ../../src/core/ops.c
 	cd $(OPS_DIR) && $(OPS2C) C --dynamic $(OPS_SOURCE)
 	cd $(OPS_DIR) && $(CC) -c @cc_o_out@$(OPS)$(O) $(CINCLUDES) $(CFLAGS) -I.. $(OPS).c
 	cd src && $(CC) -c @cc_o_out@compiler$(O) $(CINCLUDES) $(CFLAGS) -I. -DPARROT_OPS_BUILD ../../../src/mast/compiler.c
-	cd $(OPS_DIR) && $(LD) @ld_out@$(OPS)$(LOAD_EXT) $(OPS)$(O) ../compiler$(O) $(LINKARGS)
+	cd src && $(CC) -c @cc_o_out@ops$(O) $(CINCLUDES) $(CFLAGS) -I. -DPARROT_OPS_BUILD ../../../src/core/ops.c
+	cd $(OPS_DIR) && $(LD) @ld_out@$(OPS)$(LOAD_EXT) $(OPS)$(O) ../ops$(O) ../compiler$(O) $(LINKARGS)
 
 MASTOps.pbc: ../../lib/MAST/Ops.nqp
 	nqp --target=pir ../../lib/MAST/Ops.nqp > MASTOps.pir

@@ -116,9 +116,11 @@ class MAST::Ops {
         'codes_s', 5,
         'eq_s', 6,
         'ne_s', 7,
-        'startsw_s', 8,
-        'endsw_s', 9,
-        'isat_s', 10
+        'eqat_s', 8,
+        'haveat_s', 9,
+        'getcp_s', 10,
+        'setcp_s', 11,
+        'indexcp_s', 12
     );
     our $math := nqp::hash(
         'sin_n', 0,

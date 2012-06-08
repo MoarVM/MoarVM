@@ -113,18 +113,8 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
     free(utf8_encoded);
 }
 
-/* Test whether one string a starts with another b. */
-MVMint64 MVM_string_starts_with(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    return MVM_string_is_at(tc, a, b, 0);
-}
-
-/* Test whether one string a ends with another b. */
-MVMint64 MVM_string_ends_with(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    return MVM_string_is_at(tc, a, b, a->body.graphs - b->body.graphs);
-}
-
 /* Tests whether one string a has the other string b as a substring at that index */
-MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
+MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
     if (a->body.graphs < b->body.graphs)
         return 0;
     if (offset < 0) {
@@ -133,4 +123,42 @@ MVMint64 MVM_string_is_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMi
             offset = 0; /* XXX I think this is the right behavior here */
     }
     return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)offset, b->body.data, b->body.graphs);
+}
+
+/* more general form of has_at; compares two substrings for equality */
+MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a,
+        MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
+    if (starta < 0 || startb < 0)
+        return 0;
+    if (length == 0)
+        return 1;
+    if (starta + length > a->body.graphs || startb + length > b->body.graphs)
+        return 0;
+    return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)starta,
+            b->body.data + (size_t)startb, (size_t)length);
+}
+
+/* returns the codepoint (could be a negative synthetic) at a given index of the string */
+MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
+    if (index < 0 || index >= a->body.graphs)
+        MVM_exception_throw_adhoc(tc, "Invalid string index");
+    return (MVMint64)a->body.data[index];
+}
+
+/* sets the codepoint at a given index of a string.  Probably for internal use only.
+   Probably useful for transliteration. */
+void MVM_string_set_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index, MVMint64 codepoint) {
+    if (index < 0 || index >= a->body.graphs)
+        MVM_exception_throw_adhoc(tc, "Invalid string index");
+    /* TODO XXX MVMint32 bounds check */
+    a->body.data[index] = (MVMint32)codepoint;
+}
+
+/* finds the location of a codepoint in a string.  Useful for small character class lookup */
+MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint) {
+    size_t index = -1;
+    while (++index < a->body.graphs)
+        if (a->body.data[index] == codepoint)
+            return index;
+    return -1;
 }
