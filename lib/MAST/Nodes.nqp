@@ -28,10 +28,6 @@ class MAST::CompUnit is MAST::Node {
     # The set of frames that make up this compilation unit.
     has @!frames;
     
-    # Has a set of static callsite descriptors, which describe the
-    # types passed for a given call site.
-    has @!callsites;
-    
     method new() {
         nqp::create(self)
     }

@@ -5,7 +5,6 @@ typedef struct {
     PMC    *reprs;
     PMC    *scs;
     PMC    *frames;
-    PMC    *callsites;
 } MAST_CompUnit;
 
 /* MAST::Frame */
