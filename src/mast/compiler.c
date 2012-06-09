@@ -268,7 +268,8 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                      * this becomes bottleneck...) */
                     int num_frames = ELEMS(vm, ws->cu->frames);
                     int found      = 0;
-                    int i;
+                    unsigned short i;
+                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
                     for (i = 0; i < num_frames; i++) {
                         if (ATPOS(vm, ws->cu->frames, i) == operand) {
                             write_int16(ws->bytecode_seg, ws->bytecode_pos, i);
@@ -381,9 +382,22 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             DELETEKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
         }
     }
+    else if (ISTYPE(vm, node, ws->types->Call)) {
+        MAST_Call *c = GET_Call(node);
+        
+        /* XXX Callframe handling. */
+        
+        /* XXX Set up args. */
+        
+        /* Emit the invocation op. */
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
+        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
+        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_invoke_v);
+        compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, c->target);
+    }
     else {
         cleanup_all(vm, ws);
-        DIE(vm, "Invalid MAST node in instruction list (must be Op or Label)");
+        DIE(vm, "Invalid MAST node in instruction list (must be Op, Call or Label)");
     }
 }
 
