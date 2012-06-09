@@ -217,8 +217,45 @@ class MAST::Lexical is MAST::Node {
     has int $!frames_out;
 }
 
-# A call. The first child is the thing that is to be called, and the
-# rest represent the arguments.
+# Argument flags.
+module Arg {
+    our $obj   := 1;
+    our $int   := 2;
+    our $uint  := 4;
+    our $num   := 8;
+    our $str   := 16;
+    our $named := 32;
+    our $flat  := 64;
+}
+
+# A call. A register holding the thing to call should be specified, along
+# with a set of flags describing the call site, followed by the arguments
+# themselves, which may be constants or come from registers. There are also
+# a set of flags, describing each argument. Some flags need two actual
+# arguments, one specifying the name, the next the actual value.
 class MAST::Call is MAST::Node {
-    has $!callsite
+    has $!target;
+    has @!flags;
+    has @!args;
+    
+    method new(:$target!, :@flags!, *@args) {
+        sanity_check(@flags, @args);
+        my $obj := nqp::create(self);
+        nqp::bindattr($obj, MAST::Call, '$!target', $target);
+        nqp::bindattr($obj, MAST::Call, '@!flags', @flags);
+        nqp::bindattr($obj, MAST::Call, '@!args', @args);
+        $obj
+    }
+    
+    sub sanity_check(@flags, @args) {
+        my $flag_needed_args := 0;
+        for @flags {
+            $flag_needed_args := $flag_needed_args +
+                ($_ +| $Arg::named ?? 2 !! 1);
+        }
+        if +@args < $flag_needed_args {
+            nqp::die("Flags indicated there should be $flag_needed_args args, but have " ~
+                +@args);
+        }
+    }
 }
