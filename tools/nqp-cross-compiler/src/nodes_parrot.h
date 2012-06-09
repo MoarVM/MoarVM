@@ -72,7 +72,7 @@ typedef struct {
     INTVAL  frames_out;
 } MAST_Lexical;
 
-/* XXX MAST::Call and MAST::CallMethod todo. */
+/* XXX MAST::Call todo. */
 
 /* Node types structure. */
 typedef struct {

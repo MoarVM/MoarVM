@@ -222,10 +222,3 @@ class MAST::Lexical is MAST::Node {
 class MAST::Call is MAST::Node {
     has $!callsite
 }
-
-# A method call. The arguments will be computed, the first used
-# as the object to make the call on, the second used to get the
-# name of the method.
-class MAST::CallMethod is MAST::Node {
-    has $!callsite;
-}
