@@ -34,8 +34,8 @@ typedef struct _MVMThreadContext {
      * is stored. */
     struct _MVMCompUnit **interp_cu;
     
-    /* Internal ID of the thread. */
-    MVMuint32 thread_id;
+    /* The frame we're currently executing. */
+    struct _MVMFrame *cur_frame;
     
     /* The VM instance that this thread belongs to. */
     struct _MVMInstance *instance;
@@ -46,6 +46,9 @@ typedef struct _MVMThreadContext {
     
     /* Where we evacuate objects to when collecting this thread's nursery. */
     void *nursery_tospace;
+    
+    /* Internal ID of the thread. */
+    MVMuint32 thread_id;
     
     /* OS thread handle. */
     void *os_thread; /* XXX Whatever APR uses for thread handles... */

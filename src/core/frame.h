@@ -22,11 +22,6 @@ typedef struct _MVMStaticFrame {
     MVMuint32 env_size;
     
     /* The size in bytes to allocate for the work and arguments area. */
-    MVMuint32 work_and_args_size;
-    
-    /* The size in bytes of the work area alone, minus args part (so
-     * where the args buffer starts is the start of the work area plus
-     * this number of bytes). */
     MVMuint32 work_size;
 
     /* The size of the bytecode. */
@@ -75,3 +70,5 @@ typedef struct _MVMFrame {
     /* Reference count for the frame. */
     MVMuint32 ref_count;
 } MVMFrame;
+
+void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame);

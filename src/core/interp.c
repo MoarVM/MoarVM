@@ -13,19 +13,19 @@
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
 /* This is the interpreter run loop. We have one of these per thread. */
-void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
+void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) {
     /* Points to the current opcode. */
-    MVMuint8 *cur_op = initial_frame->static_info->bytecode;
+    MVMuint8 *cur_op = NULL;
     
     /* The current frame's bytecode start. */
-    MVMuint8 *bytecode_start = initial_frame->static_info->bytecode;
+    MVMuint8 *bytecode_start = NULL;
     
     /* Points to the base of the current register set for the frame we
      * are presently in. */
-    MVMRegister *reg_base = initial_frame->work;
+    MVMRegister *reg_base = NULL;
     
     /* Points to the current compilation unit. */
-    MVMCompUnit *cu = initial_frame->static_info->cu;
+    MVMCompUnit *cu = NULL;
     
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
@@ -34,6 +34,9 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
     tc->interp_bytecode_start = &bytecode_start;
     tc->interp_reg_base       = &reg_base;
     tc->interp_cu             = &cu;
+    
+    /* Create initial frame, which sets up all of the interpreter state also. */
+    MVM_frame_invoke(tc, initial_static_frame);
     
     /* Enter runloop. */
     while (1) {
