@@ -72,3 +72,4 @@ typedef struct _MVMFrame {
 } MVMFrame;
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame);
+MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);

@@ -25,6 +25,12 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     static_frame->invoked = 1;
 }
 
+/* Increases the reference count of a frame. */
+MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
+    apr_atomic_inc32(&frame->ref_count);
+    return frame;
+}
+
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     /* Get a fresh frame data structure. */
@@ -56,8 +62,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     frame->outer = NULL;
     
     /* Caller is current frame in the thread context. */
-    /* XXX Reference count. */
-    frame->caller = tc->cur_frame;
+    if (tc->cur_frame)
+        frame->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
+    else
+        frame->caller = NULL;
 
     /* Set static frame. */
     frame->static_info = static_frame;
