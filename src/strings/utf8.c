@@ -49,9 +49,9 @@ static const MVMuint8 utf8d[] = {
   12,36,12,12,12,12,12,12,12,12,12,12, 
 };
 
-static MVMuint32
-decode_utf8_byte(MVMuint32 *state, MVMuint32 *codep, MVMuint8 byte) {
-  MVMuint32 type = utf8d[byte];
+static MVMint32
+decode_utf8_byte(MVMint32 *state, MVMint32 *codep, MVMuint8 byte) {
+  MVMint32 type = utf8d[byte];
 
   *codep = (*state != UTF8_ACCEPT) ?
     (byte & 0x3fu) | (*codep << 6) :
@@ -99,7 +99,7 @@ enum
     U8_QUAD            = 1 << 8
 };
 
-static unsigned classify(MVMuint32 cp)
+static unsigned classify(MVMint32 cp)
 {
     /* removing these two lines 
     12:06 <not_gerd> if you want to encode NUL as a zero-byte
@@ -142,7 +142,7 @@ static unsigned classify(MVMuint32 cp)
     return 0;
 }
 
-static void *utf8_encode(void *bytes, MVMuint32 cp)
+static void *utf8_encode(void *bytes, MVMint32 cp)
 {
     unsigned cc = classify(cp);
     MVMuint8 *bp = bytes;
@@ -192,16 +192,16 @@ static void *utf8_encode(void *bytes, MVMuint32 cp)
  * Only bring in the raw codepoints for now. */
 MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type, char *utf8, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    MVMuint32 count = 0;
-    MVMuint32 codepoint;
-    MVMuint32 line_ending = 0;
-    MVMuint32 state = 0;
-    MVMuint32 bufsize = 16;
-    MVMuint32 *buffer = malloc(sizeof(MVMuint32) * bufsize);
+    MVMint32 count = 0;
+    MVMint32 codepoint;
+    MVMint32 line_ending = 0;
+    MVMint32 state = 0;
+    MVMint32 bufsize = 16;
+    MVMint32 *buffer = malloc(sizeof(MVMint32) * bufsize);
     size_t orig_bytes;
     char *orig_utf8;
-    MVMuint32 line;
-    MVMuint32 col;
+    MVMint32 line;
+    MVMint32 col;
     
     if (bytes >= 3 && utf8[0] == 0xEF && utf8[1] == 0xBB && utf8[0xBF]) {
         /* disregard UTF-8 BOM if it's present */
@@ -214,7 +214,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
         switch(decode_utf8_byte(&state, &codepoint, *utf8)) {
         case UTF8_ACCEPT: /* got a codepoint */
             if (count == bufsize) { /* if the buffer's full make a bigger one */
-                buffer = realloc(buffer, sizeof(MVMuint32) * (
+                buffer = realloc(buffer, sizeof(MVMint32) * (
                     bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
                 ));
             }
@@ -276,7 +276,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
 MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
     
     /* allocate the resulting string. XXX TODO: grow as we go as needed if the string is huge */
-    MVMuint8 *result = malloc(sizeof(MVMuint32) * str->body.graphs);
+    MVMuint8 *result = malloc(sizeof(MVMint32) * str->body.graphs);
     MVMuint8 *arr = result;
     size_t i = 0;
     while (i < str->body.graphs && (arr = utf8_encode(arr, str->body.data[i++])));
