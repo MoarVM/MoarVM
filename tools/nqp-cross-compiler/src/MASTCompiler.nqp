@@ -12,7 +12,8 @@ class MAST::Compiler {
             MAST::NVal,
             MAST::Label,
             MAST::Local,
-            MAST::Lexical);
+            MAST::Lexical,
+            MAST::Call);
         pir::mvm_compile__vPs($node, $target_file);
     }
 }

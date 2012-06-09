@@ -23,7 +23,7 @@ Initializes the compiler with the types it will work on.
 =cut
 
 */
-inline op mvm_compiler_setup(invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC) :base_core {
+inline op mvm_compiler_setup(invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC, invar PMC) :base_core {
     node_types.CompUnit = $1;
     node_types.Frame    = $2;
     node_types.Op       = $3;
@@ -33,6 +33,7 @@ inline op mvm_compiler_setup(invar PMC, invar PMC, invar PMC, invar PMC, invar P
     node_types.Label    = $7;
     node_types.Local    = $8;
     node_types.Lexical  = $9;
+    node_types.Call     = $10;
 }
 
 /*

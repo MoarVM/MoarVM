@@ -71,7 +71,14 @@ typedef struct {
     INTVAL  frames_out;
 } MAST_Lexical;
 
-/* XXX MAST::Call todo. */
+/* MAST::Call */
+typedef struct {
+    PMC    *st;
+    PMC    *sc;
+    PMC    *target;
+    PMC    *flags;
+    PMC    *args;
+} MAST_Call;
 
 /* Node types structure. */
 typedef struct {
@@ -84,6 +91,7 @@ typedef struct {
     PMC *Label;
     PMC *Local;
     PMC *Lexical;
+    PMC *Call;
 } MASTNodeTypes;
 
 /* This means we can talk about MASTNode in the compiler, not PMC. */
@@ -107,6 +115,7 @@ typedef STRING VMSTR;
 #define GET_IVal(n)                 ((MAST_IVal *)PMC_data(n))
 #define GET_NVal(n)                 ((MAST_NVal *)PMC_data(n))
 #define GET_SVal(n)                 ((MAST_SVal *)PMC_data(n))
+#define GET_Call(n)                 ((MAST_Call *)PMC_data(n))
 #define NEWLIST_I(vm)               (Parrot_pmc_new(interp, enum_class_ResizableIntegerArray))
 #define NEWLIST_S(vm)               (Parrot_pmc_new(interp, enum_class_ResizableStringArray))
 #define ELEMS(vm, arr)              ((unsigned int )VTABLE_elements(vm, arr))
