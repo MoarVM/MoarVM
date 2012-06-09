@@ -5,10 +5,13 @@ static MVMREPROps *this_repr;
 
 /* Invocation protocol handler. */
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMArg *args) {
-    if (IS_CONCRETE(invokee))
-        MVM_panic("Invocation NYI!");
-    else
+    if (IS_CONCRETE(invokee)) {
+        MVMCode *code = (MVMCode *)invokee;
+        MVM_frame_invoke(tc, code->body.sf);
+    }
+    else {
         MVM_exception_throw_adhoc(tc, "Cannot invoke code type object");
+    }
 }
 
 /* Creates a new type object of this representation, and associates it with
