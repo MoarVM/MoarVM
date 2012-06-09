@@ -26,17 +26,14 @@ void MVM_interp_run(MVMThreadContext *tc, MVMFrame *initial_frame) {
     
     /* Points to the current compilation unit. */
     MVMCompUnit *cu = initial_frame->static_info->cu;
-
-    /* Points to the base of the current pre-deref'd SC object set for the
-     * compilation unit we're running in. */
-    MVMObject *sc_deref_base; /* XXX set... */
     
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
-    tc->interp_cur_op        = &cur_op;
-    tc->interp_reg_base      = &reg_base;
-    tc->interp_sc_deref_base = &sc_deref_base;
+    tc->interp_cur_op         = &cur_op;
+    tc->interp_bytecode_start = &bytecode_start;
+    tc->interp_reg_base       = &reg_base;
+    tc->interp_cu             = &cu;
     
     /* Enter runloop. */
     while (1) {
