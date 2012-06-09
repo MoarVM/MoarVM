@@ -69,7 +69,15 @@ typedef struct _MVMFrame {
 
     /* Reference count for the frame. */
     MVMuint32 ref_count;
+    
+    /* Address of the next op to execute if we return to this frame. */
+    MVMuint8 *return_address;
+    
+    /* The register we should store the return value in, if any. */
+    MVMRegister *return_value;
 } MVMFrame;
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame);
+MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
+void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);

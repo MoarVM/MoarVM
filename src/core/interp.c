@@ -75,7 +75,10 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         break;
                     case MVM_OP_return:
-                        return;
+                        if (MVM_frame_try_return(tc))
+                            break;
+                        else
+                            return;
                     case MVM_OP_const_i64:
                         GET_REG(cur_op, 0).i64 = GET_I64(cur_op, 2);
                         cur_op += 10;
@@ -136,6 +139,8 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         {
                             MVMObject *code = GET_REG(cur_op, 0).o;
                             cur_op += 2;
+                            tc->cur_frame->return_address = cur_op;
+                            tc->cur_frame->return_value = NULL;
                             /* XXX Fill in callframe, args. */
                             STABLE(code)->invoke(tc, code, NULL, NULL);
                         }

@@ -31,6 +31,24 @@ MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
     return frame;
 }
 
+/* Decreases the reference count of a frame. If it hits zero, then we can
+ * free it. */
+void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
+    /* Note that we get zero if we really hit zero here, but dec32 may
+     * not give the exact count back if it ends up non-zero. */
+    if (apr_atomic_dec32(&frame->ref_count) == 0) {
+        if (frame->env) {
+            free(frame->env);
+            frame->env = NULL;
+        }
+        if (frame->work) {
+            free(frame->work);
+            frame->work = NULL;
+        }
+        free(frame);
+    }
+}
+
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     /* Get a fresh frame data structure. */
@@ -81,4 +99,36 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     *(tc->interp_bytecode_start) = static_frame->bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame->cu;
+}
+
+/* Attempt to return from the current frame. Returns non-zero if we can,
+ * and zero if there is nowhere to return to (which would signal the exit
+ * of the interpreter). */
+MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
+    /* Clear up the work area, which is not needed beyond the return.
+     * (The lexical environment is left in place, though). */
+    MVMFrame *returner = tc->cur_frame;
+    MVMFrame *caller = returner->caller; 
+    if (returner->work)
+        free(returner->work);
+    returner->work = NULL;
+
+    /* Decrement the frame reference (which, if it is not referenced by
+     * anything else, may free it overall). */
+    MVM_frame_dec_ref(tc, returner);
+    
+    /* Switch back to the caller frame if there is one; we also need to
+     * decrement its reference count. */
+    if (caller) {
+        tc->cur_frame = caller;
+        *(tc->interp_cur_op) = caller->return_address;
+        *(tc->interp_bytecode_start) = caller->static_info->bytecode;
+        *(tc->interp_reg_base) = caller->work;
+        *(tc->interp_cu) = caller->static_info->cu;
+        MVM_frame_dec_ref(tc, caller);
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }
