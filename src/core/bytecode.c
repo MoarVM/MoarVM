@@ -256,9 +256,10 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu->strings = deserialize_strings(tc, cu, rs);
     cu->num_strings = rs->expected_strings;
 
-    /* Load the static frame info. */
+    /* Load the static frame info and give each one a code reference. */
     cu->frames = deserialize_frames(tc, cu, rs);
     cu->num_frames = rs->expected_frames;
+    create_code_objects(tc, cu);
     
     /* Clean up reader state. */
     cleanup_all(tc, rs);
