@@ -100,6 +100,9 @@
 #define MVM_OP_le_n 90
 #define MVM_OP_gt_n 91
 #define MVM_OP_ge_n 92
+#define MVM_OP_argconst_i 93
+#define MVM_OP_argconst_n 94
+#define MVM_OP_argconst_s 95
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0

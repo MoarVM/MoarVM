@@ -92,6 +92,9 @@ BANK 0 primitives
 0x5A    le_n        w(int64) r(num64) r(num64)
 0x5B    gt_n        w(int64) r(num64) r(num64)
 0x5C    ge_n        w(int64) r(num64) r(num64)
+0x5D    argconst_i  int16 int64
+0x5E    argconst_n  int16 num64
+0x5F    argconst_s  int16 str
 
 BANK 1 dev
 0x00    say_i       r(int64)

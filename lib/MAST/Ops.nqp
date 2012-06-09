@@ -100,7 +100,10 @@ class MAST::Ops {
         'lt_n', 89,
         'le_n', 90,
         'gt_n', 91,
-        'ge_n', 92
+        'ge_n', 92,
+        'argconst_i', 93,
+        'argconst_n', 94,
+        'argconst_s', 95
     );
     our $dev := nqp::hash(
         'say_i', 0,
