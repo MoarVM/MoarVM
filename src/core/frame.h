@@ -2,27 +2,41 @@
 typedef struct _MVMStaticFrame {
     /* The start of the stream of bytecode for this routine. */
     MVMuint8 *bytecode;
-
-    /* The size of the bytecode. */
-    MVMuint32 bytecode_size;
     
-    /* The list of local types. */
-    MVMuint16 *local_types;
-    
-    /* Count of locals. */
-    MVMuint32 num_locals;
-    
-    /* The list of lexical types. */
-    MVMuint16 *lexical_types;
-    
-    /* Count of lexicals. */
-    MVMuint32 num_lexicals;
+    /* The compilation unit this frame belongs to. */
+    struct _MVMCompUnit *cu;
     
     /* Lexicals name map. */
     /* XXX */
     
-    /* The compilation unit this frame belongs to. */
-    struct _MVMCompUnit *cu;
+    /* The list of local types. */
+    MVMuint16 *local_types;
+    
+    /* The list of lexical types. */
+    MVMuint16 *lexical_types;
+
+    /* Flag for if this frame has been invoked ever. */
+    MVMuint32 invoked;
+
+    /* The size in bytes to allocate for the leixcal environment. */
+    MVMuint32 env_size;
+    
+    /* The size in bytes to allocate for the work and arguments area. */
+    MVMuint32 work_and_args_size;
+    
+    /* The size in bytes of the work area alone, minus args part (so
+     * where the args buffer starts is the start of the work area plus
+     * this number of bytes). */
+    MVMuint32 work_size;
+
+    /* The size of the bytecode. */
+    MVMuint32 bytecode_size;
+    
+    /* Count of locals. */
+    MVMuint32 num_locals;
+    
+    /* Count of lexicals. */
+    MVMuint32 num_lexicals;
     
     /* The compilation unit unique ID of this frame. */
     struct _MVMString *cuuid;
@@ -43,6 +57,10 @@ typedef struct _MVMFrame {
     /* The temporary work space for this frame. After a call is over, this
      * can be freed up. Must be NULLed out when this happens. */
     MVMRegister *work;
+    
+    /* The args buffer. Actually a pointer into an area inside of *work, to
+     * decrease number of allocations. */
+    MVMRegister *args;
 
     /* The outer frame, thus forming the static chain. */
     struct _MVMFrame *outer;
@@ -53,4 +71,7 @@ typedef struct _MVMFrame {
     /* The static frame information. Holds all we statically know about
      * this kind of frame, including information needed to GC-trace it. */
     MVMStaticFrame *static_info;
+
+    /* Reference count for the frame. */
+    MVMuint32 ref_count;
 } MVMFrame;
