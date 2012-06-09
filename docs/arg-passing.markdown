@@ -49,10 +49,10 @@ off the cases where compile-time inlining isn't possible.
 ## Call Code Generation
 A call looks something like:
 
-    prepargs(callsite)  # set the callsite
-    setarg_i(0, 42)     # set arg slot 0 to native int arg 42
-    setarg_o(1, r0)     # set arg slot 1 to object in register 0
-    call r1             # invoke the object in r1
+    prepargs   callsite  # set the callsite
+    argconst_i 0, 42     # set arg slot 0 to native int arg 42
+    arg_o      1, r0     # set arg slot 1 to object in register 0
+    call r1              # invoke the object in r1
 
 The bytecode loader will analyse the callsite info, and ensure that between
 it and the call all of the required slots are given values, and that these are
@@ -61,10 +61,10 @@ at execution time needs no further consideration.
 
 Note that there's no reason you can't have things like:
 
-    prepargs(callsite)      # set the callsite
-    setarg_i(0, 42)         # set arg slot 0 to native int arg 42
+    prepargs callsite       # set the callsite
+    argconst_i 0, 42        # set arg slot 0 to native int arg 42
     get_lex_named r0, '$x'  # load lexical "$x" by name into register 0
-    setarg_o(1, r0)         # set arg slot 1 to object in register 0
+    arg_o 1, r0)            # set arg slot 1 to object in register 0
     call r1                 # invoke the object in r1
 
 That is, do lookups or computations of arguments while building the callsite.
