@@ -63,6 +63,9 @@ typedef struct {
     char         *bytecode_seg;
     unsigned int  bytecode_pos;
     unsigned int  bytecode_alloc;
+    
+    /* The compilation unit we're compiling. */
+    MAST_CompUnit *cu;
 } WriterState;
 
 /* Writes an int64 into a buffer. */
@@ -255,6 +258,33 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                 else {
                     cleanup_all(vm, ws);
                     DIE(vm, "Expected MAST::Label, but didn't get one");
+                }
+                break;
+            }
+            case MVM_operand_coderef: {
+                if (ISTYPE(vm, operand, ws->types->Frame)) {
+                    /* Find the frame index in the compilation unit. (Can
+                     * probably be more efficient here later with a hash, if
+                     * this becomes bottleneck...) */
+                    int num_frames = ELEMS(vm, ws->cu->frames);
+                    int found      = 0;
+                    int i;
+                    for (i = 0; i < num_frames; i++) {
+                        if (ATPOS(vm, ws->cu->frames, i) == operand) {
+                            write_int16(ws->bytecode_seg, ws->bytecode_pos, i);
+                            ws->bytecode_pos += 2;
+                            found = 1;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        cleanup_all(vm, ws);
+                        DIE(vm, "MAST::Frame passed for code ref not found in compilation unit");
+                    }
+                }
+                else {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "Expected MAST::Frame, but didn't get one");
                 }
                 break;
             }
@@ -567,6 +597,7 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->bytecode_pos   = 0;
     ws->bytecode_alloc = 4096;
     ws->bytecode_seg   = malloc(ws->bytecode_alloc);
+    ws->cu             = cu;
     
     /* Visit and compile each of the frames. */
     num_frames = ELEMS(vm, cu->frames);
