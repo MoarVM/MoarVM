@@ -53,6 +53,12 @@ typedef struct {
     unsigned int  frame_pos;
     unsigned int  frame_alloc;
     
+    /* The callsite segment and number of callsites. */
+    char         *callsite_seg;
+    unsigned int  callsite_pos;
+    unsigned int  callsite_alloc;
+    unsigned int  num_callsites;
+    
     /* The bytecode segment. */
     char         *bytecode_seg;
     unsigned int  bytecode_pos;
@@ -505,6 +511,12 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     memcpy(output + pos, ws->frame_seg, ws->frame_pos);
     pos += ws->frame_pos;
     
+    /* Add callsites section and its header entries. */
+    write_int32(output, 36, pos);
+    write_int32(output, 40, ws->num_callsites);
+    memcpy(output + pos, ws->callsite_seg, ws->callsite_pos);
+    pos += ws->callsite_pos;
+    
     /* Add strings heap section and its header entries. */
     write_int32(output, 48, pos);
     write_int32(output, 52, ELEMS(vm, ws->strings));
@@ -547,7 +559,11 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->frame_pos      = 0;
     ws->frame_alloc    = 4096;
     ws->frame_seg      = malloc(ws->frame_alloc);
-    ws->num_frames     = 0; 
+    ws->num_frames     = 0;
+    ws->callsite_pos   = 0;
+    ws->callsite_alloc = 4096;
+    ws->callsite_seg   = malloc(ws->callsite_alloc);
+    ws->num_callsites  = 0;
     ws->bytecode_pos   = 0;
     ws->bytecode_alloc = 4096;
     ws->bytecode_seg   = malloc(ws->bytecode_alloc);
