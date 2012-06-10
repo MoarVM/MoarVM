@@ -464,7 +464,12 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
      * time through the runloop. */
     if (!last_inst || !ISTYPE(vm, last_inst, ws->types->Op)
             || GET_Op(node)->bank != MVM_OP_BANK_primitives
-            || GET_Op(node)->op != MVM_OP_return) {
+            || (   GET_Op(node)->op != MVM_OP_return
+                && GET_Op(node)->op != MVM_OP_return_i
+                && GET_Op(node)->op != MVM_OP_return_n
+                && GET_Op(node)->op != MVM_OP_return_s
+                && GET_Op(node)->op != MVM_OP_return_o
+            )) {
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_return);
