@@ -185,8 +185,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             tc->cur_frame->return_type = MVM_RETURN_VOID;
                             cur_op += 2;
                             tc->cur_frame->return_address = cur_op;
-                            /* XXX Fill in callframe, args. */
-                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_i:
@@ -196,8 +195,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             tc->cur_frame->return_type = MVM_RETURN_INT;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            /* XXX Fill in callframe, args. */
-                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_n:
@@ -207,8 +205,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             tc->cur_frame->return_type = MVM_RETURN_NUM;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            /* XXX Fill in callframe, args. */
-                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_s:
@@ -218,8 +215,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             tc->cur_frame->return_type = MVM_RETURN_STR;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            /* XXX Fill in callframe, args. */
-                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_o:
@@ -229,8 +225,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             tc->cur_frame->return_type = MVM_RETURN_INT;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            /* XXX Fill in callframe, args. */
-                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_add_n:
