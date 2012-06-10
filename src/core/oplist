@@ -131,3 +131,13 @@ BANK 3 math
 0x0A    cosh_n      w(num64) r(num64)
 0x0B    tanh_n      w(num64) r(num64)
 0x0C    sech_n      w(num64) r(num64)
+
+BANK 4 object
+0x00    knowhow     w(obj)
+0x01    findmeth    w(obj) r(obj) str
+0x02    findmeth_s  w(obj) r(obj) r(str)
+0x03    can         w(int64) r(obj) str
+0x04    can_s       w(int64) r(obj) r(str)
+0x05    create      w(obj) r(obj)
+0x06    gethow      w(obj) r(obj)
+0x07    getwhat     w(obj) r(obj)

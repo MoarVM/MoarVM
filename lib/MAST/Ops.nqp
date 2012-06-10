@@ -5,6 +5,7 @@ class MAST::OpBanks {
     our $dev := 1;
     our $string := 2;
     our $math := 3;
+    our $object := 4;
 }
 class MAST::Ops {
     our $primitives := nqp::hash(
@@ -140,5 +141,15 @@ class MAST::Ops {
         'cosh_n', 10,
         'tanh_n', 11,
         'sech_n', 12
+    );
+    our $object := nqp::hash(
+        'knowhow', 0,
+        'findmeth', 1,
+        'findmeth_s', 2,
+        'can', 3,
+        'can_s', 4,
+        'create', 5,
+        'gethow', 6,
+        'getwhat', 7
     );
 }

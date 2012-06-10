@@ -5,6 +5,7 @@
 #define MVM_OP_BANK_dev 1
 #define MVM_OP_BANK_string 2
 #define MVM_OP_BANK_math 3
+#define MVM_OP_BANK_object 4
 
 /* Op name defines for bank primitives. */
 #define MVM_OP_no_op 0
@@ -139,5 +140,15 @@
 #define MVM_OP_cosh_n 10
 #define MVM_OP_tanh_n 11
 #define MVM_OP_sech_n 12
+
+/* Op name defines for bank object. */
+#define MVM_OP_knowhow 0
+#define MVM_OP_findmeth 1
+#define MVM_OP_findmeth_s 2
+#define MVM_OP_can 3
+#define MVM_OP_can_s 4
+#define MVM_OP_create 5
+#define MVM_OP_gethow 6
+#define MVM_OP_getwhat 7
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);

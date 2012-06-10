@@ -771,21 +771,73 @@ static MVMOpInfo MVM_op_info_math[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
 };
+static MVMOpInfo MVM_op_info_object[] = {
+    {
+        MVM_OP_knowhow,
+        "knowhow",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_findmeth,
+        "findmeth",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str }
+    },
+    {
+        MVM_OP_findmeth_s,
+        "findmeth_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_can,
+        "can",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str }
+    },
+    {
+        MVM_OP_can_s,
+        "can_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_create,
+        "create",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_gethow,
+        "gethow",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_getwhat,
+        "getwhat",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+};
 
 static MVMOpInfo *MVM_op_info[] = {
     MVM_op_info_primitives,
     MVM_op_info_dev,
     MVM_op_info_string,
     MVM_op_info_math,
+    MVM_op_info_object,
 };
 
-static unsigned char MVM_op_banks = 4;
+static unsigned char MVM_op_banks = 5;
 
 static unsigned char MVM_opcounts_by_bank[] = {
     96,
     4,
     13,
     13,
+    8,
 };
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {
