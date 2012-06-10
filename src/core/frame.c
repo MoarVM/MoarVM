@@ -19,7 +19,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     static_frame->work_size = static_frame->num_locals * sizeof(MVMRegister) +
         static_frame->cu->max_callsite_size;
         
-    validate_static_frame(tc, static_frame);
+    MVM_validate_static_frame(tc, static_frame);
     
     /* Mark frame as invoked, so we need not do these calculations again. */
     static_frame->invoked = 1;

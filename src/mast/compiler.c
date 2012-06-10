@@ -506,7 +506,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 void compile_frame(VM, WriterState *ws, MASTNode *node) {
     MAST_Frame  *f;
     FrameState  *fs;
-    unsigned int i, num_lexicals, num_ins;
+    unsigned int i, num_lexicals, num_ins, instructions_start;
     MASTNode *last_inst = NULL;
     
     /* Ensure we have a node of the right type. */
@@ -555,6 +555,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     if (num_lexicals)
         DIE(vm, "Cannot compile lexicals yet");
 
+    /* Save the location of the start of instructions */
+    instructions_start = ws->bytecode_pos;
+
     /* Compile the instructions. */
     num_ins = ELEMS(vm, f->instructions);
     for (i = 0; i < num_ins; i++)
@@ -577,7 +580,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     }
     
     /* Fill in bytecode length. */
-    /* XXX */
+    write_int32(ws->frame_seg, fs->frame_start + 4, ws->bytecode_pos - instructions_start);
     
     /* Any leftover labels? */
     if (HASHELEMS(vm, fs->labels_to_resolve)) {
