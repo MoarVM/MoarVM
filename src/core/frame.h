@@ -18,7 +18,7 @@ typedef struct _MVMStaticFrame {
     /* Flag for if this frame has been invoked ever. */
     MVMuint32 invoked;
 
-    /* The size in bytes to allocate for the leixcal environment. */
+    /* The size in bytes to allocate for the lexical environment. */
     MVMuint32 env_size;
     
     /* The size in bytes to allocate for the work and arguments area. */
