@@ -69,7 +69,7 @@ our sub local($frame, $type) {
     MAST::Local.new(:index($frame.add_local($type)));
 }
 
-our sub call(@ins, $target, @flags, $result?, *@args) {
+our sub call(@ins, $target, @flags, :$result, *@args) {
     nqp::push(@ins, MAST::Call.new(
             :target($target), :result($result), :flags(@flags), |@args
         ));

@@ -84,7 +84,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         my $r1 := local($frame, NQPMu);
         op(@ins, 'getcode', $r1, $callee);
-        call(@ins, $r1, [], $r0);
+        call(@ins, $r1, [], :result($r0));
         op(@ins, 'say_i', $r0);
         op(@ins, 'return');
         $cu.add_frame($callee);
@@ -106,7 +106,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, NQPMu);
         op(@ins, 'getcode', $r1, $callee);
-        call(@ins, $r1, [], $r0);
+        call(@ins, $r1, [], :result($r0));
         op(@ins, 'say_n', $r0);
         op(@ins, 'return');
         $cu.add_frame($callee);
@@ -128,7 +128,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, NQPMu);
         op(@ins, 'getcode', $r1, $callee);
-        call(@ins, $r1, [], $r0);
+        call(@ins, $r1, [], :result($r0));
         op(@ins, 'say_s', $r0);
         op(@ins, 'return');
         $cu.add_frame($callee);
