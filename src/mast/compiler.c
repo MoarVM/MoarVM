@@ -300,7 +300,7 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             MAST_Local *l = GET_Local(operand);
             
             /* Ensure it's within the set of known locals. */
-            if (l->index > ws->cur_frame->num_locals) {
+            if (l->index >= ws->cur_frame->num_locals) {
                 cleanup_all(vm, ws);
                 DIE(vm, "MAST::Local index out of range");
             }
@@ -426,7 +426,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             MAST_Local *l = GET_Local(c->result);
             
             /* Ensure it's within the set of known locals. */
-            if (l->index > ws->cur_frame->num_locals) {
+            if (l->index >= ws->cur_frame->num_locals) {
                 cleanup_all(vm, ws);
                 DIE(vm, "MAST::Local index out of range");
             }
