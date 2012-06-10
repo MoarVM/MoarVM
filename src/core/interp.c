@@ -178,6 +178,22 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         cur_callsite = cu->callsites[GET_UI16(cur_op, 0)];
                         cur_op += 2;
                         break;
+                    case MVM_OP_arg_i:
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].i64 = GET_REG(cur_op, 2).i64;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_arg_n:
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].n64 = GET_REG(cur_op, 2).n64;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_arg_s:
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].s = GET_REG(cur_op, 2).s;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_arg_o:
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].o = GET_REG(cur_op, 2).o;
+                        cur_op += 4;
+                        break;
                     case MVM_OP_invoke_v:
                         {
                             MVMObject *code = GET_REG(cur_op, 0).o;
