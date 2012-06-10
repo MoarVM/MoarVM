@@ -493,6 +493,30 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
             }
             break;
             
+            /* Object operations. */
+            case MVM_OP_BANK_object: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_knowhow:
+                        GET_REG(cur_op, 0).o = tc->instance->KnowHOW;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_gethow:
+                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 1).o)->HOW;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getwhat:
+                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 1).o)->WHAT;
+                        cur_op += 4;
+                        break;
+                    default: {
+                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_dev, *(cur_op-1));
+                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                    }
+                    break;
+                }
+            }
+            break;
+            
             /* Dispatch to bank function. */
             default:
             {
