@@ -233,13 +233,15 @@ class MAST::Call is MAST::Node {
     has $!target;
     has @!flags;
     has @!args;
+    has $!result;
     
-    method new(:$target!, :@flags!, *@args) {
+    method new(:$target!, :@flags!, :$result = MAST::Node, *@args) {
         sanity_check(@flags, @args);
         my $obj := nqp::create(self);
         nqp::bindattr($obj, MAST::Call, '$!target', $target);
         nqp::bindattr($obj, MAST::Call, '@!flags', @flags);
         nqp::bindattr($obj, MAST::Call, '@!args', @args);
+        nqp::bindattr($obj, MAST::Call, '$!result', $result);
         $obj
     }
     

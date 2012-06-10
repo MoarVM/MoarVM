@@ -78,6 +78,7 @@ typedef struct {
     PMC    *target;
     PMC    *flags;
     PMC    *args;
+    PMC    *result;
 } MAST_Call;
 
 /* Node types structure. */
