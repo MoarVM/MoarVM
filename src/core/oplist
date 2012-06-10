@@ -100,6 +100,7 @@ BANK 1 dev
 0x00    say_i       r(int64)
 0x01    say_s       r(str)
 0x02    say_n       r(num64)
+0x03    sleep       r(int64)
 
 BANK 2 string
 0x00    concat_s    w(str) r(str) r(str)
