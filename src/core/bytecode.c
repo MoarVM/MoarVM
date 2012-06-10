@@ -19,6 +19,10 @@ typedef struct {
     MVMuint8  *frame_seg;
     MVMuint32  expected_frames;
     
+    /* The callsites segment. */
+    MVMuint8  *callsite_seg;
+    MVMuint32  expected_callsites;
+    
     /* The bytecode segment. */
     MVMuint8  *bytecode_seg;
     MVMuint32  bytecode_size;
@@ -114,6 +118,15 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     }
     rs->frame_seg       = cu->data_start + offset;
     rs->expected_frames = read_int32(cu->data_start, 32);
+    
+    /* Locate callsites segment. */
+    offset = read_int32(cu->data_start, 36);
+    if (offset > cu->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
+    }
+    rs->callsite_seg       = cu->data_start + offset;
+    rs->expected_callsites = read_int32(cu->data_start, 40);
     
     /* Locate strings segment. */
     offset = read_int32(cu->data_start, 48);
@@ -230,6 +243,44 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     return frames;
 }
 
+/* Loads the callsites. */
+static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMCallsite **callsites;
+    MVMuint8     *pos;
+    MVMuint32     i, j, elems;
+    
+    /* Allocate space for callsites. */
+    if (rs->expected_callsites == 0)
+        return NULL;
+    callsites = malloc(sizeof(MVMCallsite *) * rs->expected_callsites);
+
+    /* Load strings. */
+    pos = rs->callsite_seg;
+    for (i = 0; i < rs->expected_callsites; i++) {
+        /* Ensure we can read at least an element count. */
+        ensure_can_read(tc, cu, rs, pos, 2);
+        elems = read_int16(pos, 0);
+        pos += 2;
+        
+        /* Allocate space for the callsite. */
+        callsites[i] = malloc(sizeof(MVMCallsite));
+        callsites[i]->arg_count = elems;
+        if (elems)
+            callsites[i]->arg_flags = malloc(elems);
+        
+        /* Ensure we can read in a callsite of this size, and do so. */
+        ensure_can_read(tc, cu, rs, pos, elems);
+        for (j = 0; j < elems; j++)
+            callsites[i]->arg_flags[j] = read_int8(pos, j);
+        pos += elems;
+        
+        /* Add alignment. */
+        pos += elems % 2;
+    }
+    
+    return callsites;
+}
+
 /* Creates code objects to go with each of the static frames. */
 static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32  i;
@@ -260,6 +311,10 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu->frames = deserialize_frames(tc, cu, rs);
     cu->num_frames = rs->expected_frames;
     create_code_objects(tc, cu);
+    
+    /* Load callsites. */
+    cu->callsites = deserialize_callsites(tc, cu, rs);
+    cu->num_callsites = rs->expected_callsites;
     
     /* Clean up reader state. */
     cleanup_all(tc, rs);

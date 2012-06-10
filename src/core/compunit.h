@@ -16,6 +16,10 @@ typedef struct _MVMCompUnit {
     MVMObject      **coderefs;
     MVMuint32        num_frames;
     
+    /* The callsites in the compilation unit. */
+    MVMCallsite **callsites;
+    MVMuint32     num_callsites;
+    
     /* The string heap and number of strings. */
     struct _MVMString **strings;
     MVMuint32           num_strings;

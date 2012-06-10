@@ -33,7 +33,7 @@ typedef MVMuint8 MVMCallsiteEntry;
  * the callsite memory buffer. */
 typedef struct _MVMCallsite {
     MVMuint16 arg_count;
-    MVMCallsiteEntry arg_flags[];
+    MVMCallsiteEntry *arg_flags;
 } MVMCallsite;
 
 /* Argument processing context. */
