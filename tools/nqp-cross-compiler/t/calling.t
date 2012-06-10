@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(6);
+plan(7);
 
 sub callee() {
     my $frame := MAST::Frame.new();
@@ -135,3 +135,18 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "MOO MOO\n",
     "call returning str");
+    
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, NQPMu);
+        my $r2 := local($frame, NQPMu);
+        my $r3 := local($frame, str);
+        op(@ins, 'knowhow', $r0);
+        op(@ins, 'gethow', $r1, $r0);
+        op(@ins, 'findmeth', $r2, $r1, sval('name'));
+        call(@ins, $r2, [$Arg::obj, $Arg::obj], $r0, $r1, :result($r3));
+        op(@ins, 'say_s', $r3);
+        op(@ins, 'return');
+    },
+    "KnowHOW\n",
+    "method call on built-in object");
