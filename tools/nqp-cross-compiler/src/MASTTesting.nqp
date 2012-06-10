@@ -3,16 +3,19 @@ use MASTCompiler;
 my $moarvm := '..\\..\\moarvm';
 
 our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
-    # Create frame; get it set up.
+    # Create frame
     my $frame := MAST::Frame.new();
-    $frame_filler($frame, $frame.instructions);
     
     # Wrap in a compilation unit.
     my $comp_unit := MAST::CompUnit.new();
     $comp_unit.add_frame($frame);
-
+    
+    # fill with instructions
+    $frame_filler($frame, $frame.instructions, $comp_unit);
+    
     # Compile it.
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
+    #pir::spawnw__Is("copy /Y temp.moarvm \"$desc\" >NUL");
 
     # Invoke and redirect output to a file.
     my $start := nqp::time_n();

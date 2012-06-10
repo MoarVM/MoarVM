@@ -3,7 +3,7 @@ use MASTTesting;
 
 plan(1);
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         op(@ins, 'const_i64', $r0, ival(100000000));
         my $loop := label('loop');

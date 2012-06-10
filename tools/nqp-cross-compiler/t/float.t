@@ -3,7 +3,7 @@ use MASTTesting;
 
 plan(11);
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         op(@ins, 'const_n64', $r0, nval(233.232));
         op(@ins, 'say_n', $r0);
@@ -12,7 +12,7 @@ mast_frame_output_is(-> $frame, @ins {
     "233.232000\n",
     "float constant loading");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -25,7 +25,7 @@ mast_frame_output_is(-> $frame, @ins {
     "9959070.012260\n",
     "float addition");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -38,7 +38,7 @@ mast_frame_output_is(-> $frame, @ins {
     "3506465568.000780\n",
     "float subtraction");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -51,7 +51,7 @@ mast_frame_output_is(-> $frame, @ins {
     "-127243075316.468050\n",
     "float multiplication");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         op(@ins, 'const_n64', $r0, nval(-38838.000033332));
         op(@ins, 'neg_n', $r0, $r0);
@@ -64,7 +64,7 @@ mast_frame_output_is(-> $frame, @ins {
     "38838.000033\n-33223.220034\n",
     "float negation");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -87,7 +87,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n0\n0\n",
     "float equal to");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -110,7 +110,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n1\n1\n",
     "float not equal to");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -133,7 +133,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n1\n0\n",
     "float less than");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -156,7 +156,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n1\n0\n",
     "float less than or equal to");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);
@@ -179,7 +179,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n0\n1\n",
     "float greater than");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $r2 := local($frame, num);

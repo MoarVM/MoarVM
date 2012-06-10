@@ -3,7 +3,7 @@ use MASTTesting;
 
 plan(5);
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         my $l1 := label('foo');
         op(@ins, 'const_i64', $r0, ival(1));
@@ -16,7 +16,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n",
     "unconditional forward branching");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         my $l1 := label('foo');
         my $l2 := label('bar');
@@ -33,7 +33,7 @@ mast_frame_output_is(-> $frame, @ins {
     "2\n",
     "unconditional forward and backward branching");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         my $r1 := local($frame, int);
         my $loop := label('loop');
@@ -52,7 +52,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n2\n3\n4\n5\n",
     "conditional on zero integer branching");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         my $r1 := local($frame, int);
         my $loop := label('loop');
@@ -68,7 +68,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n2\n3\n",
     "conditional on non-zero integer branching");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
         my $r1 := local($frame, num);
         my $l0 := label('l0');

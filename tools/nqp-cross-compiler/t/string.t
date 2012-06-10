@@ -3,7 +3,7 @@ use MASTTesting;
 
 plan(27);
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('OMG strings!'));
         op(@ins, 'say_s', $r0);
@@ -12,7 +12,7 @@ mast_frame_output_is(-> $frame, @ins {
     "OMG strings!\n",
     "string constant loading");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -25,7 +25,7 @@ mast_frame_output_is(-> $frame, @ins {
     "-1\n",
     "string index no match");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -38,7 +38,7 @@ mast_frame_output_is(-> $frame, @ins {
     "-1\n",
     "string index bigger");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -51,7 +51,7 @@ mast_frame_output_is(-> $frame, @ins {
     "-1\n",
     "string index haystack empty");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -64,7 +64,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n",
     "string index both empty");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -77,7 +77,7 @@ mast_frame_output_is(-> $frame, @ins {
     "-1\n",
     "string index needle empty");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -90,7 +90,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n",
     "string index equals");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -103,7 +103,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n",
     "string index beginning");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -116,7 +116,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n",
     "string index 1");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -129,7 +129,7 @@ mast_frame_output_is(-> $frame, @ins {
     "3\n",
     "string index end");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -142,7 +142,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n",
     "string equal not");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -155,7 +155,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n",
     "string equal");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -168,7 +168,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n",
     "string not equal");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -181,7 +181,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n",
     "string not equal not");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
@@ -195,7 +195,7 @@ mast_frame_output_is(-> $frame, @ins {
     "bar\n",
     "string substring full");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
@@ -209,7 +209,7 @@ mast_frame_output_is(-> $frame, @ins {
     "ba\n",
     "string substring beginning");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
@@ -223,7 +223,7 @@ mast_frame_output_is(-> $frame, @ins {
     "a\n",
     "string substring middle");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
@@ -237,7 +237,7 @@ mast_frame_output_is(-> $frame, @ins {
     "ar\n",
     "string substring end");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('bar'));
@@ -249,7 +249,7 @@ mast_frame_output_is(-> $frame, @ins {
     "foobar\n",
     "string concat");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         op(@ins, 'const_s', $r0, sval('bar'));
@@ -261,7 +261,7 @@ mast_frame_output_is(-> $frame, @ins {
     "barbarbarbar\n", # doin' it like a barbarian
     "string repeat");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('( « ]> > <term> <.ws>{$¢.add_enum($<na'));
         op(@ins, 'say_s', $r0);
@@ -270,7 +270,7 @@ mast_frame_output_is(-> $frame, @ins {
     '( « ]> > <term> <.ws>{$¢.add_enum($<na'~"\n",
     "string utf8 round trip");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -284,7 +284,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n",
     "string eqat true");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -298,7 +298,7 @@ mast_frame_output_is(-> $frame, @ins {
     "0\n",
     "string eqat false");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, str);
         my $r2 := local($frame, int);
@@ -316,7 +316,7 @@ mast_frame_output_is(-> $frame, @ins {
     "1\n",
     "string haveat true");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         op(@ins, 'const_s', $r0, sval('( « ]> > <term> <.ws>{$¢.add_enum($<na'));
@@ -328,7 +328,7 @@ mast_frame_output_is(-> $frame, @ins {
     "171\n",
     "string get codepoint at index");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
@@ -345,7 +345,7 @@ mast_frame_output_is(-> $frame, @ins {
     "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««\n",
     "string set codepoint at index");
 
-mast_frame_output_is(-> $frame, @ins {
+mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
         op(@ins, 'const_s', $r0, sval('(  ]> > <term> <.ws>{$¢«.add_enum($<na'));
