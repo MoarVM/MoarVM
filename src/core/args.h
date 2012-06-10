@@ -58,6 +58,28 @@ typedef struct _MVMArgProcContext {
     MVMint32     num_pos;
 } MVMArgProcContext;
 
+
+/* Expected return type flags. */
+typedef enum {
+    /* Argument is an object. */
+    MVM_RETURN_VOID = 0,
+    
+    /* Argument is an object. */
+    MVM_RETURN_OBJ = 1,
+    
+    /* Argument is a native integer, signed. */
+    MVM_RETURN_INT = 2,
+    
+    /* Argument is a native integer, unsigned. */
+    MVM_RETURN_UINT = 4,
+    
+    /* Argument is a native floating point number. */
+    MVM_RETURN_NUM = 8,
+    
+    /* Argument is a native NFG string (MVMString REPR). */
+    MVM_RETURN_STR = 16,
+} MVMReturnType;
+
 /* Argument processing context handling. */
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMArg *args);
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
@@ -77,11 +99,15 @@ MVMArg * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, st
 MVMArg * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 
 /* Result setting. */
-void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result);
-void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result);
-void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result);
-void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result);
-void MVM_args_set_result_str(MVMThreadContext *tc, struct _MVMString *result);
+void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless);
+void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless);
+void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless);
+void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless);
+void MVM_args_set_result_str(MVMThreadContext *tc, struct _MVMString *result, MVMint32 frameless);
+
+/* Result setting frame constants. */
+#define MVM_RETURN_CALLER_FRAME     0
+#define MVM_RETURN_CURRENT_FRAME    1
 
 /* Required/optional constants. */
 #define MVM_ARG_OPTIONAL    0

@@ -75,6 +75,9 @@ typedef struct _MVMFrame {
     
     /* The register we should store the return value in, if any. */
     MVMRegister *return_value;
+    
+    /* The type of return value that is expected. */
+    MVMReturnType return_type;
 } MVMFrame;
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame);

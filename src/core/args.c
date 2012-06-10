@@ -139,19 +139,20 @@ MVMArg * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
     return result.arg;
 }
 
-/* Result setting. */
-void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result) {
+/* Result setting. The frameless flag indicates that the currently
+ * executing code does not have a MVMFrame of its own. */
+void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless) {
     MVM_exception_throw_adhoc(tc, "Returning results NYI");
 }
-void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result) {
+void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless) {
     MVM_exception_throw_adhoc(tc, "Returning results NYI");
 }
-void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result) {
+void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless) {
     MVM_exception_throw_adhoc(tc, "Returning results NYI");
 }
-void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result) {
+void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless) {
     MVM_exception_throw_adhoc(tc, "Returning results NYI");
 }
-void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result) {
+void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless) {
     MVM_exception_throw_adhoc(tc, "Returning results NYI");
 }

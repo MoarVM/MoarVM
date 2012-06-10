@@ -99,7 +99,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) 
     STABLE(type_object)->WHO = stash;
 
     /* Return the type object. */
-    MVM_args_set_result_obj(tc, type_object);
+    MVM_args_set_result_obj(tc, type_object, MVM_RETURN_CURRENT_FRAME);
 }
 
 /* Adds a method. */
@@ -122,7 +122,7 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args
         method_table, OBJECT_BODY(method_table), (MVMObject *)name, method);
     
     /* Return added method as result. */
-    MVM_args_set_result_obj(tc, method);
+    MVM_args_set_result_obj(tc, method, MVM_RETURN_CURRENT_FRAME);
 }
 
 /* Composes the meta-object. */
@@ -147,7 +147,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
     STABLE(type_obj)->type_check_cache[0]     = type_obj;
     
     /* Return type object. */
-    MVM_args_set_result_obj(tc, type_obj);
+    MVM_args_set_result_obj(tc, type_obj, MVM_RETURN_CURRENT_FRAME);
 }
 
 /* Introspects the attributes. For now just hand back real list. */
@@ -159,7 +159,7 @@ static void attributes(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
-    MVM_args_set_result_obj(tc, attributes);
+    MVM_args_set_result_obj(tc, attributes, MVM_RETURN_CURRENT_FRAME);
 }
 
 /* Introspects the methods. */
@@ -171,7 +171,7 @@ static void methods(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
-    MVM_args_set_result_obj(tc, method_table);
+    MVM_args_set_result_obj(tc, method_table, MVM_RETURN_CURRENT_FRAME);
 }
 
 /* Introspects the name. */
@@ -184,7 +184,7 @@ static void name(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
     name = ((MVMKnowHOWREPR *)self)->body.name;
-    MVM_args_set_result_str(tc, name);
+    MVM_args_set_result_str(tc, name, MVM_RETURN_CURRENT_FRAME);
 }
 
 /* Adds a method into the KnowHOW.HOW method table. */
