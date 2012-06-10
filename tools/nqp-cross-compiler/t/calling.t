@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(1);
+plan(3);
 
 sub callee() {
     my $frame := MAST::Frame.new();

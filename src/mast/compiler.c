@@ -406,6 +406,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     MAST_Frame  *f;
     FrameState  *fs;
     unsigned int i, num_lexicals, num_ins;
+    MASTNode *last_inst;
     
     /* Ensure we have a node of the right type. */
     if (!ISTYPE(vm, node, ws->types->Frame)) {
@@ -456,7 +457,18 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     /* Compile the instructions. */
     num_ins = ELEMS(vm, f->instructions);
     for (i = 0; i < num_ins; i++)
-        compile_instruction(vm, ws, ATPOS(vm, f->instructions, i));
+        compile_instruction(vm, ws, last_inst = ATPOS(vm, f->instructions, i));
+    
+    /* fixup frames that don't have a return instruction, so
+     * we don't have to check against bytecode length every
+     * time through the runloop. */
+    if (!last_inst || !ISTYPE(vm, last_inst, ws->types->Op)
+            || GET_Op(node)->bank != MVM_OP_BANK_primitives
+            || GET_Op(node)->op != MVM_OP_return) {
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
+        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_return);
+    }
     
     /* Fill in bytecode length. */
     /* XXX */
