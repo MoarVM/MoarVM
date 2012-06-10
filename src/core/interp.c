@@ -111,6 +111,14 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 / GET_REG(cur_op, 4).ui64;
                         cur_op += 6;
                         break;
+                    case MVM_OP_mod_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 % GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_mod_u:
+                        GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 % GET_REG(cur_op, 4).ui64;
+                        cur_op += 6;
+                        break;
                     case MVM_OP_neg_i:
                         GET_REG(cur_op, 0).i64 = -GET_REG(cur_op, 2).i64;
                         cur_op += 4;
@@ -234,8 +242,10 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         break;
                     case MVM_OP_say_s:
                         MVM_string_say(tc, GET_REG(cur_op, 0).s);
-                        /*printf("%s\n", MVM_string_ascii_encode(tc,
-                            GET_REG(cur_op, 0).s, NULL));*/
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_sleep: /* microseconds for now */
+                        apr_sleep((apr_interval_time_t)GET_REG(cur_op, 0).i64);
                         cur_op += 2;
                         break;
                     default: {
