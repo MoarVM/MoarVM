@@ -249,7 +249,7 @@ class MAST::Call is MAST::Node {
         my $flag_needed_args := 0;
         for @flags {
             $flag_needed_args := $flag_needed_args +
-                ($_ +| $Arg::named ?? 2 !! 1);
+                ($_ +& $Arg::named ?? 2 !! 1);
         }
         if +@args < $flag_needed_args {
             nqp::die("Flags indicated there should be $flag_needed_args args, but have " ~
