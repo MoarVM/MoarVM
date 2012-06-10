@@ -131,6 +131,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         "Bytecode validation error: operand register index out of range");
                 }
             }
+            if (cur_op + operand_size >= bytecode_end)
+                throw_past_end(tc);
             cur_op += operand_size;
         }
     }
