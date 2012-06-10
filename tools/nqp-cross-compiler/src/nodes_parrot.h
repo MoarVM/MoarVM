@@ -180,5 +180,31 @@ typedef struct _MVMOpInfo {
     unsigned char  operands[MVM_MAX_OPERANDS];
 } MVMOpInfo;
 
+/* Copy of callsite argument flags. */
+typedef enum {
+    /* Argument is an object. */
+    MVM_CALLSITE_ARG_OBJ = 1,
+    
+    /* Argument is a native integer, signed. */
+    MVM_CALLSITE_ARG_INT = 2,
+    
+    /* Argument is a native integer, unsigned. */
+    MVM_CALLSITE_ARG_UINT = 4,
+    
+    /* Argument is a native floating point number. */
+    MVM_CALLSITE_ARG_NUM = 8,
+    
+    /* Argument is a native NFG string (MVMString REPR). */
+    MVM_CALLSITE_ARG_STR = 16,
+    
+    /* Argument is named; in this case, there are two entries in
+     * the argument list, the first a MVMString naming the arg and
+     * after that the arg. */
+    MVM_CALLSITE_ARG_NAMED = 32,
+    
+    /* Argument is flattened. What this means is up to the target. */
+    MVM_CALLSITE_ARG_FLAT = 64
+} MVMCallsiteFlags;
+
 /* Type mappings. */
 #define MVMStorageSpec      storage_spec

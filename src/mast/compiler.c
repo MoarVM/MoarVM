@@ -410,6 +410,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         MAST_Call *c           = GET_Call(node);
         unsigned char call_op  = MVM_OP_invoke_v;
         unsigned char res_type = 0;
+        unsigned short num_flags, num_args, flag_pos, arg_pos;
         
         /* Emit callsite (may re-use existing one) and emit loading of it. */
         unsigned short callsite_id = get_callsite_id(vm, ws, c->flags);
@@ -419,7 +420,39 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         write_int16(ws->bytecode_seg, ws->bytecode_pos, callsite_id);
         ws->bytecode_pos += 2;
         
-        /* XXX Set up args. */
+        /* Set up args. */
+        num_flags = (unsigned short)ELEMS(vm, c->flags);
+        num_args = (unsigned short)ELEMS(vm, c->args);
+        arg_pos = 0;
+        for (flag_pos = 0; flag_pos < num_flags; flag_pos++) {
+            /* Handle any special flags. */
+            unsigned char flag = (unsigned char)ATPOS_I(vm, c->flags, flag_pos);
+            if (flag & MVM_CALLSITE_ARG_NAMED) {
+                cleanup_all(vm, ws);
+                DIE(vm, "Named args NYI");
+            }
+            else if (flag & MVM_CALLSITE_ARG_FLAT) {
+                cleanup_all(vm, ws);
+                DIE(vm, "Flattening args NYI");
+            }
+            
+            /* Now go by flag type. */
+            ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
+            write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
+            if (flag & MVM_CALLSITE_ARG_OBJ) {
+                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_o);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                ws->bytecode_pos += 2;
+                compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj,
+                    ATPOS(vm, c->args, arg_pos));
+            }
+            else {
+                cleanup_all(vm, ws);
+                DIE(vm, "Unhandled arg type");
+            }
+            
+            arg_pos++;
+        }
         
         /* Select operation based on return type. */
         if (ISTYPE(vm, c->result, ws->types->Local)) {
