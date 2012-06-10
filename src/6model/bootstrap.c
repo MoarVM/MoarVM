@@ -59,11 +59,11 @@ static void create_stub_BOOTCode(MVMThreadContext *tc) {
 }
 
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
-static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
-    MVMObject  *self, *HOW, *type_object, *BOOTHash, *stash;
-    MVMArg     *repr_arg, *name_arg;
-    MVMString  *repr_name, *name;
-    MVMREPROps *repr_to_use;
+static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+    MVMObject   *self, *HOW, *type_object, *BOOTHash, *stash;
+    MVMRegister *repr_arg, *name_arg;
+    MVMString   *repr_name, *name;
+    MVMREPROps  *repr_to_use;
     
     /* Get arguments. */
     MVMArgProcContext arg_ctx;
@@ -103,7 +103,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) 
 }
 
 /* Adds a method. */
-static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *method, *method_table;
     MVMString *name;
     
@@ -126,7 +126,7 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args
 }
 
 /* Composes the meta-object. */
-static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *method_table;
     
     /* Get arguments. */
@@ -151,7 +151,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
 }
 
 /* Introspects the attributes. For now just hand back real list. */
-static void attributes(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+static void attributes(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *attributes;
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
@@ -163,7 +163,7 @@ static void attributes(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args
 }
 
 /* Introspects the methods. */
-static void methods(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+static void methods(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *method_table;
     MVMArgProcContext arg_ctx;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
@@ -175,7 +175,7 @@ static void methods(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
 }
 
 /* Introspects the name. */
-static void name(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
+static void name(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj;
     MVMString *name;
     MVMArgProcContext arg_ctx;
@@ -189,7 +189,7 @@ static void name(MVMThreadContext *tc, MVMCallsite *callsite, MVMArg *args) {
 
 /* Adds a method into the KnowHOW.HOW method table. */
 static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow_how,
-        char *name, void (*func) (MVMThreadContext *, MVMCallsite *, MVMArg *)) {
+        char *name, void (*func) (MVMThreadContext *, MVMCallsite *, MVMRegister *)) {
     MVMObject *BOOTCCode, *code_obj, *method_table, *name_str;
     
     /* Create string for name. */

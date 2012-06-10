@@ -4,7 +4,7 @@
 static MVMREPROps *this_repr;
 
 /* Invocation protocol handler. */
-static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMArg *args) {
+static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
     if (IS_CONCRETE(invokee))
         ((MVMCFunction *)invokee)->body.func(tc, callsite, args);
     else

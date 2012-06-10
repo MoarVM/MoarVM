@@ -4,7 +4,7 @@
 static MVMREPROps *this_repr;
 
 /* Invocation protocol handler. */
-static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMArg *args) {
+static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
     if (IS_CONCRETE(invokee)) {
         MVMCode *code = (MVMCode *)invokee;
         MVM_frame_invoke(tc, code->body.sf);

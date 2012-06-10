@@ -6,7 +6,6 @@ struct _MVMSerializationReader;
 struct _MVMSerializationWriter;
 struct _MVMThreadContext;
 struct _MVMCallsite;
-union  _MVMArg;
 
 /* Boolification mode flags. */
 #define MVM_BOOL_MODE_CALL_METHOD                   0
@@ -209,7 +208,7 @@ typedef struct _MVMSTable {
      * arrange for setting up a callframe, twiddle the interpreter's
      * PC as needed and return. */
     void (*invoke) (struct _MVMThreadContext *tc, MVMObject *invokee,
-        struct _MVMCallsite *callsite, union _MVMArg *args);
+        struct _MVMCallsite *callsite, union _MVMRegister *args);
 
     /* If this is a container, then this contains information needed in
      * order to fetch the value in it. If not, it'll be null, which can

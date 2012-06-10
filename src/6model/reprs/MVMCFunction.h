@@ -4,7 +4,7 @@
  * that are implemented as C functions inside the VM. */
 typedef struct _MVMCFunctionBody {
     void (*func) (struct _MVMThreadContext *tc, struct _MVMCallsite *callsite,
-        union _MVMArg *args);
+        union _MVMRegister *args);
 } MVMCFunctionBody;
 typedef struct _MVMCFunction {
     MVMObject common;
