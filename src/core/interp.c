@@ -146,9 +146,21 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                     case MVM_OP_invoke_v:
                         {
                             MVMObject *code = GET_REG(cur_op, 0).o;
+                            tc->cur_frame->return_value = NULL;
+                            tc->cur_frame->return_type = MVM_RETURN_VOID;
                             cur_op += 2;
                             tc->cur_frame->return_address = cur_op;
-                            tc->cur_frame->return_value = NULL;
+                            /* XXX Fill in callframe, args. */
+                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                        }
+                        break;
+                    case MVM_OP_invoke_i:
+                        {
+                            MVMObject *code = GET_REG(cur_op, 2).o;
+                            tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                            tc->cur_frame->return_type = MVM_RETURN_INT;
+                            cur_op += 4;
+                            tc->cur_frame->return_address = cur_op;
                             /* XXX Fill in callframe, args. */
                             STABLE(code)->invoke(tc, code, NULL, NULL);
                         }
