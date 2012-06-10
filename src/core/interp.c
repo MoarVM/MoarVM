@@ -501,11 +501,23 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         cur_op += 2;
                         break;
                     case MVM_OP_gethow:
-                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 1).o)->HOW;
+                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->HOW;
                         cur_op += 4;
                         break;
+                    case MVM_OP_findmeth:
+                        GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
+                            GET_REG(cur_op, 2).o,
+                            cu->strings[GET_UI16(cur_op, 4)]);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_findmeth_s:
+                        GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
+                            GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
                     case MVM_OP_getwhat:
-                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 1).o)->WHAT;
+                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                         cur_op += 4;
                         break;
                     default: {

@@ -480,3 +480,6 @@ typedef struct _MVMREPROps {
 
 /* Macros for getting/setting type-objectness. */
 #define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))
+
+/* Some functions related to 6model core functionality. */
+MVMObject * MVM_6model_find_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
