@@ -166,7 +166,10 @@ the compilation unit. At the point of loading the bytecode, they will
 be set up, and a table pointing to them created. This means that a
 callsite descriptor will always be a pointer + offset away.
 
-XXX TODO
+Each callsite consists of a 16-bit unsigned integer indicating the number
+of argument flags. This is followed by the flags, taking 8 bits each. If
+the number of argument flags is odd, then an extra padding byte will be
+written afterwards.
 
 ## Bytecode segment
 This consists of a sequence of instructions. Instruction codes are always
