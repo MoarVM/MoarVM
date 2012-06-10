@@ -77,14 +77,35 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         break;
-                    case MVM_OP_return:
+                    case MVM_OP_return_i:
+                        MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
+                            MVM_RETURN_CALLER_FRAME);
                         if (MVM_frame_try_return(tc))
                             break;
                         else
                             return;
-                    case MVM_OP_return_i:
-                        MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
+                    case MVM_OP_return_n:
+                        MVM_args_set_result_num(tc, GET_REG(cur_op, 0).n64,
                             MVM_RETURN_CALLER_FRAME);
+                        if (MVM_frame_try_return(tc))
+                            break;
+                        else
+                            return;
+                    case MVM_OP_return_s:
+                        MVM_args_set_result_str(tc, GET_REG(cur_op, 0).s,
+                            MVM_RETURN_CALLER_FRAME);
+                        if (MVM_frame_try_return(tc))
+                            break;
+                        else
+                            return;
+                    case MVM_OP_return_o:
+                        MVM_args_set_result_obj(tc, GET_REG(cur_op, 0).o,
+                            MVM_RETURN_CALLER_FRAME);
+                        if (MVM_frame_try_return(tc))
+                            break;
+                        else
+                            return;
+                    case MVM_OP_return:
                         if (MVM_frame_try_return(tc))
                             break;
                         else
@@ -179,6 +200,39 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             STABLE(code)->invoke(tc, code, NULL, NULL);
                         }
                         break;
+                    case MVM_OP_invoke_n:
+                        {
+                            MVMObject *code = GET_REG(cur_op, 2).o;
+                            tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                            tc->cur_frame->return_type = MVM_RETURN_NUM;
+                            cur_op += 4;
+                            tc->cur_frame->return_address = cur_op;
+                            /* XXX Fill in callframe, args. */
+                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                        }
+                        break;
+                    case MVM_OP_invoke_s:
+                        {
+                            MVMObject *code = GET_REG(cur_op, 2).o;
+                            tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                            tc->cur_frame->return_type = MVM_RETURN_STR;
+                            cur_op += 4;
+                            tc->cur_frame->return_address = cur_op;
+                            /* XXX Fill in callframe, args. */
+                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                        }
+                        break;
+                    case MVM_OP_invoke_o:
+                        {
+                            MVMObject *code = GET_REG(cur_op, 2).o;
+                            tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                            tc->cur_frame->return_type = MVM_RETURN_INT;
+                            cur_op += 4;
+                            tc->cur_frame->return_address = cur_op;
+                            /* XXX Fill in callframe, args. */
+                            STABLE(code)->invoke(tc, code, NULL, NULL);
+                        }
+                        break;
                     case MVM_OP_add_n:
                         GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 + GET_REG(cur_op, 4).n64;
                         cur_op += 6;
@@ -248,6 +302,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         cur_op += 6;
                         break;
                     default: {
+                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_primitives, *(cur_op-1));
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
                     break;
@@ -275,6 +330,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         cur_op += 2;
                         break;
                     default: {
+                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_dev, *(cur_op-1));
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
                     break;
@@ -353,6 +409,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         cur_op += 6;
                         break;
                     default: {
+                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_string, *(cur_op-1));
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
                     break;
@@ -417,6 +474,7 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                         cur_op += 4;
                         break;
                     default: {
+                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_math, *(cur_op-1));
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
                     }
                     break;

@@ -147,6 +147,9 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
+            case MVM_RETURN_OBJ:
+                target->return_value->o = result;
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
         }
@@ -178,6 +181,9 @@ void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 f
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
+            case MVM_RETURN_UINT:
+                target->return_value->ui64 = result;
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
         }
@@ -192,6 +198,9 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
+            case MVM_RETURN_NUM:
+                target->return_value->n64 = result;
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
         }
@@ -205,6 +214,9 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
+                break;
+            case MVM_RETURN_STR:
+                target->return_value->s = result;
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
