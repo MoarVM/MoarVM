@@ -19,9 +19,9 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     static_frame->work_size = static_frame->num_locals * sizeof(MVMRegister) +
         0; /* XXX Callsite argument list not yet factored in... */
         
-    /* XXX Trigger bytecode verficiation. */
+    /* XXX Trigger bytecode verification. */
     
-    /* Mark frame as invoked, so we need not do these calulations again. */
+    /* Mark frame as invoked, so we need not do these calculations again. */
     static_frame->invoked = 1;
 }
 

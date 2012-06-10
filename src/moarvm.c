@@ -45,7 +45,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     
     /* TODO: Lots of cleanup. */
     
-    /* Destory all thread contexts. */
+    /* Destroy all thread contexts. */
     for (i = 0; i < instance->num_threads; i++)
         MVM_tc_destroy(instance->threads[i]);
     
