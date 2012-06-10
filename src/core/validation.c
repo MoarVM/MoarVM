@@ -141,4 +141,5 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 "Bytecode validation error: branch to a non-op start position");
         }
     }
+    cleanup_all(tc, opstart_here, goto_here);
 }
