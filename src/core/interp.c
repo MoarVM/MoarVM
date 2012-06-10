@@ -27,6 +27,9 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
     /* Points to the current compilation unit. */
     MVMCompUnit *cu = NULL;
     
+    /* The current call site we're constructing. */
+    MVMCallsite *cur_callsite = NULL;
+    
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
@@ -149,6 +152,10 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                     case MVM_OP_getcode:
                         GET_REG(cur_op, 0).o = cu->coderefs[GET_UI16(cur_op, 2)];
                         cur_op += 4;
+                        break;
+                    case MVM_OP_prepargs:
+                        cur_callsite = cu->callsites[GET_UI16(cur_op, 0)];
+                        cur_op += 2;
                         break;
                     case MVM_OP_invoke_v:
                         {
