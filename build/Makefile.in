@@ -20,7 +20,7 @@ APR_BUILD_LINE = @apr_build_line@
 # Various collections of libraries, objects and sources.
 THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
-            src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) \
+            src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
             src/core/ops$(O) src/gc/allocation$(O) src/gc/roots$(O)  \
             src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
@@ -31,7 +31,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
 MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
-            src/core/compunit.h src/core/bytecode.h src/core/ops.h \
+            src/core/compunit.h src/core/bytecode.h src/core/ops.h  src/core/validation.h \
             src/gc/allocation.h src/gc/nursery.h src/gc/roots.h src/gc/wb.h \
             src/6model/reprs.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
@@ -59,6 +59,8 @@ src/core/bytecode$(O): src/core/bytecode.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/bytecode$(O) src/core/bytecode.c
 src/core/frame$(O): src/core/frame.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/frame$(O) src/core/frame.c
+src/core/validation$(O): src/core/validation.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/validation$(O) src/core/validation.c
 src/core/ops$(O): src/core/ops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/ops$(O) src/core/ops.c
 src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)

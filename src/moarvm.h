@@ -18,6 +18,7 @@
 #include "core/exceptions.h"
 #include "core/interp.h"
 #include "core/frame.h"
+#include "core/validation.h"
 #include "core/compunit.h"
 #include "core/bytecode.h"
 #include "core/ops.h"
