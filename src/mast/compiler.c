@@ -327,6 +327,30 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
     }
 }
 
+/* Takes a set of flags describing a callsite. Writes out a callsite
+ * descriptor and returns the index of it. */
+/* TODO: We'll be able to get massive re-use of these. Use some hash or
+ * something. */
+unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
+    /* Work out callsite size. */
+    unsigned short elems = (unsigned short)ELEMS(vm, flags);
+    unsigned short align = elems % 2;
+    unsigned short i;
+    
+    /* Emit callsite; be sure to pad if there's uneven number of flags. */
+    ensure_space(vm, &ws->callsite_seg, &ws->callsite_alloc, ws->callsite_pos,
+        2 + elems + align);
+    write_int16(ws->callsite_seg, ws->callsite_pos, elems);
+    ws->callsite_pos += 2;
+    for (i = 0; i < elems; i++)
+        write_int8(ws->callsite_seg, ws->callsite_pos++,
+            (unsigned char)ATPOS_I(vm, flags, i));
+    if (align)
+        write_int8(ws->callsite_seg, ws->callsite_pos++, 0);
+    
+    return (unsigned short)ws->num_callsites++;
+}
+
 /* Compiles an instruction (which may actaully be any of the
  * nodes valid directly in a Frame's instruction list, which
  * means labels are valid too). */
@@ -387,7 +411,13 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         unsigned char call_op  = MVM_OP_invoke_v;
         unsigned char res_type = 0;
         
-        /* XXX Callframe handling. */
+        /* Emit callsite (may re-use existing one) and emit loading of it. */
+        unsigned short callsite_id = get_callsite_id(vm, ws, c->flags);
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
+        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
+        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_prepargs);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos, callsite_id);
+        ws->bytecode_pos++;
         
         /* XXX Set up args. */
         
@@ -426,7 +456,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         }
         
         /* Emit the invocation op. */
-        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, call_op);
         if (call_op != MVM_OP_invoke_v)
@@ -593,6 +623,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     size += HEADER_SIZE;
     size += string_heap_size;
     size += ws->frame_pos;
+    size += ws->callsite_pos;
     size += ws->bytecode_pos;
     
     /* Allocate space for the bytecode output. */
