@@ -247,6 +247,8 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
      * method dispatch bottom out. */
     STABLE(knowhow)->method_cache = knowhow_how->body.methods;
     STABLE(knowhow)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
+    STABLE(knowhow_how)->method_cache = knowhow_how->body.methods;
+    STABLE(knowhow_how)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
     
     /* Associate the created objects with the initial core serialization
      * context. */
