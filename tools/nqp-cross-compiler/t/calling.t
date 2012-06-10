@@ -144,7 +144,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'knowhow', $r0);
         op(@ins, 'gethow', $r1, $r0);
         op(@ins, 'findmeth', $r2, $r1, sval('name'));
-        call(@ins, $r2, [$Arg::obj, $Arg::obj], $r0, $r1, :result($r3));
+        call(@ins, $r2, [$Arg::obj, $Arg::obj], $r1, $r0, :result($r3));
         op(@ins, 'say_s', $r3);
         op(@ins, 'return');
     },
