@@ -383,16 +383,54 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         }
     }
     else if (ISTYPE(vm, node, ws->types->Call)) {
-        MAST_Call *c = GET_Call(node);
+        MAST_Call *c           = GET_Call(node);
+        unsigned char call_op  = MVM_OP_invoke_v;
+        unsigned char res_type = 0;
         
         /* XXX Callframe handling. */
         
         /* XXX Set up args. */
         
+        /* Select operation based on return type. */
+        if (ISTYPE(vm, c->result, ws->types->Local)) {
+            MAST_Local *l = GET_Local(c->result);
+            
+            /* Ensure it's within the set of known locals. */
+            if (l->index > ws->cur_frame->num_locals) {
+                cleanup_all(vm, ws);
+                DIE(vm, "MAST::Local index out of range");
+            }
+            
+            /* Go by type. */
+            switch (ws->cur_frame->local_types[l->index]) {
+                case MVM_reg_int64:
+                    call_op = MVM_OP_invoke_i;
+                    res_type = MVM_operand_int64;
+                    break;
+                case MVM_reg_num64:
+                    call_op = MVM_OP_invoke_n;
+                    res_type = MVM_operand_num64;
+                    break;
+                case MVM_reg_str:
+                    call_op = MVM_OP_invoke_s;
+                    res_type = MVM_operand_str;
+                    break;
+                case MVM_reg_obj:
+                    call_op = MVM_OP_invoke_o;
+                    res_type = MVM_operand_obj;
+                    break;
+                default:
+                    cleanup_all(vm, ws);
+                    DIE(vm, "Invalid MAST::Local type for return value");
+            }
+        }
+        
         /* Emit the invocation op. */
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
-        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_invoke_v);
+        write_int8(ws->bytecode_seg, ws->bytecode_pos++, call_op);
+        if (call_op != MVM_OP_invoke_v)
+            compile_operand(vm, ws, MVM_operand_read_reg | res_type, c->result);
         compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, c->target);
     }
     else {
