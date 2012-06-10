@@ -406,7 +406,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
     MAST_Frame  *f;
     FrameState  *fs;
     unsigned int i, num_lexicals, num_ins;
-    MASTNode *last_inst;
+    MASTNode *last_inst = NULL;
     
     /* Ensure we have a node of the right type. */
     if (!ISTYPE(vm, node, ws->types->Frame)) {
