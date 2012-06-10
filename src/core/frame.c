@@ -17,7 +17,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */
     static_frame->work_size = static_frame->num_locals * sizeof(MVMRegister) +
-        0; /* XXX Callsite argument list not yet factored in... */
+        static_frame->cu->max_callsite_size;
         
     /* XXX Trigger bytecode verification. */
     

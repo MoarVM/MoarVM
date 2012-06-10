@@ -19,6 +19,7 @@ typedef struct _MVMCompUnit {
     /* The callsites in the compilation unit. */
     MVMCallsite **callsites;
     MVMuint32     num_callsites;
+    MVMuint16     max_callsite_size;
     
     /* The string heap and number of strings. */
     struct _MVMString **strings;

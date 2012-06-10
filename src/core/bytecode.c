@@ -276,6 +276,11 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         
         /* Add alignment. */
         pos += elems % 2;
+        
+        /* Track maximum callsite size we've seen. (Used for now, though
+         * in the end we probably should calculate it by frame.) */
+        if (elems > cu->max_callsite_size)
+            cu->max_callsite_size = elems;
     }
     
     return callsites;
@@ -313,6 +318,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     create_code_objects(tc, cu);
     
     /* Load callsites. */
+    cu->max_callsite_size = 0;
     cu->callsites = deserialize_callsites(tc, cu, rs);
     cu->num_callsites = rs->expected_callsites;
     
