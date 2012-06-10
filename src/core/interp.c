@@ -79,6 +79,13 @@ void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) 
                             break;
                         else
                             return;
+                    case MVM_OP_return_i:
+                        MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
+                            MVM_RETURN_CALLER_FRAME);
+                        if (MVM_frame_try_return(tc))
+                            break;
+                        else
+                            return;
                     case MVM_OP_const_i64:
                         GET_REG(cur_op, 0).i64 = GET_I64(cur_op, 2);
                         cur_op += 10;

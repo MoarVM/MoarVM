@@ -142,17 +142,75 @@ MVMArg * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
 /* Result setting. The frameless flag indicates that the currently
  * executing code does not have a MVMFrame of its own. */
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless) {
-    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    if (target) {
+        switch (target->return_type) {
+            case MVM_RETURN_VOID:
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+    }
 }
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless) {
-    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    if (target) {
+        switch (target->return_type) {
+            case MVM_RETURN_VOID:
+                break;
+            case MVM_RETURN_INT:
+                target->return_value->i64 = result;
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+    }
 }
 void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless) {
-    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    if (target) {
+        switch (target->return_type) {
+            case MVM_RETURN_VOID:
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+    }
 }
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless) {
-    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    if (target) {
+        switch (target->return_type) {
+            case MVM_RETURN_VOID:
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+    }
 }
 void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless) {
-    MVM_exception_throw_adhoc(tc, "Returning results NYI");
+    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    if (target) {
+        switch (target->return_type) {
+            case MVM_RETURN_VOID:
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Result return coercion NYI");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+    }
 }
