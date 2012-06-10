@@ -417,7 +417,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_prepargs);
         write_int16(ws->bytecode_seg, ws->bytecode_pos, callsite_id);
-        ws->bytecode_pos++;
+        ws->bytecode_pos += 2;
         
         /* XXX Set up args. */
         
