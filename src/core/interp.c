@@ -13,7 +13,7 @@
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
 /* This is the interpreter run loop. We have one of these per thread. */
-void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static_frame) {
+void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame) {
     /* Points to the current opcode. */
     MVMuint8 *cur_op = NULL;
     

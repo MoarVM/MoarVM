@@ -70,4 +70,4 @@ typedef struct _MVMOpInfo {
 #define MVM_operand_type_mask   (15 << 3)
 
 /* Functions. */
-void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static_frame);
+void MVM_interp_run(MVMThreadContext *tc, MVMStaticFrame *initial_static_frame);
