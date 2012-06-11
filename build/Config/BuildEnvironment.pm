@@ -38,7 +38,7 @@ sub detect {
         
         if (can_run('gcc')) {
             $config{'cc'}      = 'gcc';
-            $config{'cflags'}  = '-c';
+            $config{'cflags'}  = '';
             $config{'link'}    = 'gcc';
             $config{'ldflags'} = '';
             $config{'make'}    = 'make';
