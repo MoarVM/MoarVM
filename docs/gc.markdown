@@ -50,7 +50,7 @@ Processing the worklist involves:
 * Ensuring it didn't already get copied; if so, ignore it
 * Racing to write a busy value into the forwarding pointer
 * If we lose the race, go to the next object in the list
-* Scanning the object and puttng any nursery pointers found and not yet copied into
+* Scanning the object and putting any nursery pointers found and not yet copied into
   our work list
 * If it has survived a previous nursery collection, move it into the older generation
 * Otherwise, copy it to tospace (needs to care if the target tospace is not ours - since
