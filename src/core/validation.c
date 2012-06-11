@@ -76,19 +76,19 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     case MVM_operand_num64:     operand_size = 8; break;
                     case MVM_operand_callsite:
                         operand_size = 2;
-                        if (cur_op + operand_size >= bytecode_end)
+                        if (cur_op + operand_size > bytecode_end)
                             throw_past_end(tc);
                         operand_target = GET_UI16(cur_op, 0);
                         /* TODO XXX I don't know how to bounds check a literal callsite */
-                        cur_op += operand_size;
-                        operand_size = 0;
                         break;
                         
                     case MVM_operand_coderef:
                         /* TODO XXX I don't know how to bounds check a literal coderef */
                         operand_size = 2; break; /* reset to 0 */
                         
-                    case MVM_operand_lex_outer: operand_size = 2; break;
+                    case MVM_operand_lex_outer:
+                        /* TODO XXX I don't know how to bounds check a literal lex outer */
+                        operand_size = 2; break;
                     
                     case MVM_operand_str:
                         /* TODO XXX I don't know how to bounds check a literal string */
@@ -96,7 +96,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         
                     case MVM_operand_ins:
                         operand_size = 4;
-                        if (cur_op + operand_size >= bytecode_end)
+                        if (cur_op + operand_size > bytecode_end)
                             throw_past_end(tc);
                         branch_target = GET_UI32(cur_op, 0);
                         if (branch_target >= bytecode_size) {
@@ -105,25 +105,26 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                                 "Bytecode validation error: branch instruction offset out of range");
                         }
                         goto_here[branch_target] = 1;
-                        cur_op += operand_size;
-                        operand_size = 0; break;
+                        break;
                     
                     case MVM_operand_obj:
                     case MVM_operand_type_var:
+                        cleanup_all(tc, opstart_here, goto_here);
                         MVM_exception_throw_adhoc(tc,
                             "Bytecode validation error: that operand type can't be a literal");
                         break;
                     default: {
+                        cleanup_all(tc, opstart_here, goto_here);
                         MVM_exception_throw_adhoc(tc,
                             "Bytecode validation error: non-existent operand type");
                     }
                 }
-                if (cur_op + operand_size >= bytecode_end)
+                if (cur_op + operand_size > bytecode_end)
                     throw_past_end(tc);
             }
             else { /* register operand */
                 operand_size = 2;
-                if (cur_op + operand_size >= bytecode_end)
+                if (cur_op + operand_size > bytecode_end)
                     throw_past_end(tc);
                 if (GET_REG(cur_op, 0) >= num_locals) {
                     cleanup_all(tc, opstart_here, goto_here);
@@ -131,8 +132,6 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         "Bytecode validation error: operand register index out of range");
                 }
             }
-            if (cur_op + operand_size >= bytecode_end)
-                throw_past_end(tc);
             cur_op += operand_size;
         }
     }
