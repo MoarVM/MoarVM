@@ -446,6 +446,27 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj,
                     ATPOS(vm, c->args, arg_pos));
             }
+            else if (flag & MVM_CALLSITE_ARG_STR) {
+                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_s);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                ws->bytecode_pos += 2;
+                compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_str,
+                    ATPOS(vm, c->args, arg_pos));
+            }
+            else if (flag & MVM_CALLSITE_ARG_INT) {
+                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_i);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                ws->bytecode_pos += 2;
+                compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_int64,
+                    ATPOS(vm, c->args, arg_pos));
+            }
+            else if (flag & MVM_CALLSITE_ARG_NUM) {
+                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_n);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                ws->bytecode_pos += 2;
+                compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_num64,
+                    ATPOS(vm, c->args, arg_pos));
+            }
             else {
                 cleanup_all(vm, ws);
                 DIE(vm, "Unhandled arg type");
