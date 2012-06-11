@@ -30,9 +30,9 @@ by the GC as it goes about copying or compaction.
 ## How Collection Is Started
 For collection to begin, all threads must be paused. The thread that wishes to
 initiate a collection races to set the in_gc flag in the MVM_Instance struct.
-If it suceeds, it then visits all other threads and flags that they must suspend
+If it succeeds, it then visits all other threads and flags that they must suspend
 execution and do a GC run. If it fails, then it was at a GC-safe point anyway,
-so just waits for everyone else to be.
+so it just waits for everyone else to be.
 
 At each GC-safe point, threads check in their thread-context struct to see if a
 GC run needs to be started. It indicates that it has paused, and then proceeds
@@ -50,10 +50,10 @@ Processing the worklist involves:
 * Ensuring it didn't already get copied; if so, ignore it
 * Racing to write a busy value into the forwarding pointer
 * If we lose the race, go to the next object in the list
-* Scaning the object and puttng any nursery pointers found and not yet copied into
+* Scanning the object and puttng any nursery pointers found and not yet copied into
   our work list
 * If it has survived a previous nursery collection, move it into the older generation
-* Otherwise, copy it to tospace (needs care if the target tospace is not ours - since
+* Otherwise, copy it to tospace (needs to care if the target tospace is not ours - since
   we expect most objects not to survive, probably OK to do synchronized operations to
   bump the tospace pointer)
 * Finally, update any pointers we discovered that point to the now-moved objects

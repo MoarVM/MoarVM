@@ -14,7 +14,7 @@ lifetime is simply that of the compilation unit. (An alternative way would
 be to keep a global store of these and intern them, fixing up all of the
 references to them at bytecode loading time.)
 
-The argument data itself is more sutble. A simple approach would be to
+The argument data itself is more subtle. A simple approach would be to
 allocate the argument data array per call, but that's too much allocation
 for the common case. Thus each callframe, along with its working space,
 also allocates an amount of space equal to that required by the most

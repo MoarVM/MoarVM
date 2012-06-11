@@ -11,7 +11,7 @@ The bootstrap is done something like this.
 * Populate the representations table and name to ID hash. This includes setting
   up all of the representation function tables. We needed the BOOTStr first, as
   representation function tables contain the representation name in string form.
-* Create a type object BOOTArray, the VM's core hash type. It will have the
+* Create a type object BOOTArray, the VM's core array type. It will have the
   MVMObjectArray representation. Again, there's no meta-object just yet.
 * Create a type object BOOTHash, the VM's core hash type. It will have the
   MVMHash representation. Still no meta-objects.

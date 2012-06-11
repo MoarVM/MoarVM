@@ -5,9 +5,9 @@ The interpreter first dispatches on op bank, then on the code within that.
 For the core and primitive operations, that is done through a switch that
 is inlined directly inside of the interpreter.
 
-The list of ops is held in src/core/oplist. This is processed by a the
-tools/update_pos_h.p6 tool to generate src/core/ops.h, which contains all
-of the metadata about the operations and operation banks.
+The list of ops is held in src/core/oplist. This is processed by the
+tools/update_ops_h.p6 tool to generate src/core/ops.h and ops.c, which
+contain all of the metadata about the operations and operation banks.
 
 ## Nested Runloops - Just Say No
 There is no notion of "nested runloop"; any call into C land that wants to
