@@ -19,8 +19,9 @@ sub configure {
         }
     }
     else {
-        # Presumably we can run ./configure.
-        return (excuse => 'Unimplemented on non-Windows platforms so far');
+        return (%config,
+            apr_build_line => 'cd 3rdparty/apr && ./configure && make'
+        );
     }
 }
 
