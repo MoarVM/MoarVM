@@ -28,18 +28,37 @@ sub detect {
             $config{'rm'}      = 'del';
         }
         else {
-            return (excuse => 'So far, we only building with the Microsoft toolchain on Windows.');
+            return (excuse => 'So far, we only support building with the Microsoft toolchain on Windows.');
+        }
+        
+        return %config;
+    }
+    elsif ($^O =~ /linux/) {
+        $config{'os'} = 'Linux';
+        
+        if (can_run('gcc')) {
+            $config{'cc'}      = 'gcc';
+            $config{'cflags'}  = '-c';
+            $config{'link'}    = 'gcc';
+            $config{'ldflags'} = '';
+            $config{'make'}    = 'make';
+            $config{'exe'}     = '';
+            $config{'o'}       = '.o';
+            $config{'rm'}      = 'rm';
+        }
+        else {
+            return (excuse => 'So far, we only support building with gcc on Linux.');
         }
         
         return %config;
     }
     
-    return (excuse => 'No recognized operating system or compiler found.');
+    return (excuse => 'No recognized operating system or compiler found.'."  found: $^O");
 }
 
 sub can_run {
     my $try = shift;
-    return `$try` ne '';
+    return `$try 2>&1` ne '';
 }
 
 'Leffe';
