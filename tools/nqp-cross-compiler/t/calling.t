@@ -5,7 +5,7 @@ plan(7);
 
 sub callee() {
     my $frame := MAST::Frame.new();
-    my $r0 := MAST::Local.new(:index($frame.add_local(str)));
+    my $r0 := local($frame, str);
     my @ins := $frame.instructions;
     op(@ins, 'const_s', $r0, sval('OMG in callee!'));
     op(@ins, 'say_s', $r0);
@@ -72,7 +72,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 
 sub callee_ret_i() {
     my $frame := MAST::Frame.new();
-    my $r0 := MAST::Local.new(:index($frame.add_local(int)));
+    my $r0 := local($frame, int);
     my @ins := $frame.instructions;
     op(@ins, 'const_i64', $r0, ival(2000));
     op(@ins, 'return_i', $r0);
