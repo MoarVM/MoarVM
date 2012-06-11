@@ -26,6 +26,7 @@ static void throw_past_end(MVMThreadContext *tc) {
 /* Validate that a static frame's bytecode is executable by the interpreter */
 void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     
+    MVMCompUnit *cu = static_frame->cu;
     MVMuint32 bytecode_size = static_frame->bytecode_size;
     MVMuint8 *bytecode_start = static_frame->bytecode;
     MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
@@ -79,7 +80,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (cur_op + operand_size > bytecode_end)
                             throw_past_end(tc);
                         operand_target = GET_UI16(cur_op, 0);
-                        /* TODO XXX I don't know how to bounds check a literal callsite */
+                        if (operand_target >= cu->num_callsites) {
+                            cleanup_all(tc, opstart_here, goto_here);
+                            MVM_exception_throw_adhoc(tc,
+                                "Bytecode validation error: callsites index out of range");
+                        }
                         break;
                         
                     case MVM_operand_coderef:
@@ -91,8 +96,16 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         operand_size = 2; break;
                     
                     case MVM_operand_str:
-                        /* TODO XXX I don't know how to bounds check a literal string */
-                        operand_size = 2; break; /* reset to 0 */
+                        operand_size = 2;
+                        if (cur_op + operand_size > bytecode_end)
+                            throw_past_end(tc);
+                        operand_target = GET_UI16(cur_op, 0);
+                        if (operand_target >= cu->num_strings) {
+                            cleanup_all(tc, opstart_here, goto_here);
+                            MVM_exception_throw_adhoc(tc,
+                                "Bytecode validation error: strings index out of range");
+                        }
+                        break;
                         
                     case MVM_operand_ins:
                         operand_size = 4;
@@ -135,6 +148,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
             cur_op += operand_size;
         }
     }
+    /* check that all the branches and gotos have valid op boundary destinations */
     for (i = 0; i < bytecode_size; i++) {
         if (goto_here[i] && !opstart_here[i]) {
             cleanup_all(tc, opstart_here, goto_here);
@@ -143,4 +157,16 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
         }
     }
     cleanup_all(tc, opstart_here, goto_here);
+    /* check that the last op is a return of some sort so we don't run off the */
+    /* XXX TODO maybe also allow tailcalls of some sort, but currently compiler.c
+     * adds the trailing return anyway, so... */
+    if (!bytecode_size || bank_num != MVM_OP_BANK_primitives
+            || (   op_num != MVM_OP_return
+                && op_num != MVM_OP_return_i
+                && op_num != MVM_OP_return_n
+                && op_num != MVM_OP_return_s
+                && op_num != MVM_OP_return_o)) {
+        MVM_exception_throw_adhoc(tc,
+            "Bytecode validation error: missing final return instruction");
+    }
 }
