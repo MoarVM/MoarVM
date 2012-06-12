@@ -278,6 +278,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         pos += elems % 2;
         
         /* Count positional arguments. */
+        /* TODO Validate that all positionals come before all nameds, and
+         * all flats come at the end. */
         for (j = 0; j < elems; j++) {
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT)
                 MVM_exception_throw_adhoc(tc, "Flattening NYI");
