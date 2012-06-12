@@ -76,3 +76,32 @@ call like:
     
 Will have to store the result of bar(42) in a register, then prepargs..call
 for foo(...) afterwards.
+
+# Parameter Handling
+While some langauges may have their own binding support driven by their own
+signature objects, the core instruction set provides a mechanism that should
+handle most needs.
+
+Parameter handling may start with a use of the checkarity op, specifying the
+minimum and maximum number of positional arguments that may be passed.
+
+    checkarity 1, 1     # require 1 argument
+    checkarity 2, 3     # require 2 arguments, accept up to 3 (1 optional)
+
+Required positional arguments can then be obtained by type:
+
+    param_rp_o r0, 0    # get 1st positional argument, which is an object
+    param_rp_s r1, 1    # get 2nd positional argument, which is a string
+
+Optional positional arguments are fetched by a range of similar ops, except
+that they include a branch offset (that is, a label). If the argument is
+present, it is put into the register and we jump to the branch offset. If
+not, the next instruction is executed, which presumably is code to populate
+the register with a default value.
+
+    param_op_i r2, 2, L1
+    const_i64 r2, 0
+    L1:
+
+The hanlding of named arguments is similar, with both required and optional
+variants of the ops.
