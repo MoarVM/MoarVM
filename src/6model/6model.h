@@ -6,6 +6,7 @@ struct _MVMSerializationReader;
 struct _MVMSerializationWriter;
 struct _MVMThreadContext;
 struct _MVMCallsite;
+union  _MVMRegister;
 
 /* Boolification mode flags. */
 #define MVM_BOOL_MODE_CALL_METHOD                   0
@@ -155,7 +156,6 @@ typedef struct {
     MVMuint32  mode;
 } MVMBoolificationSpec;
 
-union _MVMRegister;
 /* S-table, representing a meta-object/representation pairing. Note that the
  * items are grouped in hope that it will pack decently and do decently in
  * terms of cache lines. */

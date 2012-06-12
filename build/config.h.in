@@ -23,5 +23,5 @@
 
 /* Various compiler-specific pragmii. */
 /* #define MVM_NO_RETURN   */
-#define MVM_NO_RETURN @nrtrn@
-#define MVM_NO_RETURN_GCC @nrtrngcc@
+#define MVM_NO_RETURN @noreturn@
+#define MVM_NO_RETURN_GCC @noreturngcc@
