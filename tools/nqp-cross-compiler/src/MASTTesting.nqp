@@ -6,7 +6,7 @@ my $copy;
 my $outputnull;
 pir::spawnw__Is("del /? >temp.output 2>&1");
 my $out := slurp('temp.output');
-if (!($out ~~ /Command Extensions/)) {
+if (!($out ~~ /Extensions/)) {
     # unix
     $moarvm := '../../moarvm';
     $del := 'rm -f';
