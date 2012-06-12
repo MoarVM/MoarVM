@@ -95,6 +95,23 @@ BANK 0 primitives
 0x5D    argconst_i  int16 int64
 0x5E    argconst_n  int16 num64
 0x5F    argconst_s  int16 str
+0x60    checkarity  int16 int16
+0x61    param_rp_i  w(int64) int16
+0x62    param_rp_n  w(num64) int16
+0x63    param_rp_s  w(str) int16
+0x64    param_rp_o  w(obj) int16
+0x65    param_op_i  w(int64) int16 ins
+0x66    param_op_n  w(num64) int16 ins
+0x67    param_op_s  w(str) int16 ins
+0x68    param_op_o  w(obj) int16 ins
+0x69    param_rn_i  w(int64) str
+0x6A    param_rn_n  w(num64) str
+0x6B    param_rn_s  w(str) str
+0x6C    param_rn_o  w(obj) str
+0x6D    param_on_i  w(int64) str ins
+0x6E    param_on_n  w(num64) str ins
+0x6F    param_on_s  w(str) str ins
+0x71    param_on_o  w(obj) str ins
 
 BANK 1 dev
 0x00    say_i       r(int64)

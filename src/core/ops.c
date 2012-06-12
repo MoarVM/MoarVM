@@ -584,6 +584,108 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         2,
         { MVM_operand_int16, MVM_operand_str }
     },
+    {
+        MVM_OP_checkarity,
+        "checkarity",
+        2,
+        { MVM_operand_int16, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_param_rp_i,
+        "param_rp_i",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_param_rp_n,
+        "param_rp_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_param_rp_s,
+        "param_rp_s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_param_rp_o,
+        "param_rp_o",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_param_op_i,
+        "param_op_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_int16, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_op_n,
+        "param_op_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_int16, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_op_s,
+        "param_op_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_int16, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_op_o,
+        "param_op_o",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_rn_i,
+        "param_rn_i",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_str }
+    },
+    {
+        MVM_OP_param_rn_n,
+        "param_rn_n",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_str }
+    },
+    {
+        MVM_OP_param_rn_s,
+        "param_rn_s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_str }
+    },
+    {
+        MVM_OP_param_rn_o,
+        "param_rn_o",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
+    },
+    {
+        MVM_OP_param_on_i,
+        "param_on_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_str, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_on_n,
+        "param_on_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_str, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_on_s,
+        "param_on_s",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_str, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_on_o,
+        "param_on_o",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_ins }
+    },
 };
 static MVMOpInfo MVM_op_info_dev[] = {
     {
@@ -833,7 +935,7 @@ static MVMOpInfo *MVM_op_info[] = {
 static unsigned char MVM_op_banks = 5;
 
 static unsigned char MVM_opcounts_by_bank[] = {
-    96,
+    113,
     4,
     13,
     13,

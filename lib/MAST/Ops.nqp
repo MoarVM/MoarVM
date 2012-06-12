@@ -104,7 +104,24 @@ class MAST::Ops {
         'ge_n', 92,
         'argconst_i', 93,
         'argconst_n', 94,
-        'argconst_s', 95
+        'argconst_s', 95,
+        'checkarity', 96,
+        'param_rp_i', 97,
+        'param_rp_n', 98,
+        'param_rp_s', 99,
+        'param_rp_o', 100,
+        'param_op_i', 101,
+        'param_op_n', 102,
+        'param_op_s', 103,
+        'param_op_o', 104,
+        'param_rn_i', 105,
+        'param_rn_n', 106,
+        'param_rn_s', 107,
+        'param_rn_o', 108,
+        'param_on_i', 109,
+        'param_on_n', 110,
+        'param_on_s', 111,
+        'param_on_o', 113
     );
     our $dev := nqp::hash(
         'say_i', 0,

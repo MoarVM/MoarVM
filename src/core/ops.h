@@ -104,6 +104,23 @@
 #define MVM_OP_argconst_i 93
 #define MVM_OP_argconst_n 94
 #define MVM_OP_argconst_s 95
+#define MVM_OP_checkarity 96
+#define MVM_OP_param_rp_i 97
+#define MVM_OP_param_rp_n 98
+#define MVM_OP_param_rp_s 99
+#define MVM_OP_param_rp_o 100
+#define MVM_OP_param_op_i 101
+#define MVM_OP_param_op_n 102
+#define MVM_OP_param_op_s 103
+#define MVM_OP_param_op_o 104
+#define MVM_OP_param_rn_i 105
+#define MVM_OP_param_rn_n 106
+#define MVM_OP_param_rn_s 107
+#define MVM_OP_param_rn_o 108
+#define MVM_OP_param_on_i 109
+#define MVM_OP_param_on_n 110
+#define MVM_OP_param_on_s 111
+#define MVM_OP_param_on_o 113
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
