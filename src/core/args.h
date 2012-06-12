@@ -32,8 +32,14 @@ typedef MVMuint8 MVMCallsiteEntry;
  * about the callsite and is immutable. It describes how to process
  * the callsite memory buffer. */
 typedef struct _MVMCallsite {
-    MVMuint16 arg_count;
+    /* The set of flags. */
     MVMCallsiteEntry *arg_flags;
+    
+    /* The total argument count. */
+    MVMuint16 arg_count;
+    
+    /* Number of positionals (-1 indicates slurpy creating unknownness). */
+    MVMint16 num_pos;
 } MVMCallsite;
 
 /* Argument processing context. */
@@ -43,11 +49,7 @@ typedef struct _MVMArgProcContext {
     
     /* The arguments. */
     union _MVMRegister *args;
-    
-    /* Number of positionals (-1 indicates slurpy creating unknownness). */
-    MVMint32 num_pos;
 } MVMArgProcContext;
-
 
 /* Expected return type flags. */
 typedef enum {

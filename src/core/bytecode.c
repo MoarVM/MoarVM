@@ -254,7 +254,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         return NULL;
     callsites = malloc(sizeof(MVMCallsite *) * rs->expected_callsites);
 
-    /* Load strings. */
+    /* Load callsites. */
     pos = rs->callsite_seg;
     for (i = 0; i < rs->expected_callsites; i++) {
         /* Ensure we can read at least an element count. */
@@ -276,6 +276,15 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         
         /* Add alignment. */
         pos += elems % 2;
+        
+        /* Count positional arguments. */
+        for (j = 0; j < elems; j++) {
+            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT)
+                MVM_exception_throw_adhoc(tc, "Flattening NYI");
+            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED)
+                break;
+        }
+        callsites[i]->num_pos = j;
         
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */

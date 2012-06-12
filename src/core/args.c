@@ -8,20 +8,9 @@ struct MVMArgInfo {
 
 /* Initialize arguments processing context. */
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
-    MVMuint32 i;
-    
     /* Stash callsite and argument count. */
     ctx->callsite = callsite;
     ctx->args     = args;
-    
-    /* Count positional arguments. */
-    for (i = 0; i < callsite->arg_count; i++) {
-        if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_FLAT)
-            MVM_exception_throw_adhoc(tc, "Flattening NYI");
-        if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
-            break;
-    }
-    ctx->num_pos = i;
 }
 
 /* Clean up an arguments processing context. */
@@ -32,7 +21,7 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 /* Get positional arguments. */
 static struct MVMArgInfo find_pos_arg(MVMArgProcContext *ctx, MVMuint32 pos) {
     struct MVMArgInfo result;
-    if (pos < ctx->num_pos) {
+    if (pos < ctx->callsite->num_pos) {
         result.arg = &ctx->args[pos];
         result.flags = ctx->callsite->arg_flags[pos];
     }
@@ -88,7 +77,7 @@ static struct MVMArgInfo find_named_arg(MVMThreadContext *tc, MVMArgProcContext 
     MVMuint32 flag_pos, arg_pos;    
     result.arg = NULL;
     
-    for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->callsite->arg_count; flag_pos++, arg_pos += 2) {
+    for (flag_pos = arg_pos = ctx->callsite->num_pos; arg_pos < ctx->callsite->arg_count; flag_pos++, arg_pos += 2) {
         if (MVM_string_equal(tc, ctx->args[arg_pos].s, name)) {
             result.arg = &ctx->args[arg_pos + 1];
             result.flags = ctx->callsite->arg_flags[flag_pos];
