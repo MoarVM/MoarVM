@@ -18,6 +18,15 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* Currently nothing to do. */
 }
 
+/* Checks that the passed arguments fall within the expected arity. */
+void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
+    MVMuint16 num_pos = ctx->callsite->num_pos;
+    if (num_pos < min)
+        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+    if (num_pos > max)
+        MVM_exception_throw_adhoc(tc, "Too many arguments");
+}
+
 /* Get positional arguments. */
 static struct MVMArgInfo find_pos_arg(MVMArgProcContext *ctx, MVMuint32 pos) {
     struct MVMArgInfo result;
