@@ -412,9 +412,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             unsigned int i;
             for (i = 0; i < num_res; i++) {
                 unsigned int res_pos = (unsigned int)ATPOS_I(vm, res_list, i);
-                write_int32(ws->bytecode_seg,
-                    ws->cur_frame->bytecode_start + res_pos,
-                    offset);
+                write_int32(ws->bytecode_seg, res_pos, offset);
             }
             DELETEKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
         }
