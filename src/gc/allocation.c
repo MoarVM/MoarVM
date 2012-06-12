@@ -8,7 +8,6 @@
  * trigger a GC run if there is not enough. */
 void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
     void *allocated;
-    char *block;
     
     /* Guard against 0-byte allocation. */
     if (size > 0) {
@@ -23,8 +22,7 @@ void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
         
         /* Allocate (just bump the pointer). */
         allocated = tc->nursery_alloc;
-        block = (char *)tc->nursery_alloc;
-        block += size;
+        tc->nursery_alloc = (char *)tc->nursery_alloc + size;
     }
     else {
         MVM_panic("Cannot allocate 0 bytes of memory in the nursery");
