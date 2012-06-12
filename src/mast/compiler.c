@@ -204,6 +204,19 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                 }
                 break;
             }
+            case MVM_operand_int16: {
+                if (ISTYPE(vm, operand, ws->types->IVal)) {
+                    MAST_IVal *iv = GET_IVal(operand);
+                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+                    write_int16(ws->bytecode_seg, ws->bytecode_pos, (short)iv->value);
+                    ws->bytecode_pos += 2;
+                }
+                else {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "Expected MAST::IVal, but didn't get one");
+                }
+                break;
+            }
             case MVM_operand_num64: {
                 if (ISTYPE(vm, operand, ws->types->NVal)) {
                     MAST_NVal *nv = GET_NVal(operand);
