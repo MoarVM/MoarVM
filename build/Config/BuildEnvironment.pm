@@ -20,12 +20,17 @@ sub detect {
             # Set configuration flags.
             $config{'cc'}      = 'cl';
             $config{'cflags'}  = '/nologo /Zi -DWIN32';
+            $config{'couto'}   = '-Fo';
             $config{'link'}    = 'link';
+            $config{'louto'}   = '-out:';
             $config{'ldflags'} = '/nologo /debug /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib oldnames.lib advapi32.lib shell32.lib';
+            $config{'llibs'}   = '';
             $config{'make'}    = 'nmake';
             $config{'exe'}     = '.exe';
             $config{'o'}       = '.obj';
             $config{'rm'}      = 'del';
+            $config{'nrtrn'}   ='__declspec(noreturn)';
+            $config{'nrtrngcc'}='';
         }
         else {
             return (excuse => 'So far, we only support building with the Microsoft toolchain on Windows.');
@@ -39,12 +44,17 @@ sub detect {
         if (can_run('gcc')) {
             $config{'cc'}      = 'gcc';
             $config{'cflags'}  = '';
+            $config{'couto'}   = '-o ';
             $config{'link'}    = 'gcc';
-            $config{'ldflags'} = '';
+            $config{'louto'}   = '-o ';
+            $config{'ldflags'} = '-L 3rdparty/apr/.libs';
+            $config{'llibs'}   = '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm'; #  
             $config{'make'}    = 'make';
             $config{'exe'}     = '';
             $config{'o'}       = '.o';
-            $config{'rm'}      = 'rm';
+            $config{'rm'}      = 'rm -f';
+            $config{'nrtrn'}   ='';
+            $config{'nrtrngcc'}='__attribute__((noreturn))';
         }
         else {
             return (excuse => 'So far, we only support building with gcc on Linux.');

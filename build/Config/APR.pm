@@ -21,7 +21,7 @@ sub configure {
     else {
         return (%config,
             apr_build_line => 'cd 3rdparty/apr && ./configure && make',
-            apr_lib => '3rdparty/apr/.libs/libapr-1.so.0'
+            apr_lib => '3rdparty/apr/.libs/libapr-1.a'
         );
     }
 }

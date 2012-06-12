@@ -4,6 +4,9 @@ CFLAGS   = @cflags@
 CINCLUDE = -I3rdparty/apr/include -Isrc
 LD       = @link@
 LDFLAGS  = @ldflags@
+LLIBS    = @llibs@
+COUTO    = @couto@
+LOUTO    = @louto@
 
 # File extensions
 EXE = @exe@
@@ -40,7 +43,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
-	$(LD) -out:moarvm$(EXE) $(LDFLAGS) $(CORE_OBJS) $(MAIN_OBJ) $(THIRDPARTY_LIBS)
+	$(LD) $(LOUTO)moarvm$(EXE) $(LDFLAGS) $(CORE_OBJS) $(MAIN_OBJ) $(THIRDPARTY_LIBS) $(LLIBS)
 
 # APR
 $(APR_LIB):
@@ -48,61 +51,61 @@ $(APR_LIB):
 
 # VM core compilation.
 src/core/args$(O): src/core/args.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/args$(O) src/core/args.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/args$(O) src/core/args.c
 src/core/exceptions$(O): src/core/exceptions.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/exceptions$(O) src/core/exceptions.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/exceptions$(O) src/core/exceptions.c
 src/core/interp$(O): src/core/interp.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/interp$(O) src/core/interp.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/interp$(O) src/core/interp.c
 src/core/compunit$(O): src/core/compunit.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/compunit$(O) src/core/compunit.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/compunit$(O) src/core/compunit.c
 src/core/bytecode$(O): src/core/bytecode.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/bytecode$(O) src/core/bytecode.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/bytecode$(O) src/core/bytecode.c
 src/core/frame$(O): src/core/frame.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/frame$(O) src/core/frame.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/frame$(O) src/core/frame.c
 src/core/validation$(O): src/core/validation.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/validation$(O) src/core/validation.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/validation$(O) src/core/validation.c
 src/core/ops$(O): src/core/ops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/ops$(O) src/core/ops.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/ops$(O) src/core/ops.c
 src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/core/threadcontext$(O) src/core/threadcontext.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/threadcontext$(O) src/core/threadcontext.c
 src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/gc/allocation$(O) src/gc/allocation.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/allocation$(O) src/gc/allocation.c
 src/gc/roots$(O): src/gc/roots.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/gc/roots$(O) src/gc/roots.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/roots$(O) src/gc/roots.c
 src/gc/wb$(O): src/gc/wb.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/gc/wb$(O) src/gc/wb.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/wb$(O) src/gc/wb.c
 src/6model/reprs$(O): src/6model/reprs.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs$(O) src/6model/reprs.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs$(O) src/6model/reprs.c
 src/6model/reprs/MVMString$(O): src/6model/reprs/MVMString.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/MVMString$(O) src/6model/reprs/MVMString.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMString$(O) src/6model/reprs/MVMString.c
 src/6model/reprs/MVMArray$(O): src/6model/reprs/MVMArray.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/MVMArray$(O) src/6model/reprs/MVMArray.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMArray.c
 src/6model/reprs/MVMHash$(O): src/6model/reprs/MVMHash.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/MVMHash$(O) src/6model/reprs/MVMHash.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMHash$(O) src/6model/reprs/MVMHash.c
 src/6model/reprs/MVMCFunction$(O): src/6model/reprs/MVMCFunction.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/MVMCFunction$(O) src/6model/reprs/MVMCFunction.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMCFunction$(O) src/6model/reprs/MVMCFunction.c
 src/6model/reprs/KnowHOWREPR$(O): src/6model/reprs/KnowHOWREPR.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/KnowHOWREPR$(O) src/6model/reprs/KnowHOWREPR.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/KnowHOWREPR$(O) src/6model/reprs/KnowHOWREPR.c
 src/6model/reprs/P6opaque$(O): src/6model/reprs/P6opaque.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/P6opaque$(O) src/6model/reprs/P6opaque.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6opaque$(O) src/6model/reprs/P6opaque.c
 src/6model/reprs/MVMCode$(O): src/6model/reprs/MVMCode.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/reprs/MVMCode$(O) src/6model/reprs/MVMCode.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMCode$(O) src/6model/reprs/MVMCode.c
 src/6model/6model$(O): src/6model/6model.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/6model$(O) src/6model/6model.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/6model$(O) src/6model/6model.c
 src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/6model/bootstrap$(O) src/6model/bootstrap.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/bootstrap$(O) src/6model/bootstrap.c
 src/strings/ascii$(O): src/strings/ascii.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/strings/ascii$(O) src/strings/ascii.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/ascii$(O) src/strings/ascii.c
 src/strings/utf8$(O): src/strings/utf8.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/strings/utf8$(O) src/strings/utf8.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/utf8$(O) src/strings/utf8.c
 src/strings/ops$(O): src/strings/ops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/strings/ops$(O) src/strings/ops.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/ops$(O) src/strings/ops.c
 src/moarvm$(O): src/moarvm.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/moarvm$(O) src/moarvm.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/moarvm$(O) src/moarvm.c
 src/main$(O): src/main.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c -Fosrc/main$(O) src/main.c
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/main$(O) src/main.c
 
 # Cleanup.
 clean:
 	$(RM) moarvm$(EXE)
-	$(RM) src/*$(O) src/6model/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O)
+	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O)
