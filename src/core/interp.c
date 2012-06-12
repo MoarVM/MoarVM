@@ -322,6 +322,11 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVM_args_checkarity(tc, &tc->cur_frame->params, GET_UI16(cur_op, 0), GET_UI16(cur_op, 2));
                         cur_op += 4;
                         break;
+                    case MVM_OP_param_rp_i:
+                        GET_REG(cur_op, 0).i64 = MVM_args_get_pos_int(tc, &tc->cur_frame->params,
+                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED)->i64;
+                        cur_op += 4;
+                        break;
                     default: {
                         printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_primitives, *(cur_op-1));
                         MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
