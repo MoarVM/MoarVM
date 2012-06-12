@@ -1,6 +1,24 @@
 use MASTCompiler;
 
-my $moarvm := '..\\..\\moarvm';
+my $moarvm;
+my $del;
+my $copy;
+my $outputnull;
+pir::spawnw__Is("del /? >temp.output 2>&1");
+my $out := slurp('temp.output');
+if (!($out ~~ /Command Extensions/)) {
+    # unix
+    $moarvm := '../../moarvm';
+    $del := 'rm -f';
+    $copy := 'cp';
+    $outputnull := '/dev/null';
+}
+else {
+    $moarvm := '..\\..\\moarvm';
+    $del := 'del /Q';
+    $copy := 'copy /Y';
+    $outputnull := 'NUL';
+}
 
 our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     # Create frame
@@ -15,7 +33,7 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     
     # Compile it.
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
-    #pir::spawnw__Is("copy /Y temp.moarvm \"$desc.moarvm\" >NUL");
+    #pir::spawnw__Is("$copy temp.moarvm \"$desc.moarvm\" >$outputnull");
 
     # Invoke and redirect output to a file.
     my $start := nqp::time_n();
@@ -25,7 +43,7 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     # Read it and check it is OK.
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n", :global);
-    my $okness := $output eq $expected;
+    my $okness := $output eq $expected || (0.0 + +$output - +$expected < 0.0000001);
     ok($okness, $desc);
     say("                                     # " ~ ($end - $start) ~ " s") if $timeit;
     unless $okness {
@@ -33,9 +51,8 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
         say("EXPECTED:\n$expected");
     }
     
-    # Clean up. XXX handle other than Windows
-    pir::spawnw__Is("del /Q temp.moarvm");
-    pir::spawnw__Is("del /Q temp.output");
+    pir::spawnw__Is("$del temp.moarvm");
+    pir::spawnw__Is("$del temp.output");
 }
 
 our sub op(@ins, $op, *@args) {

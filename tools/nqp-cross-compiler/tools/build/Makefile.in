@@ -102,10 +102,10 @@ MASTTesting.pbc : MASTCompiler.pbc src/MASTTesting.nqp
 ## testing
 
 test: all
-	prove t
+	prove -e nqp t
 
 bench: all
-	prove -v bench
+	prove -e nqp -v bench
 
 ## cleaning
 
