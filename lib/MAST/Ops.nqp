@@ -121,7 +121,7 @@ class MAST::Ops {
         'param_on_i', 109,
         'param_on_n', 110,
         'param_on_s', 111,
-        'param_on_o', 113
+        'param_on_o', 112
     );
     our $dev := nqp::hash(
         'say_i', 0,

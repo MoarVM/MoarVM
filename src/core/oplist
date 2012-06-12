@@ -111,7 +111,7 @@ BANK 0 primitives
 0x6D    param_on_i  w(int64) str ins
 0x6E    param_on_n  w(num64) str ins
 0x6F    param_on_s  w(str) str ins
-0x71    param_on_o  w(obj) str ins
+0x70    param_on_o  w(obj) str ins
 
 BANK 1 dev
 0x00    say_i       r(int64)
