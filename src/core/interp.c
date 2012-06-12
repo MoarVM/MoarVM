@@ -325,7 +325,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
             case MVM_OP_BANK_dev: {
                 switch (*(cur_op++)) {
                     case MVM_OP_say_i:
-                        printf("%d\n", GET_REG(cur_op, 0).i64); /* XXX %d is 32-bit only, I guess... */
+                        printf("%lld\n", GET_REG(cur_op, 0).i64); /* lld seems to work on msvc and gcc */
                         cur_op += 2;
                         break;
                     case MVM_OP_say_n:

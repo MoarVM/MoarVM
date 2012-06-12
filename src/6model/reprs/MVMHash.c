@@ -39,7 +39,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
      * is presumably first generation...but not so fun to debug
      * the upshot if that turns out not to be true somehow). */
     for (idx = apr_hash_first(dest_body->pool, src_body->hash); idx; idx = apr_hash_next(idx)) {
-        void *key, *val;
+        const void *key;
+        void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
         MVM_WB(tc, dest_root, val);

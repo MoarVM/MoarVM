@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 /* Pull in the APR. */
 #define APR_DECLARE_STATIC 1
 #include <apr_general.h>

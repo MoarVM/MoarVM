@@ -43,7 +43,7 @@ sub detect {
         
         if (can_run('gcc')) {
             $config{'cc'}      = 'gcc';
-            $config{'cflags'}  = '';
+            $config{'cflags'}  = '-Wno-format-security';
             $config{'couto'}   = '-o ';
             $config{'link'}    = 'gcc';
             $config{'louto'}   = '-o ';
