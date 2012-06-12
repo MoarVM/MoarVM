@@ -30,6 +30,12 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     /* The current call site we're constructing. */
     MVMCallsite *cur_callsite = NULL;
     
+    /* Dummy, 0-arg callsite. */
+    MVMCallsite no_arg_callsite;
+    no_arg_callsite.arg_flags = NULL;
+    no_arg_callsite.arg_count = 0;
+    no_arg_callsite.num_pos   = 0;
+    
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
@@ -39,7 +45,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     tc->interp_cu             = &cu;
     
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, initial_static_frame);
+    MVM_frame_invoke(tc, initial_static_frame, &no_arg_callsite, NULL);
     
     /* Enter runloop. */
     while (1) {

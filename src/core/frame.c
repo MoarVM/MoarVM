@@ -43,6 +43,7 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
             frame->env = NULL;
         }
         if (frame->work) {
+            MVM_args_proc_cleanup(tc, &frame->params);
             free(frame->work);
             frame->work = NULL;
         }
@@ -51,7 +52,8 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
 }
 
 /* Takes a static frame and a thread context. Invokes the static frame. */
-void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+                      MVMCallsite *callsite, MVMRegister *args) {
     /* Get a fresh frame data structure. */
     MVMFrame *frame = obtain_frame(tc);
     
@@ -93,6 +95,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
      * executing frame. */
     frame->ref_count = 1;
     
+    /* Initialize argument processing. */
+    MVM_args_proc_init(tc, &frame->params, callsite, args);
+    
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
@@ -110,9 +115,11 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
      * (The lexical environment is left in place, though). */
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller; 
-    if (returner->work)
+    if (returner->work) {
+        MVM_args_proc_cleanup(tc, &returner->params);
         free(returner->work);
-    returner->work = NULL;
+        returner->work = NULL;
+    }
 
     /* Decrement the frame reference (which, if it is not referenced by
      * anything else, may free it overall). */
