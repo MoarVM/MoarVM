@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(7);
+plan(8);
 
 sub callee() {
     my $frame := MAST::Frame.new();
@@ -150,3 +150,34 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "KnowHOW\n",
     "method call on built-in object");
+
+sub callee_subtracter() {
+    my $frame := MAST::Frame.new();
+    my $r0 := local($frame, int);
+    my $r1 := local($frame, int);
+    my $r2 := local($frame, int);
+    my @ins := $frame.instructions;
+    op(@ins, 'checkarity', ival(2), ival(2));
+    op(@ins, 'param_rp_i', $r0, ival(0));
+    op(@ins, 'param_rp_i', $r1, ival(1));
+    op(@ins, 'sub_i', $r2, $r0, $r1);
+    op(@ins, 'return_i', $r2);
+    return $frame;
+}
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $callee := callee_subtracter();
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, NQPMu);
+        op(@ins, 'const_i64', $r0, ival(49));
+        op(@ins, 'const_i64', $r1, ival(7));
+        op(@ins, 'getcode', $r3, $callee);
+        call(@ins, $r3, [$Arg::int, $Arg::int], $r0, $r1, :result($r2));
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+        $cu.add_frame($callee);
+    },
+    "42\n",
+    "passing and receiving int parameters");
