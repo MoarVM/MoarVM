@@ -29,5 +29,6 @@ src/gen/
 *.suo
 *.ilk
 *.lo
+*.so
 moarvm
 tools/nqp-cross-compiler/*.moarvm
