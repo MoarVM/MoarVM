@@ -117,7 +117,8 @@ MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ct
     if (result.arg == NULL && required)
         MVM_exception_throw_adhoc(tc, "Required named object argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_OBJ))
-        MVM_exception_throw_adhoc(tc, "Expected object, got %s", get_arg_type_name(tc, result.flags));
+        MVM_exception_throw_adhoc(tc, "Expected object for named argument %s, got %s",
+            MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
@@ -125,7 +126,8 @@ MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ct
     if (result.arg == NULL && required)
         MVM_exception_throw_adhoc(tc, "Required named integer argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_INT))
-        MVM_exception_throw_adhoc(tc, "Expected integer, got %s", get_arg_type_name(tc, result.flags));
+        MVM_exception_throw_adhoc(tc, "Expected integer for named argument %s, got %s",
+            MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
@@ -133,7 +135,8 @@ MVMRegister * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *c
     if (result.arg == NULL && required)
         MVM_exception_throw_adhoc(tc, "Required named unsigned integer argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_UINT))
-        MVM_exception_throw_adhoc(tc, "Expected unsigned integer, got %s", get_arg_type_name(tc, result.flags));
+        MVM_exception_throw_adhoc(tc, "Expected unsigned integer for named argument %s, got %s",
+            MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
@@ -141,7 +144,8 @@ MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ct
     if (result.arg == NULL && required)
         MVM_exception_throw_adhoc(tc, "Required named number argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_NUM))
-        MVM_exception_throw_adhoc(tc, "Expected number, got %s", get_arg_type_name(tc, result.flags));
+        MVM_exception_throw_adhoc(tc, "Expected number for named argument %s, got %s",
+            MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
@@ -149,7 +153,8 @@ MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ct
     if (result.arg == NULL && required)
         MVM_exception_throw_adhoc(tc, "Required named string argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_STR))
-        MVM_exception_throw_adhoc(tc, "Expected string, got %s", get_arg_type_name(tc, result.flags));
+        MVM_exception_throw_adhoc(tc, "Expected string for named argument %s, got %s",
+            MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 
