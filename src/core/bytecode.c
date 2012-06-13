@@ -247,7 +247,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMCallsite **callsites;
     MVMuint8     *pos;
-    MVMuint32     i, j, elems;
+    MVMuint32     i, j, elems, positionals = 0, arg_validate = 0;
     
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
@@ -278,15 +278,27 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         pos += elems % 2;
         
         /* Count positional arguments. */
-        /* TODO Validate that all positionals come before all nameds, and
-         * all flats come at the end. */
+        /* Validate that all positionals come before all nameds, and
+         * all flats come at the end. Validate that args are not
+         * both flat and named. */
         for (j = 0; j < elems; j++) {
-            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT)
+            if (callsites[i]->arg_flags[j] & (MVM_CALLSITE_ARG_FLAT | MVM_CALLSITE_ARG_NAMED))
+                MVM_exception_throw_adhoc(tc, "Arg cannot be both flat and named");
+            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
+                if (arg_validate == 2)
+                    MVM_exception_throw_adhoc(tc, "Named arg must not appear after a flat one");
+                arg_validate = 1; /* mark that we've seen a named one */
+            }
+            else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
+                arg_validate = 2; /* mark that we've seen a flat one when not NYI */
                 MVM_exception_throw_adhoc(tc, "Flattening NYI");
-            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED)
-                break;
+            }
+            else if (arg_validate) { /* positional appearing a named or flat one */
+                MVM_exception_throw_adhoc(tc, "All positional args must appear first");
+            }
+            else positionals++;
         }
-        callsites[i]->num_pos = j;
+        callsites[i]->num_pos = positionals;
         
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
