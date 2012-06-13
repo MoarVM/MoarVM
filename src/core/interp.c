@@ -318,6 +318,14 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 >= GET_REG(cur_op, 4).n64;
                         cur_op += 6;
                         break;
+                    case MVM_OP_argconst_i:
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].i64 = GET_I64(cur_op, 2);
+                        cur_op += 10;
+                        break;
+                    case MVM_OP_argconst_n:
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].n64 = GET_N64(cur_op, 2);
+                        cur_op += 10;
+                        break;
                     case MVM_OP_argconst_s:
                         tc->cur_frame->args[GET_UI16(cur_op, 0)].s = cu->strings[GET_UI16(cur_op, 2)];
                         cur_op += 4;
