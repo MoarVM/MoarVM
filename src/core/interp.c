@@ -399,28 +399,28 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         break;
                     case MVM_OP_param_rn_i:
                         GET_REG(cur_op, 0).i64 = MVM_args_get_named_int(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_REQUIRED)->i64;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->i64;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rn_n:
                         GET_REG(cur_op, 0).n64 = MVM_args_get_named_num(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_REQUIRED)->n64;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->n64;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rn_s:
                         GET_REG(cur_op, 0).s = MVM_args_get_named_str(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_REQUIRED)->s;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->s;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rn_o:
                         GET_REG(cur_op, 0).o = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_REQUIRED)->o;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->o;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_on_i:
                     {
                         MVMRegister *param = MVM_args_get_named_int(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_OPTIONAL);
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
                         if (param) {
                             GET_REG(cur_op, 0).i64 = param->i64;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
@@ -433,7 +433,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                     case MVM_OP_param_on_n:
                     {
                         MVMRegister *param = MVM_args_get_named_num(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_OPTIONAL);
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
                         if (param) {
                             GET_REG(cur_op, 0).n64 = param->n64;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
@@ -446,7 +446,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                     case MVM_OP_param_on_s:
                     {
                         MVMRegister *param = MVM_args_get_named_str(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_OPTIONAL);
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
                         if (param) {
                             GET_REG(cur_op, 0).s = param->s;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
@@ -459,7 +459,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                     case MVM_OP_param_on_o:
                     {
                         MVMRegister *param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
-                            GET_REG(cur_op, 2).s, MVM_ARG_OPTIONAL);
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
                         if (param) {
                             GET_REG(cur_op, 0).o = param->o;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
