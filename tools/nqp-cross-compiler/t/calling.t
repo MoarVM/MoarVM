@@ -257,5 +257,5 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
-    "42\n",
+    "hellohellohellohello\n",
     "required and optional named parameters");

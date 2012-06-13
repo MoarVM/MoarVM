@@ -256,7 +256,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMCallsite **callsites;
     MVMuint8     *pos;
-    MVMuint32     i, j, elems, positionals = 0, arg_validate = 0;
+    MVMuint32     i, j, elems, positionals = 0, arg_validate = 0, nameds = 0;
     
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
@@ -298,6 +298,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 if (arg_validate == 2)
                     MVM_exception_throw_adhoc(tc, "Named arg must not appear after a flat one");
                 arg_validate = 1; /* mark that we've seen a named one */
+                nameds += 2;
             }
             else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
                 arg_validate = 2; /* mark that we've seen a flat one when not NYI */
@@ -312,8 +313,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
-        if (elems > cu->max_callsite_size)
-            cu->max_callsite_size = elems;
+        if (positionals + nameds > cu->max_callsite_size)
+            cu->max_callsite_size = positionals + nameds;
     }
     
     return callsites;
