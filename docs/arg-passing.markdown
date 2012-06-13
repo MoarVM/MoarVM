@@ -103,5 +103,5 @@ the register with a default value.
     const_i64 r2, 0
     L1:
 
-The hanlding of named arguments is similar, with both required and optional
+The handling of named arguments is similar, with both required and optional
 variants of the ops.
