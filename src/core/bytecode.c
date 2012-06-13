@@ -28,27 +28,36 @@ typedef struct {
     MVMuint32  bytecode_size;
 } ReaderState;
 
+/* copies memory dependent on endianness */
+static void memcpy_endian(void *dest, MVMuint8 *src, size_t size) {
+#ifdef MVM_BIGENDIAN
+    size_t i;
+    MVMuint8 *destbytes = (MVMuint8 *)dest;
+    for (i = 0; i < size; i++)
+        destbytes[size - i - 1] = src[i];
+#else
+    memcpy(dest, src, size);
+#endif
+}
+
 /* Reads a uint64 from a buffer. */
 static MVMuint64 read_int64(MVMuint8 *buffer, size_t offset) {
     MVMuint64 value;
-    /* XXX: Big Endian Handling! */
-    memcpy(&value, buffer + offset, 8);
+    memcpy_endian(&value, buffer + offset, 8);
     return value;
 }
 
 /* Reads a uint32 from a buffer. */
 static MVMuint32 read_int32(MVMuint8 *buffer, size_t offset) {
     MVMuint32 value;
-    /* XXX: Big Endian Handling! */
-    memcpy(&value, buffer + offset, 4);
+    memcpy_endian(&value, buffer + offset, 4);
     return value;
 }
 
 /* Reads an uint16 from a buffer. */
 static MVMuint16 read_int16(MVMuint8 *buffer, size_t offset) {
     MVMuint16 value;
-    /* XXX: Big Endian Handling! */
-    memcpy(&value, buffer + offset, 2);
+    memcpy_endian(&value, buffer + offset, 2);
     return value;
 }
 

@@ -14,6 +14,11 @@
 #define BYTECODE_VERSION        1
 #define FRAME_HEADER_SIZE       4 * 4 + 2 * 2
 
+/* Steal endianness from APR */
+#if APR_IS_BIGENDIAN
+#define MVM_BIGENDIAN           1
+#endif
+
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
     /* Position of start of bytecode. */
@@ -68,22 +73,31 @@ typedef struct {
     MAST_CompUnit *cu;
 } WriterState;
 
+/* copies memory dependent on endianness */
+static void memcpy_endian(char *dest, void *src, size_t size) {
+#ifdef MVM_BIGENDIAN
+    size_t i;
+    char *srcbytes = (char *)src;
+    for (i = 0; i < size; i++)
+        dest[size - i - 1] = srcbytes[i];
+#else
+    memcpy(dest, src, size);
+#endif
+}
+
 /* Writes an int64 into a buffer. */
 static void write_int64(char *buffer, size_t offset, unsigned long long value) {
-    /* XXX: Big Endian Handling! */
-    memcpy(buffer + offset, &value, 8);
+    memcpy_endian(buffer + offset, &value, 8);
 }
 
 /* Writes an int32 into a buffer. */
 static void write_int32(char *buffer, size_t offset, unsigned int value) {
-    /* XXX: Big Endian Handling! */
-    memcpy(buffer + offset, &value, 4);
+    memcpy_endian(buffer + offset, &value, 4);
 }
 
 /* Writes an int16 into a buffer. */
 static void write_int16(char *buffer, size_t offset, unsigned short value) {
-    /* XXX: Big Endian Handling! */
-    memcpy(buffer + offset, &value, 2);
+    memcpy_endian(buffer + offset, &value, 2);
 }
 
 /* Writes an int8 into a buffer. */
