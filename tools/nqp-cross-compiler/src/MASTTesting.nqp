@@ -43,7 +43,9 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     # Read it and check it is OK.
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n", :global);
-    my $okness := $output eq $expected || (0.0 + +$output - +$expected < 0.0000001);
+    my $okness := $output eq $expected
+        || (   +$output != +$expected
+            && (0.0 + +$output - +$expected < 0.0000001));
     ok($okness, $desc);
     say("                                     # " ~ ($end - $start) ~ " s") if $timeit;
     unless $okness {
