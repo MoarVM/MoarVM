@@ -226,7 +226,7 @@ module Arg {
 
 # A call. A register holding the thing to call should be specified, along
 # with a set of flags describing the call site, followed by the arguments
-# themselves, which may be constants or come from registers. There are also
+# themselves, which may be constants or come from registers. There is also
 # a set of flags, describing each argument. Some flags need two actual
 # arguments, one specifying the name, the next the actual value.
 class MAST::Call is MAST::Node {
