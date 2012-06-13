@@ -56,6 +56,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     /* printf("bytecode_size %d cur_op %d bytecode_end %d difference %d", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op)); */
     while (cur_op < bytecode_end - 1) {
         labels[cur_op - bytecode_start] |= MVM_val_op_boundary;
+        /* XXX TODO validate number and type of operands to each op is correct */
         bank_num = *(cur_op++);
         op_num = *(cur_op++);
         op_info = MVM_op_get_op((unsigned char)bank_num, (unsigned char)op_num);
