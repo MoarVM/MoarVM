@@ -14,11 +14,6 @@
 #define BYTECODE_VERSION        1
 #define FRAME_HEADER_SIZE       4 * 4 + 2 * 2
 
-/* Steal endianness from APR */
-#if APR_IS_BIGENDIAN
-#define MVM_BIGENDIAN           1
-#endif
-
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
     /* Position of start of bytecode. */
