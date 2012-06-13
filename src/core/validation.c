@@ -46,7 +46,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     MVMOpInfo *op_info;
     MVMuint32 operand_size;
     MVMuint16 operand_target;
-    int i;
+    MVMuint32 i;
     unsigned char op_rw;
     unsigned char op_type;
     unsigned char op_flags;
@@ -62,7 +62,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
         if (!op_info) {
             cleanup_all(tc, labels);
             MVM_exception_throw_adhoc(tc,
-                "Bytecode validation error: non-existent operation");
+                "Bytecode validation error: non-existent operation bank %u op %u",
+                bank_num, op_num);
         }
         /*printf("validating op %s, (%d) bank %d", op_info->name, op_num, bank_num);*/
         for (i = 0; i < op_info->num_operands; i++) {
@@ -85,7 +86,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (operand_target >= cu->num_callsites) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
-                                "Bytecode validation error: callsites index out of range");
+                                "Bytecode validation error: callsites index (%u) out of range (0-%u)",
+                                operand_target, cu->num_callsites - 1);
                         }
                         break;
                         
@@ -105,7 +107,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (operand_target >= cu->num_strings) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
-                                "Bytecode validation error: strings index out of range");
+                                "Bytecode validation error: strings index (%u) out of range (0-%u)",
+                                operand_target, cu->num_strings - 1);
                         }
                         break;
                         
@@ -117,7 +120,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (branch_target >= bytecode_size) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
-                                "Bytecode validation error: branch instruction offset out of range");
+                                "Bytecode validation error: branch instruction offset (%u) out of range (0-%u)",
+                                branch_target, bytecode_size - 1);
                         }
                         labels[branch_target] |= MVM_val_branch_target;
                         break;
@@ -126,12 +130,14 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     case MVM_operand_type_var:
                         cleanup_all(tc, labels);
                         MVM_exception_throw_adhoc(tc,
-                            "Bytecode validation error: that operand type can't be a literal");
+                            "Bytecode validation error: that operand type (%u) can't be a literal",
+                            (MVMuint8)op_type);
                         break;
                     default: {
                         cleanup_all(tc, labels);
                         MVM_exception_throw_adhoc(tc,
-                            "Bytecode validation error: non-existent operand type");
+                            "Bytecode validation error: non-existent operand type (%u)",
+                            (MVMuint8)op_type);
                     }
                 }
                 if (cur_op + operand_size > bytecode_end)
@@ -144,7 +150,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 if (GET_REG(cur_op, 0) >= num_locals) {
                     cleanup_all(tc, labels);
                     MVM_exception_throw_adhoc(tc,
-                        "Bytecode validation error: operand register index out of range");
+                        "Bytecode validation error: operand register index (%u) out of range (0-%u) at byte %u",
+                        GET_REG(cur_op, 0), num_locals - 1, cur_op - bytecode_start);
                 }
             }
             cur_op += operand_size;
@@ -155,7 +162,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
         if (labels[i] & MVM_val_branch_target && !(labels[i] & MVM_val_op_boundary)) {
             cleanup_all(tc, labels);
             MVM_exception_throw_adhoc(tc,
-                "Bytecode validation error: branch to a non-op start position");
+                "Bytecode validation error: branch to a non-op start position at instruction %u", i);
         }
     }
     cleanup_all(tc, labels);

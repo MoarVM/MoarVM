@@ -467,8 +467,8 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                     }
                     }
                     default: {
-                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_primitives, *(cur_op-1));
-                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_primitives, *(cur_op-1));
                     }
                     break;
                 }
@@ -495,8 +495,8 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 2;
                         break;
                     default: {
-                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_dev, *(cur_op-1));
-                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_dev, *(cur_op-1));
                     }
                     break;
                 }
@@ -574,8 +574,8 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 6;
                         break;
                     default: {
-                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_string, *(cur_op-1));
-                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_string, *(cur_op-1));
                     }
                     break;
                 }
@@ -639,8 +639,8 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     default: {
-                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_math, *(cur_op-1));
-                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_math, *(cur_op-1));
                     }
                     break;
                 }
@@ -675,8 +675,8 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     default: {
-                        printf("bank: %d, bad opcode: %d\n", MVM_OP_BANK_dev, *(cur_op-1));
-                        MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_object, *(cur_op-1));
                     }
                     break;
                 }
@@ -686,7 +686,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
             /* Dispatch to bank function. */
             default:
             {
-                MVM_panic("Invalid opcode executed (corrupt bytecode stream?)");
+                MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u", *(cur_op-1));
             }
             break;
         }

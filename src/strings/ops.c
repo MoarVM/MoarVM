@@ -39,16 +39,18 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     }
     
     if (start >= a->body.graphs)
-        MVM_exception_throw_adhoc(tc, "Substring start offset cannot be past end of string");
+        MVM_exception_throw_adhoc(tc, "Substring start offset (%lld) cannot be past end of string (%lld)",
+            start, a->body.graphs);
     
     if (length < -1) /* -1 signifies go to the end of the string */
-        MVM_exception_throw_adhoc(tc, "Substring length cannot be negative");
+        MVM_exception_throw_adhoc(tc, "Substring length (%lld) cannot be negative", length);
     
     if (length == -1)
         length = a->body.graphs - start;
     
     if (start + length > a->body.graphs)
-        MVM_exception_throw_adhoc(tc, "Substring end cannot be past end of string");
+        MVM_exception_throw_adhoc(tc, "Substring end (%lld) cannot be past end of string (%lld)",
+            start + length, a->body.graphs);
     
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     
@@ -87,7 +89,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     size_t i = 0;
     
     if (count < 0)
-        MVM_exception_throw_adhoc(tc, "repeat count cannot be negative");
+        MVM_exception_throw_adhoc(tc, "repeat count (%lld) cannot be negative", count);
     
     result->body.codes  = a->body.codes * count;
     result->body.graphs = a->body.graphs * count;
@@ -141,7 +143,8 @@ MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a,
 /* returns the codepoint (could be a negative synthetic) at a given index of the string */
 MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
     if (index < 0 || index >= a->body.graphs)
-        MVM_exception_throw_adhoc(tc, "Invalid string index");
+        MVM_exception_throw_adhoc(tc, "Invalid string index: max %lld, got %lld",
+            index >= a->body.graphs - 1, index);
     return (MVMint64)a->body.data[index];
 }
 
@@ -149,7 +152,8 @@ MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint6
    Probably useful for transliteration. */
 void MVM_string_set_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index, MVMint64 codepoint) {
     if (index < 0 || index >= a->body.graphs)
-        MVM_exception_throw_adhoc(tc, "Invalid string index");
+        MVM_exception_throw_adhoc(tc, "Invalid string index: max %lld, got %lld",
+            index >= a->body.graphs - 1, index);
     /* TODO XXX MVMint32 bounds check */
     a->body.data[index] = (MVMint32)codepoint;
 }

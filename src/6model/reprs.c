@@ -4,7 +4,7 @@
 MVM_NO_RETURN
 static void die_no_attrs(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
-        "This representation does not support attribute storage");
+        "This representation (%s) does not support attribute storage", MVM_string_utf8_encode_C_string(tc, repr_name));
 }
 static MVMObject * default_get_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     die_no_attrs(tc, st->REPR->name);
@@ -26,36 +26,36 @@ static MVMint64 default_hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject 
 }
 static void default_set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation cannot box a native int");
+        "This representation (%s) cannot box a native int", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
 }
 static MVMint64 default_get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation cannot unbox to a native int");
+        "This representation (%s) cannot unbox to a native int", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
 }
 static void default_set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation cannot box a native num");
+        "This representation (%s) cannot box a native num", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
 }
 static MVMnum64 default_get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation cannot unbox to a native num");
+        "This representation (%s) cannot unbox to a native num", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
 }
 static void default_set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation cannot box a native string");
+        "This representation (%s) cannot box a native string", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
 }
 static MVMString * default_get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation cannot unbox to a native string");
+        "This representation (%s) cannot unbox to a native string", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
 }
 static void * default_get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     MVM_exception_throw_adhoc(tc,
-        "This representation cannot unbox to other types");
+        "This representation (%s) cannot unbox to other types", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
 }
 MVM_NO_RETURN
 static void die_no_pos(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
-        "This representation does not support positional access");
+        "This representation (%s) does not support positional access", MVM_string_utf8_encode_C_string(tc, repr_name));
 }
 static void * default_at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
     die_no_pos(tc, st->REPR->name);
@@ -90,7 +90,7 @@ static MVMStorageSpec default_get_elem_storage_spec(MVMThreadContext *tc, MVMSTa
 MVM_NO_RETURN
 static void die_no_ass(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
-        "This representation does not support associative access");
+        "This representation (%s) does not support associative access", MVM_string_utf8_encode_C_string(tc, repr_name));
 }
 void * default_at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     die_no_ass(tc, st->REPR->name);
@@ -241,7 +241,8 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
     MVMuint32 *value = (MVMuint32 *)apr_hash_get(tc->instance->repr_name_to_id_hash,
         name->body.data, name->body.graphs * sizeof(MVMint32));
     if (value == NULL)
-        MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR");
+        MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",
+            MVM_string_utf8_encode_C_string(tc, name));
     return *value;
 }
 

@@ -18,13 +18,29 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* Currently nothing to do. */
 }
 
+static const char * get_arg_type_name(MVMThreadContext *tc, MVMuint8 type) {
+    if (type & MVM_CALLSITE_ARG_OBJ)  return "object";
+    if (type & MVM_CALLSITE_ARG_INT)  return "integer";
+    if (type & MVM_CALLSITE_ARG_UINT) return "unsigned integer";
+    if (type & MVM_CALLSITE_ARG_NUM)  return "number";
+    if (type & MVM_CALLSITE_ARG_STR)  return "string";
+    MVM_exception_throw_adhoc(tc, "invalid arg type");
+}
+
+static const char * get_arg_type(MVMuint8 type) {
+    if (type & MVM_CALLSITE_ARG_NAMED)  return "named";
+    if (type & MVM_CALLSITE_ARG_FLAT)  return "flat";
+    return "positional";
+}
+
+
 /* Checks that the passed arguments fall within the expected arity. */
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos = ctx->callsite->num_pos;
     if (num_pos < min)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Not enough arguments; needed %u, got %u", min, num_pos);
     if (num_pos > max)
-        MVM_exception_throw_adhoc(tc, "Too many arguments");
+        MVM_exception_throw_adhoc(tc, "Too many arguments; max %u, got %u", max, num_pos);
 }
 
 /* Get positional arguments. */
@@ -42,41 +58,41 @@ static struct MVMArgInfo find_pos_arg(MVMArgProcContext *ctx, MVMuint32 pos) {
 MVMRegister * MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result = find_pos_arg(ctx, pos);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Not enough arguments; needed at least %u", pos + 1);
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_OBJ))
-        MVM_exception_throw_adhoc(tc, "Expected object");
+        MVM_exception_throw_adhoc(tc, "Expected object, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result = find_pos_arg(ctx, pos);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Not enough arguments; needed at least %u", pos + 1);
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_INT))
-        MVM_exception_throw_adhoc(tc, "Expected integer");
+        MVM_exception_throw_adhoc(tc, "Expected integer, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result = find_pos_arg(ctx, pos);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Not enough arguments; needed at least %u", pos + 1);
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_UINT))
-        MVM_exception_throw_adhoc(tc, "Expected unsigned integer");
+        MVM_exception_throw_adhoc(tc, "Expected unsigned integer, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result = find_pos_arg(ctx, pos);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Not enough arguments; needed at least %u", pos + 1);
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_NUM))
-        MVM_exception_throw_adhoc(tc, "Expected number");
+        MVM_exception_throw_adhoc(tc, "Expected number, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result = find_pos_arg(ctx, pos);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Not enough arguments; needed at least %u", pos + 1);
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_STR))
-        MVM_exception_throw_adhoc(tc, "Expected string");
+        MVM_exception_throw_adhoc(tc, "Expected string, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 
@@ -99,41 +115,41 @@ static struct MVMArgInfo find_named_arg(MVMThreadContext *tc, MVMArgProcContext 
 MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result = find_named_arg(tc, ctx, name);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Required named object argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_OBJ))
-        MVM_exception_throw_adhoc(tc, "Expected object");
+        MVM_exception_throw_adhoc(tc, "Expected object, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result = find_named_arg(tc, ctx, name);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Required named integer argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_INT))
-        MVM_exception_throw_adhoc(tc, "Expected integer");
+        MVM_exception_throw_adhoc(tc, "Expected integer, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result = find_named_arg(tc, ctx, name);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Required named unsigned integer argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_UINT))
-        MVM_exception_throw_adhoc(tc, "Expected unsigned integer");
+        MVM_exception_throw_adhoc(tc, "Expected unsigned integer, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result = find_named_arg(tc, ctx, name);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Required named number argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_NUM))
-        MVM_exception_throw_adhoc(tc, "Expected number");
+        MVM_exception_throw_adhoc(tc, "Expected number, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result = find_named_arg(tc, ctx, name);
     if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments");
+        MVM_exception_throw_adhoc(tc, "Required named string argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_STR))
-        MVM_exception_throw_adhoc(tc, "Expected string");
+        MVM_exception_throw_adhoc(tc, "Expected string, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 

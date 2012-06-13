@@ -246,12 +246,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
                         col++;
                     break;
                 case UTF8_REJECT:
-                    /* XXX HALP I don't know what I'm doing here.
-                     * memory leak if the exception is caught unless throw_adhoc
-                     * can be taught to free it */
-                    utf8 = malloc(50);
-                    sprintf(utf8, "Malformed UTF-8 at line %u col %u", line, col);
-                    MVM_exception_throw_adhoc(tc, utf8);
+                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
                 }
             }
             MVM_exception_throw_adhoc(tc, "Concurrent modification of UTF-8 input buffer!");
@@ -282,7 +277,22 @@ MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint6
     memset(result, 0, sizeof(MVMint32) * str->body.graphs);
     while (i < str->body.graphs && (arr = utf8_encode(arr, str->body.data[i++])));
     if (!arr)
-        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string");
+        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d", i - 1);
     *output_size = (MVMuint64)(arr ? arr - result : 0);
+    return result;
+}
+
+/* Encodes the specified string to a C string. */
+char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
+    MVMuint64 output_size, i;
+    char * result;
+    MVMuint8 * utf8_string = MVM_string_utf8_encode(tc, str, &output_size);
+    /* this is almost always called from error-handling code. Don't care if it
+     * contains embedded NULs. Also don't care about freeing the result's memory; this is
+     * mainly used for extremely short strings, passed to error messages. */
+    result = malloc(output_size + 1);
+    memcpy(result, utf8_string, output_size);
+    free(utf8_string);
+    result[output_size] = (char)0;
     return result;
 }

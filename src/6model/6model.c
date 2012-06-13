@@ -10,7 +10,8 @@ MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMStri
         if (meth != tc->instance->null)
             return meth;
         else
-            MVM_exception_throw_adhoc(tc, "Method not found in cache, and late-bound dispatch NYI");
+            MVM_exception_throw_adhoc(tc, "Method %s not found in cache, and late-bound dispatch NYI",
+                MVM_string_utf8_encode_C_string(tc, name));
     }
     else {
         MVM_exception_throw_adhoc(tc, "Missing method cache; late-bound dispatch NYI");

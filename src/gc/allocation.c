@@ -15,9 +15,9 @@ void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
          * left in the nursery. */
         if ((char *)tc->nursery_alloc + size >= (char *)tc->nursery_alloc_limit) {
             if (size > MVM_NURSERY_SIZE)
-                MVM_panic("Attempt to allocate more than the maximum nursery size");
+                MVM_panic(14, "Attempt to allocate more than the maximum nursery size");
             /* XXX Call the GC. */
-            MVM_panic("Out of memory; GC not yet implemented!");
+            MVM_panic(15, "Out of memory; GC not yet implemented!");
         }
         
         /* Allocate (just bump the pointer). */
@@ -25,7 +25,7 @@ void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
         tc->nursery_alloc = (char *)tc->nursery_alloc + size;
     }
     else {
-        MVM_panic("Cannot allocate 0 bytes of memory in the nursery");
+        MVM_panic(16, "Cannot allocate 0 bytes of memory in the nursery");
     }
     
     return allocated;
