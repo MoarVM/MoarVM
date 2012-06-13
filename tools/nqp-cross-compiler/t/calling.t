@@ -230,3 +230,35 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "20\n",
     "optional parameter default setting code triggers");
+
+sub callee_repeater() {
+    my $frame := MAST::Frame.new();
+    my $r0 := local($frame, str);
+    my $r1 := local($frame, int);
+    my @ins := $frame.instructions;
+    my $l0 := label('param_0');
+    op(@ins, 'checkarity', ival(1), ival(2));
+    op(@ins, 'param_rn_s', $r0, sval('torepeat'));
+    op(@ins, 'param_on_i', $r1, sval('count'), $l0);
+    op(@ins, 'const_s', $r1, ival(4));
+    nqp::push(@ins, $l0);
+    op(@ins, 'repeat_s', $r0, $r0, $r1);
+    op(@ins, 'return_s', $r0);
+    return $frame;
+}
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $callee := callee_repeater();
+        my $r0 := local($frame, str);
+        my $r2 := local($frame, str);
+        my $r3 := local($frame, NQPMu);
+        op(@ins, 'const_s', $r0, sval('hello'));
+        op(@ins, 'const_s', $r2, sval('torepeat'));
+        op(@ins, 'getcode', $r3, $callee);
+        call(@ins, $r3, [$Arg::named], $r2, $r0, :result($r2));
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+        $cu.add_frame($callee);
+    },
+    "42\n",
+    "required and optional named parameters");
