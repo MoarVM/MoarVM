@@ -12,12 +12,17 @@
 #define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
-static void cleanup_all(MVMThreadContext *tc, MVMuint8 *opstart_here, MVMuint8 *goto_here) {
-    free(opstart_here);
-    free(goto_here);
+enum {
+    MVM_val_branch_target = 1,
+    MVM_val_op_boundary   = 2
+};
+
+static void cleanup_all(MVMThreadContext *tc, MVMuint8 *labels) {
+    free(labels);
 }
 
-static void throw_past_end(MVMThreadContext *tc) {
+static void throw_past_end(MVMThreadContext *tc, MVMuint8 *labels) {
+    cleanup_all(tc, labels);
     MVM_exception_throw_adhoc(tc,
                 "Bytecode validation error: truncated stream");
 }
@@ -32,10 +37,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
     /* current position in the bytestream */
     MVMuint8 *cur_op = bytecode_start;
-    /* positions in the bytestream that are starts of ops */
-    MVMuint8 *opstart_here = malloc(bytecode_size);
-    /* positions in the bytestream that are targets of a goto offset */
-    MVMuint8 *goto_here = malloc(bytecode_size);
+    /* positions in the bytestream that are starts of ops and goto targets */
+    MVMuint8 *labels = malloc(bytecode_size);
     MVMuint32 num_locals = static_frame->num_locals;
     MVMuint32 branch_target;
     MVMuint8 bank_num;
@@ -48,17 +51,16 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     unsigned char op_type;
     unsigned char op_flags;
     
-    memset(opstart_here, 0, bytecode_size);
-    memset(goto_here, 0, bytecode_size);
+    memset(labels, 0, bytecode_size);
     
     /* printf("bytecode_size %d cur_op %d bytecode_end %d difference %d", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op)); */
     while (cur_op < bytecode_end - 1) {
-        opstart_here[cur_op - bytecode_start] = 1;
+        labels[cur_op - bytecode_start] |= MVM_val_op_boundary;
         bank_num = *(cur_op++);
         op_num = *(cur_op++);
         op_info = MVM_op_get_op((unsigned char)bank_num, (unsigned char)op_num);
         if (!op_info) {
-            cleanup_all(tc, opstart_here, goto_here);
+            cleanup_all(tc, labels);
             MVM_exception_throw_adhoc(tc,
                 "Bytecode validation error: non-existent operation");
         }
@@ -78,10 +80,10 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     case MVM_operand_callsite:
                         operand_size = 2;
                         if (cur_op + operand_size > bytecode_end)
-                            throw_past_end(tc);
+                            throw_past_end(tc, labels);
                         operand_target = GET_UI16(cur_op, 0);
                         if (operand_target >= cu->num_callsites) {
-                            cleanup_all(tc, opstart_here, goto_here);
+                            cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
                                 "Bytecode validation error: callsites index out of range");
                         }
@@ -98,10 +100,10 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     case MVM_operand_str:
                         operand_size = 2;
                         if (cur_op + operand_size > bytecode_end)
-                            throw_past_end(tc);
+                            throw_past_end(tc, labels);
                         operand_target = GET_UI16(cur_op, 0);
                         if (operand_target >= cu->num_strings) {
-                            cleanup_all(tc, opstart_here, goto_here);
+                            cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
                                 "Bytecode validation error: strings index out of range");
                         }
@@ -110,37 +112,37 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     case MVM_operand_ins:
                         operand_size = 4;
                         if (cur_op + operand_size > bytecode_end)
-                            throw_past_end(tc);
+                            throw_past_end(tc, labels);
                         branch_target = GET_UI32(cur_op, 0);
                         if (branch_target >= bytecode_size) {
-                            cleanup_all(tc, opstart_here, goto_here);
+                            cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
                                 "Bytecode validation error: branch instruction offset out of range");
                         }
-                        goto_here[branch_target] = 1;
+                        labels[branch_target] |= MVM_val_branch_target;
                         break;
                     
                     case MVM_operand_obj:
                     case MVM_operand_type_var:
-                        cleanup_all(tc, opstart_here, goto_here);
+                        cleanup_all(tc, labels);
                         MVM_exception_throw_adhoc(tc,
                             "Bytecode validation error: that operand type can't be a literal");
                         break;
                     default: {
-                        cleanup_all(tc, opstart_here, goto_here);
+                        cleanup_all(tc, labels);
                         MVM_exception_throw_adhoc(tc,
                             "Bytecode validation error: non-existent operand type");
                     }
                 }
                 if (cur_op + operand_size > bytecode_end)
-                    throw_past_end(tc);
+                    throw_past_end(tc, labels);
             }
             else { /* register operand */
                 operand_size = 2;
                 if (cur_op + operand_size > bytecode_end)
-                    throw_past_end(tc);
+                    throw_past_end(tc, labels);
                 if (GET_REG(cur_op, 0) >= num_locals) {
-                    cleanup_all(tc, opstart_here, goto_here);
+                    cleanup_all(tc, labels);
                     MVM_exception_throw_adhoc(tc,
                         "Bytecode validation error: operand register index out of range");
                 }
@@ -150,13 +152,13 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     }
     /* check that all the branches and gotos have valid op boundary destinations */
     for (i = 0; i < bytecode_size; i++) {
-        if (goto_here[i] && !opstart_here[i]) {
-            cleanup_all(tc, opstart_here, goto_here);
+        if (labels[i] & MVM_val_branch_target && !(labels[i] & MVM_val_op_boundary)) {
+            cleanup_all(tc, labels);
             MVM_exception_throw_adhoc(tc,
                 "Bytecode validation error: branch to a non-op start position");
         }
     }
-    cleanup_all(tc, opstart_here, goto_here);
+    cleanup_all(tc, labels);
     /* check that the last op is a return of some sort so we don't run off the */
     /* XXX TODO maybe also allow tailcalls of some sort, but currently compiler.c
      * adds the trailing return anyway, so... */
