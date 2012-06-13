@@ -291,7 +291,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * all flats come at the end. Validate that args are not
          * both flat and named. */
         for (j = 0; j < elems; j++) {
-            if (callsites[i]->arg_flags[j] & (MVM_CALLSITE_ARG_FLAT | MVM_CALLSITE_ARG_NAMED))
+            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT
+                    && callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED)
                 MVM_exception_throw_adhoc(tc, "Arg cannot be both flat and named");
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
                 if (arg_validate == 2)
