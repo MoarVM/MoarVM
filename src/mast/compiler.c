@@ -448,8 +448,13 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             /* Handle any special flags. */
             unsigned char flag = (unsigned char)ATPOS_I(vm, c->flags, flag_pos);
             if (flag & MVM_CALLSITE_ARG_NAMED) {
-                cleanup_all(vm, ws);
-                DIE(vm, "Named args NYI");
+                ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
+                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
+                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_argconst_s);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
+                ws->bytecode_pos += 2;
+                compile_operand(vm, ws, MVM_operand_str, ATPOS(vm, c->args, arg_pos));
+                arg_pos++;
             }
             else if (flag & MVM_CALLSITE_ARG_FLAT) {
                 cleanup_all(vm, ws);
