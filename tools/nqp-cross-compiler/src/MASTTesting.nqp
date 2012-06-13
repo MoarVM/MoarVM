@@ -44,7 +44,7 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n", :global);
     my $okness := $output eq $expected
-        || (   +$output != +$expected
+        || (   0.0 + $output != 0.0 + $expected
             && (0.0 + +$output - +$expected < 0.0000001));
     ok($okness, $desc);
     say("                                     # " ~ ($end - $start) ~ " s") if $timeit;
