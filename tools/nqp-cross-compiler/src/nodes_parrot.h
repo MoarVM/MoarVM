@@ -210,6 +210,8 @@ typedef enum {
 #define MVMStorageSpec      storage_spec
 
 /* Copy parrot's endianness */
-#if PARROT_BIGENDIAN
-#define MVM_BIGENDIAN       1
+#ifdef PARROT_BIGENDIAN
+ #if PARROT_BIGENDIAN
+  #define MVM_BIGENDIAN       1
+ #endif
 #endif
