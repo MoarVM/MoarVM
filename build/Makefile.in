@@ -24,7 +24,7 @@ APR_BUILD_LINE = @apr_build_line@
 THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
-            src/core/ops$(O) src/gc/allocation$(O) src/gc/roots$(O)  \
+            src/core/ops$(O) src/io/fileops$(O) src/gc/allocation$(O) src/gc/roots$(O)  \
             src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
@@ -66,6 +66,8 @@ src/core/validation$(O): src/core/validation.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/validation$(O) src/core/validation.c
 src/core/ops$(O): src/core/ops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/ops$(O) src/core/ops.c
+src/io/fileops$(O): src/io/fileops.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/fileops$(O) src/io/fileops.c
 src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/threadcontext$(O) src/core/threadcontext.c
 src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)
@@ -108,4 +110,4 @@ src/main$(O): src/main.c $(HEADERS)
 # Cleanup.
 clean:
 	$(RM) moarvm$(EXE)
-	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O)
+	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O) src/io/*$(O)

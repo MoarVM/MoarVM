@@ -33,6 +33,7 @@
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/ops.h"
+#include "io/fileops.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);
