@@ -712,6 +712,12 @@ static MVMOpInfo MVM_op_info_dev[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_slurp,
+        "slurp",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 static MVMOpInfo MVM_op_info_string[] = {
     {
@@ -936,7 +942,7 @@ static unsigned char MVM_op_banks = 5;
 
 static unsigned char MVM_opcounts_by_bank[] = {
     113,
-    4,
+    5,
     13,
     13,
     8,
