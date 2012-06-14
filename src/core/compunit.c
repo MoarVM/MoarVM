@@ -30,6 +30,9 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
         apr_pool_destroy(pool);
         MVM_exception_throw_adhoc(tc, "Could not map file into memory: errorcode %d", apr_return_status);
     }
+    
+    /* close the filehandle. */
+    apr_file_close(file_handle);
 
     /* Create compilation unit data structure. */
     cu = malloc(sizeof(MVMCompUnit));
