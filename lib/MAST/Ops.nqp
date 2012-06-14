@@ -207,7 +207,10 @@ class MAST::Ops {
         'hostname', 32,
         'nametoaddr', 33,
         'addrtoname', 34,
-        'porttosvc', 35
+        'porttosvc', 35,
+        'open_dir', 36,
+        'read_dir', 37,
+        'close_dir', 38
     );
     our $processthread := nqp::hash(
         'getenv', 0,

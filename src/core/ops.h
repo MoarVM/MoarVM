@@ -207,6 +207,9 @@
 #define MVM_OP_nametoaddr 33
 #define MVM_OP_addrtoname 34
 #define MVM_OP_porttosvc 35
+#define MVM_OP_open_dir 36
+#define MVM_OP_read_dir 37
+#define MVM_OP_close_dir 38
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_getenv 0

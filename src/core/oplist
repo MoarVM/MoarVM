@@ -196,6 +196,9 @@ BANK 5 io
 0x21    nametoaddr  w(str) r(str)
 0x22    addrtoname  w(str) r(str)
 0x23    porttosvc   w(str) r(int64)
+0x24    open_dir    w(obj) r(str)
+0x25    read_dir    w(str) r(obj)
+0x26    close_dir   r(obj)
 
 BANK 6 processthread
 0x00    getenv      w(str) r(str)

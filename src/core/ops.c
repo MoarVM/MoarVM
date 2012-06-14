@@ -1140,6 +1140,24 @@ static MVMOpInfo MVM_op_info_io[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_open_dir,
+        "open_dir",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_read_dir,
+        "read_dir",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_close_dir,
+        "close_dir",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_processthread[] = {
     {
@@ -1286,7 +1304,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     13,
     13,
     8,
-    36,
+    39,
     21,
 };
 
