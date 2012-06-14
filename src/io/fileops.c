@@ -22,9 +22,14 @@ MVMString * MVM_slurp_filename(MVMThreadContext *tc, MVMString *filename) {
         MVM_exception_throw_apr_error(tc, rv, "Slurp failed to mmap file '%s': ", fname);
     }
     
+    /* no longer need the filehandle */
     apr_file_close(fp);
     
+    /* convert the mmap to a MVMString */
     result = MVM_string_utf8_decode(tc, (MVMObject *)filename, mmap->mm, finfo.size);
+    
+    /* delete the mmap */
+    apr_mmap_delete(mmap);
     
     return result;
 }
