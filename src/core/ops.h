@@ -6,6 +6,8 @@
 #define MVM_OP_BANK_string 2
 #define MVM_OP_BANK_math 3
 #define MVM_OP_BANK_object 4
+#define MVM_OP_BANK_io 5
+#define MVM_OP_BANK_processthread 6
 
 /* Op name defines for bank primitives. */
 #define MVM_OP_no_op 0
@@ -127,7 +129,6 @@
 #define MVM_OP_say_s 1
 #define MVM_OP_say_n 2
 #define MVM_OP_sleep 3
-#define MVM_OP_slurp 4
 
 /* Op name defines for bank string. */
 #define MVM_OP_concat_s 0
@@ -168,5 +169,66 @@
 #define MVM_OP_create 5
 #define MVM_OP_gethow 6
 #define MVM_OP_getwhat 7
+
+/* Op name defines for bank io. */
+#define MVM_OP_copy_s 0
+#define MVM_OP_append_s 1
+#define MVM_OP_rename_s 2
+#define MVM_OP_delete_s 3
+#define MVM_OP_chmod_s 4
+#define MVM_OP_mkdir_s 5
+#define MVM_OP_open_fh 6
+#define MVM_OP_close_fh 7
+#define MVM_OP_read_fhs 8
+#define MVM_OP_read_fhbuf 9
+#define MVM_OP_slurp 10
+#define MVM_OP_spew 11
+#define MVM_OP_write_fhs 12
+#define MVM_OP_write_fhbuf 13
+#define MVM_OP_seek_fh 14
+#define MVM_OP_lock_fh 15
+#define MVM_OP_unlock_fh 16
+#define MVM_OP_flush_fh 17
+#define MVM_OP_sync_fh 18
+#define MVM_OP_pipe_fh 19
+#define MVM_OP_trunc_fh 20
+#define MVM_OP_getstdin 21
+#define MVM_OP_getstdout 22
+#define MVM_OP_getstderr 23
+#define MVM_OP_open_sk 24
+#define MVM_OP_close_sk 25
+#define MVM_OP_bind_sk 26
+#define MVM_OP_send_sks 27
+#define MVM_OP_send_skbuf 28
+#define MVM_OP_recv_sks 29
+#define MVM_OP_recv_skbuf 30
+#define MVM_OP_getaddr_sk 31
+#define MVM_OP_hostname 32
+#define MVM_OP_nametoaddr 33
+#define MVM_OP_addrtoname 34
+#define MVM_OP_porttosvc 35
+
+/* Op name defines for bank processthread. */
+#define MVM_OP_getenv 0
+#define MVM_OP_setenv 1
+#define MVM_OP_delenv 2
+#define MVM_OP_nametogid 3
+#define MVM_OP_gidtoname 4
+#define MVM_OP_nametouid 5
+#define MVM_OP_uidtoname 6
+#define MVM_OP_getusername 7
+#define MVM_OP_getuid 8
+#define MVM_OP_getgid 9
+#define MVM_OP_gethomedir 10
+#define MVM_OP_getencoding 11
+#define MVM_OP_procshell 12
+#define MVM_OP_procshellbg 13
+#define MVM_OP_procrun 14
+#define MVM_OP_procrunbg 15
+#define MVM_OP_prockill 16
+#define MVM_OP_procwait 17
+#define MVM_OP_procalive 18
+#define MVM_OP_detach 19
+#define MVM_OP_daemonize 19
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);

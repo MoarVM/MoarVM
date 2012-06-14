@@ -6,6 +6,8 @@ class MAST::OpBanks {
     our $string := 2;
     our $math := 3;
     our $object := 4;
+    our $io := 5;
+    our $processthread := 6;
 }
 class MAST::Ops {
     our $primitives := nqp::hash(
@@ -127,8 +129,7 @@ class MAST::Ops {
         'say_i', 0,
         'say_s', 1,
         'say_n', 2,
-        'sleep', 3,
-        'slurp', 4
+        'sleep', 3
     );
     our $string := nqp::hash(
         'concat_s', 0,
@@ -169,5 +170,66 @@ class MAST::Ops {
         'create', 5,
         'gethow', 6,
         'getwhat', 7
+    );
+    our $io := nqp::hash(
+        'copy_s', 0,
+        'append_s', 1,
+        'rename_s', 2,
+        'delete_s', 3,
+        'chmod_s', 4,
+        'mkdir_s', 5,
+        'open_fh', 6,
+        'close_fh', 7,
+        'read_fhs', 8,
+        'read_fhbuf', 9,
+        'slurp', 10,
+        'spew', 11,
+        'write_fhs', 12,
+        'write_fhbuf', 13,
+        'seek_fh', 14,
+        'lock_fh', 15,
+        'unlock_fh', 16,
+        'flush_fh', 17,
+        'sync_fh', 18,
+        'pipe_fh', 19,
+        'trunc_fh', 20,
+        'getstdin', 21,
+        'getstdout', 22,
+        'getstderr', 23,
+        'open_sk', 24,
+        'close_sk', 25,
+        'bind_sk', 26,
+        'send_sks', 27,
+        'send_skbuf', 28,
+        'recv_sks', 29,
+        'recv_skbuf', 30,
+        'getaddr_sk', 31,
+        'hostname', 32,
+        'nametoaddr', 33,
+        'addrtoname', 34,
+        'porttosvc', 35
+    );
+    our $processthread := nqp::hash(
+        'getenv', 0,
+        'setenv', 1,
+        'delenv', 2,
+        'nametogid', 3,
+        'gidtoname', 4,
+        'nametouid', 5,
+        'uidtoname', 6,
+        'getusername', 7,
+        'getuid', 8,
+        'getgid', 9,
+        'gethomedir', 10,
+        'getencoding', 11,
+        'procshell', 12,
+        'procshellbg', 13,
+        'procrun', 14,
+        'procrunbg', 15,
+        'prockill', 16,
+        'procwait', 17,
+        'procalive', 18,
+        'detach', 19,
+        'daemonize', 19
     );
 }
