@@ -82,8 +82,31 @@ our sub sval($val) {
     MAST::SVal.new( :value($val) )
 }
 
+our sub const($frame, $val) {
+    my $type;
+    my $op;
+    if ($val ~~ MAST::SVal) {
+        $type := str;
+        $op := 'const_s';
+    }
+    elsif ($val ~~ MAST::NVal) {
+        $type := num;
+        $op := 'const_n64';
+    }
+    elsif ($val ~~ MAST::IVal) {
+        $type := int;
+        $op := 'const_i64';
+    }
+    else {
+        nqp::die('invalid constant provided');
+    }
+    my $local := local($frame, $type);
+    op($frame.instructions, $op, $local, $val);
+    return $local;
+}
+
 our sub local($frame, $type) {
-    MAST::Local.new(:index($frame.add_local($type)));
+    return MAST::Local.new(:index($frame.add_local($type)));
 }
 
 our sub call(@ins, $target, @flags, :$result, *@args) {
