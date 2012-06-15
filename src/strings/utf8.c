@@ -268,18 +268,23 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
 }
 
 /* Encodes the specified string to UTF-8. */
-MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
+MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
+        MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     
     /* allocate the resulting string. XXX TODO: grow as we go as needed if the string is huge */
-    MVMuint8 *result = malloc(sizeof(MVMint32) * str->body.graphs);
+    MVMuint8 *result = malloc(sizeof(MVMint32) * length);
     MVMuint8 *arr = result;
-    size_t i = 0;
-    memset(result, 0, sizeof(MVMint32) * str->body.graphs);
-    while (i < str->body.graphs && (arr = utf8_encode(arr, str->body.data[i++])));
+    size_t i = start;
+    memset(result, 0, sizeof(MVMint32) * length);
+    while (i < length && (arr = utf8_encode(arr, str->body.data[i++])));
     if (!arr)
         MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d", i - 1);
     *output_size = (MVMuint64)(arr ? arr - result : 0);
     return result;
+}
+/* Encodes the specified string to UTF-8. */
+MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
+    return MVM_string_utf8_encode_substr(tc, str, output_size, 0, str->body.graphs);
 }
 
 /* Encodes the specified string to a C string. */
