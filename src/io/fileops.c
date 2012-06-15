@@ -3,12 +3,15 @@
 #define POOL(tc) (*(tc->interp_cu))->pool
 
 /* cache the oshandle repr */
-static MVMREPROps *oshandle_repr;
-static MVMREPROps * get_oshandle_repr(MVMThreadContext *tc) {
-    if (!oshandle_repr)
-        oshandle_repr = MVM_repr_get_by_name(tc, MVM_string_ascii_decode_nt(tc,
-                tc->instance->boot_types->BOOTStr, "MVMOSHandle"));
-    return oshandle_repr;
+static MVMObject *anon_oshandle_type;
+static MVMObject * get_anon_oshandle_type(MVMThreadContext *tc) {
+    if (!anon_oshandle_type) {
+        /* fake up an anonymous type using MVMOSHandle REPR */
+        anon_oshandle_type = MVM_repr_get_by_name(tc, MVM_string_ascii_decode_nt(tc,
+                tc->instance->boot_types->BOOTStr, "MVMOSHandle"))->type_object_for(tc,
+                REPR(tc->instance->KnowHOW)->allocate(tc, STABLE(tc->instance->KnowHOW)));
+    }
+    return anon_oshandle_type;
 }
 
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path) {
@@ -168,10 +171,10 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
     free(output);
 }
 
-/* return an OSHandle representing stdout */
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    MVMOSHandle *result = (MVMOSHandle *)get_oshandle_repr(tc)->allocate(tc,
-        MVM_gc_allocate_stable(tc, get_oshandle_repr(tc), NULL));
+/* return an OSHandle representing one of the standard streams */
+static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
+    MVMOSHandle *result = (MVMOSHandle *)REPR(get_anon_oshandle_type(tc))->allocate(tc,
+        STABLE(get_anon_oshandle_type(tc)));
     apr_file_t  *handle;
     apr_status_t rv;
     
@@ -180,9 +183,31 @@ MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
         MVM_exception_throw_apr_error(tc, rv, "get_stdout failed to create pool: ");
     }
     
-    apr_file_open_stdout(&handle, result->body.mem_pool);
+    switch(type) {
+        case 0:
+            apr_file_open_stdin(&handle, result->body.mem_pool);
+            break;
+        case 1:
+            apr_file_open_stdout(&handle, result->body.mem_pool);
+            break;
+        case 2:
+            apr_file_open_stderr(&handle, result->body.mem_pool);
+            break;
+    }
     result->body.file_handle = handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
     
     return (MVMObject *)result;
+}
+
+MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
+    return MVM_file_get_stdstream(tc, 0);
+}
+
+MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
+    return MVM_file_get_stdstream(tc, 1);
+}
+
+MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
+    return MVM_file_get_stdstream(tc, 2);
 }
