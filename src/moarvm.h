@@ -9,6 +9,7 @@
 #include <apr_file_io.h>
 #include <apr_mmap.h>
 #include <apr_network_io.h>
+#include <apr_strings.h>
 
 /* Configuration. */
 #include "gen/config.h"

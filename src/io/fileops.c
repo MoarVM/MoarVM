@@ -24,10 +24,10 @@ char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *
     if (rv != APR_SUCCESS) {
         /* path is relative so needs cwd prepended */
         rv = apr_filepath_get(&cwd, 0, tmp_pool);
-        return (char *)apr_pstrcat(tmp_pool, cwd, "/", path, NULL);
+        return apr_pstrcat(tmp_pool, cwd, "/", path, NULL);
     }
     /* the path is already absolute */
-    return (char *)apr_pstrcat(tmp_pool, path, NULL);
+    return apr_pstrcat(tmp_pool, path, NULL);
 }
 
 /* copy a file from one to another. */
