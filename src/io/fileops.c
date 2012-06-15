@@ -14,6 +14,18 @@ MVMObject * MVM_file_get_anon_oshandle_type(MVMThreadContext *tc) {
     return anon_oshandle_type;
 }
 
+static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
+
+    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
+    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
+        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle");
+    }
+    *handle = (MVMOSHandle *)oshandle;
+    if ((*handle)->body.handle_type != MVM_OSHANDLE_FILE) {
+        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle");
+    }
+}
+
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path) {
     apr_status_t rv;
     char *rootpath, *cwd;
@@ -96,6 +108,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
     return result;
 }
 
+/* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 flag) {
     MVMOSHandle *result;
     apr_status_t rv;
@@ -127,15 +140,14 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     return (MVMObject *)result;
 }
 
-static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
-
-    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
-    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
-        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle");
-    }
-    *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.handle_type != MVM_OSHANDLE_FILE) {
-        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle");
+void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "close filehandle");
+    
+    if ((rv = apr_file_close(handle->body.file_handle)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to close filehandle: ");
     }
 }
 

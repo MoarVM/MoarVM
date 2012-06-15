@@ -729,6 +729,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                         cur_op += 8;
                         break;
+                    case MVM_OP_close_fh:
+                        MVM_file_close_fh(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
                     case MVM_OP_read_fhs:
                         GET_REG(cur_op, 0).s = MVM_file_read_fhs(tc, GET_REG(cur_op, 2).o,
                             GET_REG(cur_op, 4).i64);
