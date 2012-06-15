@@ -70,7 +70,7 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     return (MVMObject *)result;
 }
 
-MVM_socket_close(MVMThreadContext *tc, MVMObject *oshandle) {
+void MVM_socket_close(MVMThreadContext *tc, MVMObject *oshandle) {
     apr_status_t rv;
     MVMOSHandle *handle;
     
