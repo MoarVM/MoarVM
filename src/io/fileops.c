@@ -11,40 +11,86 @@ static MVMREPROps * get_oshandle_repr(MVMThreadContext *tc) {
     return oshandle_repr;
 }
 
+char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path) {
+    apr_status_t rv;
+    char *rootpath, *cwd;
+    
+    /* determine whether the given path is absolute */
+    rv = apr_filepath_root((const char **)&rootpath, (const char **)&path, 0, tmp_pool);
+    
+    if (rv != APR_SUCCESS) {
+        /* path is relative so needs cwd prepended */
+        rv = apr_filepath_get(&cwd, 0, tmp_pool);
+        return apr_pstrcat(tmp_pool, cwd, "/", path, NULL);
+    }
+    /* the path is already absolute */
+    return apr_pstrcat(tmp_pool, path, NULL);
+}
+
+/* copy a file from one to another. sometimes freezes for a while on windows. :/ */
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     apr_status_t rv;
-    const char *a, *b;
+    char *a, *b, *afull, *bfull;
+    MVMuint32 len;
+    apr_pool_t *tmp_pool;
     
-    a = (const char *) MVM_string_utf8_encode_C_string(tc, src);
-    b = (const char *) MVM_string_utf8_encode_C_string(tc, dest);
-    
-    if ((rv = apr_file_copy(a, b, APR_FILE_SOURCE_PERMS, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to copy '%s' to '%s': ", a, b);
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to copy file: ");
     }
+    
+    afull = MVM_file_get_full_path(tc, tmp_pool, a = MVM_string_utf8_encode_C_string(tc, src));
+    bfull = MVM_file_get_full_path(tc, tmp_pool, b = MVM_string_utf8_encode_C_string(tc, dest));
+    free(a); free(b);
+    
+    if ((rv = apr_file_copy((const char *)afull, (const char *)bfull,
+            0, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
+        MVM_exception_throw_apr_error(tc, rv, "Failed to copy file: ");
+    }
+    apr_pool_destroy(tmp_pool);
 }
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     apr_status_t rv;
     const char *a;
+    apr_pool_t *tmp_pool;
+    
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
+    }
     
     a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
     
     /* 720002 means file wasn't there on windows, 2 on linux...  */
     /* TODO find defines for these and make it os-specific */
-    if ((rv = apr_file_remove(a, POOL(tc))) != APR_SUCCESS && rv != 720002 && rv != 2) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to delete '%s': ", a);
+    if ((rv = apr_file_remove(a, tmp_pool)) != APR_SUCCESS && rv != 720002 && rv != 2) {
+        apr_pool_destroy(tmp_pool);
+        MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
     }
+    apr_pool_destroy(tmp_pool);
 }
 
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
     apr_status_t rv;
-    const char *a;
+    char *a;
     apr_finfo_t  stat_info;
+    apr_pool_t *tmp_pool;
+    MVMint64 result;
     
-    a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to exists file: ");
+    }
     
-    return ((rv = apr_stat(&stat_info, a, APR_FINFO_SIZE, POOL(tc))) == APR_SUCCESS)
+    a = MVM_string_utf8_encode_C_string(tc, f);
+    
+    result = ((rv = apr_stat(&stat_info, (const char *)a, APR_FINFO_SIZE, tmp_pool)) == APR_SUCCESS)
         ? 1 : 0;
+    free(a);
+    apr_pool_destroy(tmp_pool);
+    return result;
 }
 
 /* read all of a file into a string */
@@ -55,19 +101,27 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
     apr_finfo_t finfo;
     apr_mmap_t *mmap;
     char *fname = MVM_string_utf8_encode_C_string(tc, filename);
-    apr_pool_t *mp = POOL(tc);
+    apr_pool_t *tmp_pool;
+    
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to create pool: ");
+    }
     
     /* TODO detect encoding (ucs4, latin1, utf8 (including ascii/ansi), utf16).
      * Currently assume utf8. */
     
-    if ((rv = apr_file_open(&fp, fname, APR_READ, APR_OS_DEFAULT, mp)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to open file '%s': ", fname);
+    if ((rv = apr_file_open(&fp, fname, APR_READ, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
+        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to open file: ");
     }
     if ((rv = apr_file_info_get(&finfo, APR_FINFO_SIZE, fp)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to get info about file '%s': ", fname);
+        apr_pool_destroy(tmp_pool);
+        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to get info about file: ");
     }
-    if ((rv = apr_mmap_create(&mmap, fp, 0, finfo.size, APR_MMAP_READ, mp)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to mmap file '%s': ", fname);
+    if ((rv = apr_mmap_create(&mmap, fp, 0, finfo.size, APR_MMAP_READ, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
+        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to mmap file: ");
     }
     
     /* no longer need the filehandle */
@@ -78,6 +132,7 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
     
     /* delete the mmap */
     apr_mmap_delete(mmap);
+    apr_pool_destroy(tmp_pool);
     
     return result;
 }
@@ -109,8 +164,14 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
     MVMOSHandle *result = (MVMOSHandle *)get_oshandle_repr(tc)->allocate(tc, NULL);
     apr_file_t  *handle;
+    apr_status_t rv;
     
-    apr_file_open_stdout(&handle, POOL(tc));
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&result->body.mem_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "get_stdout failed to create pool: ");
+    }
+    
+    apr_file_open_stdout(&handle, result->body.mem_pool);
     result->body.file_handle = handle;
     
     return (MVMObject *)result;

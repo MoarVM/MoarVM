@@ -2,6 +2,7 @@
 typedef struct _MVMOSHandleBody {
     /* see MVMOSHandleTypes */
     MVMuint8 handle_type;
+    apr_pool_t *mem_pool;
     
     union {
         apr_file_t   *file_handle;

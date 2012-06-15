@@ -58,6 +58,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             apr_socket_close(handle->body.socket);
             break;
     }
+    apr_pool_destroy(handle->body.mem_pool);
 }
 
 /* Gets the storage specification for this representation. */
