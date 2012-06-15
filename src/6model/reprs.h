@@ -6,6 +6,7 @@
 #include "6model/reprs/KnowHOWREPR.h"
 #include "6model/reprs/P6opaque.h"
 #include "6model/reprs/MVMCode.h"
+#include "6model/reprs/MVMOSHandle.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -22,3 +23,4 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_KnowHOWREPR     4
 #define MVM_REPR_ID_P6opaque        5
 #define MVM_REPR_ID_MVMCode         6
+#define MVM_REPR_ID_MVMOSHandle     7
