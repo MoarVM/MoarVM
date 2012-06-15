@@ -123,6 +123,18 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     return (MVMObject *)result;
 }
 
+static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
+
+    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
+    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
+        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle");
+    }
+    *handle = (MVMOSHandle *)oshandle;
+    if ((*handle)->body.handle_type != MVM_OSHANDLE_FILE) {
+        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle");
+    }
+}
+
 /* reads a string from a filehandle.  Assumes utf8 for now */
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;
@@ -134,14 +146,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     /* XXX TODO length currently means bytes. alter it to mean graphemes. */
     /* XXX TODO handle length == -1 to mean read to EOF */
     
-    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
-    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
-        MVM_exception_throw_adhoc(tc, "read from filehandle requires an object with REPR MVMOSHandle");
-    }
-    handle = (MVMOSHandle *)oshandle;
-    if (handle->body.handle_type != MVM_OSHANDLE_FILE) {
-        MVM_exception_throw_adhoc(tc, "read from filehandle requires an MVMOSHandle of type file handle");
-    }
+    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
     
     if (length < 1 || length > 99999999) {
         MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
@@ -213,14 +218,7 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
     apr_size_t bytes_written;
     MVMOSHandle *handle;
     
-    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
-    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
-        MVM_exception_throw_adhoc(tc, "write to filehandle requires an object with REPR MVMOSHandle");
-    }
-    handle = (MVMOSHandle *)oshandle;
-    if (handle->body.handle_type != MVM_OSHANDLE_FILE) {
-        MVM_exception_throw_adhoc(tc, "write to filehandle requires an MVMOSHandle of type file handle");
-    }
+    verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
     
     if (length < 0)
         length = str->body.graphs - start;
@@ -269,14 +267,7 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
     apr_status_t rv;
     MVMOSHandle *handle;
     
-    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
-    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
-        MVM_exception_throw_adhoc(tc, "eof filehandle requires an object with REPR MVMOSHandle");
-    }
-    handle = (MVMOSHandle *)oshandle;
-    if (handle->body.handle_type != MVM_OSHANDLE_FILE) {
-        MVM_exception_throw_adhoc(tc, "eof filehandle requires an MVMOSHandle of type file handle");
-    }
+    verify_filehandle_type(tc, oshandle, &handle, "check eof");
     
     return apr_file_eof(handle->body.file_handle) == APR_EOF ? 1 : 0;
 }
