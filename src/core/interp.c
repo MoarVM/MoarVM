@@ -748,16 +748,16 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     case MVM_OP_getstdin:
-                        GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc);
-                        cur_op += 2;
+                        GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
                         break;
                     case MVM_OP_getstdout:
-                        GET_REG(cur_op, 0).o = MVM_file_get_stdout(tc);
-                        cur_op += 2;
+                        GET_REG(cur_op, 0).o = MVM_file_get_stdout(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
                         break;
                     case MVM_OP_getstderr:
-                        GET_REG(cur_op, 0).o = MVM_file_get_stderr(tc);
-                        cur_op += 2;
+                        GET_REG(cur_op, 0).o = MVM_file_get_stderr(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
                         break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",

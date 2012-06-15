@@ -7,6 +7,6 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename);
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
 MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
-MVMObject * MVM_file_get_stdin(MVMThreadContext *tc);
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc);
-MVMObject * MVM_file_get_stderr(MVMThreadContext *tc);
+MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object);
+MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object);
+MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object);

@@ -103,6 +103,10 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     apr_file_t *file_handle;
     char *fname = MVM_string_utf8_encode_C_string(tc, filename);
     
+    if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
+        MVM_exception_throw_adhoc(tc, "Open file needs a type object with MVMOSHandle REPR");
+    }
+    
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
@@ -235,11 +239,16 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
 }
 
 /* return an OSHandle representing one of the standard streams */
-static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
-    MVMOSHandle *result = (MVMOSHandle *)REPR(MVM_file_get_anon_oshandle_type(tc))->allocate(tc,
-        STABLE(MVM_file_get_anon_oshandle_type(tc)));
+static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_object, MVMuint8 type) {
+    MVMOSHandle *result;
     apr_file_t  *handle;
     apr_status_t rv;
+    
+    if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
+        MVM_exception_throw_adhoc(tc, "Open stream needs a type object with MVMOSHandle REPR");
+    }
+    
+    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&result->body.mem_pool, NULL)) != APR_SUCCESS) {
@@ -272,14 +281,14 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
     return apr_file_eof(handle->body.file_handle) == APR_EOF ? 1 : 0;
 }
 
-MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 0);
+MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object) {
+    return MVM_file_get_stdstream(tc, type_object, 0);
 }
 
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 1);
+MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object) {
+    return MVM_file_get_stdstream(tc, type_object, 1);
 }
 
-MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 2);
+MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object) {
+    return MVM_file_get_stdstream(tc, type_object, 2);
 }

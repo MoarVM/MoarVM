@@ -1107,20 +1107,20 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_getstdin,
         "getstdin",
-        1,
-        { MVM_operand_write_reg | MVM_operand_obj }
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_getstdout,
         "getstdout",
-        1,
-        { MVM_operand_write_reg | MVM_operand_obj }
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_getstderr,
         "getstderr",
-        1,
-        { MVM_operand_write_reg | MVM_operand_obj }
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_open_sk,
