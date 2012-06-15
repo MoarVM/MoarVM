@@ -163,7 +163,7 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
     bytes_written = (apr_size_t) output_size;
     if ((rv = apr_file_write(handle->body.file_handle, (const void *)output, &bytes_written)) != APR_SUCCESS) {
         free(output);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to write bytes to filehandle: tried to write %u, wrote %u: ", output_size, bytes_written);
+        MVM_exception_throw_apr_error(tc, rv, "Failed to write bytes to filehandle: tried to write %u bytes, wrote %u bytes: ", output_size, bytes_written);
     }
     free(output);
 }
