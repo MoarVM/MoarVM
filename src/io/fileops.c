@@ -27,7 +27,7 @@ char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *
     return (char *)apr_pstrcat(tmp_pool, path, NULL);
 }
 
-/* copy a file from one to another. sometimes freezes for a while on windows. :/ */
+/* copy a file from one to another. */
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     apr_status_t rv;
     char *a, *b, *afull, *bfull;
