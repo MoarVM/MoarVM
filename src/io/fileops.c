@@ -143,11 +143,19 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
     MVMuint8 *output;
     MVMuint64 output_size;
     apr_size_t bytes_written;
-    /* XXX TODO must check REPR and handle type of this object */
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
+    MVMOSHandle *handle;
+    
+    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
+    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
+        MVM_exception_throw_adhoc(tc, "write to filehandle requires an object with REPR MVMOSHandle");
+    }
+    handle = (MVMOSHandle *)oshandle;
+    if (handle->body.handle_type != MVM_OSHANDLE_FILE) {
+        MVM_exception_throw_adhoc(tc, "write to filehandle requires an MVMOSHandle of type file handle");
+    }
     
     if (length < 0)
-        length = str->body.graphs;
+        length = str->body.graphs - start;
     else if (start + length > str->body.graphs)
         MVM_exception_throw_adhoc(tc, "write to filehandle start + length past end of string");
     
@@ -162,7 +170,8 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
 
 /* return an OSHandle representing stdout */
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    MVMOSHandle *result = (MVMOSHandle *)get_oshandle_repr(tc)->allocate(tc, NULL);
+    MVMOSHandle *result = (MVMOSHandle *)get_oshandle_repr(tc)->allocate(tc,
+        MVM_gc_allocate_stable(tc, get_oshandle_repr(tc), NULL));
     apr_file_t  *handle;
     apr_status_t rv;
     
@@ -173,6 +182,7 @@ MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
     
     apr_file_open_stdout(&handle, result->body.mem_pool);
     result->body.file_handle = handle;
+    result->body.handle_type = MVM_OSHANDLE_FILE;
     
     return (MVMObject *)result;
 }
