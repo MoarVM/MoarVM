@@ -21,7 +21,7 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     apr_pool_t *tmp_pool;
     apr_socket_t *socket;
     apr_sockaddr_t *sa;
-    int family = APR_UNSPEC; /*APR_INET; /* TODO: detect family from ip address format or the ip address resolving from the hostname */
+    int family = APR_INET; /* TODO: detect family from ip address format or the ip address resolving from the hostname */
     int type = SOCK_STREAM;
     int protocol_int = (int)protocol;
     char *hostname_cstring;
@@ -52,7 +52,7 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
         MVM_exception_throw_adhoc(tc, "Open socket needs a hostname or IP address");
     }
     
-    if ((rv = apr_sockaddr_info_get(&sa, (const char *)hostname_cstring, family, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
+    if ((rv = apr_sockaddr_info_get(&sa, (const char *)hostname_cstring, APR_UNSPEC, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Open socket failed to study address/port: ");
     }
     
