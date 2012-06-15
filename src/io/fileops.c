@@ -20,9 +20,9 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     
     a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
     
-    /* 720002 means file wasn't there */
-    /* TODO investigate if 720002 is cross-platform, or what constant defines it */
-    if ((rv = apr_file_remove(a, POOL(tc))) != APR_SUCCESS && rv != 720002) {
+    /* 720002 means file wasn't there on windows, 2 on linux...  */
+    /* TODO find defines for these and make it os-specific */
+    if ((rv = apr_file_remove(a, POOL(tc))) != APR_SUCCESS && rv != 720002 && rv != 2) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to delete '%s': ", a);
     }
 }
