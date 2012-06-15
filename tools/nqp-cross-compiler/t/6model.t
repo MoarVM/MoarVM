@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(1);
+plan(2);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, NQPMu);
