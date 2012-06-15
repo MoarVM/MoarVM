@@ -205,7 +205,7 @@ class MAST::Ops {
         'getstdin', 27,
         'getstdout', 28,
         'getstderr', 29,
-        'open_sk', 30,
+        'connect_sk', 30,
         'close_sk', 31,
         'bind_sk', 32,
         'send_sks', 33,

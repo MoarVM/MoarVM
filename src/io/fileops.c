@@ -132,7 +132,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     
     /* initialize the object */
     result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-        
+    
     result->body.file_handle = file_handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
     result->body.mem_pool = tmp_pool;

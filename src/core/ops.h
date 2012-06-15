@@ -204,7 +204,7 @@
 #define MVM_OP_getstdin 27
 #define MVM_OP_getstdout 28
 #define MVM_OP_getstderr 29
-#define MVM_OP_open_sk 30
+#define MVM_OP_connect_sk 30
 #define MVM_OP_close_sk 31
 #define MVM_OP_bind_sk 32
 #define MVM_OP_send_sks 33

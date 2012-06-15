@@ -1123,8 +1123,8 @@ static MVMOpInfo MVM_op_info_io[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_open_sk,
-        "open_sk",
+        MVM_OP_connect_sk,
+        "connect_sk",
         5,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },

@@ -193,7 +193,7 @@ BANK 5 io
 0x1B    getstdin    w(obj) r(obj)
 0x1C    getstdout   w(obj) r(obj)
 0x1D    getstderr   w(obj) r(obj)
-0x1E    open_sk     w(obj) r(obj) r(str) r(int64) r(int64)
+0x1E    connect_sk  w(obj) r(obj) r(str) r(int64) r(int64)
 0x1F    close_sk    r(obj)
 0x20    bind_sk     r(obj) r(str) r(int64)
 0x21    send_sks    r(obj) r(str)
