@@ -1099,6 +1099,12 @@ static MVMOpInfo MVM_op_info_io[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
+        MVM_OP_eof_fh,
+        "eof_fh",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_getstdin,
         "getstdin",
         1,
@@ -1334,7 +1340,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     13,
     13,
     10,
-    41,
+    42,
     21,
 };
 

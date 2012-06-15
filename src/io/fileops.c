@@ -265,6 +265,22 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
     return (MVMObject *)result;
 }
 
+MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    
+    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
+    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
+        MVM_exception_throw_adhoc(tc, "eof filehandle requires an object with REPR MVMOSHandle");
+    }
+    handle = (MVMOSHandle *)oshandle;
+    if (handle->body.handle_type != MVM_OSHANDLE_FILE) {
+        MVM_exception_throw_adhoc(tc, "eof filehandle requires an MVMOSHandle of type file handle");
+    }
+    
+    return apr_file_eof(handle->body.file_handle) == APR_EOF ? 1 : 0;
+}
+
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
     return MVM_file_get_stdstream(tc, 0);
 }

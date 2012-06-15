@@ -743,6 +743,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
                         cur_op += 8;
                         break;
+                    case MVM_OP_eof_fh:
+                        GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_getstdin:
                         GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc);
                         cur_op += 2;
