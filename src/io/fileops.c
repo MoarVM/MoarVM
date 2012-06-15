@@ -244,7 +244,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
     apr_status_t rv;
     
     /* need a temporary pool */
-    if ((rv = apr_pool_create(&result->body.mem_pool, POOL(tc))) != APR_SUCCESS) {
+    if ((rv = apr_pool_create(&result->body.mem_pool, NULL)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "get_stream failed to create pool: ");
     }
     
