@@ -330,6 +330,8 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             /* Check the type matches. */
             if (op_type != ws->cur_frame->local_types[l->index] << 3) {
                 cleanup_all(vm, ws);
+                Parrot_ex_throw_from_c_args(vm, NULL, EXCEPTION_INVALID_OPERATION,
+                    "local index %d, wanted: %d, got: %d", l->index, op_type >> 3, ws->cur_frame->local_types[l->index]);
                 DIE(vm, "MAST::Local of wrong type specified");
             }
             

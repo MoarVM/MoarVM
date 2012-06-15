@@ -2,6 +2,15 @@
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
+/* cache the oshandle repr */
+static MVMREPROps *oshandle_repr;
+static MVMREPROps * get_oshandle_repr(MVMThreadContext *tc) {
+    if (!oshandle_repr)
+        oshandle_repr = MVM_repr_get_by_name(tc, MVM_string_ascii_decode_nt(tc,
+                tc->instance->boot_types->BOOTStr, "MVMOSHandle"));
+    return oshandle_repr;
+}
+
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     apr_status_t rv;
     const char *a, *b;
@@ -71,4 +80,38 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
     apr_mmap_delete(mmap);
     
     return result;
+}
+
+/* writes a string to a filehandle.  XXX writes only utf8 for now. */
+void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint64 start, MVMint64 length) {
+    apr_status_t rv;
+    MVMuint8 *output;
+    MVMuint64 output_size;
+    apr_size_t bytes_written;
+    /* XXX TODO must check REPR and handle type of this object */
+    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
+    
+    if (length < 0)
+        length = str->body.graphs;
+    else if (start + length > str->body.graphs)
+        MVM_exception_throw_adhoc(tc, "write to filehandle start + length past end of string");
+    
+    output = MVM_string_utf8_encode_substr(tc, str, &output_size, start, length);
+    bytes_written = (apr_size_t) output_size;
+    if ((rv = apr_file_write(handle->body.file_handle, (const void *)output, &bytes_written)) != APR_SUCCESS) {
+        free(output);
+        MVM_exception_throw_apr_error(tc, rv, "Failed to write bytes to filehandle: tried to write %u, wrote %u: ", output_size, bytes_written);
+    }
+    free(output);
+}
+
+/* return an OSHandle representing stdout */
+MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
+    MVMOSHandle *result = (MVMOSHandle *)get_oshandle_repr(tc)->allocate(tc, NULL);
+    apr_file_t  *handle;
+    
+    apr_file_open_stdout(&handle, POOL(tc));
+    result->body.file_handle = handle;
+    
+    return (MVMObject *)result;
 }
