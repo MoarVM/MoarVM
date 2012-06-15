@@ -506,10 +506,6 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         apr_sleep((apr_interval_time_t)GET_REG(cur_op, 0).i64);
                         cur_op += 2;
                         break;
-                    case MVM_OP_slurp:
-                        GET_REG(cur_op, 0).s = MVM_slurp_filename(tc, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_dev, *(cur_op-1));
@@ -688,6 +684,30 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         break;
                     case MVM_OP_getwhat:
                         GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
+                        cur_op += 4;
+                        break;
+                    default: {
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_object, *(cur_op-1));
+                    }
+                    break;
+                }
+            }
+            break;
+            
+            /* IO operations. */
+            case MVM_OP_BANK_io: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_copy_f:
+                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_delete_f:
+                        MVM_file_delete(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_slurp:
+                        GET_REG(cur_op, 0).s = MVM_file_slurp(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
                     default: {
