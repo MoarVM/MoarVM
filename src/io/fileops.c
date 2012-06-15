@@ -14,6 +14,30 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     }
 }
 
+void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
+    apr_status_t rv;
+    const char *a;
+    
+    a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
+    
+    /* 720002 means file wasn't there */
+    /* TODO investigate if 720002 is cross-platform, or what constant defines it */
+    if ((rv = apr_file_remove(a, POOL(tc))) != APR_SUCCESS && rv != 720002) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to delete '%s': ", a);
+    }
+}
+
+MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
+    apr_status_t rv;
+    const char *a;
+    apr_finfo_t  stat_info;
+    
+    a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
+    
+    return ((rv = apr_stat(&stat_info, a, APR_FINFO_SIZE, POOL(tc))) == APR_SUCCESS)
+        ? 1 : 0;
+}
+
 /* read all of a file into a string */
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
     MVMString *result;

@@ -165,7 +165,7 @@ BANK 5 io
 0x02    rename_f    r(str) r(str)
 0x03    delete_f    r(str)
 0x04    chmod_f     r(str) r(int64)
-0x05    exists_f    r(str)
+0x05    exists_f    w(int64) r(str)
 0x06    mkdir       r(str)
 0x07    rmdir       r(str)
 0x08    open_dir    w(obj) r(obj) r(str)

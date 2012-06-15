@@ -703,7 +703,11 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     case MVM_OP_delete_f:
-                        MVM_file_delete(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        MVM_file_delete(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_exists_f:
+                        GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
                     case MVM_OP_slurp:

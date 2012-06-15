@@ -10,9 +10,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'delete_f', $r1);
         op(@ins, 'copy_f', $r0, $r1);
         op(@ins, 'exists_f', $r2, $r1);
-        op(@ins, 'say_s', $r2);
+        op(@ins, 'say_i', $r2);
         op(@ins, 'delete_f', $r1);
         op(@ins, 'return');
     },
-    "\n",
-    "slurp");
+    "1\n",
+    "file copy, exists, delete");

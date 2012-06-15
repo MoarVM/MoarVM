@@ -957,8 +957,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_exists_f,
         "exists_f",
-        1,
-        { MVM_operand_read_reg | MVM_operand_str }
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_mkdir,
