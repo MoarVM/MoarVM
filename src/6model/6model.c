@@ -17,3 +17,13 @@ MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMStri
         MVM_exception_throw_adhoc(tc, "Missing method cache; late-bound dispatch NYI");
     }
 }
+
+/* Returns the repr id of the object */
+MVMint64 MVM_6model_get_reprid(MVMThreadContext *tc, MVMObject *obj) {
+    return (MVMint64)REPR(obj)->ID;
+}
+
+/* Returns whether the object is concrete */
+MVMint64 MVM_6model_is_concrete(MVMThreadContext *tc, MVMObject *obj) {
+    return (MVMint64)(IS_CONCRETE(obj) ? 1 : 0);
+}

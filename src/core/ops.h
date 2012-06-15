@@ -169,6 +169,8 @@
 #define MVM_OP_create 5
 #define MVM_OP_gethow 6
 #define MVM_OP_getwhat 7
+#define MVM_OP_reprid 8
+#define MVM_OP_concrete 9
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

@@ -158,6 +158,8 @@ BANK 4 object
 0x05    create      w(obj) r(obj)
 0x06    gethow      w(obj) r(obj)
 0x07    getwhat     w(obj) r(obj)
+0x08    reprid      w(int64) r(obj)
+0x09    concrete    w(int64) r(obj)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)
