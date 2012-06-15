@@ -712,6 +712,12 @@ static MVMOpInfo MVM_op_info_dev[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_anonoshtype,
+        "anonoshtype",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_string[] = {
     {
@@ -1005,8 +1011,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_open_fh,
         "open_fh",
-        3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+        4,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_close_fh,
@@ -1324,7 +1330,7 @@ static unsigned char MVM_op_banks = 7;
 
 static unsigned char MVM_opcounts_by_bank[] = {
     113,
-    4,
+    5,
     13,
     13,
     10,

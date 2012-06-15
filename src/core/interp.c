@@ -506,6 +506,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         apr_sleep((apr_interval_time_t)GET_REG(cur_op, 0).i64);
                         cur_op += 2;
                         break;
+                    case MVM_OP_anonoshtype:
+                        GET_REG(cur_op, 0).o = MVM_file_get_anon_oshandle_type(tc);
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_dev, *(cur_op-1));
@@ -719,6 +723,16 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                     case MVM_OP_exists_f:
                         GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
+                        break;
+                    case MVM_OP_open_fh:
+                        GET_REG(cur_op, 0).o = MVM_file_open_fh(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
+                        break;
+                    case MVM_OP_read_fhs:
+                        GET_REG(cur_op, 0).s = MVM_file_read_fhs(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
                         break;
                     case MVM_OP_slurp:
                         GET_REG(cur_op, 0).s = MVM_file_slurp(tc, GET_REG(cur_op, 2).s);

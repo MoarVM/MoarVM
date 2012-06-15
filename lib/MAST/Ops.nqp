@@ -129,7 +129,8 @@ class MAST::Ops {
         'say_i', 0,
         'say_s', 1,
         'say_n', 2,
-        'sleep', 3
+        'sleep', 3,
+        'anonoshtype', 4
     );
     our $string := nqp::hash(
         'concat_s', 0,

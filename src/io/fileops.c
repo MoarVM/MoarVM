@@ -4,7 +4,7 @@
 
 /* cache the oshandle repr */
 static MVMObject *anon_oshandle_type;
-static MVMObject * get_anon_oshandle_type(MVMThreadContext *tc) {
+MVMObject * MVM_file_get_anon_oshandle_type(MVMThreadContext *tc) {
     if (!anon_oshandle_type) {
         /* fake up an anonymous type using MVMOSHandle REPR */
         anon_oshandle_type = MVM_repr_get_by_name(tc, MVM_string_ascii_decode_nt(tc,
@@ -96,6 +96,71 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
     return result;
 }
 
+MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 flag) {
+    MVMOSHandle *result;
+    apr_status_t rv;
+    apr_pool_t *tmp_pool;
+    apr_file_t *file_handle;
+    char *fname = MVM_string_utf8_encode_C_string(tc, filename);
+    
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
+    }
+    
+    /* try to open the file */
+    if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
+    }
+    
+    /* initialize the object */
+    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+        
+    result->body.file_handle = file_handle;
+    result->body.handle_type = MVM_OSHANDLE_FILE;
+    result->body.mem_pool = tmp_pool;
+    
+    return (MVMObject *)result;
+}
+
+/* reads a string from a filehandle.  Assumes utf8 for now */
+MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
+    MVMString *result;
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    char *buf;
+    MVMint64 bytes_read;
+    
+    /* XXX TODO length currently means bytes. alter it to mean graphemes. */
+    /* XXX TODO handle length == -1 to mean read to EOF */
+    
+    /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
+    if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
+        MVM_exception_throw_adhoc(tc, "read from filehandle requires an object with REPR MVMOSHandle");
+    }
+    handle = (MVMOSHandle *)oshandle;
+    if (handle->body.handle_type != MVM_OSHANDLE_FILE) {
+        MVM_exception_throw_adhoc(tc, "read from filehandle requires an MVMOSHandle of type file handle");
+    }
+    
+    if (length < 1 || length > 99999999) {
+        MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
+    }
+    
+    buf = malloc(length);
+    bytes_read = length;
+    
+    if ((rv = apr_file_read(handle->body.file_handle, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "read from filehandle failed: ");
+    }
+    
+    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read);
+    
+    free(buf);
+    
+    return result;
+}
+
 /* read all of a file into a string */
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
     MVMString *result;
@@ -131,7 +196,7 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
     apr_file_close(fp);
     
     /* convert the mmap to a MVMString */
-    result = MVM_string_utf8_decode(tc, (MVMObject *)filename, mmap->mm, finfo.size);
+    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, mmap->mm, finfo.size);
     
     /* delete the mmap */
     apr_mmap_delete(mmap);
@@ -173,8 +238,8 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
 
 /* return an OSHandle representing one of the standard streams */
 static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
-    MVMOSHandle *result = (MVMOSHandle *)REPR(get_anon_oshandle_type(tc))->allocate(tc,
-        STABLE(get_anon_oshandle_type(tc)));
+    MVMOSHandle *result = (MVMOSHandle *)REPR(MVM_file_get_anon_oshandle_type(tc))->allocate(tc,
+        STABLE(MVM_file_get_anon_oshandle_type(tc)));
     apr_file_t  *handle;
     apr_status_t rv;
     
