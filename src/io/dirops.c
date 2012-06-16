@@ -95,11 +95,13 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     
     verify_dirhandle_type(tc, oshandle, &handle, "read from dirhandle");
     
-    if ((rv = apr_dir_read(finfo, APR_FINFO_NAME, handle->body.dir_handle)) != APR_SUCCESS && rv != APR_ENOENT) {
+    if ((rv = apr_dir_read(finfo, APR_FINFO_NAME, handle->body.dir_handle)) != APR_SUCCESS && rv != APR_ENOENT && rv != 720018) {
+        printf("rv is %d\n", rv);
         MVM_exception_throw_apr_error(tc, rv, "read from dirhandle failed: ");
     }
     
-    if (rv == APR_ENOENT) { /* no more entries in the directory */
+    /* TODO investigate magic number 720018 */
+    if (rv == APR_ENOENT || rv == 720018) { /* no more entries in the directory */
         /* XXX TODO: reference some process global empty string instead of creating one */
         result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, "", 0);
     }

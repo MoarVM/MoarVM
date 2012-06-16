@@ -741,7 +741,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 2;
                         break;
                     case MVM_OP_rmdir:
-                        MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s);
+                        MVM_dir_rmdir(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
                     case MVM_OP_open_dir:
