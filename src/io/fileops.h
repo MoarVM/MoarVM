@@ -10,6 +10,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename);
+void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename);
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
 MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object);

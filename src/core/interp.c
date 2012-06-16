@@ -740,6 +740,23 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
+                    case MVM_OP_rmdir:
+                        MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_open_dir:
+                        GET_REG(cur_op, 0).o = MVM_dir_open(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_read_dir:
+                        GET_REG(cur_op, 0).s = MVM_dir_read(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_close_dir:
+                        MVM_dir_close(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
                     case MVM_OP_open_fh:
                         GET_REG(cur_op, 0).o = MVM_file_open_fh(tc, GET_REG(cur_op, 2).o,
                             GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
@@ -756,6 +773,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         break;
                     case MVM_OP_slurp:
                         GET_REG(cur_op, 0).s = MVM_file_slurp(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_spew:
+                        MVM_file_spew(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
                     case MVM_OP_write_fhs:

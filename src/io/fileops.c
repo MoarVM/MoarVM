@@ -311,6 +311,17 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
     free(output);
 }
 
+/* writes a string to a file, overwriting it if necessary */
+void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename) {
+    MVMObject *fh = MVM_file_open_fh(tc, MVM_file_get_anon_oshandle_type(tc), filename,
+        (MVMint64)(APR_FOPEN_TRUNCATE | APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_BINARY));
+    
+    MVM_file_write_fhs(tc, fh, output, 0, output->body.graphs);
+    
+    MVM_file_close_fh(tc, fh);
+    /* XXX need to GC free the filehandle? */
+}
+
 /* return an OSHandle representing one of the standard streams */
 static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_object, MVMuint8 type) {
     MVMOSHandle *result;
