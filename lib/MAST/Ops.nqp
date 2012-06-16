@@ -208,15 +208,16 @@ class MAST::Ops {
         'connect_sk', 30,
         'close_sk', 31,
         'bind_sk', 32,
-        'send_sks', 33,
-        'send_skbuf', 34,
-        'recv_sks', 35,
-        'recv_skbuf', 36,
-        'getaddr_sk', 37,
-        'hostname', 38,
-        'nametoaddr', 39,
-        'addrtoname', 40,
-        'porttosvc', 41
+        'listen_sk', 33,
+        'send_sks', 34,
+        'send_skbuf', 35,
+        'recv_sks', 36,
+        'recv_skbuf', 37,
+        'getaddr_sk', 38,
+        'hostname', 39,
+        'nametoaddr', 40,
+        'addrtoname', 41,
+        'porttosvc', 48
     );
     our $processthread := nqp::hash(
         'getenv', 0,
