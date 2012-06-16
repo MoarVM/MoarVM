@@ -156,10 +156,38 @@ void MVM_socket_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 backl
     
     verify_socket_type(tc, oshandle, &handle, "listen socket");
     
-    /* blocks until a connection is received, I think; can't really test it in the test suite */
     if ((rv = apr_socket_listen(handle->body.socket, (apr_int32_t)backlog_size)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to listen to the socket: ");
     }
+}
+
+MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMint64 timeout*/) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    MVMOSHandle *result;
+    apr_pool_t *tmp_pool;
+    apr_socket_t *new_socket;
+    
+    verify_socket_type(tc, oshandle, &handle, "socket accept");
+    
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Socket accept failed to create pool: ");
+    }
+    
+    /* XXX TODO: set the timeout if one is provided */
+    if ((rv = apr_socket_accept(&new_socket, handle->body.socket, tmp_pool)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Socket accept failed to get connection: ");
+    }
+    
+    /* inherit the type object of the originating socket */
+    result = (MVMOSHandle *)REPR(STABLE(oshandle)->WHAT)->allocate(tc, STABLE(STABLE(oshandle)->WHAT));
+    
+    result->body.socket = new_socket;
+    result->body.handle_type = MVM_OSHANDLE_SOCKET;
+    result->body.mem_pool = tmp_pool;
+    
+    return (MVMObject *)result;
 }
 
 void MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *tosend) {

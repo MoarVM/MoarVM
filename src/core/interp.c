@@ -781,6 +781,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVM_socket_listen(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                         cur_op += 4;
                         break;
+                    case MVM_OP_accept_sk:
+                        GET_REG(cur_op, 0).o = MVM_socket_accept(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_send_sks:
                         MVM_socket_send_string(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                         cur_op += 4;

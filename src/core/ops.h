@@ -208,15 +208,16 @@
 #define MVM_OP_close_sk 31
 #define MVM_OP_bind_sk 32
 #define MVM_OP_listen_sk 33
-#define MVM_OP_send_sks 34
-#define MVM_OP_send_skbuf 35
-#define MVM_OP_recv_sks 36
-#define MVM_OP_recv_skbuf 37
-#define MVM_OP_getaddr_sk 38
-#define MVM_OP_hostname 39
-#define MVM_OP_nametoaddr 40
-#define MVM_OP_addrtoname 41
-#define MVM_OP_porttosvc 42
+#define MVM_OP_accept_sk 34
+#define MVM_OP_send_sks 35
+#define MVM_OP_send_skbuf 36
+#define MVM_OP_recv_sks 37
+#define MVM_OP_recv_skbuf 38
+#define MVM_OP_getaddr_sk 39
+#define MVM_OP_hostname 40
+#define MVM_OP_nametoaddr 41
+#define MVM_OP_addrtoname 42
+#define MVM_OP_porttosvc 43
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_getenv 0
