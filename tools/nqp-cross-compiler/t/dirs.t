@@ -5,12 +5,12 @@ plan(1);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := const($frame, sval("testdirs"));
-        my $r1 := const($frame, sval("testdirs/testfile_"));
-        my $r2 := local($frame, str);
+        my $r1 := const($frame, sval("testfile_"));
         my $counter := const($frame, ival(4));
         my $index := local($frame, int);
         my $loop := label('loop');
         op(@ins, 'mkdir', $r0);
+        op(@ins, 'chdir', $r0);
         
         # create 3 files
         nqp::push(@ins, $loop);
@@ -22,7 +22,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $dh := local($frame, NQPMu);
         my $osh := local($frame, NQPMu);
         op(@ins, 'anonoshtype', $osh);
-        op(@ins, 'open_dir', $dh, $osh, $r0);
+        op(@ins, 'open_dir', $dh, $osh, const($frame, sval(".")));
         
         my $loop2 := label('loop2');
         my $done := label('done');
@@ -36,14 +36,14 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         # skip this entry if it starts with '.'
         op(@ins, 'if_i', $index, $loop2);
         op(@ins, 'inc_i', $counter);
-        op(@ins, 'concat_s', $r2, const($frame, sval("testdirs/")), $r1);
-        op(@ins, 'delete_f', $r2);
+        op(@ins, 'delete_f', $r1);
         op(@ins, 'goto', $loop2);
         
         nqp::push(@ins, $done);
         op(@ins, 'close_dir', $dh);
-        op(@ins, 'rmdir', $r0);
         op(@ins, 'say_i', $counter);
+        op(@ins, 'chdir', const($frame, sval("..")));
+        op(@ins, 'rmdir', $r0);
         op(@ins, 'return');
     },
     "4\n",

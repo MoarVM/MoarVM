@@ -840,6 +840,22 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
             }
             break;
             
+            /* Process-wide and thread operations. */
+            case MVM_OP_BANK_processthread: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_chdir:
+                        MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    default: {
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_object, *(cur_op-1));
+                    }
+                    break;
+                }
+            }
+            break;
+            
             /* Dispatch to bank function. */
             default:
             {

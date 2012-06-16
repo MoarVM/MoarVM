@@ -329,7 +329,7 @@ void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, M
     
     verify_filehandle_type(tc, oshandle, &handle, "seek in filehandle");
     
-    if ((rv = apr_file_seek(handle->body.file_handle, (apr_seek_where_t)flag, (apr_off_t)offset)) != APR_SUCCESS) {
+    if ((rv = apr_file_seek(handle->body.file_handle, (apr_seek_where_t)flag, (apr_off_t *)&offset)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to seek in filehandle: ");
     }
 }

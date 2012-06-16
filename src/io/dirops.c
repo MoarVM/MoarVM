@@ -124,3 +124,14 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to close dirhandle: ");
     }
 }
+
+void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
+    char *dirstring = MVM_string_utf8_encode_C_string(tc, dir);
+    
+    if (chdir((const char *)dirstring) != 0) {
+        free(dirstring);
+        MVM_exception_throw_adhoc(tc, "chdir failed: %s", strerror(errno));
+    }
+    
+    free(dirstring);
+}

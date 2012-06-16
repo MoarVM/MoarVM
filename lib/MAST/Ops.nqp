@@ -241,7 +241,7 @@ class MAST::Ops {
         'procwait', 17,
         'procalive', 18,
         'detach', 19,
-        'daemonize', 19,
-        'chdir', 20
+        'daemonize', 20,
+        'chdir', 21
     );
 }

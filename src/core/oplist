@@ -229,5 +229,5 @@ BANK 6 processthread
 0x11    procwait    w(int64) r(int64)
 0x12    procalive   w(int64) r(int64)
 0x13    detach
-0x13    daemonize
-0x14    chdir       r(str)
+0x14    daemonize
+0x15    chdir       r(str)

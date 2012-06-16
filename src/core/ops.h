@@ -240,7 +240,7 @@
 #define MVM_OP_procwait 17
 #define MVM_OP_procalive 18
 #define MVM_OP_detach 19
-#define MVM_OP_daemonize 19
-#define MVM_OP_chdir 20
+#define MVM_OP_daemonize 20
+#define MVM_OP_chdir 21
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);
