@@ -25,7 +25,7 @@ THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
             src/core/ops$(O) src/io/fileops$(O) src/io/socketops$(O) src/io/dirops$(O) \
-            src/gc/allocation$(O) src/gc/roots$(O)  \
+            src/io/procops$(O) src/gc/allocation$(O) src/gc/roots$(O)  \
             src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
@@ -37,7 +37,7 @@ MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
             src/core/compunit.h src/core/bytecode.h src/core/ops.h src/core/validation.h \
-            src/io/fileops.h src/io/socketops.h src/io/dirops.h \
+            src/io/fileops.h src/io/socketops.h src/io/dirops.h src/io/procops.h \
             src/gc/allocation.h src/gc/nursery.h src/gc/roots.h src/gc/wb.h \
             src/6model/reprs.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
@@ -76,6 +76,8 @@ src/io/socketops$(O): src/io/socketops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/socketops$(O) src/io/socketops.c
 src/io/dirops$(O): src/io/dirops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/dirops$(O) src/io/dirops.c
+src/io/procops$(O): src/io/procops.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/procops$(O) src/io/procops.c
 src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/threadcontext$(O) src/core/threadcontext.c
 src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)

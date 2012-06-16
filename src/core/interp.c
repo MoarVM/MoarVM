@@ -873,6 +873,18 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
             /* Process-wide and thread operations. */
             case MVM_OP_BANK_processthread: {
                 switch (*(cur_op++)) {
+                    case MVM_OP_getenv:
+                        GET_REG(cur_op, 0).s = MVM_proc_getenv(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_setenv:
+                        MVM_proc_setenv(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_delenv:
+                        MVM_proc_delenv(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
                     case MVM_OP_chdir:
                         MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;

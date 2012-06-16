@@ -223,7 +223,7 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
     verify_socket_type(tc, oshandle, &handle, "receive string from socket");
     
     if (length < 1 || length > 99999999) {
-        MVM_exception_throw_adhoc(tc, "receive string from socket length out of range");
+        MVM_exception_throw_adhoc(tc, "receive string from socket length out of bounds");
     }
     
     buf = malloc(length);

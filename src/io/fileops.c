@@ -183,11 +183,14 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        free(fname);
         MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
     }
     
     /* try to open the file */
     if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+        free(fname);
+        apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
     }
     
@@ -197,6 +200,8 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     result->body.file_handle = file_handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
     result->body.mem_pool = tmp_pool;
+    
+    free(fname);
     
     return (MVMObject *)result;
 }
@@ -233,6 +238,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     bytes_read = length;
     
     if ((rv = apr_file_read(handle->body.file_handle, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS) {
+        free(buf);
         MVM_exception_throw_apr_error(tc, rv, "read from filehandle failed: ");
     }
     
@@ -262,9 +268,13 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
      * Currently assume utf8. */
     
     if ((rv = apr_file_open(&fp, fname, APR_READ, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+        free(fname);
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Slurp failed to open file: ");
     }
+    
+    free(fname);
+    
     if ((rv = apr_file_info_get(&finfo, APR_FINFO_SIZE, fp)) != APR_SUCCESS) {
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Slurp failed to get info about file: ");
@@ -303,7 +313,7 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
         MVM_exception_throw_adhoc(tc, "write to filehandle start + length past end of string");
     
     output = MVM_string_utf8_encode_substr(tc, str, &output_size, start, length);
-    bytes_written = (apr_size_t) output_size;
+    bytes_written = (apr_size_t)output_size;
     if ((rv = apr_file_write(handle->body.file_handle, (const void *)output, &bytes_written)) != APR_SUCCESS) {
         free(output);
         MVM_exception_throw_apr_error(tc, rv, "Failed to write bytes to filehandle: tried to write %u bytes, wrote %u bytes: ", output_size, bytes_written);
@@ -430,6 +440,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&result->body.mem_pool, NULL)) != APR_SUCCESS) {
+        /* GC free? */
         MVM_exception_throw_apr_error(tc, rv, "get_stream failed to create pool: ");
     }
     
