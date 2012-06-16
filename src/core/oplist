@@ -205,7 +205,7 @@ BANK 5 io
 0x27    hostname    w(str)
 0x28    nametoaddr  w(str) r(str)
 0x29    addrtoname  w(str) r(str)
-0x30    porttosvc   w(str) r(int64)
+0x2A    porttosvc   w(str) r(int64)
 
 BANK 6 processthread
 0x00    getenv      w(str) r(str)
