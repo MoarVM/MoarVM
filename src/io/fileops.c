@@ -334,6 +334,34 @@ void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, M
     }
 }
 
+/* locks a filehandle */
+MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    int locktype = (int)flag;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "lock filehandle");
+    
+    if ((rv = apr_file_lock(handle->body.file_handle, locktype)) != APR_SUCCESS) {
+        /* XXX this really should check what type of error was returned */
+        if (locktype & APR_FLOCK_NONBLOCK) return 0;
+        MVM_exception_throw_apr_error(tc, rv, "Failed to lock filehandle: ");
+    }
+    return 1;
+}
+
+/* unlocks a filehandle */
+void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "unlock filehandle");
+    
+    if ((rv = apr_file_unlock(handle->body.file_handle)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to unlock filehandle: ");
+    }
+}
+
 /* return an OSHandle representing one of the standard streams */
 static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_object, MVMuint8 type) {
     MVMOSHandle *result;

@@ -1065,8 +1065,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_lock_fh,
         "lock_fh",
-        1,
-        { MVM_operand_read_reg | MVM_operand_obj }
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_unlock_fh,

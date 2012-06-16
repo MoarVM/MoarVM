@@ -183,7 +183,7 @@ BANK 5 io
 0x11    write_fhs   r(obj) r(str) r(int64) r(int64)
 0x12    write_fhbuf r(obj) r(obj) r(int64) r(int64)
 0x13    seek_fh     r(obj) r(int64) r(int64)
-0x14    lock_fh     r(obj)
+0x14    lock_fh     w(int64) r(obj) r(int64)
 0x15    unlock_fh   r(obj)
 0x16    flush_fh    r(obj)
 0x17    sync_fh     r(obj)
