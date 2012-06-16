@@ -36,25 +36,32 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     
     hostname_cstring = MVM_string_utf8_encode_C_string(tc, hostname);
     if (strlen(hostname_cstring) == 0) {
+        free(hostname_cstring);
         MVM_exception_throw_adhoc(tc, "Open socket needs a hostname or IP address");
     }
     
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
+        free(hostname_cstring);
         MVM_exception_throw_adhoc(tc, "Open socket needs a type object with MVMOSHandle REPR");
     }
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        free(hostname_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Open socket failed to create pool: ");
     }
     
     if ((rv = apr_socket_create(&socket, family, type, protocol_int, tmp_pool)) != APR_SUCCESS) {
+        free(hostname_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Open socket failed to create socket: ");
     }
     
     if ((rv = apr_sockaddr_info_get(&sa, (const char *)hostname_cstring, APR_UNSPEC, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
+        free(hostname_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Open socket failed to study address/port: ");
     }
+    
+    free(hostname_cstring);
     
     if ((rv = apr_socket_connect(socket, sa)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Open socket failed to connect: ");
@@ -66,8 +73,6 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     result->body.socket = socket;
     result->body.handle_type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
-    
-    free(hostname_cstring);
     
     return (MVMObject *)result;
 }
@@ -104,25 +109,32 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     
     address_cstring = MVM_string_utf8_encode_C_string(tc, address);
     if (strlen(address_cstring) == 0) {
+        free(address_cstring);
         MVM_exception_throw_adhoc(tc, "Bind socket needs an IP address or 0.0.0.0");
     }
     
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
+        free(address_cstring);
         MVM_exception_throw_adhoc(tc, "Bind socket needs a type object with MVMOSHandle REPR");
     }
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        free(address_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to create pool: ");
     }
     
     if ((rv = apr_socket_create(&socket, family, type, protocol_int, tmp_pool)) != APR_SUCCESS) {
+        free(address_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to create socket: ");
     }
     
     if ((rv = apr_sockaddr_info_get(&sa, (const char *)address_cstring, APR_UNSPEC, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
+        free(address_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to study address/port: ");
     }
+    
+    free(address_cstring);
     
     if ((rv = apr_socket_bind(socket, sa)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to bind socket: ");
@@ -134,8 +146,6 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     result->body.socket = socket;
     result->body.handle_type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
-    
-    free(address_cstring);
     
     return (MVMObject *)result;
 }
@@ -150,4 +160,24 @@ void MVM_socket_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 backl
     if ((rv = apr_socket_listen(handle->body.socket, (apr_int32_t)backlog_size)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to listen to the socket: ");
     }
+}
+
+void MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *tosend) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    char *send_string;
+    apr_size_t send_length;
+    
+    verify_socket_type(tc, oshandle, &handle, "send string to socket");
+    
+    /* XXX do something other than utf8? */
+    send_string = MVM_string_utf8_encode_C_string(tc, tosend);
+    send_length = strlen(send_string);
+    
+    if ((rv = apr_socket_send(handle->body.socket, send_string, &send_length)) != APR_SUCCESS) {
+        free(send_string);
+        MVM_exception_throw_apr_error(tc, rv, "Failed to send data to the socket: ");
+    }
+    
+    free(send_string);
 }

@@ -23,7 +23,7 @@ sub detect {
             $config{'couto'}       = '-Fo';
             $config{'link'}        = 'link';
             $config{'louto'}       = '-out:';
-            $config{'ldflags'}     = '/nologo /debug /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib oldnames.lib advapi32.lib shell32.lib';
+            $config{'ldflags'}     = '/nologo /debug /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib oldnames.lib advapi32.lib shell32.lib';
             $config{'llibs'}       = '';
             $config{'make'}        = 'nmake';
             $config{'exe'}         = '.exe';
