@@ -777,6 +777,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                         cur_op += 10;
                         break;
+                    case MVM_OP_listen_sk:
+                        MVM_socket_listen(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

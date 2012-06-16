@@ -1143,8 +1143,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_listen_sk,
         "listen_sk",
-        1,
-        { MVM_operand_read_reg | MVM_operand_obj }
+        2,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_send_sks,

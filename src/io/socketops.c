@@ -139,3 +139,15 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     
     return (MVMObject *)result;
 }
+
+void MVM_socket_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 backlog_size) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    
+    verify_socket_type(tc, oshandle, &handle, "listen socket");
+    
+    /* blocks until a connection is received, I think; can't really test it in the test suite */
+    if ((rv = apr_socket_listen(handle->body.socket, (apr_int32_t)backlog_size)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to listen to the socket: ");
+    }
+}
