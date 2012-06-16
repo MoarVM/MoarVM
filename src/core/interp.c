@@ -798,6 +798,22 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVM_file_unlock(tc, GET_REG(cur_op, 0).o);
                         cur_op += 2;
                         break;
+                    case MVM_OP_flush_fh:
+                        MVM_file_flush(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_sync_fh:
+                        MVM_file_sync(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_pipe_fh:
+                        MVM_file_pipe(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_trunc_fh:
+                        MVM_file_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_eof_fh:
                         GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;

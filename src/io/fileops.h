@@ -12,10 +12,14 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename);
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename);
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
-MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_file_pipe(MVMThreadContext *tc, MVMObject *oshandle1, MVMObject *oshandle2);
+void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
+MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object);
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object);
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object);

@@ -362,6 +362,60 @@ void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
+/* flushes a possibly-buffered filehandle (such as stdout) */
+void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "flush filehandle");
+    
+    if ((rv = apr_file_flush(handle->body.file_handle)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to flush filehandle: ");
+    }
+}
+
+/* syncs a filehandle (Transfer all file modified data and metadata to disk.) */
+void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "sync filehandle");
+    
+    if ((rv = apr_file_sync(handle->body.file_handle)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to sync filehandle: ");
+    }
+}
+
+/* creates a pipe between two filehandles */
+/* XXX TODO: this needs to stash references to each other in each other,
+ * that are understood by the GC, in case one goes out of scope but the
+ * other doesn't. Also, there's not really a way to avoid a memory leak
+ * when creating a pipe using one of the handle's mem_pools. */
+void MVM_file_pipe(MVMThreadContext *tc, MVMObject *oshandle1, MVMObject *oshandle2) {
+    apr_status_t rv;
+    MVMOSHandle *handle1;
+    MVMOSHandle *handle2;
+    
+    verify_filehandle_type(tc, oshandle1, &handle1, "pipe filehandles");
+    verify_filehandle_type(tc, oshandle2, &handle2, "pipe filehandles");
+    
+    if ((rv = apr_file_pipe_create(&handle1->body.file_handle, &handle2->body.file_handle, handle1->body.mem_pool)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to pipe filehandles: ");
+    }
+}
+
+/* syncs a filehandle (Transfer all file modified data and metadata to disk.) */
+void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "truncate filehandle");
+    
+    if ((rv = apr_file_trunc(handle->body.file_handle, (apr_off_t)offset)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to truncate filehandle: ");
+    }
+}
+
 /* return an OSHandle representing one of the standard streams */
 static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_object, MVMuint8 type) {
     MVMOSHandle *result;
