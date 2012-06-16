@@ -15,7 +15,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
     },
     "",
-    "closing stdout causes a crash");
+    "closing stdout");
+# writing to stdout after it's been closed causes a crash on windows
+# writing to stdout after it's been closed does nothing on linux
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, NQPMu);
