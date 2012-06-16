@@ -37,6 +37,7 @@
 #include "strings/ops.h"
 #include "io/fileops.h"
 #include "io/socketops.h"
+#include "io/dirops.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);

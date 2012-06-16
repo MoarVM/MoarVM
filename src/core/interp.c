@@ -716,13 +716,29 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
+                    case MVM_OP_append_f:
+                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_rename_f:
+                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_delete_f:
                         MVM_file_delete(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
+                    case MVM_OP_chmod_f:
+                        MVM_file_chmod(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_exists_f:
                         GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
+                        break;
+                    case MVM_OP_mkdir:
+                        MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
                         break;
                     case MVM_OP_open_fh:
                         GET_REG(cur_op, 0).o = MVM_file_open_fh(tc, GET_REG(cur_op, 2).o,
