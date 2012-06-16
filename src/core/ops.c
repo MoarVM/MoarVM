@@ -1332,6 +1332,12 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         "daemonize",
         0,
     },
+    {
+        MVM_OP_chdir,
+        "chdir",
+        1,
+        { MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 
 static MVMOpInfo *MVM_op_info[] = {
@@ -1353,7 +1359,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     13,
     10,
     44,
-    21,
+    22,
 };
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {
