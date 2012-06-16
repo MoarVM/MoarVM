@@ -209,3 +209,35 @@ void MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString
     
     free(send_string);
 }
+
+/* reads a string from a filehandle.  Assumes utf8 for now */
+MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
+    MVMString *result;
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    char *buf;
+    MVMint64 bytes_read;
+    
+    /* XXX TODO handle length == -1 to mean read to EOF */
+    
+    verify_socket_type(tc, oshandle, &handle, "receive string from socket");
+    
+    if (length < 1 || length > 99999999) {
+        MVM_exception_throw_adhoc(tc, "receive string from socket length out of range");
+    }
+    
+    buf = malloc(length);
+    bytes_read = length;
+    
+    /*apr_socket_timeout_set(handle->body.socket, 3000000);*/
+    
+    if ((rv = apr_socket_recv(handle->body.socket, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS && rv != APR_EOF) {
+        MVM_exception_throw_apr_error(tc, rv, "receive string from socket failed: ");
+    }
+    
+    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read);
+    
+    free(buf);
+    
+    return result;
+}
