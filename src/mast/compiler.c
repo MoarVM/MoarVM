@@ -332,8 +332,6 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             local_type = ws->cur_frame->local_types[l->index];
             if (op_type != local_type << 3) {
                 cleanup_all(vm, ws);
-                Parrot_ex_throw_from_c_args(vm, NULL, EXCEPTION_INVALID_OPERATION,
-                    "local index '%d', wanted: '%u', got: '%u'", l->index, (op_type >> 3), local_type);
                 DIE(vm, "MAST::Local of wrong type specified");
             }
             
@@ -556,7 +554,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 void compile_frame(VM, WriterState *ws, MASTNode *node) {
     MAST_Frame  *f;
     FrameState  *fs;
-    unsigned int i, j, num_lexicals, num_ins, instructions_start;
+    unsigned int i, num_lexicals, num_ins, instructions_start;
     MASTNode *last_inst = NULL;
     
     /* Ensure we have a node of the right type. */
