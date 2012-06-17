@@ -11,7 +11,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $loop := label('loop');
         nqp::push(@ins, $loop);
         op(@ins, 'rand_n', $r2);
-        op(@ins, 'say_n', $r2);
+        #op(@ins, 'say_n', $r2);
         op(@ins, 'dec_i', $r0);
         op(@ins, 'if_i', $r0, $loop);
         op(@ins, 'return');
