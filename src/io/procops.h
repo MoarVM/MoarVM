@@ -9,3 +9,5 @@ MVMint64 MVM_proc_getuid(MVMThreadContext *tc);
 MVMint64 MVM_proc_getgid(MVMThreadContext *tc);
 MVMString * MVM_proc_gethomedir(MVMThreadContext *tc);
 MVMString * MVM_proc_getencoding(MVMThreadContext *tc);
+MVMint64 MVM_proc_rand_i(MVMThreadContext *tc);
+MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc);

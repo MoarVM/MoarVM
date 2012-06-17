@@ -921,6 +921,14 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
+                    case MVM_OP_rand_i:
+                        GET_REG(cur_op, 0).i64 = MVM_proc_rand_i(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_rand_n:
+                        GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc);
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

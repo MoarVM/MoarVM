@@ -2,6 +2,7 @@
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
+/* gets environment variable value */
 MVMString * MVM_proc_getenv(MVMThreadContext *tc, MVMString *var) {
     MVMString *result;
     apr_status_t rv;
@@ -31,6 +32,7 @@ MVMString * MVM_proc_getenv(MVMThreadContext *tc, MVMString *var) {
     return result;
 }
 
+/* set environment variable */
 void MVM_proc_setenv(MVMThreadContext *tc, MVMString *var, MVMString *value) {
     apr_status_t rv;
     char *varstring = MVM_string_utf8_encode_C_string(tc, var);
@@ -54,6 +56,7 @@ void MVM_proc_setenv(MVMThreadContext *tc, MVMString *var, MVMString *value) {
     apr_pool_destroy(tmp_pool);
 }
 
+/* delete environment variable */
 void MVM_proc_delenv(MVMThreadContext *tc, MVMString *var) {
     apr_status_t rv;
     char *varstring = MVM_string_utf8_encode_C_string(tc, var);
@@ -75,6 +78,7 @@ void MVM_proc_delenv(MVMThreadContext *tc, MVMString *var) {
     free(varstring);
 }
 
+/* translates groupname to groupid */
 MVMint64 MVM_proc_nametogid(MVMThreadContext *tc, MVMString *name) {
     apr_status_t rv;
     apr_gid_t groupid;
@@ -99,6 +103,7 @@ MVMint64 MVM_proc_nametogid(MVMThreadContext *tc, MVMString *name) {
     return (MVMint64)groupid;
 }
 
+/* translates groupid to groupname */
 MVMString * MVM_proc_gidtoname(MVMThreadContext *tc, MVMint64 groupid) {
     MVMString *result;
     apr_status_t rv;
@@ -122,6 +127,7 @@ MVMString * MVM_proc_gidtoname(MVMThreadContext *tc, MVMint64 groupid) {
     return result;
 }
 
+/* translates username to userid */
 MVMint64 MVM_proc_nametouid(MVMThreadContext *tc, MVMString *name) {
     apr_status_t rv;
     apr_uid_t userid;
@@ -147,6 +153,7 @@ MVMint64 MVM_proc_nametouid(MVMThreadContext *tc, MVMString *name) {
     return (MVMint64)userid;
 }
 
+/* translates a userid to username */
 MVMString * MVM_proc_uidtoname(MVMThreadContext *tc, MVMint64 userid) {
     MVMString *result;
     apr_status_t rv;
@@ -170,10 +177,12 @@ MVMString * MVM_proc_uidtoname(MVMThreadContext *tc, MVMint64 userid) {
     return result;
 }
 
+/* gets the username of the calling process */
 MVMString * MVM_proc_getusername(MVMThreadContext *tc) {
     return MVM_proc_uidtoname(tc, MVM_proc_getuid(tc));
 }
 
+/* gets the uid of the calling process */
 MVMint64 MVM_proc_getuid(MVMThreadContext *tc) {
     apr_status_t rv;
     apr_uid_t userid;
@@ -194,6 +203,7 @@ MVMint64 MVM_proc_getuid(MVMThreadContext *tc) {
     return (MVMint64)userid;
 }
 
+/* gets the gid of the calling process */
 MVMint64 MVM_proc_getgid(MVMThreadContext *tc) {
     apr_status_t rv;
     apr_uid_t userid;
@@ -214,6 +224,7 @@ MVMint64 MVM_proc_getgid(MVMThreadContext *tc) {
     return (MVMint64)groupid;
 }
 
+/* gets the homedir of the current user. Probably should take username as an argument */
 MVMString * MVM_proc_gethomedir(MVMThreadContext *tc) {
     apr_uid_t userid = (apr_uid_t)MVM_proc_getuid(tc);
     MVMString *result;
@@ -244,6 +255,7 @@ MVMString * MVM_proc_gethomedir(MVMThreadContext *tc) {
     return result;
 }
 
+/* gets the current encoding of the system */
 MVMString * MVM_proc_getencoding(MVMThreadContext *tc) {
     MVMString *result;
     apr_status_t rv;
@@ -262,4 +274,24 @@ MVMString * MVM_proc_getencoding(MVMThreadContext *tc) {
     apr_pool_destroy(tmp_pool);
     
     return result;
+}
+
+/* generates a random MVMint64, supposedly. */
+/* XXX the internet says this may block... */
+MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
+    MVMint64 result;
+    apr_generate_random_bytes((char *)&result, sizeof(MVMint64));
+    return result;
+}
+
+/* extremely naively generates a number between 0 and 1 */
+MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
+    MVMnum64 first = (MVMnum64)MVM_proc_rand_i(tc), second, fraction;
+    do {
+        second = (MVMnum64)MVM_proc_rand_i(tc);
+    } while (first == second);
+    first = first < 0 ? 0 - first : first;
+    second = second < 0 ? 0 - second : second;
+    fraction = first < second ? first / second : second / first;
+    return fraction;
 }

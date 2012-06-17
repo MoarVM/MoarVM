@@ -242,6 +242,8 @@ class MAST::Ops {
         'procalive', 18,
         'detach', 19,
         'daemonize', 20,
-        'chdir', 21
+        'chdir', 21,
+        'rand_i', 22,
+        'rand_n', 23
     );
 }
