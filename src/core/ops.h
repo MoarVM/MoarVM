@@ -244,5 +244,6 @@
 #define MVM_OP_chdir 21
 #define MVM_OP_rand_i 22
 #define MVM_OP_rand_n 23
+#define MVM_OP_time_i 24
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);

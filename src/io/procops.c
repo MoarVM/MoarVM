@@ -295,3 +295,9 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
     fraction = first < second ? first / second : second / first;
     return fraction;
 }
+
+/* gets the system time since the epoch in microseconds.
+ * APR says the unix version returns GMT. */
+MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
+    return (MVMint64)apr_time_now();
+}

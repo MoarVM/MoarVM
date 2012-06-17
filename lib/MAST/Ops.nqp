@@ -244,6 +244,7 @@ class MAST::Ops {
         'daemonize', 20,
         'chdir', 21,
         'rand_i', 22,
-        'rand_n', 23
+        'rand_n', 23,
+        'time_i', 24
     );
 }

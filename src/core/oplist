@@ -233,3 +233,4 @@ BANK 6 processthread
 0x15    chdir       r(str)
 0x16    rand_i      w(int64)
 0x17    rand_n      w(num64)
+0x18    time_i      w(int64)
