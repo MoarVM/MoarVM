@@ -18,19 +18,21 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *f) {
     apr_status_t rv;
     apr_pool_t *tmp_pool;
-    const char *a;
+    char *a;
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to mkdir: ");
     }
     
-    a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
+    a = MVM_string_utf8_encode_C_string(tc, f);
     
-    if ((rv = apr_dir_make_recursive(a, APR_FPROT_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+    if ((rv = apr_dir_make_recursive((const char *)a, APR_FPROT_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+        free(a);
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to mkdir: ");
     }
+    free(a);
     apr_pool_destroy(tmp_pool);
 }
 
@@ -38,19 +40,21 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *f) {
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *f) {
     apr_status_t rv;
     apr_pool_t *tmp_pool;
-    const char *a;
+    char *a;
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to rmdir: ");
     }
     
-    a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
+    a = MVM_string_utf8_encode_C_string(tc, f);
     
-    if ((rv = apr_dir_remove(a, tmp_pool)) != APR_SUCCESS) {
+    if ((rv = apr_dir_remove((const char *)a, tmp_pool)) != APR_SUCCESS) {
+        free(a);
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to rmdir: ");
     }
+    free(a);
     apr_pool_destroy(tmp_pool);
 }
 
@@ -68,13 +72,17 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        free(dname);
         MVM_exception_throw_apr_error(tc, rv, "Open dir failed to create pool: ");
     }
     
     /* try to open the dir */
     if ((rv = apr_dir_open(&dir_handle, (const char *)dname, tmp_pool)) != APR_SUCCESS) {
+        free(dname);
         MVM_exception_throw_apr_error(tc, rv, "Failed to open dir: ");
     }
+    
+    free(dname);
     
     /* initialize the object */
     result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
