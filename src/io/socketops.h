@@ -5,3 +5,4 @@ void MVM_socket_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 backl
 MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMint64 timeout*/);
 void MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *tosend);
 MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
+MVMString * MVM_socket_hostname(MVMThreadContext *tc);

@@ -52,11 +52,13 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     }
     
     if ((rv = apr_socket_create(&socket, family, type, protocol_int, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
         free(hostname_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Open socket failed to create socket: ");
     }
     
     if ((rv = apr_sockaddr_info_get(&sa, (const char *)hostname_cstring, APR_UNSPEC, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
         free(hostname_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Open socket failed to study address/port: ");
     }
@@ -125,11 +127,13 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     }
     
     if ((rv = apr_socket_create(&socket, family, type, protocol_int, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
         free(address_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to create socket: ");
     }
     
     if ((rv = apr_sockaddr_info_get(&sa, (const char *)address_cstring, APR_UNSPEC, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
         free(address_cstring);
         MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to study address/port: ");
     }
@@ -137,6 +141,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     free(address_cstring);
     
     if ((rv = apr_socket_bind(socket, sa)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to bind socket: ");
     }
     
@@ -177,6 +182,7 @@ MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMin
     
     /* XXX TODO: set the timeout if one is provided */
     if ((rv = apr_socket_accept(&new_socket, handle->body.socket, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Socket accept failed to get connection: ");
     }
     
@@ -238,6 +244,31 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
     result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read);
     
     free(buf);
+    
+    return result;
+}
+
+MVMString * MVM_socket_hostname(MVMThreadContext *tc) {
+    MVMString *result;
+    apr_status_t rv;
+    char *hostname = (char *)malloc(APRMAXHOSTLEN + 1);
+    apr_pool_t *tmp_pool;
+    
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "hostname failed to create pool: ");
+    }
+    
+    if ((rv = apr_gethostname(hostname, APRMAXHOSTLEN + 1, tmp_pool)) != APR_SUCCESS) {
+        apr_pool_destroy(tmp_pool);
+        free(hostname);
+        MVM_exception_throw_apr_error(tc, rv, "hostname failed: ");
+    }
+    
+    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, hostname, strlen(hostname));
+    
+    apr_pool_destroy(tmp_pool);
+    free(hostname);
     
     return result;
 }
