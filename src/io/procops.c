@@ -286,14 +286,12 @@ MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
 
 /* extremely naively generates a number between 0 and 1 */
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
-    MVMnum64 first = (MVMnum64)MVM_proc_rand_i(tc), second, fraction;
+    MVMuint64 first, second;
+    apr_generate_random_bytes((char *)&first, sizeof(MVMuint64));
     do {
-        second = (MVMnum64)MVM_proc_rand_i(tc);
+        apr_generate_random_bytes((char *)&second, sizeof(MVMuint64));
     } while (first == second);
-    first = first < 0 ? 0 - first : first;
-    second = second < 0 ? 0 - second : second;
-    fraction = first < second ? first / second : second / first;
-    return fraction;
+    return first < second ? (MVMnum64)first / second : (MVMnum64)second / first;
 }
 
 /* gets the system time since the epoch in microseconds.
