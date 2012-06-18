@@ -290,6 +290,7 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
     apr_generate_random_bytes((char *)&first, sizeof(MVMuint64));
     do {
         apr_generate_random_bytes((char *)&second, sizeof(MVMuint64));
+    /* prevent division by zero in the 2**-128 chance both are 0 */
     } while (first == second);
     return first < second ? (MVMnum64)first / second : (MVMnum64)second / first;
 }
