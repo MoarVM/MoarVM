@@ -682,6 +682,14 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;
+                    case MVM_OP_create: {
+                        MVMObject *type = GET_REG(cur_op, 0).o;
+                        MVMObject *obj  = REPR(type)->allocate(tc, STABLE(type));
+                        REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                        GET_REG(cur_op, 2).o = obj;
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_getwhat:
                         GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                         cur_op += 4;
