@@ -33,6 +33,8 @@ typedef struct _MVMInstance {
     MVMuint32 num_reprs;
 
     /* Hash mapping representation names to IDs. */
-    apr_pool_t *repr_name_to_id_pool;
     apr_hash_t *repr_name_to_id_hash;
+    
+    /* APR memory pool for the instance. */
+    apr_pool_t *apr_pool;
 } MVMInstance;

@@ -18,6 +18,14 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance = calloc(1, sizeof(MVMInstance));
     instance->boot_types = calloc(1, sizeof(struct _MVMBootTypes));
     
+    /* Allocate instance APR pool. */
+    if (apr_pool_create(&instance->apr_pool, NULL) != APR_SUCCESS) {
+        char error[256];
+        fprintf(stderr, "MoarVM: Initialization of APR pool failed\n    %s\n",
+            apr_strerror(apr_init_stat, error, 256));
+        exit(1);
+    }
+    
     /* The main (current) thread gets a ThreadContext. */
     instance->num_threads = 1;
     instance->threads     = malloc(sizeof(MVMThreadContext *));
@@ -48,6 +56,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Destroy all thread contexts. */
     for (i = 0; i < instance->num_threads; i++)
         MVM_tc_destroy(instance->threads[i]);
+    
+    /* Free APR pool. */
+    apr_pool_destroy(instance->apr_pool);
     
     /* Clear up VM instance memory. */
     free(instance->threads);
