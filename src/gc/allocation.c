@@ -1,6 +1,7 @@
 /* Allocation of managed memory - that is, from the memory space that is
  * managed by the garbage collector. Memory that is in turn owned by a
- * GC-able object will tend to be allocated from fixed size pools. */
+ * GC-able object will be allocated separately and freed explicitly by
+ * its REPR gc_free routine. */
 
 #include "moarvm.h"
  
