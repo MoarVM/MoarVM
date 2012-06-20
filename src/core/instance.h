@@ -35,6 +35,15 @@ typedef struct _MVMInstance {
     /* Hash mapping representation names to IDs. */
     apr_hash_t *repr_name_to_id_hash;
     
+    /* Number of permanent GC roots we've got, allocated space for, and
+     * a list of the addresses to them. The mutex controls writing to the
+     * list, just in case multiple threads somehow end up doing so. Note
+     * that during a GC the world is stopped so reading is safe. */
+    MVMuint32             num_permroots;
+    MVMuint32             alloc_permroots;
+    MVMCollectable     ***permroots;
+    apr_thread_mutex_t   *mutex_permroots;
+    
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
 } MVMInstance;

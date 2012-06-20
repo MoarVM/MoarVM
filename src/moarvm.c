@@ -31,6 +31,17 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->threads     = malloc(sizeof(MVMThreadContext *));
     instance->threads[0]  = MVM_tc_create(instance);
     
+    /* Set up the permanent roots storage. */
+    instance->num_permroots   = 0;
+    instance->alloc_permroots = 16;
+    instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
+    if (apr_thread_mutex_create(&instance->mutex_permroots, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool) != APR_SUCCESS) {
+        char error[256];
+        fprintf(stderr, "MoarVM: Initialization of permanent roots mutex failed\n    %s\n",
+            apr_strerror(apr_init_stat, error, 256));
+        exit(1);
+	}
+    
     /* Bootstrap 6model. */
     MVM_6model_bootstrap(instance->threads[0]);
     
@@ -56,6 +67,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Destroy all thread contexts. */
     for (i = 0; i < instance->num_threads; i++)
         MVM_tc_destroy(instance->threads[i]);
+    
+    /* Clean up GC permanent roots related resources. */
+    apr_thread_mutex_destroy(instance->mutex_permroots);
+    free(instance->permroots);
     
     /* Free APR pool. */
     apr_pool_destroy(instance->apr_pool);
