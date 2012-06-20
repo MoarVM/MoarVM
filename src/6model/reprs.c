@@ -180,7 +180,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     repr->name = name;
     
     /* Name should become a permanent GC root. */
-    MVM_gc_root_add_permanent(tc, (MVMCollectable *)name);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&repr->name);
     
     /* Enter into registry. */
     if (tc->instance->repr_registry)

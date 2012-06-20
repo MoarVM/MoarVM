@@ -256,6 +256,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
 
     /* Stash the created KnowHOW. */
     tc->instance->KnowHOW = (MVMObject *)knowhow;
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->KnowHOW);
 }
  
 /* Takes a stub object that existed before we had bootstrapped things and
@@ -297,21 +298,26 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "repr");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_repr);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_repr);
     str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "name");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_name);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_name);
     str_anon     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "<anon>");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_anon);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_anon);
     str_P6opaque = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6opaque");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable *)str_P6opaque);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_P6opaque);
     
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
     
     /* Give BOOTStr, BOOTArray, BOOTHash, BOOTCCode and BOOTCode meta-objects. */
     add_meta_object(tc, tc->instance->boot_types->BOOTStr, "BOOTStr");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStr);
     add_meta_object(tc, tc->instance->boot_types->BOOTArray, "BOOTArray");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTArray);
     add_meta_object(tc, tc->instance->boot_types->BOOTHash, "BOOTHash");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTHash);
     add_meta_object(tc, tc->instance->boot_types->BOOTCCode, "BOOTCCode");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTCCode);
     add_meta_object(tc, tc->instance->boot_types->BOOTCode, "BOOTCode");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStr);
 }
