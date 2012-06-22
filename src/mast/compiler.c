@@ -140,8 +140,8 @@ unsigned short get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
     else {
         unsigned short index = (unsigned short)ELEMS(vm, ws->strings);
         /* XXX Overflow check */
-        BINDPOS_S(interp, ws->strings, index, strval);
-        BINDKEY_I(interp, ws->seen_strings, strval, index);
+        BINDPOS_S(vm, ws->strings, index, strval);
+        BINDKEY_I(vm, ws->seen_strings, strval, index);
         return index;
     }
 }
