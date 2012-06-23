@@ -44,6 +44,10 @@ typedef struct _MVMInstance {
     MVMCollectable     ***permroots;
     apr_thread_mutex_t   *mutex_permroots;
     
+    /* The current GC run sequence number. May wrap around over time; that
+     * is fine since only equality ever matters. */
+    MVMuint32 gc_seq_number;
+    
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
 } MVMInstance;

@@ -75,6 +75,9 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Does a garbage collection run. */
 static void run_gc(MVMThreadContext *tc) {
+    /* Increment GC sequence number. */
+    tc->instance->gc_seq_number++;
+    
     /* XXX At some point, we need to decide here whether to sweep the
      * second generation too. But since that's NYI, for now we just
      * always collect the first one for now. */
