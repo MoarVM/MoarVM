@@ -1,5 +1,20 @@
 #include "moarvm.h"
 
+/* We naughtily break the APR encapsulation here. Why? Because we need to
+ * get at the address where a hash key/value is stored, for GC purposes. */
+struct apr_hash_entry_t {
+    struct apr_hash_entry_t *next;
+    unsigned int             hash;
+    const void              *key;
+    apr_ssize_t              klen;
+    const void              *val;
+};
+struct apr_hash_index_t {
+    apr_hash_t                *ht;
+    struct apr_hash_entry_t   *this, *next;
+    unsigned int               index;
+};
+
 /* This representation's function pointer table. */
 static MVMREPROps *this_repr;
 
@@ -46,6 +61,16 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         apr_hash_this(idx, &key, &klen, &val);
         MVM_WB(tc, dest_root, val);
         apr_hash_set(dest_body->hash, key, klen, val);
+    }
+}
+
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    apr_hash_index_t *hi;
+    for (hi = apr_hash_first(body->pool, body->hash); hi; hi = apr_hash_next(hi)) {
+        struct apr_hash_entry_t *this = hi->this;
+        MVM_gc_worklist_add(tc, worklist, &this->val);
     }
 }
 
@@ -142,6 +167,7 @@ MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     this_repr->allocate = allocate;
     this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
+    this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
