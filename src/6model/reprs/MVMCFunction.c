@@ -24,7 +24,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st, sizeof(MVMCFunction));
+    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Initializes a new instance. */

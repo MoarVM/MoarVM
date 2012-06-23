@@ -61,8 +61,8 @@ MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
 }
 
 /* Allocates a new object, and points it at the specified STable. */
-MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st, size_t size) {
-    MVMObject *obj    = MVM_gc_allocate_zeroed(tc, size);
+MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
+    MVMObject *obj    = MVM_gc_allocate_zeroed(tc, st->size);
     obj->header.owner = tc->thread_id;
     obj->st           = st;
     return obj;

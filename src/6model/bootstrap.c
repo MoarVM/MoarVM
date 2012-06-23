@@ -26,6 +26,10 @@ static void create_stub_BOOTStr(MVMThreadContext *tc) {
      * though. */
     MVMSTable *st  = MVM_gc_allocate_stable(tc, repr, NULL);
     
+    /* REPR normally sets up size, but we'll have to do that manually
+     * here also. */
+    st->size = sizeof(MVMString);
+    
     /* We can now go for the type object. */
     tc->instance->boot_types->BOOTStr = MVM_gc_allocate_type_object(tc, st);
     
@@ -220,12 +224,14 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
 
     /* We create a KnowHOW instance that can describe itself. This means
      * (once we tie the knot) that .HOW.HOW.HOW.HOW etc will always return
-     * that, which closes the model up. */
-    MVMKnowHOWREPR *knowhow_how = (MVMKnowHOWREPR *)REPR->allocate(tc, NULL);
-    
-    /* Create an STable for the knowhow_how. */
-    MVMSTable *st = MVM_gc_allocate_stable(tc, REPR, (MVMObject *)knowhow_how);
-    st->WHAT = (MVMObject *)knowhow;
+     * that, which closes the model up. Note that the STable for it must
+     * be allocated first, since that holds the allocation size. */
+    MVMKnowHOWREPR *knowhow_how;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, REPR, NULL);
+    st->WHAT      = (MVMObject *)knowhow;
+    st->size      = sizeof(MVMKnowHOWREPR);
+    knowhow_how   = (MVMKnowHOWREPR *)REPR->allocate(tc, st);
+    st->HOW       = (MVMObject *)knowhow_how;
     knowhow_how->common.st = st;
     
     /* Add various methods to the KnowHOW's HOW. */
