@@ -180,4 +180,50 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
  * fromspace and does any needed work to free uncopied things (this may
  * run in parallel with the mutator, which will be operating on tospace). */
 void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit) {
+    /* We start scanning the fromspace, and keep going until we hit
+     * the end of the area allocated in it. */
+    void *scan = tc->nursery_fromspace;
+    while (scan < limit) {
+        /* The object here is dead if it never got a forwarding pointer
+         * written in to it. */
+        MVMCollectable *item = (MVMCollectable *)scan;
+        MVMuint8 dead = item->forwarder == NULL;
+
+        /* Now go by collectable type. */
+        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
+            /* Object instance. If dead, call gc_free if needed. Scan is
+             * incremented by object size. */
+            MVMObject *obj = (MVMObject *)item;
+            if (dead && REPR(obj)->gc_free)
+                REPR(obj)->gc_free(tc, obj);
+            scan = (char *)scan + STABLE(obj)->size;
+        }
+        else if (item->flags & MVM_CF_TYPE_OBJECT) {
+            /* Type object. See if we need to free REPR data. Scan is
+             * incremented by type object size. */
+            MVMObject *obj = (MVMObject *)item;
+            if (REPR(obj)->gc_free_repr_data)
+                REPR(obj)->gc_free_repr_data(tc, STABLE(obj));
+            scan = (char *)scan + sizeof(MVMObject);
+        }
+        else if (item->flags & MVM_CF_STABLE) {
+            /* Dead STables are a little interesting. Of course, there is
+             * stuff to free, but there's also an ordering issue: we need
+             * to make sure we don't toss these until we freed up all the
+             * other things, since the size data held in the STable may be
+             * needed in order to finish walking the fromspace! So we will
+             * add them to a list and then free them all at the end. */
+            if (dead) {
+                MVM_panic(15, "Can't free STables in the GC yet");
+            }
+            scan = (char *)scan + sizeof(MVMSTable);
+        }
+        else if (item->flags & MVM_CF_SC) {
+            MVM_panic(15, "Can't free serialization contexts in the GC yet");
+        }
+        else {
+            printf("item flags: %d\n", item->flags);
+            MVM_panic(15, "Internal error: impossible case encountered in GC free");
+        }
+    }
 }
