@@ -68,7 +68,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashBody *body = (MVMHashBody *)data;
     apr_hash_index_t *hi;
-    for (hi = apr_hash_first(body->pool, body->hash); hi; hi = apr_hash_next(hi)) {
+    for (hi = apr_hash_first(NULL, body->hash); hi; hi = apr_hash_next(hi)) {
         struct apr_hash_entry_t *this = hi->this;
         MVM_gc_worklist_add(tc, worklist, &this->val);
     }
