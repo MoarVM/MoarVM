@@ -28,9 +28,12 @@ typedef struct _MVMGCWorklist {
 /* Some macros for doing stuff fast with worklists, defined to look like
  * functions since perhaps they become them in the future if needed. */
 #define MVM_gc_worklist_add(tc, worklist, item) \
-    (worklist->items == worklist->alloc ? \
-        MVM_gc_worklist_add_slow(tc, worklist, item) : \
-        (worklist->list[worklist->items++] = item))
+    do { \
+        if (worklist->items == worklist->alloc) \
+            MVM_gc_worklist_add_slow(tc, worklist, (MVMCollectable **)item); \
+        else \
+            worklist->list[worklist->items++] = (MVMCollectable **)item; \
+    } while (0)
 #define MVM_gc_worklist_get(tc, worklist) \
     (worklist->items ? \
         worklist->list[worklist->items--] : \
