@@ -13,7 +13,7 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
         if (tc->instance->num_permroots == tc->instance->alloc_permroots) {
             tc->instance->alloc_permroots *= 2;
             tc->instance->permroots = realloc(tc->instance->permroots,
-                tc->instance->alloc_permroots);
+                sizeof(MVMCollectable **) * tc->instance->alloc_permroots);
         }
         
         /* Add this one to the list. */
