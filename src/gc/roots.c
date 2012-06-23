@@ -5,6 +5,9 @@
  * address of the collectable must be passed, since it will need to be
  * updated. */
 void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
+    if (obj_ref == NULL)
+        MVM_panic(0, "Illegal attempt to add null object address as a permanent root");
+
     if (apr_thread_mutex_lock(tc->instance->mutex_permroots) == APR_SUCCESS) {
         /* Allocate extra permanent root space if needed. */
         if (tc->instance->num_permroots == tc->instance->alloc_permroots) {
