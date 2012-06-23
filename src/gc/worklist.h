@@ -36,7 +36,7 @@ typedef struct _MVMGCWorklist {
     } while (0)
 #define MVM_gc_worklist_get(tc, worklist) \
     (worklist->items ? \
-        worklist->list[worklist->items--] : \
+        worklist->list[--worklist->items] : \
         NULL)
 
 /* Various functions for worklist manipulation. */
