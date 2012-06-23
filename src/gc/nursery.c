@@ -44,6 +44,8 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
 /* Processes the current worklist. */
 static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMCollectable **item_ptr;
+    MVMuint16        i;
+    
     while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
         /* Dereference the object we're considering. */
         MVMCollectable *item = *item_ptr;
@@ -68,7 +70,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         /* If we saw it in the nursery before, then we will promote it
          * to the second generation. */
         if (item->flags & MVM_CF_NURSERY_SEEN) {
-            MVM_panic(15, "Promotion to second generation in NYI!");
+            MVM_panic(15, "Promotion to second generation is NYI!");
             continue;
         }
         
@@ -76,26 +78,94 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
          * going to copy? */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
             /* It's an object instance. Get the size from the STable. */
+            MVMuint32 size = ((MVMObject *)item)->st->size;
             
-            /* Copy it to tospace and set the forwarding pointer. */
+            /* Determine the new address and allocate space. */
+            MVMObject *new_addr = (MVMObject *)tc->nursery_alloc;
+            tc->nursery_alloc = (char *)tc->nursery_alloc + size;
             
-            /* Set the "seen in nursery" flag. */
+            /* Copy the object to tospace and mark it as seen in the
+             * nursery (so the next time around it will move to the
+             * older generation). */
+            memcpy(new_addr, item, size);
+            new_addr->header.flags |= MVM_CF_NURSERY_SEEN;
+            
+            /* Store the forwarding pointer and update the original
+             * reference. */
+            *item_ptr = item->forwarder = (MVMCollectable *)new_addr;
+            
+            /* Add the serialization context and STable to the worklist. */
+            MVM_gc_worklist_add(tc, worklist, &new_addr->header.sc);
+            MVM_gc_worklist_add(tc, worklist, &new_addr->st);
             
             /* If needed, mark it. This will add addresses to the worklist
              * that will need updating. Note that we are passing the address
              * of the object *after* copying it since those are the addresses
              * we care about updating; the old chunk of memory is now dead! */
-             
-            MVM_panic(15, "Can't copy objects in the GC yet");
+            if (REPR(new_addr)->gc_mark)
+                REPR(new_addr)->gc_mark(tc, STABLE(new_addr), OBJECT_BODY(new_addr), worklist);
         }
         else if (item->flags & MVM_CF_TYPE_OBJECT) {
-            MVM_panic(15, "Can't copy type objects in the GC yet");
+            /* Determine the new address and allocate space. */
+            MVMObject *new_addr = (MVMObject *)tc->nursery_alloc;
+            tc->nursery_alloc = (char *)tc->nursery_alloc + sizeof(MVMObject);
+            
+            /* Copy the type object to tospace and mark it as seen in
+             * the nursery (so the next time around it will move to
+             * the older generation). */
+            memcpy(new_addr, item, sizeof(MVMObject));
+            new_addr->header.flags |= MVM_CF_NURSERY_SEEN;
+            
+            /* Store the forwarding pointer and update the original
+             * reference. */
+            *item_ptr = item->forwarder = (MVMCollectable *)new_addr;
+            
+            /* Add the serialization context and STable to the worklist. */
+            MVM_gc_worklist_add(tc, worklist, &new_addr->header.sc);
+            MVM_gc_worklist_add(tc, worklist, &new_addr->st);
         }
         else if (item->flags & MVM_CF_STABLE) {
-            MVM_panic(15, "Can't copy stables in the GC yet");
+            /* Determine the new address and allocate space. */
+            MVMSTable *new_addr = (MVMSTable *)tc->nursery_alloc;
+            tc->nursery_alloc = (char *)tc->nursery_alloc + sizeof(MVMSTable);
+            
+            /* Copy the type object to tospace and mark it as seen in
+             * the nursery (so the next time around it will move to
+             * the older generation). */
+            memcpy(new_addr, item, sizeof(MVMSTable));
+            new_addr->header.flags |= MVM_CF_NURSERY_SEEN;
+            
+            /* Store the forwarding pointer and update the original
+             * reference. */
+            *item_ptr = item->forwarder = (MVMCollectable *)new_addr;
+            
+            /* Add all references in the STable to the work list. */
+            MVM_gc_worklist_add(tc, worklist, &new_addr->header.sc);
+            MVM_gc_worklist_add(tc, worklist, &new_addr->HOW);
+            MVM_gc_worklist_add(tc, worklist, &new_addr->WHAT);
+            MVM_gc_worklist_add(tc, worklist, &new_addr->method_cache);
+            for (i = 0; i < new_addr->vtable_length; i++)
+                MVM_gc_worklist_add(tc, worklist, &new_addr->vtable[i]);
+            for (i = 0; i < new_addr->type_check_cache_length; i++)
+                MVM_gc_worklist_add(tc, worklist, &new_addr->type_check_cache[i]);
+            if (new_addr->container_spec) {
+                MVM_gc_worklist_add(tc, worklist, &new_addr->container_spec->value_slot.class_handle);
+                MVM_gc_worklist_add(tc, worklist, &new_addr->container_spec->value_slot.attr_name);
+                MVM_gc_worklist_add(tc, worklist, &new_addr->container_spec->fetch_method);
+            }
+            if (new_addr->boolification_spec)
+                MVM_gc_worklist_add(tc, worklist, &new_addr->boolification_spec->method);
+            MVM_gc_worklist_add(tc, worklist, &new_addr->WHO);
+            
+            /* If it needs to have it's REPR data marked, do that. */
+            if (new_addr->REPR->gc_mark_repr_data)
+                new_addr->REPR->gc_mark_repr_data(tc, new_addr, worklist);
         }
         else if (item->flags & MVM_CF_SC) {
             MVM_panic(15, "Can't copy serialization contexts in the GC yet");
+        }
+        else {
+            MVM_panic(15, "Internal error: impossible case encountered in GC copy");
         }
     }
 }
