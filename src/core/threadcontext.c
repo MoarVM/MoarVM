@@ -12,7 +12,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Set up GC nursery. */
     tc->nursery_fromspace   = calloc(1, MVM_NURSERY_SIZE);
     tc->nursery_tospace     = calloc(1, MVM_NURSERY_SIZE);
-    tc->nursery_alloc       = tc->nursery_fromspace;
+    tc->nursery_alloc       = tc->nursery_tospace;
     tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
 
     return tc;

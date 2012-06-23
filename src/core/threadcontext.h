@@ -40,11 +40,13 @@ typedef struct _MVMThreadContext {
     /* The VM instance that this thread belongs to. */
     struct _MVMInstance *instance;
     
-    /* Start of the mutator's thread-local allocation space; put another way,
-     * the current nursery. */
+    /* Start of fromspace, the place we're copying objects from during a
+     * copying collection or processing dead objects that need to do extra
+     * resource release afterwards. */
     void *nursery_fromspace;
     
-    /* Where we evacuate objects to when collecting this thread's nursery. */
+    /* Where we evacuate objects to when collecting this thread's nursery, or
+     * allocate new ones. */
     void *nursery_tospace;
     
     /* Internal ID of the thread. */
