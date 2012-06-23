@@ -66,6 +66,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
             *item_ptr = item->forwarder;
             continue;
         }
+
+        /* If the pointer is already into tospace, we already updated it,
+         * so we're done. */
+        if (item >= tc->nursery_tospace && item < tc->nursery_alloc_limit)
+            continue;
         
         /* If we saw it in the nursery before, then we will promote it
          * to the second generation. */
