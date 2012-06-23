@@ -325,5 +325,5 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     add_meta_object(tc, tc->instance->boot_types->BOOTCCode, "BOOTCCode");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTCCode);
     add_meta_object(tc, tc->instance->boot_types->BOOTCode, "BOOTCode");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStr);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTCode);
 }
