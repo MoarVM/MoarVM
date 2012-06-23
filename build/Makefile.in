@@ -25,7 +25,7 @@ THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
             src/core/ops$(O) src/gc/allocation$(O) src/gc/worklist$(O) src/gc/roots$(O)  \
-            src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
+            src/gc/nursery$(O) src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
             src/6model/reprs/P6opaque$(O) src/6model/reprs/MVMCode$(O) \
@@ -74,6 +74,8 @@ src/gc/worklist$(O): src/gc/worklist.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/worklist$(O) src/gc/worklist.c
 src/gc/roots$(O): src/gc/roots.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/roots$(O) src/gc/roots.c
+src/gc/nursery$(O): src/gc/nursery.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/nursery$(O) src/gc/nursery.c
 src/gc/wb$(O): src/gc/wb.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/wb$(O) src/gc/wb.c
 src/6model/reprs$(O): src/6model/reprs.c $(HEADERS)
