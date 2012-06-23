@@ -36,7 +36,10 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
      * process them. */
     
     /* Find roots in frames and process them. */
-    
+    if (tc->cur_frame)
+        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
+    process_worklist(tc, worklist);
+
     /* Destroy the worklist. */
     MVM_gc_worklist_destroy(tc, worklist);
 }

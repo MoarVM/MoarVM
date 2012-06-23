@@ -1,5 +1,7 @@
 #include "moarvm.h"
 
+static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
+
 /* Adds a location holding a collectable object to the permanent list of GC
  * roots, so that it will always be marked and never die. Note that the
  * address of the collectable must be passed, since it will need to be
@@ -36,4 +38,131 @@ void MVM_gc_root_add_parmanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
     permroots = tc->instance->permroots;
     for (i = 0; i < num_roots; i++)
         MVM_gc_worklist_add(tc, worklist, permroots[i]);
+}
+
+/* Walks frames and compilation units. Adds the roots it finds into the
+ * GC worklist. */
+void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
+    MVMint8 did_something = 1;
+    
+    /* Create processing lists for frames, static frames and compilation
+     * units. (Yeah, playing fast and loose with types here...) */
+    MVMGCWorklist *frame_worklist        = MVM_gc_worklist_create(tc);
+    MVMGCWorklist *static_frame_worklist = MVM_gc_worklist_create(tc);
+    MVMGCWorklist *compunit_worklist     = MVM_gc_worklist_create(tc);
+    
+    /* We'll iterate until everything reachable has the current sequence
+     * number. */
+    MVMuint32 cur_seq_number = tc->instance->gc_seq_number;
+    
+    /* Place current frame on the frame worklist. */
+    MVM_gc_worklist_add(tc, frame_worklist, start_frame);
+    
+    /* Iterate while we scan all the things. */
+    while (did_something) {
+        MVMFrame       *cur_frame;
+        MVMStaticFrame *cur_static_frame;
+        MVMCompUnit    *cur_compunit;
+        
+        /* Reset flag. */
+        did_something = 0;
+        
+        /* Handle any frames in the work list. */
+        while (cur_frame = (MVMFrame *)MVM_gc_worklist_get(tc, frame_worklist)) {
+            /* If we already saw the frame this run, skip it. */
+            if (cur_frame->gc_seq_number == cur_seq_number)
+                continue;
+                
+            /* Add static frame to work list if needed. */
+            if (cur_frame->static_info->gc_seq_number != cur_seq_number)
+                MVM_gc_worklist_add(tc, static_frame_worklist, cur_frame->static_info);
+            
+            /* Add caller and outer to frames work list. */
+            if (cur_frame->caller)
+                MVM_gc_worklist_add(tc, frame_worklist, cur_frame->caller);
+            if (cur_frame->outer)
+                MVM_gc_worklist_add(tc, frame_worklist, cur_frame->outer);
+        
+            /* Scan the registers. */
+            scan_registers(tc, worklist, cur_frame);
+            
+            /* Mark that we did some work (and thus possibly have more work
+             * to do later). */
+            cur_frame->gc_seq_number = cur_seq_number;
+            did_something = 1;
+        }
+        
+        /* Handle any static frames in the work list. */
+        while (cur_static_frame = (MVMStaticFrame *)MVM_gc_worklist_get(tc, static_frame_worklist)) {
+            /* If we already saw the static frame this run, skip it. */
+            if (cur_static_frame->gc_seq_number == cur_seq_number)
+                continue;
+        
+            /* Add compilation unit to worklist if needed. */
+            if (cur_static_frame->cu->gc_seq_number != cur_seq_number)
+                MVM_gc_worklist_add(tc, compunit_worklist, cur_static_frame->cu);
+            
+            /* Add name and ID strings to GC worklist. */
+            MVM_gc_worklist_add(tc, worklist, &cur_static_frame->cuuid);
+            MVM_gc_worklist_add(tc, worklist, &cur_static_frame->name);
+            
+            /* Mark that we did some work (and thus possibly have more work
+             * to do later). */
+            cur_static_frame->gc_seq_number = cur_seq_number;
+            did_something = 1;
+        }
+        
+        /* Handle any compilation units in the work list. */
+        while (cur_compunit = (MVMCompUnit *)MVM_gc_worklist_get(tc, compunit_worklist)) {
+            MVMuint32 i;
+            
+            /* If we already saw the compunit this run, skip it. */
+            if (cur_compunit->gc_seq_number == cur_seq_number)
+                continue;
+
+            /* Add code refs and static frames to the worklists. */
+            for (i = 0; i < cur_compunit->num_frames; i++) {
+                MVM_gc_worklist_add(tc, static_frame_worklist, cur_compunit->frames[i]);
+                MVM_gc_worklist_add(tc, worklist, &cur_compunit->coderefs[i]);
+            }
+            
+            /* Add strings to the worklists. */
+            for (i = 0; i < cur_compunit->num_strings; i++)
+                MVM_gc_worklist_add(tc, worklist, &cur_compunit->strings[i]);
+            
+            /* Mark that we did some work (and thus possibly have more work
+             * to do later). */
+            cur_compunit->gc_seq_number = cur_seq_number;
+            did_something = 1;
+        }
+    }
+    
+    /* Clean up frame and compunit lists. */
+    MVM_gc_worklist_destroy(tc, frame_worklist);
+    MVM_gc_worklist_destroy(tc, static_frame_worklist);
+    MVM_gc_worklist_destroy(tc, compunit_worklist);
+}
+
+/* Takes a frame, scans its registers and adds them to the roots. */
+static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
+    MVMuint16  i, count;
+    MVMuint16 *type_map;
+    
+    /* Scan locals. */
+    if (frame->work) {
+        type_map = frame->static_info->local_types;
+        count    = frame->static_info->num_locals;
+        for (i = 0; i < count; i++)
+            if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
+                MVM_gc_worklist_add(tc, worklist, &frame->work[i]);
+    }
+    
+    /* Scan lexicals. */
+    if (frame->env) {
+        type_map = frame->static_info->lexical_types;
+        count    = frame->static_info->num_lexicals;
+        for (i = 0; i < count; i++)
+            if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
+                MVM_gc_worklist_add(tc, worklist, &frame->env[i]);
+    }
 }
