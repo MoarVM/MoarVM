@@ -114,7 +114,7 @@ typedef struct _MVMCollectable {
     MVMuint32 flags;
     
     /* Forwarding pointer, for copying/compacting GC purposes. */
-    struct _MVMObject *forwarder;
+    struct _MVMCollectable *forwarder;
     
     /* Pointer to the serialization context this collectable lives in, if any. */
     struct _MVMSerializationContext *sc;
