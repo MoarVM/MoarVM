@@ -118,7 +118,7 @@ static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *
     void *kdata, *value;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    value = apr_hash_get(body->value_hash, key, klen);
+    value = apr_hash_get(body->value_hash, kdata, klen);
     return value ? (MVMObject *)value : tc->instance->null;
 }
 
@@ -132,8 +132,8 @@ static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     void *kdata;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->key_hash, key, klen, key);
-    apr_hash_set(body->value_hash, key, klen, value);
+    apr_hash_set(body->key_hash, kdata, klen, key);
+    apr_hash_set(body->value_hash, kdata, klen, value);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -146,7 +146,7 @@ static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     void *kdata;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    return apr_hash_get(body->value_hash, key, klen) != NULL;
+    return apr_hash_get(body->value_hash, kdata, klen) != NULL;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -154,8 +154,8 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     void *kdata;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->key_hash, key, klen, NULL);
-    apr_hash_set(body->value_hash, key, klen, NULL);
+    apr_hash_set(body->key_hash, kdata, klen, NULL);
+    apr_hash_set(body->value_hash, kdata, klen, NULL);
 }
 
 static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
