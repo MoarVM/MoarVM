@@ -226,4 +226,8 @@ void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit) {
             MVM_panic(15, "Internal error: impossible case encountered in GC free");
         }
     }
+    
+    /* Zero out the fromspace. This is not strictly needed, but it's a good
+     * safety measure. */
+    memset(tc->nursery_fromspace, 0, MVM_NURSERY_SIZE);
 }
