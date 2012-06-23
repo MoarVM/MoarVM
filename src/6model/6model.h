@@ -168,6 +168,10 @@ typedef struct _MVMSTable {
     
     /* Any data specific to this type that the REPR wants to keep. */
     void *REPR_data;
+    
+    /* The size of an object of this type in bytes, including the
+     * header. */
+    MVMuint32 size;
 
     /* The meta-object. */
     MVMObject *HOW;

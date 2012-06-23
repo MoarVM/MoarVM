@@ -18,6 +18,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
     st->invoke = invoke_handler;
+    st->size = sizeof(MVMCFunction);
     return st->WHAT;
 }
 
