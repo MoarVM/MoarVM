@@ -467,7 +467,7 @@ typedef struct _MVMREPROps {
     void (*gc_cleanup) (struct _MVMThreadContext *tc, MVMSTable *st, void *data);
 
     /* MoarVM-specific REPR API addition used to mark a REPR instance. */
-    void (*gc_mark_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
+    void (*gc_mark_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMGCWorklist *worklist);
 
     /* MoarVM-specific REPR API addition used to free a REPR instance. */
     void (*gc_free_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
