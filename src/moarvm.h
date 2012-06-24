@@ -29,6 +29,7 @@
 #include "gc/allocation.h"
 #include "gc/worklist.h"
 #include "gc/nursery.h"
+#include "gc/gen2.h"
 #include "gc/roots.h"
 #include "gc/wb.h"
 #include "strings/ascii.h"
