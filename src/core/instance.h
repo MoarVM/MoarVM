@@ -35,6 +35,9 @@ typedef struct _MVMInstance {
     /* Hash mapping representation names to IDs. */
     apr_hash_t *repr_name_to_id_hash;
     
+    /* The second GC generation allocator. */
+    struct _MVMGen2Allocator *gen2;
+    
     /* Number of permanent GC roots we've got, allocated space for, and
      * a list of the addresses to them. The mutex controls writing to the
      * list, just in case multiple threads somehow end up doing so. Note

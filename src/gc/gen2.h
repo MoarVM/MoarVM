@@ -58,5 +58,5 @@ typedef struct _MVMGen2Allocator {
 #define MVM_GEN2_OVERFLOWS  32
 
 /* Functions. */
-MVMGen2Allocator * MVM_gc_gen2_create(MVMThreadContext *tc);
-void MVM_gc_gen2_destroy(MVMThreadContext *tc, MVMGen2Allocator *allocator);
+MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i);
+void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *allocator);

@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* Creates a new second generation allocator. */
-MVMGen2Allocator * MVM_gc_gen2_create(MVMThreadContext *tc) {
+MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i) {
     /* Create allocator data structure. */
     MVMGen2Allocator *al = malloc(sizeof(MVMGen2Allocator));
     
@@ -18,7 +18,7 @@ MVMGen2Allocator * MVM_gc_gen2_create(MVMThreadContext *tc) {
 }
 
 /* Frees all memory associated with the second generation. */
-void MVM_gc_gen2_destroy(MVMThreadContext *tc, MVMGen2Allocator *al) {
+void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
     /* Remove all pages. */
     /* XXX TODO */
     
