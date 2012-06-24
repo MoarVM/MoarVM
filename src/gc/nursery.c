@@ -48,10 +48,15 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
 
 /* Processes the current worklist. */
 static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    MVMCollectable **item_ptr;
-    MVMCollectable  *new_addr;
-    MVMuint32        size;
-    MVMuint16        i;
+    MVMGen2Allocator  *gen2;
+    MVMCollectable   **item_ptr;
+    MVMCollectable    *new_addr;
+    MVMuint32          size;
+    MVMuint16          i;
+    
+    /* Grab the second generation allocator; we may move items into the
+     * old generation. */
+    gen2 = tc->instance->gen2;
     
     while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
         /* Dereference the object we're considering. */
@@ -96,8 +101,13 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         if (item->flags & MVM_CF_NURSERY_SEEN) {
             /* Yes; we should move it to the second generation. Allocate
              * space in the second generation. */
-            MVM_panic(15, "Promotion to second generation is NYI!");
-            continue;
+            new_addr = MVM_gc_gen2_allocate(gen2, size);
+            
+            /* Copy the object to the second generation and mark it as
+             * living there. */
+            memcpy(new_addr, item, size);
+            new_addr->flags ^= MVM_CF_NURSERY_SEEN;
+            new_addr->flags |= MVM_CF_SECOND_GEN;
         }
         else {
             /* No, so it will live in the nursery for another GC
