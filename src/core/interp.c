@@ -244,7 +244,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                            tc->cur_frame->return_type = MVM_RETURN_INT;
+                            tc->cur_frame->return_type = MVM_RETURN_OBJ;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
                             STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
