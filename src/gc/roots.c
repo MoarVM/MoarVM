@@ -8,7 +8,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
  * updated. */
 void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     if (obj_ref == NULL)
-        MVM_panic(0, "Illegal attempt to add null object address as a permanent root");
+        MVM_panic(1, "Illegal attempt to add null object address as a permanent root");
 
     if (apr_thread_mutex_lock(tc->instance->mutex_permroots) == APR_SUCCESS) {
         /* Allocate extra permanent root space if needed. */
@@ -23,10 +23,10 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
         tc->instance->num_permroots++;
         
         if (apr_thread_mutex_unlock(tc->instance->mutex_permroots) != APR_SUCCESS)
-            MVM_panic(0, "Unable to unlock GC permanent root mutex");
+            MVM_panic(1, "Unable to unlock GC permanent root mutex");
     }
     else {
-        MVM_panic(0, "Unable to lock GC permanent root mutex");
+        MVM_panic(1, "Unable to lock GC permanent root mutex");
     }
 }
 
@@ -38,6 +38,50 @@ void MVM_gc_root_add_parmanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
     permroots = tc->instance->permroots;
     for (i = 0; i < num_roots; i++)
         MVM_gc_worklist_add(tc, worklist, permroots[i]);
+}
+
+/* Pushes a temporary root onto the thread-local roots list. */
+void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
+    /* Ensure the root is not null. */
+    if (obj_ref == NULL)
+        MVM_panic(1, "Illegal attempt to add null object address as a temporary root");
+    
+    /* Allocate extra temporary root space if needed. */
+    if (tc->num_temproots == tc->alloc_temproots) {
+        tc->alloc_temproots *= 2;
+        tc->temproots = realloc(tc->temproots,
+            sizeof(MVMCollectable **) * tc->alloc_temproots);
+    }
+    
+    /* Add this one to the list. */
+    tc->temproots[tc->num_temproots] = obj_ref;
+    tc->num_temproots++;
+}
+
+/* Pops a temporary root off the thread-local roots list. */
+void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
+    if (tc->num_temproots > 0)
+        tc->num_temproots--;
+    else
+        MVM_panic(1, "Illegal attempt to pop empty temporary root stack");
+}
+
+/* Pops a temporary root off the thread-local roots list. */
+void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
+    if (tc->num_temproots - n >= 0)
+        tc->num_temproots -= n;
+    else
+        MVM_panic(1, "Illegal attempt to pop insufficiently large temporary root stack");
+}
+
+/* Adds the set of thread-local temporary roots to a GC worklist. */
+void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMuint32         i, num_roots;
+    MVMCollectable ***temproots;
+    num_roots = tc->num_temproots;
+    temproots = tc->temproots;
+    for (i = 0; i < num_roots; i++)
+        MVM_gc_worklist_add(tc, worklist, temproots[i]);
 }
 
 /* Walks frames and compilation units. Adds the roots it finds into the

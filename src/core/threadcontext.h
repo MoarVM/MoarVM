@@ -54,6 +54,16 @@ typedef struct _MVMThreadContext {
     
     /* OS thread handle. */
     void *os_thread; /* XXX Whatever APR uses for thread handles... */
+    
+    /* Temporarily rooted objects. This is generally used by code written in
+     * C that wants to keep references to objects. Since those may change
+     * if the code in question also allocates, there is a need to register
+     * them; this ensures the GC will not swallow them but also that they
+     * will get updated if a GC run happens. Note that this is used as a
+     * stack and is also thread-local, so it's cheap to push/pop. */
+    MVMuint32             num_temproots;
+    MVMuint32             alloc_temproots;
+    MVMCollectable     ***temproots;
 } MVMThreadContext;
 
 MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);

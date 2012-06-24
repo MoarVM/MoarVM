@@ -30,6 +30,8 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
     process_worklist(tc, worklist);
     
     /* Add temporary roots and process them. */
+    MVM_gc_root_add_temps_to_worklist(tc, worklist);
+    process_worklist(tc, worklist);
     
     /* Add things that are roots for the first generation because
      * they are pointed to by objects in the second generation and
