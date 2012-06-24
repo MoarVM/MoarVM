@@ -49,13 +49,16 @@ typedef struct _MVMGen2Allocator {
 #define MVM_GEN2_BIN_BITS   3
 
 /* Mask used to know if we hit a size class exactly or have to round up. */
-#define MVM_GEN2_BIN_MASK   ((1 << MVM_FSA_BIN_BITS) - 1)
+#define MVM_GEN2_BIN_MASK   ((1 << MVM_GEN2_BIN_BITS) - 1)
 
 /* Number of bins in the FSA. Beyond this, we just degrade to malloc/free. */
 #define MVM_GEN2_BINS       32
 
 /* Default overflow list size. */
 #define MVM_GEN2_OVERFLOWS  32
+
+/* The number of items that go into each page. */
+#define MVM_GEN2_PAGE_ITEMS 256
 
 /* Functions. */
 MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i);
