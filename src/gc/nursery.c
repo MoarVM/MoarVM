@@ -50,6 +50,7 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
 static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMCollectable **item_ptr;
     MVMuint16        i;
+    MVMuint32        size;
     
     while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
         /* Dereference the object we're considering. */
@@ -76,6 +77,19 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
          * so we're done. */
         if (item >= tc->nursery_tospace && item < tc->nursery_alloc_limit)
             continue;
+            
+        /* At this point, we know we're going to be copying the object, but
+         * we don't know where. Work out the size. */
+        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
+            size = ((MVMObject *)item)->st->size;
+        else if (item->flags & MVM_CF_TYPE_OBJECT)
+            size = sizeof(MVMObject);
+        else if (item->flags & MVM_CF_STABLE)
+            size = sizeof(MVMSTable);
+        else if (item->flags & MVM_CF_SC)
+            MVM_panic(15, "Can't handle serialization contexts in the GC yet");
+        else
+            MVM_panic(15, "Internal error: impossible case encountered in GC sizing");
         
         /* If we saw it in the nursery before, then we will promote it
          * to the second generation. */
@@ -87,9 +101,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         /* Otherwise, we need to do the copy. What sort of thing are we
          * going to copy? */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
-            /* It's an object instance. Get the size from the STable. */
-            MVMuint32 size = ((MVMObject *)item)->st->size;
-            
             /* Determine the new address and allocate space. */
             MVMObject *new_addr = (MVMObject *)tc->nursery_alloc;
             tc->nursery_alloc = (char *)tc->nursery_alloc + size;
