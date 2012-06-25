@@ -36,6 +36,8 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
     /* Add things that are roots for the first generation because
      * they are pointed to by objects in the second generation and
      * process them. */
+    MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
+    process_worklist(tc, worklist);
     
     /* Find roots in frames and process them. */
     if (tc->cur_frame)
