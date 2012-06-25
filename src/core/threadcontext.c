@@ -20,6 +20,11 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->alloc_temproots = 16;
     tc->temproots       = malloc(sizeof(MVMCollectable **) * tc->alloc_temproots);
 
+    /* Set up intergenerational root handling. */
+    tc->num_gen2roots   = 0;
+    tc->alloc_gen2roots = 64;
+    tc->gen2roots       = malloc(sizeof(MVMCollectable **) * tc->alloc_gen2roots);
+
     return tc;
 }
 

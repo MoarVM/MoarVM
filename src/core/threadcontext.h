@@ -64,6 +64,12 @@ typedef struct _MVMThreadContext {
     MVMuint32             num_temproots;
     MVMuint32             alloc_temproots;
     MVMCollectable     ***temproots;
+    
+    /* Nursery objects rooted because something in generation 2 is
+     * pointing at them. */
+    MVMuint32             num_gen2roots;
+    MVMuint32             alloc_gen2roots;
+    MVMCollectable     ***gen2roots;
 } MVMThreadContext;
 
 MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);
