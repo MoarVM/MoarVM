@@ -84,6 +84,34 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         MVM_gc_worklist_add(tc, worklist, temproots[i]);
 }
 
+/* Pushes a root onto the inter-generational roots list. */
+void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
+    /* Ensure the root is not null. */
+    if (obj_ref == NULL)
+        MVM_panic(1, "Illegal attempt to add null object address as a inter-generational root");
+    
+    /* Allocate extra gen2 root space if needed. */
+    if (tc->num_gen2roots == tc->alloc_gen2roots) {
+        tc->alloc_gen2roots *= 2;
+        tc->gen2roots = realloc(tc->gen2roots,
+            sizeof(MVMCollectable **) * tc->alloc_gen2roots);
+    }
+    
+    /* Add this one to the list. */
+    tc->gen2roots[tc->num_gen2roots] = obj_ref;
+    tc->num_gen2roots++;
+}
+
+/* Adds the set of thread-local inter-generational roots to a GC worklist. */
+void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMuint32         i, num_roots;
+    MVMCollectable ***gen2roots;
+    num_roots = tc->num_gen2roots;
+    gen2roots = tc->gen2roots;
+    for (i = 0; i < num_roots; i++)
+        MVM_gc_worklist_add(tc, worklist, gen2roots[i]);
+}
+
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
