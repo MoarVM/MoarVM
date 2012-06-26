@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(11);
+plan(13);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
@@ -201,3 +201,25 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "1\n0\n1\n",
     "float greater than or equal to");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, num);
+        my $r1 := local($frame, int);
+        op(@ins, 'const_n64', $r0, nval(16));
+        op(@ins, 'coerce_ni', $r1, $r0);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "16\n",
+    "float to int coercion");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, int);
+        my $r1 := local($frame, num);
+        op(@ins, 'const_i64', $r0, ival(16));
+        op(@ins, 'coerce_in', $r1, $r0);
+        op(@ins, 'say_n', $r1);
+        op(@ins, 'return');
+    },
+    "16\n",
+    "int to float coercion");
