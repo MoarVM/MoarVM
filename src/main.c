@@ -10,6 +10,13 @@ int main(int argc, char *argv[]) {
     }
     
     instance = MVM_vm_create_instance();
+    {
+        /* Uncomment to try a GC run at startup. */
+        /*MVMThreadContext *tc = instance->threads[0];
+        void *limit = tc->nursery_alloc;
+        MVM_gc_nursery_collect(tc);
+        MVM_gc_nursery_free_uncopied(tc, limit);*/
+    }
     MVM_vm_run_file(instance, argv[1]);
     MVM_vm_destroy_instance(instance);
     

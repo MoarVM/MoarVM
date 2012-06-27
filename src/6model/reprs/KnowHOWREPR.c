@@ -9,12 +9,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
+    st->size = sizeof(MVMKnowHOWREPR);
     return st->WHAT;
 }
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st, sizeof(MVMKnowHOWREPR));
+    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Initializes a new instance. */
@@ -56,6 +57,14 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
+    MVM_gc_worklist_add(tc, worklist, &body->methods);
+    MVM_gc_worklist_add(tc, worklist, &body->attributes);
+    MVM_gc_worklist_add(tc, worklist, &body->name);
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMKnowHOWREPR_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. Note
@@ -69,6 +78,7 @@ MVMREPROps * MVMKnowHOWREPR_initialize(MVMThreadContext *tc) {
         this_repr->initialize = initialize;
         this_repr->copy_to = copy_to;
         this_repr->get_storage_spec = get_storage_spec;
+        this_repr->gc_mark = gc_mark;
     }
     return this_repr;
 }

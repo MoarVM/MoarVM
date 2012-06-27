@@ -180,7 +180,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     repr->name = name;
     
     /* Name should become a permanent GC root. */
-    MVM_gc_root_add_permanent(tc, (MVMCollectable *)name);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&repr->name);
     
     /* Enter into registry. */
     if (tc->instance->repr_registry)
@@ -208,8 +208,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
  * representations. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     /* Initialize name to ID map. */
-    apr_pool_create(&tc->instance->repr_name_to_id_pool, NULL);
-    tc->instance->repr_name_to_id_hash = apr_hash_make(tc->instance->repr_name_to_id_pool);
+    tc->instance->repr_name_to_id_hash = apr_hash_make(tc->instance->apr_pool);
     
     /* Add all core representations. (If order changed, update reprs.h IDs.) */
     register_repr(tc,

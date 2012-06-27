@@ -686,6 +686,54 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         3,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_ins }
     },
+    {
+        MVM_OP_coerce_in,
+        "coerce_in",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_coerce_ni,
+        "coerce_ni",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_band_i,
+        "band_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_bor_i,
+        "bor_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_bxor_i,
+        "bxor_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_bnot_i,
+        "bnot_i",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_blshift_i,
+        "blshift_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_brshift_i,
+        "brshift_i",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
 };
 static MVMOpInfo MVM_op_info_dev[] = {
     {
@@ -1371,7 +1419,7 @@ static MVMOpInfo *MVM_op_info[] = {
 static unsigned char MVM_op_banks = 7;
 
 static unsigned char MVM_opcounts_by_bank[] = {
-    113,
+    121,
     5,
     13,
     13,

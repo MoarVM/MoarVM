@@ -38,6 +38,9 @@ typedef struct _MVMStaticFrame {
     
     /* The name of this frame. */
     struct _MVMString *name;
+    
+    /* GC run sequence number that we last saw static this frame during. */
+    MVMuint32 gc_seq_number;
 } MVMStaticFrame;
 
 /* This represents an active call frame. */
@@ -81,6 +84,9 @@ typedef struct _MVMFrame {
     
     /* The type of return value that is expected. */
     MVMReturnType return_type;
+    
+    /* GC run sequence number that we last saw this frame during. */
+    MVMuint32 gc_seq_number;
 } MVMFrame;
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,

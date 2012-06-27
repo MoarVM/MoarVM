@@ -21,12 +21,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
     st->invoke = invoke_handler;
+    st->size = sizeof(MVMCode);
     return st->WHAT;
 }
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st, sizeof(MVMCode));
+    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Initializes a new instance. */

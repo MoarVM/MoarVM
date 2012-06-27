@@ -9,12 +9,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
+    st->size = sizeof(MVMArray);
     return st->WHAT;
 }
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st, sizeof(MVMArray));
+    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Initialize a new instance. */
@@ -123,6 +124,15 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     return spec;
 }
 
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    MVMuint64 elems, i;
+    elems = body->elems;
+    for (i = 0; i < elems; i++)
+        MVM_gc_worklist_add(tc, worklist, &body->data[i]);
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -145,5 +155,6 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->make_hole = make_hole;
     this_repr->pos_funcs->delete_elems = delete_elems;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
+    this_repr->gc_mark = gc_mark;
     return this_repr;
 }

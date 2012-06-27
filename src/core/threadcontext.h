@@ -40,11 +40,13 @@ typedef struct _MVMThreadContext {
     /* The VM instance that this thread belongs to. */
     struct _MVMInstance *instance;
     
-    /* Start of the mutator's thread-local allocation space; put another way,
-     * the current nursery. */
+    /* Start of fromspace, the place we're copying objects from during a
+     * copying collection or processing dead objects that need to do extra
+     * resource release afterwards. */
     void *nursery_fromspace;
     
-    /* Where we evacuate objects to when collecting this thread's nursery. */
+    /* Where we evacuate objects to when collecting this thread's nursery, or
+     * allocate new ones. */
     void *nursery_tospace;
     
     /* Internal ID of the thread. */
@@ -52,6 +54,22 @@ typedef struct _MVMThreadContext {
     
     /* OS thread handle. */
     void *os_thread; /* XXX Whatever APR uses for thread handles... */
+    
+    /* Temporarily rooted objects. This is generally used by code written in
+     * C that wants to keep references to objects. Since those may change
+     * if the code in question also allocates, there is a need to register
+     * them; this ensures the GC will not swallow them but also that they
+     * will get updated if a GC run happens. Note that this is used as a
+     * stack and is also thread-local, so it's cheap to push/pop. */
+    MVMuint32             num_temproots;
+    MVMuint32             alloc_temproots;
+    MVMCollectable     ***temproots;
+    
+    /* Nursery objects rooted because something in generation 2 is
+     * pointing at them. */
+    MVMuint32             num_gen2roots;
+    MVMuint32             alloc_gen2roots;
+    MVMCollectable     ***gen2roots;
 } MVMThreadContext;
 
 MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);

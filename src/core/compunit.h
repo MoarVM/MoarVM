@@ -24,6 +24,9 @@ typedef struct _MVMCompUnit {
     /* The string heap and number of strings. */
     struct _MVMString **strings;
     MVMuint32           num_strings;
+    
+    /* GC run sequence number that we last saw this frame during. */
+    MVMuint32 gc_seq_number;
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);

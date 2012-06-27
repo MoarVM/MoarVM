@@ -1,5 +1,20 @@
 #include "moarvm.h"
 
+/* We naughtily break the APR encapsulation here. Why? Because we need to
+ * get at the address where a hash key/value is stored, for GC purposes. */
+struct apr_hash_entry_t {
+    struct apr_hash_entry_t *next;
+    unsigned int             hash;
+    const void              *key;
+    apr_ssize_t              klen;
+    const void              *val;
+};
+struct apr_hash_index_t {
+    apr_hash_t                *ht;
+    struct apr_hash_entry_t   *this, *next;
+    unsigned int               index;
+};
+
 /* This representation's function pointer table. */
 static MVMREPROps *this_repr;
 
@@ -9,19 +24,21 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
+    st->size = sizeof(MVMHash);
     return st->WHAT;
 }
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st, sizeof(MVMHash));
+    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
     apr_pool_create(&body->pool, NULL);
-    body->hash = apr_hash_make(body->pool);
+    body->key_hash = apr_hash_make(body->pool);
+    body->value_hash = apr_hash_make(body->pool);
 }
 
 /* Copies the body of one object to another. */
@@ -32,19 +49,42 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     
     /* Create a new pool for the target hash, and the hash itself. */
     apr_pool_create(&dest_body->pool, NULL);
-    dest_body->hash = apr_hash_make(dest_body->pool);
+    dest_body->key_hash = apr_hash_make(dest_body->pool);
+    dest_body->value_hash = apr_hash_make(dest_body->pool);
  
     /* Copy; note don't use the APR copy function for this as we
      * want to write barrier (which may be overkill as the target
      * is presumably first generation...but not so fun to debug
      * the upshot if that turns out not to be true somehow). */
-    for (idx = apr_hash_first(dest_body->pool, src_body->hash); idx; idx = apr_hash_next(idx)) {
+    for (idx = apr_hash_first(dest_body->pool, src_body->key_hash); idx; idx = apr_hash_next(idx)) {
         const void *key;
         void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
         MVM_WB(tc, dest_root, val);
-        apr_hash_set(dest_body->hash, key, klen, val);
+        apr_hash_set(dest_body->key_hash, key, klen, val);
+    }
+    for (idx = apr_hash_first(dest_body->pool, src_body->value_hash); idx; idx = apr_hash_next(idx)) {
+        const void *key;
+        void *val;
+        apr_ssize_t klen;
+        apr_hash_this(idx, &key, &klen, &val);
+        MVM_WB(tc, dest_root, val);
+        apr_hash_set(dest_body->value_hash, key, klen, val);
+    }
+}
+
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    apr_hash_index_t *hi;
+    for (hi = apr_hash_first(NULL, body->key_hash); hi; hi = apr_hash_next(hi)) {
+        struct apr_hash_entry_t *this = hi->this;
+        MVM_gc_worklist_add(tc, worklist, &this->val);
+    }
+    for (hi = apr_hash_first(NULL, body->value_hash); hi; hi = apr_hash_next(hi)) {
+        struct apr_hash_entry_t *this = hi->this;
+        MVM_gc_worklist_add(tc, worklist, &this->val);
     }
 }
 
@@ -53,7 +93,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
     apr_pool_destroy(h->body.pool);
     h->body.pool = NULL;
-    h->body.hash = NULL;
+    h->body.key_hash = NULL;
+    h->body.value_hash = NULL;
 }
 
 static void extract_key(MVMThreadContext *tc, void **kdata, apr_ssize_t *klen, MVMObject *key) {
@@ -77,7 +118,7 @@ static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *
     void *kdata, *value;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    value = apr_hash_get(body->hash, key, klen);
+    value = apr_hash_get(body->value_hash, kdata, klen);
     return value ? (MVMObject *)value : tc->instance->null;
 }
 
@@ -91,12 +132,13 @@ static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     void *kdata;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->hash, key, klen, value);
+    apr_hash_set(body->key_hash, kdata, klen, key);
+    apr_hash_set(body->value_hash, kdata, klen, value);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
-    return apr_hash_count(body->hash);
+    return apr_hash_count(body->value_hash);
 }
 
 static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -104,7 +146,7 @@ static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     void *kdata;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    return apr_hash_get(body->hash, key, klen) != NULL;
+    return apr_hash_get(body->value_hash, kdata, klen) != NULL;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -112,7 +154,8 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     void *kdata;
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->hash, key, klen, NULL);
+    apr_hash_set(body->key_hash, kdata, klen, NULL);
+    apr_hash_set(body->value_hash, kdata, klen, NULL);
 }
 
 static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -141,6 +184,7 @@ MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     this_repr->allocate = allocate;
     this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
+    this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));

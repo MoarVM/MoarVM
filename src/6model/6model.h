@@ -114,7 +114,7 @@ typedef struct _MVMCollectable {
     MVMuint32 flags;
     
     /* Forwarding pointer, for copying/compacting GC purposes. */
-    struct _MVMObject *forwarder;
+    struct _MVMCollectable *forwarder;
     
     /* Pointer to the serialization context this collectable lives in, if any. */
     struct _MVMSerializationContext *sc;
@@ -168,6 +168,10 @@ typedef struct _MVMSTable {
     
     /* Any data specific to this type that the REPR wants to keep. */
     void *REPR_data;
+    
+    /* The size of an object of this type in bytes, including the
+     * header. */
+    MVMuint32 size;
 
     /* The meta-object. */
     MVMObject *HOW;
@@ -451,8 +455,9 @@ typedef struct _MVMREPROps {
      * attaches it to the supplied STable. */
     void (*deserialize_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationReader *reader);
     
-    /* MoarVM-specific REPR API addition used to mark an object. */
-    void (*gc_mark) (struct _MVMThreadContext *tc, MVMSTable *st, void *data);
+    /* MoarVM-specific REPR API addition used to mark an object. This involves
+     * adding all pointers it contains to the worklist. */
+    void (*gc_mark) (struct _MVMThreadContext *tc, MVMSTable *st, void *data, struct _MVMGCWorklist *worklist);
 
     /* MoarVM-specific REPR API addition used to free an object. */
     void (*gc_free) (struct _MVMThreadContext *tc, MVMObject *object);
@@ -462,7 +467,7 @@ typedef struct _MVMREPROps {
     void (*gc_cleanup) (struct _MVMThreadContext *tc, MVMSTable *st, void *data);
 
     /* MoarVM-specific REPR API addition used to mark a REPR instance. */
-    void (*gc_mark_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
+    void (*gc_mark_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMGCWorklist *worklist);
 
     /* MoarVM-specific REPR API addition used to free a REPR instance. */
     void (*gc_free_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
