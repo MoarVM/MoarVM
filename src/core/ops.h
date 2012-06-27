@@ -123,6 +123,12 @@
 #define MVM_OP_param_on_o 112
 #define MVM_OP_coerce_in 113
 #define MVM_OP_coerce_ni 114
+#define MVM_OP_band_i 115
+#define MVM_OP_bor_i 116
+#define MVM_OP_bxor_i 117
+#define MVM_OP_bnot_i 118
+#define MVM_OP_blshift_i 119
+#define MVM_OP_brshift_i 120
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0

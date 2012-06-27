@@ -405,6 +405,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             cur_op += 8;
                         }
                         break;
+                    }
                     case MVM_OP_param_rn_i:
                         GET_REG(cur_op, 0).i64 = MVM_args_get_named_int(tc, &tc->cur_frame->params,
                             cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->i64;
@@ -485,7 +486,30 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).n64;
                         cur_op += 4;
                         break;
-                    }
+                    case MVM_OP_band_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 & GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_bor_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 | GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_bxor_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 ^ GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_bnot_i:
+                        GET_REG(cur_op, 0).i64 = ~GET_REG(cur_op, 2).i64;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_blshift_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 << GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_brshift_i:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >> GET_REG(cur_op, 4).i64;
+                        cur_op += 6;
+                        break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
