@@ -50,15 +50,16 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     unsigned char op_rw;
     unsigned char op_type;
     unsigned char op_flags;
+    MVMuint32 operand_type_var;
     
     memset(labels, 0, bytecode_size);
     
     /* printf("bytecode_size %d cur_op %d bytecode_end %d difference %d", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op)); */
     while (cur_op < bytecode_end - 1) {
         labels[cur_op - bytecode_start] |= MVM_val_op_boundary;
-        /* XXX TODO validate number and type of operands to each op is correct */
         bank_num = *(cur_op++);
         op_num = *(cur_op++);
+        operand_type_var = 0;
         op_info = MVM_op_get_op((unsigned char)bank_num, (unsigned char)op_num);
         if (!op_info) {
             cleanup_all(tc, labels);
@@ -145,6 +146,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     throw_past_end(tc, labels);
             }
             else { /* register operand */
+                /* XXX only handle locals; needs lexicals */
                 operand_size = 2;
                 if (cur_op + operand_size > bytecode_end)
                     throw_past_end(tc, labels);
@@ -153,6 +155,24 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     MVM_exception_throw_adhoc(tc,
                         "Bytecode validation error: operand register index (%u) out of range (0-%u) at byte %u",
                         GET_REG(cur_op, 0), num_locals - 1, cur_op - bytecode_start);
+                }
+                if (op_type == MVM_operand_type_var) {
+                    if (operand_type_var) {
+                        /* XXX assume only one type variable */
+                        if ((static_frame->local_types[GET_REG(cur_op, 0)] << 3) != operand_type_var) {
+                            cleanup_all(tc, labels);
+                            MVM_exception_throw_adhoc(tc,
+                                "Bytecode validation error: inconsistent operand types to op with a type variable");
+                        }
+                    }
+                    else {
+                        operand_type_var = (static_frame->local_types[GET_REG(cur_op, 0)] << 3);
+                    }
+                }
+                else if ((static_frame->local_types[GET_REG(cur_op, 0)] << 3) != op_type) {
+                    cleanup_all(tc, labels);
+                    MVM_exception_throw_adhoc(tc,
+                        "Bytecode validation error: instruction operand type does not match register type");
                 }
             }
             cur_op += operand_size;
