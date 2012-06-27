@@ -25,15 +25,20 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
     
+    MVM_gc_root_temp_push(tc, &methods);
+    MVM_gc_root_temp_push(tc, &attributes);
+    
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
-    REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
     MVM_WB(tc, root, methods);
     body->methods = methods;
+    REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
     
     attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
-    REPR(attributes)->initialize(tc, STABLE(attributes), attributes, OBJECT_BODY(attributes));
     MVM_WB(tc, root, attributes);
     body->attributes = attributes;
+    REPR(attributes)->initialize(tc, STABLE(attributes), attributes, OBJECT_BODY(attributes));
+    
+    MVM_gc_root_temp_pop_n(tc, 2);
 }
 
 /* Copies the body of one object to another. */
