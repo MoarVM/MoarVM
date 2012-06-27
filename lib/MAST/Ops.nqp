@@ -179,8 +179,8 @@ class MAST::Ops {
         'create', 5,
         'gethow', 6,
         'getwhat', 7,
-        'reprid', 8,
-        'concrete', 9
+        'reprname', 8,
+        'isconcrete', 9
     );
     our $io := nqp::hash(
         'copy_f', 0,

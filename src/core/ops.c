@@ -977,14 +977,14 @@ static MVMOpInfo MVM_op_info_object[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_reprid,
-        "reprid",
+        MVM_OP_reprname,
+        "reprname",
         2,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_concrete,
-        "concrete",
+        MVM_OP_isconcrete,
+        "isconcrete",
         2,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },

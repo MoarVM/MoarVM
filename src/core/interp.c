@@ -730,14 +730,12 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                         cur_op += 4;
                         break;
-                    case MVM_OP_reprid:
-                        GET_REG(cur_op, 0).i64 = MVM_6model_get_reprid(tc,
-                            GET_REG(cur_op, 2).o);
+                    case MVM_OP_reprname:
+                        GET_REG(cur_op, 0).s = REPR(GET_REG(cur_op, 2).o)->name;
                         cur_op += 4;
                         break;
-                    case MVM_OP_concrete:
-                        GET_REG(cur_op, 0).i64 = MVM_6model_is_concrete(tc,
-                            GET_REG(cur_op, 2).o);
+                    case MVM_OP_isconcrete:
+                        GET_REG(cur_op, 0).i64 = IS_CONCRETE(GET_REG(cur_op, 2).o) ? 1 : 0;
                         cur_op += 4;
                         break;
                     default: {

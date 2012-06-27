@@ -489,5 +489,3 @@ typedef struct _MVMREPROps {
 
 /* Some functions related to 6model core functionality. */
 MVMObject * MVM_6model_find_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
-MVMint64 MVM_6model_get_reprid(struct _MVMThreadContext *tc, MVMObject *obj);
-MVMint64 MVM_6model_is_concrete(struct _MVMThreadContext *tc, MVMObject *obj);
