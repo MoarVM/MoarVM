@@ -8,9 +8,7 @@ void MVM_gc_write_barrier_hit(MVMThreadContext *tc, MVMCollectable *update_root,
                               MVMCollectable **update_addr, MVMCollectable *referenced) {
     /* Old generation object pointing to new? */
     if ((update_root->flags & MVM_CF_SECOND_GEN) && !(referenced->flags & MVM_CF_SECOND_GEN)) {
-        /* XXX Add to thread context's GC root set. */
-        /* XXX Optimization: don't add things multiple times; needs
-         * one more flag. */
+        MVM_gc_root_gen2_add(tc, update_addr);
     }
     
     /* Object being updated is in an SC? */
