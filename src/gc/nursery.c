@@ -235,7 +235,7 @@ void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit) {
         }
     }
     
-    /* Zero out the fromspace. This is not strictly needed, but it's a good
-     * safety measure. */
+    /* Zero out the fromspace; this means all memory that comes out of tospace after
+     * the next GC run will be zeroed. */
     memset(tc->nursery_fromspace, 0, MVM_NURSERY_SIZE);
 }
