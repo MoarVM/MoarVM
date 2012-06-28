@@ -732,6 +732,44 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                         cur_op += 4;
                         break;
+                    case MVM_OP_atkey_o: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            (MVMObject *)GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_bindkey_o: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->ass_funcs->bind_key_boxed(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
+                            GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_existskey: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = REPR(obj)->ass_funcs->exists_key(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            (MVMObject *)GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_deletekey: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->ass_funcs->delete_key(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_elemskeyed: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = REPR(obj)->ass_funcs->elems(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));
