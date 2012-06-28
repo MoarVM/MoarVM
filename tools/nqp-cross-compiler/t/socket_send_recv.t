@@ -15,9 +15,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'send_sks', $r0, $r10);
         op(@ins, 'recv_sks', $r1, $r0, $r11);
         op(@ins, 'close_sk', $r0);
+        op(@ins, 'graphs_s', $r7, $r1);
+        op(@ins, 'gt_i', $r7, $r7, const($frame, ival(0)));
+        op(@ins, 'say_i', $r7);
 #        op(@ins, 'say_s', $r1); # prints some html.  uncomment it to see :)
         op(@ins, 'say_s', const($frame, sval("alive")));
         op(@ins, 'return');
     },
-    "alive\n",
+    "1\nalive\n",
     "socket send recv");
