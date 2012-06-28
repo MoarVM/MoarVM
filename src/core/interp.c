@@ -715,10 +715,16 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 6;
                         break;
                     case MVM_OP_create: {
+                        /* Ordering here matters. We write the object into the
+                         * register before calling initialize. This is because
+                         * if initialize allocates, obj may have moved after
+                         * we called it. Note that type is never used after
+                         * the initial allocate call also. This saves us having
+                         * to put things on the temporary stack. */
                         MVMObject *type = GET_REG(cur_op, 2).o;
                         MVMObject *obj  = REPR(type)->allocate(tc, STABLE(type));
-                        REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                         GET_REG(cur_op, 0).o = obj;
+                        REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                         cur_op += 4;
                         break;
                     }
