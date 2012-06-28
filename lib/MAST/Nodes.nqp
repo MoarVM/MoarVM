@@ -64,6 +64,9 @@ class MAST::Frame is MAST::Node {
     # The instructions for this frame.
     has @!instructions;
     
+    # The outer frame, if any.
+    has $!outer;
+    
     my $cuuid_src := 0;
     sub fresh_id() {
         $cuuid_src := $cuuid_src + 1;
@@ -83,6 +86,7 @@ class MAST::Frame is MAST::Node {
         %!lexical_names := nqp::hash();
         @!local_types   := nqp::list();
         @!instructions  := nqp::list();
+        $!outer         := MAST::Node;
     }
     
     method add_lexical($type, $name) {
@@ -106,6 +110,15 @@ class MAST::Frame is MAST::Node {
     
     method instructions() {
         @!instructions
+    }
+    
+    method set_outer($outer) {
+        if nqp::istype($outer, MAST::Frame) {
+            $!outer := $outer;
+        }
+        else {
+            nqp::die("set_outer expects a MAST::Frame");
+        }
     }
 }
 
