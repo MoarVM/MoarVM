@@ -46,6 +46,11 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
 
     /* Destroy the worklist. */
     MVM_gc_worklist_destroy(tc, worklist);
+    
+    /* At this point, some of the objects in the generation 2 worklist may
+     * have been promoted into generation 2 itself, in which case they no
+     * longer need to reside in the worklist. */
+    MVM_gc_root_gen2_cleanup_promoted(tc);
 }
 
 /* Processes the current worklist. */

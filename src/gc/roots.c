@@ -112,6 +112,21 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         MVM_gc_worklist_add(tc, worklist, gen2roots[i]);
 }
 
+/* Visits all of the roots in the gen2 list and cleans them up. */
+void MVM_gc_root_gen2_cleanup_promoted(MVMThreadContext *tc) {
+    MVMuint32         i, cur_survivor, num_roots;
+    MVMCollectable ***gen2roots;
+    num_roots = tc->num_gen2roots;
+    gen2roots = tc->gen2roots;
+    cur_survivor = 0;
+    for (i = 0; i < num_roots; i++) {
+        if (*(gen2roots[i]) && !((*gen2roots[i])->flags & MVM_CF_SECOND_GEN)) {
+            gen2roots[cur_survivor++] = gen2roots[i];
+        }
+    }
+    tc->num_gen2roots = cur_survivor;
+}
+
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
