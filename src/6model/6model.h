@@ -6,6 +6,7 @@ struct _MVMSerializationReader;
 struct _MVMSerializationWriter;
 struct _MVMThreadContext;
 struct _MVMCallsite;
+struct _MVMGCWorklist;
 union  _MVMRegister;
 
 /* Boolification mode flags. */
