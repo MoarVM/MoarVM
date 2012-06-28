@@ -159,7 +159,7 @@ local it is. These are stored as 16-bit unsigned integers.
     str         7
     obj         8
 
-Lexicals are similar, apart from each entry is preceded by a 32-bit unsigned
+Lexicals are similar, apart from each entry is preceded by a 16-bit unsigned
 index into the string heap, which gives the name of the lexical.
 
 [Conjectural: a future MoarVM may instead do these in terms of REPRs.]
