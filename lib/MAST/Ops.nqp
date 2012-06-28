@@ -186,6 +186,7 @@ class MAST::Ops {
         'bindkey_o', 15,
         'existskey', 16,
         'deletekey', 17,
-        'elemskeyed', 18
+        'elemskeyed', 18,
+        'eqaddr', 19
     );
 }

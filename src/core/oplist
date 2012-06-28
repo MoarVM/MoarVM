@@ -177,3 +177,4 @@ BANK 4 object
 0x10    existskey   w(int64) r(obj) r(str)
 0x11    deletekey   r(obj) r(str)
 0x12    elemskeyed  w(int64) r(obj)
+0x13    eqaddr      w(int64) r(obj) r(obj)

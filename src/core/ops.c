@@ -1036,6 +1036,12 @@ static MVMOpInfo MVM_op_info_object[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_eqaddr,
+        "eqaddr",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
 static MVMOpInfo *MVM_op_info[] = {
@@ -1053,7 +1059,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     4,
     13,
     13,
-    19,
+    20,
 };
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {

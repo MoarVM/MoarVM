@@ -186,5 +186,6 @@
 #define MVM_OP_existskey 16
 #define MVM_OP_deletekey 17
 #define MVM_OP_elemskeyed 18
+#define MVM_OP_eqaddr 19
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);
