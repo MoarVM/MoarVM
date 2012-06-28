@@ -76,9 +76,13 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     repr_arg = MVM_args_get_named_str(tc, &arg_ctx, str_repr, MVM_ARG_OPTIONAL);
     name_arg = MVM_args_get_named_str(tc, &arg_ctx, str_name, MVM_ARG_OPTIONAL);
     MVM_args_proc_cleanup(tc, &arg_ctx);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&self);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_arg);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name_arg);
     
     /* We first create a new HOW instance. */
     HOW  = REPR(self)->allocate(tc, STABLE(self));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&HOW);
     
     /* See if we have a representation name; if not default to P6opaque. */
     repr_name = repr_arg ? repr_arg->s : str_P6opaque;
@@ -88,6 +92,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
      * store attributes, it's just for bootstrapping knowhow's. */
     repr_to_use = MVM_repr_get_by_name(tc, repr_name);
     type_object = repr_to_use->type_object_for(tc, HOW);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_object);
     
     /* See if we were given a name; put it into the meta-object if so. */
     name = name_arg ? name_arg->s : str_anon;
@@ -104,6 +109,8 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
 
     /* Return the type object. */
     MVM_args_set_result_obj(tc, type_object, MVM_RETURN_CURRENT_FRAME);
+    
+    MVM_gc_root_temp_pop_n(tc, 5);
 }
 
 /* Adds a method. */
