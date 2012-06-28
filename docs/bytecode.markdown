@@ -142,6 +142,10 @@ Each frame starts with the following data.
     | Name                                                    |
     |    16-bit string heap index                             |
     +---------------------------------------------------------+
+    | Outer                                                   |
+    |    16-bit frame index of the outer frame. For no outer, |
+    |    this is set to the current frame index.              |
+    +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of
 local it is. These are stored as 16-bit unsigned integers.
