@@ -12,7 +12,7 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
 
     /* Ensure the file exists, and get its size. */
     if ((apr_return_status = apr_pool_create(&pool, NULL)) != APR_SUCCESS) {
-        MVM_panic(11, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
+        MVM_panic(MVM_exitcode_compunit, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
     }
     if ((apr_return_status = apr_stat(&stat_info, filename, APR_FINFO_SIZE, pool)) != APR_SUCCESS) {
         apr_pool_destroy(pool);

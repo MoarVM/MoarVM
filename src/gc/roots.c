@@ -8,7 +8,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
  * updated. */
 void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     if (obj_ref == NULL)
-        MVM_panic(1, "Illegal attempt to add null object address as a permanent root");
+        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a permanent root");
 
     if (apr_thread_mutex_lock(tc->instance->mutex_permroots) == APR_SUCCESS) {
         /* Allocate extra permanent root space if needed. */
@@ -23,10 +23,10 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
         tc->instance->num_permroots++;
         
         if (apr_thread_mutex_unlock(tc->instance->mutex_permroots) != APR_SUCCESS)
-            MVM_panic(1, "Unable to unlock GC permanent root mutex");
+            MVM_panic(MVM_exitcode_gcroots, "Unable to unlock GC permanent root mutex");
     }
     else {
-        MVM_panic(1, "Unable to lock GC permanent root mutex");
+        MVM_panic(MVM_exitcode_gcroots, "Unable to lock GC permanent root mutex");
     }
 }
 
@@ -44,7 +44,7 @@ void MVM_gc_root_add_parmanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Ensure the root is not null. */
     if (obj_ref == NULL)
-        MVM_panic(1, "Illegal attempt to add null object address as a temporary root");
+        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a temporary root");
     
     /* Allocate extra temporary root space if needed. */
     if (tc->num_temproots == tc->alloc_temproots) {
@@ -71,7 +71,7 @@ void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
     if (tc->num_temproots - n >= 0)
         tc->num_temproots -= n;
     else
-        MVM_panic(1, "Illegal attempt to pop insufficiently large temporary root stack");
+        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to pop insufficiently large temporary root stack");
 }
 
 /* Adds the set of thread-local temporary roots to a GC worklist. */
@@ -88,7 +88,7 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Ensure the root is not null. */
     if (obj_ref == NULL)
-        MVM_panic(1, "Illegal attempt to add null object address as a inter-generational root");
+        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a inter-generational root");
     
     /* Allocate extra gen2 root space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
