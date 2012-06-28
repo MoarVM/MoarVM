@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(5);
+plan(6);
 
 sub hash_type($frame) {
     my @ins := $frame.instructions;
@@ -97,3 +97,35 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "1\n0\n",
     "Delete works");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $ht := hash_type($frame);
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, str);
+        my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, NQPMu);
+        my $r5 := local($frame, NQPMu);
+        op(@ins, 'create', $r0, $ht);
+        op(@ins, 'create', $r3, $ht);
+        op(@ins, 'create', $r4, $ht);
+        op(@ins, 'const_s', $r2, sval('foo'));
+        op(@ins, 'bindkey_o', $r0, $r2, $r3);
+        op(@ins, 'const_s', $r2, sval('bar'));
+        op(@ins, 'bindkey_o', $r0, $r2, $r4);
+        op(@ins, 'const_s', $r2, sval('foo'));
+        op(@ins, 'atkey_o', $r5, $r0, $r2);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'const_s', $r2, sval('bar'));
+        op(@ins, 'atkey_o', $r5, $r0, $r2);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "1\n0\n0\n1\n",
+    "Can retrieve items by key");
