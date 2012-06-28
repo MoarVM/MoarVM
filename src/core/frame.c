@@ -67,12 +67,20 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     
     /* Allocate space for lexicals and work area. */
     /* XXX Do something better than malloc here some day. */
-    frame->env  = static_frame->env_size ?
-        malloc(static_frame->env_size) :
-        NULL;
-    frame->work = static_frame->work_size ?
-        malloc(static_frame->work_size) :
-        NULL;
+    if (static_frame->env_size) {
+        frame->env = malloc(static_frame->env_size);
+        memset(frame->env, 0, static_frame->env_size);
+    }
+    else {
+        frame->env = NULL;
+    }
+    if (static_frame->work_size) {
+        frame->work = malloc(static_frame->work_size);
+        memset(frame->work, 0, static_frame->work_size);
+    }
+    else {
+        frame->work = NULL;
+    }
     
     /* Calculate args buffer position. */
     frame->args = static_frame->work_size ?
