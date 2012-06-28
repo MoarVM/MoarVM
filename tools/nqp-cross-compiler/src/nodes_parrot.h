@@ -17,6 +17,7 @@ typedef struct {
     PMC    *lexical_names;
     PMC    *local_types;
     PMC    *instructions;
+    PMC    *outer;
 } MAST_Frame;
 
 /* MAST::Op */
@@ -113,6 +114,7 @@ typedef STRING VMSTR;
 #define GET_Op(n)                   ((MAST_Op *)PMC_data(n))
 #define GET_Label(n)                ((MAST_Label *)PMC_data(n))
 #define GET_Local(n)                ((MAST_Local *)PMC_data(n))
+#define GET_Lexical(n)              ((MAST_Lexical *)PMC_data(n))
 #define GET_IVal(n)                 ((MAST_IVal *)PMC_data(n))
 #define GET_NVal(n)                 ((MAST_NVal *)PMC_data(n))
 #define GET_SVal(n)                 ((MAST_SVal *)PMC_data(n))
