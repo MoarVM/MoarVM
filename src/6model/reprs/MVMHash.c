@@ -69,7 +69,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
-        MVM_WB(tc, dest_root, val);
+        /* XXX Write barrier needed. */
         apr_hash_set(dest_body->key_hash, key, klen, val);
     }
     for (idx = apr_hash_first(dest_body->pool, src_body->value_hash); idx; idx = apr_hash_next(idx)) {
@@ -77,7 +77,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
-        MVM_WB(tc, dest_root, val);
+        /* XXX Write barrier needed. */
         apr_hash_set(dest_body->value_hash, key, klen, val);
     }
 }

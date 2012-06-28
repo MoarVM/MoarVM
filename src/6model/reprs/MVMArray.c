@@ -87,8 +87,7 @@ static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         expand_to_at_least(body, index + 1);
     if (index >= body->elems)
         index = body->elems + 1;
-    MVM_WB(tc, root, obj);
-    body->data[index] = obj;
+    MVM_ASSIGN_REF(tc, root, body->data[index], obj);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {

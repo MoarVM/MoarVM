@@ -97,15 +97,13 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     /* See if we were given a name; put it into the meta-object if so. */
     name = name_arg ? name_arg->s : str_anon;
     REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
-    MVM_WB(tc, HOW, name);
-    ((MVMKnowHOWREPR *)HOW)->body.name = name;
+    MVM_ASSIGN_REF(tc, HOW, ((MVMKnowHOWREPR *)HOW)->body.name, name);
     
     /* Set .WHO to an empty hash. */
     BOOTHash = tc->instance->boot_types->BOOTHash;
     stash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     REPR(stash)->initialize(tc, STABLE(stash), stash, OBJECT_BODY(stash));
-    MVM_WB(tc, STABLE(type_object), stash);
-    STABLE(type_object)->WHO = stash;
+    MVM_ASSIGN_REF(tc, STABLE(type_object), STABLE(type_object)->WHO, stash);
 
     /* Return the type object. */
     MVM_args_set_result_obj(tc, type_object, MVM_RETURN_CURRENT_FRAME);
@@ -149,13 +147,11 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     
     /* Fill out STable. */
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
-    MVM_WB(tc, STABLE(type_obj), method_table);
-    MVM_WB(tc, STABLE(type_obj), type_obj);
-    STABLE(type_obj)->method_cache            = method_table;
+    MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->method_cache, method_table);
     STABLE(type_obj)->mode_flags              = MVM_METHOD_CACHE_AUTHORITATIVE;
     STABLE(type_obj)->type_check_cache_length = 1;
     STABLE(type_obj)->type_check_cache        = malloc(sizeof(MVMObject *));
-    STABLE(type_obj)->type_check_cache[0]     = type_obj;
+    MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->type_check_cache[0], type_obj);
     
     /* Return type object. */
     MVM_args_set_result_obj(tc, type_obj, MVM_RETURN_CURRENT_FRAME);
@@ -284,13 +280,11 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
     REPR(meta_obj)->initialize(tc, STABLE(meta_obj), meta_obj, OBJECT_BODY(meta_obj));
     
     /* Put it in place. */
-    MVM_WB(tc, STABLE(type_obj), meta_obj);
-    STABLE(type_obj)->HOW = meta_obj;
+    MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->HOW, meta_obj);
     
     /* Set name. */
     name_str = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, name);
-    MVM_WB(tc, meta_obj, name_str);
-    ((MVMKnowHOWREPR *)meta_obj)->body.name = name_str;
+    MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
 }
  
 /* Drives the overall bootstrap process. */
