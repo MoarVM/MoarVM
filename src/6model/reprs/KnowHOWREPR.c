@@ -6,10 +6,18 @@ static MVMREPROps *this_repr;
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
-    MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+    MVMSTable *st;
+    MVMObject *obj;
+    
+    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
+    
+    obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
     st->size = sizeof(MVMKnowHOWREPR);
+    
+    MVM_gc_root_temp_pop(tc);
+
     return st->WHAT;
 }
 
@@ -25,15 +33,22 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
     
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTHash);
+    
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
-    REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&methods);
     MVM_WB(tc, root, methods);
     body->methods = methods;
+    REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
     
     attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
-    REPR(attributes)->initialize(tc, STABLE(attributes), attributes, OBJECT_BODY(attributes));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
     MVM_WB(tc, root, attributes);
     body->attributes = attributes;
+    REPR(attributes)->initialize(tc, STABLE(attributes), attributes, OBJECT_BODY(attributes));
+    
+    MVM_gc_root_temp_pop_n(tc, 4);
 }
 
 /* Copies the body of one object to another. */

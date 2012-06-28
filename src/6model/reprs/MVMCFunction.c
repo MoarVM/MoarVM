@@ -14,11 +14,19 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. Also sets the invocation protocol handler in the STable. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
-    MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+    MVMSTable *st;
+    MVMObject *obj;
+    
+    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
+    
+    obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
     st->invoke = invoke_handler;
     st->size = sizeof(MVMCFunction);
+    
+    MVM_gc_root_temp_pop(tc);
+    
     return st->WHAT;
 }
 
