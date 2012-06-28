@@ -25,8 +25,8 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
     
-    MVM_gc_root_temp_push(tc, &methods);
-    MVM_gc_root_temp_push(tc, &attributes);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&methods);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
     
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_WB(tc, root, methods);
