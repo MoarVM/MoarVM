@@ -224,6 +224,13 @@ class MAST::Local is MAST::Node {
 class MAST::Lexical is MAST::Node {
     has int $!index;
     has int $!frames_out;
+    
+    method new(:$index!, :$frames_out = 0) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::Lexical, '$!index', $index);
+        nqp::bindattr_i($obj, MAST::Lexical, '$!frames_out', $frames_out);
+        $obj
+    }
 }
 
 # Argument flags.
