@@ -175,6 +175,17 @@ class MAST::Ops {
         'can_s', 4,
         'create', 5,
         'gethow', 6,
-        'getwhat', 7
+        'getwhat', 7,
+        'atkey_i', 8,
+        'atkey_n', 9,
+        'atkey_s', 10,
+        'atkey_o', 11,
+        'bindkey_i', 12,
+        'bindkey_n', 13,
+        'bindkey_s', 14,
+        'bindkey_o', 15,
+        'existskey', 16,
+        'deletekey', 17,
+        'elemskeyed', 18
     );
 }

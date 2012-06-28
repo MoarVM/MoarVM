@@ -175,5 +175,16 @@
 #define MVM_OP_create 5
 #define MVM_OP_gethow 6
 #define MVM_OP_getwhat 7
+#define MVM_OP_atkey_i 8
+#define MVM_OP_atkey_n 9
+#define MVM_OP_atkey_s 10
+#define MVM_OP_atkey_o 11
+#define MVM_OP_bindkey_i 12
+#define MVM_OP_bindkey_n 13
+#define MVM_OP_bindkey_s 14
+#define MVM_OP_bindkey_o 15
+#define MVM_OP_existskey 16
+#define MVM_OP_deletekey 17
+#define MVM_OP_elemskeyed 18
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);
