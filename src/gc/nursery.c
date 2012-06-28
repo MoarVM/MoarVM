@@ -83,7 +83,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
 
         /* If the pointer is already into tospace, we already updated it,
          * so we're done. */
-        if (item >= tc->nursery_tospace && item < tc->nursery_alloc_limit)
+        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc_limit)
             continue;
             
         /* At this point, we know we're going to be copying the object, but
