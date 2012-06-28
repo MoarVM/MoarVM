@@ -12,7 +12,7 @@
 /* Some sizes. */
 #define HEADER_SIZE             72
 #define BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE       4 * 4 + 2 * 2
+#define FRAME_HEADER_SIZE       4 * 4 + 3 * 2
 
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
@@ -549,7 +549,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 }
 
 /* Compiles a frame. */
-void compile_frame(VM, WriterState *ws, MASTNode *node) {
+void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     MAST_Frame  *f;
     FrameState  *fs;
     unsigned int i, num_lexicals, num_ins, instructions_start;
@@ -586,6 +586,13 @@ void compile_frame(VM, WriterState *ws, MASTNode *node) {
         get_string_heap_index(vm, ws, f->cuuid));
     write_int16(ws->frame_seg, ws->frame_pos + 18,
         get_string_heap_index(vm, ws, f->name));
+    
+    /* Handle outer (we'll actually fix it up later if needed). The
+     * current index means "no outer". */
+    write_int16(ws->frame_seg, ws->frame_pos + 20, idx);
+    if (ISTYPE(vm, f->outer, ws->types->Frame)) {
+        /* XXX TODO */
+    }
     ws->frame_pos += FRAME_HEADER_SIZE;
     
     /* Write locals, as well as collecting our own array of type info. */
@@ -752,10 +759,11 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
 
 /* Main entry point to the MAST to bytecode compiler. */
 char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *size) {
-    MAST_CompUnit *cu;
-    WriterState   *ws;
-    char          *bytecode;
-    unsigned int   i, num_frames, bytecode_size;
+    MAST_CompUnit  *cu;
+    WriterState    *ws;
+    char           *bytecode;
+    unsigned short  i, num_frames;
+    unsigned int    bytecode_size;
     
     /* Ensure we have a compilation unit. */
     if (!ISTYPE(vm, node, types->CompUnit))
@@ -782,9 +790,9 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->cu             = cu;
     
     /* Visit and compile each of the frames. */
-    num_frames = ELEMS(vm, cu->frames);
+    num_frames = (unsigned short)ELEMS(vm, cu->frames);
     for (i = 0; i < num_frames; i++)
-        compile_frame(vm, ws, ATPOS(vm, cu->frames, i));
+        compile_frame(vm, ws, ATPOS(vm, cu->frames, i), i);
     
     /* Join all the pieces into a bytecode file. */
     bytecode = form_bytecode_output(vm, ws, &bytecode_size);
