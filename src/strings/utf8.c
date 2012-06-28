@@ -271,6 +271,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
 MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
     
     /* allocate the resulting string. XXX TODO: grow as we go as needed if the string is huge */
+    /* XXX This is terribly wrong when we get to doing NFG properly too. One graph may
+     * expand to loads of codepoints and overflow the buffer. */
     MVMuint8 *result = malloc(sizeof(MVMint32) * str->body.graphs);
     MVMuint8 *arr = result;
     size_t i = 0;
