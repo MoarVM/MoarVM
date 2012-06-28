@@ -54,7 +54,7 @@ class MAST::Frame is MAST::Node {
     has @!lexical_types;
     
     # Mapping of lexical names to slot indexes.
-    has %!lexical_names;
+    has @!lexical_names;
 
     # The set of locals we allocate, but don't need once the frame
     # has finished executing. This is the set of types. Note that
@@ -66,6 +66,9 @@ class MAST::Frame is MAST::Node {
     
     # The outer frame, if any.
     has $!outer;
+    
+    # Mapping of lexical names to lexical index, for lookups.
+    has %!lexical_map;
     
     my $cuuid_src := 0;
     sub fresh_id() {
@@ -83,22 +86,24 @@ class MAST::Frame is MAST::Node {
         $!cuuid         := $cuuid;
         $!name          := $name;
         @!lexical_types := nqp::list();
-        %!lexical_names := nqp::hash();
+        @!lexical_names := nqp::list();
         @!local_types   := nqp::list();
         @!instructions  := nqp::list();
         $!outer         := MAST::Node;
+        %!lexical_map   := nqp::hash();
     }
     
     method add_lexical($type, $name) {
         my $index := +@!lexical_types;
         @!lexical_types[$index] := $type;
-        %!lexical_names{$name} := $index;
+        @!lexical_names[$index] := $name;
+        %!lexical_map{$name} := $index;
         $index
     }
     
     method lexical_index($name) {
-        pir::exists(%!lexical_names, $name) ??
-            %!lexical_names{$name} !!
+        pir::exists(%!lexical_map, $name) ??
+            %!lexical_map{$name} !!
             pir::die("No such lexical '$name'")
     }
     

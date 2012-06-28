@@ -26,6 +26,10 @@ typedef struct {
     unsigned short *local_types;
     unsigned int num_locals;
     
+    /* Types of lexicals, along with the number of them we have. */
+    unsigned short *lexical_types;
+    unsigned int num_lexicals;
+    
     /* Labels that we have seen and know the address of. Hash of name to
      * index. */
     MASTNode *known_labels;
@@ -117,6 +121,8 @@ void ensure_space(VM, void **buffer, unsigned int *alloc, unsigned int pos, unsi
 void cleanup_frame(VM, FrameState *fs) {
     if (fs->local_types)
         free(fs->local_types);
+    if (fs->lexical_types)
+        free(fs->lexical_types);
     free(fs);
 }
 
@@ -552,7 +558,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     MAST_Frame  *f;
     FrameState  *fs;
-    unsigned int i, num_lexicals, num_ins, instructions_start;
+    unsigned int i, num_ins, instructions_start;
     MASTNode *last_inst = NULL;
     
     /* Ensure we have a node of the right type. */
@@ -571,17 +577,21 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     
     /* Count locals and lexicals. */
     fs->num_locals   = ELEMS(vm, f->local_types);
-    num_lexicals     = ELEMS(vm, f->lexical_types);
+    fs->num_lexicals = ELEMS(vm, f->lexical_types);
+    if (ELEMS(vm, f->lexical_names) != fs->num_lexicals) {
+        cleanup_all(vm, ws);
+        DIE(vm, "Lexical types list and lexical names list have unequal length");
+    }
     
     /* Ensure space is available to write frame entry, and write the
      * header, apart from the bytecode length, which we'll fill in
      * later. */
     ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
-        FRAME_HEADER_SIZE + fs->num_locals * 2 + num_lexicals * 6);
+        FRAME_HEADER_SIZE + fs->num_locals * 2 + fs->num_lexicals * 4);
     write_int32(ws->frame_seg, ws->frame_pos, fs->bytecode_start);
     write_int32(ws->frame_seg, ws->frame_pos + 4, 0); /* Filled in later. */
     write_int32(ws->frame_seg, ws->frame_pos + 8, fs->num_locals);
-    write_int32(ws->frame_seg, ws->frame_pos + 12, num_lexicals);
+    write_int32(ws->frame_seg, ws->frame_pos + 12, fs->num_lexicals);
     write_int16(ws->frame_seg, ws->frame_pos + 16,
         get_string_heap_index(vm, ws, f->cuuid));
     write_int16(ws->frame_seg, ws->frame_pos + 18,
@@ -605,8 +615,16 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     }
 
     /* Write lexicals. */
-    if (num_lexicals)
-        DIE(vm, "Cannot compile lexicals yet");
+    fs->lexical_types = malloc(sizeof(unsigned short) * fs->num_lexicals);
+    for (i = 0; i < fs->num_lexicals; i++) {
+        unsigned short lexical_type = type_to_local_type(vm, ws, ATPOS(vm, f->lexical_types, i));
+        fs->lexical_types[i] = lexical_type;
+        write_int16(ws->frame_seg, ws->frame_pos, lexical_type);
+        ws->frame_pos += 2;
+        write_int16(ws->frame_seg, ws->frame_pos,
+            get_string_heap_index(vm, ws, ATPOS_S(vm, f->lexical_names, i)));
+        ws->frame_pos += 2;
+    }
 
     /* Save the location of the start of instructions */
     instructions_start = ws->bytecode_pos;
