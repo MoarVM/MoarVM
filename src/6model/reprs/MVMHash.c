@@ -127,7 +127,7 @@ static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
     value = apr_hash_get(body->value_hash, kdata, klen);
-    return value ? (MVMObject *)value : tc->instance->null;
+    return value ? (MVMObject *)value : NULL;
 }
 
 static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {

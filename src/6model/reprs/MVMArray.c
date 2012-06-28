@@ -73,7 +73,7 @@ static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
 
 static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
     MVMArrayBody *body = (MVMArrayBody *)data;
-    return index < body->elems ? body->data[index] : tc->instance->null;
+    return index < body->elems ? body->data[index] : NULL;
 }
 
 static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *addr) {

@@ -7,7 +7,7 @@ MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMStri
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = REPR(cache)->ass_funcs->at_key_boxed(tc, STABLE(cache),
             cache, OBJECT_BODY(cache), (MVMObject *)name);
-        if (meth != tc->instance->null)
+        if (meth)
             return meth;
         else
             MVM_exception_throw_adhoc(tc, "Method %s not found in cache, and late-bound dispatch NYI",

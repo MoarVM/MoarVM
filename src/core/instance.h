@@ -16,9 +16,6 @@ typedef struct _MVMInstance {
     /* The number of active threads. */
     MVMuint16 num_threads;
     
-    /* The MoarVM-level NULL. */
-    MVMObject *null;
-    
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */
     MVMObject *KnowHOW;
