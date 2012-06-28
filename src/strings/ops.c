@@ -52,7 +52,9 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
         MVM_exception_throw_adhoc(tc, "Substring end (%lld) cannot be past end of string (%lld)",
             start + length, a->body.graphs);
     
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
+    MVM_gc_root_temp_pop(tc);
     
     result->body.codes  = length; /* XXX TODO this is wrong */
     result->body.graphs = length;
@@ -66,7 +68,11 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
 }
 
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVMString *result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
+    MVMString *result;
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
+    result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
+    MVM_gc_root_temp_pop(tc);
     
     /* there could be unattached combining chars at the beginning of b,
        so, XXX TODO handle this */
@@ -85,8 +91,12 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 }
 
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
-    MVMString *result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
+    MVMString *result;
     size_t i = 0;
+    
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
+    result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
+    MVM_gc_root_temp_pop(tc);
     
     if (count < 0)
         MVM_exception_throw_adhoc(tc, "repeat count (%lld) cannot be negative", count);
