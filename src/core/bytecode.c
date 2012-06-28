@@ -214,6 +214,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Allocate frame and get/check bytecode start/length. */
         frames[i] = malloc(sizeof(MVMStaticFrame));
+        memset(frames[i], 0, sizeof(MVMStaticFrame));
         bytecode_pos = read_int32(pos, 0);
         bytecode_size = read_int32(pos, 4);
         if (bytecode_pos >= rs->bytecode_size) {
