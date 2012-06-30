@@ -31,7 +31,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
             src/6model/reprs/P6opaque$(O) src/6model/reprs/MVMCode$(O) \
             src/6model/reprs/MVMOSHandle$(O) src/6model/reprs/P6int$(O) src/6model/reprs/P6num$(O) \
-            src/6model/reprs/Uninstantiable$(O) \
+            src/6model/reprs/Uninstantiable$(O) src/6model/reprs/HashAttrStore$(O) \
             src/6model/6model$(O) src/6model/bootstrap$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
@@ -44,7 +44,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
             src/6model/reprs/KnowHOWREPR.h src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h \
             src/6model/reprs/MVMOSHandle.h src/6model/reprs/P6int.h src/6model/reprs/P6num.h \
-            src/6model/reprs/Uninstantiable.h \
+            src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h \
             src/strings/ascii.h src/strings/utf8.h src/strings/ops.h
 
 # Main target
@@ -118,6 +118,8 @@ src/6model/reprs/P6num$(O): src/6model/reprs/P6num.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6num$(O) src/6model/reprs/P6num.c
 src/6model/reprs/Uninstantiable$(O): src/6model/reprs/Uninstantiable.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/Uninstantiable$(O) src/6model/reprs/Uninstantiable.c
+src/6model/reprs/HashAttrStore$(O): src/6model/reprs/HashAttrStore.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/HashAttrStore$(O) src/6model/reprs/HashAttrStore.c
 src/6model/6model$(O): src/6model/6model.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/6model$(O) src/6model/6model.c
 src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)
