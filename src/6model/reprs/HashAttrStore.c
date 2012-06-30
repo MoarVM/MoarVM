@@ -71,7 +71,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
-        MVM_WB(tc, dest_root, val);
+        /* XXX Needs a write barrier, but APR. */
         apr_hash_set(dest_body->key_hash, key, klen, val);
     }
     for (idx = apr_hash_first(dest_body->pool, src_body->value_hash); idx; idx = apr_hash_next(idx)) {
@@ -79,7 +79,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
-        MVM_WB(tc, dest_root, val);
+        /* Needs a write barrier, but APR. */
         apr_hash_set(dest_body->value_hash, key, klen, val);
     }
 }
@@ -124,7 +124,7 @@ static MVMObject * get_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMO
     apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, (MVMObject *)name);
     value = apr_hash_get(body->value_hash, kdata, klen);
-    return value ? (MVMObject *)value : tc->instance->null;
+    return value ? (MVMObject *)value : NULL;
 }
 
 static void * get_attribute_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
