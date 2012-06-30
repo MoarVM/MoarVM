@@ -36,7 +36,12 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
-    apr_pool_create(&body->pool, NULL);
+    apr_status_t rv;
+    
+    if ((rv = apr_pool_create(&body->pool, NULL)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to initialize MVMHashBody: ");
+    }
+    
     body->key_hash = apr_hash_make(body->pool);
     body->value_hash = apr_hash_make(body->pool);
 }
@@ -48,7 +53,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     apr_hash_index_t *idx;
     
     /* Create a new pool for the target hash, and the hash itself. */
-    apr_pool_create(&dest_body->pool, NULL);
+    apr_status_t rv;
+    
+    if ((rv = apr_pool_create(&dest_body->pool, NULL)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to copy MVMHashBody: ");
+    }
+    
     dest_body->key_hash = apr_hash_make(dest_body->pool);
     dest_body->value_hash = apr_hash_make(dest_body->pool);
  
