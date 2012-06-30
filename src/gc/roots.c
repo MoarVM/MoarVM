@@ -31,7 +31,7 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
 }
 
 /* Adds the set of permanently registered roots to a GC worklist. */
-void MVM_gc_root_add_parmanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMuint32         i, num_roots;
     MVMCollectable ***permroots;
     num_roots = tc->instance->num_permroots;

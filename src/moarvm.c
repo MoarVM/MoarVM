@@ -19,7 +19,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->boot_types = calloc(1, sizeof(struct _MVMBootTypes));
     
     /* Allocate instance APR pool. */
-    if (apr_pool_create(&instance->apr_pool, NULL) != APR_SUCCESS) {
+    if ((apr_init_stat = apr_pool_create(&instance->apr_pool, NULL)) != APR_SUCCESS) {
         char error[256];
         fprintf(stderr, "MoarVM: Initialization of APR pool failed\n    %s\n",
             apr_strerror(apr_init_stat, error, 256));
@@ -35,7 +35,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->num_permroots   = 0;
     instance->alloc_permroots = 16;
     instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
-    if (apr_thread_mutex_create(&instance->mutex_permroots, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool) != APR_SUCCESS) {
+    if ((apr_init_stat = apr_thread_mutex_create(&instance->mutex_permroots, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) {
         char error[256];
         fprintf(stderr, "MoarVM: Initialization of permanent roots mutex failed\n    %s\n",
             apr_strerror(apr_init_stat, error, 256));

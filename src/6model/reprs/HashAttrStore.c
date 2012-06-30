@@ -21,18 +21,10 @@ static MVMREPROps *this_repr;
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
-    
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
-    
-    obj = MVM_gc_allocate_type_object(tc, st);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
+    MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
-    st->size = sizeof(MVMHash);
-    
-    MVM_gc_root_temp_pop(tc);
-    
+    st->size = sizeof(HashAttrStore);
     return st->WHAT;
 }
 
@@ -43,11 +35,11 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMHashBody *body = (MVMHashBody *)data;
+    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     apr_status_t rv;
     
     if ((rv = apr_pool_create(&body->pool, NULL)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to initialize MVMHashBody: ");
+        MVM_exception_throw_apr_error(tc, rv, "Failed to initialize HashAttrStoreBody: ");
     }
     
     body->key_hash = apr_hash_make(body->pool);
@@ -56,15 +48,15 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMHashBody *src_body  = (MVMHashBody *)src;
-    MVMHashBody *dest_body = (MVMHashBody *)dest;
+    HashAttrStoreBody *src_body  = (HashAttrStoreBody *)src;
+    HashAttrStoreBody *dest_body = (HashAttrStoreBody *)dest;
     apr_hash_index_t *idx;
     
     /* Create a new pool for the target hash, and the hash itself. */
     apr_status_t rv;
     
     if ((rv = apr_pool_create(&dest_body->pool, NULL)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to copy MVMHashBody: ");
+        MVM_exception_throw_apr_error(tc, rv, "Failed to copy HashAttrStoreBody: ");
     }
     
     dest_body->key_hash = apr_hash_make(dest_body->pool);
@@ -79,7 +71,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
-        /* XXX Write barrier needed. */
+        MVM_WB(tc, dest_root, val);
         apr_hash_set(dest_body->key_hash, key, klen, val);
     }
     for (idx = apr_hash_first(dest_body->pool, src_body->value_hash); idx; idx = apr_hash_next(idx)) {
@@ -87,14 +79,14 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         void *val;
         apr_ssize_t klen;
         apr_hash_this(idx, &key, &klen, &val);
-        /* XXX Write barrier needed. */
+        MVM_WB(tc, dest_root, val);
         apr_hash_set(dest_body->value_hash, key, klen, val);
     }
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMHashBody *body = (MVMHashBody *)data;
+    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     apr_hash_index_t *hi;
     for (hi = apr_hash_first(NULL, body->key_hash); hi; hi = apr_hash_next(hi)) {
         struct apr_hash_entry_t *this = hi->this;
@@ -108,7 +100,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMHash *h = (MVMHash *)obj;
+    HashAttrStore *h = (HashAttrStore *)obj;
     apr_pool_destroy(h->body.pool);
     h->body.pool = NULL;
     h->body.key_hash = NULL;
@@ -122,66 +114,48 @@ static void extract_key(MVMThreadContext *tc, void **kdata, apr_ssize_t *klen, M
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "MVMHash representation requires MVMString keys");
+            "HashAttrStore representation requires MVMString keys");
     }
 }
 
-static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMHash representation does not support native type storage");
-}
-
-static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVMHashBody *body = (MVMHashBody *)data;
+static MVMObject * get_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
+    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     void *kdata, *value;
     apr_ssize_t klen;
-    extract_key(tc, &kdata, &klen, key);
+    extract_key(tc, &kdata, &klen, (MVMObject *)name);
     value = apr_hash_get(body->value_hash, kdata, klen);
-    return value ? (MVMObject *)value : NULL;
+    return value ? (MVMObject *)value : tc->instance->null;
 }
 
-static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
+static void * get_attribute_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     MVM_exception_throw_adhoc(tc,
-        "MVMHash representation does not support native type storage");
+        "HashAttrStore representation does not support native attribute storage");
 }
 
-static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
-    MVMHashBody *body = (MVMHashBody *)data;
+static void bind_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMObject *value) {
+    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     void *kdata;
     apr_ssize_t klen;
-    extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->key_hash, kdata, klen, key);
+    extract_key(tc, &kdata, &klen, (MVMObject *)name);
+    apr_hash_set(body->key_hash, kdata, klen, (MVMObject *)name);
     apr_hash_set(body->value_hash, kdata, klen, value);
 }
 
-static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMHashBody *body = (MVMHashBody *)data;
-    return apr_hash_count(body->value_hash);
+static void bind_attribute_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, void *value) {
+    MVM_exception_throw_adhoc(tc,
+        "HashAttrStore representation does not support native attribute storage");
 }
 
-static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVMHashBody *body = (MVMHashBody *)data;
+static MVMint32 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
+    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     void *kdata;
     apr_ssize_t klen;
-    extract_key(tc, &kdata, &klen, key);
+    extract_key(tc, &kdata, &klen, (MVMObject *)name);
     return apr_hash_get(body->value_hash, kdata, klen) != NULL;
 }
 
-static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVMHashBody *body = (MVMHashBody *)data;
-    void *kdata;
-    apr_ssize_t klen;
-    extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->key_hash, kdata, klen, NULL);
-    apr_hash_set(body->value_hash, kdata, klen, NULL);
-}
-
-static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_handle, MVMString *name) {
+    return MVM_NO_HINT;
 }
 
 /* Gets the storage specification for this representation. */
@@ -194,7 +168,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
+MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
@@ -205,14 +179,12 @@ MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
-    this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
-    this_repr->ass_funcs->at_key_ref = at_key_ref;
-    this_repr->ass_funcs->at_key_boxed = at_key_boxed;
-    this_repr->ass_funcs->bind_key_ref = bind_key_ref;
-    this_repr->ass_funcs->bind_key_boxed = bind_key_boxed;
-    this_repr->ass_funcs->elems = elems;
-    this_repr->ass_funcs->exists_key = exists_key;
-    this_repr->ass_funcs->delete_key = delete_key;
-    this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
+    this_repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
+    this_repr->attr_funcs->get_attribute_boxed = get_attribute_boxed;
+    this_repr->attr_funcs->get_attribute_ref = get_attribute_ref;
+    this_repr->attr_funcs->bind_attribute_boxed = bind_attribute_boxed;
+    this_repr->attr_funcs->bind_attribute_ref = bind_attribute_ref;
+    this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;
+    this_repr->attr_funcs->hint_for = hint_for;
     return this_repr;
 }
