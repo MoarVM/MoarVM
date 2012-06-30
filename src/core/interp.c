@@ -511,7 +511,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 6;
                         break;
                     default: {
-                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                        MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
                     }
                     break;
@@ -538,8 +538,12 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         apr_sleep((apr_interval_time_t)GET_REG(cur_op, 0).i64);
                         cur_op += 2;
                         break;
+                    case MVM_OP_anonoshtype:
+                        GET_REG(cur_op, 0).o = MVM_file_get_anon_oshandle_type(tc);
+                        cur_op += 2;
+                        break;
                     default: {
-                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                        MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_dev, *(cur_op-1));
                     }
                     break;
@@ -618,7 +622,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 6;
                         break;
                     default: {
-                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                        MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_string, *(cur_op-1));
                     }
                     break;
@@ -683,7 +687,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     default: {
-                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                        MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_math, *(cur_op-1));
                     }
                     break;
@@ -697,10 +701,6 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                     case MVM_OP_knowhow:
                         GET_REG(cur_op, 0).o = tc->instance->KnowHOW;
                         cur_op += 2;
-                        break;
-                    case MVM_OP_gethow:
-                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->HOW;
-                        cur_op += 4;
                         break;
                     case MVM_OP_findmeth:
                         GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
@@ -728,6 +728,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_gethow:
+                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->HOW;
+                        cur_op += 4;
+                        break;
                     case MVM_OP_getwhat:
                         GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                         cur_op += 4;
@@ -774,6 +778,251 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).o == GET_REG(cur_op, 4).o ? 1 : 0;
                         cur_op += 6;
                         break;
+                    case MVM_OP_reprname:
+                        GET_REG(cur_op, 0).s = REPR(GET_REG(cur_op, 2).o)->name;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_isconcrete:
+                        GET_REG(cur_op, 0).i64 = IS_CONCRETE(GET_REG(cur_op, 2).o) ? 1 : 0;
+                        cur_op += 4;
+                        break;
+                    default: {
+                        MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_object, *(cur_op-1));
+                    }
+                    break;
+                }
+            }
+            break;
+            
+            /* IO operations. */
+            case MVM_OP_BANK_io: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_copy_f:
+                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_append_f:
+                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_rename_f:
+                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_delete_f:
+                        MVM_file_delete(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_chmod_f:
+                        MVM_file_chmod(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_exists_f:
+                        GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_mkdir:
+                        MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_rmdir:
+                        MVM_dir_rmdir(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_open_dir:
+                        GET_REG(cur_op, 0).o = MVM_dir_open(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_read_dir:
+                        GET_REG(cur_op, 0).s = MVM_dir_read(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_close_dir:
+                        MVM_dir_close(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_open_fh:
+                        GET_REG(cur_op, 0).o = MVM_file_open_fh(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
+                        break;
+                    case MVM_OP_close_fh:
+                        MVM_file_close_fh(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_read_fhs:
+                        GET_REG(cur_op, 0).s = MVM_file_read_fhs(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_slurp:
+                        GET_REG(cur_op, 0).s = MVM_file_slurp(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_spew:
+                        MVM_file_spew(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_write_fhs:
+                        MVM_file_write_fhs(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s,
+                            GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
+                        break;
+                    case MVM_OP_seek_fh:
+                        MVM_file_seek(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64,
+                            GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_lock_fh:
+                        GET_REG(cur_op, 0).i64 = MVM_file_lock(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_unlock_fh:
+                        MVM_file_unlock(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_flush_fh:
+                        MVM_file_flush(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_sync_fh:
+                        MVM_file_sync(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_pipe_fh:
+                        MVM_file_pipe(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_trunc_fh:
+                        MVM_file_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_eof_fh:
+                        GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getstdin:
+                        GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getstdout:
+                        GET_REG(cur_op, 0).o = MVM_file_get_stdout(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getstderr:
+                        GET_REG(cur_op, 0).o = MVM_file_get_stderr(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_connect_sk:
+                        GET_REG(cur_op, 0).o = MVM_socket_connect(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                        cur_op += 10;
+                        break;
+                    case MVM_OP_close_sk:
+                        MVM_socket_close(tc, GET_REG(cur_op, 0).o);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_bind_sk:
+                        GET_REG(cur_op, 0).o = MVM_socket_bind(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                        cur_op += 10;
+                        break;
+                    case MVM_OP_listen_sk:
+                        MVM_socket_listen(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_accept_sk:
+                        GET_REG(cur_op, 0).o = MVM_socket_accept(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_send_sks:
+                        MVM_socket_send_string(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_recv_sks:
+                        GET_REG(cur_op, 0).s = MVM_socket_receive_string(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_hostname:
+                        GET_REG(cur_op, 0).s = MVM_socket_hostname(tc);
+                        cur_op += 2;
+                        break;
+                    default: {
+                        MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_object, *(cur_op-1));
+                    }
+                    break;
+                }
+            }
+            break;
+            
+            /* Process-wide and thread operations. */
+            case MVM_OP_BANK_processthread: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_getenv:
+                        GET_REG(cur_op, 0).s = MVM_proc_getenv(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_setenv:
+                        MVM_proc_setenv(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_delenv:
+                        MVM_proc_delenv(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_nametogid:
+                        GET_REG(cur_op, 0).i64 = MVM_proc_nametogid(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_gidtoname:
+                        GET_REG(cur_op, 0).s = MVM_proc_gidtoname(tc, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_nametouid:
+                        GET_REG(cur_op, 0).i64 = MVM_proc_nametouid(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_uidtoname:
+                        GET_REG(cur_op, 0).s = MVM_proc_uidtoname(tc, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getusername:
+                        GET_REG(cur_op, 0).s = MVM_proc_getusername(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_getuid:
+                        GET_REG(cur_op, 0).i64 = MVM_proc_getuid(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_getgid:
+                        GET_REG(cur_op, 0).i64 = MVM_proc_getgid(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_gethomedir:
+                        GET_REG(cur_op, 0).s = MVM_proc_gethomedir(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_chdir:
+                        MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_rand_i:
+                        GET_REG(cur_op, 0).i64 = MVM_proc_rand_i(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_rand_n:
+                        GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_time_i:
+                        GET_REG(cur_op, 0).i64 = MVM_proc_time_i(tc);
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));
@@ -786,7 +1035,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
             /* Dispatch to bank function. */
             default:
             {
-                MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u", *(cur_op-1));
+                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u", *(cur_op-1));
             }
             break;
         }

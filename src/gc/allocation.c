@@ -22,7 +22,7 @@ void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
          * unlikely in any non-contrived situation. */
         while ((char *)tc->nursery_alloc + size >= (char *)tc->nursery_alloc_limit) {
             if (size > MVM_NURSERY_SIZE)
-                MVM_panic(14, "Attempt to allocate more than the maximum nursery size");
+                MVM_panic(MVM_exitcode_gcalloc, "Attempt to allocate more than the maximum nursery size");
             run_gc(tc);
         }
         
@@ -31,7 +31,7 @@ void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
         tc->nursery_alloc = (char *)tc->nursery_alloc + size;
     }
     else {
-        MVM_panic(16, "Cannot allocate 0 bytes of memory in the nursery");
+        MVM_panic(MVM_exitcode_gcalloc, "Cannot allocate 0 bytes of memory in the nursery");
     }
     
     return allocated;

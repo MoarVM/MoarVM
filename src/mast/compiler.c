@@ -110,10 +110,10 @@ static void write_double(char *buffer, size_t offset, double value) {
 }
 
 /* Ensures the specified buffer has enough space and expands it if so. */
-void ensure_space(VM, void **buffer, unsigned int *alloc, unsigned int pos, unsigned int need) {
+void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need) {
     if (pos + need > *alloc) {
-        *alloc = *alloc * 2;
-        *buffer = realloc(*buffer, *alloc);
+        do { *alloc = *alloc * 2; } while (pos + need > *alloc);
+        *buffer = (char *)realloc(*buffer, *alloc);
     }
 }
 
@@ -203,6 +203,7 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
 void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand) {
     unsigned char op_rw   = op_flags & MVM_operand_rw_mask;
     unsigned char op_type = op_flags & MVM_operand_type_mask;
+    unsigned short int local_type;
     if (op_rw == MVM_operand_literal) {
         /* Literal; go by type. */
         switch (op_type) {
@@ -334,7 +335,8 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             }
             
             /* Check the type matches. */
-            if (op_type != ws->cur_frame->local_types[l->index] << 3) {
+            local_type = ws->cur_frame->local_types[l->index];
+            if (op_type != local_type << 3) {
                 cleanup_all(vm, ws);
                 DIE(vm, "MAST::Local of wrong type specified");
             }
@@ -569,7 +571,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     f = GET_Frame(node);
     
     /* Allocate frame state. */
-    fs = ws->cur_frame    = malloc(sizeof(FrameState));
+    fs = ws->cur_frame    = (FrameState *)malloc(sizeof(FrameState));
     fs->bytecode_start    = ws->bytecode_pos;
     fs->frame_start       = ws->frame_pos;
     fs->known_labels      = NEWHASH(vm);
@@ -606,7 +608,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     ws->frame_pos += FRAME_HEADER_SIZE;
     
     /* Write locals, as well as collecting our own array of type info. */
-    fs->local_types = malloc(sizeof(unsigned short) * fs->num_locals);
+    fs->local_types = (short unsigned int *)malloc(sizeof(unsigned short) * fs->num_locals);
     for (i = 0; i < fs->num_locals; i++) {
         unsigned short local_type = type_to_local_type(vm, ws, ATPOS(vm, f->local_types, i));
         fs->local_types[i] = local_type;
@@ -683,7 +685,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
     /* Allocate heap starting point (just a guess). */
     heap_size = 0;
     heap_alloc = num_strings * 16;
-    heap = malloc(heap_alloc);
+    heap = (char *)malloc(heap_alloc);
     
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
@@ -697,7 +699,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
         unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
         if (heap_size + 4 + bytelen + align > heap_alloc) {
             heap_alloc *= 2;
-            heap = realloc(heap, heap_alloc);
+            heap = (char *)realloc(heap, heap_alloc);
         }
         
         /* Write byte length into heap. */
@@ -734,7 +736,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     size += ws->bytecode_pos;
     
     /* Allocate space for the bytecode output. */
-    output = malloc(size);
+    output = (char *)malloc(size);
     memset(output, 0, size);
     
     /* Generate start of header. */
@@ -789,22 +791,22 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     cu = GET_CompUnit(node);
     
     /* Initialize the writer state structure. */
-    ws = malloc(sizeof(WriterState));
+    ws = (WriterState *)malloc(sizeof(WriterState));
     ws->types          = types;
     ws->strings        = NEWLIST_S(vm);
     ws->seen_strings   = NEWHASH(vm);
     ws->cur_frame      = NULL;
     ws->frame_pos      = 0;
     ws->frame_alloc    = 4096;
-    ws->frame_seg      = malloc(ws->frame_alloc);
+    ws->frame_seg      = (char *)malloc(ws->frame_alloc);
     ws->num_frames     = 0;
     ws->callsite_pos   = 0;
     ws->callsite_alloc = 4096;
-    ws->callsite_seg   = malloc(ws->callsite_alloc);
+    ws->callsite_seg   = (char *)malloc(ws->callsite_alloc);
     ws->num_callsites  = 0;
     ws->bytecode_pos   = 0;
     ws->bytecode_alloc = 4096;
-    ws->bytecode_seg   = malloc(ws->bytecode_alloc);
+    ws->bytecode_seg   = (char *)malloc(ws->bytecode_alloc);
     ws->cu             = cu;
     
     /* Visit and compile each of the frames. */

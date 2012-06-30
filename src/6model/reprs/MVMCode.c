@@ -46,7 +46,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMCodeBody *src_body  = (MVMCodeBody *)src;
     MVMCodeBody *dest_body = (MVMCodeBody *)dest;
-    MVM_panic(10, "MVMCode copy_to NYI");
+    MVM_panic(MVM_exitcode_NYI, "MVMCode copy_to NYI");
 }
 
 /* Gets the storage specification for this representation. */

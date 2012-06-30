@@ -6,6 +6,8 @@ class MAST::OpBanks {
     our $string := 2;
     our $math := 3;
     our $object := 4;
+    our $io := 5;
+    our $processthread := 6;
 }
 class MAST::Ops {
     our $primitives := nqp::hash(
@@ -135,7 +137,8 @@ class MAST::Ops {
         'say_i', 0,
         'say_s', 1,
         'say_n', 2,
-        'sleep', 3
+        'sleep', 3,
+        'anonoshtype', 4
     );
     our $string := nqp::hash(
         'concat_s', 0,
@@ -187,6 +190,81 @@ class MAST::Ops {
         'existskey', 16,
         'deletekey', 17,
         'elemskeyed', 18,
-        'eqaddr', 19
+        'eqaddr', 19,
+        'reprname', 20,
+        'isconcrete', 21
+    );
+    our $io := nqp::hash(
+        'copy_f', 0,
+        'append_f', 1,
+        'rename_f', 2,
+        'delete_f', 3,
+        'chmod_f', 4,
+        'exists_f', 5,
+        'mkdir', 6,
+        'rmdir', 7,
+        'open_dir', 8,
+        'read_dir', 9,
+        'close_dir', 10,
+        'open_fh', 11,
+        'close_fh', 12,
+        'read_fhs', 13,
+        'read_fhbuf', 14,
+        'slurp', 15,
+        'spew', 16,
+        'write_fhs', 17,
+        'write_fhbuf', 18,
+        'seek_fh', 19,
+        'lock_fh', 20,
+        'unlock_fh', 21,
+        'flush_fh', 22,
+        'sync_fh', 23,
+        'pipe_fh', 24,
+        'trunc_fh', 25,
+        'eof_fh', 26,
+        'getstdin', 27,
+        'getstdout', 28,
+        'getstderr', 29,
+        'connect_sk', 30,
+        'close_sk', 31,
+        'bind_sk', 32,
+        'listen_sk', 33,
+        'accept_sk', 34,
+        'send_sks', 35,
+        'send_skbuf', 36,
+        'recv_sks', 37,
+        'recv_skbuf', 38,
+        'getaddr_sk', 39,
+        'hostname', 40,
+        'nametoaddr', 41,
+        'addrtoname', 42,
+        'porttosvc', 43
+    );
+    our $processthread := nqp::hash(
+        'getenv', 0,
+        'setenv', 1,
+        'delenv', 2,
+        'nametogid', 3,
+        'gidtoname', 4,
+        'nametouid', 5,
+        'uidtoname', 6,
+        'getusername', 7,
+        'getuid', 8,
+        'getgid', 9,
+        'gethomedir', 10,
+        'getencoding', 11,
+        'procshell', 12,
+        'procshellbg', 13,
+        'procrun', 14,
+        'procrunbg', 15,
+        'prockill', 16,
+        'procwait', 17,
+        'procalive', 18,
+        'detach', 19,
+        'daemonize', 20,
+        'chdir', 21,
+        'rand_i', 22,
+        'rand_n', 23,
+        'time_i', 24
     );
 }

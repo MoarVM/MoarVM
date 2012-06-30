@@ -88,7 +88,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
 
         /* If the pointer is already into tospace, we already updated it,
          * so we're done. */
-        if (item >= tc->nursery_tospace && item < tc->nursery_alloc_limit)
+        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc_limit)
             continue;
             
         /* At this point, we know we're going to be copying the object, but
@@ -100,9 +100,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         else if (item->flags & MVM_CF_STABLE)
             size = sizeof(MVMSTable);
         else if (item->flags & MVM_CF_SC)
-            MVM_panic(15, "Can't handle serialization contexts in the GC yet");
+            MVM_panic(MVM_exitcode_gcnursery, "Can't handle serialization contexts in the GC yet");
         else
-            MVM_panic(15, "Internal error: impossible case encountered in GC sizing");
+            MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC sizing");
         
         /* Did we see it in the nursery before? */
         if (item->flags & MVM_CF_NURSERY_SEEN) {
@@ -180,10 +180,10 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
                 new_addr_st->REPR->gc_mark_repr_data(tc, new_addr_st, worklist);
         }
         else if (item->flags & MVM_CF_SC) {
-            MVM_panic(15, "Can't copy serialization contexts in the GC yet");
+            MVM_panic(MVM_exitcode_gcnursery, "Can't copy serialization contexts in the GC yet");
         }
         else {
-            MVM_panic(15, "Internal error: impossible case encountered in GC copy");
+            MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC copy");
         }
     }
 }
@@ -227,16 +227,16 @@ void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit) {
              * needed in order to finish walking the fromspace! So we will
              * add them to a list and then free them all at the end. */
             if (dead) {
-                MVM_panic(15, "Can't free STables in the GC yet");
+                MVM_panic(MVM_exitcode_gcnursery, "Can't free STables in the GC yet");
             }
             scan = (char *)scan + sizeof(MVMSTable);
         }
         else if (item->flags & MVM_CF_SC) {
-            MVM_panic(15, "Can't free serialization contexts in the GC yet");
+            MVM_panic(MVM_exitcode_gcnursery, "Can't free serialization contexts in the GC yet");
         }
         else {
             printf("item flags: %d\n", item->flags);
-            MVM_panic(15, "Internal error: impossible case encountered in GC free");
+            MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC free");
         }
     }
     

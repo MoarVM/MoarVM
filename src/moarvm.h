@@ -8,6 +8,10 @@
 #include <apr_file_info.h>
 #include <apr_file_io.h>
 #include <apr_mmap.h>
+#include <apr_network_io.h>
+#include <apr_strings.h>
+#include <apr_portable.h>
+#include <apr_env.h>
 
 /* Configuration. */
 #include "gen/config.h"
@@ -35,6 +39,10 @@
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/ops.h"
+#include "io/fileops.h"
+#include "io/socketops.h"
+#include "io/dirops.h"
+#include "io/procops.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);
