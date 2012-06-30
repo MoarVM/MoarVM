@@ -9,6 +9,7 @@
 #include "6model/reprs/MVMOSHandle.h"
 #include "6model/reprs/P6int.h"
 #include "6model/reprs/P6num.h"
+#include "6model/reprs/Uninstantiable.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -28,3 +29,4 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMOSHandle     7
 #define MVM_REPR_ID_P6int           8
 #define MVM_REPR_ID_P6num           9
+#define MVM_REPR_ID_Uninstantiable  10
