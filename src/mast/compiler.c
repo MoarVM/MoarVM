@@ -107,7 +107,7 @@ static void write_double(char *buffer, size_t offset, double value) {
 
 /* Ensures the specified buffer has enough space and expands it if so. */
 void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need) {
-    if (pos + need > *alloc) {
+    while (pos + need > *alloc) {
         *alloc = *alloc * 2;
         *buffer = (char *)realloc(*buffer, *alloc);
     }
