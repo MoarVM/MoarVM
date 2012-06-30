@@ -26,7 +26,7 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
     worklist = MVM_gc_worklist_create(tc);
     
     /* Add permanent roots and process them. */
-    MVM_gc_root_add_parmanents_to_worklist(tc, worklist);
+    MVM_gc_root_add_permanents_to_worklist(tc, worklist);
     process_worklist(tc, worklist);
     
     /* Add temporary roots and process them. */

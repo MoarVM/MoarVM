@@ -1,5 +1,5 @@
 void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref);
-void MVM_gc_root_add_parmanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
+void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
 void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref);
 void MVM_gc_root_temp_pop(MVMThreadContext *tc);
 void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n);
