@@ -131,6 +131,8 @@
 #define MVM_OP_bnot_i 118
 #define MVM_OP_blshift_i 119
 #define MVM_OP_brshift_i 120
+#define MVM_OP_pow_i 121
+#define MVM_OP_pow_n 122
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0

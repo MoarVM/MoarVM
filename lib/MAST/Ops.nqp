@@ -131,7 +131,9 @@ class MAST::Ops {
         'bxor_i', 117,
         'bnot_i', 118,
         'blshift_i', 119,
-        'brshift_i', 120
+        'brshift_i', 120,
+        'pow_i', 121,
+        'pow_n', 122
     );
     our $dev := nqp::hash(
         'say_i', 0,

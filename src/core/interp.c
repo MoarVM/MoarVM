@@ -510,6 +510,30 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >> GET_REG(cur_op, 4).i64;
                         cur_op += 6;
                         break;
+                    case MVM_OP_pow_i: {
+                            MVMint64 base = GET_REG(cur_op, 2).i64;
+                            MVMint64 exp = GET_REG(cur_op, 4).i64;
+                            MVMint64 result = 1;
+                            /* "Exponentiation by squaring" */
+                            if (exp < 1) {
+                                result = 0; /* because 1/base**-exp is between 0 and 1 */
+                            }
+                            else {
+                                while (exp) {
+                                    if (exp & 1)
+                                        result *= base;
+                                    exp >>= 1;
+                                    base *= base;
+                                }
+                            }
+                            GET_REG(cur_op, 0).i64 = result;
+                        }
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_pow_n:
+                        GET_REG(cur_op, 0).n64 = pow(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
+                        cur_op += 6;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
