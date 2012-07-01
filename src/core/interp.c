@@ -515,7 +515,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             MVMint64 exp = GET_REG(cur_op, 4).i64;
                             MVMint64 result = 1;
                             /* "Exponentiation by squaring" */
-                            if (exp < 1) {
+                            if (exp < 0) {
                                 result = 0; /* because 1/base**-exp is between 0 and 1 */
                             }
                             else {
