@@ -68,7 +68,7 @@ CLEANUPS = \
   *.pbc \
   *.pir \
 
-all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc
+all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QASTCompilerMAST.pbc
 
 @make_dllcopy@
 
@@ -95,9 +95,17 @@ MASTCompiler.pbc: src/MASTCompiler.nqp MASTNodes.pbc MASTOps.pbc
 	nqp --vmlibs=mvmcc_ops --target=pir src/MASTCompiler.nqp > MASTCompiler.pir
 	parrot --output=MASTCompiler.pbc MASTCompiler.pir
 
-MASTTesting.pbc : MASTCompiler.pbc src/MASTTesting.nqp
+MASTTesting.pbc: MASTCompiler.pbc src/MASTTesting.nqp
 	nqp --vmlibs=mvmcc_ops --target=pir src/MASTTesting.nqp > MASTTesting.pir
 	parrot --output=MASTTesting.pbc MASTTesting.pir
+
+QASTOperationsMAST.pbc: MASTNodes.pbc MASTOps.pbc src/QASTOperationsMAST.nqp
+	nqp --target=pir src/QASTOperationsMAST.nqp > QASTOperationsMAST.pir
+	parrot --output=QASTOperationsMAST.pbc QASTOperationsMAST.pir
+
+QASTCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/QASTCompilerMAST.nqp
+	nqp --target=pir src/QASTCompilerMAST.nqp > QASTCompilerMAST.pir
+	parrot --output=QASTCompilerMAST.pbc QASTCompilerMAST.pir
 
 ## testing
 
