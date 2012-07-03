@@ -311,10 +311,11 @@ typedef struct _MVMREPROps_Boxing {
         MVMObject *root, void *data, MVMuint32 repr_id);
 } MVMREPROps_Boxing;
 typedef struct _MVMREPROps_Positional {
-    /* Get the address of the element at the specified position. May return null if
-     * nothing is there, or throw to indicate out of bounds, or vivify. */
+    /* Copies the element at the specified address to the target address that
+     * is passed. Returns that address if there was such an element, or NULL
+     * if there was not. */
     void * (*at_pos_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 index);
+        MVMObject *root, void *data, MVMuint64 index, void *target);
 
     /* Get a boxed object representing the element at the specified position. If the
      * object is already a reference type, simply returns that. */
@@ -335,25 +336,56 @@ typedef struct _MVMREPROps_Positional {
     MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data);
 
-    /* Pre-allocates the specified number of slots. */
-    void (*preallocate) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 count);
+    /* Sets the element count of the array, expanding or shrinking
+     * it as needed. */
+    void (*set_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 size);
 
-    /* Trim to the specified number of slots. */
-    void (*trim_to) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 count);
+    /* Pushes the value at the specified address onto the array. */
+    void (*push_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, void *addr);
 
-    /* Make a "hole" the specified number of elements in size at the specified index.
-     * Used for implementing things like unshift, splice, etc. */
-    void (*make_hole) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count);
+    /* Pushes the object onto the array. */
+    void (*push_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *obj);
 
-    /* Delete the specified number of elements (that is, actually shuffle the ones
-     * after them into their place). Used for implementing things like shift, splice,
-     * etc. */
-    void (*delete_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count);
+    /* Copies the element at the end of the array to the specified address
+     * and decrements the element count. Returns the target address if an
+     * element was poppoed or NULL if there is nothing to pop. */
+    void * (*pop_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, void *target);
 
+    /* Gets the object at the end of the array, and decrements the element count. */
+    MVMObject * (*pop_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+
+    /* Unshifts the value at the specified address onto the array. */
+    void (*unshift_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, void *addr);
+
+    /* Unshifts the object onto the array. */
+    void (*unshift_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *obj);
+    
+    /* Copies the element at the start of the array to the specified address
+     * and moves the starting point of the array so that the next element is
+     * element zero. Returns the target address if an element was shifted or
+     * NULL if there is nothing to shift. */
+    void * (*shift_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, void *target);
+
+    /* Gets the object at the start of the array, and moves the starting point of
+     * the array so that the next element is element zero. */
+    MVMObject * (*shift_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+    
+    /* Splices the specified array into this one. Representations may optimize if
+     * they know the type of the passed array, otherwise they should use the REPR
+     * API. */
+    void (*splice) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMObject *target_array,
+        MVMuint64 offset, MVMuint64 elems);
+    
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
 } MVMREPROps_Positional;

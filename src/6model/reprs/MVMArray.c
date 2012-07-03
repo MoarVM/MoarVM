@@ -66,7 +66,7 @@ static void expand_to_at_least(MVMArrayBody *body, MVMuint64 min_elems) {
     body->alloc = alloc;
 }
 
-static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
+static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *target) {
     MVM_exception_throw_adhoc(tc,
         "MVMArray representation does not support native type storage");
 }
@@ -86,7 +86,7 @@ static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     if (index >= body->alloc)
         expand_to_at_least(body, index + 1);
     if (index >= body->elems)
-        index = body->elems + 1;
+        body->elems = index + 1;
     MVM_ASSIGN_REF(tc, root, body->data[index], obj);
 }
 
@@ -95,32 +95,54 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     return body->elems;
 }
 
-static void preallocate(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
-    MVMArrayBody *body = (MVMArrayBody *)data;
-    expand_to_at_least(body, count);
-}
-
-static void trim_to(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
-    MVMArrayBody *body = (MVMArrayBody *)data;
-    if (count > body->elems)
-        MVM_exception_throw_adhoc(tc,
-            "Trimming an array should not increase its number of elements");
-    body->elems = count;
-}
-
-static void make_hole(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count) {
-    MVMArrayBody *body = (MVMArrayBody *)data;
-    MVMuint64 new_elems = body->elems + count;
-    if (new_elems > body->alloc)
-        expand_to_at_least(body, new_elems);
+static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     MVM_exception_throw_adhoc(tc,
-        "MVMArray does not yet implement make_hole");
+        "MVMArray representation not fully implemented yet");
 }
 
-static void delete_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count) {
-    MVMArrayBody *body = (MVMArrayBody *)data;
+static void push_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
     MVM_exception_throw_adhoc(tc,
-        "MVMArray does not yet implement delete_elems");
+        "MVMArray representation not fully implemented yet");
+}
+
+static void push_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
+}
+
+static void * pop_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
+}
+
+static MVMObject * pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
+}
+
+static void unshift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
+}
+
+static void unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
+}
+
+static void * shift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
+}
+
+static MVMObject * shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
+}
+
+static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMuint64 offset, MVMuint64 elems) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMArray representation not fully implemented yet");
 }
 
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -157,10 +179,16 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->bind_pos_ref = bind_pos_ref;
     this_repr->pos_funcs->bind_pos_boxed = bind_pos_boxed;
     this_repr->pos_funcs->elems = elems;
-    this_repr->pos_funcs->preallocate = preallocate;
-    this_repr->pos_funcs->trim_to = trim_to;
-    this_repr->pos_funcs->make_hole = make_hole;
-    this_repr->pos_funcs->delete_elems = delete_elems;
+    this_repr->pos_funcs->set_elems = set_elems;
+    this_repr->pos_funcs->push_ref = push_ref;
+    this_repr->pos_funcs->push_boxed = push_boxed;
+    this_repr->pos_funcs->pop_ref = pop_ref;
+    this_repr->pos_funcs->pop_boxed = pop_boxed;
+    this_repr->pos_funcs->unshift_ref = unshift_ref;
+    this_repr->pos_funcs->unshift_boxed = unshift_boxed;
+    this_repr->pos_funcs->shift_ref = shift_ref;
+    this_repr->pos_funcs->shift_boxed = shift_boxed;
+    this_repr->pos_funcs->splice = splice;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
     this_repr->gc_mark = gc_mark;
     return this_repr;

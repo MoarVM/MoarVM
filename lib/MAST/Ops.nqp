@@ -1164,6 +1164,7 @@ class MAST::Ops {
         )
     );
     our $object := nqp::hash(
+<<<<<<< HEAD
         'knowhow', nqp::hash(
             'code', 0,
             'operands', [
@@ -1331,6 +1332,56 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj
             ]
         )
+=======
+        'knowhow', 0,
+        'findmeth', 1,
+        'findmeth_s', 2,
+        'can', 3,
+        'can_s', 4,
+        'create', 5,
+        'gethow', 6,
+        'getwhat', 7,
+        'atkey_i', 8,
+        'atkey_n', 9,
+        'atkey_s', 10,
+        'atkey_o', 11,
+        'bindkey_i', 12,
+        'bindkey_n', 13,
+        'bindkey_s', 14,
+        'bindkey_o', 15,
+        'existskey', 16,
+        'deletekey', 17,
+        'elemskeyed', 18,
+        'eqaddr', 19,
+        'reprname', 20,
+        'isconcrete', 21,
+        'atpos_i', 22,
+        'atpos_n', 23,
+        'atpos_s', 24,
+        'atpos_o', 25,
+        'bindpos_i', 26,
+        'bindpos_n', 27,
+        'bindpos_s', 28,
+        'bindpos_o', 29,
+        'push_i', 30,
+        'push_n', 31,
+        'push_s', 32,
+        'push_o', 33,
+        'pop_i', 34,
+        'pop_n', 35,
+        'pop_s', 36,
+        'pop_o', 37,
+        'shift_i', 38,
+        'shift_n', 39,
+        'shift_s', 40,
+        'shift_o', 41,
+        'unshift_i', 42,
+        'unshift_n', 43,
+        'unshift_s', 44,
+        'unshift_o', 45,
+        'splice', 46,
+        'elemspos', 47
+>>>>>>> ecf17187f2dd1801ed863eec34e4db9e42b68f0a
     );
     our $io := nqp::hash(
         'copy_f', nqp::hash(

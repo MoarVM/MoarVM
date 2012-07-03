@@ -810,6 +810,29 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = IS_CONCRETE(GET_REG(cur_op, 2).o) ? 1 : 0;
                         cur_op += 4;
                         break;
+                    case MVM_OP_atpos_o: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->at_pos_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_bindpos_o: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->bind_pos_boxed(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2).i64,
+                            GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_elemspos: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = REPR(obj)->pos_funcs->elems(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

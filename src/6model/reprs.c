@@ -57,7 +57,7 @@ static void die_no_pos(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support positional access", MVM_string_utf8_encode_C_string(tc, repr_name));
 }
-static void * default_at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
+static void * default_at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *target) {
     die_no_pos(tc, st->REPR->name);
 }
 static MVMObject * default_at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
@@ -72,19 +72,37 @@ static void default_bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObjec
 static MVMuint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     die_no_pos(tc, st->REPR->name);
 }
-static void default_preallocate(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
+static void default_set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
-static void default_trim_to(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
+static void default_push_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
     die_no_pos(tc, st->REPR->name);
 }
-static void default_make_hole(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count) {
+static void default_push_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
     die_no_pos(tc, st->REPR->name);
 }
-static void default_delete_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 at_index, MVMuint64 count) {
+static void * default_pop_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
+    die_no_pos(tc, st->REPR->name);
+}
+static MVMObject * default_pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    die_no_pos(tc, st->REPR->name);
+}
+static void default_unshift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
+    die_no_pos(tc, st->REPR->name);
+}
+static void default_unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+    die_no_pos(tc, st->REPR->name);
+}
+static void * default_shift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
+    die_no_pos(tc, st->REPR->name);
+}
+static MVMObject * default_shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     die_no_pos(tc, st->REPR->name);
 }
 static MVMStorageSpec default_get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    die_no_pos(tc, st->REPR->name);
+}
+static void default_splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMuint64 offset, MVMuint64 elems) {
     die_no_pos(tc, st->REPR->name);
 }
 MVM_NO_RETURN
@@ -148,10 +166,16 @@ static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->pos_funcs->bind_pos_ref = default_bind_pos_ref;
     repr->pos_funcs->bind_pos_boxed = default_bind_pos_boxed;
     repr->pos_funcs->elems = default_elems;
-    repr->pos_funcs->preallocate = default_preallocate;
-    repr->pos_funcs->trim_to = default_trim_to;
-    repr->pos_funcs->make_hole = default_make_hole;
-    repr->pos_funcs->delete_elems = default_delete_elems;
+    repr->pos_funcs->set_elems = default_set_elems;
+    repr->pos_funcs->push_ref = default_push_ref;
+    repr->pos_funcs->push_boxed = default_push_boxed;
+    repr->pos_funcs->pop_ref = default_pop_ref;
+    repr->pos_funcs->pop_boxed = default_pop_boxed;
+    repr->pos_funcs->unshift_ref = default_unshift_ref;
+    repr->pos_funcs->unshift_boxed = default_unshift_boxed;
+    repr->pos_funcs->shift_ref = default_shift_ref;
+    repr->pos_funcs->shift_boxed = default_shift_boxed;
+    repr->pos_funcs->splice = default_splice;
     repr->pos_funcs->get_elem_storage_spec = default_get_elem_storage_spec;
 }
 
