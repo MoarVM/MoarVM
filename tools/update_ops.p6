@@ -94,39 +94,39 @@ sub bank_constants(@banks) {
 sub op_constants(@banks) {
     join "\n", gather {
         take 'class MAST::Ops {';
-        take "    my \$MVM_operand_literal     := 0;";
-        take "    my \$MVM_operand_read_reg    := 1;";
-        take "    my \$MVM_operand_write_reg   := 2;";
-        take "    my \$MVM_operand_read_lex    := 3;";
-        take "    my \$MVM_operand_write_lex   := 4;";
-        take "    my \$MVM_operand_rw_mask     := 7;";
-        take "    my \$MVM_reg_int8            := 1;";
-        take "    my \$MVM_reg_int16           := 2;";
-        take "    my \$MVM_reg_int32           := 3;";
-        take "    my \$MVM_reg_int64           := 4;";
-        take "    my \$MVM_reg_num32           := 5;";
-        take "    my \$MVM_reg_num64           := 6;";
-        take "    my \$MVM_reg_str             := 7;";
-        take "    my \$MVM_reg_obj             := 8;";
-        take "    my \$MVM_operand_int8        := (\$MVM_reg_int8 * 8);";
-        take "    my \$MVM_operand_int16       := (\$MVM_reg_int16 * 8);";
-        take "    my \$MVM_operand_int32       := (\$MVM_reg_int32 * 8);";
-        take "    my \$MVM_operand_int64       := (\$MVM_reg_int64 * 8);";
-        take "    my \$MVM_operand_num32       := (\$MVM_reg_num32 * 8);";
-        take "    my \$MVM_operand_num64       := (\$MVM_reg_num64 * 8);";
-        take "    my \$MVM_operand_str         := (\$MVM_reg_str * 8);";
-        take "    my \$MVM_operand_obj         := (\$MVM_reg_obj * 8);";
-        take "    my \$MVM_operand_ins         := (9 * 8);";
-        take "    my \$MVM_operand_type_var    := (10 * 8);";
-        take "    my \$MVM_operand_lex_outer   := (11 * 8);";
-        take "    my \$MVM_operand_coderef     := (12 * 8);";
-        take "    my \$MVM_operand_callsite    := (13 * 8);";
-        take "    my \$MVM_operand_type_mask   := (15 * 8);";
+        take "    our \$MVM_operand_literal     := 0;";
+        take "    our \$MVM_operand_read_reg    := 1;";
+        take "    our \$MVM_operand_write_reg   := 2;";
+        take "    our \$MVM_operand_read_lex    := 3;";
+        take "    our \$MVM_operand_write_lex   := 4;";
+        take "    our \$MVM_operand_rw_mask     := 7;";
+        take "    our \$MVM_reg_int8            := 1;";
+        take "    our \$MVM_reg_int16           := 2;";
+        take "    our \$MVM_reg_int32           := 3;";
+        take "    our \$MVM_reg_int64           := 4;";
+        take "    our \$MVM_reg_num32           := 5;";
+        take "    our \$MVM_reg_num64           := 6;";
+        take "    our \$MVM_reg_str             := 7;";
+        take "    our \$MVM_reg_obj             := 8;";
+        take "    our \$MVM_operand_int8        := (\$MVM_reg_int8 * 8);";
+        take "    our \$MVM_operand_int16       := (\$MVM_reg_int16 * 8);";
+        take "    our \$MVM_operand_int32       := (\$MVM_reg_int32 * 8);";
+        take "    our \$MVM_operand_int64       := (\$MVM_reg_int64 * 8);";
+        take "    our \$MVM_operand_num32       := (\$MVM_reg_num32 * 8);";
+        take "    our \$MVM_operand_num64       := (\$MVM_reg_num64 * 8);";
+        take "    our \$MVM_operand_str         := (\$MVM_reg_str * 8);";
+        take "    our \$MVM_operand_obj         := (\$MVM_reg_obj * 8);";
+        take "    our \$MVM_operand_ins         := (9 * 8);";
+        take "    our \$MVM_operand_type_var    := (10 * 8);";
+        take "    our \$MVM_operand_lex_outer   := (11 * 8);";
+        take "    our \$MVM_operand_coderef     := (12 * 8);";
+        take "    our \$MVM_operand_callsite    := (13 * 8);";
+        take "    our \$MVM_operand_type_mask   := (15 * 8);";
         for @banks -> $bank {
             take "    our \$$bank.name() := nqp::hash(";
             take join ",\n", gather {
                 for $bank.ops -> $op {
-                    my $operands = $op.operands.map(&operand_flags).join(", \n                ");
+                    my $operands = $op.operands.map(&operand_flags).join(",\n                ");
                     $operands = $operands.subst('MVM', '$MVM', :g);
                     $operands = $operands.subst('|', '+|', :g);
                     take join "\n", gather {
