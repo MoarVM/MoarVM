@@ -86,7 +86,7 @@ static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     if (index >= body->alloc)
         expand_to_at_least(body, index + 1);
     if (index >= body->elems)
-        index = body->elems + 1;
+        body->elems = index + 1;
     MVM_ASSIGN_REF(tc, root, body->data[index], obj);
 }
 
