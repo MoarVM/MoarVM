@@ -1,4 +1,4 @@
-/* This file is generated from src/core/oplist by tools/update_ops_h.p6. */
+/* This file is generated from src/core/oplist by tools/update_ops.p6. */
 
 /* Bank name defines. */
 #define MVM_OP_BANK_primitives 0

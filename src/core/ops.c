@@ -8,7 +8,7 @@
 #else
 #include "moarvm.h"
 #endif
-/* This file is generated from src/core/oplist by tools/update_ops_h.p6. */
+/* This file is generated from src/core/oplist by tools/update_ops.p6. */
 static MVMOpInfo MVM_op_info_primitives[] = {
     {
         MVM_OP_no_op,

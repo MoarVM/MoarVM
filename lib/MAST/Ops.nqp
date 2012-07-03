@@ -1,4 +1,4 @@
-# This file is generated from src/core/oplist by tools/update_lib_mast_ops.p6.
+# This file is generated from src/core/oplist by tools/update_ops.p6.
 
 class MAST::OpBanks {
     our $primitives := 0;
@@ -10,263 +10,1810 @@ class MAST::OpBanks {
     our $processthread := 6;
 }
 class MAST::Ops {
+    my $MVM_operand_literal     := 0;
+    my $MVM_operand_read_reg    := 1;
+    my $MVM_operand_write_reg   := 2;
+    my $MVM_operand_read_lex    := 3;
+    my $MVM_operand_write_lex   := 4;
+    my $MVM_operand_rw_mask     := 7;
+    my $MVM_reg_int8            := 1;
+    my $MVM_reg_int16           := 2;
+    my $MVM_reg_int32           := 3;
+    my $MVM_reg_int64           := 4;
+    my $MVM_reg_num32           := 5;
+    my $MVM_reg_num64           := 6;
+    my $MVM_reg_str             := 7;
+    my $MVM_reg_obj             := 8;
+    my $MVM_operand_int8        := ($MVM_reg_int8 * 8);
+    my $MVM_operand_int16       := ($MVM_reg_int16 * 8);
+    my $MVM_operand_int32       := ($MVM_reg_int32 * 8);
+    my $MVM_operand_int64       := ($MVM_reg_int64 * 8);
+    my $MVM_operand_num32       := ($MVM_reg_num32 * 8);
+    my $MVM_operand_num64       := ($MVM_reg_num64 * 8);
+    my $MVM_operand_str         := ($MVM_reg_str * 8);
+    my $MVM_operand_obj         := ($MVM_reg_obj * 8);
+    my $MVM_operand_ins         := (9 * 8);
+    my $MVM_operand_type_var    := (10 * 8);
+    my $MVM_operand_lex_outer   := (11 * 8);
+    my $MVM_operand_coderef     := (12 * 8);
+    my $MVM_operand_callsite    := (13 * 8);
+    my $MVM_operand_type_mask   := (15 * 8);
     our $primitives := nqp::hash(
-        'no_op', 0,
-        'goto', 1,
-        'if_i', 2,
-        'unless_i', 3,
-        'if_n', 4,
-        'unless_n', 5,
-        'if_s', 6,
-        'unless_s', 7,
-        'if_s0', 8,
-        'unless_s0', 9,
-        'if_o', 10,
-        'unless_o', 11,
-        'set', 12,
-        'extend_u8', 13,
-        'extend_u16', 14,
-        'extend_u32', 15,
-        'extend_i8', 16,
-        'extend_i16', 17,
-        'extend_i32', 18,
-        'trunc_u8', 19,
-        'trunc_u16', 20,
-        'trunc_u32', 21,
-        'trunc_i8', 22,
-        'trunc_i16', 23,
-        'trunc_i32', 24,
-        'extend_n32', 25,
-        'trunc_n32', 26,
-        'get_lex', 27,
-        'bind_lex', 28,
-        'get_lex_lo', 29,
-        'bind_lex_lo', 30,
-        'get_lex_ni', 31,
-        'get_lex_nn', 32,
-        'get_lex_ns', 33,
-        'get_lex_no', 34,
-        'bind_lex_ni', 35,
-        'bind_lex_nn', 36,
-        'bind_lex_ns', 37,
-        'bind_lex_no', 38,
-        'return_i', 39,
-        'return_n', 40,
-        'return_s', 41,
-        'return_o', 42,
-        'return', 43,
-        'const_i8', 44,
-        'const_i16', 45,
-        'const_i32', 46,
-        'const_i64', 47,
-        'const_n32', 48,
-        'const_n64', 49,
-        'const_s', 50,
-        'add_i', 51,
-        'sub_i', 52,
-        'mul_i', 53,
-        'div_i', 54,
-        'div_u', 55,
-        'mod_i', 56,
-        'mod_u', 57,
-        'neg_i', 58,
-        'abs_i', 59,
-        'inc_i', 60,
-        'inc_u', 61,
-        'dec_i', 62,
-        'dec_u', 63,
-        'getcode', 64,
-        'prepargs', 65,
-        'arg_i', 66,
-        'arg_n', 67,
-        'arg_s', 68,
-        'arg_o', 69,
-        'invoke_v', 70,
-        'invoke_i', 71,
-        'invoke_n', 72,
-        'invoke_s', 73,
-        'invoke_o', 74,
-        'add_n', 75,
-        'sub_n', 76,
-        'mul_n', 77,
-        'div_n', 78,
-        'neg_n', 79,
-        'abs_n', 80,
-        'eq_i', 81,
-        'ne_i', 82,
-        'lt_i', 83,
-        'le_i', 84,
-        'gt_i', 85,
-        'ge_i', 86,
-        'eq_n', 87,
-        'ne_n', 88,
-        'lt_n', 89,
-        'le_n', 90,
-        'gt_n', 91,
-        'ge_n', 92,
-        'argconst_i', 93,
-        'argconst_n', 94,
-        'argconst_s', 95,
-        'checkarity', 96,
-        'param_rp_i', 97,
-        'param_rp_n', 98,
-        'param_rp_s', 99,
-        'param_rp_o', 100,
-        'param_op_i', 101,
-        'param_op_n', 102,
-        'param_op_s', 103,
-        'param_op_o', 104,
-        'param_rn_i', 105,
-        'param_rn_n', 106,
-        'param_rn_s', 107,
-        'param_rn_o', 108,
-        'param_on_i', 109,
-        'param_on_n', 110,
-        'param_on_s', 111,
-        'param_on_o', 112,
-        'coerce_in', 113,
-        'coerce_ni', 114,
-        'band_i', 115,
-        'bor_i', 116,
-        'bxor_i', 117,
-        'bnot_i', 118,
-        'blshift_i', 119,
-        'brshift_i', 120,
-        'pow_i', 121,
-        'pow_n', 122
+        'no_op', nqp::hash(
+            'code', 0,
+            'operands', [
+                
+            ]
+        ),
+        'goto', nqp::hash(
+            'code', 1,
+            'operands', [
+                $MVM_operand_ins
+            ]
+        ),
+        'if_i', nqp::hash(
+            'code', 2,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_ins
+            ]
+        ),
+        'unless_i', nqp::hash(
+            'code', 3,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_ins
+            ]
+        ),
+        'if_n', nqp::hash(
+            'code', 4,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_ins
+            ]
+        ),
+        'unless_n', nqp::hash(
+            'code', 5,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_ins
+            ]
+        ),
+        'if_s', nqp::hash(
+            'code', 6,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'unless_s', nqp::hash(
+            'code', 7,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'if_s0', nqp::hash(
+            'code', 8,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'unless_s0', nqp::hash(
+            'code', 9,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'if_o', nqp::hash(
+            'code', 10,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_ins
+            ]
+        ),
+        'unless_o', nqp::hash(
+            'code', 11,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_ins
+            ]
+        ),
+        'set', nqp::hash(
+            'code', 12,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_type_var, 
+                $MVM_operand_read_reg +| $MVM_operand_type_var
+            ]
+        ),
+        'extend_u8', nqp::hash(
+            'code', 13,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int8
+            ]
+        ),
+        'extend_u16', nqp::hash(
+            'code', 14,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int16
+            ]
+        ),
+        'extend_u32', nqp::hash(
+            'code', 15,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int32
+            ]
+        ),
+        'extend_i8', nqp::hash(
+            'code', 16,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int8
+            ]
+        ),
+        'extend_i16', nqp::hash(
+            'code', 17,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int16
+            ]
+        ),
+        'extend_i32', nqp::hash(
+            'code', 18,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int32
+            ]
+        ),
+        'trunc_u8', nqp::hash(
+            'code', 19,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int8, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'trunc_u16', nqp::hash(
+            'code', 20,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int16, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'trunc_u32', nqp::hash(
+            'code', 21,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int32, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'trunc_i8', nqp::hash(
+            'code', 22,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int8, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'trunc_i16', nqp::hash(
+            'code', 23,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int16, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'trunc_i32', nqp::hash(
+            'code', 24,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int32, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'extend_n32', nqp::hash(
+            'code', 25,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num32
+            ]
+        ),
+        'trunc_n32', nqp::hash(
+            'code', 26,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num32, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'get_lex', nqp::hash(
+            'code', 27,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_type_var, 
+                $MVM_operand_read_lex +| $MVM_operand_type_var
+            ]
+        ),
+        'bind_lex', nqp::hash(
+            'code', 28,
+            'operands', [
+                $MVM_operand_write_lex +| $MVM_operand_type_var, 
+                $MVM_operand_read_reg +| $MVM_operand_type_var
+            ]
+        ),
+        'get_lex_lo', nqp::hash(
+            'code', 29,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_type_var, 
+                $MVM_operand_lex_outer, 
+                $MVM_operand_read_lex +| $MVM_operand_type_var
+            ]
+        ),
+        'bind_lex_lo', nqp::hash(
+            'code', 30,
+            'operands', [
+                $MVM_operand_write_lex +| $MVM_operand_type_var, 
+                $MVM_operand_lex_outer, 
+                $MVM_operand_read_reg +| $MVM_operand_type_var
+            ]
+        ),
+        'get_lex_ni', nqp::hash(
+            'code', 31,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_str
+            ]
+        ),
+        'get_lex_nn', nqp::hash(
+            'code', 32,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_str
+            ]
+        ),
+        'get_lex_ns', nqp::hash(
+            'code', 33,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_str
+            ]
+        ),
+        'get_lex_no', nqp::hash(
+            'code', 34,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_str
+            ]
+        ),
+        'bind_lex_ni', nqp::hash(
+            'code', 35,
+            'operands', [
+                $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'bind_lex_nn', nqp::hash(
+            'code', 36,
+            'operands', [
+                $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'bind_lex_ns', nqp::hash(
+            'code', 37,
+            'operands', [
+                $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'bind_lex_no', nqp::hash(
+            'code', 38,
+            'operands', [
+                $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'return_i', nqp::hash(
+            'code', 39,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'return_n', nqp::hash(
+            'code', 40,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'return_s', nqp::hash(
+            'code', 41,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'return_o', nqp::hash(
+            'code', 42,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'return', nqp::hash(
+            'code', 43,
+            'operands', [
+                
+            ]
+        ),
+        'const_i8', nqp::hash(
+            'code', 44,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int8, 
+                $MVM_operand_int8
+            ]
+        ),
+        'const_i16', nqp::hash(
+            'code', 45,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int16, 
+                $MVM_operand_int16
+            ]
+        ),
+        'const_i32', nqp::hash(
+            'code', 46,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int32, 
+                $MVM_operand_int32
+            ]
+        ),
+        'const_i64', nqp::hash(
+            'code', 47,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_int64
+            ]
+        ),
+        'const_n32', nqp::hash(
+            'code', 48,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num32, 
+                $MVM_operand_num32
+            ]
+        ),
+        'const_n64', nqp::hash(
+            'code', 49,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_num64
+            ]
+        ),
+        'const_s', nqp::hash(
+            'code', 50,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_str
+            ]
+        ),
+        'add_i', nqp::hash(
+            'code', 51,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'sub_i', nqp::hash(
+            'code', 52,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'mul_i', nqp::hash(
+            'code', 53,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'div_i', nqp::hash(
+            'code', 54,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'div_u', nqp::hash(
+            'code', 55,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'mod_i', nqp::hash(
+            'code', 56,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'mod_u', nqp::hash(
+            'code', 57,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'neg_i', nqp::hash(
+            'code', 58,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'abs_i', nqp::hash(
+            'code', 59,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'inc_i', nqp::hash(
+            'code', 60,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        ),
+        'inc_u', nqp::hash(
+            'code', 61,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        ),
+        'dec_i', nqp::hash(
+            'code', 62,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        ),
+        'dec_u', nqp::hash(
+            'code', 63,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        ),
+        'getcode', nqp::hash(
+            'code', 64,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_coderef
+            ]
+        ),
+        'prepargs', nqp::hash(
+            'code', 65,
+            'operands', [
+                $MVM_operand_callsite
+            ]
+        ),
+        'arg_i', nqp::hash(
+            'code', 66,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'arg_n', nqp::hash(
+            'code', 67,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'arg_s', nqp::hash(
+            'code', 68,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'arg_o', nqp::hash(
+            'code', 69,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'invoke_v', nqp::hash(
+            'code', 70,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'invoke_i', nqp::hash(
+            'code', 71,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'invoke_n', nqp::hash(
+            'code', 72,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'invoke_s', nqp::hash(
+            'code', 73,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'invoke_o', nqp::hash(
+            'code', 74,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'add_n', nqp::hash(
+            'code', 75,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'sub_n', nqp::hash(
+            'code', 76,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'mul_n', nqp::hash(
+            'code', 77,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'div_n', nqp::hash(
+            'code', 78,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'neg_n', nqp::hash(
+            'code', 79,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'abs_n', nqp::hash(
+            'code', 80,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'eq_i', nqp::hash(
+            'code', 81,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'ne_i', nqp::hash(
+            'code', 82,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'lt_i', nqp::hash(
+            'code', 83,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'le_i', nqp::hash(
+            'code', 84,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'gt_i', nqp::hash(
+            'code', 85,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'ge_i', nqp::hash(
+            'code', 86,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'eq_n', nqp::hash(
+            'code', 87,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'ne_n', nqp::hash(
+            'code', 88,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'lt_n', nqp::hash(
+            'code', 89,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'le_n', nqp::hash(
+            'code', 90,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'gt_n', nqp::hash(
+            'code', 91,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'ge_n', nqp::hash(
+            'code', 92,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'argconst_i', nqp::hash(
+            'code', 93,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_int64
+            ]
+        ),
+        'argconst_n', nqp::hash(
+            'code', 94,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_num64
+            ]
+        ),
+        'argconst_s', nqp::hash(
+            'code', 95,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_str
+            ]
+        ),
+        'checkarity', nqp::hash(
+            'code', 96,
+            'operands', [
+                $MVM_operand_int16, 
+                $MVM_operand_int16
+            ]
+        ),
+        'param_rp_i', nqp::hash(
+            'code', 97,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_int16
+            ]
+        ),
+        'param_rp_n', nqp::hash(
+            'code', 98,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_int16
+            ]
+        ),
+        'param_rp_s', nqp::hash(
+            'code', 99,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_int16
+            ]
+        ),
+        'param_rp_o', nqp::hash(
+            'code', 100,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_int16
+            ]
+        ),
+        'param_op_i', nqp::hash(
+            'code', 101,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_int16, 
+                $MVM_operand_ins
+            ]
+        ),
+        'param_op_n', nqp::hash(
+            'code', 102,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_int16, 
+                $MVM_operand_ins
+            ]
+        ),
+        'param_op_s', nqp::hash(
+            'code', 103,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_int16, 
+                $MVM_operand_ins
+            ]
+        ),
+        'param_op_o', nqp::hash(
+            'code', 104,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_int16, 
+                $MVM_operand_ins
+            ]
+        ),
+        'param_rn_i', nqp::hash(
+            'code', 105,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_str
+            ]
+        ),
+        'param_rn_n', nqp::hash(
+            'code', 106,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_str
+            ]
+        ),
+        'param_rn_s', nqp::hash(
+            'code', 107,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_str
+            ]
+        ),
+        'param_rn_o', nqp::hash(
+            'code', 108,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_str
+            ]
+        ),
+        'param_on_i', nqp::hash(
+            'code', 109,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'param_on_n', nqp::hash(
+            'code', 110,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'param_on_s', nqp::hash(
+            'code', 111,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'param_on_o', nqp::hash(
+            'code', 112,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_str, 
+                $MVM_operand_ins
+            ]
+        ),
+        'coerce_in', nqp::hash(
+            'code', 113,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'coerce_ni', nqp::hash(
+            'code', 114,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'band_i', nqp::hash(
+            'code', 115,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'bor_i', nqp::hash(
+            'code', 116,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'bxor_i', nqp::hash(
+            'code', 117,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'bnot_i', nqp::hash(
+            'code', 118,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'blshift_i', nqp::hash(
+            'code', 119,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'brshift_i', nqp::hash(
+            'code', 120,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'pow_i', nqp::hash(
+            'code', 121,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'pow_n', nqp::hash(
+            'code', 122,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        )
     );
     our $dev := nqp::hash(
-        'say_i', 0,
-        'say_s', 1,
-        'say_n', 2,
-        'sleep', 3,
-        'anonoshtype', 4
+        'say_i', nqp::hash(
+            'code', 0,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'say_s', nqp::hash(
+            'code', 1,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'say_n', nqp::hash(
+            'code', 2,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'sleep', nqp::hash(
+            'code', 3,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'anonoshtype', nqp::hash(
+            'code', 4,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj
+            ]
+        )
     );
     our $string := nqp::hash(
-        'concat_s', 0,
-        'repeat_s', 1,
-        'substr_s', 2,
-        'index_s', 3,
-        'graphs_s', 4,
-        'codes_s', 5,
-        'eq_s', 6,
-        'ne_s', 7,
-        'eqat_s', 8,
-        'haveat_s', 9,
-        'getcp_s', 10,
-        'setcp_s', 11,
-        'indexcp_s', 12
+        'concat_s', nqp::hash(
+            'code', 0,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'repeat_s', nqp::hash(
+            'code', 1,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'substr_s', nqp::hash(
+            'code', 2,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'index_s', nqp::hash(
+            'code', 3,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'graphs_s', nqp::hash(
+            'code', 4,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'codes_s', nqp::hash(
+            'code', 5,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'eq_s', nqp::hash(
+            'code', 6,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'ne_s', nqp::hash(
+            'code', 7,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'eqat_s', nqp::hash(
+            'code', 8,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'haveat_s', nqp::hash(
+            'code', 9,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'getcp_s', nqp::hash(
+            'code', 10,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'setcp_s', nqp::hash(
+            'code', 11,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'indexcp_s', nqp::hash(
+            'code', 12,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        )
     );
     our $math := nqp::hash(
-        'sin_n', 0,
-        'asin_n', 1,
-        'cos_n', 2,
-        'acos_n', 3,
-        'tan_n', 4,
-        'atan_n', 5,
-        'atan2_n', 6,
-        'sec_n', 7,
-        'asec_n', 8,
-        'sinh_n', 9,
-        'cosh_n', 10,
-        'tanh_n', 11,
-        'sech_n', 12
+        'sin_n', nqp::hash(
+            'code', 0,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'asin_n', nqp::hash(
+            'code', 1,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'cos_n', nqp::hash(
+            'code', 2,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'acos_n', nqp::hash(
+            'code', 3,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'tan_n', nqp::hash(
+            'code', 4,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'atan_n', nqp::hash(
+            'code', 5,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'atan2_n', nqp::hash(
+            'code', 6,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64, 
+                $MVM_operand_write_reg +| $MVM_operand_num64
+            ]
+        ),
+        'sec_n', nqp::hash(
+            'code', 7,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'asec_n', nqp::hash(
+            'code', 8,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'sinh_n', nqp::hash(
+            'code', 9,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'cosh_n', nqp::hash(
+            'code', 10,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'tanh_n', nqp::hash(
+            'code', 11,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'sech_n', nqp::hash(
+            'code', 12,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        )
     );
     our $object := nqp::hash(
-        'knowhow', 0,
-        'findmeth', 1,
-        'findmeth_s', 2,
-        'can', 3,
-        'can_s', 4,
-        'create', 5,
-        'gethow', 6,
-        'getwhat', 7,
-        'atkey_i', 8,
-        'atkey_n', 9,
-        'atkey_s', 10,
-        'atkey_o', 11,
-        'bindkey_i', 12,
-        'bindkey_n', 13,
-        'bindkey_s', 14,
-        'bindkey_o', 15,
-        'existskey', 16,
-        'deletekey', 17,
-        'elemskeyed', 18,
-        'eqaddr', 19,
-        'reprname', 20,
-        'isconcrete', 21
+        'knowhow', nqp::hash(
+            'code', 0,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj
+            ]
+        ),
+        'findmeth', nqp::hash(
+            'code', 1,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_str
+            ]
+        ),
+        'findmeth_s', nqp::hash(
+            'code', 2,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'can', nqp::hash(
+            'code', 3,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_str
+            ]
+        ),
+        'can_s', nqp::hash(
+            'code', 4,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'create', nqp::hash(
+            'code', 5,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'gethow', nqp::hash(
+            'code', 6,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'getwhat', nqp::hash(
+            'code', 7,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'atkey_i', nqp::hash(
+            'code', 8,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'atkey_n', nqp::hash(
+            'code', 9,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'atkey_s', nqp::hash(
+            'code', 10,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'atkey_o', nqp::hash(
+            'code', 11,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'bindkey_i', nqp::hash(
+            'code', 12,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'bindkey_n', nqp::hash(
+            'code', 13,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_num64
+            ]
+        ),
+        'bindkey_s', nqp::hash(
+            'code', 14,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'bindkey_o', nqp::hash(
+            'code', 15,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'existskey', nqp::hash(
+            'code', 16,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'deletekey', nqp::hash(
+            'code', 17,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'elemskeyed', nqp::hash(
+            'code', 18,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'eqaddr', nqp::hash(
+            'code', 19,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'reprname', nqp::hash(
+            'code', 20,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'isconcrete', nqp::hash(
+            'code', 21,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        )
     );
     our $io := nqp::hash(
-        'copy_f', 0,
-        'append_f', 1,
-        'rename_f', 2,
-        'delete_f', 3,
-        'chmod_f', 4,
-        'exists_f', 5,
-        'mkdir', 6,
-        'rmdir', 7,
-        'open_dir', 8,
-        'read_dir', 9,
-        'close_dir', 10,
-        'open_fh', 11,
-        'close_fh', 12,
-        'read_fhs', 13,
-        'read_fhbuf', 14,
-        'slurp', 15,
-        'spew', 16,
-        'write_fhs', 17,
-        'write_fhbuf', 18,
-        'seek_fh', 19,
-        'lock_fh', 20,
-        'unlock_fh', 21,
-        'flush_fh', 22,
-        'sync_fh', 23,
-        'pipe_fh', 24,
-        'trunc_fh', 25,
-        'eof_fh', 26,
-        'getstdin', 27,
-        'getstdout', 28,
-        'getstderr', 29,
-        'connect_sk', 30,
-        'close_sk', 31,
-        'bind_sk', 32,
-        'listen_sk', 33,
-        'accept_sk', 34,
-        'send_sks', 35,
-        'send_skbuf', 36,
-        'recv_sks', 37,
-        'recv_skbuf', 38,
-        'getaddr_sk', 39,
-        'hostname', 40,
-        'nametoaddr', 41,
-        'addrtoname', 42,
-        'porttosvc', 43
+        'copy_f', nqp::hash(
+            'code', 0,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'append_f', nqp::hash(
+            'code', 1,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'rename_f', nqp::hash(
+            'code', 2,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'delete_f', nqp::hash(
+            'code', 3,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'chmod_f', nqp::hash(
+            'code', 4,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'exists_f', nqp::hash(
+            'code', 5,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'mkdir', nqp::hash(
+            'code', 6,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'rmdir', nqp::hash(
+            'code', 7,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'open_dir', nqp::hash(
+            'code', 8,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'read_dir', nqp::hash(
+            'code', 9,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'close_dir', nqp::hash(
+            'code', 10,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'open_fh', nqp::hash(
+            'code', 11,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'close_fh', nqp::hash(
+            'code', 12,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'read_fhs', nqp::hash(
+            'code', 13,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'read_fhbuf', nqp::hash(
+            'code', 14,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'slurp', nqp::hash(
+            'code', 15,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'spew', nqp::hash(
+            'code', 16,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'write_fhs', nqp::hash(
+            'code', 17,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'write_fhbuf', nqp::hash(
+            'code', 18,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'seek_fh', nqp::hash(
+            'code', 19,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'lock_fh', nqp::hash(
+            'code', 20,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'unlock_fh', nqp::hash(
+            'code', 21,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'flush_fh', nqp::hash(
+            'code', 22,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'sync_fh', nqp::hash(
+            'code', 23,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'pipe_fh', nqp::hash(
+            'code', 24,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'trunc_fh', nqp::hash(
+            'code', 25,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'eof_fh', nqp::hash(
+            'code', 26,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'getstdin', nqp::hash(
+            'code', 27,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'getstdout', nqp::hash(
+            'code', 28,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'getstderr', nqp::hash(
+            'code', 29,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'connect_sk', nqp::hash(
+            'code', 30,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'close_sk', nqp::hash(
+            'code', 31,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'bind_sk', nqp::hash(
+            'code', 32,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'listen_sk', nqp::hash(
+            'code', 33,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'accept_sk', nqp::hash(
+            'code', 34,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'send_sks', nqp::hash(
+            'code', 35,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'send_skbuf', nqp::hash(
+            'code', 36,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'recv_sks', nqp::hash(
+            'code', 37,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'recv_skbuf', nqp::hash(
+            'code', 38,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'getaddr_sk', nqp::hash(
+            'code', 39,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'hostname', nqp::hash(
+            'code', 40,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str
+            ]
+        ),
+        'nametoaddr', nqp::hash(
+            'code', 41,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'addrtoname', nqp::hash(
+            'code', 42,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'porttosvc', nqp::hash(
+            'code', 43,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        )
     );
     our $processthread := nqp::hash(
-        'getenv', 0,
-        'setenv', 1,
-        'delenv', 2,
-        'nametogid', 3,
-        'gidtoname', 4,
-        'nametouid', 5,
-        'uidtoname', 6,
-        'getusername', 7,
-        'getuid', 8,
-        'getgid', 9,
-        'gethomedir', 10,
-        'getencoding', 11,
-        'procshell', 12,
-        'procshellbg', 13,
-        'procrun', 14,
-        'procrunbg', 15,
-        'prockill', 16,
-        'procwait', 17,
-        'procalive', 18,
-        'detach', 19,
-        'daemonize', 20,
-        'chdir', 21,
-        'rand_i', 22,
-        'rand_n', 23,
-        'time_i', 24
+        'getenv', nqp::hash(
+            'code', 0,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'setenv', nqp::hash(
+            'code', 1,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'delenv', nqp::hash(
+            'code', 2,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'nametogid', nqp::hash(
+            'code', 3,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'gidtoname', nqp::hash(
+            'code', 4,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'nametouid', nqp::hash(
+            'code', 5,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'uidtoname', nqp::hash(
+            'code', 6,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'getusername', nqp::hash(
+            'code', 7,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str
+            ]
+        ),
+        'getuid', nqp::hash(
+            'code', 8,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        ),
+        'getgid', nqp::hash(
+            'code', 9,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        ),
+        'gethomedir', nqp::hash(
+            'code', 10,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str
+            ]
+        ),
+        'getencoding', nqp::hash(
+            'code', 11,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str
+            ]
+        ),
+        'procshell', nqp::hash(
+            'code', 12,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'procshellbg', nqp::hash(
+            'code', 13,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'procrun', nqp::hash(
+            'code', 14,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'procrunbg', nqp::hash(
+            'code', 15,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj, 
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'prockill', nqp::hash(
+            'code', 16,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'procwait', nqp::hash(
+            'code', 17,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'procalive', nqp::hash(
+            'code', 18,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64, 
+                $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'detach', nqp::hash(
+            'code', 19,
+            'operands', [
+                
+            ]
+        ),
+        'daemonize', nqp::hash(
+            'code', 20,
+            'operands', [
+                
+            ]
+        ),
+        'chdir', nqp::hash(
+            'code', 21,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'rand_i', nqp::hash(
+            'code', 22,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        ),
+        'rand_n', nqp::hash(
+            'code', 23,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_num64
+            ]
+        ),
+        'time_i', nqp::hash(
+            'code', 24,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64
+            ]
+        )
     );
 }

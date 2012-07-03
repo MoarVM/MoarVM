@@ -18,12 +18,14 @@ sub MAIN($file = "src/core/oplist") {
 
     # Generate header file.
     my $hf = open("src/core/ops.h", :w);
-    $hf.say("/* This file is generated from $file by tools/update_ops_h.p6. */");
+    $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $hf.say("");
     $hf.say(bank_defines(@banks));
     $hf.say(opcode_defines(@banks));
     $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);');
     $hf.close;
+    
+    # Generate C file
     my $cf = open("src/core/ops.c", :w);
     $cf.say('#ifdef PARROT_OPS_BUILD');
     $cf.say('#define PARROT_IN_EXTENSION');
@@ -35,7 +37,7 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('#else');
     $cf.say('#include "moarvm.h"');
     $cf.say('#endif');
-    $cf.say("/* This file is generated from $file by tools/update_ops_h.p6. */");
+    $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $cf.say(opcode_details(@banks));
     $cf.say('MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {');
     $cf.say('    if (bank >= MVM_op_banks || op >= MVM_opcounts_by_bank[bank])');
@@ -43,6 +45,16 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('    return &MVM_op_info[bank][op];');
     $cf.say('}');
     $cf.close;
+    
+    # Generate NQP Ops file.
+    my $nf = open("lib/MAST/Ops.nqp", :w);
+    $nf.say("# This file is generated from $file by tools/update_ops.p6.");
+    $nf.say("");
+    $nf.say(bank_constants(@banks));
+    $nf.say(op_constants(@banks));
+    $nf.close;
+    
+    say "Wrote ops.h, ops.c, and Ops.nqp";
 }
 
 # Parses ops and produces a bunch of Op and Bank objects.
@@ -65,6 +77,72 @@ sub parse_ops($file) {
         }
     }
     return @banks;
+}
+
+# Generates MAST::OpBanks constants module.
+sub bank_constants(@banks) {
+    join "\n", gather {
+        take 'class MAST::OpBanks {';
+        for @banks.kv -> $i, $b {
+            take "    our \$$b.name() := $i;";
+        }
+        take '}';
+    }
+}
+
+# Generates MAST::Ops constants module.
+sub op_constants(@banks) {
+    join "\n", gather {
+        take 'class MAST::Ops {';
+        take "    my \$MVM_operand_literal     := 0;";
+        take "    my \$MVM_operand_read_reg    := 1;";
+        take "    my \$MVM_operand_write_reg   := 2;";
+        take "    my \$MVM_operand_read_lex    := 3;";
+        take "    my \$MVM_operand_write_lex   := 4;";
+        take "    my \$MVM_operand_rw_mask     := 7;";
+        take "    my \$MVM_reg_int8            := 1;";
+        take "    my \$MVM_reg_int16           := 2;";
+        take "    my \$MVM_reg_int32           := 3;";
+        take "    my \$MVM_reg_int64           := 4;";
+        take "    my \$MVM_reg_num32           := 5;";
+        take "    my \$MVM_reg_num64           := 6;";
+        take "    my \$MVM_reg_str             := 7;";
+        take "    my \$MVM_reg_obj             := 8;";
+        take "    my \$MVM_operand_int8        := (\$MVM_reg_int8 * 8);";
+        take "    my \$MVM_operand_int16       := (\$MVM_reg_int16 * 8);";
+        take "    my \$MVM_operand_int32       := (\$MVM_reg_int32 * 8);";
+        take "    my \$MVM_operand_int64       := (\$MVM_reg_int64 * 8);";
+        take "    my \$MVM_operand_num32       := (\$MVM_reg_num32 * 8);";
+        take "    my \$MVM_operand_num64       := (\$MVM_reg_num64 * 8);";
+        take "    my \$MVM_operand_str         := (\$MVM_reg_str * 8);";
+        take "    my \$MVM_operand_obj         := (\$MVM_reg_obj * 8);";
+        take "    my \$MVM_operand_ins         := (9 * 8);";
+        take "    my \$MVM_operand_type_var    := (10 * 8);";
+        take "    my \$MVM_operand_lex_outer   := (11 * 8);";
+        take "    my \$MVM_operand_coderef     := (12 * 8);";
+        take "    my \$MVM_operand_callsite    := (13 * 8);";
+        take "    my \$MVM_operand_type_mask   := (15 * 8);";
+        for @banks -> $bank {
+            take "    our \$$bank.name() := nqp::hash(";
+            take join ",\n", gather {
+                for $bank.ops -> $op {
+                    my $operands = $op.operands.map(&operand_flags).join(", \n                ");
+                    $operands = $operands.subst('MVM', '$MVM', :g);
+                    $operands = $operands.subst('|', '+|', :g);
+                    take join "\n", gather {
+                        take "        '$op.name()', nqp::hash(";
+                        take "            'code', $op.code(),";
+                        take "            'operands', [";
+                        take "                $operands";
+                        take "            ]";
+                        take "        )";
+                    };
+                }
+            };
+            take "    );";
+        }
+        take '}';
+    }
 }
 
 # Creates the #defines for the banks.

@@ -62,7 +62,7 @@ our sub op(@ins, $op, *@args) {
     }
     nqp::die("unable to resolve MAST op '$op'") unless $bank;
     nqp::push(@ins, MAST::Op.new(
-            :bank(nqp::substr($bank, 1)), :op($op), |@args
+            :bank(nqp::substr($bank, 1)), :op($op{'code'}), |@args
         ));
 }
 

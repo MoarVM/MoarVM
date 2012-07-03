@@ -147,7 +147,7 @@ class MAST::Op is MAST::Node {
             nqp::die("Invalid MAST op '$op'");
         }
         nqp::bindattr_i($obj, MAST::Op, '$!bank', MAST::OpBanks.WHO{'$' ~ $bank});
-        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$' ~ $bank}{$op});
+        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$' ~ $bank}{$op}{'code'});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
         $obj
     }
