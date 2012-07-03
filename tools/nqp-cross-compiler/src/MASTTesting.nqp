@@ -33,7 +33,7 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     
     # Compile it.
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
-    pir::spawnw__Is("$copy temp.moarvm \"$desc.moarvm\" >$outputnull");
+    #pir::spawnw__Is("$copy temp.moarvm \"$desc.moarvm\" >$outputnull");
 
     # Invoke and redirect output to a file.
     my $start := nqp::time_n();
