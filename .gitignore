@@ -32,3 +32,4 @@ src/gen/
 *.so
 moarvm
 tools/nqp-cross-compiler/*.moarvm
+tools/nqp-cross-compiler/temp.output
