@@ -53,13 +53,13 @@ class QAST::MASTCompiler {
     }
     
     # This takes any node that is a statement list of some kind and compiles
-    # all of the statemnets within it.
+    # all of the statements within it.
     method compile_all_the_stmts($node) {
         my @all_ins;
         my $last_stmt;
         for @($node) {
             # Compile this child to MAST, and add its instructions to the end
-            # of our instruction list. Also track the last sttatement.
+            # of our instruction list. Also track the last statement.
             $last_stmt := self.as_mast($_);
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
         }
