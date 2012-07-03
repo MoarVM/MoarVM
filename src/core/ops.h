@@ -194,6 +194,32 @@
 #define MVM_OP_eqaddr 19
 #define MVM_OP_reprname 20
 #define MVM_OP_isconcrete 21
+#define MVM_OP_atpos_i 22
+#define MVM_OP_atpos_n 23
+#define MVM_OP_atpos_s 24
+#define MVM_OP_atpos_o 25
+#define MVM_OP_bindpos_i 26
+#define MVM_OP_bindpos_n 27
+#define MVM_OP_bindpos_s 28
+#define MVM_OP_bindpos_o 29
+#define MVM_OP_push_i 30
+#define MVM_OP_push_n 31
+#define MVM_OP_push_s 32
+#define MVM_OP_push_o 33
+#define MVM_OP_pop_i 34
+#define MVM_OP_pop_n 35
+#define MVM_OP_pop_s 36
+#define MVM_OP_pop_o 37
+#define MVM_OP_shift_i 38
+#define MVM_OP_shift_n 39
+#define MVM_OP_shift_s 40
+#define MVM_OP_shift_o 41
+#define MVM_OP_unshift_i 42
+#define MVM_OP_unshift_n 43
+#define MVM_OP_unshift_s 44
+#define MVM_OP_unshift_o 45
+#define MVM_OP_splice 46
+#define MVM_OP_elemspos 47
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
