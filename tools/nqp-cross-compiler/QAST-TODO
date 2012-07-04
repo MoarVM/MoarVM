@@ -4,9 +4,9 @@ DONE * Implement QAST::SVal and QAST::NVal compilation (should be easy)
 DONE * Add tests for this
 DONE * Get MoarVM op argument type information generated into lib/MAST/Ops.nqp;
 DONE   we'll also need whether the operands are read or written
-* Get compile_mastop to check argument types (later we'll do coerce stuff)
-* Get compile_mastop to handle instructions that return a result
-* Write various tests to exercise QAST::VM
+DONE * Get compile_mastop to check argument types (later we'll do coerce stuff)
+DONE * Get compile_mastop to handle instructions that return a result
+DONE * Write various tests to exercise QAST::VM
 
 Note that the QAST::VM.new(moarop => '...', ...) handling will lie at the
 base of compiling many things in QAST::Op.

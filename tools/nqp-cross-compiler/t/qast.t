@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(3);
+plan(4);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new(
@@ -23,3 +23,14 @@ qast_output_is(QAST::Block.new(
         QAST::SVal.new( :value("howdyhowdy") )
     )
 ), "howdyhowdy\n", "string constant");
+
+qast_output_is(QAST::Block.new(
+    QAST::VM.new(
+        moarop => 'say_i',
+        QAST::VM.new(
+            moarop => 'add_i',
+            QAST::IVal.new( :value(42) ),
+            QAST::IVal.new( :value(1) )
+        )
+    )
+), "43", "expression result values");
