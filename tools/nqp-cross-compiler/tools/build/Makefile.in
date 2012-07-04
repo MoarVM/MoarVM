@@ -95,7 +95,7 @@ MASTCompiler.pbc: src/MASTCompiler.nqp MASTNodes.pbc MASTOps.pbc
 	nqp --vmlibs=mvmcc_ops --target=pir src/MASTCompiler.nqp > MASTCompiler.pir
 	parrot --output=MASTCompiler.pbc MASTCompiler.pir
 
-MASTTesting.pbc: MASTCompiler.pbc src/MASTTesting.nqp
+MASTTesting.pbc: MASTCompiler.pbc src/MASTTesting.nqp QASTCompilerMAST.pbc
 	nqp --vmlibs=mvmcc_ops --target=pir src/MASTTesting.nqp > MASTTesting.pir
 	parrot --output=MASTTesting.pbc MASTTesting.pir
 
