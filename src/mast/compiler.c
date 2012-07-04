@@ -580,6 +580,12 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     /* Count locals and lexicals. */
     fs->num_locals   = ELEMS(vm, f->local_types);
     fs->num_lexicals = ELEMS(vm, f->lexical_types);
+    
+    if (fs->num_locals > (1 << 16)) {
+        cleanup_all(vm, ws);
+        DIE(vm, "Too many locals in this frame.");
+    }
+    
     if (ELEMS(vm, f->lexical_names) != fs->num_lexicals) {
         cleanup_all(vm, ws);
         DIE(vm, "Lexical types list and lexical names list have unequal length");
