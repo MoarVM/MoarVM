@@ -65,12 +65,9 @@ class QAST::MASTOperations {
         @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
     }
     
+    my @typecode_to_arg := [int, int, int, int, int, num, num, str, NQPMu];
     sub typecode_to_argtype($typecode) {
-        if $typecode == $MVM_operand_int64 { return int; }
-        if $typecode == $MVM_operand_num64 { return num; }
-        if $typecode == $MVM_operand_str   { return str; }
-        if $typecode == $MVM_operand_obj   { return NQPMu; }
-        nqp::die("unhandled typecode $typecode");
+        @typecode_to_arg[$typecode / 8];
     }
     
     sub typecode_to_register($typecode) {
@@ -101,18 +98,14 @@ class QAST::MASTOperations {
         
         my $result_type := MAST::VOID;
         my $result_reg := MAST::VOID;
+        my $writes := 0;
         
         # Compile args.
         my @arg_regs;
         my @all_ins;
         if ($num_operands > 0 && (@operands[0] +& $MVM_operand_rw_mask) == $MVM_operand_write_reg) {
             
-            my $result_typecode := (@operands[0] +& $MVM_operand_type_mask);
-            $result_type := typecode_to_argtype($result_typecode);
-            $result_reg := typecode_to_register($result_typecode);
-            
-            nqp::push(@arg_regs, $result_reg);
-            
+            $writes := 1;
             $operand_num++;
         }
         
@@ -139,6 +132,16 @@ class QAST::MASTOperations {
             
             nqp::splice(@all_ins, $arg.instructions, +@all_ins, 0);
             nqp::push(@arg_regs, $arg.result_reg);
+        }
+        
+        if ($writes) {
+            # do this after the args to possibly reuse a register
+            
+            my $result_typecode := (@operands[0] +& $MVM_operand_type_mask);
+            $result_type := typecode_to_argtype($result_typecode);
+            $result_reg := typecode_to_register($result_typecode);
+            
+            nqp::unshift(@arg_regs, $result_reg);
         }
         
         # Add operation node.
