@@ -84,7 +84,7 @@ class QAST::MASTCompiler {
                 MAST::IVal.new( :value($iv.value) )
             )],
             $reg,
-            MAST::INT)
+            int)
     }
     
     multi method as_mast(QAST::NVal $nv) {
@@ -96,7 +96,7 @@ class QAST::MASTCompiler {
                 MAST::NVal.new( :value($nv.value) )
             )],
             $reg,
-            MAST::NUM)
+            num)
     }
     
     multi method as_mast(QAST::SVal $sv) {
@@ -108,6 +108,6 @@ class QAST::MASTCompiler {
                 MAST::SVal.new( :value($sv.value) )
             )],
             $reg,
-            MAST::STR)
+            str)
     }
 }

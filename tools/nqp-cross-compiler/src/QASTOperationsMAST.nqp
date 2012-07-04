@@ -58,28 +58,18 @@ class MAST::InstructionList {
 # Marker object for void.
 class MAST::VOID { }
 
-class MAST::INT  { }
-class MAST::NUM  { }
-class MAST::STR  { }
-class MAST::OBJ  { }
-
-
 class QAST::MASTOperations {
     
-    sub argtype_to_typecode($argtype) {
-        if $argtype ~~ MAST::INT { return $MVM_operand_int64 }
-        if $argtype ~~ MAST::NUM { return $MVM_operand_num64 }
-        if $argtype ~~ MAST::STR { return $MVM_operand_str }
-        if $argtype ~~ MAST::OBJ { return $MVM_operand_obj }
-        if $argtype ~~ MAST::VOID { nqp::die("no typecode for VOID") }
-        nqp::die("argtype NYI");
+    my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
+    sub type_to_register_type($type) {
+        @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
     }
     
     sub typecode_to_argtype($typecode) {
-        if $typecode == $MVM_operand_int64 { return MAST::INT; }
-        if $typecode == $MVM_operand_num64 { return MAST::NUM; }
-        if $typecode == $MVM_operand_str   { return MAST::STR; }
-        if $typecode == $MVM_operand_obj   { return MAST::OBJ; }
+        if $typecode == $MVM_operand_int64 { return int; }
+        if $typecode == $MVM_operand_num64 { return num; }
+        if $typecode == $MVM_operand_str   { return str; }
+        if $typecode == $MVM_operand_obj   { return NQPMu; }
         nqp::die("unhandled typecode $typecode");
     }
     
@@ -135,15 +125,16 @@ class QAST::MASTOperations {
             my $operand_type := @operands[$operand_num++];
             my $arg_type := $arg.result_type;
             
-            if $arg_type ~~ MAST::VOID {
+            my $arg_typecode := type_to_register_type($arg_type);
+            
+            if $arg_typecode == $MVM_reg_obj && $arg_type ~~ MAST::VOID {
                 nqp::die("Cannot use a void register as an argument to op '$op'");
             }
             
-            my $arg_typecode := argtype_to_typecode($arg_type);
             my $operand_typecode := ($operand_type +& $MVM_operand_type_mask);
             
-            if ($arg_typecode != $operand_typecode) {
-                nqp::die("arg type does not match operand type to op '$op'");
+            if ($arg_typecode * 8 != $operand_typecode) {
+                nqp::die("arg type $arg_typecode does not match operand type $operand_typecode to op '$op'");
             }
             
             nqp::splice(@all_ins, $arg.instructions, +@all_ins, 0);
