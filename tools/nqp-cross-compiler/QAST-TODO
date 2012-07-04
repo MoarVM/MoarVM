@@ -1,9 +1,9 @@
 What next?
-* Turn qast.t into an actual test harness thingy
-* Implement QAST::SVal and QAST::NVal compilation (should be easy)
-* Add tests for this
+DONE * Turn qast.t into an actual test harness thingy
+DONE * Implement QAST::SVal and QAST::NVal compilation (should be easy)
+DONE * Add tests for this
 DONE * Get MoarVM op argument type information generated into lib/MAST/Ops.nqp;
-DONE  we'll also need whether the operands are read or written
+DONE   we'll also need whether the operands are read or written
 * Get compile_mastop to check argument types (later we'll do coerce stuff)
 * Get compile_mastop to handle instructions that return a result
 * Write various tests to exercise QAST::VM

@@ -1,17 +1,22 @@
-use QASTCompilerMAST;
-use MASTCompiler;
+use MASTTesting;
 
-my $qast := QAST::Block.new(
+qast_output_is(QAST::Block.new(
     QAST::VM.new(
         moarop => 'say_i',
         QAST::IVal.new( :value(42) )
     )
-);
+), "42", "integer constant");
 
-say("QAST -> MAST");
-my $mast := QAST::MASTCompiler.to_mast($qast);
+qast_output_is(QAST::Block.new(
+    QAST::VM.new(
+        moarop => 'say_n',
+        QAST::NVal.new( :value(56.003) )
+    )
+), "56.003", "float constant");
 
-say("MAST -> bytecode");
-MAST::Compiler.compile($mast, 'answer.moarvm');
-
-say("Written output");
+qast_output_is(QAST::Block.new(
+    QAST::VM.new(
+        moarop => 'say_s',
+        QAST::SVal.new( :value("howdyhowdy") )
+    )
+), "howdyhowdy\n", "string constant");

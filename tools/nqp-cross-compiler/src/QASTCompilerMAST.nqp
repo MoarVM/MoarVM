@@ -86,4 +86,28 @@ class QAST::MASTCompiler {
             $reg,
             int)
     }
+    
+    multi method as_mast(QAST::NVal $nv) {
+        my $reg := $*REGALLOC.fresh_n();
+        MAST::InstructionList.new(
+            [MAST::Op.new(
+                :bank('primitives'), :op('const_n64'),
+                $reg,
+                MAST::NVal.new( :value($nv.value) )
+            )],
+            $reg,
+            int)
+    }
+    
+    multi method as_mast(QAST::SVal $sv) {
+        my $reg := $*REGALLOC.fresh_s();
+        MAST::InstructionList.new(
+            [MAST::Op.new(
+                :bank('primitives'), :op('const_s'),
+                $reg,
+                MAST::SVal.new( :value($sv.value) )
+            )],
+            $reg,
+            int)
+    }
 }

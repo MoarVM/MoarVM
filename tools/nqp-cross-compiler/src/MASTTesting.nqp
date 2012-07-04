@@ -1,4 +1,5 @@
 use MASTCompiler;
+use QASTCompilerMAST;
 
 my $moarvm;
 my $del;
@@ -31,6 +32,11 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     # fill with instructions
     $frame_filler($frame, $frame.instructions, $comp_unit);
     
+    mast_output_is($comp_unit, $expected, $desc, $timeit);
+}
+
+our sub mast_output_is($comp_unit, $expected, $desc, $timeit?) {
+    
     # Compile it.
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
     #pir::spawnw__Is("$copy temp.moarvm \"$desc.moarvm\" >$outputnull");
@@ -53,6 +59,10 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     
     pir::spawnw__Is("$del temp.moarvm");
     pir::spawnw__Is("$del temp.output");
+}
+
+our sub qast_output_is($qast, $expected, $desc, $timeit?) {
+    mast_output_is(QAST::MASTCompiler.to_mast($qast), $expected, $desc, $timeit);
 }
 
 our sub op(@ins, $op, *@args) {
