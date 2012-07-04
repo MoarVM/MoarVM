@@ -1,4 +1,7 @@
+#!nqp
 use MASTTesting;
+
+plan(3);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new(
