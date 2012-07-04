@@ -35,17 +35,36 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMArrayBody *src_body  = (MVMArrayBody *)src;
     MVMArrayBody *dest_body = (MVMArrayBody *)dest;
     dest_body->elems = src_body->elems;
-    dest_body->alloc  = src_body->alloc;
-    dest_body->data   = malloc(sizeof(MVMObject *) * dest_body->alloc);
-    memcpy(dest_body->data, src_body->data, sizeof(MVMObject *) * dest_body->elems);
+    dest_body->ssize = src_body->ssize;
+    dest_body->start = 0;
+    if (dest_body->elems > 0) {
+        dest_body->slots = malloc(sizeof(MVMObject *) * dest_body->ssize);
+        memcpy(dest_body->slots, src_body->slots + src_body->start,
+            sizeof(MVMObject *) * src_body->elems);
+    }
+}
+
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMArrayBody  *body  = (MVMArrayBody *)data;
+    MVMuint64      elems = body->elems;
+    MVMuint64      start = body->start;
+    MVMuint64      i     = 0;
+    MVMObject    **slots = body->slots;
+    slots += start;
+    while (i < elems) {
+        MVM_gc_worklist_add(tc, worklist, &slots[i]);
+        i++;
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMArray *arr = (MVMArray *)obj;
-    free(arr->body.data);
-    arr->body.data = NULL;
-    arr->body.elems = arr->body.alloc = 0;
+    if (arr->body.slots) {
+        free(arr->body.slots);
+        arr->body.slots = NULL;
+    }
 }
 
 /* Gets the storage specification for this representation. */
@@ -57,15 +76,6 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-static void expand_to_at_least(MVMArrayBody *body, MVMuint64 min_elems) {
-    MVMuint64 alloc = body->alloc + 4 > min_elems ? body->alloc + 4 : min_elems;
-    if (body->alloc == 0)
-        body->data = malloc(sizeof(MVMObject *) * alloc);
-    else
-        body->data = realloc(body->data, sizeof(MVMObject *) * alloc);
-    body->alloc = alloc;
-}
-
 static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *target) {
     MVM_exception_throw_adhoc(tc,
         "MVMArray representation does not support native type storage");
@@ -73,7 +83,9 @@ static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
 
 static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
     MVMArrayBody *body = (MVMArrayBody *)data;
-    return index < body->elems ? body->data[index] : NULL;
+    if (index >= body->elems)
+        return NULL;
+    return body->slots[body->start + index];
 }
 
 static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *addr) {
@@ -81,13 +93,67 @@ static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
         "MVMArray representation does not support native type storage");
 }
 
+static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint64 n) {
+    MVMuint64   elems = body->elems;
+    MVMuint64   start = body->start;
+    MVMuint64   ssize = body->ssize;
+    MVMObject **slots = body->slots;
+
+    if (n == elems)
+        return;
+
+    /* if there aren't enough slots at the end, shift off empty slots 
+     * from the beginning first */
+    if (start > 0 && n + start > ssize) {
+        if (elems > 0) 
+            memmove(slots, slots + start, elems * sizeof(MVMObject *));
+        body->start = 0;
+        /* fill out any unused slots with NULL pointers */
+        while (elems < ssize) {
+            slots[elems] = NULL;
+            elems++;
+        }
+    }
+
+    body->elems = n;
+    if (n <= ssize) { 
+        /* we already have n slots available, we can just return */
+        return;
+    }
+
+    /* We need more slots.  If the current slot size is less
+     * than 8K, use the larger of twice the current slot size
+     * or the actual number of elements needed.  Otherwise,
+     * grow the slots to the next multiple of 4096 (0x1000). */
+    if (ssize < 8192) {
+        ssize *= 2;
+        if (n > ssize) ssize = n;
+        if (ssize < 8) ssize = 8;
+    }
+    else {
+        ssize = (n + 0x1000) & ~0xfff;
+    }
+
+    /* now allocate the new slot buffer */
+    slots = (slots)
+            ? realloc(slots, ssize * sizeof(MVMObject *))
+            : malloc(ssize * sizeof(MVMObject *));
+
+    /* fill out any unused slots with NULL pointers */
+    while (elems < ssize) {
+        slots[elems] = NULL;
+        elems++;
+    }
+
+    body->ssize = ssize;
+    body->slots = slots;
+}
+
 static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, MVMObject *obj) {
     MVMArrayBody *body = (MVMArrayBody *)data;
-    if (index >= body->alloc)
-        expand_to_at_least(body, index + 1);
     if (index >= body->elems)
-        body->elems = index + 1;
-    MVM_ASSIGN_REF(tc, root, body->data[index], obj);
+        set_size_internal(tc, body, index + 1);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start + index], obj);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -96,8 +162,8 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 }
 
 static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    set_size_internal(tc, body, count);
 }
 
 static void push_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
@@ -153,15 +219,6 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     return spec;
 }
 
-/* Adds held objects to the GC worklist. */
-static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMArrayBody *body = (MVMArrayBody *)data;
-    MVMuint64 elems, i;
-    elems = body->elems;
-    for (i = 0; i < elems; i++)
-        MVM_gc_worklist_add(tc, worklist, &body->data[i]);
-}
-
 /* Initializes the representation. */
 MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -171,6 +228,7 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->allocate = allocate;
     this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
+    this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec; 
     this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
@@ -190,6 +248,5 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->shift_boxed = shift_boxed;
     this_repr->pos_funcs->splice = splice;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
-    this_repr->gc_mark = gc_mark;
     return this_repr;
 }
