@@ -1,31 +1,48 @@
 use QASTOperationsMAST;
 
 class QAST::MASTCompiler {
-    # This isn't really doing allocation at all right now...
+    # This uses a very simple scheme. Write registers are assumed
+    # to be write-once, read-once.  Therefore, if a QAST control
+    # structure wants to reuse the intermediate result of an
+    # expression, it must `set` the result to other registers before
+    # using the result as an arg to another op.
     my class RegAlloc {
         has $!frame;
+        has @!objs;
+        has @!ints;
+        has @!nums;
+        has @!strs;
         
         method new($frame) {
             my $obj := nqp::create(self);
             nqp::bindattr($obj, RegAlloc, '$!frame', $frame);
+            nqp::bindattr($obj, RegAlloc, '@!objs', []);
+            nqp::bindattr($obj, RegAlloc, '@!ints', []);
+            nqp::bindattr($obj, RegAlloc, '@!nums', []);
+            nqp::bindattr($obj, RegAlloc, '@!strs', []);
             $obj
         }
         
         method fresh_o() {
-            MAST::Local.new($!frame.add_local(NQPMu))
+            nqp::elems(@!objs) ?? nqp::pop(@!objs) !! MAST::Local.new($!frame.add_local(NQPMu))
         }
         
         method fresh_i() {
-            MAST::Local.new($!frame.add_local(int))
+            nqp::elems(@!ints) ?? nqp::pop(@!ints) !! MAST::Local.new($!frame.add_local(int))
         }
         
         method fresh_n() {
-            MAST::Local.new($!frame.add_local(num))
+            nqp::elems(@!nums) ?? nqp::pop(@!nums) !! MAST::Local.new($!frame.add_local(num))
         }
         
         method fresh_s() {
-            MAST::Local.new($!frame.add_local(str))
+            nqp::elems(@!strs) ?? nqp::pop(@!strs) !! MAST::Local.new($!frame.add_local(str))
         }
+        
+        method release_o($reg) { nqp::push(@!objs, $reg) }
+        method release_i($reg) { nqp::push(@!ints, $reg) }
+        method release_n($reg) { nqp::push(@!nums, $reg) }
+        method release_s($reg) { nqp::push(@!strs, $reg) }
     }
     
     method to_mast($qast) {

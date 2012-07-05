@@ -71,10 +71,18 @@ class QAST::MASTOperations {
     }
     
     sub typecode_to_register($typecode) {
-        if $typecode == $MVM_operand_int64 { return $*REGALLOC.fresh_i(); }
-        if $typecode == $MVM_operand_num64 { return $*REGALLOC.fresh_n(); }
-        if $typecode == $MVM_operand_str   { return $*REGALLOC.fresh_s(); }
-        if $typecode == $MVM_operand_obj   { return $*REGALLOC.fresh_o(); }
+        if $typecode == $MVM_operand_int64 { return $*REGALLOC.fresh_i() }
+        if $typecode == $MVM_operand_num64 { return $*REGALLOC.fresh_n() }
+        if $typecode == $MVM_operand_str   { return $*REGALLOC.fresh_s() }
+        if $typecode == $MVM_operand_obj   { return $*REGALLOC.fresh_o() }
+        nqp::die("unhandled typecode $typecode");
+    }
+    
+    sub release_register($reg, $typecode) {
+        if $typecode == $MVM_operand_int64 { return $*REGALLOC.release_i($reg) }
+        if $typecode == $MVM_operand_num64 { return $*REGALLOC.release_n($reg) }
+        if $typecode == $MVM_operand_str   { return $*REGALLOC.release_s($reg) }
+        if $typecode == $MVM_operand_obj   { return $*REGALLOC.release_o($reg) }
         nqp::die("unhandled typecode $typecode");
     }
     
@@ -90,22 +98,25 @@ class QAST::MASTOperations {
         nqp::die("Unable to resolve MAST op '$op'") unless $bank;
         
         my @operands := MAST::Ops.WHO{$bank}{$op}{"operands"};
-        
         my $num_args := +@args;
         my $num_operands := +@operands;
-        
         my $operand_num := 0;
-        
         my $result_type := MAST::VOID;
         my $result_reg := MAST::VOID;
-        my $writes := 0;
+        my $needs_write := 0;
+        my $type_var_typecode := 0;
         
         # Compile args.
         my @arg_regs;
         my @all_ins;
-        if ($num_operands > 0 && (@operands[0] +& $MVM_operand_rw_mask) == $MVM_operand_write_reg) {
-            
-            $writes := 1;
+        my @release_regs;
+        my @release_types;
+        if ($num_operands
+                && ((@operands[0] +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
+                    || (@operands[0] +& $MVM_operand_rw_mask) == $MVM_operand_write_lex)
+                    # allow the QASTree to define its own write register
+                && $num_args == $num_operands - 1) {
+            $needs_write := 1;
             $operand_num++;
         }
         
@@ -126,18 +137,45 @@ class QAST::MASTOperations {
             
             my $operand_typecode := ($operand_type +& $MVM_operand_type_mask);
             
-            if ($arg_typecode * 8 != $operand_typecode) {
+            if ($operand_typecode == $MVM_operand_type_var) {
+                # handle ops that have type-variables as operands
+                if ($type_var_typecode) {
+                    # if we've already seen a type-var
+                    if ($arg_typecode != $type_var_typecode) {
+                        # the arg types must match
+                        nqp::die("variable-type op requires same-typed args");
+                    }
+                }
+                else {
+                    # set this variable-type op's typecode
+                    $type_var_typecode := $arg_typecode;
+                }
+            }
+            elsif ($arg_typecode * 8 != $operand_typecode) {
+                # the arg typecode left shifted 3 must match the operand typecode
                 nqp::die("arg type $arg_typecode does not match operand type $operand_typecode to op '$op'");
             }
             
             nqp::splice(@all_ins, $arg.instructions, +@all_ins, 0);
             nqp::push(@arg_regs, $arg.result_reg);
+            
+            
+            # XXX TODO !!!!! Don't release the register if it's a local Var
+            nqp::push(@release_regs, $arg.result_reg);
+            nqp::push(@release_types, $arg_typecode * 8);
         }
         
-        if ($writes) {
-            # do this after the args to possibly reuse a register
+        if ($needs_write) {
+            # do this after the args to possibly reuse a register,
+            # and so we know the type of result register for ops with type_var operands.
             
             my $result_typecode := (@operands[0] +& $MVM_operand_type_mask);
+            
+            # fixup the variable typecode if there is one
+            if ($type_var_typecode && $result_typecode == $MVM_operand_type_var) {
+                $result_typecode := $type_var_typecode;
+            }
+            
             $result_type := typecode_to_argtype($result_typecode);
             $result_reg := typecode_to_register($result_typecode);
             
@@ -150,6 +188,15 @@ class QAST::MASTOperations {
             |@arg_regs));
         
         # Build instruction list.
-        MAST::InstructionList.new(@all_ins, $result_reg, $result_type)
+        my $result_list := MAST::InstructionList.new(@all_ins, $result_reg, $result_type);
+        
+        # release the registers to the allocator. See comment there.
+        my $release_i := 0;
+        for @release_regs {
+            release_register($_, @release_types[$release_i++]);
+            # say("op $op released arg result register with index: " ~ nqp::getattr_i($_, MAST::Local, '$!index'));
+        }
+        
+        $result_list
     }
 }
