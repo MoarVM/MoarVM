@@ -33,7 +33,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/MVMOSHandle$(O) src/6model/reprs/P6int$(O) src/6model/reprs/P6num$(O) \
             src/6model/reprs/Uninstantiable$(O) src/6model/reprs/HashAttrStore$(O) \
             src/6model/6model$(O) src/6model/bootstrap$(O) src/strings/ascii$(O) \
-            src/strings/utf8$(O) src/strings/ops$(O) src/moarvm$(O)
+            src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
@@ -45,7 +45,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/6model/reprs/KnowHOWREPR.h src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h \
             src/6model/reprs/MVMOSHandle.h src/6model/reprs/P6int.h src/6model/reprs/P6num.h \
             src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h \
-            src/strings/ascii.h src/strings/utf8.h src/strings/ops.h
+            src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
@@ -130,6 +130,8 @@ src/strings/utf8$(O): src/strings/utf8.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/utf8$(O) src/strings/utf8.c
 src/strings/ops$(O): src/strings/ops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/ops$(O) src/strings/ops.c
+src/strings/unicode$(O): src/strings/unicode.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/unicode$(O) src/strings/unicode.c
 src/moarvm$(O): src/moarvm.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/moarvm$(O) src/moarvm.c
 src/main$(O): src/main.c $(HEADERS)

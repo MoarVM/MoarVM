@@ -39,6 +39,7 @@
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/ops.h"
+#include "strings/unicode.h"
 #include "io/fileops.h"
 #include "io/socketops.h"
 #include "io/dirops.h"
