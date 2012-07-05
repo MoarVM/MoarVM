@@ -54,42 +54,35 @@ qast_output_is(QAST::Block.new(
     )
 ), "43\n65\n", "expression result values reuse Locals");
 
-#  Debug output for above test 5:
-#  fresh elems: 0
-#  fresh elems: 0
-#  fresh elems: 0
-#  release elems: 0
-#  op add_i released arg result register with index: 0
-#  release elems: 1
-#  op add_i released arg result register with index: 1
-#  release elems: 2
-#  op say_i released arg result register with index: 2
-#  fresh elems: 3
-#  fresh elems: 2
-#  fresh elems: 1
-#  release elems: 0
-#  op add_i released arg result register with index: 2
-#  release elems: 1
-#  op add_i released arg result register with index: 1
-#  release elems: 2
-#  op say_i released arg result register with index: 0
-#  got 3 locals
+#  compiler.c debug output for above 5 tests:
+#  c:\Users\mwilson\src\MoarVM\tools\nqp-cross-compiler>nqp t\qast.t
+#  1..5
+#  processing local number 0
+#  processing local number 0
+#  ok 1 - integer constant
+#  processing local number 0
+#  processing local number 0
+#  ok 2 - float constant
+#  processing local number 0
+#  processing local number 0
+#  ok 3 - string constant
 #  processing local number 0
 #  processing local number 1
-#  processing local number 2
-#  processing local number 0
-#  processing local number 1
-#  processing local number 2
-#  processing local number 2
 #  processing local number 1
 #  processing local number 0
-#  processing local number 2
+#  processing local number 1
+#  processing local number 1
+#  ok 4 - expression result values
+#  processing local number 0
+#  processing local number 1
 #  processing local number 1
 #  processing local number 0
-#  output is: '43
-#  65
-#  '
-#  expected is: '43
-#  65
-#  '
-#  ok 5 - expression result values
+#  processing local number 1
+#  processing local number 1
+#  processing local number 1
+#  processing local number 0
+#  processing local number 0
+#  processing local number 1
+#  processing local number 0
+#  processing local number 0
+#  ok 5 - expression result values reuse Locals
