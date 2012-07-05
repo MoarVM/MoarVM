@@ -156,15 +156,32 @@ class QAST::MASTOperations {
                 nqp::die("arg type $arg_typecode does not match operand type $operand_typecode to op '$op'");
             }
             
+            if (($operand_type +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
+                || ($operand_type +& $MVM_operand_rw_mask) == $MVM_operand_write_lex) {
+                $result_reg := $arg.result_reg;
+                $result_type := $arg_type;
+            }
+            else {
+                # XXX TODO !!!!! Don't release the register if it's a local Var
+                # if it's not a write register, queue it to be released it to the allocator
+                nqp::push(@release_regs, $arg.result_reg);
+                nqp::push(@release_types, $arg_typecode * 8);
+            }
+            
             nqp::splice(@all_ins, $arg.instructions, +@all_ins, 0);
             nqp::push(@arg_regs, $arg.result_reg);
             
             
-            # XXX TODO !!!!! Don't release the register if it's a local Var
-            nqp::push(@release_regs, $arg.result_reg);
-            nqp::push(@release_types, $arg_typecode * 8);
         }
         
+        # release the registers to the allocator. See comment there.
+        my $release_i := 0;
+        for @release_regs {
+            release_register($_, @release_types[$release_i++]);
+            # say("op $op released arg result register with index: " ~ nqp::getattr_i($_, MAST::Local, '$!index'));
+        }
+        
+        # unshift in the write register arg if it needs one
         if ($needs_write) {
             # do this after the args to possibly reuse a register,
             # and so we know the type of result register for ops with type_var operands.
@@ -188,15 +205,6 @@ class QAST::MASTOperations {
             |@arg_regs));
         
         # Build instruction list.
-        my $result_list := MAST::InstructionList.new(@all_ins, $result_reg, $result_type);
-        
-        # release the registers to the allocator. See comment there.
-        my $release_i := 0;
-        for @release_regs {
-            release_register($_, @release_types[$release_i++]);
-            # say("op $op released arg result register with index: " ~ nqp::getattr_i($_, MAST::Local, '$!index'));
-        }
-        
-        $result_list
+        MAST::InstructionList.new(@all_ins, $result_reg, $result_type)
     }
 }
