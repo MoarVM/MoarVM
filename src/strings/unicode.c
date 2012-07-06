@@ -3,7 +3,7 @@
 #include "moarvm.h"
 
 static MVMUnicodePlane MVM_unicode_planes[] = {
-    { 0, 0 },
+    { 0, 65534 },
 };
 
 #define MVM_UNICODE_PLANES 1
