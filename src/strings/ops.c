@@ -166,3 +166,66 @@ MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMin
             return index;
     return -1;
 }
+
+/* Uppercases a string. */
+MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
+    MVMString *result;
+    MVMuint64 i;
+    
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&s);
+    result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
+    MVM_gc_root_temp_pop(tc);
+    
+    /* XXX Need to handle cases where character count varies. */
+    result->body.codes  = s->body.codes;
+    result->body.graphs = s->body.graphs;
+    result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
+    for (i = 0; i < s->body.graphs; i++) {
+        MVMCodePoint *cp = MVM_unicode_codepoint_info(tc, s->body.data[i]);
+        result->body.data[i] = cp ? cp->uc : s->body.data[i];
+    }
+
+    return result;
+}
+
+/* Lowercases a string. */
+MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s) {
+    MVMString *result;
+    MVMuint64 i;
+    
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&s);
+    result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
+    MVM_gc_root_temp_pop(tc);
+    
+    /* XXX Need to handle cases where character count varies. */
+    result->body.codes  = s->body.codes;
+    result->body.graphs = s->body.graphs;
+    result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
+    for (i = 0; i < s->body.graphs; i++) {
+        MVMCodePoint *cp = MVM_unicode_codepoint_info(tc, s->body.data[i]);
+        result->body.data[i] = cp ? cp->lc : s->body.data[i];
+    }
+
+    return result;
+}
+
+/* Titlecases a string. */
+MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
+    MVMString *result;
+    MVMuint64 i;
+    
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&s);
+    result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
+    MVM_gc_root_temp_pop(tc);
+    
+    /* XXX Need to handle cases where character count varies. */
+    result->body.codes  = s->body.codes;
+    result->body.graphs = s->body.graphs;
+    result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
+    for (i = 0; i < s->body.graphs; i++) {
+        MVMCodePoint *cp = MVM_unicode_codepoint_info(tc, s->body.data[i]);
+        result->body.data[i] = cp ? cp->tc : s->body.data[i];
+    }
+
+    return result;
+}

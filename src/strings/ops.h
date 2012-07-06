@@ -8,3 +8,6 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
 MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a, MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb);
 MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index);
 MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint);
+MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s);
+MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s);
+MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s);
