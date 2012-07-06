@@ -143,6 +143,9 @@ BANK 2 string
 0x09    haveat_s    w(int64) r(str) r(int64) r(int64) r(str) r(int64)
 0x0A    getcp_s     w(int64) r(str) r(int64)
 0x0B    indexcp_s   w(int64) r(str) r(int64)
+0x0C    uc          w(str) r(str)
+0x0D    lc          w(str) r(str)
+0x0E    tc          w(str) r(str)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)

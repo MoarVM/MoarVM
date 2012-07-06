@@ -1091,6 +1091,27 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
+        ),
+        'uc', nqp::hash(
+            'code', 12,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'lc', nqp::hash(
+            'code', 13,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'tc', nqp::hash(
+            'code', 14,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
         )
     );
     our $math := nqp::hash(

@@ -154,6 +154,9 @@
 #define MVM_OP_haveat_s 9
 #define MVM_OP_getcp_s 10
 #define MVM_OP_indexcp_s 11
+#define MVM_OP_uc 12
+#define MVM_OP_lc 13
+#define MVM_OP_tc 14
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
