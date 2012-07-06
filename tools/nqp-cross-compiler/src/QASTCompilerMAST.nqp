@@ -1,5 +1,15 @@
 use QASTOperationsMAST;
 
+my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
+my $MVM_reg_int8            := 1;
+my $MVM_reg_int16           := 2;
+my $MVM_reg_int32           := 3;
+my $MVM_reg_int64           := 4;
+my $MVM_reg_num32           := 5;
+my $MVM_reg_num64           := 6;
+my $MVM_reg_str             := 7;
+my $MVM_reg_obj             := 8;
+
 class QAST::MASTCompiler {
     # This uses a very simple scheme. Write registers are assumed
     # to be write-once, read-once.  Therefore, if a QAST control
@@ -167,7 +177,7 @@ class QAST::MASTCompiler {
             $last_stmt := self.as_mast($_);
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
         }
-        MAST::InstructionList.new(@all_ins, $last_stmt.result_reg, $last_stmt.result_type)
+        MAST::InstructionList.new(@all_ins, $last_stmt.result_reg, $last_stmt.result_kind)
     }
     
     multi method as_mast(QAST::Op $node) {
@@ -292,7 +302,7 @@ class QAST::MASTCompiler {
             nqp::die("QAST::Var with scope '$scope' NYI");
         }
         
-        MAST::InstructionList.new(@ins, MAST::VOID, MAST::VOID)
+        MAST::InstructionList.new(@ins, MAST::VOID, $MVM_reg_void)
     }
     
     method as_mast_clear_bindval($node) {
@@ -309,7 +319,7 @@ class QAST::MASTCompiler {
                 MAST::IVal.new( :value($iv.value) )
             )],
             $reg,
-            int)
+            $MVM_reg_int64)
     }
     
     multi method as_mast(QAST::NVal $nv) {
@@ -321,7 +331,7 @@ class QAST::MASTCompiler {
                 MAST::NVal.new( :value($nv.value) )
             )],
             $reg,
-            num)
+            $MVM_reg_num64)
     }
     
     multi method as_mast(QAST::SVal $sv) {
@@ -333,7 +343,7 @@ class QAST::MASTCompiler {
                 MAST::SVal.new( :value($sv.value) )
             )],
             $reg,
-            str)
+            $MVM_reg_str)
     }
 }
 
