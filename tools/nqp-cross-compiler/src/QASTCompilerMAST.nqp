@@ -52,6 +52,7 @@ class QAST::MASTCompiler {
         has @!params;           # QAST::Var nodes of params
         has @!locals;           # QAST::Var nodes of declared locals
         has @!lexicals;         # QAST::Var nodes of declared lexicals
+        has %!locals_by_name;   # Mapping of local names to locals
         has %!local_types;      # Mapping of local registers to type names
         has %!lexical_types;    # Mapping of lexical names to types
         has %!lexical_regs;     # Mapping of lexical names to registers
@@ -119,11 +120,8 @@ class QAST::MASTCompiler {
         
         method lex_reg($name) { %!lexical_regs{$name} }
         
-        my %longnames := nqp::hash('P', 'pmc', 'I', 'int', 'N', 'num', 'S', 'string');
         method local_type($name) { %!local_types{$name} }
-        method local_type_long($name) { %longnames{%!local_types{$name}} }
         method lexical_type($name) { %!lexical_types{$name} }
-        method lexical_type_long($name) { %longnames{%!lexical_types{$name}} }
         method reg_type($name) { %!reg_types{$name} }
     }
     
@@ -154,8 +152,7 @@ class QAST::MASTCompiler {
         nqp::splice($*MAST_FRAME.instructions, $ins.instructions, 0, 0);
     }
     
-    # until we get block return types and nested frames working
-    multi method as_mast(QAST::FakeBlock $node) {
+    multi method as_mast(QAST::Stmts $node) {
         self.compile_all_the_stmts($node)
     }
     
@@ -184,6 +181,123 @@ class QAST::MASTCompiler {
         else {
             nqp::die("To compile on the MoarVM backend, QAST::VM must have an alternative 'moarop'");
         }
+    }
+    
+    multi method as_mast(QAST::Var $node) {
+        my $scope := $node.scope;
+        my $decl  := $node.decl;
+        
+        # Handle any declarations; after this, we call through to the
+        # lookup code.
+        if $decl {
+            # If it's a parameter, add it to the things we should bind
+            # at block entry.
+            if $decl eq 'param' {
+                if $scope eq 'local' || $scope eq 'lexical' {
+                    $*BLOCK.add_param($node);
+                }
+                else {
+                    nqp::die("Parameter cannot have scope '$scope'; use 'local' or 'lexical'");
+                }
+            }
+            elsif $decl eq 'var' {
+                if $scope eq 'local' {
+                    $*BLOCK.add_local($node);
+                }
+                elsif $scope eq 'lexical' {
+                    $*BLOCK.add_lexical($node);
+                }
+                else {
+                    nqp::die("Cannot declare variable with scope '$scope'; use 'local' or 'lexical'");
+                }
+            }
+            else {
+                nqp::die("Don't understand declaration type '$decl'");
+            }
+        }
+        
+        # Now go by scope.
+        my $name := $node.name;
+        my @ins;
+        my $res_reg;
+        my $res_type;
+        if $scope eq 'local' {
+            if $*BLOCK.local_type($name) -> $type {
+                if $*BINDVAL {
+                    my $valmast := self.as_mast_clear_bindval($*BINDVAL);
+                    push_ilist(@ins, $valmast);
+                    push_op(@ins, 'set', , $valmast.result_reg);
+                }
+                
+            }
+            else {
+                nqp::die("Cannot reference undeclared local '$name'");
+            }
+        }
+        elsif $scope eq 'lexical' {
+            # If the lexical is directly declared in this block, we use the
+            # register directly.
+            if $*BLOCK.lexical_type($name) -> $type {
+                my $reg := $*BLOCK.lex_reg($name);
+                if $*BINDVAL {
+                    my $valmast := self.as_mast_clear_bindval($*BINDVAL);
+                    nqp::die("NYI 1");
+                }
+                $res_reg := $reg;
+            }
+            else {
+                # Does the node have a native type marked on it?
+                my $type := type_to_register_type($node.returns);
+                if $type eq 'P' {
+                    # Consider the blocks for a declared native type.
+                    # XXX TODO
+                }
+                
+                # Emit the lookup or bind.
+                if $*BINDVAL {
+                    my $valpost := self.as_mast_clear_bindval($*BINDVAL);
+                    nqp::die("NYI 2");
+                }
+                else {
+                    my $res_reg := $*REGALLOC."fresh_{nqp::lc($type)}"();
+                    $nqp::die("NYI 3");
+                }
+            }
+        }
+        elsif $scope eq 'attribute' {
+            # Ensure we have object and class handle.
+            my @args := $node.list();
+            if +@args != 2 {
+                nqp::die("An attribute lookup needs an object and a class handle");
+            }
+            
+            # Compile object and handle.
+            my $obj := self.coerce(self.as_post_clear_bindval(@args[0]), 'p');
+            my $han := self.coerce(self.as_post_clear_bindval(@args[1]), 'p');
+            nqp::die("NYI 4");
+            
+            # Go by whether it's a bind or lookup.
+            my $type    := type_to_register_type($node.returns);
+            my $op_type := type_to_lookup_name($node.returns);
+            if $*BINDVAL {
+                my $valpost := self.as_mast_clear_bindval($*BINDVAL);
+                nqp::die("NYI 5");
+            }
+            else {
+                my $res_reg := $*REGALLOC."fresh_{nqp::lc($type)}"();
+                nqp::die("NYI 6");
+            }
+        }
+        else {
+            nqp::die("QAST::Var with scope '$scope' NYI");
+        }
+        
+        MAST::InstructionList.new(@ins, MAST::VOID, MAST::VOID)
+    }
+    
+    method as_mast_clear_bindval($node) {
+        my $*BINDVAL := 0;
+        self.as_mast($node)
     }
     
     multi method as_mast(QAST::IVal $iv) {
@@ -221,4 +335,18 @@ class QAST::MASTCompiler {
             $reg,
             str)
     }
+}
+
+sub push_op(@dest, $op, *@args) {
+    # Resolve the op.
+    my $bank;
+    for MAST::Ops.WHO {
+        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
+    }
+    nqp::die("Unable to resolve MAST op '$op'") unless $bank;
+    
+    nqp::push(@dest, MAST::Op.new(
+        :bank(nqp::substr($bank, 1)), :op($op),
+        |@args
+    ));
 }

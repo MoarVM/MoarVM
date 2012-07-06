@@ -33,8 +33,6 @@ my $MVM_operand_coderef     := (12 * 8);
 my $MVM_operand_callsite    := (13 * 8);
 my $MVM_operand_type_mask   := (15 * 8);
 
-class QAST::FakeBlock is QAST::Node { }
-
 # This is used as a return value from all of the various compilation routines.
 # It groups together a set of instructions along with a result register and a
 # result type.
@@ -290,6 +288,23 @@ for <if unless> -> $op_name {
         MAST::InstructionList.new(@ins, $res_reg, @comp_ops[1].result_type)
     });
 }
+
+# Binding
+QAST::MASTOperations.add_core_op('bind', -> $qastcomp, $op {
+    # Sanity checks.
+    my @children := $op.list;
+    if +@children != 2 {
+        pir::die("A 'bind' op must have exactly two children");
+    }
+    unless nqp::istype(@children[0], QAST::Var) {
+        pir::die("First child of a 'bind' op must be a QAST::Var");
+    }
+    
+    # Set the QAST of the think we're to bind, then delegate to
+    # the compilation of the QAST::Var to handle the rest.
+    my $*BINDVAL := @children[1];
+    $qastcomp.as_mast(@children[0])
+});
 
 sub resolve_condition_op($type, $negated) {
     return $negated ??

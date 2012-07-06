@@ -102,7 +102,7 @@ qast_output_is(QAST::Block.new(
 qast_output_is(QAST::Block.new(
     QAST::Op.new( op => 'if',
         QAST::IVal.new( :value(42) ),
-        QAST::FakeBlock.new(
+        QAST::Stmts.new(
             QAST::VM.new(
                 moarop => 'say_i',
                 QAST::IVal.new( :value(7) )),
@@ -123,7 +123,7 @@ qast_output_is(QAST::Block.new(
 qast_output_is(QAST::Block.new(
     QAST::Op.new( op => 'if',
         QAST::IVal.new( :value(0) ),
-        QAST::FakeBlock.new(
+        QAST::Stmts.new(
             QAST::VM.new(
                 moarop => 'say_i',
                 QAST::IVal.new( :value(7) )),

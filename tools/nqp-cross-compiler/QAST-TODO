@@ -15,7 +15,7 @@ base of compiling many things in QAST::Op.
               emit the binding code, but delegates that to the QAST::Var handling code)
 16:59 <jnthn> * QAST::Var with :scope('local')
 17:00 <jnthn> * QAST::Var with :scope('local') and :decl('var')
-17:01 <jnthn> * QAST::Var with :op('if') and :op('unless') - look at the type involved to know whether to
+17:01 <jnthn> * QAST::Op with :op('if') and :op('unless') - look at the type involved to know whether to
               emit a if_i, if_n, etc. if_o won't work yet.
 17:01 <jnthn> Remember that if and unless work as expressions too
 17:05 <jnthn> If all that isn't enough then look at getting the nqp op to moar op mapping infrastructure
