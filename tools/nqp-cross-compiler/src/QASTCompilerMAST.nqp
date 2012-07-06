@@ -127,7 +127,7 @@ class QAST::MASTCompiler {
         method reg_type($name) { %!reg_types{$name} }
     }
     
-    our $serno;
+    our $serno := 0;
     method unique($prefix = '') { $prefix ~ $serno++ }
     
     method to_mast($qast) {
@@ -152,6 +152,11 @@ class QAST::MASTCompiler {
         # Add to instructions list for this block.
         # XXX Last thing is return value, later...
         nqp::splice($*MAST_FRAME.instructions, $ins.instructions, 0, 0);
+    }
+    
+    # until we get block return types and nested frames working
+    multi method as_mast(QAST::FakeBlock $node) {
+        self.compile_all_the_stmts($node)
     }
     
     # This takes any node that is a statement list of some kind and compiles

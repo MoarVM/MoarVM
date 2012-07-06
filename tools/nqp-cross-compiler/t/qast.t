@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(5);
+plan(9);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new(
@@ -86,3 +86,46 @@ qast_output_is(QAST::Block.new(
 #  processing local number 0
 #  processing local number 0
 #  ok 5 - expression result values reuse Locals
+
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'if',
+        QAST::IVal.new( :value(42) ),
+        QAST::VM.new(
+            moarop => 'say_i',
+            QAST::IVal.new( :value(7) )),
+        QAST::VM.new(
+            moarop => 'say_i',
+            QAST::IVal.new( :value(8) )))
+), "7\n", "if/then/else true with else");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'if',
+        QAST::IVal.new( :value(42) ),
+        QAST::FakeBlock.new(
+            QAST::VM.new(
+                moarop => 'say_i',
+                QAST::IVal.new( :value(7) )),
+            QAST::IVal.new( :value(50) )))
+), "7\n", "if/then true");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'if',
+        QAST::IVal.new( :value(0) ),
+        QAST::VM.new(
+            moarop => 'say_i',
+            QAST::IVal.new( :value(7) )),
+        QAST::VM.new(
+            moarop => 'say_i',
+            QAST::IVal.new( :value(8) )))
+), "8\n", "if/then/else false with else");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'if',
+        QAST::IVal.new( :value(0) ),
+        QAST::FakeBlock.new(
+            QAST::VM.new(
+                moarop => 'say_i',
+                QAST::IVal.new( :value(7) )),
+            QAST::IVal.new( :value(50) )))
+), "", "if/then false");

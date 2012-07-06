@@ -336,7 +336,7 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             
             /* Check the type matches. */
             local_type = ws->cur_frame->local_types[l->index];
-            if (op_type != local_type << 3) {
+            if (op_type != local_type << 3 && op_type != MVM_operand_type_var) {
                 cleanup_all(vm, ws);
                 DIE(vm, "MAST::Local of wrong type specified");
             }

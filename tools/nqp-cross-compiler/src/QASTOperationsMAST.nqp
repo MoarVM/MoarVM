@@ -33,6 +33,7 @@ my $MVM_operand_coderef     := (12 * 8);
 my $MVM_operand_callsite    := (13 * 8);
 my $MVM_operand_type_mask   := (15 * 8);
 
+class QAST::FakeBlock is QAST::Node { }
 
 # This is used as a return value from all of the various compilation routines.
 # It groups together a set of instructions along with a result register and a
@@ -81,7 +82,7 @@ class QAST::MASTOperations {
         if %core_ops{$name} -> $mapper {
             return $mapper($qastcomp, $op);
         }
-        pir::die("No registered operation handler for '$name'");
+        nqp::die("No registered operation handler for '$name'");
     }
     
     # XXX This needs the coercion machinary
@@ -170,7 +171,7 @@ class QAST::MASTOperations {
             else {
                 # if it's not a write register, queue it to be released it to the allocator
                 nqp::push(@release_regs, $arg.result_reg);
-                nqp::push(@release_types, $arg_typecode * 8);
+                nqp::push(@release_types, $arg_typecode);
             }
             
             # put the arg exression's generation code in the instruction list
@@ -181,7 +182,7 @@ class QAST::MASTOperations {
         # release the registers to the allocator. See comment there.
         my $release_i := 0;
         for @release_regs {
-            release_register($_, @release_types[$release_i++] / 8);
+            release_register($_, @release_types[$release_i++]);
         }
         
         # unshift in a generated write register arg if it needs one
@@ -226,7 +227,7 @@ class QAST::MASTOperations {
 
 # Conditionals.
 for <if unless> -> $op_name {
-    QAST::Operations.add_core_op(c, -> $qastcomp, $op {
+    QAST::MASTOperations.add_core_op($op_name, -> $qastcomp, $op {
         # Check operand count.
         my $operands := +$op.list;
         nqp::die("Operation '$op_name' needs either 2 or 3 operands")
@@ -237,13 +238,11 @@ for <if unless> -> $op_name {
         my $else_lbl := MAST::Label.new($if_id ~ '_else');
         my $end_lbl  := MAST::Label.new($if_id ~ '_end');
         
-        
-        # Compile each of the children; we'll need to look at the result
-        # types and pick an overall result type if in non-void context.
+        # Compile each of the children
         my @comp_ops;
         my @op_types;
         for $op.list {
-            my $comp := $qastcomp.as_post($_);
+            my $comp := $qastcomp.as_mast($_);
             @comp_ops.push($comp);
             @op_types.push(type_to_typecode($comp.result_type));
         }
@@ -253,42 +252,41 @@ for <if unless> -> $op_name {
             nqp::die("For now, operation '$op_name' needs both branches to result in the same type");
         }
         my $res_type := @op_types[1];
-        my $res_reg  := typecode_to_register($res_type);
+        my $is_void := @comp_ops[1].result_reg ~~ MAST::VOID;
+        my $res_reg  := $is_void ?? MAST::VOID !! typecode_to_register($res_type);
         
         my @ins;
         
         # Evaluate the condition first; store result if needed.
         push_ilist(@ins, @comp_ops[0]);
-        if $operands == 2 {
+        if $operands == 2 && !$is_void {
             push_op(@ins, 'set', $res_reg, @comp_ops[0].result_reg);
         }
         
         # Emit the jump.
         push_op(@ins,
-            resolve_condition_op($res_type, $op_name eq 'if'),
+            resolve_condition_op(@op_types[0], $op_name eq 'if'),
             @comp_ops[0].result_reg,
-            $else_lbl
+            ($operands == 3 ?? $else_lbl !! $end_lbl)
         );
-        release_register(@comp_ops[0].result_reg, @op_types[0]);
         
         # Emit the then, stash the result
         push_ilist(@ins, @comp_ops[1]);
-        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
-        release_register(@comp_ops[1].result_reg, @op_types[1]);
+        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg) unless $is_void;
         
         # Handle else branch if needed.
         if $operands == 3 {
             push_op(@ins, 'goto', $end_lbl);
             nqp::push(@ins, $else_lbl);
+            # XXX see coercion note above
             push_ilist(@ins, @comp_ops[2]);
-            push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg);
-            release_register(@comp_ops[2].result_reg, @op_types[2]);
-        }
-        else {
-            nqp::push(@ins, $else_lbl);
+            push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg) unless $is_void;
         }
         
+        nqp::push(@ins, $end_lbl);
+        
         # Build instruction list
+        # XXX see coercion note above for result type
         MAST::InstructionList.new(@ins, $res_reg, @comp_ops[1].result_type)
     });
 }
@@ -316,7 +314,7 @@ sub push_op(@dest, $op, *@args) {
     nqp::die("Unable to resolve MAST op '$op'") unless $bank;
     
     nqp::push(@dest, MAST::Op.new(
-        :bank($bank), :op($op),
+        :bank(nqp::substr($bank, 1)), :op($op),
         |@args
     ));
 }
