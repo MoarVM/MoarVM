@@ -847,12 +847,6 @@ static MVMOpInfo MVM_op_info_string[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_setcp_s,
-        "setcp_s",
-        3,
-        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
-    },
-    {
         MVM_OP_indexcp_s,
         "indexcp_s",
         3,
@@ -1661,7 +1655,7 @@ static unsigned char MVM_op_banks = 7;
 static unsigned char MVM_opcounts_by_bank[] = {
     123,
     5,
-    13,
+    12,
     13,
     48,
     44,

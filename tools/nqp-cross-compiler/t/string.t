@@ -331,19 +331,16 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, int);
-        my $r2 := local($frame, int);
-        op(@ins, 'const_s', $r0, sval(' '));
-        op(@ins, 'const_i64', $r1, ival(0));
-        op(@ins, 'const_i64', $r2, ival(171));
-        op(@ins, 'setcp_s', $r0, $r1, $r2);
-        op(@ins, 'repeat_s', $r0, $r0, $r2);
+        op(@ins, 'const_s', $r0, sval('«'));
+        op(@ins, 'const_i64', $r1, ival(171));
+        op(@ins, 'repeat_s', $r0, $r0, $r1);
         op(@ins, 'say_s', $r0);
         op(@ins, 'return');
     },
     "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««"~
     "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««"~
     "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««\n",
-    "string set codepoint at index");
+    "string repeat with non-ASCII char");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);

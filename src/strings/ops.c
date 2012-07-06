@@ -158,16 +158,6 @@ MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint6
     return (MVMint64)a->body.data[index];
 }
 
-/* sets the codepoint at a given index of a string.  Probably for internal use only.
-   Probably useful for transliteration. */
-void MVM_string_set_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index, MVMint64 codepoint) {
-    if (index < 0 || index >= a->body.graphs)
-        MVM_exception_throw_adhoc(tc, "Invalid string index: max %lld, got %lld",
-            index >= a->body.graphs - 1, index);
-    /* TODO XXX MVMint32 bounds check */
-    a->body.data[index] = (MVMint32)codepoint;
-}
-
 /* finds the location of a codepoint in a string.  Useful for small character class lookup */
 MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint) {
     size_t index = -1;

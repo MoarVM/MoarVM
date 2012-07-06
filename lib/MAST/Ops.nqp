@@ -1084,16 +1084,8 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         ),
-        'setcp_s', nqp::hash(
-            'code', 11,
-            'operands', [
-                $MVM_operand_read_reg +| $MVM_operand_str,
-                $MVM_operand_read_reg +| $MVM_operand_int64,
-                $MVM_operand_read_reg +| $MVM_operand_int64
-            ]
-        ),
         'indexcp_s', nqp::hash(
-            'code', 12,
+            'code', 11,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_int64,
                 $MVM_operand_read_reg +| $MVM_operand_str,
