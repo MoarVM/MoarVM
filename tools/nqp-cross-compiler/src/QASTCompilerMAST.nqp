@@ -45,6 +45,91 @@ class QAST::MASTCompiler {
         method release_s($reg) { nqp::push(@!strs, $reg) }
     }
     
+    # Holds information about the QAST::Block we're currently compiling.
+    my class BlockInfo {
+        has $!qast;             # The QAST::Block
+        has $!outer;            # Outer block's BlockInfo
+        has @!params;           # QAST::Var nodes of params
+        has @!locals;           # QAST::Var nodes of declared locals
+        has @!lexicals;         # QAST::Var nodes of declared lexicals
+        has %!local_types;      # Mapping of local registers to type names
+        has %!lexical_types;    # Mapping of lexical names to types
+        has %!lexical_regs;     # Mapping of lexical names to registers
+        has %!reg_types;        # Mapping of all registers to types
+        has int $!param_idx;    # Current lexical parameter index
+        
+        method new($qast, $outer) {
+            my $obj := nqp::create(self);
+            $obj.BUILD($qast, $outer);
+            $obj
+        }
+        
+        method BUILD($qast, $outer) {
+            $!qast := $qast;
+            $!outer := $outer;
+        }
+        
+        method add_param($var) {
+            if $var.scope eq 'local' {
+                self.register_local($var);
+            }
+            else {
+                my $reg := '_lex_param_' ~ $!param_idx;
+                $!param_idx := $!param_idx + 1;
+                self.register_lexical($var, $reg);
+            }
+            @!params[+@!params] := $var;
+        }
+        
+        method add_lexical($var) {
+            self.register_lexical($var);
+            @!lexicals[+@!lexicals] := $var;
+        }
+        
+        method add_local($var) {
+            self.register_local($var);
+            @!locals[+@!locals] := $var;
+        }
+        
+        method register_lexical($var, $reg?) {
+            my $name := $var.name;
+            my $type := type_to_register_type($var.returns);
+            if nqp::existskey(%!lexical_types, $name) {
+                pir::die("Lexical '$name' already declared");
+            }
+            %!lexical_types{$name} := $type;
+            %!lexical_regs{$name} := $reg ?? $reg !! $*BLOCKRA."fresh_{nqp::lc($type)}"();
+            %!reg_types{%!lexical_regs{$name}} := $type;
+        }
+        
+        method register_local($var) {
+            my $name := $var.name;
+            if nqp::existskey(%!local_types, $name) {
+                pir::die("Local '$name' already declared");
+            }
+            %!local_types{$name} := type_to_register_type($var.returns);
+            %!reg_types{$name} := %!local_types{$name};
+        }
+        
+        method qast() { $!qast }
+        method outer() { $!outer }
+        method params() { @!params }
+        method lexicals() { @!lexicals }
+        method locals() { @!locals }
+        
+        method lex_reg($name) { %!lexical_regs{$name} }
+        
+        my %longnames := nqp::hash('P', 'pmc', 'I', 'int', 'N', 'num', 'S', 'string');
+        method local_type($name) { %!local_types{$name} }
+        method local_type_long($name) { %longnames{%!local_types{$name}} }
+        method lexical_type($name) { %!lexical_types{$name} }
+        method lexical_type_long($name) { %longnames{%!lexical_types{$name}} }
+        method reg_type($name) { %!reg_types{$name} }
+    }
+    
+    our $serno;
+    method unique($prefix = '') { $prefix ~ $serno++ }
+    
     method to_mast($qast) {
         my $*MAST_COMPUNIT := MAST::CompUnit.new();
         self.as_mast($qast);
@@ -81,6 +166,10 @@ class QAST::MASTCompiler {
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
         }
         MAST::InstructionList.new(@all_ins, $last_stmt.result_reg, $last_stmt.result_type)
+    }
+    
+    multi method as_mast(QAST::Op $node) {
+        QAST::MASTOperations.compile_op(self, '', $node)
     }
     
     multi method as_mast(QAST::VM $vm) {

@@ -60,30 +60,28 @@ class MAST::VOID { }
 
 class QAST::MASTOperations {
     
-    my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
-    sub type_to_register_type($type) {
-        @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
-    }
+    # Maps operations to code that will handle them. Hash of code.
+    my %core_ops;
     
-    my @typecode_to_arg := [int, int, int, int, int, num, num, str, NQPMu];
-    sub typecode_to_argtype($typecode) {
-        @typecode_to_arg[$typecode / 8];
-    }
+    # Maps HLL-specific operations to code that will handle them.
+    # Hash of hash of code.
+    my %hll_ops;
     
-    sub typecode_to_register($typecode) {
-        if $typecode == $MVM_operand_int64 { return $*REGALLOC.fresh_i() }
-        if $typecode == $MVM_operand_num64 { return $*REGALLOC.fresh_n() }
-        if $typecode == $MVM_operand_str   { return $*REGALLOC.fresh_s() }
-        if $typecode == $MVM_operand_obj   { return $*REGALLOC.fresh_o() }
-        nqp::die("unhandled typecode $typecode");
-    }
+    ## Cached pirop compilers.
+    #my %cached_pirops;
     
-    sub release_register($reg, $typecode) {
-        if $typecode == $MVM_operand_int64 { return $*REGALLOC.release_i($reg) }
-        if $typecode == $MVM_operand_num64 { return $*REGALLOC.release_n($reg) }
-        if $typecode == $MVM_operand_str   { return $*REGALLOC.release_s($reg) }
-        if $typecode == $MVM_operand_obj   { return $*REGALLOC.release_o($reg) }
-        nqp::die("unhandled typecode $typecode");
+    # Compiles an operation to MAST.
+    method compile_op($qastcomp, $hll, $op) {
+        my $name := $op.op;
+        if $hll {
+            if %hll_ops{$hll} && %hll_ops{$hll}{$name} -> $mapper {
+                return $mapper($qastcomp, $op);
+            }
+        }
+        if %core_ops{$name} -> $mapper {
+            return $mapper($qastcomp, $op);
+        }
+        pir::die("No registered operation handler for '$name'");
     }
     
     # XXX This needs the coercion machinary
@@ -133,7 +131,7 @@ class QAST::MASTOperations {
             my $operand_type := @operands[$operand_num++];
             my $arg_type := $arg.result_type;
             
-            my $arg_typecode := type_to_register_type($arg_type);
+            my $arg_typecode := type_to_typecode($arg_type);
             
             # args cannot be void
             if $arg_typecode == $MVM_reg_obj && $arg_type ~~ MAST::VOID {
@@ -170,7 +168,6 @@ class QAST::MASTOperations {
             # otherwise it's a read register, so it can be released if it's an
             # intermediate value
             else {
-                # XXX TODO !!!!! Don't release the register if it's a local Var
                 # if it's not a write register, queue it to be released it to the allocator
                 nqp::push(@release_regs, $arg.result_reg);
                 nqp::push(@release_types, $arg_typecode * 8);
@@ -184,7 +181,7 @@ class QAST::MASTOperations {
         # release the registers to the allocator. See comment there.
         my $release_i := 0;
         for @release_regs {
-            release_register($_, @release_types[$release_i++]);
+            release_register($_, @release_types[$release_i++] / 8);
         }
         
         # unshift in a generated write register arg if it needs one
@@ -199,8 +196,8 @@ class QAST::MASTOperations {
                 $result_typecode := $type_var_typecode * 8;
             }
             
-            $result_type := typecode_to_argtype($result_typecode);
-            $result_reg := typecode_to_register($result_typecode);
+            $result_type := typecode_to_type($result_typecode / 8);
+            $result_reg := typecode_to_register($result_typecode / 8);
             
             nqp::unshift(@arg_regs, $result_reg);
         }
@@ -213,4 +210,151 @@ class QAST::MASTOperations {
         # Build instruction list.
         MAST::InstructionList.new(@all_ins, $result_reg, $result_type)
     }
+    
+    # Adds a core op handler.
+    method add_core_op($op, $handler) {
+        %core_ops{$op} := $handler;
+    }
+    
+    # Adds a HLL op handler.
+    method add_hll_op($hll, $op, $handler) {
+        %hll_ops{$hll} := {} unless %hll_ops{$hll};
+        %hll_ops{$hll}{$op} := $handler;
+    }
+    
+}
+
+# Conditionals.
+for <if unless> -> $op_name {
+    QAST::Operations.add_core_op(c, -> $qastcomp, $op {
+        # Check operand count.
+        my $operands := +$op.list;
+        nqp::die("Operation '$op_name' needs either 2 or 3 operands")
+            if $operands < 2 || $operands > 3;
+        
+        # Create labels.
+        my $if_id    := $qastcomp.unique($op_name);
+        my $else_lbl := MAST::Label.new($if_id ~ '_else');
+        my $end_lbl  := MAST::Label.new($if_id ~ '_end');
+        
+        
+        # Compile each of the children; we'll need to look at the result
+        # types and pick an overall result type if in non-void context.
+        my @comp_ops;
+        my @op_types;
+        for $op.list {
+            my $comp := $qastcomp.as_post($_);
+            @comp_ops.push($comp);
+            @op_types.push(type_to_typecode($comp.result_type));
+        }
+        # XXX coerce one to match the other? how to choose which one?
+        if ($operands == 3 && @op_types[1] != @op_types[2]
+         || $operands == 2 && @op_types[0] != @op_types[1]) {
+            nqp::die("For now, operation '$op_name' needs both branches to result in the same type");
+        }
+        my $res_type := @op_types[1];
+        my $res_reg  := typecode_to_register($res_type);
+        
+        my @ins;
+        
+        # Evaluate the condition first; store result if needed.
+        push_ilist(@ins, @comp_ops[0]);
+        if $operands == 2 {
+            push_op(@ins, 'set', $res_reg, @comp_ops[0].result_reg);
+        }
+        
+        # Emit the jump.
+        push_op(@ins,
+            resolve_condition_op($res_type, $op_name eq 'if'),
+            @comp_ops[0].result_reg,
+            $else_lbl
+        );
+        release_register(@comp_ops[0].result_reg, @op_types[0]);
+        
+        # Emit the then, stash the result
+        push_ilist(@ins, @comp_ops[1]);
+        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
+        release_register(@comp_ops[1].result_reg, @op_types[1]);
+        
+        # Handle else branch if needed.
+        if $operands == 3 {
+            push_op(@ins, 'goto', $end_lbl);
+            nqp::push(@ins, $else_lbl);
+            push_ilist(@ins, @comp_ops[2]);
+            push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg);
+            release_register(@comp_ops[2].result_reg, @op_types[2]);
+        }
+        else {
+            nqp::push(@ins, $else_lbl);
+        }
+        
+        # Build instruction list
+        MAST::InstructionList.new(@ins, $res_reg, @comp_ops[1].result_type)
+    });
+}
+
+sub resolve_condition_op($type, $negated) {
+    return $negated ??
+        $type == $MVM_reg_int64 ?? 'unless_i' !!
+        $type == $MVM_reg_num64 ?? 'unless_n' !!
+        $type == $MVM_reg_str   ?? 'unless_s' !!
+        $type == $MVM_reg_obj   ?? 'unless_o' !!
+        nqp::die("unhandled typecode $type")
+     !! $type == $MVM_reg_int64 ?? 'if_i' !!
+        $type == $MVM_reg_num64 ?? 'if_n' !!
+        $type == $MVM_reg_str   ?? 'if_s' !!
+        $type == $MVM_reg_obj   ?? 'if_o' !!
+        nqp::die("unhandled typecode $type")
+}
+
+sub push_op(@dest, $op, *@args) {
+    # Resolve the op.
+    my $bank;
+    for MAST::Ops.WHO {
+        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
+    }
+    nqp::die("Unable to resolve MAST op '$op'") unless $bank;
+    
+    nqp::push(@dest, MAST::Op.new(
+        :bank($bank), :op($op),
+        |@args
+    ));
+}
+
+sub push_ilist(@dest, $src) {
+    nqp::splice(@dest, $src.instructions, +@dest, 0);
+}
+
+# below, "type" means type literal,
+# "typecode" means MVM_reg_*
+
+my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
+sub type_to_typecode($type) {
+    @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
+}
+
+my @typecodes_to_types := [int, int, int, int, int, num, num, str, NQPMu];
+sub typecode_to_type($typecode) {
+    @typecodes_to_types[$typecode];
+}
+
+sub typecode_to_register($typecode) {
+    if $typecode == $MVM_reg_int64 { return $*REGALLOC.fresh_i() }
+    if $typecode == $MVM_reg_num64 { return $*REGALLOC.fresh_n() }
+    if $typecode == $MVM_reg_str   { return $*REGALLOC.fresh_s() }
+    if $typecode == $MVM_reg_obj   { return $*REGALLOC.fresh_o() }
+    nqp::die("unhandled typecode $typecode");
+}
+
+sub type_to_register($type) {
+    typecode_to_register(type_to_typecode($type))
+}
+
+sub release_register($reg, $typecode) {
+    # XXX TODO !!!!! Don't release the register if it's a local Var
+    if $typecode == $MVM_reg_int64 { return $*REGALLOC.release_i($reg) }
+    if $typecode == $MVM_reg_num64 { return $*REGALLOC.release_n($reg) }
+    if $typecode == $MVM_reg_str   { return $*REGALLOC.release_s($reg) }
+    if $typecode == $MVM_reg_obj   { return $*REGALLOC.release_o($reg) }
+    nqp::die("unhandled reg type $typecode");
 }

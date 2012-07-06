@@ -11,3 +11,15 @@ DONE * Write various tests to exercise QAST::VM
 Note that the QAST::VM.new(moarop => '...', ...) handling will lie at the
 base of compiling many things in QAST::Op.
 
+16:59 <jnthn> * QAST::Op with :op('bind') (see NQP's QAST::Compiler for inspiration - it doesn't actually
+              emit the binding code, but delegates that to the QAST::Var handling code)
+16:59 <jnthn> * QAST::Var with :scope('local')
+17:00 <jnthn> * QAST::Var with :scope('local') and :decl('var')
+17:01 <jnthn> * QAST::Var with :op('if') and :op('unless') - look at the type involved to know whether to
+              emit a if_i, if_n, etc. if_o won't work yet.
+17:01 <jnthn> Remember that if and unless work as expressions too
+17:05 <jnthn> If all that isn't enough then look at getting the nqp op to moar op mapping infrastructure
+              set up (a bit like the stuff in QAST::Operations that maps nqp ops to pirops). Note we don't
+              need the signature bit, since we have all that information available already. Only thing
+              we'll need is an optional "what arg to use as the result" for void ops that should evaluate
+              to one of the args.
