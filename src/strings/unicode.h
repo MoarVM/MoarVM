@@ -27,3 +27,5 @@ typedef struct _MVMUnicodePlane {
     /* The total number of codepoints in the plane. */
     MVMuint32 num_codepoints;
 } MVMUnicodePlane;
+
+MVMCodePoint * MVM_unicode_codepoint_info(MVMThreadContext *tc, MVMint32 codepoint);

@@ -55,13 +55,27 @@ for %planes.sort(*.key) -> $plane {
         ($plane.value - $last_start) ~ ' },');
     $last_start := $plane.value;
 }
-$fh.say('};
-');
+$fh.say("};
+
+#define MVM_UNICODE_PLANES %planes.elems()
+");
 
 # Emit the codepoints table.
 $fh.say('static MVMCodePoint MVM_unicode_codepoints[] = {');
 $fh.say(@pieces.join(",\n"));
-$fh.say('};');
+$fh.say('};
+
+/* Looks up address of some codepoint information. */
+MVMCodePoint * MVM_unicode_codepoint_info(MVMThreadContext *tc, MVMint32 codepoint) {
+    MVMint32 plane = codepoint >> 16;
+    MVMint32 idx   = codepoint & 0xFFFF;
+    if (plane < MVM_UNICODE_PLANES)
+        if (idx < MVM_unicode_planes[plane].num_codepoints)
+            return &MVM_unicode_codepoints[
+                MVM_unicode_planes[plane].first_codepoint + idx];
+    return NULL;
+}
+');
 
 # And we're done.
 $fh.close();

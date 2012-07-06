@@ -6,6 +6,8 @@ static MVMUnicodePlane MVM_unicode_planes[] = {
     { 0, 0 },
 };
 
+#define MVM_UNICODE_PLANES 1
+
 static MVMCodePoint MVM_unicode_codepoints[] = {
     { "<control>", 0, 0, 0 },
     { "<control>", 1, 1, 1 },
@@ -65542,3 +65544,15 @@ static MVMCodePoint MVM_unicode_codepoints[] = {
     { "OBJECT REPLACEMENT CHARACTER", 65532, 65532, 65532 },
     { "REPLACEMENT CHARACTER", 65533, 65533, 65533 }
 };
+
+/* Looks up address of some codepoint information. */
+MVMCodePoint * MVM_unicode_codepoint_info(MVMThreadContext *tc, MVMint32 codepoint) {
+    MVMint32 plane = codepoint >> 16;
+    MVMint32 idx   = codepoint & 0xFFFF;
+    if (plane < MVM_UNICODE_PLANES)
+        if (idx < MVM_unicode_planes[plane].num_codepoints)
+            return &MVM_unicode_codepoints[
+                MVM_unicode_planes[plane].first_codepoint + idx];
+    return NULL;
+}
+
