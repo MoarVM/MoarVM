@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(27);
+plan(32);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
@@ -353,3 +353,60 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "23\n",
     "string index of codepoint");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('beer'));
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'uc', $r0, $r0);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "beer\nBEER\n",
+    "uppercase in the ASCII range");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('CHEESE'));
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'lc', $r0, $r0);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "CHEESE\ncheese\n",
+    "lowercase in the ASCII range");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('пиво'));
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'uc', $r0, $r0);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "пиво\nПИВО\n",
+    "uppercase beyond ASCII range");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('СЫР'));
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'lc', $r0, $r0);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "СЫР\nсыр\n",
+    "lowercase beyond ASCII range");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('ǉ'));
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'tc', $r0, $r0);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'uc', $r0, $r0);
+        op(@ins, 'say_s', $r0);
+        op(@ins, 'return');
+    },
+    "ǉ\nǈ\nǇ\n",
+    "titlecase works and can be distinct from uppercase");
