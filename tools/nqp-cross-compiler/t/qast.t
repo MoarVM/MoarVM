@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(12);
+plan(14);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -86,7 +86,7 @@ qast_output_is(QAST::Block.new(
             QAST::IVal.new( :value(7) )),
         QAST::VM.new( moarop => 'say_i',
             QAST::IVal.new( :value(8) )))
-), "7\n", "if/then/else true with else");
+), "7\n", "if then else true with else");
 
 qast_output_is(QAST::Block.new(
     QAST::Op.new( op => 'if',
@@ -95,7 +95,7 @@ qast_output_is(QAST::Block.new(
             QAST::VM.new( moarop => 'say_i',
                 QAST::IVal.new( :value(7) )),
             QAST::IVal.new( :value(50) )))
-), "7\n", "if/then true");
+), "7\n", "if then true");
 
 qast_output_is(QAST::Block.new(
     QAST::Op.new( op => 'if',
@@ -104,7 +104,7 @@ qast_output_is(QAST::Block.new(
             QAST::IVal.new( :value(7) )),
         QAST::VM.new( moarop => 'say_i',
             QAST::IVal.new( :value(8) )))
-), "8\n", "if/then/else false with else");
+), "8\n", "if then else false with else");
 
 qast_output_is(QAST::Block.new(
     QAST::Op.new( op => 'if',
@@ -113,7 +113,7 @@ qast_output_is(QAST::Block.new(
             QAST::VM.new( moarop => 'say_i',
                 QAST::IVal.new( :value(7) )),
             QAST::IVal.new( :value(50) )))
-), "", "if/then false");
+), "", "if then false");
 
 qast_output_is(QAST::Block.new(
     QAST::Op.new( op => 'bind',
@@ -140,6 +140,21 @@ qast_output_is(QAST::Block.new(
     QAST::Op.new( op => 'bind',
         QAST::Var.new( name => "foo", returns => int, decl => 'var', scope => 'local' ),
         QAST::IVal.new( :value(4) )),
+    QAST::Op.new( op=> 'until',
+        QAST::VM.new( moarop => 'eq_i',
+            QAST::Var.new( name => "foo", scope => 'local' ),
+            QAST::IVal.new( :value(0) )),
+        QAST::Stmts.new(
+            QAST::VM.new( moarop => 'say_i',
+                QAST::Var.new( name => "foo", scope => 'local' )),
+            QAST::VM.new( moarop => 'dec_i',
+                QAST::Var.new( name => "foo", scope => 'local' ))))
+), "4\n3\n2\n1\n", "until loop and decrementing local var");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'bind',
+        QAST::Var.new( name => "foo", returns => int, decl => 'var', scope => 'local' ),
+        QAST::IVal.new( :value(4) )),
     QAST::Op.new( op=> 'repeat_while',
         QAST::Stmts.new(
             QAST::VM.new( moarop => 'say_i',
@@ -148,3 +163,18 @@ qast_output_is(QAST::Block.new(
                 QAST::Var.new( name => "foo", scope => 'local' ))),
         QAST::Var.new( name => "foo", scope => 'local' ))
 ), "4\n3\n2\n1\n", "repeat_while loop and decrementing local var");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'bind',
+        QAST::Var.new( name => "foo", returns => int, decl => 'var', scope => 'local' ),
+        QAST::IVal.new( :value(4) )),
+    QAST::Op.new( op=> 'repeat_until',
+        QAST::Stmts.new(
+            QAST::VM.new( moarop => 'say_i',
+                QAST::Var.new( name => "foo", scope => 'local' )),
+            QAST::VM.new( moarop => 'dec_i',
+                QAST::Var.new( name => "foo", scope => 'local' ))),
+        QAST::VM.new( moarop => 'eq_i',
+            QAST::Var.new( name => "foo", scope => 'local' ),
+            QAST::IVal.new( :value(0) )))
+), "4\n3\n2\n1\n", "repeat_until loop and decrementing local var");
