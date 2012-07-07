@@ -43,7 +43,8 @@ class QAST::MASTCompiler {
         # then a Var the second half, but then control returns to the first half
         method fresh_register($kind, $new = 0) {
             my @arr; my $type;
-            # set $new to 1 here if you suspect a problem with the allocator
+            # set $new to 1 here if you suspect a problem with the allocator,
+            # or if you suspect a register is being double-released somewhere.
             # $new := 1;
                if $kind == $MVM_reg_int64 { @arr := @!ints; $type := int }
             elsif $kind == $MVM_reg_num64 { @arr := @!nums; $type := num }
@@ -318,7 +319,7 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::IVal $iv) {
-        my $reg := $*REGALLOC.fresh_register($MVM_reg_int64);
+        my $reg := $*REGALLOC.fresh_i();
         MAST::InstructionList.new(
             [MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
@@ -330,7 +331,7 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::NVal $nv) {
-        my $reg := $*REGALLOC.fresh_register($MVM_reg_num64);
+        my $reg := $*REGALLOC.fresh_n();
         MAST::InstructionList.new(
             [MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
@@ -342,7 +343,7 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::SVal $sv) {
-        my $reg := $*REGALLOC.fresh_register($MVM_reg_str);
+        my $reg := $*REGALLOC.fresh_s();
         MAST::InstructionList.new(
             [MAST::Op.new(
                 :bank('primitives'), :op('const_s'),

@@ -1,25 +1,18 @@
 What next?
-DONE * Turn qast.t into an actual test harness thingy
-DONE * Implement QAST::SVal and QAST::NVal compilation (should be easy)
-DONE * Add tests for this
-DONE * Get MoarVM op argument type information generated into lib/MAST/Ops.nqp;
-DONE   we'll also need whether the operands are read or written
-DONE * Get compile_mastop to check argument types (later we'll do coerce stuff)
-DONE * Get compile_mastop to handle instructions that return a result
-DONE * Write various tests to exercise QAST::VM
 
-Note that the QAST::VM.new(moarop => '...', ...) handling will lie at the
-base of compiling many things in QAST::Op.
-
-DONE * QAST::Op with :op('bind') (see NQP's QAST::Compiler for inspiration - it doesn't actually
-DONE emit the binding code, but delegates that to the QAST::Var handling code)
-DONE * QAST::Var with :scope('local')
-DONE * QAST::Var with :scope('local') and :decl('var')
-DONE * QAST::Op with :op('if') and :op('unless') - look at the type involved to know whether to
-DONE emit a if_i, if_n, etc. if_o won't work yet.
-DONE Remember that if and unless work as expressions too
-If all that isn't enough then look at getting the nqp op to moar op mapping infrastructure
+look at getting the nqp op to moar op mapping infrastructure
 set up (a bit like the stuff in QAST::Operations that maps nqp ops to pirops). Note we don't
 need the signature bit, since we have all that information available already. Only thing
 we'll need is an optional "what arg to use as the result" for void ops that should evaluate
 to one of the args.
+For nqp::op that maps naturally to moarops we can just make something that sets up the mapper
+For any more complicated cases, it's fine, we just have to do a closure that does the mapping work.
+
+work out having more than one QAST::Block
+If you implement QAST::BVal (which really boils down to getcode) then you could also
+implement QAST::Op.new( :op('call'), ... )
+The case where there's no :name(...) so the first child is the thing to invoke.
+Note that in MAST, blocks can't contain blocks, so each newly encountered block needs to
+add_frame to the MAST compilation unit.
+You can probably get immediate blocks to be called automatically.
+I guess even declarations of blocks can work too
