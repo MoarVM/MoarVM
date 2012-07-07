@@ -211,6 +211,7 @@ BANK 4 object
 0x2D    unshift_o   w(obj) r(obj)
 0x2E    splice      r(obj) r(obj) r(int64) r(int64)
 0x2F    elemspos    w(int64) r(obj)
+0x30    setelemspos r(obj) r(int64)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)

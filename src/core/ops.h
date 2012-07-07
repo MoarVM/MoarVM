@@ -222,6 +222,7 @@
 #define MVM_OP_unshift_o 45
 #define MVM_OP_splice 46
 #define MVM_OP_elemspos 47
+#define MVM_OP_setelemspos 48
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
