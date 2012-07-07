@@ -190,8 +190,9 @@ static void push_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
 }
 
 static void push_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    set_size_internal(tc, body, body->elems + 1);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start + body->elems - 1], obj);
 }
 
 static void * pop_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
@@ -200,8 +201,14 @@ static void * pop_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
 }
 
 static MVMObject * pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
+    MVMArrayBody *body = (MVMArrayBody *)data;
+
+    if (body->elems < 1)
+        MVM_exception_throw_adhoc(tc,
+            "MVMArray: Can't pop from an empty array");
+
+    body->elems--;
+    return body->slots[body->start + body->elems];
 }
 
 static void unshift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
@@ -210,8 +217,32 @@ static void unshift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 static void unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
+    MVMArrayBody *body = (MVMArrayBody *)data;
+
+    /* If we don't have room at the beginning of the slots,
+     * make some room (8 slots) for unshifting */
+    if (body->start < 1) {
+        MVMuint64 n = 8;
+        MVMuint64 elems = body->elems;
+        MVMuint64 i;
+
+        /* grow the array */
+        set_size_internal(tc, body, elems + n);
+
+        /* move elements and set start */
+        memmove(body->slots + n, body->slots, elems * sizeof(MVMObject *));
+        body->start = n;
+        body->elems = elems;
+        
+        /* clear out beginning elements */
+        for (i = 0; i < n; i++)
+            body->slots[i] = NULL;
+    }
+
+    /* Now do the unshift */
+    body->start--;
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start], obj);
+    body->elems++;
 }
 
 static void * shift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
@@ -220,8 +251,18 @@ static void * shift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 static MVMObject * shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    MVMObject    *value;
+
+    if (body->elems < 1)
+        MVM_exception_throw_adhoc(tc,
+            "MVMArray: Can't shift from an empty array");
+
+    value = body->slots[body->start];
+    body->start++;
+    body->elems--;
+
+    return value;
 }
 
 static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMint64 elems) {
