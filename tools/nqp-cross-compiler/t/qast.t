@@ -7,13 +7,13 @@ qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
         QAST::IVal.new( :value(42) )
     )
-), "42", "integer constant");
+), "42\n", "integer constant");
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_n',
         QAST::NVal.new( :value(56.003) )
     )
-), "56.003", "float constant");
+), "56.003\n", "float constant", approx => 1);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_s',
