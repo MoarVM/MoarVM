@@ -21,7 +21,7 @@ else {
     $outputnull := 'NUL';
 }
 
-our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
+our sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx) {
     # Create frame
     my $frame := MAST::Frame.new();
     
@@ -32,10 +32,10 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, $timeit?) {
     # fill with instructions
     $frame_filler($frame, $frame.instructions, $comp_unit);
     
-    mast_output_is($comp_unit, $expected, $desc, $timeit);
+    mast_output_is($comp_unit, $expected, $desc, $timeit, timeit => $timeit, approx => $approx);
 }
 
-our sub mast_output_is($comp_unit, $expected, $desc, $timeit?) {
+our sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) {
     
     # Compile it.
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
@@ -49,7 +49,7 @@ our sub mast_output_is($comp_unit, $expected, $desc, $timeit?) {
     # Read it and check it is OK.
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n", :global);
-    my $okness := $output eq $expected || 0 + $output != 0 && 0.0 + $output - +$expected < 0.0001;
+    my $okness := $output eq $expected || ($approx && 0 + $output != 0 && 0.0 + $output - +$expected < 0.0001);
     ok($okness, $desc);
     say("                                     # " ~ ($end - $start) ~ " s") if $timeit;
     unless $okness {
@@ -61,8 +61,8 @@ our sub mast_output_is($comp_unit, $expected, $desc, $timeit?) {
     pir::spawnw__Is("$del temp.output");
 }
 
-our sub qast_output_is($qast, $expected, $desc, $timeit?) {
-    mast_output_is(QAST::MASTCompiler.to_mast($qast), $expected, $desc, $timeit);
+our sub qast_output_is($qast, $expected, $desc, :$timeit, :$approx) {
+    mast_output_is(QAST::MASTCompiler.to_mast($qast), $expected, $desc, timeit => $timeit, approx => $approx);
 }
 
 our sub op(@ins, $op, *@args) {

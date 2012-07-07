@@ -222,4 +222,4 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
     },
     "16\n",
-    "int to float coercion");
+    "int to float coercion", approx => 1);
