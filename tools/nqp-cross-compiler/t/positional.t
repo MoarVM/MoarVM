@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(3);
+plan(7);
 
 sub array_type($frame) {
     my @ins := $frame.instructions;
@@ -77,3 +77,131 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "1\n0\n0\n1\n",
     "Can retrieve items by index");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $at := array_type($frame);
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, NQPMu);
+        my $r5 := local($frame, NQPMu);
+        op(@ins, 'create', $r0, $at);
+        op(@ins, 'create', $r3, $at);
+        op(@ins, 'create', $r4, $at);
+        op(@ins, 'push_o', $r0, $r3);
+        op(@ins, 'push_o', $r0, $r4);
+        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'const_i64', $r2, ival(0));
+        op(@ins, 'atpos_o', $r5, $r0, $r2);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'const_i64', $r2, ival(1));
+        op(@ins, 'atpos_o', $r5, $r0, $r2);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "2\n1\n0\n0\n1\n",
+    "can push");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $at := array_type($frame);
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, NQPMu);
+        my $r5 := local($frame, NQPMu);
+        op(@ins, 'create', $r0, $at);
+        op(@ins, 'create', $r3, $at);
+        op(@ins, 'create', $r4, $at);
+        op(@ins, 'unshift_o', $r0, $r3);
+        op(@ins, 'unshift_o', $r0, $r4);
+        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'const_i64', $r2, ival(0));
+        op(@ins, 'atpos_o', $r5, $r0, $r2);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'const_i64', $r2, ival(1));
+        op(@ins, 'atpos_o', $r5, $r0, $r2);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "2\n0\n1\n1\n0\n",
+    "can unshift");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $at := array_type($frame);
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, NQPMu);
+        my $r5 := local($frame, NQPMu);
+        op(@ins, 'create', $r0, $at);
+        op(@ins, 'create', $r3, $at);
+        op(@ins, 'create', $r4, $at);
+        op(@ins, 'const_i64', $r2, ival(0));
+        op(@ins, 'bindpos_o', $r0, $r2, $r3);
+        op(@ins, 'const_i64', $r2, ival(1));
+        op(@ins, 'bindpos_o', $r0, $r2, $r4);
+        op(@ins, 'pop_o', $r5, $r0);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'pop_o', $r5, $r0);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "0\n1\n1\n0\n0\n",
+    "Can pop");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $at := array_type($frame);
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, NQPMu);
+        my $r5 := local($frame, NQPMu);
+        op(@ins, 'create', $r0, $at);
+        op(@ins, 'create', $r3, $at);
+        op(@ins, 'create', $r4, $at);
+        op(@ins, 'const_i64', $r2, ival(0));
+        op(@ins, 'bindpos_o', $r0, $r2, $r3);
+        op(@ins, 'const_i64', $r2, ival(1));
+        op(@ins, 'bindpos_o', $r0, $r2, $r4);
+        op(@ins, 'shift_o', $r5, $r0);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'shift_o', $r5, $r0);
+        op(@ins, 'eqaddr', $r1, $r5, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'eqaddr', $r1, $r5, $r4);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "1\n0\n0\n1\n0\n",
+    "Can shift");
