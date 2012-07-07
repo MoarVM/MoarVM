@@ -223,6 +223,8 @@ class MAST::Local is MAST::Node {
         nqp::bindattr_i($obj, MAST::Local, '$!index', $index);
         $obj
     }
+    
+    method index() { $!index }
 }
 
 # A lexical lookup.

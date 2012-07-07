@@ -179,9 +179,7 @@ class QAST::MASTOperations {
         
         # release the registers to the allocator. See comment there.
         my $release_i := 0;
-        for @release_regs {
-            release_register($_, @release_kinds[$release_i++]);
-        }
+        $*REGALLOC.release_register($_, @release_kinds[$release_i++]) for @release_regs;
         
         # unshift in a generated write register arg if it needs one
         if ($needs_write) {
@@ -195,7 +193,7 @@ class QAST::MASTOperations {
                 $result_kind := $type_var_kind;
             }
             
-            $result_reg := kind_to_register($result_kind);
+            $result_reg := $*REGALLOC.fresh_register($result_kind);
             
             nqp::unshift(@arg_regs, $result_reg);
         }
@@ -246,7 +244,7 @@ for <if unless> -> $op_name {
         }
         my $res_kind := @comp_ops[1].result_kind;
         my $is_void := $res_kind == $MVM_reg_void;
-        my $res_reg  := $is_void ?? MAST::VOID !! kind_to_register($res_kind);
+        my $res_reg  := $is_void ?? MAST::VOID !! $*REGALLOC.fresh_register($res_kind);
         
         my @ins;
         
@@ -262,10 +260,12 @@ for <if unless> -> $op_name {
             @comp_ops[0].result_reg,
             ($operands == 3 ?? $else_lbl !! $end_lbl)
         );
+        $*REGALLOC.release_register(@comp_ops[0].result_reg, @comp_ops[0].result_kind);
         
         # Emit the then, stash the result
         push_ilist(@ins, @comp_ops[1]);
         push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg) unless $is_void;
+        $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
         
         # Handle else branch if needed.
         if $operands == 3 {
@@ -274,6 +274,7 @@ for <if unless> -> $op_name {
             # XXX see coercion note above
             push_ilist(@ins, @comp_ops[2]);
             push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg) unless $is_void;
+            $*REGALLOC.release_register(@comp_ops[2].result_reg, @comp_ops[2].result_kind);
         }
         
         nqp::push(@ins, $end_lbl);
@@ -331,21 +332,4 @@ sub push_op(@dest, $op, *@args) {
 
 sub push_ilist(@dest, $src) {
     nqp::splice(@dest, $src.instructions, +@dest, 0);
-}
-
-sub kind_to_register($kind) {
-    if $kind == $MVM_reg_int64 { return $*REGALLOC.fresh_i() }
-    if $kind == $MVM_reg_num64 { return $*REGALLOC.fresh_n() }
-    if $kind == $MVM_reg_str   { return $*REGALLOC.fresh_s() }
-    if $kind == $MVM_reg_obj   { return $*REGALLOC.fresh_o() }
-    nqp::die("unhandled kind $kind");
-}
-
-sub release_register($reg, $kind) {
-    # XXX TODO !!!!! Don't release the register if it's a local Var
-    if $kind == $MVM_reg_int64 { return $*REGALLOC.release_i($reg) }
-    if $kind == $MVM_reg_num64 { return $*REGALLOC.release_n($reg) }
-    if $kind == $MVM_reg_str   { return $*REGALLOC.release_s($reg) }
-    if $kind == $MVM_reg_obj   { return $*REGALLOC.release_o($reg) }
-    nqp::die("unhandled reg type $kind");
 }

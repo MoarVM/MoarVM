@@ -33,41 +33,45 @@ class QAST::MASTCompiler {
             $obj
         }
         
-        method fresh_o() {
-            nqp::elems(@!objs) ?? nqp::pop(@!objs) !! MAST::Local.new($!frame.add_local(NQPMu))
+        # QAST::Vars need entirely new MAST::Locals all to themselves,
+        # so a Local can't be a non-Var for the first half of a block and
+        # then a Var the second half, but then control returns to the first half
+        method fresh_register($kind, $new = 0) {
+            if $kind == $MVM_reg_int64 {
+                return nqp::elems(@!ints) && !$new ?? nqp::pop(@!ints) !!
+                    MAST::Local.new($!frame.add_local(int)) }
+            if $kind == $MVM_reg_num64 {
+                return nqp::elems(@!nums) && !$new ?? nqp::pop(@!nums) !!
+                    MAST::Local.new($!frame.add_local(num)) }
+            if $kind == $MVM_reg_str   {
+                return nqp::elems(@!strs) && !$new ?? nqp::pop(@!strs) !!
+                    MAST::Local.new($!frame.add_local(str)) }
+            if $kind == $MVM_reg_obj   {
+                return nqp::elems(@!objs) && !$new ?? nqp::pop(@!objs) !!
+                    MAST::Local.new($!frame.add_local(NQPMu)) }
+            nqp::die("unhandled kind $kind");
         }
         
-        method fresh_i() {
-            nqp::elems(@!ints) ?? nqp::pop(@!ints) !! MAST::Local.new($!frame.add_local(int))
+        method release_register($reg, $kind) {
+            return 1 if ($reg ~~ MAST::VOID) || $*BLOCK.is_var($reg);
+            return nqp::push(@!ints, $reg) if $kind == $MVM_reg_int64;
+            return nqp::push(@!nums, $reg) if $kind == $MVM_reg_num64;
+            return nqp::push(@!strs, $reg) if $kind == $MVM_reg_str;
+            return nqp::push(@!objs, $reg) if $kind == $MVM_reg_obj;
+            nqp::die("unhandled reg type $kind");
         }
-        
-        method fresh_n() {
-            nqp::elems(@!nums) ?? nqp::pop(@!nums) !! MAST::Local.new($!frame.add_local(num))
-        }
-        
-        method fresh_s() {
-            nqp::elems(@!strs) ?? nqp::pop(@!strs) !! MAST::Local.new($!frame.add_local(str))
-        }
-        
-        method release_o($reg) { nqp::push(@!objs, $reg) }
-        method release_i($reg) { nqp::push(@!ints, $reg) }
-        method release_n($reg) { nqp::push(@!nums, $reg) }
-        method release_s($reg) { nqp::push(@!strs, $reg) }
     }
     
     # Holds information about the QAST::Block we're currently compiling.
     my class BlockInfo {
-        has $!qast;             # The QAST::Block
-        has $!outer;            # Outer block's BlockInfo
-        has @!params;           # QAST::Var nodes of params
-        has @!locals;           # QAST::Var nodes of declared locals
-        has @!lexicals;         # QAST::Var nodes of declared lexicals
-        has %!locals_by_name;   # Mapping of local names to locals
-        has %!local_types;      # Mapping of local registers to type names
-        has %!lexical_types;    # Mapping of lexical names to types
-        has %!lexical_regs;     # Mapping of lexical names to registers
-        has %!reg_types;        # Mapping of all registers to types
-        has int $!param_idx;    # Current lexical parameter index
+        has $!qast;                 # The QAST::Block
+        has $!outer;                # Outer block's BlockInfo
+        has %!local_names_by_index; # Locals' names by their indexes
+        has %!locals;               # Mapping of local names to locals
+        has %!local_kinds;          # Mapping of local registers to kinds
+        has %!lexicals;             # Mapping of lexical names to registers
+        has %!lexical_kinds;        # Mapping of lexical names to kinds
+        has int $!param_idx;        # Current lexical parameter index
         
         method new($qast, $outer) {
             my $obj := nqp::create(self);
@@ -80,59 +84,48 @@ class QAST::MASTCompiler {
             $!outer := $outer;
         }
         
-        method add_param($var) {
-            if $var.scope eq 'local' {
-                self.register_local($var);
+        method get_local($var) {
+            if %!lexicals{$var.name} -> $lex {
+                return $lex;
             }
-            else {
-                my $reg := '_lex_param_' ~ $!param_idx;
-                $!param_idx := $!param_idx + 1;
-                self.register_lexical($var, $reg);
-            }
-            @!params[+@!params] := $var;
+            register_local($var);
         }
         
-        method add_lexical($var) {
-            self.register_lexical($var);
-            @!lexicals[+@!lexicals] := $var;
-        }
-        
-        method add_local($var) {
-            self.register_local($var);
-            @!locals[+@!locals] := $var;
-        }
-        
-        method register_lexical($var, $reg?) {
+        method register_lexical($var) {
             my $name := $var.name;
-            my $type := type_to_register_type($var.returns);
-            if nqp::existskey(%!lexical_types, $name) {
-                pir::die("Lexical '$name' already declared");
+            my $kind := $*REGALLOC.fresh_register($var.returns, 1);
+            if nqp::existskey(%!lexical_kinds, $name) {
+                nqp::die("Lexical '$name' already declared");
             }
-            %!lexical_types{$name} := $type;
-            %!lexical_regs{$name} := $reg ?? $reg !! $*BLOCKRA."fresh_{nqp::lc($type)}"();
-            %!reg_types{%!lexical_regs{$name}} := $type;
+            %!lexical_kinds{$name} := $kind;
+            nqp::die("NYI");
+            # %!lexicals{$name} := $*BLOCKRA."fresh_{nqp::lc($type)}"();
         }
         
         method register_local($var) {
             my $name := $var.name;
-            if nqp::existskey(%!local_types, $name) {
-                pir::die("Local '$name' already declared");
+            if nqp::existskey(%!local_kinds, $name) {
+                nqp::die("Local '$name' already declared");
             }
-            %!local_types{$name} := type_to_register_type($var.returns);
-            %!reg_types{$name} := %!local_types{$name};
+            my $kind := type_to_register_kind($kind);
+            %!local_kinds{$name} := $kind;
+            my $local := $*REGALLOC.fresh_register($var.returns, 1);
+            %!locals{$name} := $local;
+            %!local_names_by_index{$local.index} := $name;
+            $local;
+        }
+        
+        # returns whether a MAST::Local is a variable in this block
+        method is_var($local) {
+            nqp::existskey(%!local_names_by_index, $local.index)
         }
         
         method qast() { $!qast }
         method outer() { $!outer }
-        method params() { @!params }
-        method lexicals() { @!lexicals }
-        method locals() { @!locals }
-        
-        method lex_reg($name) { %!lexical_regs{$name} }
-        
-        method local_type($name) { %!local_types{$name} }
-        method lexical_type($name) { %!lexical_types{$name} }
-        method reg_type($name) { %!reg_types{$name} }
+        method lexicals() { %!lexicals }
+        method locals() { %!locals }
+        method local_kind($name) { %!local_kinds{$name} }
+        method lexical_kind($name) { %!lexical_kinds{$name} }
     }
     
     our $serno := 0;
@@ -150,12 +143,18 @@ class QAST::MASTCompiler {
         # Create an empty frame and add it to the compilation unit.
         my $*MAST_FRAME := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
         $*MAST_COMPUNIT.add_frame($*MAST_FRAME);
+        my $outer     := try $*BLOCK;
+        my $block := BlockInfo.new($node, $outer);
         
         # Create a register allocator for this frame.
         my $*REGALLOC := RegAlloc.new($*MAST_FRAME);
 
         # Compile all the substatements.
-        my $ins := self.compile_all_the_stmts($node);
+        my $ins;
+        {
+            my $*BLOCK := $block;
+            $ins := self.compile_all_the_stmts($node);
+        }
 
         # Add to instructions list for this block.
         # XXX Last thing is return value, later...
@@ -257,7 +256,7 @@ class QAST::MASTCompiler {
             }
             else {
                 # Does the node have a native type marked on it?
-                my $type := type_to_register_type($node.returns);
+                my $type := type_to_register_kind($node.returns);
                 if $type eq 'P' {
                     # Consider the blocks for a declared native type.
                     # XXX TODO
@@ -287,7 +286,7 @@ class QAST::MASTCompiler {
             nqp::die("NYI 4");
             
             # Go by whether it's a bind or lookup.
-            my $type    := type_to_register_type($node.returns);
+            my $type    := type_to_register_kind($node.returns);
             my $op_type := type_to_lookup_name($node.returns);
             if $*BINDVAL {
                 my $valpost := self.as_mast_clear_bindval($*BINDVAL);
@@ -311,7 +310,7 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::IVal $iv) {
-        my $reg := $*REGALLOC.fresh_i();
+        my $reg := $*REGALLOC.fresh_register($MVM_reg_int64);
         MAST::InstructionList.new(
             [MAST::Op.new(
                 :bank('primitives'), :op('const_i64'),
@@ -323,7 +322,7 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::NVal $nv) {
-        my $reg := $*REGALLOC.fresh_n();
+        my $reg := $*REGALLOC.fresh_register($MVM_reg_num64);
         MAST::InstructionList.new(
             [MAST::Op.new(
                 :bank('primitives'), :op('const_n64'),
@@ -335,7 +334,7 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::SVal $sv) {
-        my $reg := $*REGALLOC.fresh_s();
+        my $reg := $*REGALLOC.fresh_register($MVM_reg_str);
         MAST::InstructionList.new(
             [MAST::Op.new(
                 :bank('primitives'), :op('const_s'),
@@ -345,6 +344,11 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_str)
     }
+}
+
+my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
+sub type_to_register_kind($type) {
+    @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
 }
 
 sub push_op(@dest, $op, *@args) {
