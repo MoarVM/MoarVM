@@ -33,28 +33,32 @@ class QAST::MASTCompiler {
             $obj
         }
         
+        method fresh_i() { self.fresh_register($MVM_reg_int64) }
+        method fresh_n() { self.fresh_register($MVM_reg_int64) }
+        method fresh_s() { self.fresh_register($MVM_reg_int64) }
+        method fresh_o() { self.fresh_register($MVM_reg_int64) }
+        
         # QAST::Vars need entirely new MAST::Locals all to themselves,
         # so a Local can't be a non-Var for the first half of a block and
         # then a Var the second half, but then control returns to the first half
         method fresh_register($kind, $new = 0) {
-            
+            my @arr; my $type;
             # set $new to 1 here if you suspect a problem with the allocator
             # $new := 1;
+               if $kind == $MVM_reg_int64 { @arr := @!ints; $type := int }
+            elsif $kind == $MVM_reg_num64 { @arr := @!nums; $type := num }
+            elsif $kind == $MVM_reg_str   { @arr := @!strs; $type := str }
+            elsif $kind == $MVM_reg_obj   { @arr := @!objs; $type := obj }
+            else { nqp::die("unhandled reg kind $kind") }
             
-            if $kind == $MVM_reg_int64 {
-                return nqp::elems(@!ints) && !$new ?? nqp::pop(@!ints) !!
-                    MAST::Local.new($!frame.add_local(int)) }
-            if $kind == $MVM_reg_num64 {
-                return nqp::elems(@!nums) && !$new ?? nqp::pop(@!nums) !!
-                    MAST::Local.new($!frame.add_local(num)) }
-            if $kind == $MVM_reg_str   {
-                return nqp::elems(@!strs) && !$new ?? nqp::pop(@!strs) !!
-                    MAST::Local.new($!frame.add_local(str)) }
-            if $kind == $MVM_reg_obj   {
-                return nqp::elems(@!objs) && !$new ?? nqp::pop(@!objs) !!
-                    MAST::Local.new($!frame.add_local(NQPMu)) }
-            nqp::die("unhandled reg kind $kind");
+            nqp::elems(@arr) && !$new ?? nqp::pop(@arr) !!
+                    MAST::Local.new($!frame.add_local($type))
         }
+        
+        method release_i($reg) { self.release_register($reg, $MVM_reg_int64) }
+        method release_n($reg) { self.release_register($reg, $MVM_reg_int64) }
+        method release_s($reg) { self.release_register($reg, $MVM_reg_int64) }
+        method release_o($reg) { self.release_register($reg, $MVM_reg_int64) }
         
         method release_register($reg, $kind) {
             return 1 if $kind == $MVM_reg_void || $*BLOCK.is_var($reg);
@@ -355,15 +359,15 @@ class QAST::MASTCompiler {
 
         # Build the list of (unique) registers we need
         my %*REG := nqp::hash(
-            'tgt', $*REGALLOC.fresh_register($MVM_reg_str),
-            'pos', $*REGALLOC.fresh_register($MVM_reg_int64),
-            'off', $*REGALLOC.fresh_register($MVM_reg_int64),
-            'eos', $*REGALLOC.fresh_register($MVM_reg_int64),
-            'rep', $*REGALLOC.fresh_register($MVM_reg_int64),
-            'cur', $*REGALLOC.fresh_register($MVM_reg_obj),
-            'curclass', $*REGALLOC.fresh_register($MVM_reg_obj),
-            'bstack', $*REGALLOC.fresh_register($MVM_reg_obj),
-            'cstack', $*REGALLOC.fresh_register($MVM_reg_obj));
+            'tgt', $*REGALLOC.fresh_s(),
+            'pos', $*REGALLOC.fresh_i(),
+            'off', $*REGALLOC.fresh_i(),
+            'eos', $*REGALLOC.fresh_i(),
+            'rep', $*REGALLOC.fresh_i(),
+            'cur', $*REGALLOC.fresh_o(),
+            'curclass', $*REGALLOC.fresh_o(),
+            'bstack', $*REGALLOC.fresh_o(),
+            'cstack', $*REGALLOC.fresh_o());
 
         # create our labels
         my $startlabel   := MAST::Label.new( :name($prefix ~ 'start') );
@@ -390,7 +394,7 @@ sub push_op(@dest, $op, *@args) {
     for MAST::Ops.WHO {
         $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
     }
-    nqp::die("Unable to resolve MAST op '$op'") unless $bank;
+    nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
     
     nqp::push(@dest, MAST::Op.new(
         :bank(nqp::substr($bank, 1)), :op($op),
