@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(8);
+plan(9);
 
 sub array_type($frame) {
     my @ins := $frame.instructions;
@@ -229,3 +229,58 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "2\n0\n",
     "can clear all elements by setting elements to 0");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $at := array_type($frame);
+        my $a1 := local($frame, NQPMu);
+        my $a1_0 := local($frame, NQPMu);
+        my $a1_1 := local($frame, NQPMu);
+        my $a2 := local($frame, NQPMu);
+        my $a2_0 := local($frame, NQPMu);
+        my $a2_1 := local($frame, NQPMu);
+        my $i := local($frame, int);
+        my $t := local($frame, NQPMu);
+        my $offset := local($frame, int);
+        my $count := local($frame, int);
+        
+        # First array.
+        op(@ins, 'create', $a1, $at);
+        op(@ins, 'create', $a1_0, $at);
+        op(@ins, 'create', $a1_1, $at);
+        op(@ins, 'push_o', $a1, $a1_0);
+        op(@ins, 'push_o', $a1, $a1_1);
+        
+        # Second array.
+        op(@ins, 'create', $a2, $at);
+        op(@ins, 'create', $a2_0, $at);
+        op(@ins, 'create', $a2_1, $at);
+        op(@ins, 'push_o', $a2, $a2_0);
+        op(@ins, 'push_o', $a2, $a2_1);
+        
+        # Splice second into middle of first.
+        op(@ins, 'const_i64', $offset, ival(1));
+        op(@ins, 'const_i64', $count, ival(0));
+        op(@ins, 'splice', $a1, $a2, $offset, $count);
+        
+        # Emit elements.
+        op(@ins, 'elemspos', $i, $a1);
+        op(@ins, 'say_i', $i);
+        
+        # Check they are the expected values.
+        op(@ins, 'shift_o', $t, $a1);
+        op(@ins, 'eqaddr', $i, $t, $a1_0);
+        op(@ins, 'say_i', $i);
+        op(@ins, 'shift_o', $t, $a1);
+        op(@ins, 'eqaddr', $i, $t, $a1_1);
+        op(@ins, 'say_i', $i);
+        op(@ins, 'shift_o', $t, $a1);
+        op(@ins, 'eqaddr', $i, $t, $a2_0);
+        op(@ins, 'say_i', $i);
+        op(@ins, 'shift_o', $t, $a1);
+        op(@ins, 'eqaddr', $i, $t, $a2_1);
+        op(@ins, 'say_i', $i);
+        
+        op(@ins, 'return');
+    },
+    "4\n1\n1\n1\n1\n",
+    "splice");
