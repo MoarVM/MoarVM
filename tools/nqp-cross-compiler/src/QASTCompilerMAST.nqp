@@ -84,13 +84,6 @@ class QAST::MASTCompiler {
             $!outer := $outer;
         }
         
-        method get_local($var) {
-            if %!lexicals{$var.name} -> $lex {
-                return $lex;
-            }
-            register_local($var);
-        }
-        
         method register_lexical($var) {
             my $name := $var.name;
             my $kind := $*REGALLOC.fresh_register($var.returns, 1);
@@ -107,9 +100,10 @@ class QAST::MASTCompiler {
             if nqp::existskey(%!local_kinds, $name) {
                 nqp::die("Local '$name' already declared");
             }
-            my $kind := type_to_register_kind($kind);
+            my $kind := type_to_register_kind(nqp::defined($var.returns) ?? $var.returns !! NQPMu);
             %!local_kinds{$name} := $kind;
-            my $local := $*REGALLOC.fresh_register($var.returns, 1);
+            # pass a 1 meaning get a Totally New MAST::Local
+            my $local := $*REGALLOC.fresh_register($kind, 1);
             %!locals{$name} := $local;
             %!local_names_by_index{$local.index} := $name;
             $local;
@@ -123,7 +117,7 @@ class QAST::MASTCompiler {
         method qast() { $!qast }
         method outer() { $!outer }
         method lexicals() { %!lexicals }
-        method locals() { %!locals }
+        method local($name) { %!locals{$name} }
         method local_kind($name) { %!local_kinds{$name} }
         method lexical_kind($name) { %!lexical_kinds{$name} }
     }
@@ -145,6 +139,7 @@ class QAST::MASTCompiler {
         $*MAST_COMPUNIT.add_frame($*MAST_FRAME);
         my $outer     := try $*BLOCK;
         my $block := BlockInfo.new($node, $outer);
+        my $*BINDVAL := 0;
         
         # Create a register allocator for this frame.
         my $*REGALLOC := RegAlloc.new($*MAST_FRAME);
@@ -211,7 +206,7 @@ class QAST::MASTCompiler {
             }
             elsif $decl eq 'var' {
                 if $scope eq 'local' {
-                    $*BLOCK.add_local($node);
+                    $*BLOCK.register_local($node);
                 }
                 elsif $scope eq 'lexical' {
                     $*BLOCK.add_lexical($node);
@@ -229,15 +224,16 @@ class QAST::MASTCompiler {
         my $name := $node.name;
         my @ins;
         my $res_reg;
-        my $res_type;
+        my $res_kind;
         if $scope eq 'local' {
-            if $*BLOCK.local_type($name) -> $type {
+            if $*BLOCK.local_kind($name) -> $type {
                 if $*BINDVAL {
                     my $valmast := self.as_mast_clear_bindval($*BINDVAL);
                     push_ilist(@ins, $valmast);
-                    push_op(@ins, 'set', , $valmast.result_reg);
+                    push_op(@ins, 'set', $*BLOCK.local($name), $valmast.result_reg);
                 }
-                
+                $res_reg := $*BLOCK.local($name);
+                $res_kind := $*BLOCK.local_kind($name);
             }
             else {
                 nqp::die("Cannot reference undeclared local '$name'");
@@ -301,7 +297,7 @@ class QAST::MASTCompiler {
             nqp::die("QAST::Var with scope '$scope' NYI");
         }
         
-        MAST::InstructionList.new(@ins, MAST::VOID, $MVM_reg_void)
+        MAST::InstructionList.new(@ins, $res_reg, $res_kind)
     }
     
     method as_mast_clear_bindval($node) {

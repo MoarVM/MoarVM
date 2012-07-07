@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(9);
+plan(10);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new(
@@ -129,3 +129,18 @@ qast_output_is(QAST::Block.new(
                 QAST::IVal.new( :value(7) )),
             QAST::IVal.new( :value(50) )))
 ), "", "if/then false");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'bind',
+        QAST::Var.new( name => "foo", returns => str, decl => 'var', scope => 'local' ),
+        QAST::SVal.new( :value("bar") )),
+    QAST::VM.new(
+        moarop => 'say_s',
+        QAST::Var.new( name => "foo", scope => 'local' )),
+    QAST::Op.new( op => 'bind',
+        QAST::Var.new( name => "baz", returns => num, decl => 'var', scope => 'local' ),
+        QAST::NVal.new( :value(32.33) )),
+    QAST::VM.new(
+        moarop => 'say_n',
+        QAST::Var.new( name => "baz", scope => 'local' ))
+), "bar\n32.33\n", "local variable declaration, binding, saying");
