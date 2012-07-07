@@ -152,7 +152,7 @@ class QAST::MASTCompiler {
         my $ins;
         {
             my $*BLOCK := $block;
-            $ins := self.compile_all_the_stmts($node);
+            $ins := self.compile_all_the_stmts(@($node));
         }
 
         # Add to instructions list for this block.
@@ -161,15 +161,19 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::Stmts $node) {
-        self.compile_all_the_stmts($node)
+        self.compile_all_the_stmts(@($node))
+    }
+    
+    multi method as_mast(QAST::Stmt $node) {
+        self.compile_all_the_stmts(@($node))
     }
     
     # This takes any node that is a statement list of some kind and compiles
     # all of the statements within it.
-    method compile_all_the_stmts($node) {
+    method compile_all_the_stmts(@stmts) {
         my @all_ins;
         my $last_stmt;
-        for @($node) {
+        for @stmts {
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
             $last_stmt := self.as_mast($_);
