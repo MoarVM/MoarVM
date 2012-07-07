@@ -348,6 +348,35 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_str)
     }
+
+    multi method as_mast(QAST::Regex $node) {
+        # Prefix for the regexes code pieces.
+        my $prefix := self.unique('rx') ~ '_';
+
+        # Build the list of (unique) registers we need
+        my %*REG := nqp::hash(
+            'tgt', $*REGALLOC.fresh_register($MVM_reg_str),
+            'pos', $*REGALLOC.fresh_register($MVM_reg_int64),
+            'off', $*REGALLOC.fresh_register($MVM_reg_int64),
+            'eos', $*REGALLOC.fresh_register($MVM_reg_int64),
+            'rep', $*REGALLOC.fresh_register($MVM_reg_int64),
+            'cur', $*REGALLOC.fresh_register($MVM_reg_obj),
+            'curclass', $*REGALLOC.fresh_register($MVM_reg_obj),
+            'bstack', $*REGALLOC.fresh_register($MVM_reg_obj),
+            'cstack', $*REGALLOC.fresh_register($MVM_reg_obj));
+
+        # create our labels
+        my $startlabel   := MAST::Label.new( :name($prefix ~ 'start') );
+        my $donelabel    := MAST::Label.new( :name($prefix ~ 'done') );
+        my $restartlabel := MAST::Label.new( :name($prefix ~ 'restart') );
+        my $faillabel    := MAST::Label.new( :name($prefix ~ 'fail') );
+        my $jumplabel    := MAST::Label.new( :name($prefix ~ 'jump') );
+        my $cutlabel     := MAST::Label.new( :name($prefix ~ 'cut') );
+        my $cstacklabel  := MAST::Label.new( :name($prefix ~ 'cstack_done') );
+        %*REG<fail>      := $faillabel;
+
+        nqp::die("Regex compilation NYI");
+    }
 }
 
 my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
