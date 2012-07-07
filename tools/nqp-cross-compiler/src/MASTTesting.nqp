@@ -49,7 +49,7 @@ our sub mast_output_is($comp_unit, $expected, $desc, $timeit?) {
     # Read it and check it is OK.
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n", :global);
-    my $okness := $output eq $expected || 0 + $output != 0 && 0.0 + $output - +$expected < 0.0001;
+    my $okness := $output eq $expected || (nqp::iseq_i(nqp::index($expected, "\n", 0), -1) && 0 + $output != 0 && 0.0 + $output - +$expected < 0.0001);
     ok($okness, $desc);
     say("                                     # " ~ ($end - $start) ~ " s") if $timeit;
     unless $okness {
