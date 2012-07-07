@@ -840,6 +840,34 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_push_o: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->push_boxed(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_pop_o: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->pop_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_unshift_o: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->unshift_boxed(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_shift_o: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->shift_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_elemspos: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         GET_REG(cur_op, 0).i64 = REPR(obj)->pos_funcs->elems(tc,
