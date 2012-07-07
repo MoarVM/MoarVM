@@ -135,3 +135,16 @@ qast_output_is(QAST::Block.new(
             QAST::VM.new( moarop => 'dec_i',
                 QAST::Var.new( name => "foo", scope => 'local' ))))
 ), "4\n3\n2\n1\n", "while loop and decrementing local var");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( op => 'bind',
+        QAST::Var.new( name => "foo", returns => int, decl => 'var', scope => 'local' ),
+        QAST::IVal.new( :value(4) )),
+    QAST::Op.new( op=> 'repeat_while',
+        QAST::Stmts.new(
+            QAST::VM.new( moarop => 'say_i',
+                QAST::Var.new( name => "foo", scope => 'local' )),
+            QAST::VM.new( moarop => 'dec_i',
+                QAST::Var.new( name => "foo", scope => 'local' ))),
+        QAST::Var.new( name => "foo", scope => 'local' ))
+), "4\n3\n2\n1\n", "repeat_while loop and decrementing local var");

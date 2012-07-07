@@ -53,16 +53,16 @@ class QAST::MASTCompiler {
             if $kind == $MVM_reg_obj   {
                 return nqp::elems(@!objs) && !$new ?? nqp::pop(@!objs) !!
                     MAST::Local.new($!frame.add_local(NQPMu)) }
-            nqp::die("unhandled kind $kind");
+            nqp::die("unhandled reg kind $kind");
         }
         
         method release_register($reg, $kind) {
-            return 1 if ($reg ~~ MAST::VOID) || $*BLOCK.is_var($reg);
+            return 1 if $kind == $MVM_reg_void || $*BLOCK.is_var($reg);
             return nqp::push(@!ints, $reg) if $kind == $MVM_reg_int64;
             return nqp::push(@!nums, $reg) if $kind == $MVM_reg_num64;
             return nqp::push(@!strs, $reg) if $kind == $MVM_reg_str;
             return nqp::push(@!objs, $reg) if $kind == $MVM_reg_obj;
-            nqp::die("unhandled reg type $kind");
+            nqp::die("unhandled reg kind $kind");
         }
     }
     

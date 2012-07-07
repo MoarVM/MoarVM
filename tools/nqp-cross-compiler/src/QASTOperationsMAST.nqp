@@ -348,6 +348,51 @@ for <while until> -> $op_name {
     });
 }
 
+for <repeat_while repeat_until> -> $op_name {
+    QAST::MASTOperations.add_core_op($op_name, -> $qastcomp, $op {
+        # Check operand count.
+        my $operands := +$op.list;
+        nqp::die("Operation '$op_name' needs 2 operands")
+            if $operands != 2;
+        
+        # Create labels.
+        my $while_id := $qastcomp.unique($op_name);
+        my $loop_lbl := MAST::Label.new($while_id ~ '_loop');
+        
+        # Compile each of the children
+        my @comp_ops;
+        @comp_ops.push($qastcomp.as_mast($_)) for $op.list;
+        
+        if (@comp_ops[1].result_kind == $MVM_reg_void) {
+            nqp::die("operation '$op_name' condition cannot be void");
+        }
+        
+        my $res_kind := @comp_ops[0].result_kind;
+        my $res_reg  := $*REGALLOC.fresh_register($res_kind);
+        
+        my @ins;
+        
+        nqp::push(@ins, $loop_lbl);
+        push_ilist(@ins, @comp_ops[0]);
+        $*REGALLOC.release_register(@comp_ops[0].result_reg, @comp_ops[0].result_kind);
+        
+        # Emit the condition; stash the result.
+        push_ilist(@ins, @comp_ops[1]);
+        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
+        
+        # Emit the looping jump.
+        push_op(@ins,
+            resolve_condition_op(@comp_ops[1].result_kind, $op_name eq 'repeat_until'),
+            @comp_ops[1].result_reg,
+            $loop_lbl
+        );
+        $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
+        
+        # Build instruction list
+        MAST::InstructionList.new(@ins, $res_reg, $res_kind)
+    });
+}
+
 # Binding
 QAST::MASTOperations.add_core_op('bind', -> $qastcomp, $op {
     # Sanity checks.
