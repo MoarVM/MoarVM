@@ -271,13 +271,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'eqaddr', $i, $t, $a1_0);
         op(@ins, 'say_i', $i);
         op(@ins, 'shift_o', $t, $a1);
-        op(@ins, 'eqaddr', $i, $t, $a1_1);
-        op(@ins, 'say_i', $i);
-        op(@ins, 'shift_o', $t, $a1);
         op(@ins, 'eqaddr', $i, $t, $a2_0);
         op(@ins, 'say_i', $i);
         op(@ins, 'shift_o', $t, $a1);
         op(@ins, 'eqaddr', $i, $t, $a2_1);
+        op(@ins, 'say_i', $i);
+        op(@ins, 'shift_o', $t, $a1);
+        op(@ins, 'eqaddr', $i, $t, $a1_1);
         op(@ins, 'say_i', $i);
         
         op(@ins, 'return');
