@@ -868,6 +868,14 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_splice: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->splice(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
+                        break;
+                    }
                     case MVM_OP_elemspos: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         GET_REG(cur_op, 0).i64 = REPR(obj)->pos_funcs->elems(tc,

@@ -265,9 +265,89 @@ static MVMObject * shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *r
     return value;
 }
 
-static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMint64 elems) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
+/* This whole splice optimization can be optimized for the case we have two
+ * MVMArray representation objects. */
+static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMint64 count) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+
+    MVMint64 elems0 = body->elems;
+    MVMint64 elems1 = REPR(from)->pos_funcs->elems(tc, STABLE(from), from, OBJECT_BODY(from));
+    MVMint64 start;
+    MVMint64 tail;
+    MVMObject **slots = NULL;
+
+    /* start from end? */
+    if (offset < 0)
+        offset += elems0;
+
+    if (offset < 0)
+        MVM_exception_throw_adhoc(tc,
+            "MVMArray: Illegal splice offset");
+
+    /* When offset == 0, then we may be able to reduce the memmove
+     * calls and reallocs by adjusting SELF's start, elems0, and
+     * count to better match the incoming splice.  In particular,
+     * we're seeking to adjust C<count> to as close to C<elems1>
+     * as we can. */
+    if (offset == 0) {
+        MVMint64 n = elems1 - count;
+        start = body->start;
+        if (n > start)
+            n = start;
+        if (n <= -elems0) {
+            elems0 = 0;
+            count = 0;
+            body->start = 0;
+            body->elems = elems0;
+        }
+        else if (n != 0) {
+            elems0 += n;
+            count += n;
+            body->start = start - n;
+            body->elems = elems0;
+        }
+    }
+
+    /* if count == 0 and elems1 == 0, there's nothing left
+     * to copy or remove, so the splice is done! */
+    if (count == 0 && elems1 == 0)
+        return;
+
+    /* number of elements to right of splice (the "tail") */
+    tail = elems0 - offset - count;
+    if (tail < 0)
+        tail = 0;
+
+    if (tail > 0 && count > elems1) {
+        /* We're shrinking the array, so first move the tail left */
+        slots = body->slots;
+        start = body->start;
+        memmove(slots + start + offset + elems1,
+                slots + start + offset + count,
+                tail * sizeof (MVMObject *));
+    }
+
+    /* now resize the array */
+    set_size_internal(tc, body, offset + elems1 + tail);
+
+    slots = body->slots;
+    start = body->start;
+    if (tail > 0 && count < elems1) {
+        /* The array grew, so move the tail to the right */
+        memmove(slots + start + offset + elems1,
+                slots + start + offset + count,
+                tail * sizeof (MVMObject *));
+    }
+
+    /* now copy C<from>'s elements into SELF */
+    if (elems1 > 0) {
+        MVMint64 i;
+        for (i = 0; i < elems1; i++) {
+            MVMObject *to_copy = REPR(from)->pos_funcs->at_pos_boxed(tc,
+                STABLE(from), from, OBJECT_BODY(from), i);
+            MVM_ASSIGN_REF(tc, root, slots[start + offset + i], to_copy);
+        }
+    }
 }
 
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
