@@ -37,6 +37,10 @@ class QAST::MASTCompiler {
         # so a Local can't be a non-Var for the first half of a block and
         # then a Var the second half, but then control returns to the first half
         method fresh_register($kind, $new = 0) {
+            
+            # set $new to 1 here if you suspect a problem with the allocator
+            # $new := 1;
+            
             if $kind == $MVM_reg_int64 {
                 return nqp::elems(@!ints) && !$new ?? nqp::pop(@!ints) !!
                     MAST::Local.new($!frame.add_local(int)) }

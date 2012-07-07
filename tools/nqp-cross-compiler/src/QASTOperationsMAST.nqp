@@ -237,6 +237,10 @@ for <if unless> -> $op_name {
         my @comp_ops;
         @comp_ops.push($qastcomp.as_mast($_)) for $op.list;
         
+        if (@comp_ops[0].result_kind == $MVM_reg_void) {
+            nqp::die("operation '$op_name' condition cannot be void");
+        }
+        
         # XXX coerce one to match the other? how to choose which one?
         if ($operands == 3 && @comp_ops[1].result_kind != @comp_ops[2].result_kind
          || $operands == 2 && @comp_ops[0].result_kind != @comp_ops[1].result_kind) {
@@ -281,7 +285,66 @@ for <if unless> -> $op_name {
         
         # Build instruction list
         # XXX see coercion note above for result type
-        MAST::InstructionList.new(@ins, $res_reg, @comp_ops[1].result_kind)
+        MAST::InstructionList.new(@ins, $res_reg, $res_kind)
+    });
+}
+
+# Loops.
+for <while until> -> $op_name {
+    QAST::MASTOperations.add_core_op($op_name, -> $qastcomp, $op {
+        # Check operand count.
+        my $operands := +$op.list;
+        nqp::die("Operation '$op_name' needs 2 operands")
+            if $operands != 2;
+        
+        # Create labels.
+        my $while_id    := $qastcomp.unique($op_name);
+        my $loop_lbl := MAST::Label.new($while_id ~ '_loop');
+        my $last_lbl  := MAST::Label.new($while_id ~ '_last');
+        
+        # Compile each of the children
+        my @comp_ops;
+        @comp_ops.push($qastcomp.as_mast($_)) for $op.list;
+        
+        if (@comp_ops[0].result_kind == $MVM_reg_void) {
+            nqp::die("operation '$op_name' condition cannot be void");
+        }
+        
+        # XXX coerce one to match the other? how to choose which one?
+        if (@comp_ops[0].result_kind != @comp_ops[1].result_kind) {
+            nqp::die("For now, operation '$op_name' needs both branches to result in the same kind");
+        }
+        my $res_kind := @comp_ops[1].result_kind;
+        my $res_reg  := $*REGALLOC.fresh_register($res_kind);
+        
+        my @ins;
+        
+        nqp::push(@ins, $loop_lbl);
+        push_ilist(@ins, @comp_ops[0]);
+        push_op(@ins, 'set', $res_reg, @comp_ops[0].result_reg);
+        
+        # Emit the exiting jump.
+        push_op(@ins,
+            resolve_condition_op(@comp_ops[0].result_kind, $op_name eq 'while'),
+            @comp_ops[0].result_reg,
+            $last_lbl
+        );
+        $*REGALLOC.release_register(@comp_ops[0].result_reg, @comp_ops[0].result_kind);
+        
+        # Emit the loop body; stash the result.
+        push_ilist(@ins, @comp_ops[1]);
+        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
+        $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
+        
+        # Emit the iteration jump.
+        push_op(@ins, 'goto', $loop_lbl);
+        
+        # Emit last label.
+        nqp::push(@ins, $last_lbl);
+        
+        # Build instruction list
+        # XXX see coercion note above for result type
+        MAST::InstructionList.new(@ins, $res_reg, $res_kind)
     });
 }
 
