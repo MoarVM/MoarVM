@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(7);
+plan(8);
 
 sub array_type($frame) {
     my @ins := $frame.instructions;
@@ -205,3 +205,27 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "1\n0\n0\n1\n0\n",
     "Can shift");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $at := array_type($frame);
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, int);
+        my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, NQPMu);
+        my $r5 := local($frame, NQPMu);
+        op(@ins, 'create', $r0, $at);
+        op(@ins, 'create', $r3, $at);
+        op(@ins, 'create', $r4, $at);
+        op(@ins, 'push_o', $r0, $r3);
+        op(@ins, 'push_o', $r0, $r4);
+        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'const_i64', $r2, ival(0));
+        op(@ins, 'setelemspos', $r0, $r2);
+        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'say_i', $r2);
+        op(@ins, 'return');
+    },
+    "2\n0\n",
+    "can clear all elements by setting elements to 0");
