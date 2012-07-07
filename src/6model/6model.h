@@ -315,31 +315,31 @@ typedef struct _MVMREPROps_Positional {
      * is passed. Returns that address if there was such an element, or NULL
      * if there was not. */
     void * (*at_pos_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 index, void *target);
+        MVMObject *root, void *data, MVMint64 index, void *target);
 
     /* Get a boxed object representing the element at the specified position. If the
      * object is already a reference type, simply returns that. */
     MVMObject * (*at_pos_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 index);
+        MVMObject *root, void *data, MVMint64 index);
 
     /* Binds the value at the specified address into the array at the specified index.
      * may auto-vivify or throw. */
     void (*bind_pos_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 index, void *addr);
+        MVMObject *root, void *data, MVMint64 index, void *addr);
 
     /* Binds the object at the specified address into the array at the specified index.
      * For arrays of non-reference types, expects a compatible type. */
     void (*bind_pos_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 index, MVMObject *obj);
+        MVMObject *root, void *data, MVMint64 index, MVMObject *obj);
 
     /* Gets the number of elements. */
-    MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
+    MVMint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data);
 
     /* Sets the element count of the array, expanding or shrinking
      * it as needed. */
     void (*set_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 size);
+        MVMObject *root, void *data, MVMint64 size);
 
     /* Pushes the value at the specified address onto the array. */
     void (*push_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
@@ -384,7 +384,7 @@ typedef struct _MVMREPROps_Positional {
      * API. */
     void (*splice) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *target_array,
-        MVMuint64 offset, MVMuint64 elems);
+        MVMint64 offset, MVMint64 elems);
     
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);

@@ -76,28 +76,39 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *target) {
+static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *target) {
     MVM_exception_throw_adhoc(tc,
         "MVMArray representation does not support native type storage");
 }
 
-static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index) {
+static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
     MVMArrayBody *body = (MVMArrayBody *)data;
-    if (index >= body->elems)
+    
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+    else if (index >= body->elems)
         return NULL;
+
     return body->slots[body->start + index];
 }
 
-static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, void *addr) {
+static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *addr) {
     MVM_exception_throw_adhoc(tc,
         "MVMArray representation does not support native type storage");
 }
 
-static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint64 n) {
+static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64 n) {
     MVMuint64   elems = body->elems;
     MVMuint64   start = body->start;
     MVMuint64   ssize = body->ssize;
     MVMObject **slots = body->slots;
+
+    if (n < 0)
+        MVM_exception_throw_adhoc(tc,
+            "MVMArray: Can't resize to negative elements");
 
     if (n == elems)
         return;
@@ -149,19 +160,26 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     body->slots = slots;
 }
 
-static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 index, MVMObject *obj) {
+static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMObject *obj) {
     MVMArrayBody *body = (MVMArrayBody *)data;
-    if (index >= body->elems)
+    
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+    else if (index >= body->elems)
         set_size_internal(tc, body, index + 1);
+
     MVM_ASSIGN_REF(tc, root, body->slots[body->start + index], obj);
 }
 
-static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static MVMint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     return body->elems;
 }
 
-static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
+static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 count) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     set_size_internal(tc, body, count);
 }
@@ -206,7 +224,7 @@ static MVMObject * shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *r
         "MVMArray representation not fully implemented yet");
 }
 
-static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMuint64 offset, MVMuint64 elems) {
+static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMint64 elems) {
     MVM_exception_throw_adhoc(tc,
         "MVMArray representation not fully implemented yet");
 }
