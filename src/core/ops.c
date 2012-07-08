@@ -172,74 +172,74 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         { MVM_operand_write_reg | MVM_operand_num32, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
-        MVM_OP_get_lex,
-        "get_lex",
+        MVM_OP_getlex,
+        "getlex",
         2,
         { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_read_lex | MVM_operand_type_var }
     },
     {
-        MVM_OP_bind_lex,
-        "bind_lex",
+        MVM_OP_bindlex,
+        "bindlex",
         2,
         { MVM_operand_write_lex | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
     },
     {
-        MVM_OP_get_lex_lo,
-        "get_lex_lo",
+        MVM_OP_getlex_lo,
+        "getlex_lo",
         3,
         { MVM_operand_write_reg | MVM_operand_type_var, MVM_operand_lex_outer, MVM_operand_read_lex | MVM_operand_type_var }
     },
     {
-        MVM_OP_bind_lex_lo,
-        "bind_lex_lo",
+        MVM_OP_bindlex_lo,
+        "bindlex_lo",
         3,
         { MVM_operand_write_lex | MVM_operand_type_var, MVM_operand_lex_outer, MVM_operand_read_reg | MVM_operand_type_var }
     },
     {
-        MVM_OP_get_lex_ni,
-        "get_lex_ni",
+        MVM_OP_getlex_ni,
+        "getlex_ni",
         2,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_str }
     },
     {
-        MVM_OP_get_lex_nn,
-        "get_lex_nn",
+        MVM_OP_getlex_nn,
+        "getlex_nn",
         2,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_str }
     },
     {
-        MVM_OP_get_lex_ns,
-        "get_lex_ns",
+        MVM_OP_getlex_ns,
+        "getlex_ns",
         2,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_str }
     },
     {
-        MVM_OP_get_lex_no,
-        "get_lex_no",
+        MVM_OP_getlex_no,
+        "getlex_no",
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
-        MVM_OP_bind_lex_ni,
-        "bind_lex_ni",
+        MVM_OP_bindlex_ni,
+        "bindlex_ni",
         2,
         { MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_bind_lex_nn,
-        "bind_lex_nn",
+        MVM_OP_bindlex_nn,
+        "bindlex_nn",
         2,
         { MVM_operand_str, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
-        MVM_OP_bind_lex_ns,
-        "bind_lex_ns",
+        MVM_OP_bindlex_ns,
+        "bindlex_ns",
         2,
         { MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_bind_lex_no,
-        "bind_lex_no",
+        MVM_OP_bindlex_no,
+        "bindlex_no",
         2,
         { MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
