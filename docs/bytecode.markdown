@@ -188,9 +188,12 @@ have the needed operands described by the following set of descriptors.
 
     r       local variable index being read, 16 bits unsigned
     w       local variable index being written, 16 bits unsigned
-    rl      lexical variable index being read, 16 bits unsigned
-    wl      lexical variable index being written, 16 bits unsigned
-    lo      lexical variable outer chain count, 16 bits unsigned
+    rl      lexical variable being read, 16 bits unsigned for the
+            index within a frame and 16 bits for how many frames out
+            to go to locate it
+    wl      lexical variable being written, 16 bits unsigned for the
+            index within a frame and 16 bits for how many frames out
+            to go to locate it
     i16     16-bit integer constant
     i32     32-bit integer constant
     i64     64-bit integer constant
