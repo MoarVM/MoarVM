@@ -351,6 +351,23 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             DIE(vm, "Expected MAST::Local, but didn't get one");
         }
     }
+    else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
+        /* The operand node should be a MAST::Lexical. */
+        if (ISTYPE(vm, operand, ws->types->Lexical)) {
+            MAST_Lexical *l = GET_Lexical(operand);
+
+            /* Write the index, then the frame count. */
+            ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->index);
+            ws->bytecode_pos += 2;
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->frames_out);
+            ws->bytecode_pos += 2;
+        }
+        else {
+            cleanup_all(vm, ws);
+            DIE(vm, "Expected MAST::Lexical, but didn't get one");
+        }
+    }
     else {
         cleanup_all(vm, ws);
         DIE(vm, "Unknown operand type cannot be compiled");
