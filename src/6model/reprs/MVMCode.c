@@ -49,6 +49,22 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_panic(MVM_exitcode_NYI, "MVMCode copy_to NYI");
 }
 
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMCodeBody *body = (MVMCodeBody *)data;
+    if (body->outer)
+        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, body->outer);
+}
+
+/* Called by the VM in order to free memory associated with this object. */
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    MVMCode *code_obj = (MVMCode *)obj;
+    if (code_obj->body.outer) {
+        MVM_frame_dec_ref(tc, code_obj->body.outer);
+        code_obj->body.outer = NULL;
+    }
+}
+
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     /* XXX in the end we'll support inlining of this... */
@@ -68,6 +84,8 @@ MVMREPROps * MVMCode_initialize(MVMThreadContext *tc) {
     this_repr->allocate = allocate;
     this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
+    this_repr->gc_mark = gc_mark;
+    this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     return this_repr;
 }
