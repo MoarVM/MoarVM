@@ -133,6 +133,7 @@
 #define MVM_OP_brshift_i 120
 #define MVM_OP_pow_i 121
 #define MVM_OP_pow_n 122
+#define MVM_OP_takeclosure 123
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
