@@ -235,13 +235,13 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         MVM_OP_getlex_ng,
         "getlex_ng",
         5,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_bindlex_ng,
         "bindlex_ng",
         2,
-        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_write_reg | MVM_operand_obj }
+        { MVM_operand_str, MVM_operand_write_reg | MVM_operand_obj }
     },
     {
         MVM_OP_return_i,

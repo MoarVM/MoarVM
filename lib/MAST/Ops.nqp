@@ -332,7 +332,7 @@ class MAST::Ops {
             'code', 37,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_obj,
-                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_obj
@@ -341,7 +341,7 @@ class MAST::Ops {
         'bindlex_ng', nqp::hash(
             'code', 38,
             'operands', [
-                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_str,
                 $MVM_operand_write_reg +| $MVM_operand_obj
             ]
         ),
