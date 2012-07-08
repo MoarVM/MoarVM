@@ -272,22 +272,6 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_type_var
             ]
         ),
-        'getlex_lo', nqp::hash(
-            'code', 29,
-            'operands', [
-                $MVM_operand_write_reg +| $MVM_operand_type_var,
-                $MVM_operand_lex_outer,
-                $MVM_operand_read_lex +| $MVM_operand_type_var
-            ]
-        ),
-        'bindlex_lo', nqp::hash(
-            'code', 30,
-            'operands', [
-                $MVM_operand_write_lex +| $MVM_operand_type_var,
-                $MVM_operand_lex_outer,
-                $MVM_operand_read_reg +| $MVM_operand_type_var
-            ]
-        ),
         'getlex_ni', nqp::hash(
             'code', 31,
             'operands', [

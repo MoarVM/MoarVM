@@ -28,8 +28,6 @@ BANK 0 primitives
 0x1A    trunc_n32   w(num32) r(num64)
 0x1B    getlex      w(`1) rl(`1)
 0x1C    bindlex     wl(`1) r(`1)
-0x1D    getlex_lo   w(`1) lo rl(`1)
-0x1E    bindlex_lo  wl(`1) lo r(`1)
 0x1F    getlex_ni   w(int64) str
 0x20    getlex_nn   w(num64) str
 0x21    getlex_ns   w(str) str

@@ -39,8 +39,6 @@
 #define MVM_OP_trunc_n32 26
 #define MVM_OP_getlex 27
 #define MVM_OP_bindlex 28
-#define MVM_OP_getlex_lo 29
-#define MVM_OP_bindlex_lo 30
 #define MVM_OP_getlex_ni 31
 #define MVM_OP_getlex_nn 32
 #define MVM_OP_getlex_ns 33
