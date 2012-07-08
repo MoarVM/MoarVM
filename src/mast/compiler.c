@@ -622,11 +622,24 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     write_int16(ws->frame_seg, ws->frame_pos + 18,
         get_string_heap_index(vm, ws, f->name));
     
-    /* Handle outer (we'll actually fix it up later if needed). The
-     * current index means "no outer". */
-    write_int16(ws->frame_seg, ws->frame_pos + 20, idx);
+    /* Handle outer. The current index means "no outer". */
     if (ISTYPE(vm, f->outer, ws->types->Frame)) {
-        /* XXX TODO */
+        unsigned short i, found;
+        found = 0;
+        for (i = 0; i < ws->num_frames; i++) {
+            if (ATPOS(vm, ws->cu->frames, i) == f->outer) {
+                write_int16(ws->frame_seg, ws->frame_pos + 20, i);
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            cleanup_all(vm, ws);
+            DIE(vm, "Could not locate outer frame in frame list");
+        }
+    }
+    else {
+        write_int16(ws->frame_seg, ws->frame_pos + 20, idx);
     }
     ws->frame_pos += FRAME_HEADER_SIZE;
     
