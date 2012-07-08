@@ -3,6 +3,7 @@
 
 /* Macros for getting things from the bytecode stream. */
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
+#define GET_LEX(pc, idx, f) f->env[*((MVMuint16 *)(pc + idx))]
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
@@ -87,6 +88,28 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
                         cur_op += 4;
                         break;
+                    case MVM_OP_getlex: {
+                        MVMFrame *f = tc->cur_frame;
+                        MVMuint16 outers = GET_UI16(cur_op, 4);
+                        while (outers) {
+                            f = f->outer;
+                            outers--;
+                        }
+                        GET_REG(cur_op, 0) = GET_LEX(cur_op, 2, f);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_bindlex: {
+                        MVMFrame *f = tc->cur_frame;
+                        MVMuint16 outers = GET_UI16(cur_op, 2);
+                        while (outers) {
+                            f = f->outer;
+                            outers--;
+                        }
+                        GET_LEX(cur_op, 0, f) = GET_REG(cur_op, 4);
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_return_i:
                         MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
                             MVM_RETURN_CALLER_FRAME);
