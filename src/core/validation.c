@@ -188,7 +188,15 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 /* Locate the applicable static frame. */
                 i = frames;
                 while (i > 0) {
-                    /* XXX walk frame outers... */
+                    if (applicable_frame->outer) {
+                        applicable_frame = applicable_frame->outer;
+                    }
+                    else {
+                        cleanup_all(tc, labels);
+                        MVM_exception_throw_adhoc(tc,
+                            "Bytecode validation error: operand lexical outer frame count (%u) at byte %u",
+                            frames, cur_op - bytecode_start);
+                    }
                     i--;
                 }
 
