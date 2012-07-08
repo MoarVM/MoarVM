@@ -246,6 +246,17 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             pos += 2 * frames[i]->num_locals;
         }
         
+        /* Read the lexical types. */
+        if (frames[i]->num_lexicals) {
+            ensure_can_read(tc, cu, rs, pos, 4 * frames[i]->num_lexicals);
+            frames[i]->lexical_types = malloc(sizeof(MVMuint16) * frames[i]->num_lexicals);
+            for (j = 0; j < frames[i]->num_lexicals; j++) {
+                frames[i]->lexical_types[j] = read_int16(pos, 4 * j);
+                /* XXX Read in the lexical name also. */
+            }
+            pos += 4 * frames[i]->num_lexicals;
+        }
+
         /* Associate frame with compilation unit. */
         frames[i]->cu = cu;
     }
