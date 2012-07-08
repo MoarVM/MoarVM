@@ -18,6 +18,7 @@ typedef struct {
     /* The frame segment. */
     MVMuint8  *frame_seg;
     MVMuint32  expected_frames;
+    MVMuint16 *frame_outer_fixups;
     
     /* The callsites segment. */
     MVMuint8  *callsite_seg;
@@ -75,6 +76,10 @@ static double read_double(char *buffer, size_t offset) {
 
 /* Cleans up reader state. */
 static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
+    if (rs->frame_outer_fixups) {
+        free(rs->frame_outer_fixups);
+        rs->frame_outer_fixups = NULL;
+    }
     free(rs);
 }
 
@@ -206,6 +211,9 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     }
     frames = malloc(sizeof(MVMStaticFrame *) * rs->expected_frames);
     
+    /* Allocate outer fixup list for frames. */
+    rs->frame_outer_fixups = malloc(sizeof(MVMuint16) * rs->expected_frames);
+    
     /* Load frames. */
     pos = rs->frame_seg;
     for (i = 0; i < rs->expected_frames; i++) {
@@ -235,6 +243,9 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         /* Get compilation unit unique ID and name. */
         frames[i]->cuuid = get_heap_string(tc, cu, rs, pos, 16);
         frames[i]->name  = get_heap_string(tc, cu, rs, pos, 18);
+        
+        /* Add frame outer fixup to fixup list. */
+        rs->frame_outer_fixups[i] = read_int16(pos, 20);
         pos += FRAME_HEADER_SIZE;
         
         /* Read the local types. */
@@ -259,6 +270,19 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Associate frame with compilation unit. */
         frames[i]->cu = cu;
+    }
+    
+    /* Fixup outers. */
+    for (i = 0; i < rs->expected_frames; i++) {
+        if (rs->frame_outer_fixups[i] != i) {
+            if (rs->frame_outer_fixups[i] < rs->expected_frames) {
+                frames[i]->outer = frames[rs->frame_outer_fixups[i]];
+            }
+            else {
+                cleanup_all(tc, rs);
+                MVM_exception_throw_adhoc(tc, "Invalid frame outer index; cannot fixup");
+            }
+        }
     }
     
     return frames;

@@ -39,6 +39,9 @@ typedef struct _MVMStaticFrame {
     /* The name of this frame. */
     struct _MVMString *name;
     
+    /* This frame's static outer frame. */
+    struct _MVMStaticFrame *outer;
+    
     /* GC run sequence number that we last saw static this frame during. */
     MVMuint32 gc_seq_number;
 } MVMStaticFrame;
