@@ -110,6 +110,46 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_getlex_ni:
+                        GET_REG(cur_op, 0).i64 = MVM_frame_find_lexical_by_name(tc,
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_reg_int64)->i64;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getlex_nn:
+                        GET_REG(cur_op, 0).n64 = MVM_frame_find_lexical_by_name(tc,
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_reg_num64)->n64;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getlex_ns:
+                        GET_REG(cur_op, 0).s = MVM_frame_find_lexical_by_name(tc,
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_reg_str)->s;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_getlex_no:
+                        GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name(tc,
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_reg_obj)->o;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_bindlex_ni:
+                        MVM_frame_find_lexical_by_name(tc, cu->strings[GET_UI16(cur_op, 0)],
+                            MVM_reg_int64)->i64 = GET_REG(cur_op, 2).i64;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_bindlex_nn:
+                        MVM_frame_find_lexical_by_name(tc, cu->strings[GET_UI16(cur_op, 0)],
+                            MVM_reg_num64)->n64 = GET_REG(cur_op, 2).n64;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_bindlex_ns:
+                        MVM_frame_find_lexical_by_name(tc, cu->strings[GET_UI16(cur_op, 0)],
+                            MVM_reg_str)->s = GET_REG(cur_op, 2).s;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_bindlex_no:
+                        MVM_frame_find_lexical_by_name(tc, cu->strings[GET_UI16(cur_op, 0)],
+                            MVM_reg_obj)->o = GET_REG(cur_op, 2).o;
+                        cur_op += 4;
+                        break;
                     case MVM_OP_return_i:
                         MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
                             MVM_RETURN_CALLER_FRAME);

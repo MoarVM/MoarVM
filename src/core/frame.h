@@ -6,14 +6,14 @@ typedef struct _MVMStaticFrame {
     /* The compilation unit this frame belongs to. */
     struct _MVMCompUnit *cu;
     
-    /* Lexicals name map. */
-    /* XXX */
-    
     /* The list of local types. */
     MVMuint16 *local_types;
     
     /* The list of lexical types. */
     MVMuint16 *lexical_types;
+    
+    /* Lexicals name map. */
+    apr_hash_t *lexical_names;
 
     /* Flag for if this frame has been invoked ever. */
     MVMuint32 invoked;
@@ -44,6 +44,9 @@ typedef struct _MVMStaticFrame {
     
     /* GC run sequence number that we last saw static this frame during. */
     MVMuint32 gc_seq_number;
+    
+    /* The APR memory pool used by the hash lexical hash. */
+    apr_pool_t *apr_pool;
 } MVMStaticFrame;
 
 /* This represents an active call frame. */
@@ -98,3 +101,5 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
+MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
+MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 type);

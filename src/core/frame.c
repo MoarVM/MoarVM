@@ -195,3 +195,30 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     
     return (MVMObject *)closure;
 }
+
+/* Looks up the address of the lexical with the specified name and the
+ * specified type. An error is thrown if it does not exist or if the
+ * type is incorrect */
+MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    while (cur_frame != NULL) {
+        apr_hash_t *lexical_names = cur_frame->static_info->lexical_names;
+        if (lexical_names) {
+            /* Indexes are stored off-by-one to avoid semi-predicate
+             * issue. */
+            MVMuint16 idx = (MVMuint16)apr_hash_get(lexical_names,
+                name->body.data, name->body.graphs * sizeof(MVMint32));
+            if (idx) {
+                idx--;
+                if (cur_frame->static_info->lexical_types[idx] == type)
+                    return &cur_frame->env[idx];
+                else
+                   MVM_exception_throw_adhoc(tc,
+                        "Lexical with name 'XXX' has wrong type"); /* XXX TODO */ 
+            }
+        }
+        cur_frame = cur_frame->outer;
+    }
+    MVM_exception_throw_adhoc(tc,
+        "No lexical found with name 'XXX'"); /* XXX TODO */
+}
