@@ -232,6 +232,18 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         { MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_getlex_ng,
+        "getlex_ng",
+        5,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_bindlex_ng,
+        "bindlex_ng",
+        2,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_return_i,
         "return_i",
         1,
@@ -1665,7 +1677,7 @@ static MVMOpInfo *MVM_op_info[] = {
 static unsigned char MVM_op_banks = 7;
 
 static unsigned char MVM_opcounts_by_bank[] = {
-    121,
+    123,
     5,
     15,
     13,

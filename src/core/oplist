@@ -28,14 +28,16 @@ BANK 0 primitives
 0x1A    trunc_n32   w(num32) r(num64)
 0x1B    getlex      w(`1) rl(`1)
 0x1C    bindlex     wl(`1) r(`1)
-0x1F    getlex_ni   w(int64) str
-0x20    getlex_nn   w(num64) str
-0x21    getlex_ns   w(str) str
-0x22    getlex_no   w(obj) str
-0x23    bindlex_ni  str r(int64)
-0x24    bindlex_nn  str r(num64)
-0x25    bindlex_ns  str r(str)
-0x26    bindlex_no  str r(obj)
+0x1D    getlex_ni   w(int64) str
+0x1E    getlex_nn   w(num64) str
+0x1F    getlex_ns   w(str) str
+0x20    getlex_no   w(obj) str
+0x21    bindlex_ni  str r(int64)
+0x22    bindlex_nn  str r(num64)
+0x23    bindlex_ns  str r(str)
+0x24    bindlex_no  str r(obj)
+0x25    getlex_ng   w(obj) r(str) r(obj) r(obj) r(obj)
+0x26    bindlex_ng  r(str) w(obj)
 0x27    return_i    r(int64)
 0x28    return_n    r(num64)
 0x29    return_s    r(str)

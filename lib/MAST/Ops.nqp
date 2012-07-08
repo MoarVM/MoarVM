@@ -273,59 +273,76 @@ class MAST::Ops {
             ]
         ),
         'getlex_ni', nqp::hash(
-            'code', 31,
+            'code', 29,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_int64,
                 $MVM_operand_str
             ]
         ),
         'getlex_nn', nqp::hash(
-            'code', 32,
+            'code', 30,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_num64,
                 $MVM_operand_str
             ]
         ),
         'getlex_ns', nqp::hash(
-            'code', 33,
+            'code', 31,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_str,
                 $MVM_operand_str
             ]
         ),
         'getlex_no', nqp::hash(
-            'code', 34,
+            'code', 32,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_obj,
                 $MVM_operand_str
             ]
         ),
         'bindlex_ni', nqp::hash(
-            'code', 35,
+            'code', 33,
             'operands', [
                 $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         ),
         'bindlex_nn', nqp::hash(
-            'code', 36,
+            'code', 34,
             'operands', [
                 $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_num64
             ]
         ),
         'bindlex_ns', nqp::hash(
-            'code', 37,
+            'code', 35,
             'operands', [
                 $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_str
             ]
         ),
         'bindlex_no', nqp::hash(
-            'code', 38,
+            'code', 36,
             'operands', [
                 $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'getlex_ng', nqp::hash(
+            'code', 37,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
+        ),
+        'bindlex_ng', nqp::hash(
+            'code', 38,
+            'operands', [
+                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_write_reg +| $MVM_operand_obj
             ]
         ),
         'return_i', nqp::hash(
