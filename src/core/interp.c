@@ -46,7 +46,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     tc->interp_cu             = &cu;
     
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, initial_static_frame, &no_arg_callsite, NULL);
+    MVM_frame_invoke(tc, initial_static_frame, &no_arg_callsite, NULL, NULL);
     
     /* Enter runloop. */
     while (1) {

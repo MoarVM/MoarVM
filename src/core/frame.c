@@ -38,6 +38,8 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     /* Note that we get zero if we really hit zero here, but dec32 may
      * not give the exact count back if it ends up non-zero. */
     if (apr_atomic_dec32(&frame->ref_count) == 0) {
+        if (frame->outer)
+            MVM_frame_dec_ref(tc, frame->outer);
         if (frame->env) {
             free(frame->env);
             frame->env = NULL;
@@ -53,7 +55,8 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
 
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                      MVMCallsite *callsite, MVMRegister *args) {
+                      MVMCallsite *callsite, MVMRegister *args,
+                      MVMFrame *outer) {
     /* Get a fresh frame data structure. */
     MVMFrame *frame = obtain_frame(tc);
     
@@ -87,8 +90,33 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->work + static_frame->num_locals :
         NULL;
 
-    /* XXX Outer. */
-    frame->outer = NULL;
+    /* Outer. */
+    if (outer) {
+        /* We were provided with an outer frame; just ensure that it is
+         * based on the correct static frame. */
+        if (outer->static_info == static_frame->outer)
+            frame->outer = outer;
+        else
+            MVM_exception_throw_adhoc(tc,
+                "Provided outer frame does not match expected static frame type");
+    }
+    else if (static_frame->outer) {
+        /* We need an outer, but none was provided by a closure. See if
+         * we can find an appropriate frame on the current call stack. */
+        MVMFrame *candidate = tc->cur_frame;
+        while (candidate) {
+            if (candidate->static_info == static_frame->outer) {
+                frame->outer = candidate;
+                break;
+            }
+            candidate = candidate->caller;
+        }
+        if (!frame->outer)
+            MVM_exception_throw_adhoc(tc,
+                "Cannot locate an outer frame for the call");
+    }
+    if (frame->outer)
+        MVM_frame_inc_ref(tc, frame->outer);
     
     /* Caller is current frame in the thread context. */
     if (tc->cur_frame)
