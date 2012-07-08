@@ -624,9 +624,10 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     
     /* Handle outer. The current index means "no outer". */
     if (ISTYPE(vm, f->outer, ws->types->Frame)) {
-        unsigned short i, found;
+        unsigned short i, found, num_frames;
         found = 0;
-        for (i = 0; i < ws->num_frames; i++) {
+        num_frames = (unsigned short)ELEMS(vm, ws->cu->frames);
+        for (i = 0; i < num_frames; i++) {
             if (ATPOS(vm, ws->cu->frames, i) == f->outer) {
                 write_int16(ws->frame_seg, ws->frame_pos + 20, i);
                 found = 1;
