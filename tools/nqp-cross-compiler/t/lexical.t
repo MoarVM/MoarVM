@@ -13,5 +13,5 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_i', $r2);
         op(@ins, 'return');
     },
-    "45",
+    "45\n",
     "bound and looked up a lexical in the current frame");
