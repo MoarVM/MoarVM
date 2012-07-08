@@ -119,6 +119,11 @@ our sub local($frame, $type) {
     return MAST::Local.new(:index($frame.add_local($type)));
 }
 
+our sub lexical($frame, $type, $name) {
+    my $idx := $frame.add_lexical($type, $name);
+    return MAST::Lexical.new(:index($idx));
+}
+
 our sub call(@ins, $target, @flags, :$result, *@args) {
     nqp::push(@ins, MAST::Call.new(
             :target($target), :result($result), :flags(@flags), |@args
