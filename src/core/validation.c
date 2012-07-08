@@ -172,6 +172,36 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         "Bytecode validation error: instruction operand type does not match register type");
                 }
             }
+            else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
+                /* lexical operand */
+                MVMuint16 idx, frames, i;
+                MVMStaticFrame *applicable_frame = static_frame;
+
+                /* Check we've enough bytecode left to read the operands, and
+                 * do so. */
+                operand_size = 4;
+                if (cur_op + operand_size > bytecode_end)
+                    throw_past_end(tc, labels);
+                idx = GET_UI16(cur_op, 0);
+                frames = GET_UI16(cur_op, 2);
+
+                /* Locate the applicable static frame. */
+                i = frames;
+                while (i > 0) {
+                    /* XXX walk frame outers... */
+                    i--;
+                }
+
+                /* Ensure that the lexical index is in range. */
+                if (idx >= applicable_frame->num_lexicals) {
+                    cleanup_all(tc, labels);
+                    MVM_exception_throw_adhoc(tc,
+                        "Bytecode validation error: operand lexical index (%u) out of range (0-%u) at byte %u",
+                        idx, applicable_frame->num_lexicals - 1, cur_op - bytecode_start);
+                }
+
+                /* XXX Type checks. */
+            }
             else {
                 cleanup_all(tc, labels);
                     MVM_exception_throw_adhoc(tc,
