@@ -95,11 +95,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         
                     case MVM_operand_coderef:
                         /* TODO XXX I don't know how to bounds check a literal coderef */
-                        operand_size = 2; break; /* reset to 0 */
-                        
-                    case MVM_operand_lex_outer:
-                        /* TODO XXX I don't know how to bounds check a literal lex outer */
-                        operand_size = 2; break;
+                        operand_size = 2;
+                        break; /* reset to 0 */
                     
                     case MVM_operand_str:
                         operand_size = 2;
