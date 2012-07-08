@@ -176,3 +176,22 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         return 0;
     }
 }
+
+/* Given the specified code object, copies it and returns a copy which
+ * captures a closure over the current scope. */
+MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
+    MVMCode *closure;
+    
+    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+        MVM_exception_throw_adhoc(tc,
+            "Can only perform takeclosure on object with representation MVMCode");
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&code);
+    closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
+    MVM_gc_root_temp_pop(tc);
+    
+    closure->body.sf    = ((MVMCode *)code)->body.sf;
+    closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
+    
+    return (MVMObject *)closure;
+}
