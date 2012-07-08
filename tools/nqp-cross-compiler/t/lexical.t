@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(3);
+plan(4);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $foo := lexical($frame, int, '$foo');
@@ -129,3 +129,33 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "1\n1\n3\n2\n",
     "Closures work");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        sub inner() {
+            my $i_frame := MAST::Frame.new();
+            $i_frame.set_outer($frame);
+            my $r0 := local($i_frame, str);
+            my @ins := $i_frame.instructions;
+            op(@ins, 'getlex_ns', $r0, sval('$nom'));
+            op(@ins, 'say_s', $r0);
+            op(@ins, 'return');
+            return $i_frame;
+        }
+        
+        my $inner := inner();
+        $cu.add_frame($inner);
+        
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, str);
+        my $lex := lexical($frame, str, '$nom');
+        op(@ins, 'const_s', $r1, sval('Bearnaisesås'));
+        op(@ins, 'bindlex_ns', sval('$nom'), $r1);
+        op(@ins, 'getcode', $r0, $inner);
+        nqp::push(@ins, MAST::Call.new(
+                :target($r0),
+                :flags([])
+            ));
+        op(@ins, 'return');
+    },
+    "Bearnaisesås\n",
+    "Lexical lookup/binding by name");
