@@ -142,8 +142,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 if (cur_op + operand_size > bytecode_end)
                     throw_past_end(tc, labels);
             }
-            else { /* register operand */
-                /* XXX only handle locals; needs lexicals */
+            else if (op_rw == MVM_operand_read_reg || op_rw == MVM_operand_write_reg) {
+                /* register operand */
                 operand_size = 2;
                 if (cur_op + operand_size > bytecode_end)
                     throw_past_end(tc, labels);
@@ -171,6 +171,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     MVM_exception_throw_adhoc(tc,
                         "Bytecode validation error: instruction operand type does not match register type");
                 }
+            }
+            else {
+                cleanup_all(tc, labels);
+                    MVM_exception_throw_adhoc(tc,
+                        "Bytecode validation error: invalid instruction rw mask");
             }
             cur_op += operand_size;
         }
