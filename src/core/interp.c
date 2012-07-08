@@ -84,7 +84,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         break;
                     case MVM_OP_set:
-                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64;
+                        GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
                         cur_op += 4;
                         break;
                     case MVM_OP_return_i:
