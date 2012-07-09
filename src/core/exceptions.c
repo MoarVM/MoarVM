@@ -11,6 +11,7 @@ void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
+    fwrite("\n", 1, 1, stderr);
     exit(exitCode);
 }
 
@@ -22,6 +23,7 @@ void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, 
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
+    fwrite("\n", 1, 1, stderr);
     exit(1);
 }
 
@@ -41,6 +43,7 @@ void MVM_exception_throw_apr_error(MVMThreadContext *tc, apr_status_t code, cons
     /* append the apr error */
     apr_strerror(code, error_string + offset, 512 - offset);
     fwrite(error_string, 1, strlen(error_string), stderr);
+    fwrite("\n", 1, 1, stderr);
     free(error_string);
     exit(1);
 }
