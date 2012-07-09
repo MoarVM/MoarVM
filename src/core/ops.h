@@ -224,6 +224,20 @@
 #define MVM_OP_splice 46
 #define MVM_OP_elemspos 47
 #define MVM_OP_setelemspos 48
+#define MVM_OP_box_i 49
+#define MVM_OP_box_n 50
+#define MVM_OP_box_s 51
+#define MVM_OP_unbox_i 52
+#define MVM_OP_unbox_n 53
+#define MVM_OP_unbox_s 54
+#define MVM_OP_bindattr 55
+#define MVM_OP_bindattr_i 56
+#define MVM_OP_bindattr_n 57
+#define MVM_OP_bindattr_s 58
+#define MVM_OP_getattr 59
+#define MVM_OP_getattr_i 60
+#define MVM_OP_getattr_n 61
+#define MVM_OP_getattr_s 62
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
