@@ -197,65 +197,16 @@ class QAST::MASTCompiler {
         # Add to instructions list for this block.
         nqp::splice($*MAST_FRAME.instructions, $ins.instructions, 0, 0);
         
-        my $res_reg := MAST::VOID;
-        my $res_kind := $MVM_reg_void;
+        # generate a return statement
+        # get the return op name
+        my $ret_op := @return_opnames[$ins.result_kind];
+        my @ret_args := nqp::list();
         
-        # if there's an instruction
-        if (nqp::elems($*MAST_FRAME.instructions)) {
-            
-            # get it
-            my $rindex := 1;
-            my $last_ins;
-            while ($rindex <= +$*MAST_FRAME.instructions
-                    && ($last_ins := $*MAST_FRAME.instructions[
-                        +$*MAST_FRAME.instructions - $rindex])
-                    && !($last_ins ~~ MAST::Op)) {
-                $rindex++;
-            }
-            
-            # We have to assume that the last InstructionList that
-            # was appended to the one returned from 
-            # compile_all_the_statements has the same result_reg
-            # & result_kind as $last_ins.
-            # XXX I'm not sure the above assumption always holds.
-            
-            my $primitives := MAST::Ops.WHO{'$primitives'};
-            
-            # grab the register (if any) and kind of the result
-            $res_reg := $ins.result_reg;
-            $res_kind := $ins.result_kind;
-            
-            #say("last instr: "~$last_ins.bank~" "~$last_ins.op);
-            
-            # if it's not already a return statement
-            unless $last_ins ~~ MAST::Op
-                    && $last_ins.bank == 0
-                    && $last_ins.op >= $primitives{'return_i'}{'code'}
-                    && $last_ins.op <= $primitives{'return'}{'code'} {
-                # we need to generate a return statement
-                
-                # get the return op name
-                my $ret_op := @return_opnames[$res_kind];
-                
-                # provide the return arg register if needed
-                my @ret_args := nqp::list();
-                nqp::push(@ret_args, $res_reg) unless $ret_op eq 'return';
-                
-                # fixup the end of this frame's instruction list with the return
-                nqp::push($*MAST_FRAME.instructions, MAST::Op.new(
-                    :bank('primitives'),
-                    :op($ret_op),
-                    |@ret_args
-                ));
-            }
-        }
-        else {
-            # empty frame (odd?); append a void return
-            nqp::push($*MAST_FRAME.instructions, MAST::Op.new(
-                :bank('primitives'),
-                :op('return')
-            ));
-        }
+        # provide the return arg register if needed
+        nqp::push(@ret_args, $ins.result_reg) unless $ret_op eq 'return';
+        
+        # fixup the end of this frame's instruction list with the return
+        push_op($*MAST_FRAME.instructions, $ret_op, |@ret_args);
         
         # return a dummy ilist to the outer.
         # XXX takeclosure ?
