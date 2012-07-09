@@ -410,6 +410,120 @@ QAST::MASTOperations.add_core_op('bind', -> $qastcomp, $op {
     $qastcomp.as_mast(@children[0])
 });
 
+my @kind_to_args := [0,
+    $Arg::int,  # $MVM_reg_int8            := 1;
+    $Arg::int,  # $MVM_reg_int16           := 2;
+    $Arg::int,  # $MVM_reg_int32           := 3;
+    $Arg::int,  # $MVM_reg_int64           := 4;
+    $Arg::num,  # $MVM_reg_num32           := 5;
+    $Arg::num,  # $MVM_reg_num64           := 6;
+    $Arg::str,  # $MVM_reg_str             := 7;
+    $Arg::obj   # $MVM_reg_obj             := 8;
+];
+
+# Calling.
+sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
+    
+    # generate the code for the arg expression
+    my $arg_mast := $qastcomp.as_mast($arg);
+    
+    nqp::die("arg expression cannot be void")
+        if $arg_mast.result_kind == $MVM_reg_void;
+    
+    nqp::die("arg code did not result in a MAST::Local")
+        unless $arg_mast.result_reg && $arg_mast.result_reg ~~ MAST::Local;
+    
+    nqp::push(@arg_kinds, $arg_mast.result_kind);
+    
+    # append the code to the main instruction list
+    push_ilist(@ins, $arg_mast);
+    
+    # build up the typeflag
+    my $result_typeflag := @kind_to_args[$arg_mast.result_kind];
+    if $arg.flat {
+        $result_typeflag := $result_typeflag +| $Arg::flat;
+        if $arg.named {
+            # XXX flattened arg NYI
+            $result_typeflag := $result_typeflag +| $Arg::named;
+        }
+    }
+    elsif $arg.named -> $name {
+        nqp::die("arg name is not a QAST::SVal")
+            unless $name && ($name ~~ QAST::SVal);
+        
+        # add in the extra arg for the name
+        nqp::push(@arg_regs, MAST::SVal.new( value => $name.value ));
+        
+        $result_typeflag := $result_typeflag +| $Arg::named;
+    }
+    
+    # stash the result register and result typeflag
+    nqp::push(@arg_regs, $arg_mast.result_reg);
+    nqp::push(@arg_flags, $result_typeflag);
+}
+
+QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
+    # Work out what callee is.
+    my $callee;
+    my @args := $op.list;
+    if $op.name {
+        nqp::die("NYI");
+        # $callee := $qastcomp.post_new('Ops', :result($qastcomp.escape($op.name)));
+    }
+    elsif +@args {
+        $callee := $qastcomp.as_mast(@args.shift());
+    }
+    else {
+        nqp::die("No name for call and empty children list");
+    }
+    
+    nqp::die("callee expression must be an object")
+        unless $callee.result_kind == $MVM_reg_obj;
+    
+    nqp::die("callee code did not result in a MAST::Local")
+        unless $callee.result_reg && $callee.result_reg ~~ MAST::Local;
+    
+    # main instruction list
+    my @ins := nqp::list();
+    # the result MAST::Locals of the arg expressions
+    my @arg_regs := nqp::list();
+    # the result kind codes of the arg expressions
+    my @arg_kinds := nqp::list();
+    # the args' flags in the protocol the MAST compiler expects
+    my @arg_flags := nqp::list();
+    
+    # Process arguments.
+    for @args {
+        handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
+    }
+    
+    # Figure out result register type and allocate a register for it.
+    my $res_kind := $qastcomp.type_to_register_kind($op.returns // NQPMu);
+    my $res_reg := $*REGALLOC.fresh_register($res_kind);
+    
+    # Release each arg's result register
+    my $arg_num := 0;
+    for @arg_regs -> $reg {
+        if $reg ~~ MAST::Local {
+            $*REGALLOC.release_register($reg, @arg_kinds[$arg_num]);
+            $arg_num++;
+        }
+    }
+    
+    # Append the code to evaluate the callee expression
+    push_ilist(@ins, $callee);
+    
+    # Generate call.
+    nqp::push(@ins, MAST::Call.new(
+        :target($callee.result_reg),
+        :flags(@arg_flags),
+        |@arg_regs,
+        :result($res_reg)
+    ));
+    
+    MAST::InstructionList.new(@ins, $res_reg, $res_kind)
+});
+
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
         $kind == $MVM_reg_int64 ?? 'unless_i' !!

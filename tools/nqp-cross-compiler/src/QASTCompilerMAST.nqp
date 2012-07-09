@@ -81,16 +81,18 @@ class QAST::MASTCompiler {
         has %!lexicals;             # Mapping of lexical names to registers
         has %!lexical_kinds;        # Mapping of lexical names to kinds
         has int $!param_idx;        # Current lexical parameter index
+        has $!compiler;             # The QAST::MASTCompiler
         
-        method new($qast, $outer) {
+        method new($qast, $outer, $compiler) {
             my $obj := nqp::create(self);
-            $obj.BUILD($qast, $outer);
+            $obj.BUILD($qast, $outer, $compiler);
             $obj
         }
         
-        method BUILD($qast, $outer) {
+        method BUILD($qast, $outer, $compiler) {
             $!qast := $qast;
             $!outer := $outer;
+            $!compiler := $compiler;
         }
         
         method register_lexical($var) {
@@ -109,7 +111,7 @@ class QAST::MASTCompiler {
             if nqp::existskey(%!local_kinds, $name) {
                 nqp::die("Local '$name' already declared");
             }
-            my $kind := type_to_register_kind(nqp::defined($var.returns) ?? $var.returns !! NQPMu);
+            my $kind := $!compiler.type_to_register_kind($var.returns // NQPMu);
             %!local_kinds{$name} := $kind;
             # pass a 1 meaning get a Totally New MAST::Local
             my $local := $*REGALLOC.fresh_register($kind, 1);
@@ -136,6 +138,12 @@ class QAST::MASTCompiler {
     
     method to_mast($qast) {
         my $*MAST_COMPUNIT := MAST::CompUnit.new();
+        
+        # map a QAST::Block's cuid to the MAST::Frame we
+        # created for it, so we can find the Frame later
+        # when we encounter the Block again in a call.
+        my %*MAST_FRAMES := nqp::hash();
+        
         self.as_mast($qast);
         $*MAST_COMPUNIT
     }
@@ -147,11 +155,17 @@ class QAST::MASTCompiler {
         my $*MAST_FRAME := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
         $*MAST_COMPUNIT.add_frame($*MAST_FRAME);
         my $outer     := try $*BLOCK;
-        my $block := BlockInfo.new($node, $outer);
+        my $block := BlockInfo.new($node, $outer, self);
         my $*BINDVAL := 0;
+        my $cuid := $node.cuid();
+        
+        %*MAST_FRAMES{$cuid} := $*MAST_FRAME;
         
         # Create a register allocator for this frame.
         my $*REGALLOC := RegAlloc.new($*MAST_FRAME);
+
+        # set the outer if it exists
+        $*MAST_FRAME.set_outer($outer) if $outer && $outer ~~ MAST::Frame;
 
         # Compile all the substatements.
         my $ins;
@@ -163,6 +177,8 @@ class QAST::MASTCompiler {
         # Add to instructions list for this block.
         # XXX Last thing is return value, later...
         nqp::splice($*MAST_FRAME.instructions, $ins.instructions, 0, 0);
+        
+        MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void)
     }
     
     multi method as_mast(QAST::Stmts $node) {
@@ -265,7 +281,7 @@ class QAST::MASTCompiler {
             }
             else {
                 # Does the node have a native type marked on it?
-                my $type := type_to_register_kind($node.returns);
+                my $type := self.type_to_register_kind($node.returns);
                 if $type eq 'P' {
                     # Consider the blocks for a declared native type.
                     # XXX TODO
@@ -295,7 +311,7 @@ class QAST::MASTCompiler {
             nqp::die("NYI 4");
             
             # Go by whether it's a bind or lookup.
-            my $type    := type_to_register_kind($node.returns);
+            my $type    := self.type_to_register_kind($node.returns);
             my $op_type := type_to_lookup_name($node.returns);
             if $*BINDVAL {
                 my $valpost := self.as_mast_clear_bindval($*BINDVAL);
@@ -354,6 +370,25 @@ class QAST::MASTCompiler {
             $MVM_reg_str)
     }
 
+    multi method as_mast(QAST::BVal $bv) {
+        
+        my $block := $bv.value;
+        my $cuid  := $block.cuid();
+        my $frame := %*MAST_FRAMES{$cuid};
+        nqp::die("QAST::Block with cuid $cuid has not appeared")
+            unless $frame && $frame ~~ MAST::Frame;
+        
+        my $reg := $*REGALLOC.fresh_o();
+        MAST::InstructionList.new(
+            [MAST::Op.new(
+                :bank('primitives'), :op('getcode'),
+                $reg,
+                $frame
+            )],
+            $reg,
+            $MVM_reg_obj)
+    }
+
     multi method as_mast(QAST::Regex $node) {
         # Prefix for the regexes code pieces.
         my $prefix := self.unique('rx') ~ '_';
@@ -382,11 +417,11 @@ class QAST::MASTCompiler {
 
         nqp::die("Regex compilation NYI");
     }
-}
-
-my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
-sub type_to_register_kind($type) {
-    @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
+    
+    my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
+    method type_to_register_kind($type) {
+        @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
+    }
 }
 
 sub push_op(@dest, $op, *@args) {
