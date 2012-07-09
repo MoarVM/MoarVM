@@ -115,6 +115,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             MVM_exception_throw_adhoc(tc,
                 "Cannot locate an outer frame for the call");
     }
+    else {
+        frame->outer = NULL;
+    }
     if (frame->outer)
         MVM_frame_inc_ref(tc, frame->outer);
     
