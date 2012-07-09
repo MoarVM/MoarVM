@@ -150,22 +150,42 @@ class QAST::MASTCompiler {
     
     proto method as_mast($qast) { * }
     
+    my @return_opnames := [
+        'return',
+        'return_i',
+        'return_i',
+        'return_i',
+        'return_i',
+        'return_n',
+        'return_n',
+        'return_s',
+        'return_o'
+    ];
+    
     multi method as_mast(QAST::Block $node) {
+        my $outer_frame := $*MAST_FRAME;
+        
         # Create an empty frame and add it to the compilation unit.
         my $*MAST_FRAME := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
+        
+        $outer_frame := $outer_frame // $*MAST_FRAME;
+        
         $*MAST_COMPUNIT.add_frame($*MAST_FRAME);
         my $outer     := try $*BLOCK;
         my $block := BlockInfo.new($node, $outer, self);
         my $*BINDVAL := 0;
         my $cuid := $node.cuid();
         
+        # stash the frame by the block's cuid so other references
+        # by this block can find it.
         %*MAST_FRAMES{$cuid} := $*MAST_FRAME;
         
         # Create a register allocator for this frame.
         my $*REGALLOC := RegAlloc.new($*MAST_FRAME);
 
         # set the outer if it exists
-        $*MAST_FRAME.set_outer($outer) if $outer && $outer ~~ MAST::Frame;
+        $*MAST_FRAME.set_outer($outer_frame)
+            if $outer_frame && $outer_frame ~~ MAST::Frame;
 
         # Compile all the substatements.
         my $ins;
@@ -175,9 +195,70 @@ class QAST::MASTCompiler {
         }
 
         # Add to instructions list for this block.
-        # XXX Last thing is return value, later...
         nqp::splice($*MAST_FRAME.instructions, $ins.instructions, 0, 0);
         
+        my $res_reg := MAST::VOID;
+        my $res_kind := $MVM_reg_void;
+        
+        # if there's an instruction
+        if (nqp::elems($*MAST_FRAME.instructions)) {
+            
+            # get it
+            my $rindex := 1;
+            my $last_ins;
+            while ($rindex <= +$*MAST_FRAME.instructions
+                    && ($last_ins := $*MAST_FRAME.instructions[
+                        +$*MAST_FRAME.instructions - $rindex])
+                    && !($last_ins ~~ MAST::Op)) {
+                $rindex++;
+            }
+            
+            # We have to assume that the last InstructionList that
+            # was appended to the one returned from 
+            # compile_all_the_statements has the same result_reg
+            # & result_kind as $last_ins.
+            # XXX I'm not sure the above assumption always holds.
+            
+            my $primitives := MAST::Ops.WHO{'$primitives'};
+            
+            # grab the register (if any) and kind of the result
+            $res_reg := $ins.result_reg;
+            $res_kind := $ins.result_kind;
+            
+            #say("last instr: "~$last_ins.bank~" "~$last_ins.op);
+            
+            # if it's not already a return statement
+            unless $last_ins ~~ MAST::Op
+                    && $last_ins.bank == 0
+                    && $last_ins.op >= $primitives{'return_i'}{'code'}
+                    && $last_ins.op <= $primitives{'return'}{'code'} {
+                # we need to generate a return statement
+                
+                # get the return op name
+                my $ret_op := @return_opnames[$res_kind];
+                
+                # provide the return arg register if needed
+                my @ret_args := nqp::list();
+                nqp::push(@ret_args, $res_reg) unless $ret_op eq 'return';
+                
+                # fixup the end of this frame's instruction list with the return
+                nqp::push($*MAST_FRAME.instructions, MAST::Op.new(
+                    :bank('primitives'),
+                    :op($ret_op),
+                    |@ret_args
+                ));
+            }
+        }
+        else {
+            # empty frame (odd?); append a void return
+            nqp::push($*MAST_FRAME.instructions, MAST::Op.new(
+                :bank('primitives'),
+                :op('return')
+            ));
+        }
+        
+        # return a dummy ilist to the outer.
+        # XXX takeclosure ?
         MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void)
     }
     
