@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(14);
+plan(15);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -178,3 +178,17 @@ qast_output_is(QAST::Block.new(
             QAST::Var.new( name => "foo", scope => 'local' ),
             QAST::IVal.new( :value(0) )))
 ), "4\n3\n2\n1\n", "repeat_until loop and decrementing local var");
+
+my $block := QAST::Block.new( QAST::IVal.new( :value(666) ) );
+qast_output_is(QAST::Block.new(
+    $block,
+    QAST::VM.new(
+        :moarop('say_i'),
+        QAST::Op.new(
+            :op('call'),
+            :returns(int),
+            QAST::BVal.new( :value($block) )
+        )
+    )),
+    "666\n",
+    'BVal node');
