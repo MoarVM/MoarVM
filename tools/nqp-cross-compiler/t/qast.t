@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(15);
+plan(16);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -192,3 +192,21 @@ qast_output_is(QAST::Block.new(
     )),
     "666\n",
     'BVal node');
+
+my $block2 := QAST::Block.new( QAST::IVal.new( :value(666) ) );
+qast_output_is(QAST::Block.new(
+    $block2,
+    QAST::VM.new(
+        :moarop('say_i'),
+        QAST::Op.new(
+            :op('call'),
+            :returns(int),
+            QAST::BVal.new( :value($block2) ),
+            QAST::IVal.new( :value(777) ),
+            QAST::IVal.new( :value(777) ),
+            QAST::IVal.new( :value(777) ),
+            QAST::SVal.new( :value("hi") )
+        )
+    )),
+    "666\n",
+    'four args lives');
