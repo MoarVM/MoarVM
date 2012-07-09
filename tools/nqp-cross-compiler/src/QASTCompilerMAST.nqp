@@ -49,7 +49,7 @@ class QAST::MASTCompiler {
                if $kind == $MVM_reg_int64 { @arr := @!ints; $type := int }
             elsif $kind == $MVM_reg_num64 { @arr := @!nums; $type := num }
             elsif $kind == $MVM_reg_str   { @arr := @!strs; $type := str }
-            elsif $kind == $MVM_reg_obj   { @arr := @!objs; $type := obj }
+            elsif $kind == $MVM_reg_obj   { @arr := @!objs; $type := NQPMu }
             else { nqp::die("unhandled reg kind $kind") }
             
             nqp::elems(@arr) && !$new ?? nqp::pop(@arr) !!
