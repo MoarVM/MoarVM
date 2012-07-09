@@ -34,9 +34,9 @@ class QAST::MASTCompiler {
         }
         
         method fresh_i() { self.fresh_register($MVM_reg_int64) }
-        method fresh_n() { self.fresh_register($MVM_reg_int64) }
-        method fresh_s() { self.fresh_register($MVM_reg_int64) }
-        method fresh_o() { self.fresh_register($MVM_reg_int64) }
+        method fresh_n() { self.fresh_register($MVM_reg_num64) }
+        method fresh_s() { self.fresh_register($MVM_reg_str) }
+        method fresh_o() { self.fresh_register($MVM_reg_obj) }
         
         # QAST::Vars need entirely new MAST::Locals all to themselves,
         # so a Local can't be a non-Var for the first half of a block and
