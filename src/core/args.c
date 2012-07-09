@@ -174,7 +174,7 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return an obj to");
     }
 }
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless) {
@@ -191,7 +191,7 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return an int to");
     }
 }
 void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless) {
@@ -208,7 +208,7 @@ void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 f
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a uint to");
     }
 }
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless) {
@@ -225,7 +225,7 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a num to");
     }
 }
 void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless) {
@@ -242,6 +242,6 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a result to");
+        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a str to");
     }
 }
