@@ -8,11 +8,11 @@ to one of the args.
 For nqp::op that maps naturally to moarops we can just make something that sets up the mapper
 For any more complicated cases, it's fine, we just have to do a closure that does the mapping work.
 
-work out having more than one QAST::Block
-If you implement QAST::BVal (which really boils down to getcode) then you could also
-implement QAST::Op.new( :op('call'), ... )
-The case where there's no :name(...) so the first child is the thing to invoke.
-Note that in MAST, blocks can't contain blocks, so each newly encountered block needs to
-add_frame to the MAST compilation unit.
+DONE work out having more than one QAST::Block
+DONE If you implement QAST::BVal (which really boils down to getcode) then you could also
+DONE implement QAST::Op.new( :op('call'), ... )
+DONE The case where there's no :name(...) so the first child is the thing to invoke.
+DONE Note that in MAST, blocks can't contain blocks, so each newly encountered block needs to
+DONE add_frame to the MAST compilation unit.
 You can probably get immediate blocks to be called automatically.
 I guess even declarations of blocks can work too
