@@ -224,6 +224,10 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                 if (ISTYPE(vm, operand, ws->types->IVal)) {
                     MAST_IVal *iv = GET_IVal(operand);
                     ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+                    if (iv->value > 32767 || iv->value < -32768) {
+                        cleanup_all(vm, ws);
+                        DIE(vm, "Value outside range of 16-bit MAST::IVal");
+                    }
                     write_int16(ws->bytecode_seg, ws->bytecode_pos, (short)iv->value);
                     ws->bytecode_pos += 2;
                 }
