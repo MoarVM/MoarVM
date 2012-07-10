@@ -38,9 +38,9 @@ static const char * get_arg_type(MVMuint8 type) {
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos = ctx->callsite->num_pos;
     if (num_pos < min)
-        MVM_exception_throw_adhoc(tc, "Not enough arguments; needed %u, got %u", min, num_pos);
+        MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed %u, got %u", min, num_pos);
     if (num_pos > max)
-        MVM_exception_throw_adhoc(tc, "Too many arguments; max %u, got %u", max, num_pos);
+        MVM_exception_throw_adhoc(tc, "Too many positional arguments; max %u, got %u", max, num_pos);
 }
 
 /* Get positional arguments. */
