@@ -57,9 +57,9 @@ class QAST::MASTCompiler {
         }
         
         method release_i($reg) { self.release_register($reg, $MVM_reg_int64) }
-        method release_n($reg) { self.release_register($reg, $MVM_reg_int64) }
-        method release_s($reg) { self.release_register($reg, $MVM_reg_int64) }
-        method release_o($reg) { self.release_register($reg, $MVM_reg_int64) }
+        method release_n($reg) { self.release_register($reg, $MVM_reg_num64) }
+        method release_s($reg) { self.release_register($reg, $MVM_reg_str) }
+        method release_o($reg) { self.release_register($reg, $MVM_reg_obj) }
         
         method release_register($reg, $kind) {
             return 1 if $kind == $MVM_reg_void || $*BLOCK.is_var($reg);
@@ -78,7 +78,7 @@ class QAST::MASTCompiler {
         has %!local_names_by_index; # Locals' names by their indexes
         has %!locals;               # Mapping of local names to locals
         has %!local_kinds;          # Mapping of local registers to kinds
-        has %!lexicals;             # Mapping of lexical names to registers
+        has %!lexicals;             # Mapping of lexical names to lexicals
         has %!lexical_kinds;        # Mapping of lexical names to kinds
         has int $!param_idx;        # Current lexical parameter index
         has $!compiler;             # The QAST::MASTCompiler
@@ -97,10 +97,11 @@ class QAST::MASTCompiler {
         
         method register_lexical($var) {
             my $name := $var.name;
-            my $kind := $*REGALLOC.fresh_register($var.returns, 1);
             if nqp::existskey(%!lexical_kinds, $name) {
                 nqp::die("Lexical '$name' already declared");
             }
+            my $kind := $!compiler.type_to_register_kind($var.returns // NQPMu);
+            my $lex := MAST::Lexical.new();
             %!lexical_kinds{$name} := $kind;
             nqp::die("NYI");
             # %!lexicals{$name} := $*BLOCKRA."fresh_{nqp::lc($type)}"();
@@ -292,6 +293,7 @@ class QAST::MASTCompiler {
                     my $valmast := self.as_mast_clear_bindval($*BINDVAL);
                     push_ilist(@ins, $valmast);
                     push_op(@ins, 'set', $*BLOCK.local($name), $valmast.result_reg);
+                    $*REGALLOC.release_register($valmast.result_reg, $valmast.result_kind);
                 }
                 $res_reg := $*BLOCK.local($name);
                 $res_kind := $*BLOCK.local_kind($name);
