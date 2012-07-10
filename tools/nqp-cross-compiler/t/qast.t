@@ -193,7 +193,13 @@ qast_output_is(QAST::Block.new(
     "666\n",
     'BVal node');
 
-my $block2 := QAST::Block.new( QAST::IVal.new( :value(666) ) );
+my $block2 := QAST::Block.new(
+    QAST::Var.new( :name('a'), :scope('local'), :decl('param'), :returns(int) ),
+    QAST::Var.new( :name('b'), :scope('local'), :decl('param'), :returns(int) ),
+    QAST::Var.new( :name('c'), :scope('local'), :decl('param'), :returns(int) ),
+    QAST::Var.new( :name('d'), :scope('local'), :decl('param'), :returns(str) ),
+    QAST::IVal.new( :value(666) )
+);
 qast_output_is(QAST::Block.new(
     $block2,
     QAST::VM.new(

@@ -82,6 +82,7 @@ class QAST::MASTCompiler {
         has %!lexical_kinds;        # Mapping of lexical names to kinds
         has int $!param_idx;        # Current lexical parameter index
         has $!compiler;             # The QAST::MASTCompiler
+        has @!params;               # List of QAST::Var param nodes
         
         method new($qast, $outer, $compiler) {
             my $obj := nqp::create(self);
@@ -93,6 +94,19 @@ class QAST::MASTCompiler {
             $!qast := $qast;
             $!outer := $outer;
             $!compiler := $compiler;
+        }
+        
+        method add_param($var) {
+            if $var.scope eq 'local' {
+                self.register_local($var);
+            }
+            else {
+                nqp::die("NYI");
+                my $reg := '_lex_param_' ~ $!param_idx;
+                $!param_idx := $!param_idx + 1;
+                self.register_lexical($var, $reg);
+            }
+            nqp::push(@!params, $var);
         }
         
         method register_lexical($var) {
@@ -132,6 +146,7 @@ class QAST::MASTCompiler {
         method local($name) { %!locals{$name} }
         method local_kind($name) { %!local_kinds{$name} }
         method lexical_kind($name) { %!lexical_kinds{$name} }
+        method params() { @!params }
     }
     
     our $serno := 0;
@@ -208,6 +223,32 @@ class QAST::MASTCompiler {
         
         # fixup the end of this frame's instruction list with the return
         push_op($*MAST_FRAME.instructions, $ret_op, |@ret_args);
+        
+        # build up the frame prologue
+        my @pre := nqp::list();
+        my $min_args := 0;
+        my $max_args := 0;
+        
+        # build up instructions to bind the params
+        for $block.params -> $var {
+            
+            # NQP->QAST always provides a default value for optional NQP params
+            # even if no default initializer expression is provided.
+            my $optional := nqp::defined($var.default);
+            $max_args++;
+            $min_args++ unless $optional;
+            
+            say("max_args is $max_args");
+        }
+        
+        nqp::splice($*MAST_FRAME.instructions, @pre, 0, 0);
+        @pre := nqp::list();
+        
+        # check the arity 
+        push_op(@pre, 'checkarity',
+            MAST::IVal.new( :size(16), :value($min_args)),
+            MAST::IVal.new( :size(16), :value($max_args)));
+        nqp::splice($*MAST_FRAME.instructions, @pre, 0, 0);
         
         # return a dummy ilist to the outer.
         # XXX takeclosure ?
