@@ -17,8 +17,8 @@ DONE add_frame to the MAST compilation unit.
 You can probably get immediate (blocktype) blocks to be called automatically.
 I guess even declarations (default blocktype) of blocks can work too
 
-Var 'param'
+DONE Var 'param'
 
-checkarity
+DONE checkarity
 
 call_method
