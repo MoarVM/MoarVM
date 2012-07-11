@@ -182,11 +182,8 @@ qast_output_is(QAST::Block.new(
 my $block := QAST::Block.new( QAST::IVal.new( :value(666) ) );
 qast_output_is(QAST::Block.new(
     $block,
-    QAST::VM.new(
-        :moarop('say_i'),
-        QAST::Op.new(
-            :op('call'),
-            :returns(int),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Op.new( :op('call'), :returns(int),
             QAST::BVal.new( :value($block) )
         )
     )),
@@ -198,21 +195,26 @@ my $block2 := QAST::Block.new(
     QAST::Var.new( :name('b'), :scope('local'), :decl('param'), :returns(int) ),
     QAST::Var.new( :name('c'), :scope('local'), :decl('param'), :returns(int) ),
     QAST::Var.new( :name('d'), :scope('local'), :decl('param'), :returns(str) ),
-    QAST::IVal.new( :value(666) )
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('a'), :scope('local') )
+    ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('b'), :scope('local') )
+    ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('c'), :scope('local') )
+    ),
+    QAST::VM.new( :moarop('say_s'),
+        QAST::Var.new( :name('d'), :scope('local') )
+    )
 );
 qast_output_is(QAST::Block.new(
     $block2,
-    QAST::VM.new(
-        :moarop('say_i'),
-        QAST::Op.new(
-            :op('call'),
-            :returns(int),
-            QAST::BVal.new( :value($block2) ),
-            QAST::IVal.new( :value(777) ),
-            QAST::IVal.new( :value(777) ),
-            QAST::IVal.new( :value(777) ),
-            QAST::SVal.new( :value("hi") )
-        )
-    )),
-    "666\n",
-    'four args lives');
+    QAST::Op.new( :op('call'), :returns(int),
+        QAST::BVal.new( :value($block2) ),
+        QAST::IVal.new( :value(777) ),
+        QAST::IVal.new( :value(888) ),
+        QAST::IVal.new( :value(999) ),
+        QAST::SVal.new( :value("hi") )
+    )
+), "777\n888\n999\nhi\n", 'four positional required local args and params work');

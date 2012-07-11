@@ -96,8 +96,12 @@ class QAST::MASTCompiler {
             $!compiler := $compiler;
         }
         
+        my $local_param_index := 0;
+        
         method add_param($var) {
             if $var.scope eq 'local' {
+                # borrow the arity attribute to mark its index.
+                $var.arity($local_param_index++) unless $var.named;
                 self.register_local($var);
             }
             else {
@@ -106,7 +110,7 @@ class QAST::MASTCompiler {
                 $!param_idx := $!param_idx + 1;
                 self.register_lexical($var, $reg);
             }
-            nqp::push(@!params, $var);
+            @!params[+@!params] := $var;
         }
         
         method register_lexical($var) {
@@ -178,77 +182,126 @@ class QAST::MASTCompiler {
         'return_o'
     ];
     
+    my @kind_to_param_slot := [
+        0, 0, 0, 0, 0, 1, 1, 2, 3
+    ];
+    
+    my @param_opnames := [
+        'param_rp_i',
+        'param_rp_n',
+        'param_rp_s',
+        'param_rp_o',
+        'param_op_i',
+        'param_op_n',
+        'param_op_s',
+        'param_op_o',
+        'param_rn_i',
+        'param_rn_n',
+        'param_rn_s',
+        'param_rn_o',
+        'param_on_i',
+        'param_on_n',
+        'param_on_s',
+        'param_on_o'
+    ];
+    
     multi method as_mast(QAST::Block $node) {
         my $outer_frame := $*MAST_FRAME;
         
         # Create an empty frame and add it to the compilation unit.
-        my $*MAST_FRAME := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
+        my $frame := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
+        my $*MAST_FRAME := $frame;
         
-        $outer_frame := $outer_frame // $*MAST_FRAME;
-        
-        $*MAST_COMPUNIT.add_frame($*MAST_FRAME);
-        my $outer     := try $*BLOCK;
-        my $block := BlockInfo.new($node, $outer, self);
+        $*MAST_COMPUNIT.add_frame($frame);
+        my $outer    := try $*BLOCK;
+        my $block    := BlockInfo.new($node, $outer, self);
         my $*BINDVAL := 0;
-        my $cuid := $node.cuid();
+        my $cuid     := $node.cuid();
         
         # stash the frame by the block's cuid so other references
         # by this block can find it.
-        %*MAST_FRAMES{$cuid} := $*MAST_FRAME;
+        %*MAST_FRAMES{$cuid} := $frame;
         
         # Create a register allocator for this frame.
-        my $*REGALLOC := RegAlloc.new($*MAST_FRAME);
-
+        my $*REGALLOC := RegAlloc.new($frame);
+        
         # set the outer if it exists
-        $*MAST_FRAME.set_outer($outer_frame)
+        $frame.set_outer($outer_frame)
             if $outer_frame && $outer_frame ~~ MAST::Frame;
 
         # Compile all the substatements.
         my $ins;
         {
             my $*BLOCK := $block;
+            my $*MAST_FRAME := $frame;
             $ins := self.compile_all_the_stmts(@($node));
-        }
-
-        # Add to instructions list for this block.
-        nqp::splice($*MAST_FRAME.instructions, $ins.instructions, 0, 0);
-        
-        # generate a return statement
-        # get the return op name
-        my $ret_op := @return_opnames[$ins.result_kind];
-        my @ret_args := nqp::list();
-        
-        # provide the return arg register if needed
-        nqp::push(@ret_args, $ins.result_reg) unless $ret_op eq 'return';
-        
-        # fixup the end of this frame's instruction list with the return
-        push_op($*MAST_FRAME.instructions, $ret_op, |@ret_args);
-        
-        # build up the frame prologue
-        my @pre := nqp::list();
-        my $min_args := 0;
-        my $max_args := 0;
-        
-        # build up instructions to bind the params
-        for $block.params -> $var {
             
-            # NQP->QAST always provides a default value for optional NQP params
-            # even if no default initializer expression is provided.
-            my $optional := nqp::defined($var.default);
-            $max_args++;
-            $min_args++ unless $optional;
+            # Add to instructions list for this block.
+            nqp::splice($frame.instructions, $ins.instructions, 0, 0);
             
-            say("max_args is $max_args");
+            # generate a return statement
+            # get the return op name
+            my $ret_op := @return_opnames[$ins.result_kind];
+            my @ret_args := nqp::list();
+            
+            # provide the return arg register if needed
+            nqp::push(@ret_args, $ins.result_reg) unless $ret_op eq 'return';
+            
+            # fixup the end of this frame's instruction list with the return
+            push_op($frame.instructions, $ret_op, |@ret_args);
+            
+            # build up the frame prologue
+            my @pre := nqp::list();
+            my $min_args := 0;
+            my $max_args := 0;
+            
+            # build up instructions to bind the params
+            for $block.params -> $var {
+                
+                # NQP->QAST always provides a default value for optional NQP params
+                # even if no default initializer expression is provided.
+                my $optional := $var.default;
+                $max_args++;
+                
+                my $param_kind := self.type_to_register_kind($var.returns // NQPMu);
+                
+                my $opname_index := ($var.named ?? 8 !! 0) +
+                    ($optional ?? 4 !! 0) +
+                    @kind_to_param_slot[$param_kind];
+                my $opname := @param_opnames[$opname_index];
+                
+                if $optional {
+                    $opname_index := $opname_index + 4;
+                    nqp::die("optional params NYI");
+                }
+                else {
+                    $min_args++;
+                    
+                    if $var.scope eq 'local' {
+                        if $var.named {
+                            nqp::die("named local params NYI");
+                        }
+                        else { # positional
+                            push_op(@pre, $opname,
+                                $block.local($var.name),
+                                MAST::IVal.new( :size(16), :value($var.arity)));
+                        }
+                    }
+                    else {
+                        nqp::die("lexical params NYI");
+                    }
+                }
+            }
+            
+            nqp::splice($frame.instructions, @pre, 0, 0);
+            @pre := nqp::list();
+            
+            # check the arity 
+            push_op(@pre, 'checkarity',
+                MAST::IVal.new( :size(16), :value($min_args)),
+                MAST::IVal.new( :size(16), :value($max_args)));
+            nqp::splice($frame.instructions, @pre, 0, 0);
         }
-        
-        nqp::splice($*MAST_FRAME.instructions, @pre, 0, 0);
-        @pre := nqp::list();
-        
-        # check the arity 
-        push_op(@pre, 'checkarity',
-            MAST::IVal.new( :size(16), :value($min_args)),
-            MAST::IVal.new( :size(16), :value($max_args)));
-        nqp::splice($*MAST_FRAME.instructions, @pre, 0, 0);
         
         # return a dummy ilist to the outer.
         # XXX takeclosure ?
