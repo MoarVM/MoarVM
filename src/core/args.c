@@ -170,7 +170,7 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
                 target->return_value->o = result;
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "Result return coercion to obj NYI; got type %u", target->return_type);
+                MVM_exception_throw_adhoc(tc, "Result return coercion from obj NYI; expects type %u", target->return_type);
         }
     }
 }
@@ -184,7 +184,7 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
                 target->return_value->i64 = result;
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "Result return coercion to int NYI; got type %u", target->return_type);
+                MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
         }
     }
 }
@@ -198,7 +198,7 @@ void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 f
                 target->return_value->ui64 = result;
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "Result return coercion to uint NYI; got type %u", target->return_type);
+                MVM_exception_throw_adhoc(tc, "Result return coercion from uint NYI; expects type %u", target->return_type);
         }
     }
 }
@@ -212,7 +212,7 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
                 target->return_value->n64 = result;
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "Result return coercion to num NYI; got type %u", target->return_type);
+                MVM_exception_throw_adhoc(tc, "Result return coercion from num NYI; expects type %u", target->return_type);
         }
     }
 }
@@ -226,7 +226,7 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
                 target->return_value->s = result;
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "Result return coercion to str NYI; got type %u", target->return_type);
+                MVM_exception_throw_adhoc(tc, "Result return coercion from str NYI; expects type %u", target->return_type);
         }
     }
 }
