@@ -51,7 +51,7 @@ DYNEXT_DIR       = dynext
 OPS_DIR          = src/ops
 
 OPS             = mvmcc_ops
-DYNEXT_TARGET   = $(DYNEXT_DIR)/$(GROUP)$(LOAD_EXT)
+DYNEXT_TARGET   = $(DYNEXT_DIR)/$(OPS)$(LOAD_EXT)
 DYNOPS          = $(OPS_DIR)/$(OPS)$(LOAD_EXT)
 
 OPS_SOURCE      = mvmcc.ops
