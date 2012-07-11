@@ -179,6 +179,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         else
                             return;
                     case MVM_OP_return:
+                        MVM_args_assert_void_return_ok(tc, MVM_RETURN_CALLER_FRAME);
                         if (MVM_frame_try_return(tc))
                             break;
                         else

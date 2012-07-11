@@ -245,3 +245,8 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
         MVM_exception_throw_adhoc(tc, "Could not locate frame to return a str to");
     }
 }
+void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
+    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    if (target && target->return_type != MVM_RETURN_VOID)
+        MVM_exception_throw_adhoc(tc, "Void return not allowed to context requiring a return value");
+}

@@ -97,6 +97,7 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
 void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless);
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless);
 void MVM_args_set_result_str(MVMThreadContext *tc, struct _MVMString *result, MVMint32 frameless);
+void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless);
 
 /* Result setting frame constants. */
 #define MVM_RETURN_CALLER_FRAME     0
