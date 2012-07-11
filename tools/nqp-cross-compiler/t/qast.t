@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(25);
+plan(24);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -202,7 +202,8 @@ my $block2 := QAST::Block.new(
     QAST::VM.new( :moarop('say_i'),
         QAST::Var.new( :name('c'), :scope('local') ) ),
     QAST::VM.new( :moarop('say_s'),
-        QAST::Var.new( :name('d'), :scope('local') ) )
+        QAST::Var.new( :name('d'), :scope('local') ) ),
+    QAST::IVal.new( :value(0) )
 );
 qast_output_is(QAST::Block.new(
     $block2,
@@ -214,16 +215,6 @@ qast_output_is(QAST::Block.new(
         QAST::SVal.new( :value("hi") )
     )
 ), "777\n888\n999\nhi\n", 'four positional required local args and params work');
-
-my $block3 := QAST::Block.new();
-qast_output_is(QAST::Block.new(
-    $block3,
-    QAST::VM.new( :moarop('say_s'),
-        QAST::Op.new( :op('call'), :returns(str),
-            QAST::BVal.new( :value($block3) ))),
-    QAST::VM.new( :moarop('say_s'),
-        QAST::SVal.new( :value("lived") ) )
-), "lived\n", "empty block returns a string");
 
 my $block4 := QAST::Block.new(
     QAST::Var.new( :named("foo"), :name("foo"), :scope('local'), :decl('param'), :returns(int) ),
@@ -337,7 +328,9 @@ qast_output_is(QAST::Block.new(
 
 my $block17 := QAST::Block.new(
     QAST::VM.new( :moarop('say_s'),
-        QAST::Var.new( :name("foo"), :scope('lexical') ) ) );
+        QAST::Var.new( :name("foo"), :scope('lexical') ) ),
+    QAST::IVal.new( :value(0) )
+);
 
 qast_output_is(QAST::Block.new(
     QAST::Op.new( :op('bind'),
