@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(16);
+plan(25);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
