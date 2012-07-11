@@ -220,7 +220,9 @@ qast_output_is(QAST::Block.new(
     $block3,
     QAST::VM.new( :moarop('say_s'),
         QAST::Op.new( :op('call'), :returns(str),
-            QAST::BVal.new( :value($block3) )))
+            QAST::BVal.new( :value($block3) ))),
+    QAST::VM.new( :moarop('say_s'),
+        QAST::SVal.new( :value("lived") ) )
 ), "lived\n", "empty block returns a string");
 
 my $block4 := QAST::Block.new(
@@ -237,3 +239,42 @@ qast_output_is(QAST::Block.new(
             QAST::BVal.new( :value($block4) ),
             QAST::IVal.new( :named("foo"), :value(777) ) ) )
 ), "777\n888\n", 'one required named local arg and param works');
+
+my $block5 := QAST::Block.new(
+    QAST::Var.new( :named("foo"), :name("foo"), :scope('local'), :decl('param'), :returns(int),
+        :default(QAST::Stmts.new(
+            QAST::VM.new( :moarop('say_s'),
+                QAST::SVal.new( :value("in init code"))),
+            QAST::IVal.new( :value(444) )
+        ))),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('foo'), :scope('local') ) ),
+    QAST::VM.new( :moarop('return_i'),
+        QAST::IVal.new( :value(888) ) ) );
+
+qast_output_is(QAST::Block.new(
+    $block5,
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Op.new( :op('call'), :returns(int),
+            QAST::BVal.new( :value($block5) ),
+            QAST::IVal.new( :named("foo"), :value(777) ) ) )
+), "777\n888\n", 'one optional named local arg and param works');
+
+my $block6 := QAST::Block.new(
+    QAST::Var.new( :named("foo"), :name("foo"), :scope('local'), :decl('param'), :returns(int),
+        :default(QAST::Stmts.new(
+            QAST::VM.new( :moarop('say_s'),
+                QAST::SVal.new( :value("in init code"))),
+            QAST::IVal.new( :value(444) )
+        ))),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('foo'), :scope('local') ) ),
+    QAST::VM.new( :moarop('return_i'),
+        QAST::IVal.new( :value(888) ) ) );
+
+qast_output_is(QAST::Block.new(
+    $block6,
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Op.new( :op('call'), :returns(int),
+            QAST::BVal.new( :value($block6) ) ) )
+), "in init code\n444\n888\n", 'one optional named local param without an arg works');

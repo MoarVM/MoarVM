@@ -272,6 +272,7 @@ class QAST::MASTCompiler {
                     @kind_to_param_slot[$param_kind];
                 my $opname := @param_opnames[$opname_index];
                 
+                # what will be put in the value register
                 my $val;
                 
                 if $var.named {
@@ -282,21 +283,41 @@ class QAST::MASTCompiler {
                     $val := MAST::IVal.new( :size(16), :value($var.arity));
                 }
                 
-                my @opargs := [$block."$scope"($var.name), $val];
+                # the value register
+                my $valreg := $block."$scope"($var.name);
                 
                 # NQP->QAST always provides a default value for optional NQP params
                 # even if no default initializer expression is provided.
-                if $var.default { #optional
-                    my $endlbl;
+                if $var.default {
+                    # generate end label to skip initialization code
+                    my $endlbl := MAST::Label.new( :name(self.unique('param') ~ '_end') );
                     
-                    nqp::push(@opargs, $endlbl);
+                    # generate default initialization code. Could also be
+                    # wrapped in another QAST::Block.
+                    my $default_mast := self.as_mast($var.default);
+                    
+                    nqp::die("default initialization result type doesn't match the param type")
+                        unless $default_mast.result_kind == $param_kind;
+                    
+                    # emit param grabbing op
+                    push_op(@pre, $opname, $valreg, $val, $endlbl);
+                    
+                    # emit default initialization code
+                    push_ilist(@pre, $default_mast);
+                
+                    # put the initialization result in the value register
+                    push_op(@pre, 'set', $valreg, $default_mast.result_reg);
+                    
+                    # end label to skip initialization code
+                    nqp::push(@pre, $endlbl);
                 }
-               
-                push_op(@pre, $opname, |@opargs);
+                else {
+                     # emit param grabbing op
+                    push_op(@pre, $opname, $valreg, $val);
+                }
                 
                 # if lexical, emit binding op here.
                 
-                # if optional, emit end label here.
             }
             
             nqp::splice($frame.instructions, @pre, 0, 0);
