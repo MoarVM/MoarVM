@@ -211,10 +211,11 @@ class QAST::MASTCompiler {
     ];
     
     multi method as_mast(QAST::Block $node) {
-        my $outer_frame := $*MAST_FRAME;
+        my $outer_frame := try $*MAST_FRAME;
         
         # Create an empty frame and add it to the compilation unit.
         my $frame := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
+        {
         my $*MAST_FRAME := $frame;
         
         $*MAST_COMPUNIT.add_frame($frame);
@@ -336,6 +337,7 @@ class QAST::MASTCompiler {
                 MAST::IVal.new( :size(16), :value($max_args)));
             nqp::splice($frame.instructions, @pre, 0, 0);
         }
+        }
         
         # return a dummy ilist to the outer.
         # XXX takeclosure ?
@@ -452,7 +454,7 @@ class QAST::MASTCompiler {
             my $outer := 0;
             my $block := $*BLOCK;
             # find the block where the lexical was declared, if any
-            while !($lex := $block.lexical($name)) && ($block := $block.outer) {
+            while !($lex := $block.lexical($name)) && ($block := $block.outer) ~~ BlockInfo {
                 $outer++;
             }
             if $lex {
