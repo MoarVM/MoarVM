@@ -347,3 +347,23 @@ qast_output_is(QAST::Block.new(
     QAST::Op.new( :op('call'), :returns(int),
         QAST::BVal.new( :value($block17) ) )
 ), "bar\n", 'lexical one level up works');
+
+my $block18 := QAST::Block.new(
+    QAST::Var.new( :named("foo"), :name("foo"), :scope('lexical'), :decl('param'), :returns(int),
+        :default(QAST::Stmts.new(
+            QAST::VM.new( :moarop('say_s'),
+                QAST::SVal.new( :value("in init code"))),
+            QAST::IVal.new( :value(444) )
+        ))),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('foo'), :scope('lexical') ) ),
+    QAST::VM.new( :moarop('return_i'),
+        QAST::IVal.new( :value(888) ) ) );
+
+qast_output_is(QAST::Block.new(
+    $block18,
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Op.new( :op('call'), :returns(int),
+            QAST::BVal.new( :value($block18) ),
+            QAST::IVal.new( :named("foo"), :value(0) ) ) )
+), "0\n888\n", 'zero-valued optional arg works');

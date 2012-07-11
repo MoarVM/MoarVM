@@ -215,8 +215,6 @@ class QAST::MASTCompiler {
         
         # Create an empty frame and add it to the compilation unit.
         my $frame := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
-        {
-        my $*MAST_FRAME := $frame;
         
         $*MAST_COMPUNIT.add_frame($frame);
         my $outer    := try $*BLOCK;
@@ -336,7 +334,6 @@ class QAST::MASTCompiler {
                 MAST::IVal.new( :size(16), :value($min_args)),
                 MAST::IVal.new( :size(16), :value($max_args)));
             nqp::splice($frame.instructions, @pre, 0, 0);
-        }
         }
         
         # return a dummy ilist to the outer.
