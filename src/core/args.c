@@ -173,9 +173,6 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
                 MVM_exception_throw_adhoc(tc, "Result return coercion to obj NYI; got type %u", target->return_type);
         }
     }
-    else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return an obj to");
-    }
 }
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
@@ -189,9 +186,6 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion to int NYI; got type %u", target->return_type);
         }
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return an int to");
     }
 }
 void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless) {
@@ -207,9 +201,6 @@ void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 f
                 MVM_exception_throw_adhoc(tc, "Result return coercion to uint NYI; got type %u", target->return_type);
         }
     }
-    else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a uint to");
-    }
 }
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
@@ -224,9 +215,6 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
                 MVM_exception_throw_adhoc(tc, "Result return coercion to num NYI; got type %u", target->return_type);
         }
     }
-    else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a num to");
-    }
 }
 void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
@@ -240,9 +228,6 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion to str NYI; got type %u", target->return_type);
         }
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Could not locate frame to return a str to");
     }
 }
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
