@@ -238,6 +238,8 @@ class MAST::Lexical is MAST::Node {
         nqp::bindattr_i($obj, MAST::Lexical, '$!frames_out', $frames_out);
         $obj
     }
+    
+    method index() { $!index }
 }
 
 # Argument flags.

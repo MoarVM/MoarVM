@@ -88,8 +88,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (operand_target >= cu->num_callsites) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
-                                "Bytecode validation error: callsites index (%u) out of range (0-%u)",
-                                operand_target, cu->num_callsites - 1);
+                                "Bytecode validation error: callsites index (%u) out of range; frame has %u callsites",
+                                operand_target, cu->num_callsites);
                         }
                         break;
                         
@@ -119,8 +119,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (branch_target >= bytecode_size) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
-                                "Bytecode validation error: branch instruction offset (%u) out of range (0-%u)",
-                                branch_target, bytecode_size - 1);
+                                "Bytecode validation error: branch instruction offset (%u) out of range; frame has %u bytes",
+                                branch_target, bytecode_size);
                         }
                         labels[branch_target] |= MVM_val_branch_target;
                         break;
@@ -150,8 +150,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 if (GET_REG(cur_op, 0) >= num_locals) {
                     cleanup_all(tc, labels);
                     MVM_exception_throw_adhoc(tc,
-                        "Bytecode validation error: operand register index (%u) out of range (0-%u) at byte %u",
-                        GET_REG(cur_op, 0), num_locals - 1, cur_op - bytecode_start);
+                        "Bytecode validation error: operand register index (%u) out of range; frame has %u locals; at byte %u",
+                        GET_REG(cur_op, 0), num_locals, cur_op - bytecode_start);
                 }
                 if (op_type == MVM_operand_type_var) {
                     if (operand_type_var) {
@@ -204,8 +204,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 if (idx >= applicable_frame->num_lexicals) {
                     cleanup_all(tc, labels);
                     MVM_exception_throw_adhoc(tc,
-                        "Bytecode validation error: operand lexical index (%u) out of range (0-%u) at byte %u",
-                        idx, applicable_frame->num_lexicals - 1, cur_op - bytecode_start);
+                        "Bytecode validation error: operand lexical index (%u) out of range; frame has %u lexicals; at byte %u",
+                        idx, applicable_frame->num_lexicals, cur_op - bytecode_start);
                 }
 
                 /* XXX Type checks. */

@@ -278,3 +278,59 @@ qast_output_is(QAST::Block.new(
         QAST::Op.new( :op('call'), :returns(int),
             QAST::BVal.new( :value($block6) ) ) )
 ), "in init code\n444\n888\n", 'one optional named local param without an arg works');
+
+############
+
+my $block14 := QAST::Block.new(
+    QAST::Var.new( :named("foo"), :name("foo"), :scope('lexical'), :decl('param'), :returns(int) ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('foo'), :scope('lexical') ) ),
+    QAST::VM.new( :moarop('return_i'),
+        QAST::IVal.new( :value(888) ) ) );
+
+qast_output_is(QAST::Block.new(
+    $block14,
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Op.new( :op('call'), :returns(int),
+            QAST::BVal.new( :value($block14) ),
+            QAST::IVal.new( :named("foo"), :value(777) ) ) )
+), "777\n888\n", 'one required named lexical arg and param works');
+
+my $block15 := QAST::Block.new(
+    QAST::Var.new( :named("foo"), :name("foo"), :scope('lexical'), :decl('param'), :returns(int),
+        :default(QAST::Stmts.new(
+            QAST::VM.new( :moarop('say_s'),
+                QAST::SVal.new( :value("in init code"))),
+            QAST::IVal.new( :value(444) )
+        ))),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('foo'), :scope('lexical') ) ),
+    QAST::VM.new( :moarop('return_i'),
+        QAST::IVal.new( :value(888) ) ) );
+
+qast_output_is(QAST::Block.new(
+    $block15,
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Op.new( :op('call'), :returns(int),
+            QAST::BVal.new( :value($block15) ),
+            QAST::IVal.new( :named("foo"), :value(777) ) ) )
+), "777\n888\n", 'one optional named lexical arg and param works');
+
+my $block16 := QAST::Block.new(
+    QAST::Var.new( :named("foo"), :name("foo"), :scope('lexical'), :decl('param'), :returns(int),
+        :default(QAST::Stmts.new(
+            QAST::VM.new( :moarop('say_s'),
+                QAST::SVal.new( :value("in init code"))),
+            QAST::IVal.new( :value(444) )
+        ))),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('foo'), :scope('lexical') ) ),
+    QAST::VM.new( :moarop('return_i'),
+        QAST::IVal.new( :value(888) ) ) );
+
+qast_output_is(QAST::Block.new(
+    $block16,
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Op.new( :op('call'), :returns(int),
+            QAST::BVal.new( :value($block16) ) ) )
+), "in init code\n444\n888\n", 'one optional named lexical param without an arg works');

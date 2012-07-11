@@ -105,29 +105,33 @@ class QAST::MASTCompiler {
                 self.register_local($var);
             }
             else {
-                nqp::die("NYI");
-                my $reg := '_lex_param_' ~ $!param_idx;
-                $!param_idx := $!param_idx + 1;
-                self.register_lexical($var, $reg);
+                self.add_lexical($var)
             }
             @!params[+@!params] := $var;
         }
         
-        method register_lexical($var) {
+        method add_lexical($var) {
+            my $type := $var.returns // NQPMu;
+            my $kind := $!compiler.type_to_register_kind($type);
+            my $index := $*MAST_FRAME.add_lexical($type, $var.name);
+            self.register_lexical($var, $index, 0, $kind)
+        }
+        
+        method register_lexical($var, $index, $outer, $kind) {
             my $name := $var.name;
-            if nqp::existskey(%!lexical_kinds, $name) {
+            # not entirely sure whether this check should go here or in add_lexical
+            if nqp::existskey(%!lexicals, $name) {
                 nqp::die("Lexical '$name' already declared");
             }
-            my $kind := $!compiler.type_to_register_kind($var.returns // NQPMu);
-            my $lex := MAST::Lexical.new();
+            my $lex := MAST::Lexical.new( :index($index), :frames_out($outer) );
+            %!lexicals{$name} := $lex;
             %!lexical_kinds{$name} := $kind;
-            nqp::die("NYI");
-            # %!lexicals{$name} := $*BLOCKRA."fresh_{nqp::lc($type)}"();
+            $lex;
         }
         
         method register_local($var) {
             my $name := $var.name;
-            if nqp::existskey(%!local_kinds, $name) {
+            if nqp::existskey(%!locals, $name) {
                 nqp::die("Local '$name' already declared");
             }
             my $kind := $!compiler.type_to_register_kind($var.returns // NQPMu);
@@ -183,7 +187,7 @@ class QAST::MASTCompiler {
         'return_o'
     ];
     
-    my @kind_to_param_slot := [
+    my @kind_to_op_slot := [
         0, 0, 0, 0, 0, 1, 1, 2, 3
     ];
     
@@ -266,10 +270,9 @@ class QAST::MASTCompiler {
                     if $scope ne 'lexical' && $scope ne 'local';
                 
                 my $param_kind := self.type_to_register_kind($var.returns // NQPMu);
+                my $opslot := @kind_to_op_slot[$param_kind];
                 
-                my $opname_index := ($var.named ?? 8 !! 0) +
-                    ($var.default ?? 4 !! 0) +
-                    @kind_to_param_slot[$param_kind];
+                my $opname_index := ($var.named ?? 8 !! 0) + ($var.default ?? 4 !! 0) + $opslot;
                 my $opname := @param_opnames[$opname_index];
                 
                 # what will be put in the value register
@@ -283,8 +286,10 @@ class QAST::MASTCompiler {
                     $val := MAST::IVal.new( :size(16), :value($var.arity));
                 }
                 
-                # the value register
-                my $valreg := $block."$scope"($var.name);
+                # the variable register
+                my $valreg := $scope eq 'lexical'
+                    ?? $*REGALLOC.fresh_register($param_kind)
+                    !! $block.local($var.name);
                 
                 # NQP->QAST always provides a default value for optional NQP params
                 # even if no default initializer expression is provided.
@@ -304,8 +309,8 @@ class QAST::MASTCompiler {
                     
                     # emit default initialization code
                     push_ilist(@pre, $default_mast);
-                
-                    # put the initialization result in the value register
+                    
+                    # put the initialization result in the variable register
                     push_op(@pre, 'set', $valreg, $default_mast.result_reg);
                     
                     # end label to skip initialization code
@@ -316,8 +321,10 @@ class QAST::MASTCompiler {
                     push_op(@pre, $opname, $valreg, $val);
                 }
                 
-                # if lexical, emit binding op here.
-                
+                if $scope eq 'lexical' {
+                    # emit the op to bind the lexical to the result register
+                    push_op(@pre, 'bindlex', $block.lexical($var.name), $valreg);
+                }
             }
             
             nqp::splice($frame.instructions, @pre, 0, 0);
@@ -354,10 +361,12 @@ class QAST::MASTCompiler {
             $last_stmt := self.as_mast($_);
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
         }
-        MAST::InstructionList.new(
-            @all_ins,
-            ($last_stmt ?? $last_stmt.result_reg !! MAST::VOID),
-            ($last_stmt ?? $last_stmt.result_kind !! $MVM_reg_void))
+        if $last_stmt {
+            MAST::InstructionList.new(@all_ins, $last_stmt.result_reg, $last_stmt.result_kind);
+        }
+        else {
+            MAST::InstructionList.new(@all_ins, MAST::VOID, $MVM_reg_void);
+        }
     }
     
     multi method as_mast(QAST::Op $node) {
@@ -372,6 +381,17 @@ class QAST::MASTCompiler {
             nqp::die("To compile on the MoarVM backend, QAST::VM must have an alternative 'moarop'");
         }
     }
+    
+    sub check_kinds($a, $b) {
+        nqp::die("register types don't match") unless $a == $b;
+    }
+    
+    my @getlex_n_opnames := [
+        'getlex_ni',
+        'getlex_nn',
+        'getlex_ns',
+        'getlex_no'
+    ];
     
     multi method as_mast(QAST::Var $node) {
         my $scope := $node.scope;
@@ -412,48 +432,54 @@ class QAST::MASTCompiler {
         my $res_reg;
         my $res_kind;
         if $scope eq 'local' {
-            if $*BLOCK.local_kind($name) -> $type {
+            if $*BLOCK.local($name) -> $local {
+                $res_kind := $*BLOCK.local_kind($name);
                 if $*BINDVAL {
                     my $valmast := self.as_mast_clear_bindval($*BINDVAL);
+                    check_kinds($valmast.result_kind, $res_kind);
                     push_ilist(@ins, $valmast);
-                    push_op(@ins, 'set', $*BLOCK.local($name), $valmast.result_reg);
-                    $*REGALLOC.release_register($valmast.result_reg, $valmast.result_kind);
+                    push_op(@ins, 'set', $local, $valmast.result_reg);
+                    $*REGALLOC.release_register($valmast.result_reg, $res_kind);
                 }
-                $res_reg := $*BLOCK.local($name);
-                $res_kind := $*BLOCK.local_kind($name);
+                $res_reg := $local;
             }
             else {
                 nqp::die("Cannot reference undeclared local '$name'");
             }
         }
         elsif $scope eq 'lexical' {
-            # If the lexical is directly declared in this block, we use the
-            # register directly.
-            if $*BLOCK.lexical_type($name) -> $type {
-                my $reg := $*BLOCK.lex_reg($name);
+            my $lex;
+            my $outer := 0;
+            my $block := $*BLOCK;
+            # find the block where the lexical was declared, if any
+            while !($lex := $block.lexical($name)) && ($block := $block.outer) {
+                $outer++;
+            }
+            if $lex {
+                $res_kind := $block.lexical_kind($name);
+                if $outer {
+                    # cache the lexical in this block, also to prevent it being declared
+                    $lex := $*BLOCK.register_lexical($node, $lex.index, $outer, $res_kind);
+                }
                 if $*BINDVAL {
                     my $valmast := self.as_mast_clear_bindval($*BINDVAL);
-                    nqp::die("NYI 1");
-                }
-                $res_reg := $reg;
-            }
-            else {
-                # Does the node have a native type marked on it?
-                my $type := self.type_to_register_kind($node.returns);
-                if $type eq 'P' {
-                    # Consider the blocks for a declared native type.
-                    # XXX TODO
-                }
-                
-                # Emit the lookup or bind.
-                if $*BINDVAL {
-                    my $valpost := self.as_mast_clear_bindval($*BINDVAL);
-                    nqp::die("NYI 2");
+                    check_kinds($valmast.result_kind, $res_kind);
+                    $res_reg := $valmast.result_reg;
+                    push_ilist(@ins, $valmast);
+                    push_op(@ins, 'bindlex', $lex, $res_reg);
                 }
                 else {
-                    my $res_reg := $*REGALLOC."fresh_{nqp::lc($type)}"();
-                    $nqp::die("NYI 3");
+                    $res_reg := $*REGALLOC.fresh_register($res_kind);
+                    push_op(@ins, 'getlex', $res_reg, $lex);
                 }
+            }
+            else {
+                nqp::die("Missing lexical QAST::Var at least needs to know what type it should be")
+                    unless $node.returns;
+                $res_kind := self.type_to_register_kind($node.returns);
+                $res_reg := $*REGALLOC.fresh_register($res_kind);
+                push_op(@ins, @getlex_n_opnames[@kind_to_op_slot[$res_kind]],
+                    $res_reg, MAST::SVal.new( :value($name) ));
             }
         }
         elsif $scope eq 'attribute' {
