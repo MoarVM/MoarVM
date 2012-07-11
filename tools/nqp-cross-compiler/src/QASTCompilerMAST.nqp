@@ -146,6 +146,7 @@ class QAST::MASTCompiler {
         
         method qast() { $!qast }
         method outer() { $!outer }
+        method lexical($name) { %!lexicals{$name} }
         method lexicals() { %!lexicals }
         method local($name) { %!locals{$name} }
         method local_kind($name) { %!local_kinds{$name} }
@@ -258,39 +259,44 @@ class QAST::MASTCompiler {
             # build up instructions to bind the params
             for $block.params -> $var {
                 
-                # NQP->QAST always provides a default value for optional NQP params
-                # even if no default initializer expression is provided.
-                my $optional := $var.default;
-                $max_args++;
+                $max_args++ unless $var.named;
+                
+                my $scope := $var.scope;
+                nqp::die("Param scope must be 'local' or 'lexical'")
+                    if $scope ne 'lexical' && $scope ne 'local';
                 
                 my $param_kind := self.type_to_register_kind($var.returns // NQPMu);
                 
                 my $opname_index := ($var.named ?? 8 !! 0) +
-                    ($optional ?? 4 !! 0) +
+                    ($var.default ?? 4 !! 0) +
                     @kind_to_param_slot[$param_kind];
                 my $opname := @param_opnames[$opname_index];
                 
-                if $optional {
-                    $opname_index := $opname_index + 4;
-                    nqp::die("optional params NYI");
+                my $val;
+                
+                if $var.named {
+                    $val := MAST::SVal.new( :value($var.named) );
                 }
-                else {
+                else { # positional
                     $min_args++;
-                    
-                    if $var.scope eq 'local' {
-                        if $var.named {
-                            nqp::die("named local params NYI");
-                        }
-                        else { # positional
-                            push_op(@pre, $opname,
-                                $block.local($var.name),
-                                MAST::IVal.new( :size(16), :value($var.arity)));
-                        }
-                    }
-                    else {
-                        nqp::die("lexical params NYI");
-                    }
+                    $val := MAST::IVal.new( :size(16), :value($var.arity));
                 }
+                
+                my @opargs := [$block."$scope"($var.name), $val];
+                
+                # NQP->QAST always provides a default value for optional NQP params
+                # even if no default initializer expression is provided.
+                if $var.default { #optional
+                    my $endlbl;
+                    
+                    nqp::push(@opargs, $endlbl);
+                }
+               
+                push_op(@pre, $opname, |@opargs);
+                
+                # if lexical, emit binding op here.
+                
+                # if optional, emit end label here.
             }
             
             nqp::splice($frame.instructions, @pre, 0, 0);
@@ -327,7 +333,10 @@ class QAST::MASTCompiler {
             $last_stmt := self.as_mast($_);
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
         }
-        MAST::InstructionList.new(@all_ins, $last_stmt.result_reg, $last_stmt.result_kind)
+        MAST::InstructionList.new(
+            @all_ins,
+            ($last_stmt ?? $last_stmt.result_reg !! MAST::VOID),
+            ($last_stmt ?? $last_stmt.result_kind !! $MVM_reg_void))
     }
     
     multi method as_mast(QAST::Op $node) {

@@ -448,11 +448,8 @@ sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
         }
     }
     elsif $arg.named -> $name {
-        nqp::die("arg name is not a QAST::SVal")
-            unless $name && ($name ~~ QAST::SVal);
-        
         # add in the extra arg for the name
-        nqp::push(@arg_regs, MAST::SVal.new( value => $name.value ));
+        nqp::push(@arg_regs, MAST::SVal.new( value => $name ));
         
         $result_typeflag := $result_typeflag +| $Arg::named;
     }
