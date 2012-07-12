@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(25);
+plan(26);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -373,4 +373,21 @@ qast_output_is(QAST::Block.new(
         QAST::Op.new( :op('callmethod'), :returns(str), :name('name'),
             QAST::Var.new( :name('how'), :scope('local') ),
             QAST::Var.new( :name('knowhow'), :scope('local') ) ) )
-), "KnowHOW", "method call with zero args works");
+), "KnowHOW\n", "method call with zero args works");
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( :op('bind'),
+        QAST::Var.new( :name('knowhow'), :scope('local'), :decl('var') ),
+        QAST::VM.new( :moarop('knowhow') )),
+    QAST::Op.new( :op('bind'),
+        QAST::Var.new( :name('how'), :scope('local'), :decl('var') ),
+        QAST::VM.new( :moarop('gethow'),
+            QAST::Var.new( :name('knowhow'), :scope('local'))) ),
+    QAST::VM.new( :moarop('say_s'),
+        QAST::Op.new( :op('callmethod'), :returns(str),
+            QAST::Var.new( :name('how'), :scope('local') ),
+            QAST::VM.new( :moarop('concat_s'),
+                QAST::SVal.new( :value('na') ),
+                QAST::SVal.new( :value('me') ) ),
+            QAST::Var.new( :name('knowhow'), :scope('local') ) ) )
+), "KnowHOW\n", "method call by string name with zero args works");
