@@ -278,7 +278,7 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     memset(result, 0, sizeof(MVMint32) * length);
     while (i < length && (arr = utf8_encode(arr, str->body.data[i++])));
     if (!arr)
-        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d", i - 1);
+        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d with codepoint %u", i - 1, str->body.data[i-1]);
     *output_size = (MVMuint64)(arr ? arr - result : 0);
     return result;
 }
