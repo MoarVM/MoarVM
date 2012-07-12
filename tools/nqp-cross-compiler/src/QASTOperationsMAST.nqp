@@ -489,14 +489,16 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     # the args' flags in the protocol the MAST compiler expects
     my @arg_flags := nqp::list();
     
+    # Append the code to evaluate the callee expression
+    push_ilist(@ins, $callee);
+    
     # Process arguments.
     for @args {
         handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
     }
     
-    # Figure out result register type and allocate a register for it.
-    my $res_kind := $qastcomp.type_to_register_kind($op.returns // NQPMu);
-    my $res_reg := $*REGALLOC.fresh_register($res_kind);
+    # Release the callee's result register
+    $*REGALLOC.release_register($callee.result_reg, $MVM_reg_obj);
     
     # Release each arg's result register
     my $arg_num := 0;
@@ -507,8 +509,11 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
         }
     }
     
-    # Append the code to evaluate the callee expression
-    push_ilist(@ins, $callee);
+    # Figure out result register type
+    my $res_kind := $qastcomp.type_to_register_kind($op.returns // NQPMu);
+    
+    # and allocate a register for it. Probably reuse an arg's or the callee's.
+    my $res_reg := $*REGALLOC.fresh_register($res_kind);
     
     # Generate call.
     nqp::push(@ins, MAST::Call.new(
@@ -516,6 +521,101 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
         :flags(@arg_flags),
         |@arg_regs,
         :result($res_reg)
+    ));
+    
+    MAST::InstructionList.new(@ins, $res_reg, $res_kind)
+});
+
+QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
+    my @args := $op.list;
+    if +@args == 0 {
+        pir::die('Method call node requires at least one child');
+    }
+    my $invocant := $qastcomp.as_mast(@args.shift());
+    my $methodname_expr;
+    if $op.name {
+        # great!
+    }
+    elsif +@args >= 1 {
+        $methodname_expr := @args.shift();
+    }
+    else {
+        nqp::die("Method call must either supply a name or have a child node that evaluates to the name");
+    }
+    
+    nqp::die("invocant expression must be an object")
+        unless $invocant.result_kind == $MVM_reg_obj;
+    
+    nqp::die("invocant code did not result in a MAST::Local")
+        unless $invocant.result_reg && $invocant.result_reg ~~ MAST::Local;
+    
+    # main instruction list
+    my @ins := [];
+    # the result MAST::Locals of the arg expressions
+    my @arg_regs := [$invocant.result_reg];
+    # the result kind codes of the arg expressions
+    my @arg_kinds := [$MVM_reg_obj];
+    # the args' flags in the protocol the MAST compiler expects
+    my @arg_flags := [$Arg::obj];
+    
+    # evaluate the invocant expression
+    push_ilist(@ins, $invocant);
+    
+    # Process arguments.
+    for @args {
+        handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
+    }
+    
+    # generate and emit findmethod code
+    my $callee_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+    
+    # This will hold the 3rd argument to findmeth(_s) - the method name
+    # either a MAST::SVal or an $MVM_reg_str
+    my $method_name;
+    if $op.name {
+        $method_name := MAST::SVal.new( :value($op.name) );
+    }
+    else {
+        my $method_name_ilist := $qastcomp.as_mast($methodname_expr);
+        # this check may not be necessary (enforced by the HLL grammar)
+        nqp::die("method name expression must result in a string")
+            unless $method_name_ilist.result_kind == $MVM_reg_str;
+        push_ilist(@ins, $method_name_ilist);
+        $method_name := $method_name_ilist.result_reg;
+    }
+    
+    # push the op that finds the method based on either the provided name
+    # or the provided name-producing expression.
+    push_op(@ins, ($op.name ?? 'findmeth' !! 'findmeth_s'),
+        $callee_reg, $invocant.result_reg, $method_name);
+    
+    # release the method name register if we used one
+    $*REGALLOC.release_register($method_name, $MVM_reg_str) unless $op.name;
+    
+    # release the callee register
+    $*REGALLOC.release_register($callee_reg, $MVM_reg_obj);
+    
+    # Release the invocant's and each arg's result registers
+    my $arg_num := 0;
+    for @arg_regs -> $reg {
+        if $reg ~~ MAST::Local {
+            $*REGALLOC.release_register($reg, @arg_kinds[$arg_num]);
+            $arg_num++;
+        }
+    }
+    
+    # Figure out expected result register type
+    my $res_kind := $qastcomp.type_to_register_kind($op.returns // NQPMu);
+    
+    # and allocate a register for it. Probably reuse an arg's or the invocant's.
+    my $res_reg := $*REGALLOC.fresh_register($res_kind);
+    
+    # Generate call.
+    nqp::push(@ins, MAST::Call.new(
+        :target($callee_reg),
+        :result($res_reg),
+        :flags(@arg_flags),
+        |@arg_regs
     ));
     
     MAST::InstructionList.new(@ins, $res_reg, $res_kind)

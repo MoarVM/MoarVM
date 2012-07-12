@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(24);
+plan(25);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -360,3 +360,17 @@ qast_output_is(QAST::Block.new(
             QAST::BVal.new( :value($block18) ),
             QAST::IVal.new( :named("foo"), :value(0) ) ) )
 ), "0\n888\n", 'zero-valued optional arg works');
+
+qast_output_is(QAST::Block.new(
+    QAST::Op.new( :op('bind'),
+        QAST::Var.new( :name('knowhow'), :scope('local'), :decl('var') ),
+        QAST::VM.new( :moarop('knowhow') )),
+    QAST::Op.new( :op('bind'),
+        QAST::Var.new( :name('how'), :scope('local'), :decl('var') ),
+        QAST::VM.new( :moarop('gethow'),
+            QAST::Var.new( :name('knowhow'), :scope('local'))) ),
+    QAST::VM.new( :moarop('say_s'),
+        QAST::Op.new( :op('callmethod'), :returns(str), :name('name'),
+            QAST::Var.new( :name('how'), :scope('local') ),
+            QAST::Var.new( :name('knowhow'), :scope('local') ) ) )
+), "KnowHOW", "method call with zero args works");
