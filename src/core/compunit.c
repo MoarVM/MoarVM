@@ -267,11 +267,11 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         break;
                     case MVM_operand_callsite:
                         operand_size = 2;
-                        a("callsite_%u", GET_UI16(cur_op, 0));
+                        a("Callsite_%u", GET_UI16(cur_op, 0));
                         break;
                     case MVM_operand_coderef:
                         operand_size = 2;
-                        a("coderef_%u", GET_UI16(cur_op, 0));
+                        a("Frame_%u", GET_UI16(cur_op, 0));
                         break;
                     case MVM_operand_str:
                         operand_size = 2;
