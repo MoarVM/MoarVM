@@ -12,6 +12,7 @@
 #include <apr_strings.h>
 #include <apr_portable.h>
 #include <apr_env.h>
+#include <apr_getopt.h>
 
 /* Configuration. */
 #include "gen/config.h"
@@ -48,4 +49,5 @@
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);
 void MVM_vm_run_file(MVMInstance *instance, char *filename);
+void MVM_vm_dump_file(MVMInstance *instance, char *filename);
 void MVM_vm_destroy_instance(MVMInstance *instance);

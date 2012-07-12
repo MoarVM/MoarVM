@@ -59,7 +59,15 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     
     /* Run the first frame. */
     MVM_interp_run(tc, cu->frames[0]);
-    /* printf("%s", MVM_cu_dump(tc, cu)); */
+}
+
+/* Loads bytecode from the specified file name and dumps it. */
+void MVM_vm_dump_file(MVMInstance *instance, char *filename) {
+    /* Map the compilation unit into memory and dissect it. */
+    MVMThreadContext *tc = instance->threads[0];
+    MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
+    
+    printf("%s", MVM_cu_dump(tc, cu));
 }
 
 /* Destroys a VM instance. */
