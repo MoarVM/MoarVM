@@ -59,6 +59,7 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     
     /* Run the first frame. */
     MVM_interp_run(tc, cu->frames[0]);
+    /* printf("%s", MVM_cu_dump(tc, cu)); */
 }
 
 /* Destroys a VM instance. */

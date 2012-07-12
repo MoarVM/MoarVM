@@ -30,3 +30,5 @@ typedef struct _MVMCompUnit {
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);
+
+char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu);
