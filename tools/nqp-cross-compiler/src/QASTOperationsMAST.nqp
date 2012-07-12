@@ -126,12 +126,22 @@ class QAST::MASTOperations {
             nqp::die("Arg count doesn't equal required operand count for op '$op'");
         }
         
+        if ($op eq 'return') {
+            $*BLOCK.return_kind($MVM_reg_void);
+        }
+        
+        my $arg_num := 0;
         # Compile provided args.
         for @args {
             my $arg := $qastcomp.as_mast($_);
             my $operand := @operands[$operand_num++];
             my $arg_kind := $arg.result_kind;
             
+            if $arg_num == 0 && nqp::substr($op, 0, 7) eq 'return_' {
+                $*BLOCK.return_kind($arg.result_kind);
+            }
+            $arg_num++;
+        
             # args cannot be void
             if $arg_kind == $MVM_reg_void {
                 nqp::die("Cannot use a void register as an argument to op '$op'");
@@ -529,7 +539,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
 QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     my @args := $op.list;
     if +@args == 0 {
-        pir::die('Method call node requires at least one child');
+        nqp::die('Method call node requires at least one child');
     }
     my $invocant := $qastcomp.as_mast(@args.shift());
     my $methodname_expr;
@@ -567,7 +577,7 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     }
     
     # generate and emit findmethod code
-    my $callee_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+    my $callee_reg := $*REGALLOC.fresh_o();
     
     # This will hold the 3rd argument to findmeth(_s) - the method name
     # either a MAST::SVal or an $MVM_reg_str

@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(26);
+plan(28);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -391,3 +391,38 @@ qast_output_is(QAST::Block.new(
                 QAST::SVal.new( :value('me') ) ),
             QAST::Var.new( :name('knowhow'), :scope('local') ) ) )
 ), "KnowHOW\n", "method call by string name with zero args works");
+
+qast_output_is(QAST::Block.new(
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Stmt.new( :resultchild(1),
+            QAST::IVal.new( :value(3) ),
+            QAST::IVal.new( :value(4) ),
+            QAST::IVal.new( :value(5) ) ) ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Stmts.new( :resultchild(0),
+            QAST::IVal.new( :value(1) ),
+            QAST::IVal.new( :value(2) ) ) )
+), "4\n1\n", "resultchild works with QAST Stmt and Stmts");
+
+qast_output_is(
+    QAST::Block.new(
+        QAST::Op.new(
+            :op('bind'),
+            QAST::Var.new( :name('$x'), :scope('lexical'), :decl('var'), :returns(int) ),
+            QAST::IVal.new( :value(444) )
+        ),
+        QAST::Block.new(
+            :blocktype('immediate'),
+            QAST::Op.new(
+                :op('bind'),
+                QAST::Var.new( :name('$x'), :scope('lexical') ),
+                QAST::IVal.new( :value(555) )
+            )
+        ),
+        QAST::VM.new(
+            :moarop('say_i'),
+            QAST::Var.new( :name('$x'), :scope('lexical') )
+        )
+    ),
+    "555\n",
+    'lexical binding in a nested block');

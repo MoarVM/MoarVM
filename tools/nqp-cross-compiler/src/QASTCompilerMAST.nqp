@@ -83,6 +83,7 @@ class QAST::MASTCompiler {
         has int $!param_idx;        # Current lexical parameter index
         has $!compiler;             # The QAST::MASTCompiler
         has @!params;               # List of QAST::Var param nodes
+        has $!return_kind;          # kind of return, tracked while emitting
         
         method new($qast, $outer, $compiler) {
             my $obj := nqp::create(self);
@@ -148,6 +149,16 @@ class QAST::MASTCompiler {
             nqp::existskey(%!local_names_by_index, $local.index)
         }
         
+        method return_kind(*@value) {
+            if @value {
+                nqp::die("inconsistent immediate block return type")
+                    if $!qast.blocktype eq 'immediate' &&
+                        nqp::defined($!return_kind) && @value[0] != $!return_kind;
+                $!return_kind := @value[0];
+            }
+            $!return_kind
+        }
+        
         method qast() { $!qast }
         method outer() { $!outer }
         method lexical($name) { %!lexicals{$name} }
@@ -210,32 +221,47 @@ class QAST::MASTCompiler {
         'param_on_o'
     ];
     
+    my @return_types := [
+        NQPMu,
+        int,
+        int,
+        int,
+        int,
+        num,
+        num,
+        str,
+        NQPMu
+    ];
+    
     multi method as_mast(QAST::Block $node) {
         my $outer_frame := try $*MAST_FRAME;
         
         # Create an empty frame and add it to the compilation unit.
-        my $frame := MAST::Frame.new(:name('xxx'), :cuuid('yyy'));
+        my $frame := MAST::Frame.new(
+            :name(self.unique('frame_name_')),
+            :cuuid(self.unique('frame_cuuid_')));
         
         $*MAST_COMPUNIT.add_frame($frame);
         my $outer    := try $*BLOCK;
         my $block    := BlockInfo.new($node, $outer, self);
-        my $*BINDVAL := 0;
         my $cuid     := $node.cuid();
         
         # stash the frame by the block's cuid so other references
         # by this block can find it.
         %*MAST_FRAMES{$cuid} := $frame;
         
-        # Create a register allocator for this frame.
-        my $*REGALLOC := RegAlloc.new($frame);
-        
         # set the outer if it exists
         $frame.set_outer($outer_frame)
             if $outer_frame && $outer_frame ~~ MAST::Frame;
-
+        
         # Compile all the substatements.
         my $ins;
         {
+            my $*BINDVAL := 0;
+            
+            # Create a register allocator for this frame.
+            my $*REGALLOC := RegAlloc.new($frame);
+        
             my $*BLOCK := $block;
             my $*MAST_FRAME := $frame;
             $ins := self.compile_all_the_stmts(@($node));
@@ -243,6 +269,7 @@ class QAST::MASTCompiler {
             # Add to instructions list for this block.
             nqp::splice($frame.instructions, $ins.instructions, 0, 0);
             
+            $block.return_kind($ins.result_kind);
             # generate a return statement
             # get the return op name
             my $ret_op := @return_opnames[$ins.result_kind];
@@ -329,6 +356,7 @@ class QAST::MASTCompiler {
             nqp::splice($frame.instructions, @pre, 0, 0);
             @pre := nqp::list();
             
+            # XXX make $max_args MAX_UINT16 if there's a slurpy
             # check the arity 
             push_op(@pre, 'checkarity',
                 MAST::IVal.new( :size(16), :value($min_args)),
@@ -336,32 +364,50 @@ class QAST::MASTCompiler {
             nqp::splice($frame.instructions, @pre, 0, 0);
         }
         
-        # return a dummy ilist to the outer.
-        # XXX takeclosure ?
+        if $node.blocktype eq 'immediate' {
+            my $call_mast := self.as_mast(
+                QAST::Op.new( :op('call'),
+                    :returns(@return_types[$block.return_kind]),
+                    QAST::BVal.new( :value($node) ) ) );
+            return $call_mast;
+        }
+        
         MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void)
     }
     
     multi method as_mast(QAST::Stmts $node) {
-        self.compile_all_the_stmts(@($node))
+        my $resultchild := $node.resultchild;
+        nqp::die("resultchild out of range")
+            if (nqp::defined($resultchild) && $resultchild >= +@($node));
+        self.compile_all_the_stmts(@($node), $resultchild)
     }
     
     multi method as_mast(QAST::Stmt $node) {
-        self.compile_all_the_stmts(@($node))
+        my $resultchild := $node.resultchild;
+        nqp::die("resultchild out of range")
+            if (nqp::defined($resultchild) && $resultchild >= +@($node));
+        self.compile_all_the_stmts(@($node), $resultchild)
     }
     
     # This takes any node that is a statement list of some kind and compiles
     # all of the statements within it.
-    method compile_all_the_stmts(@stmts) {
+    method compile_all_the_stmts(@stmts, $resultchild?) {
         my @all_ins;
         my $last_stmt;
+        my $result_stmt;
+        my $result_count := 0;
         for @stmts {
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
             $last_stmt := self.as_mast($_);
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
+            $result_stmt := $last_stmt
+                if !nqp::defined($resultchild) ||
+                    nqp::defined($resultchild) && $result_count == $resultchild;
+            $result_count++;
         }
-        if $last_stmt {
-            MAST::InstructionList.new(@all_ins, $last_stmt.result_reg, $last_stmt.result_kind);
+        if $result_stmt {
+            MAST::InstructionList.new(@all_ins, $result_stmt.result_reg, $result_stmt.result_kind);
         }
         else {
             MAST::InstructionList.new(@all_ins, MAST::VOID, $MVM_reg_void);

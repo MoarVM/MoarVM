@@ -14,7 +14,7 @@ DONE implement QAST::Op.new( :op('call'), ... )
 DONE The case where there's no :name(...) so the first child is the thing to invoke.
 DONE Note that in MAST, blocks can't contain blocks, so each newly encountered block needs to
 DONE add_frame to the MAST compilation unit.
-You can probably get immediate (blocktype) blocks to be called automatically.
+DONE You can probably get immediate (blocktype) blocks to be called automatically.
 I guess even declarations (default blocktype) of blocks can work too
 
 DONE Var 'param'
