@@ -300,3 +300,25 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
     return (MVMint64)apr_time_now();
 }
+
+MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
+    MVMInstance *instance = tc->instance;
+    if (!instance->clargs) {
+        MVMObject *clargs = REPR(tc->instance->boot_types->BOOTArray)->allocate(
+            tc, STABLE(tc->instance->boot_types->BOOTArray));
+        MVMint64 count;
+        
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&clargs);
+        
+        for (count = 0; count < instance->num_clargs; count++) {
+            char *raw = instance->raw_clargs[count];
+            MVMString *string = MVM_string_utf8_decode(tc,
+                tc->instance->boot_types->BOOTStr,
+                instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
+            REPR(clargs)->pos_funcs->push_boxed(tc, STABLE(clargs), clargs,
+                            OBJECT_BODY(clargs), (MVMObject *)string);
+        }
+        instance->clargs = clargs;
+    }
+    return instance->clargs;
+}

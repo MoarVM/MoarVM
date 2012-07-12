@@ -2191,6 +2191,12 @@ class MAST::Ops {
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_int64
             ]
+        ),
+        'clargs', nqp::hash(
+            'code', 25,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj
+            ]
         )
     );
 }

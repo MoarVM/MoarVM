@@ -54,10 +54,9 @@ int main(int argc, const char *argv[]) {
     }
     input_file = (char *)opt->argv[processed_args++];
     
-    while (processed_args < argc) {
-        /* XXX do something with the trailing args */
-        const char *arg_str = opt->argv[processed_args++];
-    }
+    /* stash the rest of the raw command line args in the instance */
+    instance->num_clargs = argc - processed_args;
+    instance->raw_clargs = (char **)(opt->argv + processed_args);
     
     if (dump) {
         MVM_vm_dump_file(instance, input_file);

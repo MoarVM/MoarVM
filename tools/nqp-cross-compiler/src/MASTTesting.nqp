@@ -43,7 +43,7 @@ our sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) {
 
     # Invoke and redirect output to a file.
     my $start := nqp::time_n();
-    pir::spawnw__Is("$moarvm temp.moarvm > temp.output");
+    pir::spawnw__Is("$moarvm temp.moarvm foobar foobaz > temp.output");
     my $end := nqp::time_n();
     
     # Read it and check it is OK.

@@ -892,6 +892,14 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = IS_CONCRETE(GET_REG(cur_op, 2).o) ? 1 : 0;
                         cur_op += 4;
                         break;
+                    case MVM_OP_atpos_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).s = (MVMString *)REPR(obj)->pos_funcs->at_pos_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_atpos_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->at_pos_boxed(tc,
@@ -1193,6 +1201,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         break;
                     case MVM_OP_time_i:
                         GET_REG(cur_op, 0).i64 = MVM_proc_time_i(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_clargs:
+                        GET_REG(cur_op, 0).o = MVM_proc_clargs(tc);
                         cur_op += 2;
                         break;
                     default: {
