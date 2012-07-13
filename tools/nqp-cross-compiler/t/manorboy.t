@@ -46,7 +46,7 @@ while $i <= $test_depth {
                 lex('$k'),
                 QAST::IVal.new( :value(1) ) ) ),
         ($fixupAcall := QAST::Op.new(
-            :op('call'),
+            :op('call'), :returns(int),
             NQPMu, # will be fixed up later
             lex('$k'),
             lex('&B'),
