@@ -35,8 +35,6 @@ while $i <= $test_depth {
             QAST::BVal.new( :value($Ksub) ) )
     );
     
-    my $fixupAcall; # because A is recursive...
-    
     my $Bsub := QAST::Block.new(
         QAST::Op.new(
             :op('bind'),
@@ -45,15 +43,15 @@ while $i <= $test_depth {
                 :moarop('sub_i'),
                 lex('$k'),
                 QAST::IVal.new( :value(1) ) ) ),
-        ($fixupAcall := QAST::Op.new(
+        QAST::Op.new(
             :op('call'), :returns(int),
-            NQPMu, # will be fixed up later
+            lex('&A'),
             lex('$k'),
             lex('&B'),
             lex('$x1'),
             lex('$x2'),
             lex('$x3'),
-            lex('$x4') ) )
+            lex('$x4') )
     );
     
     my $A := QAST::Block.new(
@@ -91,24 +89,33 @@ while $i <= $test_depth {
                 lex('&B') ) )
     );
     
-    # tricksy
-    @($fixupAcall)[0] := QAST::BVal.new( :value($A) );
-    
     sub Kcall($val) {
         QAST::Op.new(
             :op('call'),
-            QAST::BVal.new( :value($K) ),
+            lex('&K'),
             QAST::IVal.new( :value($val) ) )
     }
     
     my $main := QAST::Block.new(
+        QAST::Var.new( :name('&K'), :scope('lexical'), :decl('var') ),
+        QAST::Var.new( :name('&A'), :scope('lexical'), :decl('var') ),
         $K,
         $A,
+        QAST::Op.new(
+            :op('bind'),
+            lex('&K'),
+            QAST::VM.new( :moarop('takeclosure'), QAST::BVal.new( :value($K) ) )
+        ),
+        QAST::Op.new(
+            :op('bind'),
+            lex('&A'),
+            QAST::VM.new( :moarop('takeclosure'), QAST::BVal.new( :value($A) ) )
+        ),
         QAST::VM.new(
             :moarop('say_i'),
             QAST::Op.new(
                 :op('call'), :returns(int),
-                QAST::BVal.new( :value($A) ),
+                lex('&A'),
                 QAST::IVal.new( :value($i) ), # <-- here is the loop variable
                 Kcall(1), Kcall(-1), Kcall(-1), Kcall(1), Kcall(0) ) )
     );
