@@ -80,6 +80,7 @@ class QAST::MASTCompiler {
         has %!local_kinds;          # Mapping of local registers to kinds
         has %!lexicals;             # Mapping of lexical names to lexicals
         has %!lexical_kinds;        # Mapping of lexical names to kinds
+        has %!lexical_params;       # Mapping of lexical param names to their initial result reg
         has int $!param_idx;        # Current lexical parameter index
         has $!compiler;             # The QAST::MASTCompiler
         has @!params;               # List of QAST::Var param nodes
@@ -98,20 +99,24 @@ class QAST::MASTCompiler {
         }
         
         method add_param($var) {
+            @!params[+@!params] := $var;
             if $var.scope eq 'local' {
                 self.register_local($var);
             }
             else {
-                self.add_lexical($var)
+                my $res_kind := self.add_lexical($var);
+                my $res_reg := $*REGALLOC.fresh_register($res_kind);
+                %!lexical_params{$var.name} := $res_reg;
+                [$res_kind, $res_reg]
             }
-            @!params[+@!params] := $var;
         }
         
         method add_lexical($var) {
             my $type := $var.returns // NQPMu;
             my $kind := $!compiler.type_to_register_kind($type);
             my $index := $*MAST_FRAME.add_lexical($type, $var.name);
-            self.register_lexical($var, $index, 0, $kind)
+            self.register_lexical($var, $index, 0, $kind);
+            $kind;
         }
         
         method register_lexical($var, $index, $outer, $kind) {
@@ -163,6 +168,7 @@ class QAST::MASTCompiler {
         method local_kind($name) { %!local_kinds{$name} }
         method lexical_kind($name) { %!lexical_kinds{$name} }
         method params() { @!params }
+        method lexical_param($name) { %!lexical_params{$name} }
     }
     
     our $serno := 0;
@@ -311,7 +317,7 @@ class QAST::MASTCompiler {
                 
                 # the variable register
                 my $valreg := $scope eq 'lexical'
-                    ?? $*REGALLOC.fresh_register($param_kind)
+                    ?? $block.lexical_param($var.name)
                     !! $block.local($var.name);
                 
                 # NQP->QAST always provides a default value for optional NQP params
@@ -440,14 +446,22 @@ class QAST::MASTCompiler {
         my $scope := $node.scope;
         my $decl  := $node.decl;
         
+        my $res_reg;
+        my $res_kind;
+        
         # Handle any declarations; after this, we call through to the
         # lookup code.
         if $decl {
             # If it's a parameter, add it to the things we should bind
             # at block entry.
             if $decl eq 'param' {
-                if $scope eq 'local' || $scope eq 'lexical' {
+                if $scope eq 'local' {
                     $*BLOCK.add_param($node);
+                }
+                elsif $scope eq 'lexical' {
+                    my @details := $*BLOCK.add_param($node);
+                    $res_kind := @details[0];
+                    $res_reg := @details[1];
                 }
                 else {
                     nqp::die("Parameter cannot have scope '$scope'; use 'local' or 'lexical'");
@@ -472,8 +486,6 @@ class QAST::MASTCompiler {
         # Now go by scope.
         my $name := $node.name;
         my @ins;
-        my $res_reg;
-        my $res_kind;
         if $scope eq 'local' {
             if $*BLOCK.local($name) -> $local {
                 $res_kind := $*BLOCK.local_kind($name);
@@ -512,10 +524,11 @@ class QAST::MASTCompiler {
                     push_op(@ins, 'bindlex', $lex, $res_reg);
                     $*REGALLOC.release_register($res_reg, $valmast.result_kind);
                 }
-                else {
+                elsif $decl ne 'param' {
                     $res_reg := $*REGALLOC.fresh_register($res_kind);
                     push_op(@ins, 'getlex', $res_reg, $lex);
                 }
+                # for lexical params, the res_reg and res_kind were preset above.
             }
             else {
                 nqp::die("Missing lexical $name at least needs to know what type it should be")
