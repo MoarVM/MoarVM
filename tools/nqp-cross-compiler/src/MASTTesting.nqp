@@ -5,6 +5,7 @@ my $moarvm;
 my $del;
 my $copy;
 my $outputnull;
+my $quote;
 pir::spawnw__Is("del /? >temp.output 2>&1");
 my $out := slurp('temp.output');
 if (!($out ~~ /Extensions/)) {
@@ -13,13 +14,18 @@ if (!($out ~~ /Extensions/)) {
     $del := 'rm -f';
     $copy := 'cp';
     $outputnull := '/dev/null';
+    $quote := "'";
 }
 else {
     $moarvm := '..\\..\\moarvm';
     $del := 'del /Q';
     $copy := 'copy /Y';
     $outputnull := 'NUL';
+    $quote := '"';
 }
+
+my $env := pir::new__Ps('Env');
+my $DEBUG := $env<MVMDEBUG>;
 
 our sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx) {
     # Create frame
@@ -37,13 +43,16 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx
 
 our sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) {
     
+    my $desc_file := $DEBUG ?? nqp::join('', match($desc, /(\w | ' ')+/, :global)) !! '';
+    
     # Compile it.
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
-    #pir::spawnw__Is("$copy temp.moarvm \"$desc.moarvm\" >$outputnull");
+    pir::spawnw__Is("$copy temp.moarvm $quote$desc_file.moarvm$quote >$outputnull") if $DEBUG;
 
     # Invoke and redirect output to a file.
     my $start := nqp::time_n();
     pir::spawnw__Is("$moarvm temp.moarvm foobar foobaz > temp.output");
+    pir::spawnw__Is("$moarvm --dump temp.moarvm > $quote$desc_file.mvmdump$quote") if $DEBUG;
     my $end := nqp::time_n();
     
     # Read it and check it is OK.
