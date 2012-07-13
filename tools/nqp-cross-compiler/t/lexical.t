@@ -158,4 +158,4 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
     },
     "Bearnaisesås\n",
-    "Lexical lookup/binding by name");
+    "Lexical lookup and binding by name");
