@@ -528,7 +528,18 @@ class QAST::MASTCompiler {
                     $res_reg := $*REGALLOC.fresh_register($res_kind);
                     push_op(@ins, 'getlex', $res_reg, $lex);
                 }
-                # for lexical params, the res_reg and res_kind were preset above.
+                else {
+                    # for lexical param declarations, we don't actually have a result value,
+                    # since the param bindlex may be stale by the time the result register
+                    # could be used, since the bindlex always occurs at the very top,
+                    # so turn around and release the temp register already preallocated.
+                    $*REGALLOC.release_register($res_reg, $res_kind);
+                    # because of the above, enforce that non-binding lexical parameter declarations are void.
+                    # binding parameter declarations are silly, but theoretically they are valid,
+                    # since they have a register they are assigning *from*
+                    $res_reg := MAST::VOID;
+                    $res_kind := $MVM_reg_void;
+                }
             }
             else {
                 nqp::die("Missing lexical $name at least needs to know what type it should be")
