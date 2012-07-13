@@ -59,7 +59,8 @@ static void append_string(char **out, MVMuint32 *size,
     
     len = strlen(string);
     if (*length + len > *size) {
-        *size = *size * 2;
+        while (*length + len > *size)
+            *size = *size * 2;
         *out = realloc(*out, *size);
     }
     
@@ -199,8 +200,8 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* positions in the bytestream that are starts of ops and goto targets */
     MVMuint8 *labels = calloc(bytecode_size, 1);
     MVMuint32 *jumps = calloc(sizeof(MVMuint32) * bytecode_size, 1);
-    char **lines = malloc(sizeof(char *) * bytecode_size / 2);
-    MVMuint32 *linelocs = malloc(bytecode_size / 2);
+    char **lines = malloc(sizeof(char *) * bytecode_size);
+    MVMuint32 *linelocs = malloc(bytecode_size);
     MVMuint32 lineno = 0;
     MVMuint32 lineloc;
     MVMuint8 bank_num;
@@ -218,7 +219,7 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     while (cur_op < bytecode_end - 1) {
         
         /* allocate a line buffer */
-        s = 50;
+        s = 200;
         l = 0;
         o = calloc(sizeof(char) * s, 1);
         
