@@ -520,7 +520,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     }
     
     # Figure out result register type
-    my $res_kind := $qastcomp.type_to_register_kind($op.returns // NQPMu);
+    my $res_kind := $qastcomp.type_to_register_kind($op.returns);
     
     # and allocate a register for it. Probably reuse an arg's or the callee's.
     my $res_reg := $*REGALLOC.fresh_register($res_kind);
@@ -615,7 +615,7 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     }
     
     # Figure out expected result register type
-    my $res_kind := $qastcomp.type_to_register_kind($op.returns // NQPMu);
+    my $res_kind := $qastcomp.type_to_register_kind($op.returns);
     
     # and allocate a register for it. Probably reuse an arg's or the invocant's.
     my $res_reg := $*REGALLOC.fresh_register($res_kind);

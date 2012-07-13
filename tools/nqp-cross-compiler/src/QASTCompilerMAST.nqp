@@ -112,7 +112,7 @@ class QAST::MASTCompiler {
         }
         
         method add_lexical($var) {
-            my $type := $var.returns // NQPMu;
+            my $type := $var.returns // NQPMu; # takint out this // NQPMu makes the cross compiler go Boom.
             my $kind := $!compiler.type_to_register_kind($type);
             my $index := $*MAST_FRAME.add_lexical($type, $var.name);
             self.register_lexical($var, $index, 0, $kind);
@@ -136,7 +136,7 @@ class QAST::MASTCompiler {
             if nqp::existskey(%!locals, $name) {
                 nqp::die("Local '$name' already declared");
             }
-            my $kind := $!compiler.type_to_register_kind($var.returns // NQPMu);
+            my $kind := $!compiler.type_to_register_kind($var.returns);
             %!local_kinds{$name} := $kind;
             # pass a 1 meaning get a Totally New MAST::Local
             my $local := $*REGALLOC.fresh_register($kind, 1);
