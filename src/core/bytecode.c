@@ -301,7 +301,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMCallsite **callsites;
     MVMuint8     *pos;
-    MVMuint32     i, j, elems, positionals, arg_validate = 0, nameds = 0;
+    MVMuint32     i, j, elems, positionals, arg_validate, nameds;
     
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
@@ -312,6 +312,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     pos = rs->callsite_seg;
     for (i = 0; i < rs->expected_callsites; i++) {
         positionals = 0;
+        nameds = 0;
+        arg_validate = 0;
         
         /* Ensure we can read at least an element count. */
         ensure_can_read(tc, cu, rs, pos, 2);
