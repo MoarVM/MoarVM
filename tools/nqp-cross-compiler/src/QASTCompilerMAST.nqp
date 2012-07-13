@@ -84,7 +84,6 @@ class QAST::MASTCompiler {
         has $!compiler;             # The QAST::MASTCompiler
         has @!params;               # List of QAST::Var param nodes
         has $!return_kind;          # kind of return, tracked while emitting
-        has $!local_param_index;
         
         method new($qast, $outer, $compiler) {
             my $obj := nqp::create(self);
@@ -96,12 +95,9 @@ class QAST::MASTCompiler {
             $!qast := $qast;
             $!outer := $outer;
             $!compiler := $compiler;
-            $!local_param_index := 0;
         }
         
         method add_param($var) {
-            # borrow the arity attribute to mark its index.
-            $var.arity($!local_param_index++) unless $var.named;
             if $var.scope eq 'local' {
                 self.register_local($var);
             }
@@ -285,6 +281,7 @@ class QAST::MASTCompiler {
             my @pre := nqp::list();
             my $min_args := 0;
             my $max_args := 0;
+            my $param_index := 0;
             
             # build up instructions to bind the params
             for $block.params -> $var {
@@ -309,7 +306,7 @@ class QAST::MASTCompiler {
                 }
                 else { # positional
                     $min_args++;
-                    $val := MAST::IVal.new( :size(16), :value($var.arity));
+                    $val := MAST::IVal.new( :size(16), :value($param_index));
                 }
                 
                 # the variable register
@@ -351,6 +348,7 @@ class QAST::MASTCompiler {
                     # emit the op to bind the lexical to the result register
                     push_op(@pre, 'bindlex', $block.lexical($var.name), $valreg);
                 }
+                $param_index++;
             }
             
             nqp::splice($frame.instructions, @pre, 0, 0);
