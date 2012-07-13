@@ -512,6 +512,7 @@ class QAST::MASTCompiler {
                     $res_reg := $valmast.result_reg;
                     push_ilist(@ins, $valmast);
                     push_op(@ins, 'bindlex', $lex, $res_reg);
+                    $*REGALLOC.release_register($res_reg, $valmast.result_kind);
                 }
                 else {
                     $res_reg := $*REGALLOC.fresh_register($res_kind);
