@@ -84,6 +84,7 @@ class QAST::MASTCompiler {
         has $!compiler;             # The QAST::MASTCompiler
         has @!params;               # List of QAST::Var param nodes
         has $!return_kind;          # kind of return, tracked while emitting
+        has $!local_param_index;
         
         method new($qast, $outer, $compiler) {
             my $obj := nqp::create(self);
@@ -95,14 +96,13 @@ class QAST::MASTCompiler {
             $!qast := $qast;
             $!outer := $outer;
             $!compiler := $compiler;
+            $!local_param_index := 0;
         }
         
-        my $local_param_index := 0;
-        
         method add_param($var) {
+            # borrow the arity attribute to mark its index.
+            $var.arity($!local_param_index++) unless $var.named;
             if $var.scope eq 'local' {
-                # borrow the arity attribute to mark its index.
-                $var.arity($local_param_index++) unless $var.named;
                 self.register_local($var);
             }
             else {
@@ -519,7 +519,7 @@ class QAST::MASTCompiler {
                 }
             }
             else {
-                nqp::die("Missing lexical QAST::Var at least needs to know what type it should be")
+                nqp::die("Missing lexical $name at least needs to know what type it should be")
                     unless $node.returns;
                 $res_kind := self.type_to_register_kind($node.returns);
                 $res_reg := $*REGALLOC.fresh_register($res_kind);
