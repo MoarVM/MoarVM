@@ -134,6 +134,31 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     MVM_args_set_result_obj(tc, method, MVM_RETURN_CURRENT_FRAME);
 }
 
+/* Adds an method. */
+static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+    MVMObject *self, *type_obj, *attr, *attributes;
+    
+    /* Get arguments. */
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
+    attr     = MVM_args_get_pos_obj(tc, &arg_ctx, 2, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    
+    /* Ensure it has the required representation. */
+    if (REPR(attr)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
+        MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
+    
+    /* Add to method table. */
+    attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
+    REPR(attributes)->pos_funcs->push_boxed(tc, STABLE(attributes),
+        attributes, OBJECT_BODY(attributes), attr);
+    
+    /* Return added attribute as result. */
+    MVM_args_set_result_obj(tc, attr, MVM_RETURN_CURRENT_FRAME);
+}
+
 /* Composes the meta-object. */
 static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *method_table;
