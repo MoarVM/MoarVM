@@ -401,13 +401,19 @@ class QAST::MASTCompiler {
         my $result_stmt;
         my $result_count := 0;
         for @stmts {
+            
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
             $last_stmt := self.as_mast($_);
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
-            $result_stmt := $last_stmt
-                if !nqp::defined($resultchild) ||
-                    nqp::defined($resultchild) && $result_count == $resultchild;
+            if !nqp::defined($resultchild) ||
+                    nqp::defined($resultchild) && $result_count == $resultchild {
+                $result_stmt := $last_stmt
+            }
+            elsif $result_count + 1 < +@stmts { # we're sure it's not the result
+                # release non-void register results of this statement
+                $*REGALLOC.release_register($last_stmt.result_reg, $last_stmt.result_kind);
+            }
             $result_count++;
         }
         if $result_stmt {
