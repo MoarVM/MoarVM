@@ -47,14 +47,15 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     return cu;
 }
 
+#define line_length 1024
 static void append_string(char **out, MVMuint32 *size,
         MVMuint32 *length, char *str, ...) {
-    char *string = calloc(1024, 1);
+    char *string = calloc(line_length, 1);
     MVMuint32 len;
     va_list args;
     va_start(args, str);
     
-    vsprintf(string, str, args);
+    vsnprintf(string, line_length, str, args);
     va_end(args);
     
     len = strlen(string);
@@ -67,15 +68,6 @@ static void append_string(char **out, MVMuint32 *size,
     memcpy(*out + *length, string, len);
     *length = *length + len;
     free(string);
-}
-
-static char * build_string(char *str, ...) {
-    char *string = calloc(100, 1);
-    va_list args;
-    va_start(args, str);
-    vsprintf(string, str, args);
-    va_end(args);
-    return string;
 }
 
 static const char * get_typename(MVMuint16 type) {
@@ -278,7 +270,8 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         operand_size = 2;
                         tmpstr = MVM_string_utf8_encode_C_string(
                             tc, cu->strings[GET_UI16(cur_op, 0)]);
-                        /* XXX escape the \ and ' someday */
+                        /* XXX C-string-literal escape the \ and '
+                            and line breaks and non-ascii someday */
                         a("'%s'", tmpstr);
                         free(tmpstr);
                         break;
@@ -347,6 +340,7 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             if (linelabels[j])
                 a("     label_%u:\n", linelabels[j]);
             a("        %s", lines[j]);
+            free(lines[j]);
             if (jumps[j]) {
                 /* hoirrbly inefficient for large frames.  again, should use a hash */
                 line_number = 0;
@@ -356,6 +350,11 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             a("\n");
             /*free(lines[j]);*/
         }
+        free(lines);
+        free(jumps);
+        free(linelocs);
+        free(linelabels);
+        free(labels);
     }
     
         }
@@ -364,6 +363,10 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             free(lexicals[j]);
         }*/
     }
+    for (k = 0; k < cu->num_frames; k++) {
+        free(frame_lexicals[k]);
+    }
+    free(frame_lexicals);
     return o;
 }
 

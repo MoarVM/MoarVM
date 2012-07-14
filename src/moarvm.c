@@ -66,8 +66,10 @@ void MVM_vm_dump_file(MVMInstance *instance, char *filename) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->threads[0];
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
+    char *dump = MVM_cu_dump(tc, cu);
     
-    printf("%s", MVM_cu_dump(tc, cu));
+    printf("%s", dump);
+    free(dump);
 }
 
 /* Destroys a VM instance. */
