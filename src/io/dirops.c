@@ -66,6 +66,8 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString
     apr_dir_t *dir_handle;
     char *dname = MVM_string_utf8_encode_C_string(tc, dirname);
     
+    ENCODING_VALID(encoding_flag);
+    
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
         MVM_exception_throw_adhoc(tc, "Open dir needs a type object with MVMOSHandle REPR");
     }
@@ -90,6 +92,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString
     result->body.dir_handle = dir_handle;
     result->body.handle_type = MVM_OSHANDLE_DIR;
     result->body.mem_pool = tmp_pool;
+    result->body.encoding_type = encoding_flag;
     
     return (MVMObject *)result;
 }
@@ -111,10 +114,10 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     /* TODO investigate magic number 720018 */
     if (rv == APR_ENOENT || rv == 720018) { /* no more entries in the directory */
         /* XXX TODO: reference some process global empty string instead of creating one */
-        result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, "", 0);
+        result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, "", 0, handle->body.encoding_type);
     }
     else {
-        result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, (char *)finfo->name, strlen(finfo->name));
+        result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, (char *)finfo->name, strlen(finfo->name), handle->body.encoding_type);
     }
     
     free(finfo);

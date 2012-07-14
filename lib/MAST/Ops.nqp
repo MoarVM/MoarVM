@@ -1844,6 +1844,7 @@ class MAST::Ops {
             'code', 15,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
@@ -1859,6 +1860,7 @@ class MAST::Ops {
         'write_fhs', nqp::hash(
             'code', 17,
             'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64,
@@ -1868,6 +1870,7 @@ class MAST::Ops {
         'write_fhbuf', nqp::hash(
             'code', 18,
             'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_int64,
@@ -1998,15 +2001,21 @@ class MAST::Ops {
         'send_sks', nqp::hash(
             'code', 35,
             'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
-                $MVM_operand_read_reg +| $MVM_operand_str
+                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_int64,
+                $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         ),
         'send_skbuf', nqp::hash(
             'code', 36,
             'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
-                $MVM_operand_read_reg +| $MVM_operand_obj
+                $MVM_operand_read_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_int64,
+                $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         ),
         'recv_sks', nqp::hash(

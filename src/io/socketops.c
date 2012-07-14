@@ -26,6 +26,8 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     int protocol_int = (int)protocol;
     char *hostname_cstring;
     
+    ENCODING_VALID(encoding_flag);
+    
     if (!(protocol_int == APR_PROTO_TCP || protocol_int == APR_PROTO_UDP || protocol_int == APR_PROTO_SCTP)) {
         MVM_exception_throw_adhoc(tc, "Open socket got an invalid protocol number (needs 6, 17, or 132; got %d)", protocol_int);
     }
@@ -75,6 +77,7 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     result->body.socket = socket;
     result->body.handle_type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
+    result->body.encoding_type = encoding_flag;
     
     return (MVMObject *)result;
 }
@@ -100,6 +103,8 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     int type = SOCK_STREAM;
     int protocol_int = (int)protocol;
     char *address_cstring;
+    
+    ENCODING_VALID(encoding_flag);
     
     if (!(protocol_int == APR_PROTO_TCP || protocol_int == APR_PROTO_UDP || protocol_int == APR_PROTO_SCTP)) {
         MVM_exception_throw_adhoc(tc, "Bind socket got an invalid protocol number (needs 6, 17, or 132; got %d)", protocol_int);
@@ -151,6 +156,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     result->body.socket = socket;
     result->body.handle_type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
+    result->body.encoding_type = encoding_flag;
     
     return (MVMObject *)result;
 }
@@ -192,31 +198,33 @@ MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMin
     result->body.socket = new_socket;
     result->body.handle_type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
+    result->body.encoding_type = handle->body.encoding_type;
     
     return (MVMObject *)result;
 }
 
-void MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *tosend) {
+MVMint64 MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *tosend, MVMint64 start, MVMint64 length) {
     apr_status_t rv;
     MVMOSHandle *handle;
     char *send_string;
     apr_size_t send_length;
+    MVMuint64 output_size;
     
     verify_socket_type(tc, oshandle, &handle, "send string to socket");
     
-    /* XXX do something other than utf8? */
-    send_string = MVM_string_utf8_encode_C_string(tc, tosend);
-    send_length = strlen(send_string);
+    send_string = MVM_encode_string_to_C_buffer(tc, tosend, start, length, &output_size, handle->body.encoding_type);
+    send_length = (apr_size_t)output_size;
     
     if ((rv = apr_socket_send(handle->body.socket, send_string, &send_length)) != APR_SUCCESS) {
         free(send_string);
         MVM_exception_throw_apr_error(tc, rv, "Failed to send data to the socket: ");
     }
-    
     free(send_string);
+    
+    return (MVMint64)output_size;
 }
 
-/* reads a string from a filehandle.  Assumes utf8 for now */
+/* reads a string from a filehandle. */
 MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;
     apr_status_t rv;
@@ -241,7 +249,7 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
         MVM_exception_throw_apr_error(tc, rv, "receive string from socket failed: ");
     }
     
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read);
+    result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read, handle->body.encoding_type);
     
     free(buf);
     

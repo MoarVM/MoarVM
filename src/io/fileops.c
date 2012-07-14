@@ -87,6 +87,7 @@ void MVM_file_append(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to append file: ");
     }
+    /* note: destroying the pool deallocates afull, bfull */
     apr_pool_destroy(tmp_pool);
 }
 
@@ -187,6 +188,8 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
         MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
     }
     
+    ENCODING_VALID(encoding_flag);
+    
     /* try to open the file */
     if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
         free(fname);
@@ -200,6 +203,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     result->body.file_handle = file_handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
     result->body.mem_pool = tmp_pool;
+    result->body.encoding_type = encoding_flag;
     
     free(fname);
     
@@ -217,7 +221,7 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
-/* reads a string from a filehandle.  Assumes utf8 for now */
+/* reads a string from a filehandle. */
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;
     apr_status_t rv;
@@ -241,8 +245,8 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
         free(buf);
         MVM_exception_throw_apr_error(tc, rv, "read from filehandle failed: ");
     }
-    
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read);
+                                               /* XXX should this take a type object? */
+    result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read, handle->body.encoding_type);
     
     free(buf);
     
@@ -250,7 +254,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
 }
 
 /* read all of a file into a string */
-MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 encoding_flag) {
+MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 encoding_flag) {
     MVMString *result;
     apr_status_t rv;
     apr_file_t *fp;
@@ -259,13 +263,16 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 e
     char *fname = MVM_string_utf8_encode_C_string(tc, filename);
     apr_pool_t *tmp_pool;
     
+    ENCODING_VALID(encoding_flag);
+    
+    if (REPR(type_object)->ID != MVM_REPR_ID_MVMString || IS_CONCRETE(type_object)) {
+        MVM_exception_throw_adhoc(tc, "Slurp needs a type object with MVMString REPR");
+    }
+    
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Slurp failed to create pool: ");
     }
-    
-    /* TODO detect encoding (ucs4, latin1, utf8 (including ascii/ansi), utf16).
-     * Currently assume utf8. */
     
     if ((rv = apr_file_open(&fp, fname, APR_READ, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
         free(fname);
@@ -288,7 +295,7 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 e
     apr_file_close(fp);
     
     /* convert the mmap to a MVMString */
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, mmap->mm, finfo.size);
+    result = MVM_decode_C_buffer_to_string(tc, type_object, mmap->mm, finfo.size, encoding_flag);
     
     /* delete the mmap */
     apr_mmap_delete(mmap);
@@ -297,8 +304,8 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 e
     return result;
 }
 
-/* writes a string to a filehandle.  XXX writes only utf8 for now. */
-void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint64 start, MVMint64 length) {
+/* writes a string to a filehandle. */
+MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint64 start, MVMint64 length) {
     apr_status_t rv;
     MVMuint8 *output;
     MVMuint64 output_size;
@@ -307,18 +314,15 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
     
     verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
     
-    if (length < 0)
-        length = str->body.graphs - start;
-    else if (start + length > str->body.graphs)
-        MVM_exception_throw_adhoc(tc, "write to filehandle start + length past end of string");
-    
-    output = MVM_string_utf8_encode_substr(tc, str, &output_size, start, length);
+    output = MVM_encode_string_to_C_buffer(tc, str, start, length, &output_size, handle->body.encoding_type);
     bytes_written = (apr_size_t)output_size;
     if ((rv = apr_file_write(handle->body.file_handle, (const void *)output, &bytes_written)) != APR_SUCCESS) {
         free(output);
         MVM_exception_throw_apr_error(tc, rv, "Failed to write bytes to filehandle: tried to write %u bytes, wrote %u bytes: ", output_size, bytes_written);
     }
     free(output);
+    
+    return (MVMint64)bytes_written;
 }
 
 /* writes a string to a file, overwriting it if necessary */
@@ -432,6 +436,8 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_
     apr_file_t  *handle;
     apr_status_t rv;
     
+    ENCODING_VALID(encoding_flag);
+    
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
         MVM_exception_throw_adhoc(tc, "Open stream needs a type object with MVMOSHandle REPR");
     }
@@ -440,7 +446,6 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&result->body.mem_pool, NULL)) != APR_SUCCESS) {
-        /* GC free? */
         MVM_exception_throw_apr_error(tc, rv, "get_stream failed to create pool: ");
     }
     
@@ -457,6 +462,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_
     }
     result->body.file_handle = handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
+    result->body.encoding_type = encoding_flag;
     
     return (MVMObject *)result;
 }

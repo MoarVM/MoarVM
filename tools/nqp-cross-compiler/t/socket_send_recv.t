@@ -11,9 +11,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r10 := const($frame, sval("GET / HTTP/1.0\r\n\r\n"));
         my $r11 := const($frame, ival(999999));
         my $r12 := const($frame, ival(1));
+        my $r13 := const($frame, ival(0));
+        my $r14 := const($frame, ival(-1));
+        my $r15 := const($frame, ival(0));
         op(@ins, 'anonoshtype', $r0);
         op(@ins, 'connect_sk', $r0, $r0, $r1, $r7, $r8, $r12);
-        op(@ins, 'send_sks', $r0, $r10);
+        op(@ins, 'send_sks', $r15, $r0, $r10, $r13, $r14);
         op(@ins, 'recv_sks', $r1, $r0, $r11);
         op(@ins, 'close_sk', $r0);
         op(@ins, 'graphs_s', $r7, $r1);

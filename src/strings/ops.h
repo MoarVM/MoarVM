@@ -11,3 +11,5 @@ MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMin
 MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s);
+MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc, MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag);
+char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag);

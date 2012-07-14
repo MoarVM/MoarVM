@@ -11,7 +11,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r7 := const($frame, ival(1));
         op(@ins, 'anonoshtype', $r0);
         op(@ins, 'getstdout', $r0, $r0, $r7);
-        op(@ins, 'write_fhs', $r0, $r1, $r2, $r3);
+        op(@ins, 'write_fhs', $r7, $r0, $r1, $r2, $r3);
         #op(@ins, 'say_s', $r1);
         op(@ins, 'return');
     },

@@ -272,13 +272,26 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     /* XXX This is terribly wrong when we get to doing NFG properly too. One graph may
      * expand to loads of codepoints and overflow the buffer. */
-    MVMuint8 *result = malloc(sizeof(MVMint32) * length);
-    MVMuint8 *arr = result;
+    MVMuint8 *result;
+    MVMuint8 *arr;
     size_t i = start;
+    
+    if (length == -1)
+        length = str->body.graphs;
+    
+    /* must check start first since it's used in the length check */
+    if (start < 0 || start > str->body.graphs)
+        MVM_exception_throw_adhoc(tc, "start out of range");
+    if (length < 0 || start + length > str->body.graphs)
+        MVM_exception_throw_adhoc(tc, "length out of range");
+    
+    result = malloc(sizeof(MVMint32) * length);
+    arr = result;
+    
     memset(result, 0, sizeof(MVMint32) * length);
     while (i < length && (arr = utf8_encode(arr, str->body.data[i++])));
     if (!arr)
-        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d with codepoint %u", i - 1, str->body.data[i-1]);
+        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d with codepoint %d", i - 1, str->body.data[i-1]);
     *output_size = (MVMuint64)(arr ? arr - result : 0);
     return result;
 }
@@ -288,14 +301,13 @@ MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint6
     return MVM_string_utf8_encode_substr(tc, str, output_size, 0, str->body.graphs);
 }
 
-/* Encodes the specified string to a C string. */
+/* Encodes the specified string to a UTF-8 C string. */
 char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     MVMuint64 output_size, i;
     char * result;
     MVMuint8 * utf8_string = MVM_string_utf8_encode(tc, str, &output_size);
     /* this is almost always called from error-handling code. Don't care if it
-     * contains embedded NULs. Also don't care about freeing the result's memory; this is
-     * mainly used for extremely short strings, passed to error messages. */
+     * contains embedded NULs. XXX TODO: Make sure all uses of this free what it returns */
     result = malloc(output_size + 1);
     memcpy(result, utf8_string, output_size);
     free(utf8_string);

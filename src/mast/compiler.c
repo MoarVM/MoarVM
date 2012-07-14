@@ -421,6 +421,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         /* Ensure argument count matches up. */
         if (ELEMS(vm, o->operands) != info->num_operands) {
             cleanup_all(vm, ws);
+            free(1);
             DIE(vm, "Op has invalid number of operands");
         }
         

@@ -2,7 +2,7 @@
 #define MVM_encoding_type_utf8 1
 #define MVM_encoding_type_ascii 2
 #define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_ascii) \
-                            || MVM_exception_throw_adhoc(tc, "%d is not a valid encoding type flag"))
+                            || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
 
 MVMObject * MVM_file_get_anon_oshandle_type(MVMThreadContext *tc);
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
@@ -15,8 +15,9 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f);
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 flag, MVMint64 encoding_flag);
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
-MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 encoding_flag);
+MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 encoding_flag);
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMint64 encoding_flag);
+MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint64 start, MVMint64 length);
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle);
