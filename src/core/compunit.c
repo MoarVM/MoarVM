@@ -358,12 +358,11 @@ char * MVM_cu_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     }
     
         }
-        /*
-        for (j = 0; j < frame->num_lexicals; j++) {
-            free(lexicals[j]);
-        }*/
     }
     for (k = 0; k < cu->num_frames; k++) {
+        for (j = 0; j < cu->frames[k]->num_lexicals; j++) {
+            free(frame_lexicals[k][j]);
+        }
         free(frame_lexicals[k]);
     }
     free(frame_lexicals);
