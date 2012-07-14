@@ -377,9 +377,6 @@ for <repeat_while repeat_until> -> $op_name {
             nqp::die("operation '$op_name' condition cannot be void");
         }
         
-        my $res_kind := @comp_ops[0].result_kind;
-        my $res_reg  := $*REGALLOC.fresh_register($res_kind);
-        
         my @ins;
         
         nqp::push(@ins, $loop_lbl);
@@ -388,7 +385,6 @@ for <repeat_while repeat_until> -> $op_name {
         
         # Emit the condition; stash the result.
         push_ilist(@ins, @comp_ops[1]);
-        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
         
         # Emit the looping jump.
         push_op(@ins,
@@ -396,10 +392,9 @@ for <repeat_while repeat_until> -> $op_name {
             @comp_ops[1].result_reg,
             $loop_lbl
         );
-        $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
         
         # Build instruction list
-        MAST::InstructionList.new(@ins, $res_reg, $res_kind)
+        MAST::InstructionList.new(@ins, @comp_ops[1].result_reg, @comp_ops[1].result_kind)
     });
 }
 
