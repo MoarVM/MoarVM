@@ -69,6 +69,11 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* XXX size conveyed here */
+}
+
 /* Initializes the representation. */
 MVMREPROps * P6num_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
@@ -87,5 +92,6 @@ MVMREPROps * P6num_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->set_str = set_str;
     this_repr->box_funcs->get_str = get_str;
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
+    this_repr->compose = compose;
     return this_repr;
 }

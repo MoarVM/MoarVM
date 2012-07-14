@@ -193,6 +193,11 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* XXX key and value types will be communicated here */
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -214,5 +219,6 @@ MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     this_repr->ass_funcs->exists_key = exists_key;
     this_repr->ass_funcs->delete_key = delete_key;
     this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
+    this_repr->compose = compose;
     return this_repr;
 }

@@ -358,6 +358,11 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     return spec;
 }
 
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* XXX element type supplied through this... */
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -387,5 +392,6 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->shift_boxed = shift_boxed;
     this_repr->pos_funcs->splice = splice;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
+    this_repr->compose = compose;
     return this_repr;
 }

@@ -75,6 +75,11 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* Nothing to do for this REPR. */
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMCode_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -87,5 +92,6 @@ MVMREPROps * MVMCode_initialize(MVMThreadContext *tc) {
     this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
+    this_repr->compose = compose;
     return this_repr;
 }
