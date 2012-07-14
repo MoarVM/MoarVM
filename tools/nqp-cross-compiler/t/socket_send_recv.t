@@ -10,8 +10,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r8 := const($frame, ival(6)); # TCP
         my $r10 := const($frame, sval("GET / HTTP/1.0\r\n\r\n"));
         my $r11 := const($frame, ival(999999));
+        my $r12 := const($frame, ival(1));
         op(@ins, 'anonoshtype', $r0);
-        op(@ins, 'connect_sk', $r0, $r0, $r1, $r7, $r8);
+        op(@ins, 'connect_sk', $r0, $r0, $r1, $r7, $r8, $r12);
         op(@ins, 'send_sks', $r0, $r10);
         op(@ins, 'recv_sks', $r1, $r0, $r11);
         op(@ins, 'close_sk', $r0);

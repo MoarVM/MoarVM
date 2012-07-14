@@ -24,23 +24,12 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMOSHandleBody *src_body  = (MVMOSHandleBody *)src;
-    MVMOSHandleBody *dest_body = (MVMOSHandleBody *)dest;
-    dest_body->handle_type = src_body->handle_type;
-    switch(src_body->handle_type) {
-        case MVM_OSHANDLE_UNINIT:
-            break;
-        case MVM_OSHANDLE_FILE:
-            dest_body->file_handle = src_body->file_handle;
-            break;
-        case MVM_OSHANDLE_DIR:
-            dest_body->dir_handle = src_body->dir_handle;
-            break;
-        case MVM_OSHANDLE_SOCKET:
-            dest_body->socket = src_body->socket;
-            break;
-    }
-    dest_body->file_handle = src_body->file_handle;
+    /* can't be copied because then we could never know when gc_free should
+     * close the handle (unless we did some refcounting on a shared container).
+     * note - 12:25 <jnthn> I mean, Perl 6 will has an attribute which
+     * is the MoarVM handle, so a .clone() on a Perl 6 IO object
+     * won't trigger cloning of the underlying handle.            */
+    MVM_exception_throw_adhoc(tc, "Cannot copy object with repr OSHandle; see comment here in the source");
 }
 
 /* Called by the VM in order to free memory associated with this object. */

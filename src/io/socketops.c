@@ -15,7 +15,7 @@ static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSH
     }
 }
 
-MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVMString *hostname, MVMint64 port, MVMint64 protocol) {
+MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVMString *hostname, MVMint64 port, MVMint64 protocol, MVMint64 encoding_flag) {
     MVMOSHandle *result;
     apr_status_t rv;
     apr_pool_t *tmp_pool;
@@ -90,7 +90,7 @@ void MVM_socket_close(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
-MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMString *address, MVMint64 port, MVMint64 protocol) {
+MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMString *address, MVMint64 port, MVMint64 protocol, MVMint64 encoding_flag) {
     MVMOSHandle *result;
     apr_status_t rv;
     apr_pool_t *tmp_pool;

@@ -59,7 +59,7 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *f) {
 }
 
 /* open a filehandle; takes a type object */
-MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString *dirname) {
+MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString *dirname, MVMint64 encoding_flag) {
     MVMOSHandle *result;
     apr_status_t rv;
     apr_pool_t *tmp_pool;

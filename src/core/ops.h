@@ -158,6 +158,8 @@
 #define MVM_OP_uc 12
 #define MVM_OP_lc 13
 #define MVM_OP_tc 14
+#define MVM_OP_buftostr 15
+#define MVM_OP_strtobuf 16
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
@@ -285,6 +287,7 @@
 #define MVM_OP_nametoaddr 41
 #define MVM_OP_addrtoname 42
 #define MVM_OP_porttosvc 43
+#define MVM_OP_setencoding 44
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_getenv 0

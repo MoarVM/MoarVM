@@ -170,7 +170,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 }
 
 /* open a filehandle; takes a type object */
-MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 flag) {
+MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 flag, MVMint64 encoding_flag) {
     MVMOSHandle *result;
     apr_status_t rv;
     apr_pool_t *tmp_pool;
@@ -250,7 +250,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
 }
 
 /* read all of a file into a string */
-MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename) {
+MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 encoding_flag) {
     MVMString *result;
     apr_status_t rv;
     apr_file_t *fp;
@@ -322,9 +322,9 @@ void MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *st
 }
 
 /* writes a string to a file, overwriting it if necessary */
-void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename) {
+void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMint64 encoding_flag) {
     MVMObject *fh = MVM_file_open_fh(tc, MVM_file_get_anon_oshandle_type(tc), filename,
-        (MVMint64)(APR_FOPEN_TRUNCATE | APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_BINARY));
+        (MVMint64)(APR_FOPEN_TRUNCATE | APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_BINARY), encoding_flag);
     
     MVM_file_write_fhs(tc, fh, output, 0, output->body.graphs);
     
@@ -427,7 +427,7 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 }
 
 /* return an OSHandle representing one of the standard streams */
-static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_object, MVMuint8 type) {
+static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_object, MVMuint8 type, MVMint64 encoding_flag) {
     MVMOSHandle *result;
     apr_file_t  *handle;
     apr_status_t rv;
@@ -470,14 +470,14 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
     return apr_file_eof(handle->body.file_handle) == APR_EOF ? 1 : 0;
 }
 
-MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object) {
-    return MVM_file_get_stdstream(tc, type_object, 0);
+MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag) {
+    return MVM_file_get_stdstream(tc, type_object, 0, encoding_flag);
 }
 
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object) {
-    return MVM_file_get_stdstream(tc, type_object, 1);
+MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag) {
+    return MVM_file_get_stdstream(tc, type_object, 1, encoding_flag);
 }
 
-MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object) {
-    return MVM_file_get_stdstream(tc, type_object, 2);
+MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag) {
+    return MVM_file_get_stdstream(tc, type_object, 2, encoding_flag);
 }

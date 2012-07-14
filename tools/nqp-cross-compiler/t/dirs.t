@@ -6,6 +6,7 @@ plan(1);
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := const($frame, sval("testdirs"));
         my $r1 := const($frame, sval("testfile_"));
+        my $r2 := const($frame, ival(1));
         my $counter := const($frame, ival(4));
         my $index := local($frame, int);
         my $loop := label('loop');
@@ -16,13 +17,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         nqp::push(@ins, $loop);
         op(@ins, 'dec_i', $counter);
         op(@ins, 'concat_s', $r1, $r1, const($frame, sval("_")));
-        op(@ins, 'spew', const($frame, sval("foo")), $r1);
+        op(@ins, 'spew', const($frame, sval("foo")), $r1, $r2);
         op(@ins, 'if_i', $counter, $loop);
         
         my $dh := local($frame, NQPMu);
         my $osh := local($frame, NQPMu);
         op(@ins, 'anonoshtype', $osh);
-        op(@ins, 'open_dir', $dh, $osh, const($frame, sval(".")));
+        op(@ins, 'open_dir', $dh, $osh, const($frame, sval(".")), $r2);
         
         my $loop2 := label('loop2');
         my $done := label('done');
