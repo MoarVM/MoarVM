@@ -54,6 +54,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->type);
 }
 
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* Nothing to do for this REPR. */
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -65,5 +70,6 @@ MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc) {
     this_repr->copy_to = copy_to;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->gc_mark = gc_mark;
+    this_repr->compose = compose;
     return this_repr;
 }

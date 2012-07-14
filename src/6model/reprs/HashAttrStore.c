@@ -167,6 +167,11 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* Nothing to do for this REPR. */
+}
+
 /* Initializes the representation. */
 MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -186,5 +191,6 @@ MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc) {
     this_repr->attr_funcs->bind_attribute_ref = bind_attribute_ref;
     this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;
     this_repr->attr_funcs->hint_for = hint_for;
+    this_repr->compose = compose;
     return this_repr;
 }
