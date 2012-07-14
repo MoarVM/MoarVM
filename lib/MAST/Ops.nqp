@@ -1707,6 +1707,13 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
+        ),
+        'isnull', nqp::hash(
+            'code', 63,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64,
+                $MVM_operand_read_reg +| $MVM_operand_obj
+            ]
         )
     );
     our $io := nqp::hash(

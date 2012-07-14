@@ -227,6 +227,7 @@ BANK 4 object
 0x3C    getattr_i   w(int64) r(obj) r(obj) r(str) r(int64)
 0x3D    getattr_n   w(num64) r(obj) r(obj) r(str) r(int64)
 0x3E    getattr_s   w(str) r(obj) r(obj) r(str) r(int64)
+0x3F    isnull      w(int64) r(obj)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)
