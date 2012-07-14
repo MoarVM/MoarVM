@@ -9,10 +9,12 @@
  */
  
 /* Can do something better than statics later... */
-static MVMString *str_repr     = NULL;
-static MVMString *str_name     = NULL;
-static MVMString *str_anon     = NULL;
-static MVMString *str_P6opaque = NULL;
+static MVMString *str_repr       = NULL;
+static MVMString *str_name       = NULL;
+static MVMString *str_anon       = NULL;
+static MVMString *str_P6opaque   = NULL;
+static MVMString *str_type       = NULL;
+static MVMString *str_box_target = NULL;
 
 /* Creates a stub BOOTStr. Note we didn't initialize the
  * representation yet, so have to do this somewhat pokily. */
@@ -161,7 +163,9 @@ static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegist
 
 /* Composes the meta-object. */
 static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
-    MVMObject *self, *type_obj, *method_table;
+    MVMObject *self, *type_obj, *method_table, *attributes, *BOOTArray, *BOOTHash,
+              *repr_info, *type_info, *attr_info_list, *parent_info;
+    MVMint64   num_attrs, i;
     
     /* Get arguments. */
     MVMArgProcContext arg_ctx;
@@ -177,6 +181,72 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     STABLE(type_obj)->type_check_cache_length = 1;
     STABLE(type_obj)->type_check_cache        = malloc(sizeof(MVMObject *));
     MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->type_check_cache[0], type_obj);
+    
+    /* Next steps will allocate, so make sure we keep hold of the type
+     * object and ourself. */
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&self);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_obj);
+    
+    /* Use any attribute information to produce attribute protocol
+     * data. The protocol consists of an array... */
+    BOOTArray = tc->instance->boot_types->BOOTArray;
+    BOOTHash = tc->instance->boot_types->BOOTArray;
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTHash);
+    repr_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info);
+    
+    /* ...which contains an array per MRO entry (just us)... */
+    type_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_info);
+    REPR(repr_info)->pos_funcs->push_boxed(tc, STABLE(repr_info),
+        repr_info, OBJECT_BODY(repr_info), type_info);
+        
+    /* ...which in turn contains an array of hashes per attribute... */
+    attr_info_list = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info_list);
+    REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
+        type_info, OBJECT_BODY(type_info), attr_info_list);
+    attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
+    num_attrs = REPR(attributes)->pos_funcs->elems(tc, STABLE(attributes),
+        attributes, OBJECT_BODY(attributes));
+    for (i = 0; i < num_attrs; i++) {
+        MVMObject *attr_info = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+        MVMKnowHOWAttributeREPR *attribute = (MVMKnowHOWAttributeREPR *)
+            REPR(attributes)->pos_funcs->at_pos_boxed(tc, STABLE(attributes),
+                attributes, OBJECT_BODY(attributes), i);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&attribute);
+        if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
+            MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
+        
+        REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
+            attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_name, (MVMObject *)attribute->body.name);
+        REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
+            attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type, attribute->body.type);
+        if (attribute->body.box_target) {
+            /* Merely having the key serves as a "yes". */
+            REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
+                attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target, attr_info);
+        }
+        
+        REPR(attr_info_list)->pos_funcs->push_boxed(tc, STABLE(attr_info_list),
+            attr_info_list, OBJECT_BODY(attr_info_list), attr_info);
+        MVM_gc_root_temp_pop_n(tc, 2);
+    }
+    
+    /* ...followed by a list of parents (none). */
+    parent_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&parent_info);
+    REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
+        type_info, OBJECT_BODY(type_info), parent_info);
+    
+    /* Compose the representation using it. */
+    REPR(type_obj)->compose(tc, STABLE(type_obj), repr_info);
+    
+    /* Clear temporary roots. */
+    MVM_gc_root_temp_pop_n(tc, 9);
     
     /* Return type object. */
     MVM_args_set_result_obj(tc, type_obj, MVM_RETURN_CURRENT_FRAME);
@@ -337,6 +407,10 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_anon);
     str_P6opaque = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6opaque");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_P6opaque);
+    str_type     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "type");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
+    str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "box_target");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
     
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
