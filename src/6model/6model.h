@@ -505,6 +505,11 @@ typedef struct _MVMREPROps {
     /* MoarVM-specific REPR API addition used to free a REPR instance. */
     void (*gc_free_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
     
+    /* Causes the representation to be composed. Composition involves
+     * passing the representation information that it needs in order
+     * to compute memory layout. */
+    void (*compose) (struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *info);
+    
     /* The representation's name. */
     struct _MVMString *name;
 
