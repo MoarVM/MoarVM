@@ -28,6 +28,7 @@
 #include "core/validation.h"
 #include "core/compunit.h"
 #include "core/bytecode.h"
+#include "core/bytecodedump.h"
 #include "core/ops.h"
 #include "6model/reprs.h"
 #include "6model/bootstrap.h"
