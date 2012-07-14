@@ -20,6 +20,10 @@ typedef struct _MVMInstance {
      * built in user-space) are built out of this. */
     MVMObject *KnowHOW;
     
+    /* The KnowHOWAttribute meta-object; used for declaring attributes
+     * on a KnowHOW. */
+    MVMObject *KnowHOWAttribute;
+    
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
     

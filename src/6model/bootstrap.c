@@ -381,6 +381,124 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
     name_str = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, name);
     MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
 }
+
+/* Creates a new attribute meta-object. */
+static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+    MVMObject   *self, *obj;
+    MVMRegister *type_arg, *name_arg, *bt_arg;
+    MVMREPROps  *repr;
+    
+    /* Process arguments. */
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    name_arg = MVM_args_get_named_str(tc, &arg_ctx, str_name, MVM_ARG_REQUIRED);
+    type_arg = MVM_args_get_named_obj(tc, &arg_ctx, str_type, MVM_ARG_REQUIRED);
+    bt_arg   = MVM_args_get_named_int(tc, &arg_ctx, str_box_target, MVM_ARG_OPTIONAL);
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    
+    /* Anchor all the things. */
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&self);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name_arg);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_arg);
+    
+    /* Allocate attribute object. */
+    repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWAttributeREPR);
+    obj = repr->allocate(tc, STABLE(self));
+    
+    /* Populate it. */
+    MVM_ASSIGN_REF(tc, obj, ((MVMKnowHOWAttributeREPR *)obj)->body.name, name_arg->s);
+    MVM_ASSIGN_REF(tc, obj, ((MVMKnowHOWAttributeREPR *)obj)->body.type, type_arg->o);
+    ((MVMKnowHOWAttributeREPR *)obj)->body.box_target = bt_arg ? bt_arg->i64 : 0;
+    
+    /* Return produced object. */
+    MVM_gc_root_temp_pop_n(tc, 3);
+    MVM_args_set_result_obj(tc, obj, MVM_RETURN_CURRENT_FRAME);
+}
+
+/* Composes the attribute; actually, nothing to do really. */
+static void attr_compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+    MVMObject *self;
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    MVM_args_set_result_obj(tc, self, MVM_RETURN_CURRENT_FRAME);
+}
+
+/* Introspects the attribute's name. */
+static void attr_name(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+    MVMObject *self;
+    MVMString *name;
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    name = ((MVMKnowHOWAttributeREPR *)self)->body.name;
+    MVM_args_set_result_str(tc, name, MVM_RETURN_CURRENT_FRAME);
+}
+
+/* Introspects the attribute's type. */
+static void attr_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+    MVMObject *self, *type;
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    type = ((MVMKnowHOWAttributeREPR *)self)->body.type;
+    MVM_args_set_result_obj(tc, type, MVM_RETURN_CURRENT_FRAME);
+}
+
+/* Introspects the attribute's box target flag. */
+static void attr_box_target(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+    MVMObject *self;
+    MVMint64   box_target;
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    box_target = ((MVMKnowHOWAttributeREPR *)self)->body.box_target;
+    MVM_args_set_result_int(tc, box_target, MVM_RETURN_CURRENT_FRAME);
+}
+
+/* Creates and installs the KnowHOWAttribute type. */
+static void create_KnowHOWAttribute(MVMThreadContext *tc) {
+    MVMObject      *knowhow_how, *meta_obj, *type_obj;
+    MVMString      *name_str;
+    MVMREPROps     *repr;
+    
+    /* Create meta-object. */
+    knowhow_how = STABLE(tc->instance->KnowHOW)->HOW;
+    meta_obj    = REPR(knowhow_how)->allocate(tc, STABLE(knowhow_how));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&meta_obj);
+    REPR(meta_obj)->initialize(tc, STABLE(meta_obj), meta_obj, OBJECT_BODY(meta_obj));
+    
+    /* Add methods. */
+    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "new", attr_new);
+    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "compose", attr_compose);
+    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "name", attr_name);
+    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "type", attr_type);
+    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "box_target", attr_box_target);
+    
+    /* Set name. */
+    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "KnowHOWAttribute");
+    MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
+    
+    /* Create a new type object with the correct REPR. */
+    repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWAttributeREPR);
+    type_obj = repr->type_object_for(tc, meta_obj);
+    
+    /* Set up method dispatch cache. */
+    STABLE(type_obj)->method_cache = ((MVMKnowHOWREPR *)meta_obj)->body.methods;
+    STABLE(type_obj)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
+    
+    /* Stash the created type object. */
+    tc->instance->KnowHOWAttribute = (MVMObject *)type_obj;
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->KnowHOWAttribute);
+    
+    /* Pop anchored object. */
+    MVM_gc_root_temp_pop(tc);
+}
  
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
@@ -426,4 +544,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTCCode);
     add_meta_object(tc, tc->instance->boot_types->BOOTCode, "BOOTCode");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTCode);
+    
+    /* Create the KnowHOWAttribute type. */
+    create_KnowHOWAttribute(tc);
 }
