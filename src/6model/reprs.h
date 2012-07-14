@@ -33,4 +33,4 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_P6num                   9
 #define MVM_REPR_ID_Uninstantiable          10
 #define MVM_REPR_ID_HashAttrStore           11
-#define MVM_REPR_ID_KnowAttributeHOWREPR    12
+#define MVM_REPR_ID_KnowHOWAttributeREPR    12
