@@ -160,6 +160,10 @@
 #define MVM_OP_tc 14
 #define MVM_OP_buftostr 15
 #define MVM_OP_strtobuf 16
+#define MVM_OP_decode_s 17
+#define MVM_OP_decode_b 18
+#define MVM_OP_encode_s 19
+#define MVM_OP_encode_b 20
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

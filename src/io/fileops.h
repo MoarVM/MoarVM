@@ -1,9 +1,3 @@
-
-#define MVM_encoding_type_utf8 1
-#define MVM_encoding_type_ascii 2
-#define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_ascii) \
-                            || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
-
 MVMObject * MVM_file_get_anon_oshandle_type(MVMThreadContext *tc);
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);

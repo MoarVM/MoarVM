@@ -241,6 +241,8 @@ MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc,
             return MVM_string_utf8_decode(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_ascii:
             return MVM_string_ascii_decode(tc, type_object, Cbuf, byte_length);
+        case MVM_encoding_type_latin1:
+            return MVM_string_latin1_decode(tc, type_object, Cbuf, byte_length);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", encoding_flag);
     }
@@ -254,6 +256,8 @@ char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint6
             return MVM_string_utf8_encode_substr(tc, s, output_size, start, length);
         case MVM_encoding_type_ascii:
             return MVM_string_ascii_encode_substr(tc, s, output_size, start, length);
+        case MVM_encoding_type_latin1:
+            return MVM_string_latin1_encode_substr(tc, s, output_size, start, length);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", encoding_flag);
     }

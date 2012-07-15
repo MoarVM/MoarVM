@@ -1,3 +1,10 @@
+#define MVM_encoding_type_utf8 1
+#define MVM_encoding_type_ascii 2
+#define MVM_encoding_type_latin1 3
+#define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_latin1) \
+                            || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
+
+
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b);
