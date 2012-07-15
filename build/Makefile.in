@@ -36,7 +36,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/Uninstantiable$(O) src/6model/reprs/HashAttrStore$(O) \
             src/6model/6model$(O) src/6model/bootstrap$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
-            src/strings/latin1$(O) src/strings/latin1gen$(O) src/moarvm$(O)
+            src/strings/latin1$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
@@ -144,8 +144,6 @@ src/strings/unicode$(O): src/strings/unicode.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/unicode$(O) src/strings/unicode.c
 src/strings/latin1$(O): src/strings/latin1.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/latin1$(O) src/strings/latin1.c
-src/strings/latin1gen$(O): src/strings/latin1gen.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/latin1gen$(O) src/strings/latin1gen.c
 src/moarvm$(O): src/moarvm.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/moarvm$(O) src/moarvm.c
 src/main$(O): src/main.c $(HEADERS)

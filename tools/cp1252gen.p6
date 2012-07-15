@@ -33,16 +33,96 @@ my @orig = (
 0x00F0,0x00F1,0x00F2,0x00F3,0x00F4,0x00F5,0x00F6,0x00F7,
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF);
 
-my $fh = open("src/strings/latin1gen.c", :w);
+my $fh = open("src/strings/latin1.c", :w);
 
 $fh.say('#include "moarvm.h"
 
-MVMuint32 latin1_cp_to_char(MVMint32 codepoint) {
-    if (codepoint >= 0 && codepoint < 128 || codepoint >=152 && codepoint < 256) { return (MVMuint32)codepoint; }
-    switch(codepoint) {');
-$fh.say("        case @orig[$_] : return (MVMuint32)$_;") for 128..151;
-$fh.say('        default : return 256;
+/* Decodes the specified number of bytes of latin1 (well, really Windows 1252)
+ into an NFG string, creating
+ * a result of the specified type. The type must have the MVMString REPR. */
+MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
+        MVMObject *result_type, MVMuint8 *latin1, size_t bytes) {
+    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    size_t i;
+    
+    result->body.codes  = bytes;
+    result->body.graphs = bytes;
+    
+    result->body.data = malloc(sizeof(MVMint32) * bytes);
+    for (i = 0; i < bytes; i++)
+        /* actually decode like Windows-1252, since that is mostly a superset,
+           and is recommended by the HTML5 standard when latin1 is claimed */
+        result->body.data[i] = latin1_char_to_cp(latin1[i]);
+    
+    return result;
+}
+
+/* Encodes the specified substring to latin-1. Anything outside of latin-1 range
+ * will become a ?. The result string is NULL terminated, but the specified
+ * size is the non-null part. */
+MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+    /* latin-1 is a single byte encoding, so each grapheme will just become
+     * a single byte. */
+    MVMuint32 startu = (MVMuint32)start;
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs : length);
+    MVMuint8 *result;
+    size_t i;
+    
+    /* must check start first since it\'s used in the length check */
+    if (start < 0 || start > str->body.graphs)
+        MVM_exception_throw_adhoc(tc, "start out of range");
+    if (length < 0 || start + length > str->body.graphs)
+        MVM_exception_throw_adhoc(tc, "length out of range");
+    
+    result = malloc(length + 1);
+    for (i = 0; i < length; i++) {
+        MVMint32 codepoint = str->body.data[start + i];
+        if (codepoint >= 0 && codepoint < 128 || codepoint >=152 && codepoint < 256) {
+            result[i] = (MVMuint8)codepoint;
+        }
+        else if (codepoint > 255) {
+            result[i] = \'?\';
+        }
+        else {
+            result[i] = latin1_cp_to_char(codepoint);
+        }
     }
+    result[i] = 0;
+    if (output_size)
+        *output_size = length;
+    return result;
+}
+
+static MVMuint8 latin1_cp_to_char(MVMint32 codepoint) {
+');
+
+my @entries = ();
+push @entries, [@orig[$_], $_] for 128..151;
+@entries = @entries.sort({ $^a[0] <=> $^b[0] });
+
+sub gen_binary_search($start, $end, $depth) {
+    my $indent = "    " x $depth;
+    if $start == $end {
+        return "{$indent}return @entries[$start][1];\n";
+    }
+    elsif $start + 1 == $end {
+        return "{$indent}if (codepoint == @entries[$start][0]) \{ return @entries[$start][1]; }\n"
+        ~"{$indent}return @entries[$end][1];\n";
+    }
+    else {
+        my $mid = ($end - $start) div 2 + $start;
+        say("mid $mid end $end start $start");
+        return "{$indent}if (codepoint <= @entries[$mid][0]) \{\n"
+        ~ gen_binary_search($start, $mid, $depth + 1)
+        ~ "$indent}\n"
+        ~ "{$indent}else \{\n"
+        ~ gen_binary_search($mid + 1, $end, $depth + 1)
+        ~ "$indent}\n";
+    }
+}
+$fh.say(gen_binary_search(0, +@entries - 1, 1));
+
+$fh.say('
 }
 
 MVMint32 latin1_char_to_cp(MVMuint8 character) {
