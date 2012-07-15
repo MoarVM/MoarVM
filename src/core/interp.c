@@ -966,6 +966,22 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_bindattr: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->attr_funcs->bind_attribute_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            GET_UI16(cur_op, 8), GET_REG(cur_op, 6).o);
+                        cur_op += 10;
+                    }
+                    case MVM_OP_getattr: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).o = REPR(obj)->attr_funcs->get_attribute_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            GET_UI16(cur_op, 8));
+                        cur_op += 10;
+                    }
                     case MVM_OP_isnull:
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).o ? 0 : 1;
                         cur_op += 4;
