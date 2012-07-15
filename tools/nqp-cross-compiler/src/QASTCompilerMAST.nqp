@@ -400,18 +400,18 @@ class QAST::MASTCompiler {
         my $last_stmt;
         my $result_stmt;
         my $result_count := 0;
+        $resultchild := $resultchild // -1;
+        my $last_stmt_num := +@stmts - 1;
         for @stmts {
             
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
             $last_stmt := self.as_mast($_);
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
-            if !nqp::defined($resultchild) ||
-                    nqp::defined($resultchild) && $result_count == $resultchild {
-                $result_stmt := $last_stmt
+            if $result_count == $resultchild || $resultchild == -1 && $result_count == $last_stmt_num {
+                $result_stmt := $last_stmt;
             }
-            elsif $result_count + 1 < +@stmts { # we're sure it's not the result
-                # release non-void register results of this statement
+            else { # release top-level results (since they can't be used by anything anyway)
                 $*REGALLOC.release_register($last_stmt.result_reg, $last_stmt.result_kind);
             }
             $result_count++;
@@ -528,7 +528,8 @@ class QAST::MASTCompiler {
                     $res_reg := $valmast.result_reg;
                     push_ilist(@ins, $valmast);
                     push_op(@ins, 'bindlex', $lex, $res_reg);
-                    $*REGALLOC.release_register($res_reg, $valmast.result_kind);
+                    # do NOT release your own result register.  ergh.
+                    #$*REGALLOC.release_register($res_reg, $valmast.result_kind);
                 }
                 elsif $decl ne 'param' {
                     $res_reg := $*REGALLOC.fresh_register($res_kind);
