@@ -336,6 +336,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     REPR->initialize(tc, NULL, (MVMObject *)knowhow_how, &knowhow_how->body);
     add_knowhow_how_method(tc, knowhow_how, "new_type", new_type);
     add_knowhow_how_method(tc, knowhow_how, "add_method", add_method);
+    add_knowhow_how_method(tc, knowhow_how, "add_attribute", add_attribute);
     add_knowhow_how_method(tc, knowhow_how, "compose", compose);
     add_knowhow_how_method(tc, knowhow_how, "attributes", attributes);
     add_knowhow_how_method(tc, knowhow_how, "methods", methods);
