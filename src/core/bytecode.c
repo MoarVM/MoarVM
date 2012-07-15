@@ -322,7 +322,6 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         
         /* Allocate space for the callsite. */
         callsites[i] = malloc(sizeof(MVMCallsite));
-        callsites[i]->arg_count = elems;
         if (elems)
             callsites[i]->arg_flags = malloc(elems);
         
@@ -358,7 +357,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
             }
             else positionals++;
         }
-        callsites[i]->num_pos = positionals;
+        callsites[i]->num_pos   = positionals;
+        callsites[i]->arg_count = positionals + nameds;
         
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
