@@ -151,8 +151,8 @@ BANK 2 string
 0x10    strtobuf    w(obj) r(str) r(int64)
 0x11    decode_s    w(str) r(str) r(int64)
 0x12    decode_b    w(obj) r(obj) r(int64)
-0x13    encode_s    w(str) r(str) r(int64)
-0x14    encode_b    w(obj) r(obj) r(int64)
+0x13    decode      w(str) r(obj) r(int64)
+0x14    encode      w(obj) r(str) r(int64)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)

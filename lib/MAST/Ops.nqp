@@ -1153,19 +1153,19 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         ),
-        'encode_s', nqp::hash(
+        'decode', nqp::hash(
             'code', 19,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_str,
-                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         ),
-        'encode_b', nqp::hash(
+        'encode', nqp::hash(
             'code', 20,
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_obj,
-                $MVM_operand_read_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         )
