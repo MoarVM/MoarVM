@@ -1683,7 +1683,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'bindattr_i', nqp::hash(
@@ -1693,7 +1693,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'bindattr_n', nqp::hash(
@@ -1703,7 +1703,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_num64,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'bindattr_s', nqp::hash(
@@ -1713,7 +1713,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_str,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'getattr', nqp::hash(
@@ -1723,7 +1723,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'getattr_i', nqp::hash(
@@ -1733,7 +1733,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'getattr_n', nqp::hash(
@@ -1743,7 +1743,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'getattr_s', nqp::hash(
@@ -1753,7 +1753,7 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
-                $MVM_operand_int64
+                $MVM_operand_int16
             ]
         ),
         'isnull', nqp::hash(
