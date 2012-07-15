@@ -190,21 +190,25 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     /* Use any attribute information to produce attribute protocol
      * data. The protocol consists of an array... */
     BOOTArray = tc->instance->boot_types->BOOTArray;
-    BOOTHash = tc->instance->boot_types->BOOTArray;
+    BOOTHash = tc->instance->boot_types->BOOTHash;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTHash);
     repr_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info);
+    REPR(repr_info)->initialize(tc, STABLE(repr_info), repr_info, OBJECT_BODY(repr_info));
     
     /* ...which contains an array per MRO entry (just us)... */
     type_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_info);
+    REPR(type_info)->initialize(tc, STABLE(type_info), type_info, OBJECT_BODY(type_info));
     REPR(repr_info)->pos_funcs->push_boxed(tc, STABLE(repr_info),
         repr_info, OBJECT_BODY(repr_info), type_info);
         
     /* ...which in turn contains an array of hashes per attribute... */
     attr_info_list = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info_list);
+    REPR(attr_info_list)->initialize(tc, STABLE(attr_info_list), attr_info_list,
+        OBJECT_BODY(attr_info_list));
     REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
         type_info, OBJECT_BODY(type_info), attr_info_list);
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
@@ -221,6 +225,8 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
         if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
             MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
         
+        REPR(attr_info)->initialize(tc, STABLE(attr_info), attr_info,
+            OBJECT_BODY(attr_info));
         REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
             attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_name, (MVMObject *)attribute->body.name);
         REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
@@ -239,6 +245,8 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     /* ...followed by a list of parents (none). */
     parent_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&parent_info);
+    REPR(parent_info)->initialize(tc, STABLE(parent_info), parent_info,
+        OBJECT_BODY(parent_info));
     REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
         type_info, OBJECT_BODY(type_info), parent_info);
     
