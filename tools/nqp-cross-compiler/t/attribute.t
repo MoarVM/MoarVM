@@ -25,7 +25,7 @@ sub obj_attr_type($frame) {
     call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::obj],
         $attr, sval('name'), $name, sval('type'), $attr, :result($attr));
     op(@ins, 'findmeth', $meth, $how, sval('add_attribute'));
-    call(@ins, $meth, [$Arg::obj, $Arg::obj, $Arg::obj], $type, $how, $attr, :result($attr));
+    call(@ins, $meth, [$Arg::obj, $Arg::obj, $Arg::obj], $how, $type, $attr, :result($attr));
     
     # Compose.
     op(@ins, 'findmeth', $meth, $how, sval('compose'));
