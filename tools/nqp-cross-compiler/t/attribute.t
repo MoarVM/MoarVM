@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(1);
+plan(2);
 
 sub obj_attr_type($frame) {
     my @ins := $frame.instructions;
@@ -45,3 +45,28 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "alive\n",
     "Can create a type with an attribute");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $type := obj_attr_type($frame);
+        my $ins := local($frame, NQPMu);
+        my $name := local($frame, str);
+        my $exp := local($frame, NQPMu);
+        my $got := local($frame, NQPMu);
+        my $res := local($frame, int);
+        
+        # Create an instance.
+        op(@ins, 'create', $ins, $type);
+        
+        # Create another instance to serve as a test object and store it.
+        op(@ins, 'create', $exp, $type);
+        op(@ins, 'const_s', $name, sval('$!foo'));
+        op(@ins, 'bindattr', $ins, $type, $name, $exp, ival(-1));
+        
+        # Look it up again and compare it.
+        #op(@ins, 'getattr', $got, $ins, $type, $name, ival(-1));
+        #op(@ins, 'eqaddr', $res, $got, $exp);
+        #op(@ins, 'say_i', $res);
+        op(@ins, 'return');
+    },
+    "1\n",
+    "Can store and look up an object attribute");
