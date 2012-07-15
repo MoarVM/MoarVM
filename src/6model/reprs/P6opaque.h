@@ -34,9 +34,6 @@ typedef struct {
 
     /* Maps attribute position numbers to the byte offset in the object. */
     MVMuint16 *attribute_offsets;
-    
-    /* Flags if we are MI or not. */
-    MVMuint16 mi;
 
     /* If the attribute was actually flattened in to this object from another
      * representation, this is the s-table of the type of that attribute. NULL
@@ -47,6 +44,9 @@ typedef struct {
      * be set up. However, in some cases we'd like them to magically turn in
      * to some container type. */
     MVMObject **auto_viv_values;
+    
+    /* Flags if we are MI or not. */
+    MVMuint16 mi;
 
     /* Slot to delegate to when we need to unbox to a native integer. */
     MVMuint16 unbox_int_slot;
@@ -64,7 +64,7 @@ typedef struct {
      * up in the offset table). Uses a final null entry as a sentinel. */
     P6opaqueNameMap *name_to_index_mapping;
 
-    /* Offsets into the object that are eligible for PMC GC marking, and how
+    /* Offsets into the object that are eligible for GC marking, and how
      * many of them we have. */
     MVMuint16 *gc_obj_mark_offsets;
     MVMuint16 gc_obj_mark_offsets_count;
