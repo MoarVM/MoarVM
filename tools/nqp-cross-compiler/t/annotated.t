@@ -10,6 +10,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             @ins
         }
         nqp::push(@ins, annotated(make_annotated(), "file1", 12));
+        nqp::push(@ins, annotated(make_annotated(), "file2", 13));
     },
-    "Alive\n",
+    "Alive\nAlive\n",
     "annotation survives");

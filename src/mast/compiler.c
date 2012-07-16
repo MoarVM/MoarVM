@@ -10,9 +10,9 @@
 #endif
 
 /* Some sizes. */
-#define HEADER_SIZE             72
+#define HEADER_SIZE             80
 #define BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE       4 * 4 + 3 * 2
+#define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
 
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
@@ -29,6 +29,9 @@ typedef struct {
     /* Types of lexicals, along with the number of them we have. */
     unsigned short *lexical_types;
     unsigned int num_lexicals;
+    
+    /* Number of nnotations */
+    unsigned int num_annotations;
     
     /* Labels that we have seen and know the address of. Hash of name to
      * index. */
@@ -67,6 +70,11 @@ typedef struct {
     char         *bytecode_seg;
     unsigned int  bytecode_pos;
     unsigned int  bytecode_alloc;
+    
+    /* The annotation segment. */
+    char         *annotation_seg;
+    unsigned int  annotation_pos;
+    unsigned int  annotation_alloc;
     
     /* The compilation unit we're compiling. */
     MAST_CompUnit *cu;
@@ -263,7 +271,7 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                     DIE(vm, "Expected MAST::SVal, but didn't get one");
                 }
                 break;
-            };
+            }
             case MVM_operand_ins: {
                 if (ISTYPE(vm, operand, ws->types->Label)) {
                     MAST_Label *l = GET_Label(operand);
@@ -421,7 +429,6 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         /* Ensure argument count matches up. */
         if (ELEMS(vm, o->operands) != info->num_operands) {
             cleanup_all(vm, ws);
-            free(1);
             DIE(vm, "Op has invalid number of operands");
         }
         
@@ -576,6 +583,15 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         MAST_Annotated *a = GET_Annotated(node);
         unsigned int i;
         unsigned int num_ins = ELEMS(vm, a->instructions);
+        unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
+        
+        ensure_space(vm, &ws->annotation_seg, &ws->annotation_alloc, ws->annotation_pos, 10);
+        write_int32(ws->annotation_seg, ws->annotation_pos, offset);
+        write_int16(ws->annotation_seg, ws->annotation_pos + 4, get_string_heap_index(vm, ws, a->file));
+        write_int32(ws->annotation_seg, ws->annotation_pos + 6, (unsigned int)a->line);
+        ws->annotation_pos += 10;
+        ws->cur_frame->num_annotations++;
+        
         for (i = 0; i < num_ins; i++)
             compile_instruction(vm, ws, ATPOS(vm, a->instructions, i));
     }
@@ -620,6 +636,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         DIE(vm, "Lexical types list and lexical names list have unequal length");
     }
     
+    /* initialize number of annotation */
+    fs->num_annotations = 0;
+    
     /* Ensure space is available to write frame entry, and write the
      * header, apart from the bytecode length, which we'll fill in
      * later. */
@@ -654,6 +673,10 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     else {
         write_int16(ws->frame_seg, ws->frame_pos + 20, idx);
     }
+    
+    write_int32(ws->frame_seg, ws->frame_pos + 22, ws->annotation_pos);
+    write_int32(ws->frame_seg, ws->frame_pos + 26, 0); /* number of annotation; fill in later */
+    
     ws->frame_pos += FRAME_HEADER_SIZE;
     
     /* Write locals, as well as collecting our own array of type info. */
@@ -703,6 +726,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     
     /* Fill in bytecode length. */
     write_int32(ws->frame_seg, fs->frame_start + 4, ws->bytecode_pos - instructions_start);
+    
+    /* Fill in number of annotations. */
+    write_int32(ws->frame_seg, fs->frame_start + 26, fs->num_annotations);
     
     /* Any leftover labels? */
     if (HASHELEMS(vm, fs->labels_to_resolve)) {
@@ -783,6 +809,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     size += ws->frame_pos;
     size += ws->callsite_pos;
     size += ws->bytecode_pos;
+    size += ws->annotation_pos;
     
     /* Allocate space for the bytecode output. */
     output = (char *)malloc(size);
@@ -818,6 +845,12 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     memcpy(output + pos, ws->bytecode_seg, ws->bytecode_pos);
     pos += ws->bytecode_pos;
     
+    /* Add annotation section and its header entries (offset, length). */
+    write_int32(output, 72, pos);
+    write_int32(output, 76, ws->annotation_pos);
+    memcpy(output + pos, ws->annotation_seg, ws->annotation_pos);
+    pos += ws->annotation_pos;
+    
     /* Sanity...should never fail. */
     if (pos != size)
         DIE(vm, "Bytecode generated did not match expected size");
@@ -841,22 +874,25 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     
     /* Initialize the writer state structure. */
     ws = (WriterState *)malloc(sizeof(WriterState));
-    ws->types          = types;
-    ws->strings        = NEWLIST_S(vm);
-    ws->seen_strings   = NEWHASH(vm);
-    ws->cur_frame      = NULL;
-    ws->frame_pos      = 0;
-    ws->frame_alloc    = 4096;
-    ws->frame_seg      = (char *)malloc(ws->frame_alloc);
-    ws->num_frames     = 0;
-    ws->callsite_pos   = 0;
-    ws->callsite_alloc = 4096;
-    ws->callsite_seg   = (char *)malloc(ws->callsite_alloc);
-    ws->num_callsites  = 0;
-    ws->bytecode_pos   = 0;
-    ws->bytecode_alloc = 4096;
-    ws->bytecode_seg   = (char *)malloc(ws->bytecode_alloc);
-    ws->cu             = cu;
+    ws->types            = types;
+    ws->strings          = NEWLIST_S(vm);
+    ws->seen_strings     = NEWHASH(vm);
+    ws->cur_frame        = NULL;
+    ws->frame_pos        = 0;
+    ws->frame_alloc      = 4096;
+    ws->frame_seg        = (char *)malloc(ws->frame_alloc);
+    ws->num_frames       = 0;
+    ws->callsite_pos     = 0;
+    ws->callsite_alloc   = 4096;
+    ws->callsite_seg     = (char *)malloc(ws->callsite_alloc);
+    ws->num_callsites    = 0;
+    ws->bytecode_pos     = 0;
+    ws->bytecode_alloc   = 4096;
+    ws->bytecode_seg     = (char *)malloc(ws->bytecode_alloc);
+    ws->annotation_pos   = 0;
+    ws->annotation_alloc = 4096;
+    ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
+    ws->cu               = cu;
     
     /* Visit and compile each of the frames. */
     num_frames = (unsigned short)ELEMS(vm, cu->frames);

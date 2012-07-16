@@ -290,8 +290,8 @@ class MAST::Call is MAST::Node {
 
 # A series of instructions that fall on a particular line in a particular source file
 class MAST::Annotated is MAST::Node {
-    has int $!line;
     has str $!file;
+    has int $!line;
     has @!instructions;
     
     method new(:$file = '<anon>', :$line!, :@instructions!) {

@@ -1,10 +1,10 @@
 #include "moarvm.h"
 
 /* Some constants. */
-#define HEADER_SIZE             72
+#define HEADER_SIZE             80
 #define MIN_BYTECODE_VERSION    1
 #define MAX_BYTECODE_VERSION    1
-#define FRAME_HEADER_SIZE       4 * 4 + 3 * 2
+#define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
 
 /* Describes the current reader state. */
 typedef struct {
@@ -27,6 +27,10 @@ typedef struct {
     /* The bytecode segment. */
     MVMuint8  *bytecode_seg;
     MVMuint32  bytecode_size;
+    
+    /* The annotations segment */
+    MVMuint8  *annotation_seg;
+    MVMuint32  annotation_size;
 } ReaderState;
 
 /* copies memory dependent on endianness */
@@ -161,6 +165,16 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->bytecode_seg  = cu->data_start + offset;
     rs->bytecode_size = size;
     
+    /* Locate annotations segment. */
+    offset = read_int32(cu->data_start, 72);
+    size = read_int32(cu->data_start, 76);
+    if (offset > cu->data_size || offset + size > cu->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
+    }
+    rs->annotation_seg  = cu->data_start + offset;
+    rs->annotation_size = size;
+    
     return rs;
 }
 
@@ -245,6 +259,11 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         
         /* Add frame outer fixup to fixup list. */
         rs->frame_outer_fixups[i] = read_int16(pos, 20);
+        
+        /* Get annotations details */
+        frames[i]->annotations = rs->annotation_seg + read_int32(pos, 22);
+        frames[i]->num_annotations = read_int32(pos, 26);
+        
         pos += FRAME_HEADER_SIZE;
         
         /* Read the local types. */

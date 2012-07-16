@@ -47,6 +47,10 @@ typedef struct _MVMStaticFrame {
     
     /* The APR memory pool used by the hash lexical hash. */
     apr_pool_t *apr_pool;
+    
+    /* Annotation details */
+    MVMuint8 *annotations;
+    MVMuint32 num_annotations;
 } MVMStaticFrame;
 
 /* This represents an active call frame. */

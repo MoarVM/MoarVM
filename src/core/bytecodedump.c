@@ -308,6 +308,17 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         free(linelocs);
         free(linelabels);
         free(labels);
+        
+        for (j = 0; j < frame->num_annotations; j++) {
+            if (!j) a("    Annotations:\n");
+            a("      Annotation %u :\n", j);
+            a("        offset: %u\n", GET_UI32(frame->annotations, j*10));
+            tmpstr = MVM_string_utf8_encode_C_string(
+                tc, cu->strings[GET_UI16(frame->annotations + 4, j*10)]);
+            a("        file:   %s\n", tmpstr);
+            free(tmpstr);
+            a("        line:   %u\n", GET_UI32(frame->annotations + 6, j*10));
+        }
     }
     
         }
