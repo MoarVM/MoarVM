@@ -154,7 +154,7 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     /* latin-1 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs : length);
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs - startu : length);
     MVMuint8 *result;
     size_t i;
     
