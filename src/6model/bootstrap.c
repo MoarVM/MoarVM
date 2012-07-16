@@ -204,7 +204,11 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     REPR(repr_info)->pos_funcs->push_boxed(tc, STABLE(repr_info),
         repr_info, OBJECT_BODY(repr_info), type_info);
         
-    /* ...which in turn contains an array of hashes per attribute... */
+    /* ...which in turn contains this type... */
+    REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
+        type_info, OBJECT_BODY(type_info), type_obj);
+    
+    /* ...then an array of hashes per attribute... */
     attr_info_list = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info_list);
     REPR(attr_info_list)->initialize(tc, STABLE(attr_info_list), attr_info_list,
