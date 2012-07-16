@@ -3,7 +3,7 @@ use MASTOps;
 
 class MAST::Compiler {
     method compile($node, $target_file) {
-        pir::mvm_compiler_setup__vPPPPPPPPP(
+        pir::mvm_compiler_setup__vPPPPPPPPPP(
             MAST::CompUnit,
             MAST::Frame,
             MAST::Op,
@@ -13,7 +13,8 @@ class MAST::Compiler {
             MAST::Label,
             MAST::Local,
             MAST::Lexical,
-            MAST::Call);
+            MAST::Call,
+            MAST::Annotated);
         pir::mvm_compile__vPs($node, $target_file);
     }
 }

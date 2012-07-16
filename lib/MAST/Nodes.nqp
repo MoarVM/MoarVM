@@ -283,6 +283,21 @@ class MAST::Call is MAST::Node {
         if +@args < $flag_needed_args {
             nqp::die("Flags indicated there should be $flag_needed_args args, but have " ~
                 +@args);
+                
         }
+    }
+}
+
+class MAST::Annotated is MAST::Node {
+    has $!line;
+    has $!file;
+    has @!instructions;
+    
+    method new(:$file = '<anon>', :$line!, :@instructions!) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::Lexical, '$!file', $file);
+        nqp::bindattr_i($obj, MAST::Lexical, '$!line', $line);
+        nqp::bindattr_i($obj, MAST::Lexical, '@!instructions', @instructions);
+        $obj
     }
 }

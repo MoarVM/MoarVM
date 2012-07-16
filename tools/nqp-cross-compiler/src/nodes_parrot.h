@@ -82,6 +82,12 @@ typedef struct {
     PMC    *result;
 } MAST_Call;
 
+typedef struct {
+    STRING *file;
+    INTVAL  line;
+    PMC    *instructions;
+} MAST_Annotated;
+
 /* Node types structure. */
 typedef struct {
     PMC *CompUnit;
@@ -94,6 +100,7 @@ typedef struct {
     PMC *Local;
     PMC *Lexical;
     PMC *Call;
+    PMC *Annotated;
 } MASTNodeTypes;
 
 /* This means we can talk about MASTNode in the compiler, not PMC. */
@@ -119,6 +126,7 @@ typedef STRING VMSTR;
 #define GET_NVal(n)                 ((MAST_NVal *)PMC_data(n))
 #define GET_SVal(n)                 ((MAST_SVal *)PMC_data(n))
 #define GET_Call(n)                 ((MAST_Call *)PMC_data(n))
+#define GET_Annotated(n)            ((MAST_Annotated *)PMC_data(n))
 #define NEWLIST_I(vm)               (Parrot_pmc_new(interp, enum_class_ResizableIntegerArray))
 #define NEWLIST_S(vm)               (Parrot_pmc_new(interp, enum_class_ResizableStringArray))
 #define ELEMS(vm, arr)              ((unsigned int )VTABLE_elements(vm, arr))
