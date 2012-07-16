@@ -71,6 +71,12 @@ what it contains.
     | Length of the bytecode segment                          |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | Offset (from start of file) of the annotation segment   |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Length of the annotation segment                        |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
 ## Strings heap
 This segment contains a bunch of string data. Each string is laid out as:
@@ -145,6 +151,12 @@ Each frame starts with the following data.
     | Outer                                                   |
     |    16-bit frame index of the outer frame. For no outer, |
     |    this is set to the current frame index.              |
+    +---------------------------------------------------------+
+    | Annotation segment offset                               |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of annotations                                   |
+    |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of
@@ -265,3 +277,9 @@ Bank 0 is for control flow and primitive operations.
     0x2B    return                              return (presumably to void context)
 
 Bank 1 is for 6model related operations.
+
+## Annotation segment
+This consists of a number of 10-byte records, composed of:
+    32-bit unsigned integer offset into the bytecode segment
+    16-bit unsigned integer strings heap index (filename)
+    32-bit unsigned integer (line number)
