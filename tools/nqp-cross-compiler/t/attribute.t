@@ -63,9 +63,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'bindattr', $ins, $type, $name, $exp, ival(-1));
         
         # Look it up again and compare it.
-        #op(@ins, 'getattr', $got, $ins, $type, $name, ival(-1));
-        #op(@ins, 'eqaddr', $res, $got, $exp);
-        #op(@ins, 'say_i', $res);
+        op(@ins, 'getattr', $got, $ins, $type, $name, ival(-1));
+        op(@ins, 'eqaddr', $res, $got, $exp);
+        op(@ins, 'say_i', $res);
         op(@ins, 'return');
     },
     "1\n",
