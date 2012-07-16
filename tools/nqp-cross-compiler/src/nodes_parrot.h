@@ -83,6 +83,8 @@ typedef struct {
 } MAST_Call;
 
 typedef struct {
+    PMC    *st;
+    PMC    *sc;
     STRING *file;
     INTVAL  line;
     PMC    *instructions;

@@ -288,16 +288,17 @@ class MAST::Call is MAST::Node {
     }
 }
 
+# A series of instructions that fall on a particular line in a particular source file
 class MAST::Annotated is MAST::Node {
-    has $!line;
-    has $!file;
+    has int $!line;
+    has str $!file;
     has @!instructions;
     
     method new(:$file = '<anon>', :$line!, :@instructions!) {
         my $obj := nqp::create(self);
-        nqp::bindattr_i($obj, MAST::Lexical, '$!file', $file);
-        nqp::bindattr_i($obj, MAST::Lexical, '$!line', $line);
-        nqp::bindattr_i($obj, MAST::Lexical, '@!instructions', @instructions);
+        nqp::bindattr_s($obj, MAST::Annotated, '$!file', $file);
+        nqp::bindattr_i($obj, MAST::Annotated, '$!line', $line);
+        nqp::bindattr($obj, MAST::Annotated, '@!instructions', @instructions);
         $obj
     }
 }

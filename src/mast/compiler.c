@@ -572,9 +572,16 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             compile_operand(vm, ws, MVM_operand_read_reg | res_type, c->result);
         compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, c->target);
     }
+    else if (ISTYPE(vm, node, ws->types->Annotated)) {
+        MAST_Annotated *a = GET_Annotated(node);
+        unsigned int i;
+        unsigned int num_ins = ELEMS(vm, a->instructions);
+        for (i = 0; i < num_ins; i++)
+            compile_instruction(vm, ws, ATPOS(vm, a->instructions, i));
+    }
     else {
         cleanup_all(vm, ws);
-        DIE(vm, "Invalid MAST node in instruction list (must be Op, Call or Label)");
+        DIE(vm, "Invalid MAST node in instruction list (must be Op, Call, Label, or Annotated)");
     }
 }
 

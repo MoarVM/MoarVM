@@ -138,3 +138,7 @@ our sub call(@ins, $target, @flags, :$result, *@args) {
             :target($target), :result($result), :flags(@flags), |@args
         ));
 }
+
+our sub annotated(@ins, $file, $line) {
+    MAST::Annotated.new( :file($file), :line($line), :instructions(@ins) )
+}
