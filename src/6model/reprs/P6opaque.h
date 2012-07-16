@@ -8,10 +8,15 @@ typedef struct _MVMP6opaque {
     MVMObject common;
 } MVMP6opaque;
 
-/* This is used in the name to class mapping. */
+/* This is used in the name to slot mapping. Indicates the class key that
+ * we have the mappings for, followed by arrays of names and slots. (Yeah,
+ * could use a hash, but much code will resolve these statically to the
+ * slots). */
 typedef struct {
-    MVMObject *class_key;
-    MVMObject *name_map;
+    MVMObject  *class_key;
+    MVMString **names;
+    MVMuint16  *slots;
+    MVMuint32   num_attrs;
 } P6opaqueNameMap;
 
 /* This is used in boxed type mappings. */
@@ -49,13 +54,13 @@ typedef struct {
     MVMuint16 mi;
 
     /* Slot to delegate to when we need to unbox to a native integer. */
-    MVMuint16 unbox_int_slot;
+    MVMint16 unbox_int_slot;
 
     /* Slot to delegate to when we need to unbox to a native number. */
-    MVMuint16 unbox_num_slot;
+    MVMint16 unbox_num_slot;
 
     /* Slot to delegate to when we need to unbox to a native string. */
-    MVMuint16 unbox_str_slot;
+    MVMint16 unbox_str_slot;
     
     /* If we have any other boxings, this maps repr ID to slot. */
     P6opaqueBoxedTypeMap *unbox_slots;

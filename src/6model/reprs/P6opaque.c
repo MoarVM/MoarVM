@@ -3,6 +3,11 @@
 /* This representation's function pointer table. */
 static MVMREPROps *this_repr;
 
+/* Some strings. */
+static MVMString *str_name       = NULL;
+static MVMString *str_type       = NULL;
+static MVMString *str_box_target = NULL;
+
 /* Helpers for reading/writing values. */
 static MVMint64 get_int_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
@@ -44,7 +49,13 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
         P6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             if (cur_map_entry->class_key == class_key) {
-                /* XXX Lookup */
+                MVMint16 i;
+                for (i = 0; i < cur_map_entry->num_attrs; i++) {
+                    if (MVM_string_equal(tc, cur_map_entry->names[i], name)) {
+                        slot = cur_map_entry->slots[i];
+                        break;
+                    }
+                }
             }
             cur_map_entry++;
         }
@@ -208,13 +219,141 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-    /* XXX loads to do here! */
+    MVMint64 mro_pos, mro_count, num_parents, total_attrs, num_attrs,
+             cur_slot, cur_type, cur_alloc_addr, i;
+    
+    /* Allocate the representation data. */
+    MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
+    memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
+    
+    /* In this first pass, we'll over the MRO entries, looking for if
+     * there is any multiple inheritance and counting the number of
+     * attributes. */
+    mro_count   = REPR(info)->pos_funcs->elems(tc, STABLE(info), info, OBJECT_BODY(info));
+    mro_pos     = mro_count;
+    num_attrs   = 0;
+    total_attrs = 0;
+    while (mro_pos--) {
+        /* Get info for the class at the current position. */
+        MVMObject *class_info = REPR(info)->pos_funcs->at_pos_boxed(tc,
+            STABLE(info), info, OBJECT_BODY(info), mro_pos);
+        
+        /* Get its list of attributes and parents. */
+        MVMObject *attr_list = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
+            STABLE(class_info), class_info, OBJECT_BODY(class_info), 1);
+        MVMObject *parent_list = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
+            STABLE(class_info), class_info, OBJECT_BODY(class_info), 2);
+        
+        /* If there's more than one parent, set the multiple inheritance
+         * flag (this means we have non-linear layout). */
+        num_parents = REPR(parent_list)->pos_funcs->elems(tc, STABLE(parent_list),
+            parent_list, OBJECT_BODY(parent_list));
+        if (num_parents > 1)
+            repr_data->mi = 1;
+        
+        /* Add attribute count to the running total. */
+        total_attrs += REPR(attr_list)->pos_funcs->elems(tc, STABLE(attr_list),
+            attr_list, OBJECT_BODY(attr_list));
+    }
+    
+    /* Size starts off at header; we'll add as we go. */
+    repr_data->allocation_size = sizeof(MVMP6opaque);
+    
+    /* Fill out and allocate other things we now can. */
+    repr_data->num_attributes = total_attrs;
+    if (total_attrs) {
+        repr_data->attribute_offsets   = malloc(total_attrs * sizeof(MVMuint16));
+        repr_data->flattened_stables   = malloc(total_attrs * sizeof(MVMSTable *));
+        repr_data->auto_viv_values     = malloc(total_attrs * sizeof(MVMObject *));
+        repr_data->gc_obj_mark_offsets = malloc(total_attrs * sizeof(MVMuint16));
+        memset(repr_data->flattened_stables, 0, total_attrs * sizeof(MVMSTable *));
+        memset(repr_data->auto_viv_values, 0, total_attrs * sizeof(MVMObject *));
+    }
+    repr_data->name_to_index_mapping = malloc((total_attrs + 1) * sizeof(P6opaqueNameMap));
+    repr_data->initialize_slots      = malloc((total_attrs + 1) * sizeof(MVMuint16));
+    repr_data->gc_mark_slots         = malloc((total_attrs + 1) * sizeof(MVMuint16));
+    repr_data->gc_cleanup_slots      = malloc((total_attrs + 1) * sizeof(MVMuint16));
+    memset(repr_data->name_to_index_mapping, 0, (total_attrs + 1) * sizeof(P6opaqueNameMap));
+    
+    /* -1 indicates no unboxing possible for a type. */
+    repr_data->unbox_int_slot = -1;
+    repr_data->unbox_num_slot = -1;
+    repr_data->unbox_str_slot = -1;
+    
+    /* Second pass populates the rest of the REPR data. */
+    mro_pos        = mro_count;
+    cur_slot       = 0;
+    cur_type       = 0;
+    cur_alloc_addr = 0;
+    while (mro_pos--) {
+        /* Get info for the class at the current position. */
+        MVMObject *class_info = REPR(info)->pos_funcs->at_pos_boxed(tc,
+            STABLE(info), info, OBJECT_BODY(info), mro_pos);
+        MVMObject *type_obj = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
+            STABLE(class_info), class_info, OBJECT_BODY(class_info), 0);
+        MVMObject *attr_list = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
+            STABLE(class_info), class_info, OBJECT_BODY(class_info), 1);
+        
+        /* Set up name map entry. */
+        P6opaqueNameMap *name_map = &repr_data->name_to_index_mapping[cur_type];
+        num_attrs = REPR(attr_list)->pos_funcs->elems(tc, STABLE(attr_list),
+            attr_list, OBJECT_BODY(attr_list));
+        name_map->class_key = type_obj;
+        name_map->num_attrs = num_attrs;
+        if (num_attrs) {
+            name_map->names = malloc(num_attrs * sizeof(MVMString *));
+            name_map->slots = malloc(num_attrs * sizeof(MVMuint16));
+        }
+        
+        /* Go over the attributes. */
+        for (i = 0; i < num_attrs; i++) {
+            MVMObject *attr_info = REPR(attr_list)->pos_funcs->at_pos_boxed(tc,
+                STABLE(attr_list), attr_list, OBJECT_BODY(attr_list), i);
+            
+            /* Extract name and type. */
+            MVMObject *name_obj = REPR(attr_info)->ass_funcs->at_key_boxed(tc,
+                STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_name);
+            MVMObject *type = REPR(attr_info)->ass_funcs->at_key_boxed(tc,
+                STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type);
+            
+            /* Ensure we have a name and it's a string. */
+            if (!name_obj || REPR(name_obj)->ID != MVM_REPR_ID_MVMString)
+                MVM_exception_throw_adhoc(tc, "P6opaque: missing or invalid attribute name");
+            
+            /* Attribute will live at the current position in the object. */
+            repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
+            name_map->names[i] = (MVMString *)name_obj;
+            name_map->slots[i] = cur_slot;
+            
+            /* XXX Loads to do with the type info here... */
+            cur_alloc_addr += sizeof(MVMObject *);
+            
+            /* Increment slot count. */
+            cur_slot++;
+        }
+        
+        /* Increment name map type index. */
+        cur_type++;
+    }
+    
+    /* Add allocated amount for body to get total size. */
+    repr_data->allocation_size += cur_alloc_addr;
+    
+    /* Install representation data. */
+    st->REPR_data = repr_data;
 }
 
 /* Initializes the representation. */
 MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
+    /* Set up some constant strings we'll need. */
+    str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "name");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_name);
+    str_type     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "type");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
+    str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "box_target");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
+    
     /* Allocate and populate the representation function table. */
-    /* XXX Missing most things... */
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
     this_repr->type_object_for = type_object_for;
