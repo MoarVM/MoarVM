@@ -328,6 +328,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         free(linelocs);
         free(linelabels);
         free(labels);
+        free(annotations);
     }
     
         }
