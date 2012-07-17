@@ -220,8 +220,10 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     MVMint64 mro_pos, mro_count, num_parents, total_attrs, num_attrs,
-             cur_slot, cur_type, cur_alloc_addr, i;
-    
+             cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
+             cur_init_slot, cur_mark_slot, cur_cleanup_slot,
+             unboxed_type, bits, i;
+
     /* Allocate the representation data. */
     MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
     memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
@@ -281,10 +283,14 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     repr_data->unbox_str_slot = -1;
     
     /* Second pass populates the rest of the REPR data. */
-    mro_pos        = mro_count;
-    cur_slot       = 0;
-    cur_type       = 0;
-    cur_alloc_addr = 0;
+    mro_pos          = mro_count;
+    cur_slot         = 0;
+    cur_type         = 0;
+    cur_alloc_addr   = 0;
+    cur_obj_attr     = 0;
+    cur_init_slot    = 0;
+    cur_mark_slot    = 0;
+    cur_cleanup_slot = 0;
     while (mro_pos--) {
         /* Get info for the class at the current position. */
         MVMObject *class_info = REPR(info)->pos_funcs->at_pos_boxed(tc,
@@ -325,8 +331,48 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
             name_map->names[i] = (MVMString *)name_obj;
             name_map->slots[i] = cur_slot;
             
-            /* XXX Loads to do with the type info here... */
-            cur_alloc_addr += sizeof(MVMObject *);
+            /* Consider the type. */
+            unboxed_type = MVM_STORAGE_SPEC_BP_NONE;
+            bits         = sizeof(MVMObject *) * 8;
+            if (type != NULL) {
+                /* Get the storage spec of the type and see what it wants. */
+                MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+                if (spec.inlineable == MVM_STORAGE_SPEC_INLINED) {
+                    /* Yes, it's something we'll flatten. */
+                    unboxed_type = spec.boxed_primitive;
+                    bits = spec.bits;
+                    repr_data->flattened_stables[i] = STABLE(type);
+                    
+                    /* Does it need special initialization? */
+                    if (REPR(type)->initialize) {
+                        repr_data->initialize_slots[cur_init_slot] = i;
+                        cur_init_slot++;
+                    }
+                    
+                    /* Does it have special GC needs? */
+                    if (REPR(type)->gc_mark) {
+                        repr_data->gc_mark_slots[cur_mark_slot] = i;
+                        cur_mark_slot++;
+                    }
+                    if (REPR(type)->gc_cleanup) {
+                        repr_data->gc_cleanup_slots[cur_cleanup_slot] = i;
+                        cur_cleanup_slot++;
+                    }
+
+                    /* Is it a target for box/unbox operations? */
+                    /* XXX box_target handling */
+                }
+            }
+            
+            /* Handle object attributes, which need marking and may have auto-viv needs. */
+            if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE) {
+                repr_data->gc_obj_mark_offsets[cur_obj_attr] = cur_alloc_addr;
+                cur_obj_attr++;
+                /* XXX auto-viv stuff */
+            }
+            
+            /* Add the required space for this type. */
+            cur_alloc_addr += bits / 8;
             
             /* Increment slot count. */
             cur_slot++;
@@ -338,6 +384,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     
     /* Add allocated amount for body to get total size. */
     repr_data->allocation_size += cur_alloc_addr;
+    
+    /* Add sentinels/counts. */
+    repr_data->gc_obj_mark_offsets_count = cur_obj_attr;
+    repr_data->initialize_slots[cur_init_slot] = -1;
+    repr_data->gc_mark_slots[cur_mark_slot] = -1;
+    repr_data->gc_cleanup_slots[cur_cleanup_slot] = -1;
     
     /* Install representation data. */
     st->REPR_data = repr_data;
