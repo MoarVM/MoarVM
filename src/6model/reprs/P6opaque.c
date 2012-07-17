@@ -131,7 +131,15 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    /* XXX TODO */
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
+    MVMint64 i;
+
+    /* Cleanup any nested reprs that need it. */
+    for (i = 0; repr_data->gc_cleanup_slots[i] >= 0; i++) {
+        MVMuint16  offset = repr_data->attribute_offsets[repr_data->gc_cleanup_slots[i]];
+        MVMSTable *st     = repr_data->flattened_stables[repr_data->gc_cleanup_slots[i]];
+        st->REPR->gc_cleanup(tc, st, (char *)OBJECT_BODY(obj) + offset);
+    }
 }
 
 /* Helper for complaining about attribute access errors. */
