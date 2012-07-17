@@ -82,6 +82,7 @@ typedef struct {
     PMC    *result;
 } MAST_Call;
 
+/* MAST::Annotated */
 typedef struct {
     PMC    *st;
     PMC    *sc;
