@@ -261,8 +261,16 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         rs->frame_outer_fixups[i] = read_int16(pos, 20);
         
         /* Get annotations details */
-        frames[i]->annotations = rs->annotation_seg + read_int32(pos, 22);
-        frames[i]->num_annotations = read_int32(pos, 26);
+        {
+            MVMuint32 annot_offset = read_int32(pos, 22);
+            MVMuint32 num_annotations = read_int32(pos, 26);
+            if (annot_offset + num_annotations * 10 > rs->annotation_size) {
+                cleanup_all(tc, rs);
+                MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
+            }
+            frames[i]->annotations = rs->annotation_seg + annot_offset;
+            frames[i]->num_annotations = num_annotations;
+        }
         
         pos += FRAME_HEADER_SIZE;
         

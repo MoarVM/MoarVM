@@ -296,7 +296,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         for (j = 0; j < frame->num_annotations; j++) {
             MVMuint32 ann_offset = GET_UI32(frame->annotations, j*10);
             MVMuint32 ann_lineno;
-            for (i = 0; i < bytecode_size; i++) {
+            for (i = 0; i < lineno; i++) {
                 if (linelocs[i] == ann_offset) {
                     annotations[i] = j + 1;
                     goto found_it;
