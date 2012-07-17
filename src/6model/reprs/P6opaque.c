@@ -110,6 +110,25 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     /* XXX TODO */
 }
 
+/* Called by the VM to mark any GCable items. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMint64 i;
+
+    /* Mark objects. */
+    for (i = 0; i < repr_data->gc_obj_mark_offsets_count; i++) {
+        MVMuint16 offset = repr_data->gc_obj_mark_offsets[i];
+        MVM_gc_worklist_add(tc, worklist, (char *)data + offset);
+    }
+
+    /* Mark any nested reprs that need it. */
+    for (i = 0; repr_data->gc_mark_slots[i] >= 0; i++) {
+        MVMuint16  offset = repr_data->attribute_offsets[repr_data->gc_mark_slots[i]];
+        MVMSTable *st     = repr_data->flattened_stables[repr_data->gc_mark_slots[i]];
+        st->REPR->gc_mark(tc, st, (char *)data + offset, worklist);
+    }
+}
+
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* XXX TODO */
@@ -422,6 +441,7 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->allocate = allocate;
     this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
+    this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->compose = compose;
