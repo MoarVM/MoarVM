@@ -274,10 +274,12 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         lines[lineno++] = o;
     }
     {
-        MVMuint32 *linelabels = calloc(sizeof(MVMuint32) * lineno, 1);
+        MVMuint32 *linelabels = calloc(lineno, sizeof(MVMuint32));
         MVMuint32 byte_offset = 0;
         MVMuint32 line_number = 0;
         MVMuint32 label_number = 1;
+        MVMuint32 *annotations = calloc(lineno, sizeof(MVMuint32));
+        
         for (; byte_offset < bytecode_size; byte_offset++) {
             if (labels[byte_offset] & MVM_val_branch_target) {
                 /* found a byte_offset where a label should be.
@@ -289,7 +291,27 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         o = oP;
         l = lP;
         s = sP;
+        
+        /* resolve annotation line numbers */
+        for (j = 0; j < frame->num_annotations; j++) {
+            MVMuint32 ann_offset = GET_UI32(frame->annotations, j*10);
+            MVMuint32 ann_lineno;
+            for (i = 0; i < bytecode_size; i++) {
+                if (linelocs[i] == ann_offset) {
+                    annotations[i] = j + 1;
+                    goto found_it;
+                }
+            }
+            found_it: 0;
+        }
+        
         for (j = 0; j < lineno; j++) {
+            if (annotations[j]) {
+                tmpstr = MVM_string_utf8_encode_C_string(
+                    tc, cu->strings[GET_UI16(frame->annotations + 4, (annotations[j] - 1)*10)]);
+                a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->annotations + 6, (annotations[j] - 1)*10));
+                free(tmpstr);
+            }
             if (linelabels[j])
                 a("     label_%u:\n", linelabels[j]);
             a("        %s", lines[j]);
@@ -301,24 +323,12 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                 a("label_%u", linelabels[line_number]);
             }
             a("\n");
-            /*free(lines[j]);*/
         }
         free(lines);
         free(jumps);
         free(linelocs);
         free(linelabels);
         free(labels);
-        
-        for (j = 0; j < frame->num_annotations; j++) {
-            if (!j) a("    Annotations:\n");
-            a("      Annotation %u :\n", j);
-            a("        offset: %u\n", GET_UI32(frame->annotations, j*10));
-            tmpstr = MVM_string_utf8_encode_C_string(
-                tc, cu->strings[GET_UI16(frame->annotations + 4, j*10)]);
-            a("        file:   %s\n", tmpstr);
-            free(tmpstr);
-            a("        line:   %u\n", GET_UI32(frame->annotations + 6, j*10));
-        }
     }
     
         }
