@@ -223,17 +223,7 @@ class QAST::MASTCompiler {
         'param_on_o'
     ];
     
-    my @return_types := [
-        NQPMu,
-        int,
-        int,
-        int,
-        int,
-        num,
-        num,
-        str,
-        NQPMu
-    ];
+    my @return_types := [ NQPMu, int, int, int, int, num, num, str, NQPMu ];
     
     multi method as_mast(QAST::Block $node) {
         my $outer_frame := try $*MAST_FRAME;
