@@ -292,17 +292,16 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         l = lP;
         s = sP;
         
+        i = 0;
         /* resolve annotation line numbers */
         for (j = 0; j < frame->num_annotations; j++) {
             MVMuint32 ann_offset = GET_UI32(frame->annotations, j*10);
-            MVMuint32 ann_lineno;
-            for (i = 0; i < lineno; i++) {
+            for (; i < lineno; i++) {
                 if (linelocs[i] == ann_offset) {
                     annotations[i] = j + 1;
-                    goto found_it;
+                    break;
                 }
             }
-            found_it: 0;
         }
         
         for (j = 0; j < lineno; j++) {
@@ -314,13 +313,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             }
             if (linelabels[j])
                 a("     label_%u:\n", linelabels[j]);
-            a("        %s", lines[j]);
+            a("%05d   %s", j, lines[j]);
             free(lines[j]);
             if (jumps[j]) {
                 /* hoirrbly inefficient for large frames.  again, should use a hash */
                 line_number = 0;
                 while (linelocs[line_number] != jumps[j]) line_number++;
-                a("label_%u", linelabels[line_number]);
+                a("label_%u(%05u)", linelabels[line_number], line_number);
             }
             a("\n");
         }
