@@ -37,23 +37,29 @@ my $MVM_operand_type_mask   := (15 * 8);
 
 # This is used as a return value from all of the various compilation routines.
 # It groups together a set of instructions along with a result register and a
-# result type.
+# result kind.  It also tracks the source filename and line number.
 class MAST::InstructionList {
     has @!instructions;
     has $!result_reg;
-    has $!result_kind;
+    has int $!result_kind;
+    has str $!filename;
+    has int $!lineno;
     
-    method new(:@instructions!, :$result_reg!, :$result_kind!) {
+    method new(:@instructions!, :$result_reg!, :$result_kind!, :$filename = '<anon>', :$lineno = 0) {
         my $obj := nqp::create(self);
         nqp::bindattr($obj, MAST::InstructionList, '@!instructions', @instructions);
         nqp::bindattr($obj, MAST::InstructionList, '$!result_reg', $result_reg);
-        nqp::bindattr($obj, MAST::InstructionList, '$!result_kind', $result_kind);
+        nqp::bindattr_i($obj, MAST::InstructionList, '$!result_kind', $result_kind);
+        nqp::bindattr_s($obj, MAST::InstructionList, '$!filename', $filename);
+        nqp::bindattr_i($obj, MAST::InstructionList, '$!lineno', $lineno);
         $obj
     }
     
     method instructions() { @!instructions }
     method result_reg()   { $!result_reg }
     method result_kind()  { $!result_kind }
+    method filename()     { $!filename }
+    method lineno()       { $!lineno }
 }
 
 # Marker object for void.
