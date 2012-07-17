@@ -74,7 +74,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     
     obj = MVM_gc_allocate_type_object(tc, st);
     st->WHAT = obj;
-    st->size = sizeof(MVMP6opaque); /* XXX Needs re-visiting later. */
+    st->size = sizeof(MVMP6opaque); /* Is updated later. */
     
     MVM_gc_root_temp_pop(tc);
     
@@ -83,13 +83,26 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    /* XXX Work out allocation size, etc. */
-    return MVM_gc_allocate_object(tc, st);
+    if (st->REPR_data)
+        return MVM_gc_allocate_object(tc, st);
+    else
+        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before allocating");
 }
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    /* XXX TODO */
+    MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    if (repr_data) {
+        MVMint64 i;
+        for (i = 0; repr_data->initialize_slots[i] >= 0; i++) {
+            MVMint64   offset = repr_data->attribute_offsets[repr_data->initialize_slots[i]];
+            MVMSTable *st     = repr_data->flattened_stables[repr_data->initialize_slots[i]];
+            st->REPR->initialize(tc, st, root, (char *)data + offset);
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using initialize");
+    }
 }
 
 /* Copies the body of one object to another. */
@@ -106,7 +119,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 MVM_NO_RETURN
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
     /* XXX awesomeize... */
-    MVM_exception_throw_adhoc(tc, "P6opaque: not such attribute");
+    MVM_exception_throw_adhoc(tc, "P6opaque: no such attribute");
 }
 
 /* Gets the current value for an attribute. */
@@ -258,9 +271,6 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
             attr_list, OBJECT_BODY(attr_list));
     }
     
-    /* Size starts off at header; we'll add as we go. */
-    repr_data->allocation_size = sizeof(MVMP6opaque);
-    
     /* Fill out and allocate other things we now can. */
     repr_data->num_attributes = total_attrs;
     if (total_attrs) {
@@ -382,8 +392,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
         cur_type++;
     }
     
-    /* Add allocated amount for body to get total size. */
-    repr_data->allocation_size += cur_alloc_addr;
+    /* Add allocated amount for body to have total object size. */
+    st->size += cur_alloc_addr;
     
     /* Add sentinels/counts. */
     repr_data->gc_obj_mark_offsets_count = cur_obj_attr;

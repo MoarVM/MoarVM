@@ -29,10 +29,6 @@ typedef struct {
  * various other bits of info. It hangs off the REPR_data pointer
  * in the s-table. */
 typedef struct {
-    /* The memory allocation size for an object instance. Includes space
-     * for the 6model common header and attributes. Size is in bytes. */
-    MVMuint16 allocation_size;
-
     /* The number of attributes we have allocated slots for. Note that
      * slots can vary in size. */
     MVMuint16 num_attributes;
@@ -76,15 +72,15 @@ typedef struct {
 
     /* Slots holding flattened objects that need another REPR to initialize
      * them; terminated with -1. */
-    MVMuint16 *initialize_slots;
+    MVMint16 *initialize_slots;
     
     /* Slots holding flattened objects that need another REPR to mark them;
      * terminated with -1. */
-    MVMuint16 *gc_mark_slots;
+    MVMint16 *gc_mark_slots;
     
     /* Slots holding flattened objects that need another REPR to clean them;
      * terminated with -1. */
-    MVMuint16 *gc_cleanup_slots;
+    MVMint16 *gc_cleanup_slots;
 } MVMP6opaqueREPRData;
 
 /* Function for REPR setup. */
