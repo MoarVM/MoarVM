@@ -103,4 +103,5 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
     },
     "3.14\n",
-    "Can box and unbox a num");
+    "Can box and unbox a num",
+    approx => 1);
