@@ -442,11 +442,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
             MVMObject *attr_info = REPR(attr_list)->pos_funcs->at_pos_boxed(tc,
                 STABLE(attr_list), attr_list, OBJECT_BODY(attr_list), i);
             
-            /* Extract name and type. */
+            /* Extract name, type and if it's a box target. */
             MVMObject *name_obj = REPR(attr_info)->ass_funcs->at_key_boxed(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_name);
             MVMObject *type = REPR(attr_info)->ass_funcs->at_key_boxed(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type);
+            MVMint64 is_box_target = REPR(attr_info)->ass_funcs->exists_key(tc,
+                STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target);
             
             /* Ensure we have a name and it's a string. */
             if (!name_obj || REPR(name_obj)->ID != MVM_REPR_ID_MVMString)
@@ -486,7 +488,32 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
                     }
 
                     /* Is it a target for box/unbox operations? */
-                    /* XXX box_target handling */
+                    if (is_box_target) {
+                        /* If it boxes a primitive, note that. */
+                        switch (unboxed_type) {
+                            case MVM_STORAGE_SPEC_BP_INT:
+                                if (repr_data->unbox_int_slot >= 0)
+                                    MVM_exception_throw_adhoc(tc,
+                                        "Duplicate box_target for native int");
+                                repr_data->unbox_int_slot = i;
+                                break;
+                            case MVM_STORAGE_SPEC_BP_NUM:
+                                if (repr_data->unbox_num_slot >= 0)
+                                    MVM_exception_throw_adhoc(tc,
+                                        "Duplicate box_target for native num");
+                                repr_data->unbox_num_slot = i;
+                                break;
+                            case MVM_STORAGE_SPEC_BP_STR:
+                                if (repr_data->unbox_str_slot >= 0)
+                                    MVM_exception_throw_adhoc(tc,
+                                        "Duplicate box_target for native str");
+                                repr_data->unbox_str_slot = i;
+                                break;
+                            default:
+                                /* nothing, just suppress 'missing default' warning */
+                                break;
+                        }
+                    }
                 }
             }
             
