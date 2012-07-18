@@ -135,7 +135,7 @@ BANK 2 string
 0x00    concat_s    w(str) r(str) r(str)
 0x01    repeat_s    w(str) r(str) r(int64)
 0x02    substr_s    w(str) r(str) r(int64) r(int64)
-0x03    index_s     w(int64) r(str) r(str)
+0x03    index_s     w(int64) r(str) r(str) r(int64)
 0x04    graphs_s    w(int64) r(str)
 0x05    codes_s     w(int64) r(str)
 0x06    eq_s        w(int64) r(str) r(str)
@@ -153,6 +153,9 @@ BANK 2 string
 0x12    decode_b    w(obj) r(obj) r(int64)
 0x13    decode      w(str) r(obj) r(int64)
 0x14    encode      w(obj) r(str) r(int64)
+0x15    split       w(obj) r(str) r(obj) r(str)
+0x16    join        w(str) r(obj) r(str)
+0x17    replace     w(str) r(str) r(str) r(str)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)

@@ -6,7 +6,7 @@
 
 
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
-MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *a, MVMString *b);
+MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 start);
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count);
 MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 start, MVMint64 length);
@@ -20,3 +20,5 @@ MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc, MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag);
 char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag);
+MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *type_object, MVMString *separator);
+MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator);

@@ -668,8 +668,8 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         break;
                     case MVM_OP_index_s:
                         GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
-                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
-                        cur_op += 6;
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
                         break;
                     case MVM_OP_graphs_s:
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s->body.graphs;
@@ -727,6 +727,21 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
+                    case MVM_OP_split:
+                        GET_REG(cur_op, 0).o = MVM_string_split(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s);
+                        cur_op += 8;
+                        break;
+                    case MVM_OP_join:
+                        GET_REG(cur_op, 0).s = MVM_string_join(tc,
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    /*case MVM_OP_replace:
+                        GET_REG(cur_op, 0).s = MVM_string_replace(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).s);
+                        cur_op += 8;
+                        break;*/
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_string, *(cur_op-1));
@@ -906,6 +921,14 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->at_pos_boxed(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
                             GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_bindpos_s: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->bind_pos_boxed(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2).i64,
+                            (MVMObject *)GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;
                     }

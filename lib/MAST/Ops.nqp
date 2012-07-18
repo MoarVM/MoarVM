@@ -1031,7 +1031,8 @@ class MAST::Ops {
             'operands', [
                 $MVM_operand_write_reg +| $MVM_operand_int64,
                 $MVM_operand_read_reg +| $MVM_operand_str,
-                $MVM_operand_read_reg +| $MVM_operand_str
+                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_int64
             ]
         ),
         'graphs_s', nqp::hash(
@@ -1167,6 +1168,32 @@ class MAST::Ops {
                 $MVM_operand_write_reg +| $MVM_operand_obj,
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_int64
+            ]
+        ),
+        'split', nqp::hash(
+            'code', 21,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'join', nqp::hash(
+            'code', 22,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_obj,
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
+        ),
+        'replace', nqp::hash(
+            'code', 23,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_str,
+                $MVM_operand_read_reg +| $MVM_operand_str
             ]
         )
     );

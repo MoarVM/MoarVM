@@ -164,6 +164,9 @@
 #define MVM_OP_decode_b 18
 #define MVM_OP_decode 19
 #define MVM_OP_encode 20
+#define MVM_OP_split 21
+#define MVM_OP_join 22
+#define MVM_OP_replace 23
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

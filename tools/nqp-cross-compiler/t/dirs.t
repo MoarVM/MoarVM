@@ -32,7 +32,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'read_dir', $r1, $dh);
         op(@ins, 'graphs_s', $index, $r1);
         op(@ins, 'unless_i', $index, $done);
-        op(@ins, 'index_s', $index, $r1, const($frame, sval(".")));
+        op(@ins, 'index_s', $index, $r1, const($frame, sval(".")), const($frame, ival(0)));
         op(@ins, 'eq_i', $index, $index, const($frame, ival(0)));
         # skip this entry if it starts with '.'
         op(@ins, 'if_i', $index, $loop2);
