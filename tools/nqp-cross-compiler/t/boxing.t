@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(1);
+plan(3);
 
 sub simple_type_from_repr($frame, $name_str, $repr_str) {
     my @ins := $frame.instructions;
@@ -76,3 +76,31 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "alive\n",
     "Can create a type with that boxes using create");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $type := boxing_type($frame, 'Int');
+        my $box := local($frame, NQPMu);
+        my $orig_int := local($frame, int);
+        my $result_int := local($frame, int);
+        op(@ins, 'const_i64', $orig_int, ival(112358));
+        op(@ins, 'box_i', $box, $orig_int, $type);
+        op(@ins, 'unbox_i', $result_int, $box);
+        op(@ins, 'say_i', $result_int);
+        op(@ins, 'return');
+    },
+    "112358\n",
+    "Can box and unbox an int");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $type := boxing_type($frame, 'Num');
+        my $box := local($frame, NQPMu);
+        my $orig_num := local($frame, num);
+        my $result_num := local($frame, num);
+        op(@ins, 'const_n64', $orig_num, nval(3.14));
+        op(@ins, 'box_n', $box, $orig_num, $type);
+        op(@ins, 'unbox_n', $result_num, $box);
+        op(@ins, 'say_n', $result_num);
+        op(@ins, 'return');
+    },
+    "3.14\n",
+    "Can box and unbox a num");
