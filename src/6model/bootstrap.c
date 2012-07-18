@@ -78,6 +78,8 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     repr_arg = MVM_args_get_named_str(tc, &arg_ctx, str_repr, MVM_ARG_OPTIONAL);
     name_arg = MVM_args_get_named_str(tc, &arg_ctx, str_name, MVM_ARG_OPTIONAL);
     MVM_args_proc_cleanup(tc, &arg_ctx);
+    if (REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
+        MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object with REPR KnowHOWREPR");
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&self);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_arg);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&name_arg);
@@ -126,6 +128,8 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     name     = MVM_args_get_pos_str(tc, &arg_ctx, 2, MVM_ARG_REQUIRED)->s;
     method   = MVM_args_get_pos_obj(tc, &arg_ctx, 3, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
+    if (REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
+        MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object with REPR KnowHOWREPR");
     
     /* Add to method table. */
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
@@ -148,7 +152,9 @@ static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegist
     attr     = MVM_args_get_pos_obj(tc, &arg_ctx, 2, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
     
-    /* Ensure it has the required representation. */
+    /* Ensure we have the required representations. */
+    if (REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
+        MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object with REPR KnowHOWREPR");
     if (REPR(attr)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
         MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
     
@@ -173,6 +179,8 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
+    if (REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
+        MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object with REPR KnowHOWREPR");
     
     /* Fill out STable. */
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
