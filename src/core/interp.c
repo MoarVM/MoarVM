@@ -967,6 +967,66 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_box_i: {
+                        MVMObject *type = GET_REG(cur_op, 4).o;
+                        MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
+                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+                        if (REPR(box)->initialize)
+                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                        REPR(box)->box_funcs->set_int(tc, STABLE(box), box,
+                            OBJECT_BODY(box), GET_REG(cur_op, 2).i64);
+                        MVM_gc_root_temp_pop(tc);
+                        GET_REG(cur_op, 0).o = box;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_box_n: {
+                        MVMObject *type = GET_REG(cur_op, 4).o;
+                        MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
+                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+                        if (REPR(box)->initialize)
+                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                        REPR(box)->box_funcs->set_num(tc, STABLE(box), box,
+                            OBJECT_BODY(box), GET_REG(cur_op, 2).n64);
+                        MVM_gc_root_temp_pop(tc);
+                        GET_REG(cur_op, 0).o = box;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_box_s: {
+                        MVMObject *type = GET_REG(cur_op, 4).o;
+                        MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
+                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+                        if (REPR(box)->initialize)
+                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                        REPR(box)->box_funcs->set_str(tc, STABLE(box), box,
+                            OBJECT_BODY(box), GET_REG(cur_op, 2).s);
+                        MVM_gc_root_temp_pop(tc);
+                        GET_REG(cur_op, 0).o = box;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_unbox_i: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = REPR(obj)->box_funcs->get_int(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_unbox_n: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).n64 = REPR(obj)->box_funcs->get_num(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_unbox_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).s = REPR(obj)->box_funcs->get_str(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_bindattr: {
                         MVMObject *obj = GET_REG(cur_op, 0).o;
                         REPR(obj)->attr_funcs->bind_attribute_boxed(tc,
