@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(29);
+plan(30);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -439,3 +439,12 @@ qast_output_is(
             )
         )
     ), "2012\n", "blocktype declaration");
+
+qast_output_is(QAST::Block.new(                   
+    QAST::VM.new( moarop => 'say_i',
+        QAST::Op.new( op => 'add_i',
+            QAST::IVal.new( :value(42) ),
+            QAST::IVal.new( :value(1) )
+        )
+    )
+), "43\n", "moarop mapper basic");

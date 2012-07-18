@@ -91,10 +91,10 @@ class QAST::MASTOperations {
         nqp::die("No registered operation handler for '$name'");
     }
     
-    # XXX This needs the coercion machinary
+    # XXX This needs the coercion machinery
     # that is (not yet fully) implemented in the PIR version of QAST::Compiler,
     # and so on.
-    method compile_mastop($qastcomp, $op, @args) {
+    method compile_mastop($qastcomp, $op, @args, :$returnarg = -1, :$opname = 'none') {
         # Resolve the op.
         my $bank;
         for MAST::Ops.WHO {
@@ -175,8 +175,9 @@ class QAST::MASTOperations {
             }
             
             # if this is the write register, get the result reg and type from it
-            if (($operand +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
-                || ($operand +& $MVM_operand_rw_mask) == $MVM_operand_write_lex) {
+            if ($operand +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
+                || ($operand +& $MVM_operand_rw_mask) == $MVM_operand_write_lex
+                || $returnarg != -1 && $returnarg == $arg_num {
                 $result_reg := $arg.result_reg;
                 $result_kind := $arg_kind;
             }
@@ -234,6 +235,51 @@ class QAST::MASTOperations {
         %hll_ops{$hll}{$op} := $handler;
     }
     
+    # Adds a core op that maps to a Moar op.
+    method add_core_moarop_mapping($op, $moarop, $ret = -1) {
+        my $moarop_mapper := self.moarop_mapper($moarop, $ret);
+        %core_ops{$op} := -> $qastcomp, $op {
+            $moarop_mapper($qastcomp, $op.op, $op.list)
+        };
+    }
+    
+    # Adds a HLL op that maps to a Moar op.
+    method add_hll_moarop_mapping($hll, $op, $moarop, $ret = -1) {
+        my $moarop_mapper := self.moarop_mapper($moarop, $ret);
+        %hll_ops{$hll} := {} unless %hll_ops{$hll};
+        %hll_ops{$hll}{$op} := -> $qastcomp, $op {
+            $moarop_mapper($qastcomp, $op.op, $op.list)
+        };
+    }
+    
+    # Returns a mapper closure for turning an operation into a Moar op.
+    # $ret is the 0-based index of which arg to use as the result when
+    # the moarop is void.
+    method moarop_mapper($moarop, $ret) {
+        # do a little checking of input values
+        
+        # Resolve the op.
+        my $bank;
+        my $self := self;
+        for MAST::Ops.WHO {
+            $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $moarop);
+        }
+        nqp::die("Unable to resolve moarop '$moarop'") unless $bank;
+        
+        if $ret != -1 {
+            my @operands := MAST::Ops.WHO{$bank}{$moarop}{"operands"};
+            nqp::die("moarop $moarop return arg index out of range")
+                if $ret < -1 || $ret >= +@operands;
+            nqp::die("moarop $moarop is not void")
+                if +@operands && (@operands[0] +& $MVM_operand_rw_mask) ==
+                    $MVM_operand_write_reg;
+        }
+        
+        -> $qastcomp, $op_name, @op_args {
+            $self.compile_mastop($qastcomp, $moarop, @op_args,
+                :returnarg($ret), :opname($op_name))
+        }
+    }
 }
 
 # Conditionals.
@@ -631,6 +677,64 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     
     MAST::InstructionList.new(@ins, $res_reg, $res_kind)
 });
+
+# arithmetic opcodes
+QAST::MASTOperations.add_core_moarop_mapping('add_i', 'add_i');
+#QAST::MASTOperations.add_core_moarop_mapping('add_I', 'nqp_bigint_add');
+QAST::MASTOperations.add_core_moarop_mapping('add_n', 'add_n');
+QAST::MASTOperations.add_core_moarop_mapping('sub_i', 'sub_i');
+#QAST::MASTOperations.add_core_moarop_mapping('sub_I', 'nqp_bigint_sub', 'PPPP');
+QAST::MASTOperations.add_core_moarop_mapping('sub_n', 'sub_n');
+QAST::MASTOperations.add_core_moarop_mapping('mul_i', 'mul_i');
+#QAST::MASTOperations.add_core_moarop_mapping('mul_I', 'nqp_bigint_mul', 'PPPP');
+QAST::MASTOperations.add_core_moarop_mapping('mul_n', 'mul_n');
+QAST::MASTOperations.add_core_moarop_mapping('div_i', 'div_i');
+#QAST::MASTOperations.add_core_moarop_mapping('div_I', 'nqp_bigint_div', 'PPPP');
+#QAST::MASTOperations.add_core_moarop_mapping('div_In', 'nqp_bigint_div_num', 'NPP');
+QAST::MASTOperations.add_core_moarop_mapping('div_n', 'div_n');
+QAST::MASTOperations.add_core_moarop_mapping('mod_i', 'mod_i');
+#QAST::MASTOperations.add_core_moarop_mapping('mod_I', 'nqp_bigint_mod', 'PPPP');
+#QAST::MASTOperations.add_core_moarop_mapping('expmod_I', 'nqp_bigint_exp_mod', 'PPPPP');
+#QAST::MASTOperations.add_core_moarop_mapping('mod_n', 'mod_n');
+QAST::MASTOperations.add_core_moarop_mapping('pow_n', 'pow_n');
+#QAST::MASTOperations.add_core_moarop_mapping('pow_I', 'nqp_bigint_pow', 'PPPPP');
+QAST::MASTOperations.add_core_moarop_mapping('neg_i', 'neg_i');
+#QAST::MASTOperations.add_core_moarop_mapping('neg_I', 'nqp_bigint_neg', 'PPP');
+QAST::MASTOperations.add_core_moarop_mapping('neg_n', 'neg_i');
+#QAST::MASTOperations.add_core_moarop_mapping('abs_i', 'abs', 'Ii');
+#QAST::MASTOperations.add_core_moarop_mapping('abs_I', 'nqp_bigint_abs', 'PPP');
+#QAST::MASTOperations.add_core_moarop_mapping('abs_n', 'abs', 'Nn');
+
+#QAST::MASTOperations.add_core_moarop_mapping('gcd_i', 'gcd', 'Ii');
+#QAST::MASTOperations.add_core_moarop_mapping('gcd_I', 'nqp_bigint_gcd', 'PPP');
+#QAST::MASTOperations.add_core_moarop_mapping('lcm_i', 'lcm', 'Ii');
+#QAST::MASTOperations.add_core_moarop_mapping('lcm_I', 'nqp_bigint_lcm', 'PPP');
+
+#QAST::MASTOperations.add_core_moarop_mapping('ceil_n', 'ceil', 'Nn');
+#QAST::MASTOperations.add_core_moarop_mapping('floor_n', 'floor', 'NN');
+#QAST::MASTOperations.add_core_moarop_mapping('ln_n', 'ln', 'Nn');
+#QAST::MASTOperations.add_core_moarop_mapping('sqrt_n', 'sqrt', 'Nn');
+#QAST::MASTOperations.add_core_moarop_mapping('radix', 'nqp_radix', 'Pisii');
+#QAST::MASTOperations.add_core_moarop_mapping('radix_I', 'nqp_bigint_radix', 'PisiiP');
+#QAST::MASTOperations.add_core_moarop_mapping('log_n', 'ln', 'NN');
+#QAST::MASTOperations.add_core_moarop_mapping('exp_n', 'exp', 'Nn');
+#QAST::MASTOperations.add_core_moarop_mapping('isnanorinf', 'is_inf_or_nan', 'In');
+
+# trig opcodes
+QAST::MASTOperations.add_core_moarop_mapping('sin_n', 'sin_n');
+QAST::MASTOperations.add_core_moarop_mapping('asin_n', 'asin_n');
+QAST::MASTOperations.add_core_moarop_mapping('cos_n', 'cos_n');
+QAST::MASTOperations.add_core_moarop_mapping('acos_n', 'acos_n');
+QAST::MASTOperations.add_core_moarop_mapping('tan_n', 'tan_n');
+QAST::MASTOperations.add_core_moarop_mapping('atan_n', 'atan_n');
+QAST::MASTOperations.add_core_moarop_mapping('atan2_n', 'atan2_n');
+QAST::MASTOperations.add_core_moarop_mapping('sec_n', 'sec_n');
+QAST::MASTOperations.add_core_moarop_mapping('asec_n', 'asec_n');
+QAST::MASTOperations.add_core_moarop_mapping('asin_n', 'asin_n');
+QAST::MASTOperations.add_core_moarop_mapping('sinh_n', 'sinh_n');
+QAST::MASTOperations.add_core_moarop_mapping('cosh_n', 'cosh_n');
+QAST::MASTOperations.add_core_moarop_mapping('tanh_n', 'tanh_n');
+QAST::MASTOperations.add_core_moarop_mapping('sech_n', 'sech_n');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
