@@ -18,19 +18,11 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st);
 }
 
-/* Initializes a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-}
-
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     P6intBody *src_body  = (P6intBody *)src;
     P6intBody *dest_body = (P6intBody *)dest;
     dest_body->value = src_body->value;
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
@@ -80,9 +72,7 @@ MVMREPROps * P6int_initialize(MVMThreadContext *tc) {
     memset(this_repr, 0, sizeof(MVMREPROps));
     this_repr->type_object_for = type_object_for;
     this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
-    this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->box_funcs = malloc(sizeof(MVMREPROps_Boxing));
     this_repr->box_funcs->set_int = set_int;

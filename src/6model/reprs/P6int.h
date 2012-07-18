@@ -1,4 +1,4 @@
-/* Representation used by P6 ints. */
+/* Representation used by P6 native ints. */
 typedef struct _P6intBody {
     /* Integer storage slot. */
     MVMint64 value;
