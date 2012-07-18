@@ -1,9 +1,1 @@
-What next?
-
-look at getting the nqp op to moar op mapping infrastructure
-set up (a bit like the stuff in QAST::Operations that maps nqp ops to pirops). Note we don't
-need the signature bit, since we have all that information available already. Only thing
-we'll need is an optional "what arg to use as the result" for void ops that should evaluate
-to one of the args.
-For nqp::op that maps naturally to moarops we can just make something that sets up the mapper
-For any more complicated cases, it's fine, we just have to do a closure that does the mapping work.
+(need moar stuffz)
