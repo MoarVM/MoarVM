@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(28);
+plan(29);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -426,3 +426,16 @@ qast_output_is(
     ),
     "555\n",
     'lexical binding in a nested block');
+
+qast_output_is(
+    QAST::Block.new(
+        QAST::VM.new( :moarop("say_i"),
+            QAST::Op.new(
+                :op('call'), :returns(int),
+                QAST::Block.new(
+                    :blocktype('declaration'),
+                    QAST::IVal.new( :value(2012) )
+                )
+            )
+        )
+    ), "2012\n", "blocktype declaration");

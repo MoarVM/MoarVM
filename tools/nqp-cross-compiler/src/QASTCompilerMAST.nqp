@@ -359,14 +359,22 @@ class QAST::MASTCompiler {
         }
         
         if $node.blocktype eq 'immediate' {
-            my $call_mast := self.as_mast(
+            return self.as_mast(
                 QAST::Op.new( :op('call'),
                     :returns(@return_types[$block.return_kind]),
                     QAST::BVal.new( :value($node) ) ) );
-            return $call_mast;
         }
-        
-        MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void)
+        if $node.blocktype && $node.blocktype ne 'declaration' {
+            nqp::die("Unhandled blocktype $node.blocktype");
+        }
+        # note: we're now in the outer $*BLOCK/etc. contexts
+        # blocktype declaration (default)
+        if $outer && $outer ~~ BlockInfo {
+            self.as_mast(QAST::BVal.new(:value($node)))
+        }
+        else {
+            MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void)
+        }
     }
     
     multi method as_mast(QAST::Stmts $node) {
