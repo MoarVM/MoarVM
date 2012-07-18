@@ -147,7 +147,7 @@ class QAST::MASTOperations {
                 $*BLOCK.return_kind($arg.result_kind);
             }
             $arg_num++;
-        
+            
             # args cannot be void
             if $arg_kind == $MVM_reg_void {
                 nqp::die("Cannot use a void register as an argument to op '$op'");
@@ -236,16 +236,20 @@ class QAST::MASTOperations {
     }
     
     # Adds a core op that maps to a Moar op.
-    method add_core_moarop_mapping($op, $moarop, $ret = -1) {
-        my $moarop_mapper := self.moarop_mapper($moarop, $ret);
+    method add_core_moarop_mapping($op, $moarop, $ret = -1, :$mapper?) {
+        my $moarop_mapper := $mapper
+            ?? $mapper(self, $moarop, $ret)
+            !! self.moarop_mapper($moarop, $ret);
         %core_ops{$op} := -> $qastcomp, $op {
             $moarop_mapper($qastcomp, $op.op, $op.list)
         };
     }
     
     # Adds a HLL op that maps to a Moar op.
-    method add_hll_moarop_mapping($hll, $op, $moarop, $ret = -1) {
-        my $moarop_mapper := self.moarop_mapper($moarop, $ret);
+    method add_hll_moarop_mapping($hll, $op, $moarop, $ret = -1, :$mapper?) {
+        my $moarop_mapper := $mapper
+            ?? $mapper(self, $moarop, $ret)
+            !! self.moarop_mapper($moarop, $ret);
         %hll_ops{$hll} := {} unless %hll_ops{$hll};
         %hll_ops{$hll}{$op} := -> $qastcomp, $op {
             $moarop_mapper($qastcomp, $op.op, $op.list)
@@ -677,6 +681,25 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     
     MAST::InstructionList.new(@ins, $res_reg, $res_kind)
 });
+
+my @say_opnames := [
+    'say','say_i','say_i','say_i','say_i','say_n','say_n','say_s','say_o'
+];
+
+QAST::MASTOperations.add_core_moarop_mapping('say', 'n/a',
+:mapper(-> $operations, $moarop, $ret {
+    -> $qastcomp, $op_name, @op_args {
+        my @ins := nqp::list();
+        
+        my $arg := $qastcomp.as_mast(@op_args[0]);
+        nqp::splice(@ins, $arg.instructions, 0, 0);
+        $*REGALLOC.release_register($arg.result_reg, $arg.result_kind);
+        push_op(@ins, @say_opnames[$arg.result_kind], $arg.result_reg);
+        my $one := $qastcomp.as_mast(QAST::IVal.new(:value(1)));
+        nqp::splice(@ins, $one.instructions, +@ins, 0);
+        MAST::InstructionList.new(@ins, $one.result_reg, $one.result_kind)
+    }
+}));
 
 # arithmetic opcodes
 QAST::MASTOperations.add_core_moarop_mapping('add_i', 'add_i');
