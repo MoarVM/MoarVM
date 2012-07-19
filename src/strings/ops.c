@@ -338,6 +338,8 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
     
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_object);
     result = REPR(type_object)->allocate(tc, STABLE(type_object));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&input);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&separator);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
     
     start = 0;
@@ -350,7 +352,6 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
         
         index = MVM_string_index(tc, input, separator, start);
         length = sep_length ? (index == -1 ? end : index) - start : 1;
-        //printf("got start %d index %d length %d\n", start, index, length);
         portion = MVM_string_substring(tc, input, start, length);
         start += length + sep_length;
         
@@ -360,7 +361,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
         }
     }
     
-    MVM_gc_root_temp_pop_n(tc, 2);
+    MVM_gc_root_temp_pop_n(tc, 4);
     
     return result;
 }
@@ -368,6 +369,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator) {
     MVMint64 elems, length = 0, index = -1, position;
     MVMString *portion, *result;
+    MVMuint32 codes = 0;
     
     if (REPR(input)->ID != MVM_REPR_ID_MVMArray || !IS_CONCRETE(input)) {
         MVM_exception_throw_adhoc(tc, "join needs a concrete object with MVMArray REPR");
@@ -378,8 +380,8 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     }
     
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&separator);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&input);
     result = (MVMString *)(REPR(separator)->allocate(tc, STABLE(separator)));
-    MVM_gc_root_temp_pop(tc);
     
     elems = REPR(input)->pos_funcs->elems(tc, STABLE(input),
         input, OBJECT_BODY(input));
@@ -396,10 +398,13 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         
         portion = (MVMString *)item;
         length += portion->body.graphs + (index ? separator->body.graphs : 0);
+        codes += portion->body.codes + (index ? separator->body.codes : 0);
     }
     
     result->body.graphs = length;
-    result->body.codes = length; /* XXX NFG wrong */
+    /* consider whether to coalesce combining characters
+    if they cause new combining sequences to appear */
+    result->body.codes = codes;
     if (length)
         result->body.data = malloc(sizeof(MVMint32) * length);
     
@@ -425,6 +430,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         
         position += length;
     }
+    
+    MVM_gc_root_temp_pop_n(tc, 2);
+    
     if (result->body.graphs != position)
         MVM_exception_throw_adhoc(tc, "join had an internal error");
     
