@@ -606,6 +606,22 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).o = MVM_frame_takeclosure(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
+                    case MVM_OP_jumplist: {
+                        MVMint64 num_labels = GET_I64(cur_op, 0);
+                        MVMint64 input = GET_REG(cur_op, 8).i64;
+                        cur_op += 10;
+                        /* the goto ops are guaranteed valid/existent by validation.c */
+                        if (input < 0 || input >= num_labels) { /* implicitly covers num_labels == 0 */
+                            /* skip the entire goto list block */
+                            cur_op += (6 /* size of each goto op */) * num_labels;
+                        }
+                        else { /* delve directly into the selected goto op */
+                            cur_op = bytecode_start + GET_UI32(cur_op,
+                                input * (6 /* size of each goto op */) 
+                                + (2 /* size of the goto instruction itself */));
+                        }
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));

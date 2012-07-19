@@ -123,6 +123,7 @@ BANK 0 primitives
 0x79    pow_i       w(int64) r(int64) r(int64)
 0x7A    pow_n       w(num64) r(num64) r(num64)
 0x7B    takeclosure w(obj) r(obj)
+0x7C    jumplist    int64 r(int64)
 
 BANK 1 dev
 0x00    say_i       r(int64)

@@ -51,6 +51,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     unsigned char op_type;
     unsigned char op_flags;
     MVMuint32 operand_type_var;
+    MVMint64 num_jumplist_labels = 0;
     
     memset(labels, 0, bytecode_size);
     
@@ -67,6 +68,12 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 "Bytecode validation error: non-existent operation bank %u op %u",
                 bank_num, op_num);
         }
+        if (num_jumplist_labels != 0 && num_jumplist_labels-- != 0
+                && (bank_num != MVM_OP_BANK_primitives || op_num != MVM_OP_goto)) {
+            cleanup_all(tc, labels);
+            MVM_exception_throw_adhoc(tc,
+                "jumplist op must be followed by an additional %d goto ops", num_jumplist_labels + 1);
+        }
         /*printf("validating op %s, (%d) bank %d", op_info->name, op_num, bank_num);*/
         for (i = 0; i < op_info->num_operands; i++) {
             op_flags = op_info->operands[i];
@@ -77,7 +84,19 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     case MVM_operand_int8:      operand_size = 1; break;
                     case MVM_operand_int16:     operand_size = 2; break;
                     case MVM_operand_int32:     operand_size = 4; break;
-                    case MVM_operand_int64:     operand_size = 8; break;
+                    case MVM_operand_int64:
+                        operand_size = 8;
+                        if (bank_num == MVM_OP_BANK_primitives && op_num == MVM_OP_jumplist) {
+                            if (cur_op + operand_size > bytecode_end)
+                                throw_past_end(tc, labels);
+                            num_jumplist_labels = GET_I64(cur_op, 0);
+                            if (num_jumplist_labels < 0 || num_jumplist_labels > 4294967295i64) {
+                                cleanup_all(tc, labels);
+                                MVM_exception_throw_adhoc(tc,
+                                    "num_jumplist_labels %d out of range", num_jumplist_labels);
+                            }
+                        }
+                        break;
                     case MVM_operand_num32:     operand_size = 4; break;
                     case MVM_operand_num64:     operand_size = 8; break;
                     case MVM_operand_callsite:
