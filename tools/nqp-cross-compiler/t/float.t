@@ -49,7 +49,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
     },
     "-127243075316.468050\n",
-    "float multiplication");
+    "float multiplication", approx => 1);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
