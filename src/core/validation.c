@@ -90,7 +90,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                             if (cur_op + operand_size > bytecode_end)
                                 throw_past_end(tc, labels);
                             num_jumplist_labels = GET_I64(cur_op, 0);
-                            if (num_jumplist_labels < 0 || num_jumplist_labels > 4294967295i64) {
+                            if (num_jumplist_labels < 0 || num_jumplist_labels > 4294967295) {
                                 cleanup_all(tc, labels);
                                 MVM_exception_throw_adhoc(tc,
                                     "num_jumplist_labels %d out of range", num_jumplist_labels);
