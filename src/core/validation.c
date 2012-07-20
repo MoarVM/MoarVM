@@ -237,6 +237,12 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
             cur_op += operand_size;
         }
     }
+    if (num_jumplist_labels) {
+        cleanup_all(tc, labels);
+        MVM_exception_throw_adhoc(tc,
+            "jumplist op must be followed by an additional %d goto ops", num_jumplist_labels);
+    }
+    
     /* check that all the branches and gotos have valid op boundary destinations */
     for (i = 0; i < bytecode_size; i++) {
         if (labels[i] & MVM_val_branch_target && !(labels[i] & MVM_val_op_boundary)) {
