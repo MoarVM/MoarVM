@@ -758,6 +758,11 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).s);
                         cur_op += 8;
                         break;*/
+                    case MVM_OP_getcpbyname:
+                        GET_REG(cur_op, 0).i64 = MVM_unicode_lookup_by_name(tc,
+                            GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_string, *(cur_op-1));

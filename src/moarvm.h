@@ -13,6 +13,7 @@
 #include <apr_portable.h>
 #include <apr_env.h>
 #include <apr_getopt.h>
+#include <uthash.h>
 
 /* Configuration. */
 #include "gen/config.h"

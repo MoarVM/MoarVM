@@ -1202,6 +1202,13 @@ class MAST::Ops {
                 $MVM_operand_read_reg +| $MVM_operand_str,
                 $MVM_operand_read_reg +| $MVM_operand_str
             ]
+        ),
+        'getcpbyname', nqp::hash(
+            'code', 24,
+            'operands', [
+                $MVM_operand_write_reg +| $MVM_operand_int64,
+                $MVM_operand_read_reg +| $MVM_operand_str
+            ]
         )
     );
     our $math := nqp::hash(

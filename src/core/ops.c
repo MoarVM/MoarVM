@@ -936,6 +936,12 @@ static MVMOpInfo MVM_op_info_string[] = {
         4,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_getcpbyname,
+        "getcpbyname",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 static MVMOpInfo MVM_op_info_math[] = {
     {
@@ -1853,7 +1859,7 @@ static unsigned char MVM_op_banks = 7;
 static unsigned char MVM_opcounts_by_bank[] = {
     125,
     5,
-    24,
+    25,
     13,
     65,
     45,

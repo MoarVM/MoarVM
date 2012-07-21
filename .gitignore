@@ -19,7 +19,6 @@ Makefile
 3rdparty/apr/exports.c
 3rdparty/apr/include/arch/unix/apr_private.h
 3rdparty/apr/include/arch/unix/apr_private.h.in~
-3rdparty/apr/include/apr.h
 3rdparty/apr/libtool
 src/gen/
 *.la
@@ -37,3 +36,4 @@ tools/nqp-cross-compiler/temp.output
 tools/nqp-cross-compiler/*.mvmdump
 *.vsp
 /nmake.cmd
+UNIDATA/*

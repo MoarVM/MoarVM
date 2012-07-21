@@ -29,3 +29,4 @@ typedef struct _MVMUnicodePlane {
 } MVMUnicodePlane;
 
 MVMCodePoint * MVM_unicode_codepoint_info(MVMThreadContext *tc, MVMint32 codepoint);
+MVMint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name);

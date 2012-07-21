@@ -157,6 +157,7 @@ BANK 2 string
 0x15    split       w(obj) r(str) r(obj) r(str)
 0x16    join        w(str) r(obj) r(str)
 0x17    replace     w(str) r(str) r(str) r(str)
+0x18    getcpbyname w(int64) r(str)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)

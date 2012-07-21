@@ -1,7 +1,7 @@
 # Compiler configuration
 CC       = @cc@
 CFLAGS   = @cflags@
-CINCLUDE = -I3rdparty/apr/include -Isrc
+CINCLUDE = -I3rdparty/apr/include -Isrc -I3rdparty
 LD       = @link@
 LDFLAGS  = @ldflags@
 LLIBS    = @llibs@

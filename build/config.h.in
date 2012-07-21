@@ -20,6 +20,7 @@
 #define MVMuint64      unsigned long long
 #define MVMnum32       float
 #define MVMnum64       double
+#define MVM_UTHASH_WIN @mvmuthashwin@
 
 /* Various compiler-specific pragmii. */
 /* #define MVM_NO_RETURN   */
