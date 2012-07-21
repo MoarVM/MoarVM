@@ -879,10 +879,29 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                         cur_op += 4;
                         break;
+                    case MVM_OP_atkey_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMObject *result = REPR(obj)->ass_funcs->at_key_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            (MVMObject *)GET_REG(cur_op, 4).s);
+                        if (REPR(result)->ID != MVM_REPR_ID_MVMString)
+                            MVM_exception_throw_adhoc(tc, "object does not have REPR MVMString");
+                        GET_REG(cur_op, 0).s = (MVMString *)result;
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_atkey_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
+                            (MVMObject *)GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_bindkey_s: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->ass_funcs->bind_key_boxed(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
                             (MVMObject *)GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;

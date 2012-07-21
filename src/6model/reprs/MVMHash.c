@@ -1,20 +1,5 @@
 #include "moarvm.h"
 
-/* We naughtily break the APR encapsulation here. Why? Because we need to
- * get at the address where a hash key/value is stored, for GC purposes. */
-struct apr_hash_entry_t {
-    struct apr_hash_entry_t *next;
-    unsigned int             hash;
-    const void              *key;
-    apr_ssize_t              klen;
-    const void              *val;
-};
-struct apr_hash_index_t {
-    apr_hash_t                *ht;
-    struct apr_hash_entry_t   *this, *next;
-    unsigned int               index;
-};
-
 /* This representation's function pointer table. */
 static MVMREPROps *this_repr;
 
@@ -44,78 +29,12 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
-    apr_status_t rv;
     
-    if ((rv = apr_pool_create(&body->pool, NULL)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to initialize MVMHashBody: ");
-    }
-    
-    body->key_hash = apr_hash_make(body->pool);
-    body->value_hash = apr_hash_make(body->pool);
+    /* this must be initialized to NULL */
+    body->hash_head = NULL;
 }
 
-/* Copies the body of one object to another. */
-static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMHashBody *src_body  = (MVMHashBody *)src;
-    MVMHashBody *dest_body = (MVMHashBody *)dest;
-    apr_hash_index_t *idx;
-    
-    /* Create a new pool for the target hash, and the hash itself. */
-    apr_status_t rv;
-    
-    if ((rv = apr_pool_create(&dest_body->pool, NULL)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to copy MVMHashBody: ");
-    }
-    
-    dest_body->key_hash = apr_hash_make(dest_body->pool);
-    dest_body->value_hash = apr_hash_make(dest_body->pool);
- 
-    /* Copy; note don't use the APR copy function for this as we
-     * want to write barrier (which may be overkill as the target
-     * is presumably first generation...but not so fun to debug
-     * the upshot if that turns out not to be true somehow). */
-    for (idx = apr_hash_first(dest_body->pool, src_body->key_hash); idx; idx = apr_hash_next(idx)) {
-        const void *key;
-        void *val;
-        apr_ssize_t klen;
-        apr_hash_this(idx, &key, &klen, &val);
-        /* XXX Write barrier needed. */
-        apr_hash_set(dest_body->key_hash, key, klen, val);
-    }
-    for (idx = apr_hash_first(dest_body->pool, src_body->value_hash); idx; idx = apr_hash_next(idx)) {
-        const void *key;
-        void *val;
-        apr_ssize_t klen;
-        apr_hash_this(idx, &key, &klen, &val);
-        /* XXX Write barrier needed. */
-        apr_hash_set(dest_body->value_hash, key, klen, val);
-    }
-}
-
-/* Adds held objects to the GC worklist. */
-static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMHashBody *body = (MVMHashBody *)data;
-    apr_hash_index_t *hi;
-    for (hi = apr_hash_first(NULL, body->key_hash); hi; hi = apr_hash_next(hi)) {
-        struct apr_hash_entry_t *this = hi->this;
-        MVM_gc_worklist_add(tc, worklist, &this->val);
-    }
-    for (hi = apr_hash_first(NULL, body->value_hash); hi; hi = apr_hash_next(hi)) {
-        struct apr_hash_entry_t *this = hi->this;
-        MVM_gc_worklist_add(tc, worklist, &this->val);
-    }
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMHash *h = (MVMHash *)obj;
-    apr_pool_destroy(h->body.pool);
-    h->body.pool = NULL;
-    h->body.key_hash = NULL;
-    h->body.value_hash = NULL;
-}
-
-static void extract_key(MVMThreadContext *tc, void **kdata, apr_ssize_t *klen, MVMObject *key) {
+static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
     if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) {
         *kdata = ((MVMString *)key)->body.data;
         *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMint32);
@@ -126,6 +45,47 @@ static void extract_key(MVMThreadContext *tc, void **kdata, apr_ssize_t *klen, M
     }
 }
 
+/* Copies the body of one object to another. */
+static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
+    MVMHashBody *src_body  = (MVMHashBody *)src;
+    MVMHashBody *dest_body = (MVMHashBody *)dest;
+    MVMHashEntry *current, *tmp;
+    
+    /* XXX if we really wanted to, we could avoid rehashing... */
+    HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
+        size_t klen;
+        void *kdata;
+        MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
+        new_entry->key = current->key;
+        new_entry->value = current->value;
+        extract_key(tc, &kdata, &klen, current->key);
+        
+        HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
+    }
+}
+
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    MVMHashEntry *current, *tmp;
+    
+    HASH_ITER(hash_handle, body->hash_head, current, tmp) {
+        MVM_gc_worklist_add(tc, worklist, &current->key);
+        MVM_gc_worklist_add(tc, worklist, &current->value);
+    }
+}
+
+/* Called by the VM in order to free memory associated with this object. */
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    MVMHash *h = (MVMHash *)obj;
+    MVMHashEntry *current, *tmp;
+    
+    HASH_ITER(hash_handle, h->body.hash_head, current, tmp) {
+        HASH_DELETE(hash_handle, h->body.hash_head, current);
+        free(current);
+    }
+}
+
 static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVM_exception_throw_adhoc(tc,
         "MVMHash representation does not support native type storage");
@@ -133,11 +93,12 @@ static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
 
 static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMHashBody *body = (MVMHashBody *)data;
-    void *kdata, *value;
-    apr_ssize_t klen;
+    void *kdata;
+    MVMHashEntry *entry;
+    size_t klen;
     extract_key(tc, &kdata, &klen, key);
-    value = apr_hash_get(body->value_hash, kdata, klen);
-    return value ? (MVMObject *)value : NULL;
+    HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+    return entry != NULL ? entry->value : NULL;
 }
 
 static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
@@ -148,32 +109,51 @@ static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
 static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
     MVMHashBody *body = (MVMHashBody *)data;
     void *kdata;
-    apr_ssize_t klen;
+    MVMHashEntry *old_entry;
+    size_t klen;
+    MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
+    new_entry->key = key;
+    new_entry->value = value;
+    
     extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->key_hash, kdata, klen, key);
-    apr_hash_set(body->value_hash, kdata, klen, value);
+    
+    /* first check whether we need to delete/free the old entry */
+    HASH_FIND(hash_handle, body->hash_head, kdata, klen, old_entry);
+    if (old_entry) {
+        HASH_DELETE(hash_handle, body->hash_head, old_entry);
+        free(old_entry);
+    }
+    HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, new_entry);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
-    return apr_hash_count(body->value_hash);
+    return HASH_CNT(hash_handle, body->hash_head);
 }
 
 static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMHashBody *body = (MVMHashBody *)data;
     void *kdata;
-    apr_ssize_t klen;
+    MVMHashEntry *entry;
+    size_t klen;
     extract_key(tc, &kdata, &klen, key);
-    return apr_hash_get(body->value_hash, kdata, klen) != NULL;
+    
+    HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+    return entry != NULL;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMHashBody *body = (MVMHashBody *)data;
+    MVMHashEntry *old_entry;
+    size_t klen;
     void *kdata;
-    apr_ssize_t klen;
     extract_key(tc, &kdata, &klen, key);
-    apr_hash_set(body->key_hash, kdata, klen, NULL);
-    apr_hash_set(body->value_hash, kdata, klen, NULL);
+    
+    HASH_FIND(hash_handle, body->hash_head, kdata, klen, old_entry);
+    if (old_entry) {
+        HASH_DELETE(hash_handle, body->hash_head, old_entry);
+        free(old_entry);
+    }
 }
 
 static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {

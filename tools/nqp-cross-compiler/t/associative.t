@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(6);
+plan(7);
 
 sub hash_type($frame) {
     my @ins := $frame.instructions;
@@ -129,3 +129,27 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "1\n0\n0\n1\n",
     "Can retrieve items by key");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $ht := hash_type($frame);
+        my $r0 := local($frame, NQPMu);
+        my $r1 := local($frame, int);
+        my $r2 := const($frame, sval("foo"));
+        my $r3 := const($frame, sval("bar"));
+        my $r4 := const($frame, sval("baz"));
+        my $r5 := local($frame, str);
+        op(@ins, 'create', $r0, $ht);
+        op(@ins, 'bindkey_s', $r0, $r2, $r3);
+        op(@ins, 'atkey_s', $r5, $r0, $r2);
+        op(@ins, 'say_s', $r5);
+        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'bindkey_s', $r0, $r2, $r4);
+        op(@ins, 'atkey_s', $r5, $r0, $r2);
+        op(@ins, 'say_s', $r5);
+        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "bar\n1\nbaz\n1\n",
+    "associative Replace works");
