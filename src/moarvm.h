@@ -13,10 +13,12 @@
 #include <apr_portable.h>
 #include <apr_env.h>
 #include <apr_getopt.h>
-#include <uthash.h>
 
 /* Configuration. */
 #include "gen/config.h"
+
+/* needs to be after config.h */
+#include <uthash.h>
 
 /* Headers for APIs for various other data structures and APIs. */
 #include "6model/6model.h"

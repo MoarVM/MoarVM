@@ -23,6 +23,8 @@
 #define MVM_UTHASH_WIN @mvmuthashwin@
 
 /* Various compiler-specific pragmii. */
-/* #define MVM_NO_RETURN   */
 #define MVM_NO_RETURN @noreturn@
 #define MVM_NO_RETURN_GCC @noreturngcc@
+
+/* stuff for uthash */
+#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
