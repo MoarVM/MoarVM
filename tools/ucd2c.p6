@@ -146,6 +146,7 @@ MVMint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
         }
     }
     HASH_FIND_STR(codepoints_by_name, cname, result);
+    free(cname);
     return result ? result->codepoint : -1;
 }
 
