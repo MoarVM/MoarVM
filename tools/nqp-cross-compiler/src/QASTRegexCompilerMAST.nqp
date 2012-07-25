@@ -12,21 +12,18 @@ my $MVM_reg_obj             := 8;
 
 class QAST::MASTRegexCompiler {
     
-    has $!qastcomp;
-    
-    method new($compiler) {
+    method new() {
         my $obj := nqp::create(self);
-        $obj.BUILD($compiler);
+        $obj.BUILD();
         $obj
     }
     
-    method BUILD($compiler) {
-        $!qastcomp := $compiler;
+    method BUILD() {
     }
     
     method as_mast($qast) {
         # Prefix for the regexes code pieces.
-        my $prefix := $!qastcomp.unique('rx') ~ '_';
+        my $prefix := $*QASTCOMPILER.unique('rx') ~ '_';
 
         # Build the list of (unique) registers we need
         my %*REG := nqp::hash(
@@ -52,16 +49,22 @@ class QAST::MASTRegexCompiler {
         
         my @ins := nqp::list();
         
-
+        
         nqp::die("Regex compilation NYI");
     }
     
+    method regex_mast($node) {
+        return $*QASTCOMPILER.as_mast($node) unless $node ~~ QAST::Regex;
+        my $rxtype := $node.rxtype() || 'concat';
+        self."$rxtype"($node)
+    }
+
     method build_regex_types() {
         my @ins := nqp::list();
         
         my $cursor_type := simple_type_from_repr(@ins, 'NQPCursor', 'P6opaque');
         
-        add_method(@ins, $!qastcomp, $cursor_type, 'foo', QAST::Block.new(
+        add_method(@ins, $cursor_type, 'foo', QAST::Block.new(
             
         ));
         
@@ -167,9 +170,9 @@ sub boxing_type(@ins, $name_str) {
     $type
 }
 
-sub add_method(@ins, $compiler, $type, $name_str, $qast) {
-    my $unused := $compiler.as_mast($qast);
-    my $mast := $compiler.as_mast(QAST::BVal.new(:value($qast)));
+sub add_method(@ins, $type, $name_str, $qast) {
+    my $unused := $*QASTCOMPILER.as_mast($qast);
+    my $mast := $*QASTCOMPILER.as_mast(QAST::BVal.new(:value($qast)));
     my $code := $mast.result_reg;
     nqp::splice(@ins, $mast.instructions, +@ins, 0);
     my $name := fresh_s();
@@ -187,6 +190,30 @@ sub add_method(@ins, $compiler, $type, $name_str, $qast) {
     release($how, $MVM_reg_obj);
     release($meth, $MVM_reg_obj);
     release($code, $MVM_reg_obj);
+    release($name, $MVM_reg_str);
+}
+
+sub add_attribute(@ins, $type, $name_str) {
+    
+    my $how := fresh_o();
+    my $meth := fresh_o();
+    my $attr := fresh_o();
+    my $name := fresh_s();
+    
+    # Add an attribute.
+    op(@ins, 'gethow', $how, $type);
+    op(@ins, 'knowhowattr', $attr);
+    op(@ins, 'const_s', $name, sval($name_str));
+    op(@ins, 'findmeth', $meth, $attr, sval('new'));
+    call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::obj],
+        $attr, sval('name'), $name, sval('type'), $attr, :result($attr));
+    op(@ins, 'findmeth', $meth, $how, sval('add_attribute'));
+    call(@ins, $meth, [$Arg::obj, $Arg::obj, $Arg::obj], $how, $type, $attr, :result($attr));
+    
+    release($how, $MVM_reg_obj);
+    release($meth, $MVM_reg_obj);
+    release($attr, $MVM_reg_obj);
+    release($name, $MVM_reg_str);
 }
 
 sub compose(@ins, $type) {

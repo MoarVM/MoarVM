@@ -183,7 +183,9 @@ class QAST::MASTCompiler {
         # when we encounter the Block again in a call.
         my %*MAST_FRAMES := nqp::hash();
         
+        my $*QASTCOMPILER := self;
         self.as_mast($qast);
+        
         $*MAST_COMPUNIT
     }
     
@@ -360,7 +362,7 @@ class QAST::MASTCompiler {
             
             if !$outer || !($outer ~~ BlockInfo) {
                 # top level block; preload the regex types
-                my $rxres := QAST::MASTRegexCompiler.new(self).build_regex_types();
+                my $rxres := QAST::MASTRegexCompiler.new().build_regex_types();
                 nqp::splice($frame.instructions, $rxres.instructions, 0, 0);
             }
         }
@@ -654,7 +656,7 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::Regex $node) {
-        QAST::MASTRegexCompiler.new(self).as_mast($node)
+        QAST::MASTRegexCompiler.new().as_mast($node)
     }
     
     my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
