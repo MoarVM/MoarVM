@@ -23,6 +23,7 @@ class QAST::MASTCompiler {
         has @!ints;
         has @!nums;
         has @!strs;
+        has %!released_indexes;
         
         method new($frame) {
             my $obj := nqp::create(self);
@@ -53,8 +54,15 @@ class QAST::MASTCompiler {
             elsif $kind == $MVM_reg_obj   { @arr := @!objs; $type := NQPMu }
             else { nqp::die("unhandled reg kind $kind") }
             
-            nqp::elems(@arr) && !$new ?? nqp::pop(@arr) !!
-                    MAST::Local.new($!frame.add_local($type))
+            my $reg;
+            if nqp::elems(@arr) && !$new {
+                $reg := nqp::pop(@arr);
+                nqp::deletekey(%!released_indexes, $reg.index);
+            }
+            else {
+                $reg := MAST::Local.new($!frame.add_local($type));
+            }
+            $reg
         }
         
         method release_i($reg) { self.release_register($reg, $MVM_reg_int64) }
@@ -62,8 +70,10 @@ class QAST::MASTCompiler {
         method release_s($reg) { self.release_register($reg, $MVM_reg_str) }
         method release_o($reg) { self.release_register($reg, $MVM_reg_obj) }
         
-        method release_register($reg, $kind) {
-            return 1 if $kind == $MVM_reg_void || $*BLOCK.is_var($reg);
+        method release_register($reg, $kind, $force = 0) {
+            return 1 if $kind == $MVM_reg_void || !$force && $*BLOCK.is_var($reg)
+                || nqp::existskey(%!released_indexes, $reg.index);
+            %!released_indexes{$reg.index} := 1;
             return nqp::push(@!ints, $reg) if $kind == $MVM_reg_int64;
             return nqp::push(@!nums, $reg) if $kind == $MVM_reg_num64;
             return nqp::push(@!strs, $reg) if $kind == $MVM_reg_str;
@@ -134,15 +144,20 @@ class QAST::MASTCompiler {
         
         method register_local($var) {
             my $name := $var.name;
-            if nqp::existskey(%!locals, $name) {
+            my $temporary := ?$*INSTMT;
+            if nqp::existskey(%!locals, $name) ||
+                    $temporary && nqp::existskey(%*STMTTEMPS, $name) {
                 nqp::die("Local '$name' already declared");
             }
             my $kind := $!compiler.type_to_register_kind($var.returns);
             %!local_kinds{$name} := $kind;
             # pass a 1 meaning get a Totally New MAST::Local
-            my $local := $*REGALLOC.fresh_register($kind, 1);
+            my $local := $*REGALLOC.fresh_register($kind, !$temporary);
             %!locals{$name} := $local;
             %!local_names_by_index{$local.index} := $name;
+            if $temporary {
+                %*STMTTEMPS{$name} := $local;
+            }
             $local;
         }
         
@@ -159,6 +174,16 @@ class QAST::MASTCompiler {
                 $!return_kind := @value[0];
             }
             $!return_kind
+        }
+        
+        method release_temp($name) {
+            my $local := %!locals{$name};
+            my $index := $local.index();
+            my $kind := %!local_kinds{$name};
+            $*REGALLOC.release_register($local, $kind, 1);
+            nqp::deletekey(%!local_names_by_index, $index);
+            nqp::deletekey(%!locals, $name);
+            nqp::deletekey(%!local_kinds, $name);
         }
         
         method qast() { $!qast }
@@ -256,7 +281,15 @@ class QAST::MASTCompiler {
             
             # Create a register allocator for this frame.
             my $*REGALLOC := RegAlloc.new($frame);
-        
+            
+            # when we enter a QAST::Stmt, the contextual will be cloned, and the locals of
+            # newly declared QAST::Vars of local scope inside the Stmt will be stashed here,
+            # so they can be released at the end of the QAST::Stmt in which they were
+            # declared.  Inability to declare duplicate names is still enfoced, and types are
+            # still enforced.
+            my %*STMTTEMPS := nqp::hash();
+            my $*INSTMT := 0;
+            
             my $*BLOCK := $block;
             my $*MAST_FRAME := $frame;
             $ins := self.compile_all_the_stmts(@($node));
@@ -395,9 +428,22 @@ class QAST::MASTCompiler {
     
     multi method as_mast(QAST::Stmt $node) {
         my $resultchild := $node.resultchild;
-        nqp::die("resultchild out of range")
-            if (nqp::defined($resultchild) && $resultchild >= +@($node));
-        self.compile_all_the_stmts(@($node), $resultchild)
+        my %stmt_temps := nqp::clone(%*STMTTEMPS); # guaranteed to be initialized
+        my $result;
+        {
+            my %*STMTTEMPS := %stmt_temps;
+            my $*INSTMT := 1;
+            
+            nqp::die("resultchild out of range")
+                if (nqp::defined($resultchild) && $resultchild >= +@($node));
+            $result := self.compile_all_the_stmts(@($node), $resultchild);
+        }
+        for %stmt_temps -> $temp_key {
+            if !nqp::existskey(%*STMTTEMPS, $temp_key) {
+                $*BLOCK.release_temp($temp_key);
+            }
+        }
+        $result
     }
     
     # This takes any node that is a statement list of some kind and compiles
@@ -598,6 +644,21 @@ class QAST::MASTCompiler {
     method as_mast_clear_bindval($node) {
         my $*BINDVAL := 0;
         self.as_mast($node)
+    }
+    
+    proto method as_mast_constant($qast) { * }
+    
+    multi method as_mast_constant(QAST::IVal $iv) {
+        MAST::IVal.new( :value($iv.value) )
+    }
+    multi method as_mast_constant(QAST::SVal $sv) {
+        MAST::SVal.new( :value($sv.value) )
+    }
+    multi method as_mast_constant(QAST::NVal $nv) {
+        MAST::NVal.new( :value($nv.value) )
+    }
+    multi method as_mast_constant(QAST::Node $qast) {
+        nqp::die("expected QAST constant; didn't get one");
     }
     
     multi method as_mast(QAST::IVal $iv) {

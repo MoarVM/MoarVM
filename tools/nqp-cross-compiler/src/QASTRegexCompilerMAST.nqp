@@ -62,7 +62,10 @@ class QAST::MASTRegexCompiler {
     method build_regex_types() {
         my @ins := nqp::list();
         
-        my $cursor_type := simple_type_from_repr(@ins, 'NQPCursor', 'P6opaque');
+        my $cursor_type_mast := $*QASTCOMPILER.as_mast(
+            simple_type_from_repr('NQPCursor', 'P6opaque'));
+        push_ilist(@ins, $cursor_type_mast);
+        my $cursor_type := $cursor_type_mast.result_reg;
         
         add_method(@ins, $cursor_type, 'foo', QAST::Block.new(
             
@@ -77,6 +80,10 @@ class QAST::MASTRegexCompiler {
 sub ival($val) { MAST::IVal.new( :value($val) ) }
 sub nval($val) { MAST::NVal.new( :value($val) ) }
 sub sval($val) { MAST::SVal.new( :value($val) ) }
+
+sub push_ilist(@dest, $src) {
+    nqp::splice(@dest, $src.instructions, +@dest, 0);
+}
 
 sub op(@dest, $op, *@args) {
     # Resolve the op.
@@ -107,27 +114,49 @@ sub fresh_o() { $*REGALLOC.fresh_o() }
 
 sub label($name) { MAST::Label.new( :name($name) ) }
 
-sub simple_type_from_repr(@ins, $name_str, $repr_str) {
-    my $name := fresh_s();
-    my $repr := fresh_s();
-    my $how  := fresh_o();
-    my $type := fresh_o();
-    my $meth := fresh_o();
-    
-    # Create the type.
-    op(@ins, 'const_s', $name, sval($name_str));
-    op(@ins, 'const_s', $repr, sval($repr_str));
-    op(@ins, 'knowhow', $how);
-    op(@ins, 'findmeth', $meth, $how, sval('new_type'));
-    call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $how, sval('name'), $name, sval('repr'), $repr, :result($type));
-    
-    release($name, $MVM_reg_str);
-    release($repr, $MVM_reg_str);
-    release($how, $MVM_reg_obj);
-    release($meth, $MVM_reg_obj);
-    
-    $type
+sub simple_type_from_repr($name_str, $repr_str) {
+    my $typelocal := $*QASTCOMPILER.unique("type_$name_str");
+    my $howlocal := $*QASTCOMPILER.unique('how');
+    QAST::Stmts.new(
+        QAST::Var.new(
+            :name($typelocal),
+            :returns(NQPMu),
+            :decl('var'),
+            :scope('local') ),
+        QAST::Stmt.new(
+            QAST::Op.new(
+                :op('bind'),
+                QAST::Var.new(
+                    :name($howlocal),
+                    :scope('local'),
+                    :returns(NQPMu),
+                    :decl('var') ),
+                QAST::VM.new(
+                    :moarop('knowhow') ) ),
+            QAST::Op.new(
+                :op('bind'),
+                QAST::Var.new(
+                    :name($typelocal),
+                    :scope('local') ),
+                QAST::Op.new(
+                    :op('call'),
+                    :returns(NQPMu),
+                    QAST::VM.new(
+                        :moarop('findmeth'),
+                        QAST::Var.new(
+                            :name($howlocal),
+                            :scope('local') ),
+                        QAST::SVal.new(
+                            :value('new_type') ) ),
+                    QAST::Var.new(
+                        :name($howlocal),
+                        :scope('local') ),
+                    QAST::SVal.new(
+                        :value($name_str),
+                        :named('name') ),
+                    QAST::SVal.new(
+                        :value($repr_str),
+                        :named('repr') ) ) ) ) )
 }
 
 # Called with Int/Num/Str. Makes a P6opaque-based type that boxes the

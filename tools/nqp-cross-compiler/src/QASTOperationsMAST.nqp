@@ -141,6 +141,7 @@ class QAST::MASTOperations {
         for @args {
             my $arg := $qastcomp.as_mast($_);
             my $operand := @operands[$operand_num++];
+            my $constant_operand := !($operand +& $MVM_operand_rw_mask);
             my $arg_kind := $arg.result_kind;
             
             if $arg_num == 0 && nqp::substr($op, 0, 7) eq 'return_' {
@@ -191,7 +192,9 @@ class QAST::MASTOperations {
             
             # put the arg exression's generation code in the instruction list
             nqp::splice(@all_ins, $arg.instructions, +@all_ins, 0);
-            nqp::push(@arg_regs, $arg.result_reg);
+            nqp::push(@arg_regs, $constant_operand
+                ?? $qastcomp.as_mast_constant($_)
+                !! $arg.result_reg);
         }
         
         # release the registers to the allocator. See comment there.
