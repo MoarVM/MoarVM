@@ -1,4 +1,5 @@
 use QASTOperationsMAST;
+use QASTRegexCompilerMAST;
 
 my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
 my $MVM_reg_int8            := 1;
@@ -356,6 +357,12 @@ class QAST::MASTCompiler {
                 MAST::IVal.new( :size(16), :value($min_args)),
                 MAST::IVal.new( :size(16), :value($max_args)));
             nqp::splice($frame.instructions, @pre, 0, 0);
+            
+            if !$outer || !($outer ~~ BlockInfo) {
+                # top level block; preload the regex types
+                my $rxres := QAST::MASTRegexCompiler.new(self).build_regex_types();
+                nqp::splice($frame.instructions, $rxres.instructions, 0, 0);
+            }
         }
         
         if $node.blocktype eq 'immediate' {
@@ -645,34 +652,9 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_obj)
     }
-
+    
     multi method as_mast(QAST::Regex $node) {
-        # Prefix for the regexes code pieces.
-        my $prefix := self.unique('rx') ~ '_';
-
-        # Build the list of (unique) registers we need
-        my %*REG := nqp::hash(
-            'tgt', $*REGALLOC.fresh_s(),
-            'pos', $*REGALLOC.fresh_i(),
-            'off', $*REGALLOC.fresh_i(),
-            'eos', $*REGALLOC.fresh_i(),
-            'rep', $*REGALLOC.fresh_i(),
-            'cur', $*REGALLOC.fresh_o(),
-            'curclass', $*REGALLOC.fresh_o(),
-            'bstack', $*REGALLOC.fresh_o(),
-            'cstack', $*REGALLOC.fresh_o());
-
-        # create our labels
-        my $startlabel   := MAST::Label.new( :name($prefix ~ 'start') );
-        my $donelabel    := MAST::Label.new( :name($prefix ~ 'done') );
-        my $restartlabel := MAST::Label.new( :name($prefix ~ 'restart') );
-        my $faillabel    := MAST::Label.new( :name($prefix ~ 'fail') );
-        my $jumplabel    := MAST::Label.new( :name($prefix ~ 'jump') );
-        my $cutlabel     := MAST::Label.new( :name($prefix ~ 'cut') );
-        my $cstacklabel  := MAST::Label.new( :name($prefix ~ 'cstack_done') );
-        %*REG<fail>      := $faillabel;
-
-        nqp::die("Regex compilation NYI");
+        QAST::MASTRegexCompiler.new(self).as_mast($node)
     }
     
     my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];

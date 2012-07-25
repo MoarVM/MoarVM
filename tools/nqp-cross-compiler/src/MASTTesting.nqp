@@ -46,6 +46,13 @@ our sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) {
     my $desc_file := $DEBUG ?? nqp::join('', match($desc, /(\w | ' ')+/, :global)) !! '';
     
     # Compile it.
+    if $DEBUG {
+        my $fh := pir::new__Ps('FileHandle');
+        $fh.open("$desc_file.mastdump", "w");
+        $fh.encoding('utf8');
+        $fh.print("MAST: \n" ~ $comp_unit.DUMP());
+        $fh.close();
+    }
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
     pir::spawnw__Is("$copy temp.moarvm $quote$desc_file.moarvm$quote >$outputnull") if $DEBUG;
 

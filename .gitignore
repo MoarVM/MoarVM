@@ -34,6 +34,7 @@ moarvm
 tools/nqp-cross-compiler/*.moarvm
 tools/nqp-cross-compiler/temp.output
 tools/nqp-cross-compiler/*.mvmdump
+tools/nqp-cross-compiler/*.mastdump
 *.vsp
 /nmake.cmd
 UNIDATA/*
