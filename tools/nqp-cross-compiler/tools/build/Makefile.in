@@ -68,7 +68,7 @@ CLEANUPS = \
   *.pbc \
   *.pir \
 
-all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QASTCompilerMAST.pbc QASTRegexCompilerMAST.pbc
+all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QASTCompilerMAST.pbc QASTRegexCompilerMAST.pbc NQPCursorQAST.pbc
 
 @make_dllcopy@
 
@@ -107,9 +107,13 @@ QASTCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc QASTRegex
 	nqp --target=pir src/QASTCompilerMAST.nqp > QASTCompilerMAST.pir
 	parrot --output=QASTCompilerMAST.pbc QASTCompilerMAST.pir
 
-QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/QASTRegexCompilerMAST.nqp
+QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/QASTRegexCompilerMAST.nqp NQPCursorQAST.pbc
 	nqp --target=pir src/QASTRegexCompilerMAST.nqp > QASTRegexCompilerMAST.pir
 	parrot --output=QASTRegexCompilerMAST.pbc QASTRegexCompilerMAST.pir
+
+NQPCursorQAST.pbc: src/NQPCursorQAST.nqp
+	nqp --target=pir src/NQPCursorQAST.nqp > NQPCursorQAST.pir
+	parrot --output=NQPCursorQAST.pbc NQPCursorQAST.pir
 
 ## testing
 

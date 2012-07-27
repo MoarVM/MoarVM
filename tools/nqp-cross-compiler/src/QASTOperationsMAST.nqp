@@ -91,6 +91,9 @@ class QAST::MASTOperations {
         nqp::die("No registered operation handler for '$name'");
     }
     
+    my @kind_names := ['VOID','int8','int16','int32','int','num32','num','str','obj'];
+    my @kind_types := [0,1,1,1,1,2,2,3,4];
+    
     # XXX This needs the coercion machinery
     # that is (not yet fully) implemented in the PIR version of QAST::Compiler,
     # and so on.
@@ -169,10 +172,10 @@ class QAST::MASTOperations {
                     # set this variable-type op's typecode
                     $type_var_kind := $arg_kind;
                 }
-            }
-            elsif ($arg_kind * 8 != $operand_kind) {
+            } # allow nums and ints to be bigger than their destination width
+            elsif (@kind_types[$arg_kind] != @kind_types[$operand_kind/8]) {
                 # the arg typecode left shifted 3 must match the operand typecode
-                nqp::die("arg type $arg_kind does not match operand type $operand_kind to op '$op'");
+                nqp::die("arg type {@kind_names[$arg_kind]} does not match operand type {@kind_names[$operand_kind/8]} to op '$op'");
             }
             
             # if this is the write register, get the result reg and type from it

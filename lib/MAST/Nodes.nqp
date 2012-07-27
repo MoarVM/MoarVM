@@ -208,7 +208,7 @@ class MAST::Op is MAST::Node {
     
     method DUMP_lines(@lines, $indent) {
         nqp::push(@lines, $indent~"MAST::Op: $!opname, operands:");
-        nqp::push(@lines, $_.DUMP($indent ~ ' ')) for @!operands;
+        nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!operands;
     }
 }
 
@@ -410,7 +410,7 @@ class MAST::Annotated is MAST::Node {
     }
     
     method DUMP_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::Annotation: file: $!file, line: $!line, instructions:\n$indent  ");
+        nqp::push(@lines, $indent~"MAST::Annotated: file: $!file, line: $!line, instructions:");
         nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!instructions;
     }
 }

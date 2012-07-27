@@ -379,7 +379,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 arg_validate = 2; /* mark that we've seen a flat one when not NYI */
                 MVM_exception_throw_adhoc(tc, "Flattening NYI");
             }
-            else if (arg_validate) { /* positional appearing a named or flat one */
+            else if (arg_validate) { /* positional appearing after a named or flat one */
                 MVM_exception_throw_adhoc(tc, "All positional args must appear first");
             }
             else positionals++;

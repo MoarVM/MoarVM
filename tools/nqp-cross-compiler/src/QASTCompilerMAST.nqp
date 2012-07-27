@@ -228,6 +228,22 @@ class QAST::MASTCompiler {
         'return_o'
     ];
     
+    my @type_initials := [
+        '', 'i', 'i', 'i', 'i', 'n', 'n', 's', 'o'
+    ];
+    
+    my @attr_opnames := [
+        '',
+        'attr_i',
+        'attr_i',
+        'attr_i',
+        'attr_i',
+        'attr_n',
+        'attr_n',
+        'attr_s',
+        'attr'
+    ];
+    
     my @kind_to_op_slot := [
         0, 0, 0, 0, 0, 1, 1, 2, 3
     ];
@@ -394,9 +410,7 @@ class QAST::MASTCompiler {
             nqp::splice($frame.instructions, @pre, 0, 0);
             
             if !$outer || !($outer ~~ BlockInfo) {
-                # top level block; preload the regex types
-                my $rxres := QAST::MASTRegexCompiler.new().build_regex_types();
-                nqp::splice($frame.instructions, $rxres.instructions, 0, 0);
+                nqp::splice($frame.instructions, NQPCursorQAST.new().build_types(), 0, 0);
             }
         }
         
@@ -618,20 +632,26 @@ class QAST::MASTCompiler {
             }
             
             # Compile object and handle.
-            my $obj := self.coerce(self.as_post_clear_bindval(@args[0]), 'p');
-            my $han := self.coerce(self.as_post_clear_bindval(@args[1]), 'p');
-            nqp::die("NYI 4");
+            my $obj := self.as_mast(@args[0]);
+            my $han := self.as_mast(@args[1]);
+            push_ilist(@ins, $obj);
+            push_ilist(@ins, $han);
             
             # Go by whether it's a bind or lookup.
-            my $type    := self.type_to_register_kind($node.returns);
-            my $op_type := type_to_lookup_name($node.returns);
+            my $kind := self.type_to_register_kind($node.returns);
             if $*BINDVAL {
-                my $valpost := self.as_mast_clear_bindval($*BINDVAL);
-                nqp::die("NYI 5");
+                my $valmast := self.as_mast_clear_bindval($*BINDVAL);
+                push_ilist(@ins, $valmast);
+                push_op(@ins, 'bind' ~ @attr_opnames[$kind], $obj.result_reg,
+                    $han.result_reg, MAST::SVal.new( :value($name) ), $valmast.result_reg);
+                $res_reg := $valmast.result_reg;
+                $res_kind := $valmast.result_kind;
             }
             else {
-                my $res_reg := $*REGALLOC."fresh_{nqp::lc($type)}"();
-                nqp::die("NYI 6");
+                $res_reg := $*REGALLOC.fresh_register($kind);
+                $res_kind := $kind;
+                push_op(@ins, 'get' ~ @attr_opnames[$kind], $res_reg, $obj.result_reg,
+                    $han.result_reg, MAST::SVal.new( :value($name) ));
             }
         }
         else {
@@ -714,6 +734,14 @@ class QAST::MASTCompiler {
             )],
             $reg,
             $MVM_reg_obj)
+    }
+    
+    multi method as_mast(QAST::Annotated $node) {
+        my $ilist := self.compile_all_the_stmts($node.instructions, -1);
+        MAST::InstructionList.new([
+            MAST::Annotated.new(:file($node.file), :line($node.line),
+                :instructions($ilist.instructions))],
+            $ilist.result_reg, $ilist.result_kind)
     }
     
     multi method as_mast(QAST::Regex $node) {
