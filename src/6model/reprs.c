@@ -6,16 +6,10 @@ static void die_no_attrs(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support attribute storage", MVM_string_utf8_encode_C_string(tc, repr_name));
 }
-static MVMObject * default_get_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
+static void default_get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister *result, MVMuint16 kind) {
     die_no_attrs(tc, st->REPR->name);
 }
-static void * default_get_attribute_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
-    die_no_attrs(tc, st->REPR->name);
-}
-static void default_bind_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMObject *value) {
-    die_no_attrs(tc, st->REPR->name);
-}
-static void default_bind_attribute_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, void *value) {
+static void default_bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister value, MVMuint16 kind) {
     die_no_attrs(tc, st->REPR->name);
 }
 static MVMint32 default_is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
@@ -138,10 +132,8 @@ MVMStorageSpec default_get_value_storage_spec(MVMThreadContext *tc, MVMSTable *s
 /* Set default attribute functions on a REPR that lacks them. */
 static void add_default_attr_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
-    repr->attr_funcs->get_attribute_boxed = default_get_attribute_boxed;
-    repr->attr_funcs->get_attribute_ref = default_get_attribute_ref;
-    repr->attr_funcs->bind_attribute_boxed = default_bind_attribute_boxed;
-    repr->attr_funcs->bind_attribute_ref = default_bind_attribute_ref;
+    repr->attr_funcs->get_attribute = default_get_attribute;
+    repr->attr_funcs->bind_attribute = default_bind_attribute;
     repr->attr_funcs->is_attribute_initialized = default_is_attribute_initialized;
     repr->attr_funcs->hint_for = default_hint_for;
 }

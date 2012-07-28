@@ -235,34 +235,18 @@ typedef struct _MVMSTable {
  * the representation op in question. In the dynamic case, you have to go
  * following the pointer, however. */
 typedef struct _MVMREPROps_Attribute {
-    /* Gets the current value for an object attribute. For non-flattened
-     * objects - that is, reference types - this just returns the object
-     * stored in the attribute. For the flattened case, this will auto-box. */
-    MVMObject * (*get_attribute_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
+    /* Gets the current value for an attribute and places it in the passed
+     * location (specified as a register). Expects to be passed a kind flag
+     * that matches the kind of the attribute that is being fetched. */
+    void (*get_attribute) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
-        MVMint64 hint);
+        MVMint64 hint, union _MVMRegister *result, MVMuint16 kind);
 
-    /* Gets a reference to the memory location of an attribute. Note
-     * that this is only valid so long as the object itself is alive. */
-    void * (*get_attribute_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
+    /* Binds the given object or value to the specified attribute. The
+     * kind flag specifies the type of value being passed to be bound.*/
+    void (*bind_attribute) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
-        MVMint64 hint);
-
-    /* Binds the given object value to the specified attribute. If it's
-     * a reference type attribute, this just simply sets the value in 
-     * place. If instead it's some other flattened in representation, then
-     * the value should be a boxed form of the data to store.*/
-    void (*bind_attribute_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
-        MVMint64 hint, MVMObject *value);
-
-    /* Binds a flattened in attribute to the value at the passed reference.
-     * Like with the get_attribute_ref function, presumably the thing calling
-     * this knows about the type of the attribute it is supplying data for.
-     * copy_to will be used to copy the data in to place. */
-    void (*bind_attribute_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *class_handle, struct _MVMString *name,
-        MVMint64 hint, void *value);
+        MVMint64 hint, union _MVMRegister value, MVMuint16 kind);
 
     /* Gets the hint for the given attribute ID. */
     MVMint64 (*hint_for) (struct _MVMThreadContext *tc, MVMSTable *st,

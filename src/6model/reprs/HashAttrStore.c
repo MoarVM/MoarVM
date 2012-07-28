@@ -118,32 +118,38 @@ static void extract_key(MVMThreadContext *tc, void **kdata, apr_ssize_t *klen, M
     }
 }
 
-static MVMObject * get_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
+static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
+        MVMRegister *result_reg, MVMuint16 kind) {
     HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     void *kdata, *value;
     apr_ssize_t klen;
-    extract_key(tc, &kdata, &klen, (MVMObject *)name);
-    value = apr_hash_get(body->value_hash, kdata, klen);
-    return value ? (MVMObject *)value : NULL;
+    if (kind == MVM_reg_obj) {
+        extract_key(tc, &kdata, &klen, (MVMObject *)name);
+        value = apr_hash_get(body->value_hash, kdata, klen);
+        result_reg->o = (MVMObject *)value;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "HashAttrStore representation does not support native attribute storage");
+    }
 }
 
-static void * get_attribute_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
-    MVM_exception_throw_adhoc(tc,
-        "HashAttrStore representation does not support native attribute storage");
-}
-
-static void bind_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMObject *value) {
+static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
+        MVMRegister value_reg, MVMuint16 kind) {
     HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     void *kdata;
     apr_ssize_t klen;
-    extract_key(tc, &kdata, &klen, (MVMObject *)name);
-    apr_hash_set(body->key_hash, kdata, klen, (MVMObject *)name);
-    apr_hash_set(body->value_hash, kdata, klen, value);
-}
-
-static void bind_attribute_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, void *value) {
-    MVM_exception_throw_adhoc(tc,
-        "HashAttrStore representation does not support native attribute storage");
+    if (kind == MVM_reg_obj) {
+        extract_key(tc, &kdata, &klen, (MVMObject *)name);
+        apr_hash_set(body->key_hash, kdata, klen, (MVMObject *)name);
+        apr_hash_set(body->value_hash, kdata, klen, value_reg.o);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "HashAttrStore representation does not support native attribute storage");
+    }
 }
 
 static MVMint32 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
@@ -185,10 +191,8 @@ MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc) {
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
-    this_repr->attr_funcs->get_attribute_boxed = get_attribute_boxed;
-    this_repr->attr_funcs->get_attribute_ref = get_attribute_ref;
-    this_repr->attr_funcs->bind_attribute_boxed = bind_attribute_boxed;
-    this_repr->attr_funcs->bind_attribute_ref = bind_attribute_ref;
+    this_repr->attr_funcs->get_attribute = get_attribute;
+    this_repr->attr_funcs->bind_attribute = bind_attribute;
     this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;
     this_repr->attr_funcs->hint_for = hint_for;
     this_repr->compose = compose;

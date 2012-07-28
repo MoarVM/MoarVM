@@ -150,56 +150,66 @@ static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObjec
 }
 
 /* Gets the current value for an attribute. */
-static MVMObject * get_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
-        void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
+static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
+        MVMRegister *result_reg, MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMint64 slot;
     
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute_boxed");
+        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
 
     /* Try the slot allocation first. */
     slot = hint >= 0 && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
-        if (!repr_data->flattened_stables[slot]) {
-            MVMObject *result = get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
-            if (result) {
-                return result;
+        switch (kind) {
+        case MVM_reg_obj:
+        {
+            if (!repr_data->flattened_stables[slot]) {
+                MVMObject *result = get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
+                if (result) {
+                    result_reg->o = result;
+                }
+                else {
+                    /* Maybe we know how to auto-viv it to a container. */
+                    if (repr_data->auto_viv_values) {
+                        MVMObject *value = repr_data->auto_viv_values[slot];
+                        if (value != NULL) {
+                            MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
+                            REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                            set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], cloned);
+                            result_reg->o = cloned;
+                        }
+                    }
+                    result_reg->o = NULL;
+                }
             }
             else {
-                /* Maybe we know how to auto-viv it to a container. */
-                if (repr_data->auto_viv_values) {
-                    MVMObject *value = repr_data->auto_viv_values[slot];
-                    if (value != NULL) {
-                        MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                        REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                        set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], cloned);
-                        return cloned;
-                    }
-                }
-                return NULL;
+                /* Need to produce a boxed version of this attribute. */
+                MVMSTable *st = repr_data->flattened_stables[slot];
+                MVMObject *result = st->REPR->allocate(tc, st);
+                st->REPR->copy_to(tc, st, (char *)data + repr_data->attribute_offsets[slot],
+                    result, OBJECT_BODY(result));
+                result_reg->o = result;
             }
+            break;
         }
-        else {
-            /* Need to produce a boxed version of this attribute. */
-            MVMSTable *st = repr_data->flattened_stables[slot];
-            MVMObject *result = st->REPR->allocate(tc, st);
-            st->REPR->copy_to(tc, st, (char *)data + repr_data->attribute_offsets[slot],
-                result, OBJECT_BODY(result));
-
-            return result;
+        default: {
+            MVM_exception_throw_adhoc(tc, "P6opaque: invalid kind in attribute lookup");
+        }
         }
     }
-    
-    /* Otherwise, complain that the attribute doesn't exist. */
-    no_such_attribute(tc, "get", class_handle, name);
+    else {
+        /* Otherwise, complain that the attribute doesn't exist. */
+        no_such_attribute(tc, "get", class_handle, name);
+    }
 }
 
 /* Binds the given value to the specified attribute. */
-static void bind_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
-        MVMObject *value) {
+        MVMRegister value_reg, MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMint64 slot;
     
@@ -210,17 +220,26 @@ static void bind_attribute_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject 
     slot = hint >= 0 && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
-        MVMSTable *st = repr_data->flattened_stables[slot];
-        if (st) {
-            if (st == STABLE(value))
-                st->REPR->copy_to(tc, st, OBJECT_BODY(value), root,
-                    (char *)data + repr_data->attribute_offsets[slot]);
-            else
-                MVM_exception_throw_adhoc(tc,
-                    "P6opaque: type mismatch when storing value to attribute");
+        switch (kind) {
+        case MVM_reg_obj: {
+            MVMSTable *st    = repr_data->flattened_stables[slot];
+            MVMObject *value = value_reg.o;
+            if (st) {
+                if (st == STABLE(value))
+                    st->REPR->copy_to(tc, st, OBJECT_BODY(value), root,
+                        (char *)data + repr_data->attribute_offsets[slot]);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "P6opaque: representation mismatch when storing value to attribute");
+            }
+            else {
+                set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);
+            }
+            break;
         }
-        else {
-            set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);
+        default: {
+            MVM_exception_throw_adhoc(tc, "P6opaque: invalid kind in attribute bind");
+        }
         }
     }
     else {
@@ -571,10 +590,8 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->compose = compose;
     this_repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
     memset(this_repr->attr_funcs, 0, sizeof(MVMREPROps_Attribute));
-    this_repr->attr_funcs->get_attribute_boxed = get_attribute_boxed;
-    /*this_repr->attr_funcs->get_attribute_ref = get_attribute_ref;*/
-    this_repr->attr_funcs->bind_attribute_boxed = bind_attribute_boxed;
-    /*this_repr->attr_funcs->bind_attribute_ref = bind_attribute_ref;*/
+    this_repr->attr_funcs->get_attribute = get_attribute;
+    this_repr->attr_funcs->bind_attribute = bind_attribute;
     /*this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;*/
     this_repr->attr_funcs->hint_for = hint_for;
     this_repr->box_funcs = malloc(sizeof(MVMREPROps_Boxing));
