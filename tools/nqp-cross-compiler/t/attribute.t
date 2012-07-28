@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(4);
+plan(5);
 
 sub simple_type_from_repr($frame, $name_str, $repr_str) {
     my @ins := $frame.instructions;
@@ -146,3 +146,27 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "46.7\n", approx => 1,
     "Can store and look up a float attribute");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $attr_type := simple_type_from_repr($frame, 'str', 'P6str');
+        my $type := obj_with_attr($frame, $attr_type);
+        my $ins := local($frame, NQPMu);
+        my $name := local($frame, str);
+        my $exp := local($frame, str);
+        my $got := local($frame, str);
+        
+        # Create an instance.
+        op(@ins, 'create', $ins, $type);
+        
+        # Set value.
+        op(@ins, 'const_s', $exp, sval("omg a kangaroo"));
+        op(@ins, 'const_s', $name, sval('$!foo'));
+        op(@ins, 'bindattr_s', $ins, $type, $name, $exp, ival(-1));
+        
+        # Look it up again and output it.
+        op(@ins, 'getattr_s', $got, $ins, $type, $name, ival(-1));
+        op(@ins, 'say_s', $got);
+        op(@ins, 'return');
+    },
+    "omg a kangaroo\n",
+    "Can store and look up a string attribute");
