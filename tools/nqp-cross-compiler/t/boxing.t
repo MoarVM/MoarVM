@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(3);
+plan(4);
 
 sub simple_type_from_repr($frame, $name_str, $repr_str) {
     my @ins := $frame.instructions;
@@ -105,3 +105,17 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     "3.14\n",
     "Can box and unbox a num",
     approx => 1);
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $type := boxing_type($frame, 'Str');
+        my $box := local($frame, NQPMu);
+        my $orig_str := local($frame, str);
+        my $result_str := local($frame, str);
+        op(@ins, 'const_s', $orig_str, sval("Awesome snub-nosed monkey"));
+        op(@ins, 'box_s', $box, $orig_str, $type);
+        op(@ins, 'unbox_s', $result_str, $box);
+        op(@ins, 'say_s', $result_str);
+        op(@ins, 'return');
+    },
+    "Awesome snub-nosed monkey\n",
+    "Can box and unbox a string");
