@@ -266,6 +266,9 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "KnowHOWAttributeREPR"),
         MVMKnowHOWAttributeREPR_initialize(tc));
+    register_repr(tc,
+        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6str"),
+        P6str_initialize(tc));
 }
 
 /* Get a representation's ID from its name. Note that the IDs may change so
