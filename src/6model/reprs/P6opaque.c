@@ -163,10 +163,11 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     slot = hint >= 0 && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
+        MVMSTable *attr_st = repr_data->flattened_stables[slot];
         switch (kind) {
         case MVM_reg_obj:
         {
-            if (!repr_data->flattened_stables[slot]) {
+            if (!attr_st) {
                 MVMObject *result = get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
                 if (result) {
                     result_reg->o = result;
@@ -187,12 +188,35 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
             }
             else {
                 /* Need to produce a boxed version of this attribute. */
-                MVMSTable *st = repr_data->flattened_stables[slot];
-                MVMObject *result = st->REPR->allocate(tc, st);
-                st->REPR->copy_to(tc, st, (char *)data + repr_data->attribute_offsets[slot],
+                MVMObject *result = attr_st->REPR->allocate(tc, st);
+                st->REPR->copy_to(tc, attr_st, (char *)data + repr_data->attribute_offsets[slot],
                     result, OBJECT_BODY(result));
                 result_reg->o = result;
             }
+            break;
+        }
+        case MVM_reg_int64: {
+            if (attr_st)
+                result_reg->i64 = attr_st->REPR->box_funcs->get_int(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+            else
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
+            break;
+        }
+        case MVM_reg_num64: {
+            if (attr_st)
+                result_reg->n64 = attr_st->REPR->box_funcs->get_num(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+            else
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
+            break;
+        }
+        case MVM_reg_str: {
+            if (attr_st)
+                result_reg->s = attr_st->REPR->box_funcs->get_str(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+            else
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
             break;
         }
         default: {
@@ -220,13 +244,13 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     slot = hint >= 0 && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
+        MVMSTable *attr_st = repr_data->flattened_stables[slot];
         switch (kind) {
         case MVM_reg_obj: {
-            MVMSTable *st    = repr_data->flattened_stables[slot];
             MVMObject *value = value_reg.o;
-            if (st) {
-                if (st == STABLE(value))
-                    st->REPR->copy_to(tc, st, OBJECT_BODY(value), root,
+            if (attr_st) {
+                if (attr_st == STABLE(value))
+                    st->REPR->copy_to(tc, attr_st, OBJECT_BODY(value), root,
                         (char *)data + repr_data->attribute_offsets[slot]);
                 else
                     MVM_exception_throw_adhoc(tc,
@@ -235,6 +259,33 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
             else {
                 set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);
             }
+            break;
+        }
+        case MVM_reg_int64: {
+            if (attr_st)
+                attr_st->REPR->box_funcs->set_int(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot],
+                    value_reg.i64);
+            else
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native binding to object attribute");
+            break;
+        }
+        case MVM_reg_num64: {
+            if (attr_st)
+                attr_st->REPR->box_funcs->set_num(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot],
+                    value_reg.n64);
+            else
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native binding to object attribute");
+            break;
+        }
+        case MVM_reg_str: {
+            if (attr_st)
+                attr_st->REPR->box_funcs->set_str(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot],
+                    value_reg.s);
+            else
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native binding to object attribute");
             break;
         }
         default: {
