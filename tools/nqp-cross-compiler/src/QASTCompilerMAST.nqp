@@ -353,7 +353,7 @@ class QAST::MASTCompiler {
                     $val := MAST::SVal.new( :value($var.named) );
                 }
                 else { # positional
-                    $min_args++;
+                    $min_args++ unless $var.default;
                     $val := MAST::IVal.new( :size(16), :value($param_index));
                 }
                 
@@ -505,7 +505,7 @@ class QAST::MASTCompiler {
     }
     
     sub check_kinds($a, $b) {
-        nqp::die("register types don't match") unless $a == $b;
+        nqp::die("register types $a and $b don't match") unless $a == $b;
     }
     
     my @getlex_n_opnames := [
