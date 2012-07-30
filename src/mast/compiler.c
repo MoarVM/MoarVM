@@ -76,6 +76,15 @@ typedef struct {
     unsigned int  annotation_pos;
     unsigned int  annotation_alloc;
     
+    /* Current instruction info */
+    MVMOpInfo    *current_op_info;
+    /* Zero-based index of current frame */
+    unsigned int  current_frame_idx;
+    /* Zero-based index of MAST instructions */
+    unsigned int  current_ins_idx;
+    /* Zero-based index of current operand */
+    unsigned int  current_operand_idx;
+    
     /* The compilation unit we're compiling. */
     MAST_CompUnit *cu;
 } WriterState;
@@ -384,6 +393,7 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
         cleanup_all(vm, ws);
         DIE(vm, "Unknown operand type cannot be compiled");
     }
+    ws->current_operand_idx++;
 }
 
 /* Takes a set of flags describing a callsite. Writes out a callsite
@@ -425,6 +435,8 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         info = MVM_op_get_op(bank, op);
         if (!info)
             DIE(vm, "Invalid op bank specified in instruction");
+        ws->current_op_info = info;
+        ws->current_operand_idx = 0;
         
         /* Ensure argument count matches up. */
         if (ELEMS(vm, o->operands) != info->num_operands) {
@@ -599,6 +611,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         cleanup_all(vm, ws);
         DIE(vm, "Invalid MAST node in instruction list (must be Op, Call, Label, or Annotated)");
     }
+    ws->current_ins_idx++;
 }
 
 /* Compiles a frame. */
@@ -704,6 +717,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     instructions_start = ws->bytecode_pos;
 
     /* Compile the instructions. */
+    ws->current_ins_idx = 0;
     num_ins = ELEMS(vm, f->instructions);
     for (i = 0; i < num_ins; i++)
         compile_instruction(vm, ws, last_inst = ATPOS(vm, f->instructions, i));
@@ -893,11 +907,12 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->annotation_alloc = 4096;
     ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
     ws->cu               = cu;
+    ws->current_frame_idx= 0;
     
     /* Visit and compile each of the frames. */
     num_frames = (unsigned short)ELEMS(vm, cu->frames);
     for (i = 0; i < num_frames; i++)
-        compile_frame(vm, ws, ATPOS(vm, cu->frames, i), i);
+        compile_frame(vm, ws, ATPOS(vm, cu->frames, i), ws->current_frame_idx = i);
     
     /* Join all the pieces into a bytecode file. */
     bytecode = form_bytecode_output(vm, ws, &bytecode_size);
