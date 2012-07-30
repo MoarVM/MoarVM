@@ -194,7 +194,8 @@ class QAST::MASTOperations {
             }
             
             # put the arg exression's generation code in the instruction list
-            nqp::splice(@all_ins, $arg.instructions, +@all_ins, 0);
+            nqp::splice(@all_ins, $arg.instructions, +@all_ins, 0)
+                unless $constant_operand;
             nqp::push(@arg_regs, $constant_operand
                 ?? $qastcomp.as_mast_constant($_)
                 !! $arg.result_reg);
