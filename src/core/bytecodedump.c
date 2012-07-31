@@ -72,15 +72,15 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         a("    arg_count: %u\n", callsite->arg_count);
         for (j = 0; j < callsite->arg_count; j++) {
             MVMCallsiteEntry csitee = callsite->arg_flags[j];
-            a("    Arg %u : ", j);
-            if (csitee & MVM_CALLSITE_ARG_NAMED) a("named ");
-            else a("positional ");
-            if (csitee & MVM_CALLSITE_ARG_OBJ) a("obj ");
-            else if (csitee & MVM_CALLSITE_ARG_INT) a("int ");
-            else if (csitee & MVM_CALLSITE_ARG_UINT) a("uint ");
-            else if (csitee & MVM_CALLSITE_ARG_NUM) a("num ");
-            else if (csitee & MVM_CALLSITE_ARG_STR) a("str ");
-            if (csitee & MVM_CALLSITE_ARG_FLAT) a("flat");
+            a("    Arg %u :", j);
+            if (csitee & MVM_CALLSITE_ARG_NAMED) a(" named");
+            else a(" positional");
+            if (csitee & MVM_CALLSITE_ARG_OBJ) a(" obj");
+            else if (csitee & MVM_CALLSITE_ARG_INT) a(" int");
+            else if (csitee & MVM_CALLSITE_ARG_UINT) a(" uint");
+            else if (csitee & MVM_CALLSITE_ARG_NUM) a(" num");
+            else if (csitee & MVM_CALLSITE_ARG_STR) a(" str");
+            if (csitee & MVM_CALLSITE_ARG_FLAT) a(" flat");
             a("\n");
         }
     }

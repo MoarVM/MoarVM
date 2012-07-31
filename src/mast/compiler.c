@@ -9,10 +9,20 @@
 #include "moarvm.h"
 #endif
 
+#include "../../3rdparty/uthash.h"
+
 /* Some sizes. */
 #define HEADER_SIZE             80
 #define BYTECODE_VERSION        1
 #define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
+
+typedef struct {
+    /* callsite ID */
+    unsigned short callsite_id;
+    
+    /* the uthash hash handle. */
+    UT_hash_handle hash_handle;
+} CallsiteReuseEntry;
 
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
@@ -40,6 +50,9 @@ typedef struct {
     /* Labels that are currently unresolved, that we need to fix up. Hash
      * of name to a list of positions needing a fixup. */
     MASTNode *labels_to_resolve;
+    
+    /* Hash for callsite descriptor strings to callsite IDs */
+    CallsiteReuseEntry *callsite_reuse_head;
 } FrameState;
 
 /* Describes the current writer state for the compilation unit as a whole. */
@@ -136,10 +149,18 @@ void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsi
 
 /* Cleans up all allocated memory related to a frame. */
 void cleanup_frame(VM, FrameState *fs) {
+    CallsiteReuseEntry *current, *tmp;
+    
     if (fs->local_types)
         free(fs->local_types);
     if (fs->lexical_types)
         free(fs->lexical_types);
+    
+    /* the macros already check for null */
+    HASH_ITER(hash_handle, fs->callsite_reuse_head, current, tmp)
+        free(current);
+    HASH_CLEAR(hash_handle, fs->callsite_reuse_head);
+    
     free(fs);
 }
 
@@ -405,6 +426,19 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     unsigned short elems = (unsigned short)ELEMS(vm, flags);
     unsigned short align = elems % 2;
     unsigned short i;
+    CallsiteReuseEntry *entry = NULL;
+    unsigned char *identifier = malloc(elems);
+    
+    for (i = 0; i < elems; i++)
+        identifier[i] = (unsigned char)ATPOS_I(vm, flags, i);
+    HASH_FIND(hash_handle, ws->cur_frame->callsite_reuse_head, identifier, elems, entry);
+    if (entry) {
+        free(identifier);
+        return entry->callsite_id;
+    }
+    entry = (CallsiteReuseEntry *)malloc(sizeof(CallsiteReuseEntry));
+    entry->callsite_id = (unsigned short)ws->num_callsites;
+    HASH_ADD_KEYPTR(hash_handle, ws->cur_frame->callsite_reuse_head, identifier, elems, entry);
     
     /* Emit callsite; be sure to pad if there's uneven number of flags. */
     ensure_space(vm, &ws->callsite_seg, &ws->callsite_alloc, ws->callsite_pos,
@@ -651,6 +685,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     
     /* initialize number of annotation */
     fs->num_annotations = 0;
+    
+    /* initialize callsite reuse cache */
+    fs->callsite_reuse_head = NULL;
     
     /* Ensure space is available to write frame entry, and write the
      * header, apart from the bytecode length, which we'll fill in
