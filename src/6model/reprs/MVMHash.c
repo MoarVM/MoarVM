@@ -80,10 +80,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
     MVMHashEntry *current, *tmp;
     
-    HASH_ITER(hash_handle, h->body.hash_head, current, tmp) {
-        HASH_DELETE(hash_handle, h->body.hash_head, current);
+    /* the macros already check for null */
+    HASH_ITER(hash_handle, h->body.hash_head, current, tmp)
         free(current);
-    }
+    HASH_CLEAR(hash_handle, h->body.hash_head);
 }
 
 static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
