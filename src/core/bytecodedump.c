@@ -74,7 +74,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         a("    arg_count: %u\n", arg_count);
         for (j = 0, i = 0; j < arg_count; j++) {
             MVMCallsiteEntry csitee = callsite->arg_flags[i++];
-            a("    Arg %u :", j);
+            a("    Arg %u :", i);
             if (csitee & MVM_CALLSITE_ARG_NAMED) {
                 a(" named");
                 j++;
