@@ -92,7 +92,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         frame_lexicals[k] = lexicals;
         for (j = 0; j < frame->num_lexicals; j++) {
             const void *key;
-            MVMuint16 val;
+            MVMuint64 val;
             apr_ssize_t ssize;
             MVMString *name;
             
@@ -102,7 +102,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             name = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, "", 0);
             name->body.data = (void *)key;
             name->body.graphs = ssize / sizeof(MVMint32);
-            lexicals[j] = MVM_string_utf8_encode_C_string(tc, name);
+            lexicals[val - 1] = MVM_string_utf8_encode_C_string(tc, name);
         }
     }
     for (k = 0; k < cu->num_frames; k++) {
@@ -132,7 +132,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             a("    Lexicals :\n");
             a("  %6u: lex_Frame_%u_%s_%s\n", j, k, frame_lexicals[k][j], get_typename(frame->lexical_types[j]));
         }
-        a("    Bytecode :\n");
+        a("    Instructions :\n");
         {
     
     /* mostly stolen from validation.c */
