@@ -119,9 +119,9 @@ class MAST::Frame is MAST::Node {
     }
     
     method lexical_index($name) {
-        pir::exists(%!lexical_map, $name) ??
+        nqp::existskey(%!lexical_map, $name) ??
             %!lexical_map{$name} !!
-            pir::die("No such lexical '$name'")
+            nqp::die("No such lexical '$name'")
     }
     
     method add_local($type) {
