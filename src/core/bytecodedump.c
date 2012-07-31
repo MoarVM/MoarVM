@@ -67,13 +67,18 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     
     for (k = 0; k < cu->num_callsites; k++) {
         MVMCallsite *callsite = cu->callsites[k];
+        MVMuint16 arg_count = callsite->arg_count;
+        
         a("  Callsite_%u :\n", k);
         a("    num_pos: %d\n", callsite->num_pos);
-        a("    arg_count: %u\n", callsite->arg_count);
-        for (j = 0; j < callsite->arg_count; j++) {
-            MVMCallsiteEntry csitee = callsite->arg_flags[j];
+        a("    arg_count: %u\n", arg_count);
+        for (j = 0, i = 0; j < arg_count; j++) {
+            MVMCallsiteEntry csitee = callsite->arg_flags[i++];
             a("    Arg %u :", j);
-            if (csitee & MVM_CALLSITE_ARG_NAMED) a(" named");
+            if (csitee & MVM_CALLSITE_ARG_NAMED) {
+                a(" named");
+                j++;
+            }
             else a(" positional");
             if (csitee & MVM_CALLSITE_ARG_OBJ) a(" obj");
             else if (csitee & MVM_CALLSITE_ARG_INT) a(" int");
