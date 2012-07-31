@@ -123,7 +123,7 @@ class QAST::MASTCompiler {
         }
         
         method add_lexical($var) {
-            my $type := $var.returns // NQPMu; # takint out this // NQPMu makes the cross compiler go Boom.
+            my $type := $var.returns // NQPMu; # taking out this // NQPMu makes the cross compiler go Boom.
             my $kind := $!compiler.type_to_register_kind($type);
             my $index := $*MAST_FRAME.add_lexical($type, $var.name);
             self.register_lexical($var, $index, 0, $kind);
