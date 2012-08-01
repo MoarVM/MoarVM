@@ -182,7 +182,6 @@ class MAST::Op is MAST::Node {
     has int $!bank;
     has int $!op;
     has @!operands;
-    has str $!opname;
     
     method new(:$bank!, :$op!, *@operands) {
         my $obj := nqp::create(self);
@@ -197,7 +196,6 @@ class MAST::Op is MAST::Node {
         }
         nqp::bindattr_i($obj, MAST::Op, '$!bank', MAST::OpBanks.WHO{'$' ~ $bank});
         nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$' ~ $bank}{$op}{'code'});
-        nqp::bindattr_s($obj, MAST::Op, '$!opname', $op);
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
         $obj
     }
@@ -207,7 +205,8 @@ class MAST::Op is MAST::Node {
     method operands() { @!operands }
     
     method DUMP_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::Op: $!opname, operands:");
+        my $opname := MAST::Ops.WHO{'$allops'}[$!bank][$!op * 2];
+        nqp::push(@lines, $indent~"MAST::Op: $opname, operands:");
         nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!operands;
     }
 }

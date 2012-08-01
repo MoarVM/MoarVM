@@ -153,24 +153,32 @@ sub op_constants(@banks) {
         take '    my $MVM_operand_coderef     := (12 * 8);';
         take '    my $MVM_operand_callsite    := (13 * 8);';
         take '    my $MVM_operand_type_mask   := (15 * 8);';
-        for @banks -> $bank {
-            take "    our \$$bank.name() := nqp::hash(";
-            take join ",\n", gather {
-                for $bank.ops -> $op {
-                    my $operands = $op.operands.map(&operand_flags).join(",\n                ");
-                    $operands = $operands.subst('MVM', '$MVM', :g);
-                    $operands = $operands.subst('|', '+|', :g);
-                    take join "\n", gather {
-                        take "        '$op.name()', nqp::hash(";
-                        take "            'code', $op.code(),";
-                        take "            'operands', [";
-                        take "                $operands";
-                        take "            ]";
-                        take "        )";
-                    };
-                }
-            };
-            take "    );";
+        take '    our $allops := [';
+        take join(",\n", gather {
+            for @banks -> $bank {
+                take "        [\n" ~ join(",\n", gather {
+                    for $bank.ops -> $op {
+                        my $operands = $op.operands.map(&operand_flags).join(",\n                    ");
+                        $operands = $operands.subst('MVM', '$MVM', :g);
+                        $operands = $operands.subst('|', '+|', :g);
+                        take join "\n", gather {
+                            take "            '$op.name()', nqp::hash(";
+                            take "                'code', $op.code(),";
+                            take "                'operands', [";
+                            take "                    $operands";
+                            take "                ]";
+                            take "            )";
+                        };
+                    }
+                }) ~ "\n        ]";
+            }
+        });
+        take '    ];';
+        for @banks.kv -> $i, $bank {
+            take "    our \$$bank.name() := nqp::hash();";
+            take '    for $allops['~$i~'] -> $opname, $opdetails {';
+            take '        $'~$bank.name()~'{$opname} := $opdetails;';
+            take '    }';
         }
         take '}';
     }
