@@ -475,7 +475,9 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         /* Ensure argument count matches up. */
         if (ELEMS(vm, o->operands) != info->num_operands) {
             cleanup_all(vm, ws);
-            DIE(vm, "Op has invalid number of operands");
+            DIE(vm, "At Frame %u, Instruction %u, op '%s' has invalid number (%u) of operands; needs %u.",
+                ws->current_frame_idx, ws->current_ins_idx, ws->current_op_info->name,
+                ELEMS(vm, o->operands), info->num_operands);
         }
         
         /* Write bank and opcode. */

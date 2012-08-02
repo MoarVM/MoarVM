@@ -118,7 +118,7 @@ typedef STRING VMSTR;
 
 /* Some macros for getting at and examining nodes data. */
 #define ISTYPE(VM, s, t)            (STABLE(s)->type_check(VM, s, t))
-#define DIE(vm, msg)                Parrot_ex_throw_from_c_args(interp, NULL, EXCEPTION_INVALID_OPERATION, msg)
+#define DIE(vm, msg, ...)                Parrot_ex_throw_from_c_args(interp, NULL, EXCEPTION_INVALID_OPERATION, msg, __VA_ARGS__)
 #define GET_CompUnit(n)             ((MAST_CompUnit *)PMC_data(n))
 #define GET_Frame(n)                ((MAST_Frame *)PMC_data(n))
 #define GET_Op(n)                   ((MAST_Op *)PMC_data(n))
