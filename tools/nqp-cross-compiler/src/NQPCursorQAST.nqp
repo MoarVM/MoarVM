@@ -230,28 +230,43 @@ class NQPCursorQAST {
     sub Cursor_cursor_init() {
         block(
             localp('self'),
-            localp('$target', :type(str) ),
-            localp('$p', :type(NQPMu), :default(lexical('NQPint')) ), # boxed integer
-            localpn('$c', :type(NQPMu), :default(lexical('NQPint')), :named('c') ), # boxed integer
+            localp('$target', :type(NQPMu) ),
+            localpn('$p', :type(NQPMu), :default(lexical('NQPint')), :named('p') ),
+            localpn('$c', :type(NQPMu), :default(lexical('NQPint')), :named('c') ),
+            op('if',
+                vm('isconcrete',
+                    local('$p') ),
+                lexical('NQPint'),
+                op('bind',
+                    local('$p'),
+                    vm('box_i',
+                        ival('0'),
+                        lexical('NQPint') ) ) ),
             op('bind',
                 locald('$new'),
                 vm('create',
                     local('self') ) ),
-            #op('bind',
-            #    attr('$!orig',
-            #        local('$new'),
-            #        local('self') ),
-            #    local('$target') )
+            op('bind',
+                attr('$!orig',
+                    local('$new'),
+                    local('self') ),
+                local('$target') )
         )
     }
     
     sub Cursor_test_init($type) {
-        op('call',
-            vm('findmeth',
+        stmt(
+            op('bind',
+                locald('init_target'),
+                vm('box_s',
+                    sval('foo'),
+                    local('NQPstr') ) ),
+            op('call',
+                vm('findmeth',
+                    $type,
+                    sval('cursor_init') ),
                 $type,
-                sval('cursor_init') ),
-            $type,
-            sval('foo') )
+                local('init_target') ) )
     }
 }
 
