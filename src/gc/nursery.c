@@ -182,11 +182,15 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         else if (item->flags & MVM_CF_SC) {
             /* Add all references in the SC to the work list. */
             MVMSerializationContext *new_addr_sc = (MVMSerializationContext *)new_addr;
+            MVMint64 i;
+            
             MVM_gc_worklist_add(tc, worklist, &new_addr_sc->handle);
             MVM_gc_worklist_add(tc, worklist, &new_addr_sc->description);
             MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_objects);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_stables);
             MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_codes);
+
+            for (i = 0; i < new_addr_sc->num_stables; i++)
+                MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_stables[i]);
         }
         else {
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC copy");

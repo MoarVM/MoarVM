@@ -15,7 +15,9 @@ typedef struct _MVMSerializationContext {
     MVMObject *root_objects;
     
     /* The root set of STables that live in this SC. */
-    MVMObject *root_stables;
+    MVMSTable **root_stables;
+    MVMuint64   num_stables;
+    MVMuint64   alloc_stables;
     
     /* The root set of code refs that live in this SC. */
     MVMObject *root_codes;
