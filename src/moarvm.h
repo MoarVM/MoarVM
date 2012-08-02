@@ -35,6 +35,7 @@
 #include "core/ops.h"
 #include "6model/reprs.h"
 #include "6model/bootstrap.h"
+#include "6model/sc.h"
 #include "gc/allocation.h"
 #include "gc/worklist.h"
 #include "gc/nursery.h"
