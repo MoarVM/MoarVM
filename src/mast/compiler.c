@@ -390,7 +390,8 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
         }
         else {
             cleanup_all(vm, ws);
-            DIE(vm, "Expected MAST::Local, but didn't get one");
+            DIE(vm, "At Frame %u, Instruction %u, op '%s', operand %u, expected MAST::Local, but didn't get one",
+                ws->current_frame_idx, ws->current_ins_idx, ws->current_op_info->name, ws->current_operand_idx);
         }
     }
     else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {

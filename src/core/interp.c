@@ -1090,20 +1090,11 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_bindattr: {
-                        MVMObject *obj = GET_REG(cur_op, 0).o;
-                        REPR(obj)->attr_funcs->bind_attribute(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
-                            GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_obj);
-                        cur_op += 10;
-                        break;
-                    }
                     case MVM_OP_bindattr_i: {
                         MVMObject *obj = GET_REG(cur_op, 0).o;
                         REPR(obj)->attr_funcs->bind_attribute(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 2).o, cu->strings[GET_UI16(cur_op, 4)],
                             GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_int64);
                         cur_op += 10;
                         break;
@@ -1112,7 +1103,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVMObject *obj = GET_REG(cur_op, 0).o;
                         REPR(obj)->attr_funcs->bind_attribute(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 2).o, cu->strings[GET_UI16(cur_op, 4)],
                             GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_num64);
                         cur_op += 10;
                         break;
@@ -1121,25 +1112,61 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVMObject *obj = GET_REG(cur_op, 0).o;
                         REPR(obj)->attr_funcs->bind_attribute(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 2).o, cu->strings[GET_UI16(cur_op, 4)],
                             GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_str);
                         cur_op += 10;
                         break;
                     }
-                    case MVM_OP_getattr: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        REPR(obj)->attr_funcs->get_attribute(tc,
+                    case MVM_OP_bindattr_o: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->attr_funcs->bind_attribute(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
-                            GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_obj);
+                            GET_REG(cur_op, 2).o, cu->strings[GET_UI16(cur_op, 4)],
+                            GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_obj);
                         cur_op += 10;
+                        break;
+                    }
+                    case MVM_OP_bindattrs_i: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->attr_funcs->bind_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            -1, GET_REG(cur_op, 6), MVM_reg_int64);
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_bindattrs_n: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->attr_funcs->bind_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            -1, GET_REG(cur_op, 6), MVM_reg_num64);
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_bindattrs_s: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->attr_funcs->bind_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            -1, GET_REG(cur_op, 6), MVM_reg_str);
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_bindattrs_o: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->attr_funcs->bind_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                            -1, GET_REG(cur_op, 6), MVM_reg_obj);
+                        cur_op += 8;
                         break;
                     }
                     case MVM_OP_getattr_i: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         REPR(obj)->attr_funcs->get_attribute(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            GET_REG(cur_op, 4).o, cu->strings[GET_UI16(cur_op, 6)],
                             GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_int64);
                         cur_op += 10;
                         break;
@@ -1148,7 +1175,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         REPR(obj)->attr_funcs->get_attribute(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            GET_REG(cur_op, 4).o, cu->strings[GET_UI16(cur_op, 6)],
                             GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_num64);
                         cur_op += 10;
                         break;
@@ -1157,9 +1184,54 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         REPR(obj)->attr_funcs->get_attribute(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            GET_REG(cur_op, 4).o, cu->strings[GET_UI16(cur_op, 6)],
                             GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_str);
                         cur_op += 10;
+                        break;
+                    }
+                    case MVM_OP_getattr_o: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->attr_funcs->get_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).o, cu->strings[GET_UI16(cur_op, 6)],
+                            GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_obj);
+                        cur_op += 10;
+                        break;
+                    }
+                    case MVM_OP_getattrs_i: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->attr_funcs->get_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            -1, &GET_REG(cur_op, 0), MVM_reg_int64);
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_getattrs_n: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->attr_funcs->get_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            -1, &GET_REG(cur_op, 0), MVM_reg_num64);
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_getattrs_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->attr_funcs->get_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            -1, &GET_REG(cur_op, 0), MVM_reg_str);
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_getattrs_o: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->attr_funcs->get_attribute(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj),
+                            GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                            -1, &GET_REG(cur_op, 0), MVM_reg_obj);
+                        cur_op += 8;
                         break;
                     }
                     case MVM_OP_isnull:

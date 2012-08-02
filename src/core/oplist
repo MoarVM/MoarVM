@@ -230,16 +230,24 @@ BANK 4 object
 0x34    unbox_i     w(int64) r(obj)
 0x35    unbox_n     w(num64) r(obj)
 0x36    unbox_s     w(str) r(obj)
-0x37    bindattr    r(obj) r(obj) r(str) r(obj) int16
-0x38    bindattr_i  r(obj) r(obj) r(str) r(int64) int16
-0x39    bindattr_n  r(obj) r(obj) r(str) r(num64) int16
-0x3A    bindattr_s  r(obj) r(obj) r(str) r(str) int16
-0x3B    getattr     w(obj) r(obj) r(obj) r(str) int16
-0x3C    getattr_i   w(int64) r(obj) r(obj) r(str) int16
-0x3D    getattr_n   w(num64) r(obj) r(obj) r(str) int16
-0x3E    getattr_s   w(str) r(obj) r(obj) r(str) int16
-0x3F    isnull      w(int64) r(obj)
-0x40    knowhowattr w(obj)
+0x37    bindattr_i  r(obj) r(obj) str r(int64) int16
+0x38    bindattr_n  r(obj) r(obj) str r(num64) int16
+0x39    bindattr_s  r(obj) r(obj) str r(str) int16
+0x3A    bindattr_o  r(obj) r(obj) str r(obj) int16
+0x3B    bindattrs_i r(obj) r(obj) r(str) r(int64)
+0x3C    bindattrs_n r(obj) r(obj) r(str) r(num64)
+0x3D    bindattrs_s r(obj) r(obj) r(str) r(str)
+0x3E    bindattrs_o r(obj) r(obj) r(str) r(obj)
+0x3F    getattr_i   w(int64) r(obj) r(obj) str int16
+0x40    getattr_n   w(num64) r(obj) r(obj) str int16
+0x41    getattr_s   w(str) r(obj) r(obj) str int16
+0x42    getattr_o   w(obj) r(obj) r(obj) str int16
+0x43    getattrs_i  w(int64) r(obj) r(obj) r(str)
+0x44    getattrs_n  w(num64) r(obj) r(obj) r(str)
+0x45    getattrs_s  w(str) r(obj) r(obj) r(str)
+0x46    getattrs_o  w(obj) r(obj) r(obj) r(str)
+0x47    isnull      w(int64) r(obj)
+0x48    knowhowattr w(obj)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)

@@ -145,8 +145,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
-    /* XXX awesomeize... */
-    MVM_exception_throw_adhoc(tc, "P6opaque: no such attribute");
+    MVMuint64 output_size;
+    MVM_exception_throw_adhoc(tc, "P6opaque: no such attribute '%s'", MVM_string_ascii_encode(tc, name, &output_size));
 }
 
 /* Gets the current value for an attribute. */

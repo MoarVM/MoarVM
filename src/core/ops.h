@@ -241,16 +241,24 @@
 #define MVM_OP_unbox_i 52
 #define MVM_OP_unbox_n 53
 #define MVM_OP_unbox_s 54
-#define MVM_OP_bindattr 55
-#define MVM_OP_bindattr_i 56
-#define MVM_OP_bindattr_n 57
-#define MVM_OP_bindattr_s 58
-#define MVM_OP_getattr 59
-#define MVM_OP_getattr_i 60
-#define MVM_OP_getattr_n 61
-#define MVM_OP_getattr_s 62
-#define MVM_OP_isnull 63
-#define MVM_OP_knowhowattr 64
+#define MVM_OP_bindattr_i 55
+#define MVM_OP_bindattr_n 56
+#define MVM_OP_bindattr_s 57
+#define MVM_OP_bindattr_o 58
+#define MVM_OP_bindattrs_i 59
+#define MVM_OP_bindattrs_n 60
+#define MVM_OP_bindattrs_s 61
+#define MVM_OP_bindattrs_o 62
+#define MVM_OP_getattr_i 63
+#define MVM_OP_getattr_n 64
+#define MVM_OP_getattr_s 65
+#define MVM_OP_getattr_o 66
+#define MVM_OP_getattrs_i 67
+#define MVM_OP_getattrs_n 68
+#define MVM_OP_getattrs_s 69
+#define MVM_OP_getattrs_o 70
+#define MVM_OP_isnull 71
+#define MVM_OP_knowhowattr 72
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

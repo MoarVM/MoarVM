@@ -88,10 +88,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         # Create another instance to serve as a test object and store it.
         op(@ins, 'create', $exp, $type);
         op(@ins, 'const_s', $name, sval('$!foo'));
-        op(@ins, 'bindattr', $ins, $type, $name, $exp, ival(-1));
+        op(@ins, 'bindattrs_o', $ins, $type, $name, $exp);
         
         # Look it up again and compare it.
-        op(@ins, 'getattr', $got, $ins, $type, $name, ival(-1));
+        op(@ins, 'getattrs_o', $got, $ins, $type, $name);
         op(@ins, 'eqaddr', $res, $got, $exp);
         op(@ins, 'say_i', $res);
         op(@ins, 'return');
@@ -113,10 +113,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         # Set value.
         op(@ins, 'const_i64', $exp, ival(987));
         op(@ins, 'const_s', $name, sval('$!foo'));
-        op(@ins, 'bindattr_i', $ins, $type, $name, $exp, ival(-1));
+        op(@ins, 'bindattrs_i', $ins, $type, $name, $exp);
         
         # Look it up again and output it.
-        op(@ins, 'getattr_i', $got, $ins, $type, $name, ival(-1));
+        op(@ins, 'getattrs_i', $got, $ins, $type, $name);
         op(@ins, 'say_i', $got);
         op(@ins, 'return');
     },
@@ -137,10 +137,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         # Set value.
         op(@ins, 'const_n64', $exp, nval(46.7));
         op(@ins, 'const_s', $name, sval('$!foo'));
-        op(@ins, 'bindattr_n', $ins, $type, $name, $exp, ival(-1));
+        op(@ins, 'bindattrs_n', $ins, $type, $name, $exp);
         
         # Look it up again and output it.
-        op(@ins, 'getattr_n', $got, $ins, $type, $name, ival(-1));
+        op(@ins, 'getattrs_n', $got, $ins, $type, $name);
         op(@ins, 'say_n', $got);
         op(@ins, 'return');
     },
@@ -161,10 +161,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         # Set value.
         op(@ins, 'const_s', $exp, sval("omg a kangaroo"));
         op(@ins, 'const_s', $name, sval('$!foo'));
-        op(@ins, 'bindattr_s', $ins, $type, $name, $exp, ival(-1));
+        op(@ins, 'bindattrs_s', $ins, $type, $name, $exp);
         
         # Look it up again and output it.
-        op(@ins, 'getattr_s', $got, $ins, $type, $name, ival(-1));
+        op(@ins, 'getattrs_s', $got, $ins, $type, $name);
         op(@ins, 'say_s', $got);
         op(@ins, 'return');
     },
