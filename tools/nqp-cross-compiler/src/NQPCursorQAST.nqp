@@ -125,8 +125,8 @@ class NQPCursorQAST {
         $bind_val ?? op('bind', $var, $bind_val) !! $var;
     }
     
-    sub attr($name, $obj, $type,) {
-        QAST::Var.new( :name($name), $obj, $type, :scope('attribute') )
+    sub attr($name, $obj, $type, :$returns = NQPMu) {
+        QAST::Var.new( :name($name), $obj, $type, :scope('attribute'), :$returns )
     }
     
     sub stmt(*@stmts) { QAST::Stmt.new( |@stmts ) }
@@ -230,43 +230,61 @@ class NQPCursorQAST {
     sub Cursor_cursor_init() {
         block(
             localp('self'),
-            localp('$target', :type(NQPMu) ),
-            localpn('$p', :type(NQPMu), :default(lexical('NQPint')), :named('p') ),
-            localpn('$c', :type(NQPMu), :default(lexical('NQPint')), :named('c') ),
-            op('if',
-                vm('isconcrete',
-                    local('$p') ),
-                lexical('NQPint'),
-                op('bind',
-                    local('$p'),
-                    vm('box_i',
-                        ival('0'),
-                        lexical('NQPint') ) ) ),
+            localp('$target', :type(str) ),
+            localpn('$p', :type(int), :default(ival(0)), :named('p') ),
+            localpn('$c', :type(int), :default(ival(-1)), :named('c') ),
             op('bind',
                 locald('$new'),
                 vm('create',
                     local('self') ) ),
             op('bind',
-                attr('$!orig',
+                attr('$!orig', :returns(str),
                     local('$new'),
                     local('self') ),
-                local('$target') )
-        )
+                local('$target') ),
+            op('bind',
+                attr('$!target', :returns(str),
+                    local('$new'),
+                    local('self') ),
+                local('$target') ),
+            op('if',
+                vm('eq_i',
+                    local('$c'),
+                    ival(-1) ),
+                stmts(
+                    op('bind',
+                        attr('$!from', :returns(int),
+                            local('$new'),
+                            local('self') ),
+                        local('$p') ),
+                    op('bind',
+                        attr('$!pos', :returns(int),
+                            local('$new'),
+                            local('self') ),
+                        local('$p') ) ),
+                stmts(
+                    op('bind',
+                        attr('$!from', :returns(int),
+                            local('$new'),
+                            local('self') ),
+                        ival(-1) ),
+                    op('bind',
+                        attr('$!pos', :returns(int),
+                            local('$new'),
+                            local('self') ),
+                        local('$c') ) ) ),
+            local('$new') )
     }
     
     sub Cursor_test_init($type) {
-        stmt(
-            op('bind',
-                locald('init_target'),
-                vm('box_s',
-                    sval('foo'),
-                    local('NQPstr') ) ),
+        op('bind',
+            locald('$cursor'),
             op('call',
                 vm('findmeth',
                     $type,
                     sval('cursor_init') ),
                 $type,
-                local('init_target') ) )
+                sval('foo') ) )
     }
 }
 

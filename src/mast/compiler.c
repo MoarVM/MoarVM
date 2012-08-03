@@ -380,7 +380,11 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             local_type = ws->cur_frame->local_types[l->index];
             if (op_type != local_type << 3 && op_type != MVM_operand_type_var) {
                 cleanup_all(vm, ws);
-                DIE(vm, "MAST::Local of wrong type specified");
+                DIE(vm, "At Frame %u, Instruction %u, op '%s', operand %u, "
+                    "MAST::Local of wrong type (%u) specified; expected %u",
+                    ws->current_frame_idx, ws->current_ins_idx,
+                    ws->current_op_info->name, ws->current_operand_idx,
+                    local_type, (op_type >> 3));
             }
             
             /* Write the operand type. */
