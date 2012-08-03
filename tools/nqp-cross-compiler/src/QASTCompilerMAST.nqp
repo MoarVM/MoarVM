@@ -631,16 +631,16 @@ class QAST::MASTCompiler {
                 nqp::die("An attribute lookup needs an object and a class handle");
             }
             
+            # Compile object and handle.
+            my $obj := self.as_mast_clear_bindval(@args[0]);
+            my $han := self.as_mast_clear_bindval(@args[1]);
+            push_ilist(@ins, $obj);
+            push_ilist(@ins, $han);
+            
             # Go by whether it's a bind or lookup.
             my $kind := self.type_to_register_kind($node.returns);
             if $*BINDVAL {
                 my $valmast := self.as_mast_clear_bindval($*BINDVAL);
-                
-                # Compile object and handle.
-                my $obj := self.as_mast_clear_bindval(@args[0]);
-                my $han := self.as_mast_clear_bindval(@args[1]);
-                push_ilist(@ins, $obj);
-                push_ilist(@ins, $han);
                 
                 push_ilist(@ins, $valmast);
                 push_op(@ins, 'bind' ~ @attr_opnames[$kind], $obj.result_reg,
@@ -650,12 +650,6 @@ class QAST::MASTCompiler {
                 $res_kind := $valmast.result_kind;
             }
             else {
-                
-                # Compile object and handle.
-                my $obj := self.as_mast(@args[0]);
-                my $han := self.as_mast(@args[1]);
-                push_ilist(@ins, $obj);
-                push_ilist(@ins, $han);
                 
                 $res_reg := $*REGALLOC.fresh_register($kind);
                 $res_kind := $kind;
