@@ -1243,8 +1243,8 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 2;
                         break;
                     case MVM_OP_iscoderef:
-                        GET_REG(cur_op, 0).i64 = STABLE(GET_REG(cur_op, 2).o)->invoke
-                            == MVM_6model_invoke_default ? 0 : 1;
+                        GET_REG(cur_op, 0).i64 = !GET_REG(cur_op, 2).o ||
+                            STABLE(GET_REG(cur_op, 2).o)->invoke == MVM_6model_invoke_default ? 0 : 1;
                         cur_op += 4;
                         break;
                     case MVM_OP_null:
