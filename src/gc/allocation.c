@@ -53,6 +53,7 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, MVMREPROps *repr, MVMOb
     st->header.owner = tc->thread_id;
     st->REPR         = repr;
     st->HOW          = how;
+    st->invoke       = MVM_6model_invoke_default;
     MVM_gc_root_temp_pop(tc);
     return st;
 }

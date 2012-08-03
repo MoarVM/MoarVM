@@ -17,3 +17,8 @@ MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMStri
         MVM_exception_throw_adhoc(tc, "Missing method cache; late-bound dispatch NYI");
     }
 }
+
+/* Default invoke function on STables; for non-invokable objects */
+void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
+    MVM_exception_throw_adhoc(tc, "non-invokable object is non-invokable");
+}

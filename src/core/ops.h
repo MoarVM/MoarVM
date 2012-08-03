@@ -259,6 +259,7 @@
 #define MVM_OP_getattrs_o 70
 #define MVM_OP_isnull 71
 #define MVM_OP_knowhowattr 72
+#define MVM_OP_iscoderef 73
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

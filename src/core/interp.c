@@ -1242,6 +1242,11 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).o = tc->instance->KnowHOWAttribute;
                         cur_op += 2;
                         break;
+                    case MVM_OP_iscoderef:
+                        GET_REG(cur_op, 0).i64 = STABLE(GET_REG(cur_op, 2).o)->invoke
+                            == MVM_6model_invoke_default ? 0 : 1;
+                        cur_op += 4;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));
