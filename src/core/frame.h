@@ -80,6 +80,9 @@ typedef struct _MVMFrame {
      * this kind of frame, including information needed to GC-trace it. */
     MVMStaticFrame *static_info;
 
+    /* The code ref object for this frame. */
+    MVMObject *code_ref;
+
     /* Parameters received by this frame. */
     MVMArgProcContext params;
 
@@ -101,7 +104,7 @@ typedef struct _MVMFrame {
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer);
+                      MVMFrame *outer, MVMObject *code_ref);
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);

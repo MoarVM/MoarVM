@@ -46,7 +46,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     tc->interp_cu             = &cu;
     
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, initial_static_frame, &no_arg_callsite, NULL, NULL);
+    MVM_frame_invoke(tc, initial_static_frame, &no_arg_callsite, NULL, NULL, NULL);
     
     /* Enter runloop. */
     while (1) {
@@ -620,6 +620,18 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                                 input * (6 /* size of each goto op */) 
                                 + (2 /* size of the goto instruction itself */));
                         }
+                        break;
+                    }
+                    case MVM_OP_caller: {
+                        MVMFrame *caller = tc->cur_frame;
+                        MVMint64 depth = GET_REG(cur_op, 2).i64;
+                        
+                        while (caller && depth-- > 0) /* keep the > 0. */
+                            caller = caller->caller;
+                        
+                        GET_REG(cur_op, 0).o = caller ? caller->code_ref : NULL;
+                        
+                        cur_op += 4;
                         break;
                     }
                     default: {

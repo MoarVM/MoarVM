@@ -56,7 +56,7 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer) {
+                      MVMFrame *outer, MVMObject *code_ref) {
     /* Get a fresh frame data structure. */
     MVMFrame *frame = obtain_frame(tc);
     
@@ -67,6 +67,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     
     /* Copy thread context into the frame. */
     frame->tc = tc;
+    
+    /* Store the code ref (NULL at the top-level). */
+    frame->code_ref = code_ref;
     
     /* Allocate space for lexicals and work area. */
     /* XXX Do something better than malloc here some day. */
