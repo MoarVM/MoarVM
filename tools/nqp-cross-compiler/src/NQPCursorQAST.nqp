@@ -393,7 +393,7 @@ class NQPCursorQAST {
                         attr('$!i19', :returns(int),
                             local('self'),
                             local('$cur_type') ),
-                        ival(1) ) ) ),
+                        ival(1) ) ),
                 stmts(
                     op('bind',
                         attr('$!pos', :returns(int),
@@ -413,7 +413,7 @@ class NQPCursorQAST {
                         attr('$!i19', :returns(int),
                             local('$cstart'),
                             local('$cstart_type') ),
-                        ival(1) ) ),
+                        ival(1) ) ) ),
             op('bind',
                 attr('$!from', :returns(int),
                     local('$new'),
