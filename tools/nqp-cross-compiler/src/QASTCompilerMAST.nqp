@@ -383,6 +383,7 @@ class QAST::MASTCompiler {
                     
                     # put the initialization result in the variable register
                     push_op(@pre, 'set', $valreg, $default_mast.result_reg);
+                    $*REGALLOC.release_register($default_mast.result_reg, $default_mast.result_kind);
                     
                     # end label to skip initialization code
                     nqp::push(@pre, $endlbl);
@@ -654,8 +655,11 @@ class QAST::MASTCompiler {
                 $res_reg := $*REGALLOC.fresh_register($kind);
                 $res_kind := $kind;
                 push_op(@ins, 'get' ~ @attr_opnames[$kind], $res_reg, $obj.result_reg,
-                    $han.result_reg, MAST::SVal.new( :value($name) ));
+                    $han.result_reg, MAST::SVal.new( :value($name) ),
+                        MAST::IVal.new( :value(-1) ) );
             }
+            $*REGALLOC.release_register($obj.result_reg, $MVM_reg_obj);
+            $*REGALLOC.release_register($han.result_reg, $MVM_reg_obj);
         }
         else {
             nqp::die("QAST::Var with scope '$scope' NYI");
