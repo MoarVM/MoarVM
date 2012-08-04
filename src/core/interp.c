@@ -1263,6 +1263,16 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).o = NULL;
                         cur_op += 2;
                         break;
+                    case MVM_OP_clone: {
+                        MVMObject *value = GET_REG(cur_op, 2).o;
+                        MVMObject *cloned;
+                        /* don't need to push value as a temp root */
+                        cloned = REPR(value)->allocate(tc, STABLE(value));
+                        REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                        GET_REG(cur_op, 0).o = cloned;
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));
