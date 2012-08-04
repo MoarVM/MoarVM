@@ -664,6 +664,14 @@ class QAST::MASTCompiler {
         MAST::InstructionList.new(@ins, $res_reg, $res_kind)
     }
     
+    multi method as_mast(MAST::InstructionList $ilist) {
+        $ilist
+    }
+    
+    multi method as_mast(MAST::Node $node) {
+        MAST::InstructionList.new([$node], MAST::VOID, $MVM_reg_void)
+    }
+    
     method as_mast_clear_bindval($node) {
         my $*BINDVAL := 0;
         self.as_mast($node)

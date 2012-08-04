@@ -139,6 +139,23 @@ class NQPCursorQAST {
         QAST::Op.new( :op($op), :returns($returns), |@args);
     }
     
+    sub mop($op, *@args) {
+        my $bank;
+        for MAST::Ops.WHO {
+            $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
+        }
+        nqp::die("unable to resolve MAST op '$op'") unless $bank;
+        MAST::Op.new( :bank(nqp::substr($bank, 1)), :op($op), |@args );
+    }
+    
+    sub label($name) {
+        MAST::Label.new( :name($name) )
+    }
+    
+    sub goto($name) {
+        mop('goto', MAST::Label.new( :name($name) ) )
+    }
+    
     sub vm($op, *@args) { QAST::VM.new( :moarop($op), |@args) }
     sub uniq($str) { $*QASTCOMPILER.unique($str) }
     sub block(*@ins) { QAST::Block.new(|@ins) }
@@ -328,14 +345,15 @@ class NQPCursorQAST {
     }
     
     sub Cursor_test_parse($type) {
-        op('bind',
-            locald('$match'),
-            op('call',
-                vm('findmeth',
+        stmts(
+            op('bind',
+                locald('$match'),
+                op('call',
+                    vm('findmeth',
+                        $type,
+                        sval('parse') ),
                     $type,
-                    sval('parse') ),
-                $type,
-                sval('foo') ) )
+                    sval('foo') ) ) )
     }
 }
 
