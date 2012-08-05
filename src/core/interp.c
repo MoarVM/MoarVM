@@ -1264,11 +1264,13 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 2;
                         break;
                     case MVM_OP_clone: {
-                        MVMObject *value = GET_REG(cur_op, 2).o;
-                        MVMObject *cloned;
-                        /* don't need to push value as a temp root */
+                        MVMObject *cloned, *value = GET_REG(cur_op, 2).o;
+                        
+                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&value);
                         cloned = REPR(value)->allocate(tc, STABLE(value));
                         REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                        MVM_gc_root_temp_pop(tc);
+                        
                         GET_REG(cur_op, 0).o = cloned;
                         cur_op += 4;
                         break;
