@@ -172,7 +172,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             
             /* add code_ref to work list unless we're the top-level frame. */
             if (cur_frame->code_ref)
-                MVM_gc_worklist_add(tc, worklist, cur_frame->code_ref);
+                MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
         
             /* Scan the registers. */
             scan_registers(tc, worklist, cur_frame);
