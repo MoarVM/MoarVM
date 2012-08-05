@@ -80,10 +80,15 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
     MVMHashEntry *current, *tmp;
     
-    /* the macros already check for null */
-    HASH_ITER(hash_handle, h->body.hash_head, current, tmp)
-        free(current);
+    /* The macros already check for null. Also, must not delete the head
+     * node until after calling clear, or we look into freed memory. */
+    HASH_ITER(hash_handle, h->body.hash_head, current, tmp) {
+        if (current != h->body.hash_head)
+            free(current);
+    }
     HASH_CLEAR(hash_handle, h->body.hash_head);
+    if (h->body.hash_head)
+        free(h->body.hash_head);
 }
 
 static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
