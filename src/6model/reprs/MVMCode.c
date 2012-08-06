@@ -7,7 +7,7 @@ static MVMREPROps *this_repr;
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
     if (IS_CONCRETE(invokee)) {
         MVMCode *code = (MVMCode *)invokee;
-        MVM_frame_invoke(tc, code->body.sf, callsite, args, code->body.outer, code);
+        MVM_frame_invoke(tc, code->body.sf, callsite, args, code->body.outer, invokee);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot invoke code type object");
