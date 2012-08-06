@@ -7,6 +7,18 @@ typedef enum {
     MVMInterrupt_GCSCAN = 1
 } MVMInterruptType;
 
+/* Are we allocating in the nursery, or direct into generation 2? (The
+ * latter is used in the case of deserialization, when we know the
+ * incoming objects are likely to survive, but also don't want to have
+ * to worry about triggering GC in the deserialization process. */
+typedef enum {
+    /* Allocate in the nursery. */
+    MVMAllocate_Nursery = 0,
+
+    /* Allocate straight into generation 2. */
+    MVMAllocate_Gen2    = 1
+} MVMAllocationTarget;
+
 /* Information associated with an executing thread. */
 struct _MVMInstance;
 typedef struct _MVMThreadContext {
@@ -19,6 +31,9 @@ typedef struct _MVMThreadContext {
     
     /* Execution interrupt flag. */
     MVMInterruptType interrupt;
+    
+    /* Where we're allocating. */
+    MVMAllocationTarget allocate_in;
     
     /* Pointer to where the interpreter's current opcode is stored. */
     MVMuint8 **interp_cur_op;

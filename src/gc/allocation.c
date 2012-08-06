@@ -8,7 +8,7 @@ static void run_gc(MVMThreadContext *tc);
  
 /* Allocate the specified amount of memory from the nursery. Will
  * trigger a GC run if there is not enough. */
-void * MVM_gc_allocate(MVMThreadContext *tc, size_t size) {
+void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     void *allocated;
     
     /* Guard against 0-byte allocation. */
@@ -79,6 +79,17 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
     obj->st           = st;
     MVM_gc_root_temp_pop(tc);
     return obj;
+}
+
+/* Sets allocate for this thread to be from the second generation by
+ * default. */
+void MVM_gc_allocate_gen2_default_set(MVMThreadContext *tc) {
+    tc->allocate_in = MVMAllocate_Nursery;
+}
+
+/* Sets allocation for this thread to be from the nursery by default. */
+void MVM_gc_allocate_gen2_default_clear(MVMThreadContext *tc) {
+    tc->allocate_in = MVMAllocate_Gen2;
 }
 
 /* Does a garbage collection run. */
