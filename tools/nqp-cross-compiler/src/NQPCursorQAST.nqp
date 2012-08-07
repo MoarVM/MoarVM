@@ -31,6 +31,10 @@ class NQPCursorQAST {
         my $cstart_type := local('CursorStart');
         my $cstart_type_n := local('CursorStart', 'type');
         
+        merge_qast(@ins, simple_type_from_repr('NQPObjArray', 'MVMArray'));
+        my $objarr_type := local('NQPObjArray');
+        my $objarr_type_n := local('NQPObjArray', 'type');
+        
         my @cursor_attr := [
             '$!orig',     $str_type_n,
             '$!target',   $str_type_n,
@@ -40,7 +44,8 @@ class NQPCursorQAST {
             '$!name',     $str_type_n,
             '$!bstack',   $knowhowattr_n,
             '$!cstack',   $knowhowattr_n,
-            '$!regexsub', $knowhowattr_n
+            '$!regexsub', $knowhowattr_n,
+            '$!restart', $knowhowattr_n
         ];
         
         for @cursor_attr -> $name, $attr_type {
@@ -62,9 +67,18 @@ class NQPCursorQAST {
                 $knowhowattr, $cstart_type, $name, $attr_type));
         }
         
-        # merge_qast(@ins, add_method($cursor_type, 'target', Cursor_target()));
-        merge_qast(@ins, add_method($cursor_type, 'cursor_init', Cursor_cursor_init()));
-        merge_qast(@ins, add_method($cursor_type, 'cursor_start', Cursor_cursor_start()));
+        merge_qast(@ins, compose($objarr_type));
+        merge_qast(@ins, Cursor_pass_mark());
+        
+        merge_qast(@ins, add_method($cursor_type, '!cursor_init', Cursor_cursor_init()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_start', Cursor_cursor_start()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_start_subcapture', Cursor_cursor_start_subcapture()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_capture', Cursor_cursor_capture()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_push_cstack', Cursor_cursor_push_cstack()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_pass', Cursor_cursor_pass()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_more', Cursor_cursor_more()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_next', Cursor_cursor_next()));
+        merge_qast(@ins, add_method($cursor_type, '!cursor_fail', Cursor_cursor_fail()));
         merge_qast(@ins, add_method($cursor_type, 'parse', Cursor_parse()));
         merge_qast(@ins, add_method($cursor_type, 'TOP', Cursor_TOP()));
         merge_qast(@ins, add_method($cursor_type, 'MATCH', Cursor_MATCH()));
@@ -75,7 +89,6 @@ class NQPCursorQAST {
         merge_qast(@ins, compose($cstart_type));
         
         merge_qast(@ins, Cursor_test_parse($cursor_type));
-            
         
         @ins
     }
@@ -383,16 +396,16 @@ class NQPCursorQAST {
                                         local('self'),
                                         local('$cur_type') ) ) ),
                             ival(1) ) ),
-                    op('bind',
-                        local('$bstack'),
-                        vm('clone',
-                            attr('$!bstack',
-                                local('self'),
-                                local('$cur_type') ) ) ),
+#                    op('bind',
+#                        local('$bstack'),
+#                        vm('clone',
+#                            attr('$!bstack',
+#                                local('self'),
+#                                local('$cur_type') ) ) ),
                     op('bind',
                         attr('$!i19', :returns(int),
-                            local('self'),
-                            local('$cur_type') ),
+                            local('$cstart'),
+                            local('$cstart_type') ),
                         ival(1) ) ),
                 stmts(
                     op('bind',
@@ -409,6 +422,11 @@ class NQPCursorQAST {
                             attr('$!pos', :returns(int),
                                 local('self'),
                                 local('$cur_type') ) ) ),
+                    op('bind',
+                        local('$bstack'),
+                        vm('null') ),
+                    # XXX above needs to be: 
+                    #   pir::new__Ps('ResizableIntegerArray') equiv
                     op('bind',
                         attr('$!i19', :returns(int),
                             local('$cstart'),
@@ -435,6 +453,266 @@ class NQPCursorQAST {
             local('$cstart') )
     }
     
+    sub Cursor_cursor_start_subcapture() {
+        block(
+            localp('self'),
+            localp('$from', :type(int) ),
+            op('bind',
+                locald('$cur_type'),
+                vm('getwhat',
+                    local('self') ) ),
+            op('bind',
+                locald('$new'),
+                vm('create',
+                    local('self') ) ),
+            op('bind',
+                attr('$!orig', :returns(str),
+                    local('$new'),
+                    local('$cur_type') ),
+                attr('$!orig', :returns(str),
+                    local('self'),
+                    local('$cur_type') ) ),
+            op('bind',
+                attr('$!target', :returns(str),
+                    local('$new'),
+                    local('$cur_type') ),
+                attr('$!target', :returns(str),
+                    local('self'),
+                    local('$cur_type') ) ),
+            op('bind',
+                attr('$!from', :returns(int),
+                    local('$new'),
+                    local('$cur_type') ),
+                local('$from') ),
+            op('bind',
+                attr('$!pos', :returns(int),
+                    local('$new'),
+                    local('$cur_type') ),
+                ival(-3) ),
+            local('$new') )
+    }
+    
+    sub Cursor_cursor_capture() {
+        block(
+            localp('self'),
+            localp('$capture'),
+            localp('$name'),
+            op('bind',
+                locald('$cur_type'),
+                vm('getwhat',
+                    local('self') ) ),
+            op('bind',
+                attr('$!match',
+                    local('self'),
+                    local('$cur_type') ),
+                vm('null') ),
+            op('if',
+                vm('isnull',
+                    attr('$!cstack',
+                        local('self'),
+                        local('$cur_type') ) ),
+                stmts(
+                    op('bind',
+                        attr('$!cstack',
+                            local('self'),
+                            local('$cur_type') ),
+                        vm('create',
+                            lexical('NQPObjArray') ) ),
+                    ival(1) ) ),
+            op('bind',
+                locald('$cstack'),
+                attr('$!cstack',
+                    local('self'),
+                    local('$cur_type') ) ),
+            vm('push_o',
+                local('$cstack'),
+                local('$capture') ),
+#            op('bind',
+#                attr('$!name', :returns(str),
+#                    local('$capture'),
+#                    lexical('NQPCapture') ),
+#                local('$name') ),
+            op('bind',
+                locald('$bstack'),
+                attr('$!bstack',
+                    local('self'),
+                    local('$cur_type') ) ),
+#            vm('push_i',
+#                local('$bstack'),
+#                ival(0) ),
+#            vm('push_i',
+#                local('$bstack'),
+#                attr('$!pos',
+#                    local('self'),
+#                    local('$cur_type') ) ),
+#            vm('push_i',
+#                local('$bstack'),
+#                ival(0) ),
+#            vm('push_i',
+#                local('$bstack'),
+#                vm('elemspos',
+#                    local('$1cstack') ) ),
+            local('$cstack') )
+    }
+    
+    sub Cursor_cursor_push_cstack() {
+        block(
+            localp('self'),
+            localp('$capture'),
+            op('bind',
+                locald('$cur_type'),
+                vm('getwhat',
+                    local('self') ) ),
+            op('bind',
+                locald('$cstack'),
+                attr('$!cstack',
+                    local('self'),
+                    local('$cur_type') ) ),
+            op('if',
+                vm('isnull',
+                    local('$cstack') ),
+                stmts(
+                    op('bind',
+                        local('$cstack'),
+                        op('bind',
+                            attr('$!cstack',
+                                local('self'),
+                                local('$cur_type') ),
+                            vm('create',
+                                lexical('NQPObjArray') ) ) ),
+                    ival(1) ) ),
+            vm('push_o',
+                local('$cstack'),
+                local('$capture') ),
+            local('$cstack') )
+    }
+    
+    sub Cursor_pass_mark() {
+        op('bind',
+            lexicald('$pass_mark'),
+            vm('create',
+                local('NQPObjArray') ) )
+    }
+    
+    sub Cursor_cursor_pass() {
+        block(
+            localp('self'),
+            localp('$pos', :type(int) ),
+            localp('$name', :type(str) ),
+            localpn('$backtrack', :named('backtrack'), :type(int), :default( ival(0) ) ),
+            op('bind',
+                locald('$cur_type'),
+                vm('getwhat',
+                    local('self') ) ),
+            op('bind',
+                attr('$!match',
+                    local('self'),
+                    local('$cur_type') ),
+                # well, let's just use magic object identity instead of "1"
+                lexical('$pass_mark') ),
+            op('bind',
+                attr('$!pos', :returns(int),
+                    local('self'),
+                    local('$cur_type') ),
+                local('$pos') ),
+            op('if',
+                local('$backtrack'),
+                op('bind',
+                    attr('$!restart',
+                        local('self'),
+                        local('$cur_type') ),
+                    attr('$!regexsub',
+                        local('self'),
+                        local('$cur_type') ) ),
+                op('bind',
+                    attr('$!bstack',
+                        local('self'),
+                        local('$cur_type') ),
+                    vm('null') ) ),
+            op('unless',
+                vm('isnull',
+                    local('$name') ),
+                stmts(
+                    op('bind',
+                        locald('$result'),
+                        op('call',
+                            local('self'),
+                            vm('findmeth',
+                                local('self'),
+                                sval('!reduce') ),
+                            local('$name') ) ),
+                    ival(1) ) ),
+            local('$result') )
+    }
+    
+    sub Cursor_cursor_fail() {
+        block(
+            localp('self'),
+            op('bind',
+                locald('$cur_type'),
+                vm('getwhat',
+                    local('self') ) ),
+            op('bind',
+                attr('$!match',
+                    local('self'),
+                    local('$cur_type') ),
+                op('bind',
+                    attr('$!bstack',
+                        local('self'),
+                        local('$cur_type') ),
+                    vm('null') ) ),
+            op('bind',
+                attr('$!pos', :returns(int),
+                    local('self'),
+                    local('$cur_type') ),
+                ival(-3) ) )
+    }
+    
+    sub Cursor_cursor_next() {
+        block(
+            localp('self'),
+            op('bind',
+                locald('$cur_type'),
+                vm('getwhat',
+                    local('self') ) ),
+            op('bind',
+                locald('$restart'),
+                attr('$!restart',
+                    local('self'),
+                    local('$cur_type') ) ),
+            op('if',
+                vm('isnull',
+                    local('$restart') ),
+                stmts(
+                    op('bind',
+                        locald('$cur'),
+                        op('call',
+                            vm('findmeth',
+                                local('self'),
+                                sval('!cursor_start') ),
+                            local('self') ) ),
+                    op('call',
+                        vm('findmeth',
+                            local('self'),
+                            sval('!cursor_fail') ),
+                        local('self') ),
+                    local('$cur') ),
+                op('call',
+                    local('$restart'),
+                    local('self') ) ) )
+    }
+    
+    sub Cursor_cursor_more() {
+        block(
+            localp('self'),
+            op('bind',
+                locald('$cur_type'),
+                vm('getwhat',
+                    local('self') ) ),
+            # XXX lots to port - depends on slurpy hash
+            )
+    }
+    
     sub Cursor_parse() {
         block(
             localp('self'),
@@ -448,7 +726,7 @@ class NQPCursorQAST {
                 op('call',
                     vm('findmeth',
                         local('self'),
-                        sval('cursor_init') ),
+                        sval('!cursor_init') ),
                     local('self'),
                     local('$target') ) ),
             op('bind',
@@ -485,6 +763,21 @@ class NQPCursorQAST {
     
     sub Cursor_test_parse($type) {
         stmts(
+            op('bind',
+                locald('self'),
+                op('call',
+                    vm('findmeth',
+                        $type,
+                        sval('!cursor_init') ),
+                    $type,
+                    sval('blahblahblah' ) ) ),
+            op('bind',
+                locald('$cstart'),
+                op('call',
+                    vm('findmeth',
+                        local('self'),
+                        sval('!cursor_start') ),
+                    $type ) ),
             op('bind',
                 locald('$match'),
                 op('call',
