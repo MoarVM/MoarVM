@@ -1460,7 +1460,7 @@ static MVMOpInfo MVM_op_info_object[] = {
         MVM_OP_isnull,
         "isnull",
         2,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_type_var }
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_knowhowattr,
@@ -1485,6 +1485,12 @@ static MVMOpInfo MVM_op_info_object[] = {
         "clone",
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_isnull_s,
+        "isnull_s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
 };
 static MVMOpInfo MVM_op_info_io[] = {
@@ -1933,7 +1939,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     5,
     25,
     13,
-    76,
+    77,
     45,
     26,
 };

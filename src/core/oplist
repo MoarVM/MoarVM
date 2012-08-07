@@ -247,11 +247,12 @@ BANK 4 object
 0x44    getattrs_n  w(num64) r(obj) r(obj) r(str)
 0x45    getattrs_s  w(str) r(obj) r(obj) r(str)
 0x46    getattrs_o  w(obj) r(obj) r(obj) r(str)
-0x47    isnull      w(int64) r(`1)
+0x47    isnull      w(int64) r(obj)
 0x48    knowhowattr w(obj)
 0x49    iscoderef   w(int64) r(obj)
 0x4A    null        w(obj)
 0x4B    clone       w(obj) r(obj)
+0x4C    isnull_s    w(int64) r(str)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)

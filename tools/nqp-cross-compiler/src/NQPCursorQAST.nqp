@@ -630,7 +630,7 @@ class NQPCursorQAST {
                         local('$cur_type') ),
                     vm('null') ) ),
             op('unless',
-                vm('isnull',
+                vm('isnull_s',
                     local('$name') ),
                 stmts(
                     op('bind',

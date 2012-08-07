@@ -1881,7 +1881,7 @@ class MAST::Ops {
                 'code', 71,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_int64,
-                    $MVM_operand_read_reg +| $MVM_operand_type_var
+                    $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
             'knowhowattr', nqp::hash(
@@ -1908,6 +1908,13 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'isnull_s', nqp::hash(
+                'code', 76,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             )
         ],
