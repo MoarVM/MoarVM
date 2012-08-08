@@ -253,7 +253,7 @@ class QAST::MASTRegexCompiler {
         my $iter := nqp::iterator($node.list);
         # make a mark that holds our starting position in the pos slot
         self.regex_mark(@ins, $conjlabel, %*REG<pos>, %*REG<zero>);
-        my @ops := [
+        my @ins := [
             op('goto', $firstlabel),
             $conjlabel,
             op('goto', %*REG<fail>),
@@ -274,7 +274,7 @@ class QAST::MASTRegexCompiler {
             nqp::push(@ins, op('ne_i', $i12, %*REG<pos>, $i12));
             nqp::push(@ins, op('if_i', $i12, %*REG<fail>));
         }
-        nqp::push(@ins, op('set', %*REG<pos>, $i11) if $node.subtype eq 'zerowidth';
+        nqp::push(@ins, op('set', %*REG<pos>, $i11)) if $node.subtype eq 'zerowidth';
         release($i11, $MVM_reg_int64);
         release($i12, $MVM_reg_int64);
         @ins
@@ -315,20 +315,11 @@ class QAST::MASTRegexCompiler {
         my $ptr := fresh_i();
         my $i0 := fresh_i();
         my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_rxpeek');
-        my $haselemslabel := label($prefix ~ '_haselems');
         my $haselemsendlabel := label($prefix ~ '_haselemsend');
         my $backupendlabel := label($prefix ~ '_backupend');
         merge_ins(@ins, [
             op('const_i', $mark, ival($label_index)),
             op('elemspos', $ptr, $bstack),
-            op('gt_i', $caps, $ptr, %*REG<zero>),
-            op('if_i', $caps, $haselemslabel),
-            op('set', $caps, %*REG<zero>),
-            op('goto', $haselemsendlabel),
-            $haselemslabel,
-            op('dec_i', $ptr),
-            op('atpos_i', $caps, $bstack, $ptr),
-            op('inc_i', $ptr),
             $haselemsendlabel,
             op('lt_i', $i0, $ptr, %*REG<zero>),
             op('if_i', $i0, $backupendlabel),
