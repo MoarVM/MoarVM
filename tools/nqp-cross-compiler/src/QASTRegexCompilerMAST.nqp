@@ -198,9 +198,9 @@ class QAST::MASTRegexCompiler {
         while $iter {
             my $altlabel_index := rxjump($prefix ~ $altcount);
             my $altlabel := @*RXJUMPS[$altlabel_index];
-            my $amast    := self.regex_mast(nqp::shift($iter));
+            my @amast    := self.regex_mast(nqp::shift($iter));
             nqp::push(@ins, $altlabel);
-            merge_ins(@ins, $amast.instructions);
+            merge_ins(@ins, @amast);
             nqp::push(@ins, op('goto', $endlabel));
             nqp::push(@label_ins, op('push_i', %*REG<P11>, $altlabel_index));
             $altcount++;
@@ -220,20 +220,63 @@ class QAST::MASTRegexCompiler {
         my $endlabel := @*RXJUMPS[$endlabel_index];
         my $altlabel_index := rxjump($prefix ~ $altcount);
         my $altlabel := @*RXJUMPS[$altlabel_index];
-        my $amast    := self.regex_mast(nqp::shift($iter));
+        my @amast    := self.regex_mast(nqp::shift($iter));
         while $iter {
             nqp::push(@ins, $altlabel);
             $altcount++;
             $altlabel_index := rxjump($prefix ~ $altcount);
             $altlabel := @*RXJUMPS[$altlabel_index];
-            self.regex_mark(@ins, $altlabel_index, %*REG<pos>, 0);
-            merge_ins(@ins, $amast.instructions);
+            self.regex_mark(@ins, $altlabel_index, %*REG<pos>, %*REG<zero>);
+            merge_ins(@ins, @amast);
             nqp::push(@ins, op('goto', $endlabel));
-            $amast := self.regex_mast(nqp::shift($iter));
+            @amast := self.regex_mast(nqp::shift($iter));
         }
         nqp::push(@ins, $altlabel);
-        merge_ins(@ins, $amast.instructions);
+        merge_ins(@ins, @amast);
         nqp::push(@ins, $endlabel);
+        @ins
+    }
+    
+    method concat($node) {
+        my @ins := nqp::list();
+        merge_ins(@ins, self.regex_mast($_)) for $node.list;
+        @ins
+    }
+    
+    method conj($node) { self.conjseq($node) }
+    
+    method conjseq($node) {
+        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_rxconj') ~ '_';
+        my $conjlabel_index := rxjump($prefix ~ 'fail');
+        my $conjlabel := @*RXJUMPS[$conjlabel_index];
+        my $firstlabel := label($prefix ~ 'first');
+        my $iter := nqp::iterator($node.list);
+        # make a mark that holds our starting position in the pos slot
+        self.regex_mark(@ins, $conjlabel, %*REG<pos>, %*REG<zero>);
+        my @ops := [
+            op('goto', $firstlabel),
+            $conjlabel,
+            op('goto', %*REG<fail>),
+            # call the first child
+            $firstlabel
+        ];
+        merge_ins(@ins, self.regex_mast(nqp::shift($iter)));
+        # use previous mark to make one with pos=start, rep=end
+        my $i11 := fresh_i();
+        my $i12 := fresh_i();
+        self.regex_peek(@ins, $conjlabel, $i11);
+        self.regex_mark(@ins, $conjlabel, $i11, %*REG<pos>);
+        
+        while $iter {
+            nqp::push(@ins, op('set', %*REG<pos>, $i11));
+            merge_ins(@ins, self.regex_mast(nqp::shift($iter)));
+            self.regex_peek(@ins, $conjlabel, $i11, $i12);
+            nqp::push(@ins, op('ne_i', $i12, %*REG<pos>, $i12));
+            nqp::push(@ins, op('if_i', $i12, %*REG<fail>));
+        }
+        nqp::push(@ins, op('set', %*REG<pos>, $i11) if $node.subtype eq 'zerowidth';
+        release($i11, $MVM_reg_int64);
+        release($i12, $MVM_reg_int64);
         @ins
     }
     
@@ -264,6 +307,45 @@ class QAST::MASTRegexCompiler {
         release($mark, $MVM_reg_int64);
         release($elems, $MVM_reg_int64);
         release($caps, $MVM_reg_int64);
+    }
+    
+    method regex_peek(@ins, $label_index, *@regs) {
+        my $bstack := %*REG<bstack>;
+        my $mark := fresh_i();
+        my $ptr := fresh_i();
+        my $i0 := fresh_i();
+        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_rxpeek');
+        my $haselemslabel := label($prefix ~ '_haselems');
+        my $haselemsendlabel := label($prefix ~ '_haselemsend');
+        my $backupendlabel := label($prefix ~ '_backupend');
+        merge_ins(@ins, [
+            op('const_i', $mark, ival($label_index)),
+            op('elemspos', $ptr, $bstack),
+            op('gt_i', $caps, $ptr, %*REG<zero>),
+            op('if_i', $caps, $haselemslabel),
+            op('set', $caps, %*REG<zero>),
+            op('goto', $haselemsendlabel),
+            $haselemslabel,
+            op('dec_i', $ptr),
+            op('atpos_i', $caps, $bstack, $ptr),
+            op('inc_i', $ptr),
+            $haselemsendlabel,
+            op('lt_i', $i0, $ptr, %*REG<zero>),
+            op('if_i', $i0, $backupendlabel),
+            op('atpos_i', $i0, $bstack, $ptr),
+            op('eq_i', $i0, $i0, $mark),
+            op('if_i', $i0, $backupendlabel),
+            op('sub_i', $ptr, $ptr, %*REG<four>),
+            op('goto', $haselemsendlabel),
+            $backupendlabel
+        ]);
+        for @regs {
+            nqp::push(@ins, op('inc_i', $ptr));
+            nqp::push(@ins, op('atpos_i', $_, $bstack, $ptr)) if $_ ne '*';
+        }
+        release($mark, $MVM_reg_int64);
+        release($ptr, $MVM_reg_int64);
+        release($i0, $MVM_reg_int64);
     }
     
     method regex_commit(@ins, $label_index) {
