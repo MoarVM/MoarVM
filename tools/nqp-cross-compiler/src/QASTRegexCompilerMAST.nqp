@@ -158,7 +158,7 @@ class QAST::MASTRegexCompiler {
             $jumplabel,
             op('jumplist', ival(+@*RXJUMPS), $i19)
         ]);
-        merge_ins(@ins, @*RXJUMPS);
+        nqp::push(@ins, op('goto', $_)) for @*RXJUMPS;
         merge_ins(@ins, [
             $donelabel,
             op('findmeth', $method, $cur, sval('!cursor_fail')),
