@@ -201,7 +201,7 @@ class QAST::MASTCompiler {
             my $block := self;
             my $out := 0;
             while $block {
-                my $lex := %!lexicals{$name};
+                my $lex := ($block.lexicals()){$name};
                 return MAST::Lexical.new( :index($lex.index), :frames_out($out) ) if $lex;
                 $out++;
                 $block := $block.outer;
