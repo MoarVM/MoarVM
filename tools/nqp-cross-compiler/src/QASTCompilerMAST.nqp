@@ -193,8 +193,21 @@ class QAST::MASTCompiler {
         method local($name) { %!locals{$name} }
         method local_kind($name) { %!local_kinds{$name} }
         method lexical_kind($name) { %!lexical_kinds{$name} }
+        method lexical_kinds() { %!lexical_kinds }
         method params() { @!params }
         method lexical_param($name) { %!lexical_params{$name} }
+        
+        method resolve_lexical($name) {
+            my $block := self;
+            my $out := 0;
+            while $block {
+                my $lex := %!lexicals{$name};
+                return MAST::Lexical.new( :index($lex.index), :frames_out($out) ) if $lex;
+                $out++;
+                $block := $block.outer;
+            }
+            nqp::die("could not resolve lexical $name");
+        }
     }
     
     our $serno := 0;
