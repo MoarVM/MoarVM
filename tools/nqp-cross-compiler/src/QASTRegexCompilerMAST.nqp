@@ -235,6 +235,35 @@ class QAST::MASTRegexCompiler {
         @ins
     }
     
+    method regex_mark(@ins, $label_index, $pos, $rep) {
+        my $bstack := %*REG<bstack>;
+        my $mark := fresh_i();
+        my $elems := fresh_i();
+        my $caps := fresh_i();
+        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_rxmark');
+        my $haselemslabel := label($prefix ~ '_haselems');
+        my $haselemsendlabel := label($prefix ~ '_haselemsend');
+        merge_ins(@ins, [
+            op('const_i', $mark, ival($label_index)),
+            op('elemspos', $elems, $bstack),
+            op('gt_i', $caps, $elems, %*REG<zero>),
+            op('if_i', $caps, $haselemslabel),
+            op('set', $caps, %*REG<zero>),
+            op('goto', $haselemsendlabel),
+            $haselemslabel,
+            op('dec_i', $elems),
+            op('atpos_i', $caps, $bstack, $elems),
+            $haselemsendlabel,
+            op('push_i', $bstack, $mark),
+            op('push_i', $bstack, $pos),
+            op('push_i', $bstack, $rep),
+            op('push_i', $bstack, $caps)
+        ]);
+        release($mark, $MVM_reg_int64);
+        release($elems, $MVM_reg_int64);
+        release($caps, $MVM_reg_int64);
+    }
+    
     method regex_commit(@ins, $label_index) {
         my $bstack := %*REG<bstack>;
         my $mark := fresh_i();
