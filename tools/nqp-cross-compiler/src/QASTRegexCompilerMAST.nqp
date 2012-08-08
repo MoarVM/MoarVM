@@ -90,10 +90,12 @@ class QAST::MASTRegexCompiler {
         my $i0 := fresh_i();
         
         my @ins := [
-            op('const_i', $one, ival(1)),
             op('const_i', $negone, ival(-1)),
             op('const_i', $zero, ival(0)),
+            op('const_i', $one, ival(1)),
             op('const_i', $two, ival(2)),
+            op('const_i', $three, ival(3)),
+            op('const_i', $four, ival(4)),
             op('getlex', $cstarttype, $cstarttype_lex),
             op('findmeth', $method, $self, sval('!cursor_start')),
             call($method, [ $Arg::obj ], :result($cstart), $self ),
