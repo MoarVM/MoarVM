@@ -948,6 +948,12 @@ static MVMOpInfo MVM_op_info_string[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_indexat_scb,
+        "indexat_scb",
+        4,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_str, MVM_operand_ins }
+    },
 };
 static MVMOpInfo MVM_op_info_math[] = {
     {
@@ -1937,7 +1943,7 @@ static unsigned char MVM_op_banks = 7;
 static unsigned char MVM_opcounts_by_bank[] = {
     126,
     5,
-    25,
+    26,
     13,
     77,
     45,

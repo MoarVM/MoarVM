@@ -775,6 +775,14 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
+                    case MVM_OP_indexat_scb:
+                        /* branches on *failure* to match in the constant string, to save an instruction in regexes */
+                        if (MVM_string_char_at_in_string(tc, GET_REG(cur_op, 0).s,
+                                GET_REG(cur_op, 2).i64, cu->strings[GET_UI16(cur_op, 4)]))
+                            cur_op += 8;
+                        else
+                            cur_op = bytecode_start + GET_UI32(cur_op, 6);
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_string, *(cur_op-1));

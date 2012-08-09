@@ -280,6 +280,68 @@ class QAST::MASTRegexCompiler {
         @ins
     }
     
+    method enumcharlist($node) {
+        my @ins := [
+            op('indexat_scb', %*REG<tgt>, %*REG<pos>, sval($node[0]))
+        ];
+        nqp::push(@ins, op('inc_i', %*REG<pos>))
+            unless $node.subtype eq 'zerowidth';
+        @ins
+    }
+    
+    method literal($node) {
+        my $litconst := $node[0];
+        # XXX MUST create a special op variant for ignorecase.
+        #   until then, don't allow it at all.
+        nqp::die("regex literal can't handle subtype 'ignorecase' yet")
+            if $node.subtype eq 'ignorecase';
+        my $s0 := fresh_s();
+        my $i0 := fresh_i();
+        my $cmpop := $node.negate ?? 'if_i' !! 'unless_i';
+        my @ins := [
+            # XXX create some regex prologue system so these const assignments
+            # can happen only once at the beginning of a regex. hash of string constants
+            # to the registers to which they are assigned.
+            # XXX or make a specialized eqat_sc op that takes a constant string.
+            op('const_s', $s0, sval($litconst)),
+            # also, consider making the op branch directly from the comparison
+            # instead of storing an integer to a temporary register
+            op('eqat_s', $i0, %*REG<tgt>, $s0, %*REG<pos>),
+            op($cmpop, $i0, %*REG<fail>)
+        ];
+        unless $node.subtype eq 'zerowidth' {
+            nqp::push(@ins, op('const_i', $i0, ival(nqp::chars($litconst))));
+            nqp::push(@ins, op('add_i', %*REG<pos>, %*REG<pos>, $i0));
+        }
+        release($s0, $MVM_reg_str);
+        release($i0, $MVM_reg_int64);
+        @ins
+    }
+    
+    method pass($node) {
+        
+    }
+    
+    method qastnode($node) {
+        
+    }
+    
+    method quant($node) {
+        
+    }
+    
+    method scan($node) {
+        
+    }
+    
+    method subcapture($node) {
+        
+    }
+    
+    method subrule($node) {
+        
+    }
+    
     method regex_mark(@ins, $label_index, $pos, $rep) {
         my $bstack := %*REG<bstack>;
         my $mark := fresh_i();
@@ -402,46 +464,47 @@ class QAST::MASTRegexCompiler {
         my $rxtype := $node.rxtype() || 'concat';
         self."$rxtype"($node) # expects to return an nqp::list of instructions
     }
-}
-
-sub rxjump($name) {
-    my $index := +@*RXJUMPS;
-    @*RXJUMPS[$index] :=  MAST::Label.new( :name($name) );
-    $index
-}
-
-sub merge_ins(@dest, @src) {
-    nqp::splice(@dest, @src, +@dest, 0);
-}
-
-sub op($op, *@args) {
-    # Resolve the op.
-    my $bank;
-    for MAST::Ops.WHO {
-        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
-    }
-    nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
     
-    MAST::Op.new(
-        :bank(nqp::substr($bank, 1)), :op($op),
-        |@args
-    );
+    sub rxjump($name) {
+        my $index := +@*RXJUMPS;
+        @*RXJUMPS[$index] :=  MAST::Label.new( :name($name) );
+        $index
+    }
+
+    sub merge_ins(@dest, @src) {
+        nqp::splice(@dest, @src, +@dest, 0);
+    }
+
+    sub op($op, *@args) {
+        # Resolve the op.
+        my $bank;
+        for MAST::Ops.WHO {
+            $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
+        }
+        nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
+        
+        MAST::Op.new(
+            :bank(nqp::substr($bank, 1)), :op($op),
+            |@args
+        );
+    }
+
+    sub call($target, @flags, :$result, *@args) {
+        MAST::Call.new(
+            :target($target), :result($result), :flags(@flags), |@args
+        );
+    }
+
+    sub release($reg, $type) { $*REGALLOC.release_register($reg, $type) }
+
+    sub fresh_i() { $*REGALLOC.fresh_i() }
+    sub fresh_n() { $*REGALLOC.fresh_n() }
+    sub fresh_s() { $*REGALLOC.fresh_s() }
+    sub fresh_o() { $*REGALLOC.fresh_o() }
+
+    sub label($name) { MAST::Label.new( :name($name) ) }
+    sub ival($val) { MAST::IVal.new( :value($val) ) }
+    sub nval($val) { MAST::NVal.new( :value($val) ) }
+    sub sval($val) { MAST::SVal.new( :value($val) ) }
+
 }
-
-sub call($target, @flags, :$result, *@args) {
-    MAST::Call.new(
-        :target($target), :result($result), :flags(@flags), |@args
-    );
-}
-
-sub release($reg, $type) { $*REGALLOC.release_register($reg, $type) }
-
-sub fresh_i() { $*REGALLOC.fresh_i() }
-sub fresh_n() { $*REGALLOC.fresh_n() }
-sub fresh_s() { $*REGALLOC.fresh_s() }
-sub fresh_o() { $*REGALLOC.fresh_o() }
-
-sub label($name) { MAST::Label.new( :name($name) ) }
-sub ival($val) { MAST::IVal.new( :value($val) ) }
-sub nval($val) { MAST::NVal.new( :value($val) ) }
-sub sval($val) { MAST::SVal.new( :value($val) ) }

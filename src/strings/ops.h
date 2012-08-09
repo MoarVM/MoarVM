@@ -22,3 +22,4 @@ MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc, MVMObject *type_
 char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag);
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *type_object, MVMString *separator);
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator);
+MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);

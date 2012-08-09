@@ -170,6 +170,7 @@
 #define MVM_OP_join 22
 #define MVM_OP_replace 23
 #define MVM_OP_getcpbyname 24
+#define MVM_OP_indexat_scb 25
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

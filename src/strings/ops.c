@@ -441,3 +441,19 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     
     return result;
 }
+
+/* returning nonzero means it found the char at the position specified in 'a' in 'b' */
+MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b) {
+    MVMuint32 index;
+    MVMint32 codepoint;
+    
+    if (offset < 0 || offset >= a->body.graphs)
+        return 0;
+    
+    codepoint = a->body.data[offset];
+    
+    for (index = 0; index < b->body.graphs; index++)
+        if (b->body.data[index] == codepoint)
+            return 1;
+    return 0;
+}
