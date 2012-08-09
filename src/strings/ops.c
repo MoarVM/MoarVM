@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GRAPHS_EQUAL(d1, d2, g) (memcmp(d1, d2, g * sizeof(MVMuint32)) == 0)
+#define GRAPHS_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMuint32)) == 0)
 
 /* Compares two strings for equality. */
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
@@ -167,6 +167,9 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
     
     if (a->body.graphs < b->body.graphs)
         return 0;
+    if (offset >= a->body.graphs) {
+        MVM_exception_throw_adhoc(tc, "equal_at got an invalid offset");
+    }
     if (offset < 0) {
         offset += a->body.graphs;
         if (offset < 0)
