@@ -330,7 +330,6 @@ class QAST::MASTRegexCompiler {
             merge_ins(@ins, $name.instructions);
             nqp::die("name not a string")
                 unless $name.result_kind == $MVM_reg_str;
-            release($name.result_reg, $MVM_reg_str);
             nqp::push(@args, $name.result_reg);
             nqp::push(@flags, $Arg::str);
         }
