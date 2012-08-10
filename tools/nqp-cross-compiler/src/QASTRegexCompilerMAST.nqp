@@ -59,6 +59,8 @@ class QAST::MASTRegexCompiler {
         my $cutlabel     := label($prefix ~ 'cut');
         my $cstacklabel  := label($prefix ~ 'cstack_done');
         
+        my $self := $*BLOCK.local('self');
+        
         my %*REG := nqp::hash(
             'tgt',      $tgt,
             'pos',      $pos,
@@ -78,11 +80,11 @@ class QAST::MASTRegexCompiler {
             'P11',      $P11,
             'fail',     $faillabel,
             'jump',     $jumplabel,
-            'method',   $method);
+            'method',   $method,
+            'self',     $self);
         
         my @*RXJUMPS := nqp::list();
         
-        my $self := $*BLOCK.local('self'); # MAST::Local
         my $cstarttype_lex := $*BLOCK.resolve_lexical('CursorStart'); # MAST::Lexical
         my $cstarttype := fresh_o();
         my $cstart := fresh_o();
@@ -359,7 +361,7 @@ class QAST::MASTRegexCompiler {
         my @ins := [];
         my $backtrack := $node.backtrack || 'g';
         my $sep       := $node[1];
-        my $prefix    := self.unique($*RXPREFIX ~ '_rxquant_' ~ $backtrack ~ '_');
+        my $prefix    := self.unique($*RXPREFIX ~ '_rxquant_' ~ $backtrack) ~ '_';
         my $looplabel_index := rxjump($prefix ~ 'loop');
         my $looplabel := @*RXJUMPS[$looplabel_index];
         my $donelabel_index := rxjump($prefix ~ 'done');
@@ -436,7 +438,27 @@ class QAST::MASTRegexCompiler {
     }
     
     method scan($node) {
-        
+        my $prefix := self.unique($*RXPREFIX ~ '_rxscan') ~ '_';
+        my $looplabel_index := rxjump($prefix ~ 'loop');
+        my $looplabel := @*RXJUMPS[$looplabel_index];
+        my $scanlabel := label($prefix ~ 'scan');
+        my $donelabel := label($prefix ~ 'done');
+        my $ireg0 := fresh_i();
+        my @ins := [
+            op('getattr_i', $ireg0, %*REG<self>, %*REG<curclass>, sval('$!from'), ival(-1)),
+            op('ne_i', $ireg0, $ireg0, %*REG<negone>),
+            op('if_i', $ireg0, $donelabel),
+            op('goto', $scanlabel),
+            $looplabel,
+            op('inc_i', %*REG<pos>),
+            op('gt_i', $ireg0, %*REG<pos>, %*REG<eos>),
+            op('if_i', $ireg0, %*REG<fail>),
+            op('bindattr_i', %*REG<cur>, %*REG<curclass>, sval('$!from'), %*REG<pos>, ival(-1)),
+            $scanlabel
+        ];
+        self.regex_mark(@ins, $looplabel_index, %*REG<pos>, %*REG<zero>);
+        nqp::push(@ins, $donelabel);
+        @ins
     }
     
     method subcapture($node) {
