@@ -598,7 +598,7 @@ class NQPCursorQAST {
         block(
             localp('self'),
             localp('$pos', :type(int) ),
-            localp('$name', :type(str) ),
+            localp('$name', :type(str), :default( sval("") ) ),
             localpn('$backtrack', :named('backtrack'), :type(int), :default( ival(0) ) ),
             op('bind',
                 locald('$cur_type'),
@@ -629,9 +629,8 @@ class NQPCursorQAST {
                         local('self'),
                         local('$cur_type') ),
                     vm('null') ) ),
-            op('unless',
-                vm('isnull_s',
-                    local('$name') ),
+            op('if',
+                local('$name'),
                 stmts(
                     op('bind',
                         locald('$result'),
@@ -641,7 +640,7 @@ class NQPCursorQAST {
                                 local('self'),
                                 sval('!reduce') ),
                             local('$name') ) ),
-                    ival(1) ) ),
+                    sval("") ) ),
             local('$result') )
     }
     

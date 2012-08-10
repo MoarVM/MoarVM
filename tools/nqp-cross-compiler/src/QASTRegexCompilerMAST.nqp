@@ -319,7 +319,32 @@ class QAST::MASTRegexCompiler {
     }
     
     method pass($node) {
-        
+        my @ins := nqp::list();
+        my @args := [%*REG<cur>, %*REG<pos>];
+        my @flags := [$Arg::obj, $Arg::int];
+        my $op;
+        my $meth := fresh_o();
+        nqp::push(@args, %*REG<cur>);
+        if $node.name {
+            my $name := $*QASTCOMPILER.as_mast($node.name);
+            merge_ins(@ins, $name.instructions);
+            nqp::die("name not a string")
+                unless $name.result_kind == $MVM_reg_str;
+            release($name.result_reg, $MVM_reg_str);
+            nqp::push(@args, $name.result_reg);
+            nqp::push(@flags, $Arg::str);
+        }
+        if $node.backtrack ne 'r' {
+            nqp::push(@args, sval('backtrack'));
+            nqp::push(@args, %*REG<one>);
+            nqp::push(@flags, $Arg::named +| $Arg::int);
+        }
+        release($meth, $MVM_reg_obj);
+        [
+            op('findmeth', $meth, %*REG<cur>, sval('!cursor_pass')),
+            call($meth, @flags, :result($meth), |@args),
+            op('return_o', %*REG<cur>)
+        ]
     }
     
     method qastnode($node) {
