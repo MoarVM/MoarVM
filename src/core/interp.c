@@ -84,6 +84,40 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         break;
+                    case MVM_OP_if_s: {
+                        MVMString *str = GET_REG(cur_op, 0).s;
+                        if (!str || str->body.graphs == 0)
+                            cur_op += 6;
+                        else
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        break;
+                    }
+                    case MVM_OP_unless_s: {
+                        MVMString *str = GET_REG(cur_op, 0).s;
+                        if (!str || str->body.graphs == 0)
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        else
+                            cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_if_s0: {
+                        MVMString *str = GET_REG(cur_op, 0).s;
+                        if (!str || str->body.graphs != 1
+                            || str->body.data[0] != 48) /* zero char */
+                            cur_op += 6;
+                        else
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        break;
+                    }
+                    case MVM_OP_unless_s0: {
+                        MVMString *str = GET_REG(cur_op, 0).s;
+                        if (!str || str->body.graphs != 1
+                            || str->body.data[0] != 48) /* zero char */
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        else
+                            cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_set:
                         GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
                         cur_op += 4;
@@ -779,7 +813,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         /* branches on *failure* to match in the constant string, to save an instruction in regexes */
                         if (MVM_string_char_at_in_string(tc, GET_REG(cur_op, 0).s,
                                 GET_REG(cur_op, 2).i64, cu->strings[GET_UI16(cur_op, 4)]))
-                            cur_op += 8;
+                            cur_op += 10;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 6);
                         break;
