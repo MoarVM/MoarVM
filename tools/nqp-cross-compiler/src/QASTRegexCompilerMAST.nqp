@@ -22,6 +22,10 @@ class QAST::MASTRegexCompiler {
     method BUILD() {
     }
     
+    method unique($str?) {
+        $*QASTCOMPILER.unique($str)
+    }
+    
     method as_mast($node) {
         # Prefix for the regexes code pieces.
         my $prefix := $*QASTCOMPILER.unique('rx') ~ '_';
@@ -352,7 +356,83 @@ class QAST::MASTRegexCompiler {
     }
     
     method quant($node) {
+        my @ins := [];
+        my $backtrack := $node.backtrack || 'g';
+        my $sep       := $node[1];
+        my $prefix    := self.unique($*RXPREFIX ~ '_rxquant_' ~ $backtrack ~ '_');
+        my $looplabel_index := rxjump($prefix ~ 'loop');
+        my $looplabel := @*RXJUMPS[$looplabel_index];
+        my $donelabel_index := rxjump($prefix ~ 'done');
+        my $donelabel := @*RXJUMPS[$donelabel_index];
+        my $min       := $node.min;
+        my $max       := $node.max;
+        my $needrep   := $min > 1 || $max > 1;
+        my $needmark  := $needrep || $backtrack eq 'r';
+        my $rep       := %*REG<rep>;
+        my $pos       := %*REG<pos>;
+        my $minreg := fresh_i();
+        my $maxreg := fresh_i();
+        nqp::push(@ins, op('const_i', $minreg, ival($min))) if $min > 1;
+        nqp::push(@ins, op('const_i', $maxreg, ival($max))) if $max > 1;
+        my $ireg := fresh_i();
         
+        if $backtrack eq 'f' {
+            my $seplabel := label($prefix ~ 'sep');
+            nqp::push(@ins, op('set', $rep, %*REG<zero>));
+            if $min < 1 {
+                self.regex_mark(@ins, $looplabel_index, $pos, $rep);
+                nqp::push(@ins, op('goto', $donelabel));
+            }
+            nqp::push(@ins, op('goto', $seplabel)) if $sep;
+            nqp::push(@ins, $looplabel);
+            nqp::push(@ins, op('set', $ireg, $rep));
+            if $sep {
+                merge_ins(@ins, self.regex_mast($sep));
+                nqp::push(@ins, $seplabel);
+            }
+            merge_ins(@ins, self.regex_mast($node[0]));
+            nqp::push(@ins, op('set', $rep, $ireg));
+            nqp::push(@ins, op('inc_i', $rep));
+            if $min > 1 {
+                nqp::push(@ins, op('lt_i', $ireg, $rep, $minreg));
+                nqp::push(@ins, op('if_i', $ireg, $looplabel));
+            }
+            if $max > 1 {
+                nqp::push(@ins, op('ge_i', $ireg, $rep, $maxreg));
+                nqp::push(@ins, op('if_i', $ireg, $donelabel));
+            }
+            self.regex_mark(@ins, $looplabel_index, $pos, $rep) if $max != 1;
+            nqp::push(@ins, $donelabel);
+        }
+        else {
+            if $min == 0 { self.regex_mark(@ins, $donelabel_index, $pos, %*REG<zero>); }
+            elsif $needmark { self.regex_mark(@ins, $donelabel_index, %*REG<negone>, %*REG<zero>); }
+            nqp::push(@ins, $looplabel);
+            merge_ins(@ins, self.regex_mast($node[0]));
+            if $needmark {
+                self.regex_peek(@ins, $donelabel_index, MAST::Local.new(:index(-1)), $rep);
+                self.regex_commit(@ins, $donelabel_index) if $backtrack eq 'r';
+                nqp::push(@ins, op('inc_i', $rep));
+                if $max > 1 {
+                    nqp::push(@ins, op('ge_i', $ireg, $rep, $maxreg));
+                    nqp::push(@ins, op('if_i', $ireg, $donelabel));
+                }
+            }
+            unless $max == 1 {
+                self.regex_mark(@ins, $donelabel_index, $pos, $rep);
+                merge_ins(@ins, self.regex_mast($sep)) if $sep;
+                nqp::push(@ins, op('goto', $looplabel));
+            }
+            nqp::push(@ins, $donelabel);
+            if $min > 1 {
+                nqp::push(@ins, op('lt_i', $ireg, $rep, $minreg));
+                nqp::push(@ins, op('if_i', $ireg, %*REG<fail>));
+            }
+        }
+        release($ireg, $MVM_reg_int64);
+        release($minreg, $MVM_reg_int64);
+        release($maxreg, $MVM_reg_int64);
+        @ins
     }
     
     method scan($node) {
@@ -419,7 +499,7 @@ class QAST::MASTRegexCompiler {
         ]);
         for @regs {
             nqp::push(@ins, op('inc_i', $ptr));
-            nqp::push(@ins, op('atpos_i', $_, $bstack, $ptr)) if $_ ne '*';
+            nqp::push(@ins, op('atpos_i', $_, $bstack, $ptr)) if $_.index != -1;
         }
         release($mark, $MVM_reg_int64);
         release($ptr, $MVM_reg_int64);
