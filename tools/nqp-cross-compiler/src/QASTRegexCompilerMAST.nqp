@@ -467,7 +467,6 @@ class QAST::MASTRegexCompiler {
         my $donelabel := label($prefix ~ '_done');
         my $faillabel_index := rxjump($prefix ~ '_fail');
         my $faillabel := @*RXJUMPS[$faillabel_index];
-        my $name := $*QASTCOMPILER.as_mast($node.name);
         merge_ins(@ins, $name.instructions);
         my $i11 := fresh_i();
         my $p11 := fresh_o();
@@ -480,8 +479,8 @@ class QAST::MASTRegexCompiler {
             op('findmeth', %*REG<method>, $p11, sval('!cursor_pass')),
             call(%*REG<method>, [$Arg::obj, $Arg::int], $p11, %*REG<pos>),
             op('findmeth', %*REG<method>, %*REG<cur>, sval('!cursor_capture')),
-            call(%*REG<method>, [$Arg::obj, $Arg::obj, $Arg::int],
-                %*REG<cur>, $p11, $name.result_reg, :result(%*REG<cstack>)),
+            call(%*REG<method>, [$Arg::obj, $Arg::obj, $Arg::str],
+                %*REG<cur>, $p11, sval($node.name), :result(%*REG<cstack>)),
             op('goto', $donelabel),
             $faillabel,
             op('goto', %*REG<fail>),
@@ -489,13 +488,16 @@ class QAST::MASTRegexCompiler {
         ]);
         release($i11, $MVM_reg_int64);
         release($p11, $MVM_reg_obj);
-        release($name.result_reg, $name.result_kind);
         @ins
     }
     
     method subrule($node) {
         my @ins := nqp::list();
-        my $name := $*QASTCOMPILER.as_mast($node.name
+        my $name := $*QASTCOMPILER.as_mast($node.name);
+        my $subtype := $node.subtype;
+        my $cpn := nqp::istype($node[0], QAST::Node)
+            ?? self.children($node[0])
+            !! self.post_children($node[0]);
     }
     
     method regex_mark(@ins, $label_index, $pos, $rep) {
