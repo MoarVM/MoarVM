@@ -468,6 +468,7 @@ class QAST::MASTRegexCompiler {
         my $faillabel_index := rxjump($prefix ~ '_fail');
         my $faillabel := @*RXJUMPS[$faillabel_index];
         my $name := $*QASTCOMPILER.as_mast($node.name);
+        merge_ins(@ins, $name.instructions);
         my $i11 := fresh_i();
         my $p11 := fresh_o();
         self.regex_mark(@ins, $faillabel_index, %*REG<pos>, %*REG<zero>);
@@ -486,11 +487,15 @@ class QAST::MASTRegexCompiler {
             op('goto', %*REG<fail>),
             $donelabel
         ]);
+        release($i11, $MVM_reg_int64);
+        release($p11, $MVM_reg_obj);
+        release($name.result_reg, $name.result_kind);
         @ins
     }
     
     method subrule($node) {
-        
+        my @ins := nqp::list();
+        my $name := $*QASTCOMPILER.as_mast($node.name
     }
     
     method regex_mark(@ins, $label_index, $pos, $rep) {
