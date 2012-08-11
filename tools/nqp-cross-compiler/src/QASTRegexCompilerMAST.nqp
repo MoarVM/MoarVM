@@ -183,8 +183,8 @@ class QAST::MASTRegexCompiler {
         
         # Calculate all the branches to try, which populates the bstack
         # with the options. Then immediately fail to start iterating it.
-        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_alt') ~ '_';
-        my $endlabel_index := rxjump($prefix ~ 'end');
+        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_alt');
+        my $endlabel_index := rxjump($prefix ~ '_end');
         my $endlabel := @*RXJUMPS[$endlabel_index];
         my @ins := nqp::list();
         my @label_ins := nqp::list();
@@ -219,10 +219,10 @@ class QAST::MASTRegexCompiler {
     
     method altseq($node) {
         my @ins := nqp::list();
-        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_altseq') ~ '_';
+        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_altseq');
         my $altcount := 0;
         my $iter := nqp::iterator($node.list);
-        my $endlabel_index := rxjump($prefix ~ 'end');
+        my $endlabel_index := rxjump($prefix ~ '_end');
         my $endlabel := @*RXJUMPS[$endlabel_index];
         my $altlabel_index := rxjump($prefix ~ $altcount);
         my $altlabel := @*RXJUMPS[$altlabel_index];
@@ -252,10 +252,10 @@ class QAST::MASTRegexCompiler {
     method conj($node) { self.conjseq($node) }
     
     method conjseq($node) {
-        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_rxconj') ~ '_';
-        my $conjlabel_index := rxjump($prefix ~ 'fail');
+        my $prefix := $*QASTCOMPILER.unique($*RXPREFIX ~ '_rxconj');
+        my $conjlabel_index := rxjump($prefix ~ '_fail');
         my $conjlabel := @*RXJUMPS[$conjlabel_index];
-        my $firstlabel := label($prefix ~ 'first');
+        my $firstlabel := label($prefix ~ '_first');
         my $iter := nqp::iterator($node.list);
         # make a mark that holds our starting position in the pos slot
         self.regex_mark(@ins, $conjlabel, %*REG<pos>, %*REG<zero>);
@@ -361,10 +361,10 @@ class QAST::MASTRegexCompiler {
         my @ins := [];
         my $backtrack := $node.backtrack || 'g';
         my $sep       := $node[1];
-        my $prefix    := self.unique($*RXPREFIX ~ '_rxquant_' ~ $backtrack) ~ '_';
-        my $looplabel_index := rxjump($prefix ~ 'loop');
+        my $prefix    := self.unique($*RXPREFIX ~ '_rxquant_' ~ $backtrack);
+        my $looplabel_index := rxjump($prefix ~ '_loop');
         my $looplabel := @*RXJUMPS[$looplabel_index];
-        my $donelabel_index := rxjump($prefix ~ 'done');
+        my $donelabel_index := rxjump($prefix ~ '_done');
         my $donelabel := @*RXJUMPS[$donelabel_index];
         my $min       := $node.min;
         my $max       := $node.max;
@@ -438,11 +438,11 @@ class QAST::MASTRegexCompiler {
     }
     
     method scan($node) {
-        my $prefix := self.unique($*RXPREFIX ~ '_rxscan') ~ '_';
-        my $looplabel_index := rxjump($prefix ~ 'loop');
+        my $prefix := self.unique($*RXPREFIX ~ '_rxscan');
+        my $looplabel_index := rxjump($prefix ~ '_loop');
         my $looplabel := @*RXJUMPS[$looplabel_index];
-        my $scanlabel := label($prefix ~ 'scan');
-        my $donelabel := label($prefix ~ 'done');
+        my $scanlabel := label($prefix ~ '_scan');
+        my $donelabel := label($prefix ~ '_done');
         my $ireg0 := fresh_i();
         my @ins := [
             op('getattr_i', $ireg0, %*REG<self>, %*REG<curclass>, sval('$!from'), ival(-1)),
@@ -462,7 +462,31 @@ class QAST::MASTRegexCompiler {
     }
     
     method subcapture($node) {
-        
+        my @ins := nqp::list();
+        my $prefix := self.unique('rxcap');
+        my $donelabel := label($prefix ~ '_done');
+        my $faillabel_index := rxjump($prefix ~ '_fail');
+        my $faillabel := @*RXJUMPS[$faillabel_index];
+        my $name := $*QASTCOMPILER.as_mast($node.name);
+        my $i11 := fresh_i();
+        my $p11 := fresh_o();
+        self.regex_mark(@ins, $faillabel_index, %*REG<pos>, %*REG<zero>);
+        merge_ins(@ins, self.regex_mast($node[0]));
+        self.regex_peek(@ins, $faillabel_index, %*REG<pos>, $i11);
+        merge_ins(@ins, [
+            op('findmeth', %*REG<method>, %*REG<cur>, sval('!cursor_start_subcapture')),
+            call(%*REG<method>, [$Arg::obj, $Arg::int], $i11, :result($p11)),
+            op('findmeth', %*REG<method>, $p11, sval('!cursor_pass')),
+            call(%*REG<method>, [$Arg::obj, $Arg::int], $p11, %*REG<pos>),
+            op('findmeth', %*REG<method>, %*REG<cur>, sval('!cursor_capture')),
+            call(%*REG<method>, [$Arg::obj, $Arg::obj, $Arg::int],
+                %*REG<cur>, $p11, $name.result_reg, :result(%*REG<cstack>)),
+            op('goto', $donelabel),
+            $faillabel,
+            op('goto', %*REG<fail>),
+            $donelabel
+        ]);
+        @ins
     }
     
     method subrule($node) {
