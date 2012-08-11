@@ -142,6 +142,72 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 
+/* Marks the representation data in an STable.*/
+static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+
+    if (repr_data->flattened_stables) {
+        int i;
+        for (i = 0; i < repr_data->num_attributes; i++)
+            if (repr_data->flattened_stables[i])
+                MVM_gc_worklist_add(tc, worklist, &repr_data->flattened_stables[i]);
+    }
+
+    if (repr_data->auto_viv_values) {
+        int i;
+        for (i = 0; i < repr_data->num_attributes; i++)
+            if (repr_data->auto_viv_values[i])
+                MVM_gc_worklist_add(tc, worklist, &repr_data->auto_viv_values[i]);
+    }
+    
+    if (repr_data->name_to_index_mapping) {
+        P6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        while (cur_map_entry->class_key != NULL) {
+            MVMint16 i;
+            for (i = 0; i < cur_map_entry->num_attrs; i++) {
+                MVM_gc_worklist_add(tc, worklist, &cur_map_entry->names[i]);
+            }
+            MVM_gc_worklist_add(tc, worklist, &cur_map_entry->class_key);
+            cur_map_entry++;
+        }
+    }
+}
+
+/* Marks the representation data in an STable.*/
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    
+    if (repr_data->name_to_index_mapping) {
+        P6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        while (cur_map_entry->class_key != NULL) {
+            free(cur_map_entry->names);
+            free(cur_map_entry->slots);
+            cur_map_entry++;
+        }
+        free(repr_data->name_to_index_mapping);
+    }
+    
+    if (repr_data->attribute_offsets)
+        free(repr_data->attribute_offsets);
+    if (repr_data->flattened_stables)
+        free(repr_data->flattened_stables);
+    if (repr_data->auto_viv_values)
+        free(repr_data->auto_viv_values);
+    if (repr_data->unbox_slots)
+        free(repr_data->unbox_slots);
+    if (repr_data->gc_obj_mark_offsets)
+        free(repr_data->gc_obj_mark_offsets);
+    if (repr_data->initialize_slots)
+        free(repr_data->initialize_slots);
+    if (repr_data->gc_mark_slots)
+        free(repr_data->gc_mark_slots);
+    if (repr_data->gc_cleanup_slots)
+        free(repr_data->gc_cleanup_slots);
+    
+    free(st->REPR_data);
+    st->REPR_data = NULL;
+}
+
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
@@ -637,6 +703,8 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->copy_to = copy_to;
     this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
+    this_repr->gc_mark_repr_data = gc_mark_repr_data;
+    this_repr->gc_free_repr_data = gc_free_repr_data;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->compose = compose;
     this_repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
