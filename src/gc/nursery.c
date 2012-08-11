@@ -222,11 +222,7 @@ void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit) {
             scan = (char *)scan + STABLE(obj)->size;
         }
         else if (item->flags & MVM_CF_TYPE_OBJECT) {
-            /* Type object. See if we need to free REPR data. Scan is
-             * incremented by type object size. */
-            MVMObject *obj = (MVMObject *)item;
-            if (REPR(obj)->gc_free_repr_data)
-                REPR(obj)->gc_free_repr_data(tc, STABLE(obj));
+            /* Type object; doesn't have anything extra that needs freeing. */
             scan = (char *)scan + sizeof(MVMObject);
         }
         else if (item->flags & MVM_CF_STABLE) {
