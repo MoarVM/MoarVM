@@ -257,6 +257,38 @@ class QAST::MASTRegexCompiler {
         @ins
     }
     
+    method anchor($node) {
+        my @ins := nqp::list();
+        my $subtype := $node.subtype;
+        my $donelabel := label(self.unique($*RXPREFIX ~ '_rxanchor') ~ '_done');
+        my $i11 := fresh_i();
+        my $pos := %*REG<pos>;
+        my $fail := %*REG<fail>;
+        if $subtype eq 'bos' {
+            nqp::push(@ins, op('ne_i', $i11, $pos, %*REG<zero>));
+            nqp::push(@ins, op('if_i', $i11, $fail));
+        }
+        elsif $subtype eq 'eos' {
+            nqp::push(@ins, op('lt_i', $i11, $pos, %*REG<eos>));
+            nqp::push(@ins, op('if_i', $i11, $fail));
+        }
+        elsif $subtype eq 'lwb' {
+            merge_ins(@ins, [
+                op('ge_i', $i11, $pos, %*REG<eos>),
+                op('if_i', $i11, $fail)
+            ]);
+            nqp::die("NYI");
+        }
+        elsif $subtype eq 'fail' {
+            nqp::push(@ins, op('goto', $fail));
+        }
+        else {
+            nqp::die("anchor subtype $subtype NYI");
+        }
+        release($i11, $MVM_reg_int64);
+        @ins
+    }
+    
     method concat($node) {
         my @ins := nqp::list();
         merge_ins(@ins, self.regex_mast($_)) for $node.list;
@@ -623,6 +655,7 @@ class QAST::MASTRegexCompiler {
         }
         nqp::push(@ins, op('getattr_i', %*REG<pos>, $p11, %*REG<curclass>,
             sval('$!pos'), ival(-1))) unless $subtype eq 'zerowidth';
+       release($i11, $MVM_reg_int64);
         @ins
     }
     
