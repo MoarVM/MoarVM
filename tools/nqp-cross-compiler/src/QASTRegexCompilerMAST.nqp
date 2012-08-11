@@ -91,6 +91,7 @@ class QAST::MASTRegexCompiler {
         my $i19 := fresh_i(); # yes, I know, inheriting the name from ancestor method
         # XXX TODO actually use the correct cursor symbol somehow
         my $cursor_lex := MAST::Lexical.new( :index($*MAST_FRAME.add_lexical(NQPMu, '=Cursor')) );
+        %*REG{'cursor_lex'} := $cursor_lex;
         ($*BLOCK.lexicals()){'=Cursor'} := $cursor_lex;
         ($*BLOCK.lexical_kinds()){'=Cursor'} := $MVM_reg_obj;
         my $i0 := fresh_i();
@@ -366,8 +367,33 @@ class QAST::MASTRegexCompiler {
         ]
     }
     
+    sub resolve_condition_op($kind, $negated) {
+        return $negated ??
+            $kind == $MVM_reg_int64 ?? 'unless_i' !!
+            $kind == $MVM_reg_num64 ?? 'unless_n' !!
+            $kind == $MVM_reg_str   ?? 'unless_s' !!
+            $kind == $MVM_reg_obj   ?? 'unless_o' !!
+            ''
+         !! $kind == $MVM_reg_int64 ?? 'if_i' !!
+            $kind == $MVM_reg_num64 ?? 'if_n' !!
+            $kind == $MVM_reg_str   ?? 'if_s' !!
+            $kind == $MVM_reg_obj   ?? 'if_o' !!
+            ''
+    }
+    
     method qastnode($node) {
-        
+        my @ins := [
+            op('bindattr_i', %*REG<cur>, %*REG<curclass>, sval('$!pos'), %*REG<pos>, ival(-1)),
+            op('bindlex', %*REG<cursor_lex>, %*REG<cur>)
+        ];
+        my $cmast := $*QASTCOMPILER.as_mast($node[0]);
+        merge_ins(@ins, $cmast.instructions);
+        release($cmast.result_reg, $cmast.result_kind);
+        my $cndop := resolve_condition_op($cmast.result_kind, !$node.negate);
+        if $node.subtype eq 'zerowidth' && $cndop ne '' {
+            nqp::push(@ins, op($cndop, $cmast.result_reg, %*REG<fail>));
+        }
+        @ins
     }
     
     method quant($node) {
