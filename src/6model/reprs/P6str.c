@@ -56,6 +56,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
     spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+    spec.bits            = sizeof(MVMString *) * 8;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
     spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_STR;
     return spec;
