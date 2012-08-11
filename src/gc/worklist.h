@@ -30,9 +30,9 @@ typedef struct _MVMGCWorklist {
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
         if (worklist->items == worklist->alloc) \
-            MVM_gc_worklist_add_slow(tc, worklist, (MVMCollectable **)item); \
+            MVM_gc_worklist_add_slow(tc, worklist, (MVMCollectable **)(item)); \
         else \
-            worklist->list[worklist->items++] = (MVMCollectable **)item; \
+            worklist->list[worklist->items++] = (MVMCollectable **)(item); \
     } while (0)
 #define MVM_gc_worklist_get(tc, worklist) \
     (worklist->items ? \
