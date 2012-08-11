@@ -291,8 +291,9 @@ class QAST::MASTCompiler {
             :cuuid(self.unique('frame_cuuid_')));
         
         $*MAST_COMPUNIT.add_frame($frame);
-        my $outer    := try $*BLOCK;
-        my $block    := BlockInfo.new($node, $outer, self);
+        my $outer;
+        try $outer   := $*BLOCK;
+        my $block    := BlockInfo.new($node, (nqp::defined($outer) ?? $outer !! NQPMu), self);
         my $cuid     := $node.cuid();
         
         # stash the frame by the block's cuid so other references
@@ -321,10 +322,15 @@ class QAST::MASTCompiler {
             
             my $*BLOCK := $block;
             my $*MAST_FRAME := $frame;
+            
+            if !nqp::defined($outer) || !($outer ~~ BlockInfo) {
+                nqp::splice($frame.instructions, NQPCursorQAST.new().build_types(), 0, 0);
+            }
+            
             $ins := self.compile_all_the_stmts(@($node));
             
             # Add to instructions list for this block.
-            nqp::splice($frame.instructions, $ins.instructions, 0, 0);
+            nqp::splice($frame.instructions, $ins.instructions, +$frame.instructions, 0);
             
             $block.return_kind($ins.result_kind);
             # generate a return statement
@@ -422,10 +428,6 @@ class QAST::MASTCompiler {
                 MAST::IVal.new( :size(16), :value($min_args)),
                 MAST::IVal.new( :size(16), :value($max_args)));
             nqp::splice($frame.instructions, @pre, 0, 0);
-            
-            if !$outer || !($outer ~~ BlockInfo) {
-                nqp::splice($frame.instructions, NQPCursorQAST.new().build_types(), 0, 0);
-            }
         }
         
         if $node.blocktype eq 'immediate' {

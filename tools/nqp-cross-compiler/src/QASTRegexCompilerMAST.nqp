@@ -97,12 +97,12 @@ class QAST::MASTRegexCompiler {
         my $i0 := fresh_i();
         
         my @ins := [
-            op('const_i', $negone, ival(-1)),
-            op('const_i', $zero, ival(0)),
-            op('const_i', $one, ival(1)),
-            op('const_i', $two, ival(2)),
-            op('const_i', $three, ival(3)),
-            op('const_i', $four, ival(4)),
+            op('const_i64', $negone, ival(-1)),
+            op('const_i64', $zero, ival(0)),
+            op('const_i64', $one, ival(1)),
+            op('const_i64', $two, ival(2)),
+            op('const_i64', $three, ival(3)),
+            op('const_i64', $four, ival(4)),
             op('getlex', $cstarttype, $cstarttype_lex),
             op('findmeth', $method, $self, sval('!cursor_start')),
             call($method, [ $Arg::obj ], :result($cstart), $self ),
@@ -131,6 +131,7 @@ class QAST::MASTRegexCompiler {
             $restartlabel,
             op('getattr_o', $cstack, $cur, $curclass, sval('$!cstack'), ival(-1)),
             $faillabel,
+            op('say_i', $four),
             op('isnull', $i0, $bstack),
             op('if_i', $i0, $donelabel),
             op('elemspos', $i0, $bstack),
@@ -362,7 +363,7 @@ class QAST::MASTRegexCompiler {
             op($cmpop, $i0, %*REG<fail>)
         ];
         unless $node.subtype eq 'zerowidth' {
-            nqp::push(@ins, op('const_i', $i0, ival(nqp::chars($litconst))));
+            nqp::push(@ins, op('const_i64', $i0, ival(nqp::chars($litconst))));
             nqp::push(@ins, op('add_i', %*REG<pos>, %*REG<pos>, $i0));
         }
         release($s0, $MVM_reg_str);
@@ -445,8 +446,8 @@ class QAST::MASTRegexCompiler {
         my $pos       := %*REG<pos>;
         my $minreg := fresh_i();
         my $maxreg := fresh_i();
-        nqp::push(@ins, op('const_i', $minreg, ival($min))) if $min > 1;
-        nqp::push(@ins, op('const_i', $maxreg, ival($max))) if $max > 1;
+        nqp::push(@ins, op('const_i64', $minreg, ival($min))) if $min > 1;
+        nqp::push(@ins, op('const_i64', $maxreg, ival($max))) if $max > 1;
         my $ireg := fresh_i();
         
         if $backtrack eq 'f' {
@@ -668,7 +669,7 @@ class QAST::MASTRegexCompiler {
         my $haselemslabel := label($prefix ~ '_haselems');
         my $haselemsendlabel := label($prefix ~ '_haselemsend');
         merge_ins(@ins, [
-            op('const_i', $mark, ival($label_index)),
+            op('const_i64', $mark, ival($label_index)),
             op('elemspos', $elems, $bstack),
             op('gt_i', $caps, $elems, %*REG<zero>),
             op('if_i', $caps, $haselemslabel),
@@ -697,7 +698,7 @@ class QAST::MASTRegexCompiler {
         my $haselemsendlabel := label($prefix ~ '_haselemsend');
         my $backupendlabel := label($prefix ~ '_backupend');
         merge_ins(@ins, [
-            op('const_i', $mark, ival($label_index)),
+            op('const_i64', $mark, ival($label_index)),
             op('elemspos', $ptr, $bstack),
             $haselemsendlabel,
             op('lt_i', $i0, $ptr, %*REG<zero>),
@@ -731,7 +732,7 @@ class QAST::MASTRegexCompiler {
         my $nocapslabel := label($prefix ~ '_nocaps');
         my $makemarklabel := label($prefix ~ '_makemark');
         merge_ins(@ins, [
-            op('const_i', $mark, ival($label_index)),
+            op('const_i64', $mark, ival($label_index)),
             op('elemspos', $ptr, $bstack),
             op('gt_i', $caps, $ptr, %*REG<zero>),
             op('if_i', $caps, $haselemslabel),
@@ -806,10 +807,14 @@ class QAST::MASTRegexCompiler {
         );
     }
 
-    sub call($target, @flags, :$result, *@args) {
+    sub call($target, @flags, :$result?, *@args) {
+        nqp::defined($result) ??
         MAST::Call.new(
             :target($target), :result($result), :flags(@flags), |@args
-        );
+        ) !!
+        MAST::Call.new(
+            :target($target), :flags(@flags), |@args
+        )
     }
 
     sub releasei($ilist) { release($ilist.result_reg, $ilist.result_kind) }

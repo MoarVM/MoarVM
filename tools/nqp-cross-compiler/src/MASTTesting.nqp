@@ -1,5 +1,7 @@
 use MASTCompiler;
 use QASTCompilerMAST;
+use NQPP6QRegex;
+pir::load_bytecode('dumper.pbc');
 
 my $moarvm;
 my $del;
@@ -148,4 +150,21 @@ our sub call(@ins, $target, @flags, :$result, *@args) {
 
 our sub annotated(@ins, $file, $line) {
     MAST::Annotated.new( :file($file), :line($line), :instructions(@ins) )
+}
+
+our sub rxqast($str) {
+    my $grammar := QRegex::P6Regex::Grammar.new();
+    my $actions := QRegex::P6Regex::Actions.new();
+    my $ast := $grammar.parse($str, p => 0, actions => $actions, rule => 'nibbler').ast;
+    my $caught := 0;
+    try {
+        $ast.HOW;
+        CATCH {
+            $caught := 0;
+            say("type: " ~ pir::typeof__SP($ast));
+        }
+    }
+    say((Q:PIR { %r = get_root_global ['parrot'], '_dumper' })($ast));
+    #say("type: " ~ $ast.HOW.name($ast)) unless $caught;
+    $ast
 }
