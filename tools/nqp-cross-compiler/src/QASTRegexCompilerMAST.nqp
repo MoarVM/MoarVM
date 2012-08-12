@@ -335,6 +335,7 @@ class QAST::MASTRegexCompiler {
     
     method enumcharlist($node) {
         my @ins := [
+            label(self.unique($*RXPREFIX ~ '_enumcharlist')),
             op('indexat_scb', %*REG<tgt>, %*REG<pos>, sval($node[0]))
         ];
         nqp::push(@ins, op('inc_i', %*REG<pos>))
@@ -352,6 +353,7 @@ class QAST::MASTRegexCompiler {
         my $i0 := fresh_i();
         my $cmpop := $node.negate ?? 'if_i' !! 'unless_i';
         my @ins := [
+            label(self.unique($*RXPREFIX ~ '_literal')),
             # XXX create some regex prologue system so these const assignments
             # can happen only once at the beginning of a regex. hash of string constants
             # to the registers to which they are assigned.
@@ -430,7 +432,7 @@ class QAST::MASTRegexCompiler {
     }
     
     method quant($node) {
-        my @ins := [];
+        my @ins := nqp::list();
         my $backtrack := $node.backtrack || 'g';
         my $sep       := $node[1];
         my $prefix    := self.unique($*RXPREFIX ~ '_rxquant_' ~ $backtrack);
@@ -451,7 +453,7 @@ class QAST::MASTRegexCompiler {
         my $ireg := fresh_i();
         
         if $backtrack eq 'f' {
-            my $seplabel := label($prefix ~ 'sep');
+            my $seplabel := label($prefix ~ '_sep');
             nqp::push(@ins, op('set', $rep, %*REG<zero>));
             if $min < 1 {
                 self.regex_mark(@ins, $looplabel_index, $pos, $rep);
@@ -535,7 +537,7 @@ class QAST::MASTRegexCompiler {
     
     method subcapture($node) {
         my @ins := nqp::list();
-        my $prefix := self.unique('rxcap');
+        my $prefix := self.unique($*RXPREFIX ~ '_rxcap');
         my $donelabel := label($prefix ~ '_done');
         my $faillabel_index := rxjump($prefix ~ '_fail');
         my $faillabel := @*RXJUMPS[$faillabel_index];
@@ -778,7 +780,11 @@ class QAST::MASTRegexCompiler {
     }
     
     method regex_mast($node) {
-        return $*QASTCOMPILER.as_mast($node) unless $node ~~ QAST::Regex;
+        unless $node ~~ QAST::Regex {
+            my $mast := $*QASTCOMPILER.as_mast($node);
+            release($mast.result_reg, $mast.result_kind);
+            return $mast.instructions;
+        }
         my $rxtype := $node.rxtype() || 'concat';
         self."$rxtype"($node) # expects to return an nqp::list of instructions
     }
