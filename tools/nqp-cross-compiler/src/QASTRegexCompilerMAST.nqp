@@ -131,7 +131,6 @@ class QAST::MASTRegexCompiler {
             $restartlabel,
             op('getattr_o', $cstack, $cur, $curclass, sval('$!cstack'), ival(-1)),
             $faillabel,
-            op('say_i', $four),
             op('isnull', $i0, $bstack),
             op('if_i', $i0, $donelabel),
             op('elemspos', $i0, $bstack),

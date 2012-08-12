@@ -210,6 +210,13 @@ class QAST::MASTCompiler {
         }
     }
     
+    sub get_name($thing) {
+        my $name;
+        try $name := $thing.HOW.name($thing);
+        $name := pir::typeof__SP($thing) unless $name;
+        $name
+    }
+    
     our $serno := 0;
     method unique($prefix = '') { $prefix ~ $serno++ }
     
@@ -222,6 +229,7 @@ class QAST::MASTCompiler {
         my %*MAST_FRAMES := nqp::hash();
         
         my $*QASTCOMPILER := self;
+        say(get_name($qast));
         self.as_mast($qast);
         
         $*MAST_COMPUNIT
