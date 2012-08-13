@@ -81,9 +81,10 @@ sub _bench($arr_size_opt, $iter_opt) {
     mast_frame_output_is(-> $frame, @ins, $cu {
         my $arr_type := array_type($frame);
         my $int_type := boxing_type($frame, 'Int');
-        my $x_index := local($frame, int);
-        my $value := local($frame, int);
+        my $x_index := const($frame, ival(0));
+        my $value := const($frame, ival(1));
         my $start_time := local($frame, int);
+        my $end_time := local($frame, int);
         my $arr_1 := local($frame, NQPMu);
         my $arr_2 := local($frame, NQPMu);
         my $arr_size := local($frame, int);
@@ -95,6 +96,17 @@ sub _bench($arr_size_opt, $iter_opt) {
         my $zero := const($frame, ival(0));
         my $one := const($frame, ival(1));
         
+        my $max_index := const($frame, ival($arr_size_opt - 1));
+        my $y_index := const($frame, ival(0));
+        my $z_index := local($frame, int);
+        my $iterations := const($frame, ival($iter_opt));
+        my $Y_LOOP := label("Y_LOOP");
+        my $Z_LOOP := label("Z_LOOP");
+        my $Z_DONE := label("Z_DONE");
+        my $Y_DONE := label("Y_DONE");
+        my $i3 := local($frame, int);
+        my $i4 := local($frame, int);
+        
         op(@ins, 'const_i64', $arr_size, ival($arr_size_opt));
         op(@ins, 'create', $arr_1, $arr_type);
         op(@ins, 'create', $arr_2, $arr_type);
@@ -102,9 +114,8 @@ sub _bench($arr_size_opt, $iter_opt) {
         op(@ins, 'setelemspos', $arr_2, $arr_size);
         
         op(@ins, 'time_i', $start_time);
-        op(@ins, 'const_i64', $x_index, ival(0));
-        op(@ins, 'const_i64', $value, ival(1));
         op(@ins, 'box_i', $boxed_zero, $zero, $int_type);
+        
     nqp::push(@ins, $X_LOOP);
         op(@ins, 'ge_i', $i0, $x_index, $arr_size);
         op(@ins, 'if_i', $i0, $X_DONE);
@@ -116,16 +127,9 @@ sub _bench($arr_size_opt, $iter_opt) {
         op(@ins, 'goto', $X_LOOP);
     nqp::push(@ins, $X_DONE);
         
-        my $max_index := const($frame, ival($arr_size_opt - 1));
-        my $y_index := const($frame, ival(0));
-        my $z_index := local($frame, int);
-        my $iterations := const($frame, ival($iter_opt));
-        my $Y_LOOP := label("Y_LOOP");
-        my $Z_LOOP := label("Z_LOOP");
-        my $Z_DONE := label("Z_DONE");
-        my $Y_DONE := label("Y_DONE");
-        my $i3 := local($frame, int);
-        my $i4 := local($frame, int);
+        op(@ins, 'time_i', $end_time);
+        op(@ins, 'sub_i', $i3, $end_time, $start_time);
+        op(@ins, 'say_i', $i3);
         
     nqp::push(@ins, $Y_LOOP);
         op(@ins, 'ge_i', $i0, $y_index, $iterations);
@@ -147,7 +151,6 @@ sub _bench($arr_size_opt, $iter_opt) {
         
         op(@ins, 'inc_i', $y_index);
         op(@ins, 'goto', $Y_LOOP);
-        my $end_time := local($frame, int);
     nqp::push(@ins, $Y_DONE);
         
         op(@ins, 'time_i', $end_time);
