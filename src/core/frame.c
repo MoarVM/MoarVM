@@ -1,14 +1,5 @@
 #include "moarvm.h"
 
-/* Obtains a call frame ready to be filled out. Makes no promises that the
- * frame data structure will be zeroed out. */
-static MVMFrame * obtain_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
-    
-    
-    
-    return malloc(sizeof(MVMFrame));
-}
-
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
@@ -53,18 +44,28 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     /* Note that we get zero if we really hit zero here, but dec32 may
      * not give the exact count back if it ends up non-zero. */
     if (apr_atomic_dec32(&frame->ref_count) == 0) {
-        if (frame->outer)
-            MVM_frame_dec_ref(tc, frame->outer);
-        if (frame->env) {
-            free(frame->env);
-            frame->env = NULL;
+        MVMuint32 pool_index = frame->static_info->pool_index;
+        MVMFrame *node = tc->frame_pool_table[pool_index];
+        
+        if (node && node->ref_count >= MVMFramePoolLengthLimit) {
+            /* There's no room on the free list, so destruction.*/
+            if (frame->outer)
+                MVM_frame_dec_ref(tc, frame->outer);
+            if (frame->env) {
+                free(frame->env);
+                frame->env = NULL;
+            }
+            if (frame->work) {
+                MVM_args_proc_cleanup(tc, &frame->params);
+                free(frame->work);
+                frame->work = NULL;
+            }
+            free(frame);
         }
-        if (frame->work) {
-            MVM_args_proc_cleanup(tc, &frame->params);
-            free(frame->work);
-            frame->work = NULL;
+        else { /* Unshift it to the free list */
+            frame->ref_count = (frame->outer = node) ? node->ref_count + 1 : 1;
+            tc->frame_pool_table[pool_index] = frame;
         }
-        free(frame);
     }
 }
 
@@ -74,31 +75,48 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMFrame *outer, MVMObject *code_ref) {
     MVMFrame *frame;
     
+    MVMuint32 pool_index;
+    MVMFrame *node;
+    int fresh = 0;
+    
     /* If the frame was never invoked before, need initial calculations
      * and verification. */
     if (!static_frame->invoked)
         prepare_and_verify_static_frame(tc, static_frame);
     
-    /* Get a fresh frame data structure. */
-    frame = obtain_frame(tc, static_frame);
+    pool_index = static_frame->pool_index;
+    node = tc->frame_pool_table[pool_index];
     
-    /* Copy thread context into the frame. */
-    frame->tc = tc;
+    if (node == NULL) {
+        fresh = 1;
+        frame = malloc(sizeof(MVMFrame));
+        
+        /* Copy thread context into the frame. */
+        frame->tc = tc;
+        
+        /* Set static frame. */
+        frame->static_info = static_frame;
+    }
+    else {
+        tc->frame_pool_table[pool_index] = node->outer;
+        frame = node;
+    }
     
     /* Store the code ref (NULL at the top-level). */
     frame->code_ref = code_ref;
     
     /* Allocate space for lexicals and work area. */
-    /* XXX Do something better than malloc here some day. */
     if (static_frame->env_size) {
-        frame->env = malloc(static_frame->env_size);
+        if (fresh)
+            frame->env = malloc(static_frame->env_size);
         memset(frame->env, 0, static_frame->env_size);
     }
     else {
         frame->env = NULL;
     }
     if (static_frame->work_size) {
-        frame->work = malloc(static_frame->work_size);
+        if (fresh)
+            frame->work = malloc(static_frame->work_size);
         memset(frame->work, 0, static_frame->work_size);
     }
     else {
@@ -147,9 +165,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     else
         frame->caller = NULL;
 
-    /* Set static frame. */
-    frame->static_info = static_frame;
-    
     /* Initial reference count is 1 by virtue of it being the currently
      * executing frame. */
     frame->ref_count = 1;
@@ -176,9 +191,13 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     MVMFrame *caller = returner->caller; 
     if (returner->work) {
         MVM_args_proc_cleanup(tc, &returner->params);
-        free(returner->work);
-        returner->work = NULL;
+        
+        /* Don't release ->work in case we want the frame to be cached */
+        /* free(returner->work);
+        returner->work = NULL; */
     }
+    /* signal to the GC to ignore ->work */
+    returner->tc = NULL;
 
     /* Decrement the frame reference (which, if it is not referenced by
      * anything else, may free it overall). */

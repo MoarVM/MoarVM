@@ -240,7 +240,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
     MVMuint16 *type_map;
     
     /* Scan locals. */
-    if (frame->work) {
+    if (frame->work && frame->tc) {
         type_map = frame->static_info->local_types;
         count    = frame->static_info->num_locals;
         for (i = 0; i < count; i++)

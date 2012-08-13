@@ -91,9 +91,9 @@ typedef struct _MVMThreadContext {
     MVMCollectable     ***gen2roots;
     
     /* Pool table of chains of frames for each static frame. */
-    struct _MVMFrame *frame_pool_table;
+    struct _MVMFrame **frame_pool_table;
     /* Size of the pool table, so it can grow on demand. */
-    MVMuint32         frame_pool_table_size;
+    MVMuint32          frame_pool_table_size;
 } MVMThreadContext;
 
 MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);
