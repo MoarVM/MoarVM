@@ -29,7 +29,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* XXX For non-first threads, make them start with the size of the 
        main thread's table. or, look into lazily initializing this. */
     tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
-    tc->frame_pool_table = malloc(MVMInitialFramePoolTableSize * sizeof(MVMFrame *));
+    tc->frame_pool_table = calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
 
     return tc;
 }
