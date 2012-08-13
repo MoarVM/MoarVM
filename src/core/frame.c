@@ -72,13 +72,15 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref) {
-    /* Get a fresh frame data structure. */
-    MVMFrame *frame = obtain_frame(tc, static_frame);
+    MVMFrame *frame;
     
     /* If the frame was never invoked before, need initial calculations
      * and verification. */
     if (!static_frame->invoked)
         prepare_and_verify_static_frame(tc, static_frame);
+    
+    /* Get a fresh frame data structure. */
+    frame = obtain_frame(tc, static_frame);
     
     /* Copy thread context into the frame. */
     frame->tc = tc;
