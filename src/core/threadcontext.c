@@ -24,6 +24,12 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->num_gen2roots   = 0;
     tc->alloc_gen2roots = 64;
     tc->gen2roots       = malloc(sizeof(MVMCollectable **) * tc->alloc_gen2roots);
+    
+    /* Set up table of per-static-frame chains. */
+    /* XXX For non-first threads, make them start with the size of the 
+       main thread's table. or, look into lazily initializing this. */
+    tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
+    tc->frame_pool_table = malloc(MVMInitialFramePoolTableSize * sizeof(MVMFrame *));
 
     return tc;
 }

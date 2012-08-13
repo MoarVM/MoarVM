@@ -3,7 +3,9 @@
 /* Obtains a call frame ready to be filled out. Makes no promises that the
  * frame data structure will be zeroed out. */
 static MVMFrame * obtain_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
-    /* XXX Don't need to malloc every time; maintain a free list. */
+    
+    
+    
     return malloc(sizeof(MVMFrame));
 }
 
@@ -24,6 +26,16 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     
     /* Obtain an index to each threadcontext's pool table */
     static_frame->pool_index = apr_atomic_inc32(&tc->instance->num_frame_pools);
+    if (static_frame->pool_index >= tc->frame_pool_table_size) {
+        /* Grow the threadcontext's pool table */
+        MVMuint32 new_size = tc->frame_pool_table_size;
+        do {
+            new_size *= 2;
+        } while (static_frame->pool_index >= new_size);
+        
+        tc->frame_pool_table = realloc(tc->frame_pool_table, (size_t)new_size);
+        tc->frame_pool_table_size = new_size;
+    }
     
     /* Mark frame as invoked, so we need not do these calculations again. */
     static_frame->invoked = 1;
