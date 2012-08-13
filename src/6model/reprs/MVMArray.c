@@ -277,12 +277,13 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMObject **slots = NULL;
 
     /* start from end? */
-    if (offset < 0)
+    if (offset < 0) {
         offset += elems0;
 
-    if (offset < 0)
-        MVM_exception_throw_adhoc(tc,
-            "MVMArray: Illegal splice offset");
+        if (offset < 0)
+            MVM_exception_throw_adhoc(tc,
+                "MVMArray: Illegal splice offset");
+    }
 
     /* When offset == 0, then we may be able to reduce the memmove
      * calls and reallocs by adjusting SELF's start, elems0, and
@@ -318,7 +319,7 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     if (tail < 0)
         tail = 0;
 
-    if (tail > 0 && count > elems1) {
+    else if (tail > 0 && count > elems1) {
         /* We're shrinking the array, so first move the tail left */
         slots = body->slots;
         start = body->start;
