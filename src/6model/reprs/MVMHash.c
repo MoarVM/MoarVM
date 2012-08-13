@@ -119,7 +119,7 @@ static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     
     extract_key(tc, &kdata, &klen, key);
     
-    /* first check whether we can (well, must) replace the values in the old entry */
+    /* first check whether we can must update the old entry. */
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
     if (!entry) {
         entry = malloc(sizeof(MVMHashEntry));
