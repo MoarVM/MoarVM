@@ -114,21 +114,19 @@ static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
 static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
     MVMHashBody *body = (MVMHashBody *)data;
     void *kdata;
-    MVMHashEntry *old_entry;
+    MVMHashEntry *entry;
     size_t klen;
-    MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
-    new_entry->key = key;
-    new_entry->value = value;
     
     extract_key(tc, &kdata, &klen, key);
     
-    /* first check whether we need to delete/free the old entry */
-    HASH_FIND(hash_handle, body->hash_head, kdata, klen, old_entry);
-    if (old_entry) {
-        HASH_DELETE(hash_handle, body->hash_head, old_entry);
-        free(old_entry);
+    /* first check whether we can (well, must) replace the values in the old entry */
+    HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+    if (!entry) {
+        entry = malloc(sizeof(MVMHashEntry));
+        HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, entry);
     }
-    HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, new_entry);
+    entry->key = key;
+    entry->value = value;
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
