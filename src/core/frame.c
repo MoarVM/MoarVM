@@ -2,7 +2,7 @@
 
 /* Obtains a call frame ready to be filled out. Makes no promises that the
  * frame data structure will be zeroed out. */
-static MVMFrame * obtain_frame(MVMThreadContext *tc) {
+static MVMFrame * obtain_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     /* XXX Don't need to malloc every time; maintain a free list. */
     return malloc(sizeof(MVMFrame));
 }
@@ -21,6 +21,9 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
     /* Validate the bytecode. */
     MVM_validate_static_frame(tc, static_frame);
+    
+    /* Obtain an index to each threadcontext's pool table */
+    static_frame->pool_index = apr_atomic_inc32(&tc->instance->num_frame_pools);
     
     /* Mark frame as invoked, so we need not do these calculations again. */
     static_frame->invoked = 1;
@@ -58,7 +61,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref) {
     /* Get a fresh frame data structure. */
-    MVMFrame *frame = obtain_frame(tc);
+    MVMFrame *frame = obtain_frame(tc, static_frame);
     
     /* If the frame was never invoked before, need initial calculations
      * and verification. */

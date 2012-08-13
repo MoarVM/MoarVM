@@ -54,9 +54,12 @@ typedef struct _MVMStaticFrame {
     /* GC run sequence number that we last saw static this frame during. */
     MVMuint32 gc_seq_number;
     
+    /* Index into each threadcontext's table of frame pools. */
+    MVMuint32 pool_index;
+    
     /* Annotation details */
-    MVMuint8 *annotations;
     MVMuint32 num_annotations;
+    MVMuint8 *annotations;
 } MVMStaticFrame;
 
 /* This represents an active call frame. */

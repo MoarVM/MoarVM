@@ -69,4 +69,8 @@ typedef struct _MVMInstance {
     char          **raw_clargs;
     /* cached parsed command line args */
     MVMObject      *clargs;
+    
+    /* Atomically-incremented counter of newly invoked frames,
+       so each can obtain an index into each threadcontext's pool table */
+    MVMuint32 num_frame_pools;
 } MVMInstance;
