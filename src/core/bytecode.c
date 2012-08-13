@@ -286,20 +286,20 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         /* Read the lexical types. */
         if (frames[i]->num_lexicals) {
             /* Allocate names hash and types list. */
-            apr_status_t rv;
-            if ((rv = apr_pool_create(&frames[i]->apr_pool, NULL)) != APR_SUCCESS) {
-                MVM_exception_throw_apr_error(tc, rv, "Failed to initialize frame lexical name hash: ");
-            }
-            frames[i]->lexical_names = apr_hash_make(frames[i]->apr_pool);
+            /* lexical_names must start out as null, but it's already zeroed. */
+            /* frames[i]->lexical_names = NULL; */
             frames[i]->lexical_types = malloc(sizeof(MVMuint16) * frames[i]->num_lexicals);
             
             /* Read in data. */
             ensure_can_read(tc, cu, rs, pos, 4 * frames[i]->num_lexicals);
             for (j = 0; j < frames[i]->num_lexicals; j++) {
                 MVMString *name = get_heap_string(tc, cu, rs, pos, 4 * j + 2);
+                MVMLexicalHashEntry *entry = calloc(sizeof(MVMLexicalHashEntry), 1);
+                entry->value = j;
+                
                 frames[i]->lexical_types[j] = read_int16(pos, 4 * j);
-                apr_hash_set(frames[i]->lexical_names, name->body.data,
-                    name->body.graphs * sizeof(MVMint32), (void *)(j + 1));
+                HASH_ADD_KEYPTR(hash_handle, frames[i]->lexical_names,
+                    name->body.data, name->body.graphs * sizeof(MVMint32), entry);
             }
             pos += 4 * frames[i]->num_lexicals;
         }

@@ -1,3 +1,12 @@
+/* Lexical hash entry for ->lexical_names on a frame. */
+typedef struct _MVMLexicalHashEntry {
+    /* index of the lexical entry. */
+    MVMuint32 value;
+    
+    /* the uthash hash handle inline struct. */
+    UT_hash_handle hash_handle;
+} MVMLexicalHashEntry;
+
 /* This represents the things we statically know about a call frame. */
 typedef struct _MVMStaticFrame {
     /* The start of the stream of bytecode for this routine. */
@@ -13,7 +22,7 @@ typedef struct _MVMStaticFrame {
     MVMuint16 *lexical_types;
     
     /* Lexicals name map. */
-    apr_hash_t *lexical_names;
+    MVMLexicalHashEntry *lexical_names;
 
     /* Flag for if this frame has been invoked ever. */
     MVMuint32 invoked;
@@ -44,9 +53,6 @@ typedef struct _MVMStaticFrame {
     
     /* GC run sequence number that we last saw static this frame during. */
     MVMuint32 gc_seq_number;
-    
-    /* The APR memory pool used by the hash lexical hash. */
-    apr_pool_t *apr_pool;
     
     /* Annotation details */
     MVMuint8 *annotations;

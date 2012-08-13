@@ -208,16 +208,17 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
-        apr_hash_t *lexical_names = cur_frame->static_info->lexical_names;
+        MVMLexicalHashEntry *lexical_names = cur_frame->static_info->lexical_names;
         if (lexical_names) {
-            /* Indexes are stored off-by-one to avoid semi-predicate
-             * issue. */
-            MVMuint16 idx = (MVMuint16)apr_hash_get(lexical_names,
-                name->body.data, name->body.graphs * sizeof(MVMint32));
-            if (idx) {
-                idx--;
-                if (cur_frame->static_info->lexical_types[idx] == type)
-                    return &cur_frame->env[idx];
+            /* Indexes were formerely stored off-by-one
+             * to avoid semi-predicate issue. */
+            MVMLexicalHashEntry *entry;
+            
+            HASH_FIND(hash_handle, lexical_names, name->body.data,
+                name->body.graphs * sizeof(MVMint32), entry);
+            if (entry) {
+                if (cur_frame->static_info->lexical_types[entry->value] == type)
+                    return &cur_frame->env[entry->value];
                 else
                    MVM_exception_throw_adhoc(tc,
                         "Lexical with name 'XXX' has wrong type"); /* XXX TODO */ 
