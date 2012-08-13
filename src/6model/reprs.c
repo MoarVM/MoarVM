@@ -185,10 +185,17 @@ static void add_default_ass_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
 }
 
 /* Registers a representation. It this is ever made public, it should first be
- * made thread-safe. */
+ * made thread-safe, and it should check if the name is already registered. */
 static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *repr) {
     /* Allocate an ID. */
     MVMuint32 ID = tc->instance->num_reprs;
+    
+    /* Allocate a hash entry for the name-to-ID.
+        Could one day be unified with MVMREPROps, I suppose. */
+    MVMREPRHashEntry *entry = calloc(sizeof(MVMREPRHashEntry), 1);
+    entry->value = ID;
+    
+    /* Bump the repr count */
     tc->instance->num_reprs++;
     
     /* Stash ID and name. */
@@ -205,9 +212,8 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     else
         tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
     tc->instance->repr_registry[ID] = repr;
-    apr_hash_set(tc->instance->repr_name_to_id_hash,
-        name->body.data, name->body.graphs * sizeof(MVMint32),
-        &repr->ID);
+    HASH_ADD_KEYPTR(hash_handle, tc->instance->repr_name_to_id_hash,
+        name->body.data, name->body.graphs * sizeof(MVMint32), entry);
         
     /* Add default "not implemented" function table implementations. */
     if (!repr->attr_funcs)
@@ -223,8 +229,6 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
 /* Initializes the representations registry, building up all of the various
  * representations. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {
-    /* Initialize name to ID map. */
-    tc->instance->repr_name_to_id_hash = apr_hash_make(tc->instance->apr_pool);
     
     /* Add all core representations. (If order changed, update reprs.h IDs.) */
     register_repr(tc,
@@ -274,12 +278,15 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
 /* Get a representation's ID from its name. Note that the IDs may change so
  * it's best not to store references to them in e.g. the bytecode stream. */
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
-    MVMuint32 *value = (MVMuint32 *)apr_hash_get(tc->instance->repr_name_to_id_hash,
-        name->body.data, name->body.graphs * sizeof(MVMint32));
-    if (value == NULL)
+    MVMREPRHashEntry *entry;
+    
+    HASH_FIND(hash_handle, tc->instance->repr_name_to_id_hash,
+        name->body.data, name->body.graphs * sizeof(MVMint32), entry);
+    
+    if (entry == NULL)
         MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",
             MVM_string_utf8_encode_C_string(tc, name));
-    return *value;
+    return entry->value;
 }
 
 /* Gets a representation by ID. */

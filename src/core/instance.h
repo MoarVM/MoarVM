@@ -8,6 +8,14 @@ struct _MVMBootTypes {
     MVMObject *BOOTCode;
 };
 
+typedef struct _MVMREPRHashEntry {
+    /* index of the REPR */
+    MVMuint32 value;
+    
+    /* the uthash hash handle inline struct. */
+    UT_hash_handle hash_handle;
+} MVMREPRHashEntry;
+
 /* Represents a MoarVM instance. */
 typedef struct _MVMInstance {
     /* The list of active threads. */
@@ -34,7 +42,7 @@ typedef struct _MVMInstance {
     MVMuint32 num_reprs;
 
     /* Hash mapping representation names to IDs. */
-    apr_hash_t *repr_name_to_id_hash;
+    MVMREPRHashEntry *repr_name_to_id_hash;
     
     /* The second GC generation allocator. */
     struct _MVMGen2Allocator *gen2;

@@ -7,7 +7,7 @@ typedef struct _MVMHashEntry {
     /* value object */
     MVMObject *value;
     
-    /* the uthash hash handle. MUST be initialized to NULL. */
+    /* the uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
 } MVMHashEntry;
 
