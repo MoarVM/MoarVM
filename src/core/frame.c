@@ -221,11 +221,12 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
                     return &cur_frame->env[entry->value];
                 else
                    MVM_exception_throw_adhoc(tc,
-                        "Lexical with name 'XXX' has wrong type"); /* XXX TODO */ 
+                        "Lexical with name '%s' has wrong type",
+                            MVM_string_utf8_encode_C_string(tc, name));
             }
         }
         cur_frame = cur_frame->outer;
     }
-    MVM_exception_throw_adhoc(tc,
-        "No lexical found with name 'XXX'"); /* XXX TODO */
+    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
+        MVM_string_utf8_encode_C_string(tc, name));
 }
