@@ -5,11 +5,10 @@
 #include "sixmodelobject.h"
 #include "nodes_parrot.h"
 #include "../../src/core/ops.h"
+#include "../../3rdparty/uthash.h"
 #else
 #include "moarvm.h"
 #endif
-
-#include "../../3rdparty/uthash.h"
 
 /* Some sizes. */
 #define HEADER_SIZE             80
