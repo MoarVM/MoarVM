@@ -62,6 +62,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 i, j, k, q;
     char *o = calloc(sizeof(char) * s, 1);
     char ***frame_lexicals = malloc(sizeof(char **) * cu->num_frames);
+    MVMString *name = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, "", 0);
     
     a("\nMoarVM dump of binary compilation unit:\n\n");
     
@@ -92,22 +93,14 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     
     for (k = 0; k < cu->num_frames; k++) {
         MVMStaticFrame *frame = cu->frames[k];
-        apr_hash_index_t *entry;
+        MVMLexicalHashEntry *current, *tmp;
         char **lexicals = malloc(sizeof(char *) * frame->num_lexicals);
         frame_lexicals[k] = lexicals;
-        for (j = 0; j < frame->num_lexicals; j++) {
-            const void *key;
-            MVMuint64 val;
-            apr_ssize_t ssize;
-            MVMString *name;
-            
-            entry = j ? apr_hash_next(entry)
-                : apr_hash_first(NULL, frame->lexical_names);
-            apr_hash_this(entry, &key, &ssize, (void **)&val);
-            name = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, "", 0);
-            name->body.data = (void *)key;
-            name->body.graphs = ssize / sizeof(MVMint32);
-            lexicals[val - 1] = MVM_string_utf8_encode_C_string(tc, name);
+        
+        HASH_ITER(hash_handle, frame->lexical_names, current, tmp) {
+            name->body.data = (MVMint32 *)current->hash_handle.key;
+            name->body.graphs = (MVMuint32)current->hash_handle.keylen / sizeof(MVMint32);
+            lexicals[current->value] = MVM_string_utf8_encode_C_string(tc, name);
         }
     }
     for (k = 0; k < cu->num_frames; k++) {
