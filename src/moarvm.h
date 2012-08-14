@@ -4,7 +4,6 @@
 #define APR_DECLARE_STATIC 1
 #include <apr_general.h>
 #include <apr_atomic.h>
-#include <apr_hash.h>
 #include <apr_file_info.h>
 #include <apr_file_io.h>
 #include <apr_mmap.h>
