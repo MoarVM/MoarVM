@@ -1,4 +1,6 @@
 use warnings; use strict;
+use Data::Dumper;
+$Data::Dumper::Maxdepth = 3;
 # Make C versions of the Unicode tables.
 
 my $sections = {};
@@ -17,19 +19,18 @@ sub main {
     $sections->{'aaa_header'} = header();
     
     # Load all the things
-    binary_props('extracted/DerivedNumericType');
-    binary_props('extracted/DerivedBinaryProperties');
     UnicodeData(
         derived_property('BidiClass', 'Bidi_Class', {}, 0),
         derived_property('GeneralCategory', 'General_Category', {}, 0),
         derived_property('CombiningClass',
-            'Canonical_Combining_Class', { Not_Reordered => 0 }, 1),
-        derived_property('DecompositionType',
-            'Decomposition_Type', { None => 0 }, 1)
+            'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
+    binary_props('extracted/DerivedNumericType');
+    binary_props('extracted/DerivedBinaryProperties');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
+    enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     BidiMirroring();
     CaseFolding();
     enumerated_property('DerivedAge',
@@ -45,6 +46,7 @@ sub main {
     NameAliases();
     NamedSequences();
     binary_props('PropList');
+    enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1, 1);
     # XXX SpecialCasing.txt # haven't decided how to do it
     # XXX StandardizedVariants.txt # no clue what this is
     break_property('Grapheme', 'Grapheme_Cluster_Break');
@@ -54,22 +56,44 @@ sub main {
     # Allocate all the things
     progress "done.\nallocating bitfield...";
     my $allocated = allocate_bitfield();
+    # Compute all the things
     progress "done.\ncomputing bitfield...";
     compute_bitfield($allocated);
     
+    $sections->{main_bitfield} = emit_bitfield();
+    
     #sleep 60;
-    write_file($sections);
+    write_file('src/strings/unicode_db.c', join_sections($sections));
+}
+sub join_sections {
+    my $sections = shift;
+    my $content = "";
+    $content .= "\n".$sections->{$_} for (sort keys %{$sections});
+    $content
 }
 sub apply_to_range {
-    my ($first, $last) = split '..', (shift);
+    my $range = shift;
+    chomp($range);
     my $fn = shift;
+    my ($first, $last) = split '\\.\\.', $range;
+    $first ||= $range;
+    $last ||= $first;
     my $point = $points_by_hex->{$first};
-    $last = $last ? hex $last : undef;
-    while ($point && $point->{code} <= $last) {
-        $fn->($point);
+    if (!$point) {
+        my $code = hex($first) - 1;
+        $code-- until ($point = $points_by_code->{$code});
         $point = $point->{next_point};
-        last unless $last;
     }
+    my $last_point;
+    do {
+        $fn->($point);
+        $last_point = $point;
+        $point = $point->{next_point};
+    } while ($point && $point->{code} <= hex $last);
+    #die "couldn't find code ".sprintf('%x', $last_point->{code} + 1).
+    #    " got ".$point->{code_str}." for range $first..$last"
+    #    unless $last_point->{code} == hex $last;
+    # can't die there because some ranges end on points that don't exist (Blocks)
 }
 sub progress($) {
     my $txt = shift;
@@ -82,7 +106,8 @@ sub binary_props {
         my ($range, $pname) = split /\s*[;#]\s*/;
         $binary_properties->{$pname} ||= 1;
         apply_to_range($range, sub {
-            (shift)->{$pname} = 1;
+            my $point = shift;
+            $point->{$pname} = 1;
         });
     });
 }
@@ -93,8 +118,16 @@ sub break_property {
 }
 sub derived_property {
     my ($fname, $pname, $base, $j) = @_;
-    enumerated_property("extracted/Derived$fname",
-        $pname, $base, $j, 1);
+    $base = { enum => $base };
+    each_line("extracted/Derived$fname", sub { $_ = shift;
+        my ($range, $class) = split /\s*[;#]\s*/;
+        unless (exists $base->{enum}->{$class}) {
+            #print "new class: $class\n";
+            $base->{enum}->{$class} = $j++;
+        }
+    });
+    $base->{name} = $pname;
+    $enumerated_properties->{$pname} = $base;
 }
 sub enumerated_property {
     my ($fname, $pname, $base, $j, $value_index) = @_;
@@ -145,7 +178,7 @@ sub allocate_bitfield {
         my $i = -1;
         for(;;) {
             my $prop = $biggest[++$i];
-            die "failed to allocate" unless $prop;
+            die "failed to allocate" unless $prop; # can of course create gaps
             my $width = $prop->{bit_width};
             if ($bit_offset + $width <= 8) {
                 $prop->{byte_offset} = $byte_offset;
@@ -157,7 +190,7 @@ sub allocate_bitfield {
                 }
                 push @$allocated, $prop;
                 splice(@biggest, $i, 1);
-                $prop->{prop_index} = $index++;
+                $prop->{field_index} = $index++;
                 last;
             }
         }
@@ -173,15 +206,29 @@ sub compute_bitfield {
     my $fields = shift;
     for my $field (@$fields) {
         my $point = $first_point;
-        print "\n..$field->{name}";
+        print "..$field->{name}";
         my $i = 0;
-        while ($point) {
-            $point->{bytes}->[$field->{byte_offset}] |=
-                ($point->{$field->{name}} << $field->{bit_offset})
-                    if defined $point->{$field->{name}};
+        while (defined $point) {
+            if (defined $point->{$field->{name}}) {
+                $point->{bytes}->[$field->{byte_offset}] |=
+                    ($point->{$field->{name}} << $field->{bit_offset});
+            }
             $point = $point->{next_point};
         }
     }
+}
+sub emit_bitfield {
+    my $point = $first_point;
+    my $i = 0;
+    my @lines = ();
+    while ($point) {
+        my $line = '{ "'.$point->{name}.'"';
+        $line .= ",".(defined $_ ? $_ : 0) for @{$point->{bytes}};
+        $line .= '}';
+        push @lines, $line;
+        $point = $point->{next_point};
+    }
+    "    ".join(",\n    ", @lines)
 }
 sub header {
 '/*   DO NOT MODIFY THIS FILE!  YOU WILL LOSE YOUR CHANGES!
@@ -237,35 +284,39 @@ sub read_file {
     \@lines;
 }
 sub write_file {
-    my $sections = shift;
-    my $fname = 'src/strings/unicode_db.c';
-    open FILE, ">$fname" or die "Couldn't open file '$fname': $!";;
-    print FILE $sections->{$_} for (sort keys %{$sections});
+    my ($fname, $contents) = @_;
+    open FILE, ">$fname" or die "Couldn't open file '$fname': $!";
+    print FILE $contents;
     close FILE;
 }
 sub UnicodeData {
-    my ($bidi_classes, $general_categories, $ccclasses, $decomp_types) = @_;
+    my ($bidi_classes, $general_categories, $ccclasses) = @_;
     my $plane = {
         number => 0,
         points => []
     };
     push @$planes, $plane;
+    my $total_name_size = 0;
+    my $ideograph_start;
     each_line('UnicodeData', sub {
         $_ = shift;
-        my ($code_str, $name, $gencat, $ccclass, $bidiclass, $decmptype,
+        my ($code_str, $name, $gencat, $ccclass, $bidiclass, $decmpspec,
             $num1, $num2, $num3, $bidimirrored, $u1name, $isocomment,
             $suc, $slc, $stc) = split ';';
         
+        return if $name =~ /Private|Surrogate/; # XXX pretty sure this is okay
+        
+        $total_name_size += length($name) + 9;
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
         my $index = $code & 0xFFFF;
         my $point = {
             code_str => $code_str,
             name => $name,
-            General_Category => $general_categories->{$gencat},
-            Canonical_Combining_Class => $ccclasses->{$ccclass},
-            Bidi_Class => $bidi_classes->{$bidiclass},
-            Decomposition_Type => $decomp_types->{$decmptype},
+            General_Category => $general_categories->{enum}->{$gencat},
+            Canonical_Combining_Class => $ccclasses->{enum}->{$ccclass},
+            Bidi_Class => $bidi_classes->{enum}->{$bidiclass},
+            decomp_spec => $decmpspec,
             num1 => $num1,
             num2 => $num2,
             num3 => $num3,
@@ -276,7 +327,7 @@ sub UnicodeData {
             slc => $slc,
             stc => $stc,
             NFD_QC => 1, # these are defaults (inverted)
-            NFC_QC => 1,
+            NFC_QC => 1, # which will be unset as appropriate
             NFKD_QC => 1,
             NFKC_QC => 1,
             code => $code,
@@ -289,8 +340,34 @@ sub UnicodeData {
                 points => []
             }));
         }
+        if ($name =~ /(Ideograph|Syllable)(\s|.)*?First/) {
+            $ideograph_start = $point;
+            $point->{name} = '';
+        }
+        elsif ($ideograph_start) {
+            $point->{name} = '';
+            my $current = $ideograph_start;
+            while ($current->{code} < $point->{code} - 1) {
+                my $new = {};
+                for (keys %$current) {
+                    $new->{$_} = $current->{$_};
+                }
+                $new->{code}++;
+                $code_str = uc(sprintf '%x', $new->{code});
+                while(length($code_str) < 4) {
+                    $code_str = "0$code_str";
+                }
+                $new->{code_str} = $code_str;
+                push @{$plane->{points}}, $new;
+                $points_by_hex->{$new->{code_str}} = $points_by_code->{$new->{code}} = 
+                    $current = $current->{next_point} = $new;
+            }
+            $last_point = $current;
+            $ideograph_start = 0;
+        }
         push @{$plane->{points}}, $point;
         $points_by_hex->{$code_str} = $points_by_code->{$code} = $point;
+        
         if ($last_point) {
             $last_point = $last_point->{next_point} = $point;
         }
@@ -298,6 +375,7 @@ sub UnicodeData {
             $last_point = $first_point = $point;
         }
     });
+    print "name bytes: $total_name_size..";
 }
 sub BidiMirroring {
     each_line('BidiMirroring', sub { $_ = shift;
