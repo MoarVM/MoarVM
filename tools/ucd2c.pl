@@ -57,10 +57,11 @@ sub main {
     progress "done.\nallocating bitfield...";
     my $allocated = allocate_bitfield();
     # Compute all the things
-    progress "done.\ncomputing bitfield...";
-    compute_bitfield($allocated);
-    
-    $sections->{main_bitfield} = emit_bitfield();
+    progress "done.\ncomputing all properties...";
+    compute_properties($allocated);
+    progress "done.\ncomputing collapsed properties table...";
+    compute_bitfield($first_point);
+    $sections->{main_bitfield} = emit_bitfield($first_point);
     
     #sleep 60;
     write_file('src/strings/unicode_db.c', join_sections($sections));
@@ -126,6 +127,14 @@ sub derived_property {
             $base->{enum}->{$class} = $j++;
         }
     });
+    my @keys = ();
+    for my $key (keys %{$base->{enum}}) {
+        $keys[$base->{enum}->{$key}] = $key;
+    }
+    $base->{keys} = \@keys;
+    $base->{name} = $pname;
+    $base->{num_keys} = $j;
+    $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
     $base->{name} = $pname;
     $enumerated_properties->{$pname} = $base;
 }
@@ -165,7 +174,7 @@ sub each_line {
 sub allocate_bitfield {
     my @biggest = map { $enumerated_properties->{$_} }
         sort { $enumerated_properties->{$b}->{bit_width}
-            cmp $enumerated_properties->{$a}->{bit_width} }
+            <=> $enumerated_properties->{$a}->{bit_width} }
             keys %$enumerated_properties;
     for (sort keys %$binary_properties) {
         push @biggest, { name => $_, bit_width => 1 };
@@ -195,13 +204,14 @@ sub allocate_bitfield {
             }
         }
     }
+    $first_point->{bitfield_width} = $byte_offset+1;
     print "bitfield width is ".($byte_offset+1)." bytes\n";
-    for (@$allocated) {
-        print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset}\n"
-    }
+    #for (@$allocated) {
+    #    print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset}\n"
+    #}
     $allocated
 }
-sub compute_bitfield {
+sub compute_properties {
     local $| = 1;
     my $fields = shift;
     for my $field (@$fields) {
@@ -218,17 +228,48 @@ sub compute_bitfield {
     }
 }
 sub emit_bitfield {
-    my $point = $first_point;
-    my $i = 0;
+    my $point = shift;
+    my $wide = $point->{bitfield_width};
     my @lines = ();
+    my $out = '';
+    my $rows = 0;
     while ($point) {
-        my $line = '{ "'.$point->{name}.'"';
-        $line .= ",".(defined $_ ? $_ : 0) for @{$point->{bytes}};
-        $line .= '}';
-        push @lines, $line;
+        my $line = '{';
+        my $first = 1;
+        for (@{$point->{bytes}}) {
+            $line .= "," unless $first;
+            $first = 0;
+            $line .= (defined $_ ? $_ : 0);
+        }
+        push @lines, ($line . '}');
+        $point = $point->{next_emit_point};
+        $rows++;
+    }
+    $out = "static unsigned char props_bitfield[$rows][$wide] {\n    ".
+        join(",\n    ", @lines)."\n}";
+    $out
+}
+sub compute_bitfield {
+    my $point = shift;
+    my $index = 0;
+    my $prophash = {};
+    my $last_point = undef;
+    while ($point) {
+        my $line = '';
+        $line .= '.'.(defined $_ ? $_ : 0) for @{$point->{bytes}};
+        $point->{prop_str} = $line; # XXX probably take this out
+        my $refer;
+        if (defined($refer = $prophash->{$line})) {
+            $point->{bitfield_index} = $refer->{bitfield_index};
+        }
+        else {
+            $point->{bitfield_index} = $index++;
+            $prophash->{$line} = $point;
+            $last_point->{next_emit_point} = $point if $last_point;
+            $last_point = $point;
+        }
         $point = $point->{next_point};
     }
-    "    ".join(",\n    ", @lines)
 }
 sub header {
 '/*   DO NOT MODIFY THIS FILE!  YOU WILL LOSE YOUR CHANGES!
@@ -453,7 +494,7 @@ sub LineBreak {
     $base->{name} = 'Line_Break';
     $base->{num_keys} = $j;
     $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
-    $enumerated_properties->{Line_Break} = $base
+    $enumerated_properties->{$base->{name}} = $base
 }
 sub NameAliases {
     each_line('NameAliases', sub { $_ = shift;
