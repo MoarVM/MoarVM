@@ -61,7 +61,7 @@ sub main {
     progress "done.\ncomputing all properties...";
     compute_properties($allocated);
     # Make the things less
-    progress "done.\ncomputing collapsed properties table...";
+    progress "...done.\ncomputing collapsed properties table...";
     compute_bitfield($first_point);
     # Emit all the things
     $sections->{main_bitfield} = emit_bitfield($first_point);
@@ -227,9 +227,9 @@ sub allocate_bitfield {
     }
     $first_point->{bitfield_width} = $byte_offset+1;
     print "bitfield width is ".($byte_offset+1)." bytes\n";
-    #for (@$allocated) {
-    #    print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset}\n"
-    #}
+    for (@$allocated) {
+        print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset}\n"
+    }
     $allocated
 }
 sub compute_properties {
@@ -237,18 +237,19 @@ sub compute_properties {
     my $fields = shift;
     for my $field (@$fields) {
         my $bit_offset = $field->{bit_offset};
+        my $bit_width = $field->{bit_width};
         my $point = $first_point;
         print "..$field->{name}";
         my $i = 0;
         while (defined $point) {
             if (defined $point->{$field->{name}}) {
-                my $bit_width = $field->{bit_width};
                 my $byte_offset = $field->{byte_offset};
-                my $x = 0;
-                while ($bit_width + $bit_offset > 0) {
-                    $point->{bytes}->[++$byte_offset] |=
-                        ((($point->{$field->{name}} << $bit_offset) >> (8 * $x++)) & 0xFFFF);
-                    $bit_width -= 8;
+                my $x = int(($bit_width - 1) / 8);
+                $byte_offset += $x;
+                while ($x + 1) {
+                    # Most significant byte to least significant byte
+                    $point->{bytes}->[$byte_offset - $x] |=
+                        ((($point->{$field->{name}} << $bit_offset) >> (8 * $x--)) & 0xFF);
                 }
             }
             $point = $point->{next_point};
@@ -264,7 +265,8 @@ sub emit_bitfield {
     while ($point) {
         my $line = '{';
         my $first = 1;
-        for (@{$point->{bytes}}) {
+        for (my $i = 0; $i < $first_point->{bitfield_width}; ++$i) {
+            $_ = $point->{bytes}->[$i];
             $line .= "," unless $first;
             $first = 0;
             $line .= (defined $_ ? $_ : 0);
@@ -464,14 +466,14 @@ sub CaseFolding {
     each_line('CaseFolding', sub { $_ = shift;
         my ($left, $type, $right) = split /\s*;\s*/;
         return if $type eq 'S' || $type eq 'T';
-        my @parts = split ' ', $right;
         if ($type eq 'C') {
-            push @simple, $left;
+            push @simple, $right;
             $points_by_hex->{$left}->{Case_Folding} = $simple_count;
             $simple_count++;
             $points_by_hex->{$left}->{Case_Folding_simple} = 1;
         }
         else {
+            my @parts = split ' ', $right;
             push @grows, "{0x".($parts[0]).",0x".($parts[1] || 0).",0x".($parts[2] || 0)."}";
             $points_by_hex->{$left}->{Case_Folding} = $grows_count;
             $grows_count++;
