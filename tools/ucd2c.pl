@@ -13,10 +13,11 @@ my $first_point = undef;
 my $last_point = undef;
 my $aliases = {};
 my $named_sequences = {};
+my $byte_total = 0;
 
 sub progress($);
 sub main {
-    $sections->{'aaa_header'} = header();
+    $sections->{'AAA_header'} = header();
     
     # Load all the things
     UnicodeData(
@@ -59,12 +60,15 @@ sub main {
     # Compute all the things
     progress "done.\ncomputing all properties...";
     compute_properties($allocated);
+    # Make the things less
     progress "done.\ncomputing collapsed properties table...";
     compute_bitfield($first_point);
+    # Emit all the things
     $sections->{main_bitfield} = emit_bitfield($first_point);
     
     #sleep 60;
     write_file('src/strings/unicode_db.c', join_sections($sections));
+    print "\n\nEstimated total bytes: $byte_total.\n";
 }
 sub join_sections {
     my $sections = shift;
@@ -134,7 +138,7 @@ sub derived_property {
     $base->{keys} = \@keys;
     $base->{name} = $pname;
     $base->{num_keys} = $j;
-    $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
+    $base->{bit_width} = least_int_ge_lg2($j);
     $base->{name} = $pname;
     $enumerated_properties->{$pname} = $base;
 }
@@ -160,8 +164,11 @@ sub enumerated_property {
     $base->{keys} = \@keys;
     $base->{name} = $pname;
     $base->{num_keys} = $j;
-    $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
+    $base->{bit_width} = least_int_ge_lg2($j);
     $enumerated_properties->{$pname} = $base
+}
+sub least_int_ge_lg2 {
+    int(log(shift)/log(2) - 0.00001) + 1;
 }
 sub each_line {
     my ($fname, $fn, $force) = @_;
@@ -187,12 +194,26 @@ sub allocate_bitfield {
         my $i = -1;
         for(;;) {
             my $prop = $biggest[++$i];
-            die "failed to allocate" unless $prop; # can of course create gaps
-            my $width = $prop->{bit_width};
-            if ($bit_offset + $width <= 8) {
+            if (!$prop) {
+                while (scalar @biggest) {
+                    # ones bigger than 1 byte :(.  Don't prefer these.
+                    $prop = shift @biggest;
+                    $prop->{byte_offset} = $byte_offset;
+                    $prop->{bit_offset} = $bit_offset;
+                    $bit_offset += $prop->{bit_width};
+                    while ($bit_offset >= 8) {
+                        $byte_offset++;
+                        $bit_offset = 0;
+                    }
+                    push @$allocated, $prop;
+                    $prop->{field_index} = $index++;
+                }
+                last;
+            }
+            if ($bit_offset + $prop->{bit_width} <= 8) {
                 $prop->{byte_offset} = $byte_offset;
                 $prop->{bit_offset} = $bit_offset;
-                $bit_offset += $width;
+                $bit_offset += $prop->{bit_width};
                 if ($bit_offset == 8) {
                     $byte_offset++;
                     $bit_offset = 0;
@@ -215,13 +236,20 @@ sub compute_properties {
     local $| = 1;
     my $fields = shift;
     for my $field (@$fields) {
+        my $bit_offset = $field->{bit_offset};
         my $point = $first_point;
         print "..$field->{name}";
         my $i = 0;
         while (defined $point) {
             if (defined $point->{$field->{name}}) {
-                $point->{bytes}->[$field->{byte_offset}] |=
-                    ($point->{$field->{name}} << $field->{bit_offset});
+                my $bit_width = $field->{bit_width};
+                my $byte_offset = $field->{byte_offset};
+                my $x = 0;
+                while ($bit_width + $bit_offset > 0) {
+                    $point->{bytes}->[++$byte_offset] |=
+                        ((($point->{$field->{name}} << $bit_offset) >> (8 * $x++)) & 0xFFFF);
+                    $bit_width -= 8;
+                }
             }
             $point = $point->{next_point};
         }
@@ -245,6 +273,9 @@ sub emit_bitfield {
         $point = $point->{next_emit_point};
         $rows++;
     }
+    my $bytes_wide = 2;
+    $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
+    $byte_total += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
     $out = "static unsigned char props_bitfield[$rows][$wide] {\n    ".
         join(",\n    ", @lines)."\n}";
     $out
@@ -417,6 +448,7 @@ sub UnicodeData {
         }
     });
     print "name bytes: $total_name_size..";
+    $byte_total += $total_name_size;
 }
 sub BidiMirroring {
     each_line('BidiMirroring', sub { $_ = shift;
@@ -425,12 +457,38 @@ sub BidiMirroring {
     });
 }
 sub CaseFolding {
+    my $simple_count = 0;
+    my $grows_count = 0;
+    my @simple;
+    my @grows;
     each_line('CaseFolding', sub { $_ = shift;
         my ($left, $type, $right) = split /\s*;\s*/;
         return if $type eq 'S' || $type eq 'T';
         my @parts = split ' ', $right;
-        $points_by_hex->{$left}->{Case_Folding} = \@parts;
+        if ($type eq 'C') {
+            push @simple, $left;
+            $points_by_hex->{$left}->{Case_Folding} = $simple_count;
+            $simple_count++;
+            $points_by_hex->{$left}->{Case_Folding_simple} = 1;
+        }
+        else {
+            push @grows, "{0x".($parts[0]).",0x".($parts[1] || 0).",0x".($parts[2] || 0)."}";
+            $points_by_hex->{$left}->{Case_Folding} = $grows_count;
+            $grows_count++;
+        }
     });
+    my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] {\n    0x"
+        .join(",\n    0x", @simple)."\n}";
+    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] {\n    "
+        .join(",\n    ", @grows)."\n}";
+    my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
+    my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
+    $enumerated_properties->{Case_Folding} = $index_base;
+    my $type_base = { name => 'Case_Folding_simple', bit_width => 1 };
+    $enumerated_properties->{Case_Folding_simple} = $type_base;
+    $byte_total += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
+    $sections->{CaseFolding_simple} = $simple_out;
+    $sections->{CaseFolding_grows} = $grows_out;
 }
 sub DerivedNormalizationProps {
     my $binary = {
