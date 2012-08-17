@@ -14,6 +14,10 @@ my $last_point = undef;
 my $aliases = {};
 my $named_sequences = {};
 my $byte_total = 0;
+my $wrap_to_columns = 120;
+my $compress_codepoints = 1;
+my $gap_length_threshold = 1000;
+my $span_length_threshold = 100;
 
 sub progress($);
 sub main {
@@ -64,10 +68,13 @@ sub main {
     progress "...done.\ncomputing collapsed properties table...";
     compute_bitfield($first_point);
     # Emit all the things
+    progress "...done.\nemitting unicode_db.c...";
     emit_bitfield($first_point);
-    emit_codepoints_and_planes($first_point);
+    my $extents = emit_codepoints_and_planes($first_point);
+    emit_case_changes($first_point);
+    emit_codepoint_row_lookup($extents);
     
-    print "\ndone!\n";
+    print "done!\n";
     write_file('src/strings/unicode_db.c', join_sections($sections));
     print "\nEstimated total bytes: $byte_total.\n";
 }
@@ -165,13 +172,13 @@ sub derived_property {
             $base->{enum}->{$class} = $j++;
         }
     });
-    my @keys = ();
-    for my $key (keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
-    }
-    $base->{keys} = \@keys;
+    #my @keys = ();
+    #for my $key (keys %{$base->{enum}}) {
+    #    $keys[$base->{enum}->{$key}] = $key;
+    #}
+    #$base->{keys} = \@keys;
     $base->{name} = $pname;
-    $base->{num_keys} = $j;
+    #$base->{num_keys} = $j;
     $base->{bit_width} = least_int_ge_lg2($j);
     $base->{name} = $pname;
     $enumerated_properties->{$pname} = $base;
@@ -192,12 +199,12 @@ sub enumerated_property {
         });
     });
     my @keys = ();
-    for my $key (keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
-    }
-    $base->{keys} = \@keys;
+    #for my $key (keys %{$base->{enum}}) {
+    #    $keys[$base->{enum}->{$key}] = $key;
+    #}
+    #$base->{keys} = \@keys;
     $base->{name} = $pname;
-    $base->{num_keys} = $j;
+    #$base->{num_keys} = $j;
     $base->{bit_width} = least_int_ge_lg2($j);
     $enumerated_properties->{$pname} = $base
 }
@@ -237,7 +244,7 @@ sub allocate_bitfield {
                     $bit_offset += $prop->{bit_width};
                     while ($bit_offset >= 8) {
                         $byte_offset++;
-                        $bit_offset = 0;
+                        $bit_offset -= 8;
                     }
                     push @$allocated, $prop;
                     $prop->{field_index} = $index++;
@@ -291,46 +298,108 @@ sub compute_properties {
         }
     }
 }
+sub emit_binary_search_algorithm {
+    # $extents is arrayref to the heads of the gaps, spans, and
+    # normal stretches of codepoints. $first and $last are the 
+    # indexes into $extents we're supposed to subdivide.
+    # protocol: start output with a newline; don't end with a newline or indent
+    my ($extents, $first, $mid, $last, $indent) = @_;
+    print "got first $first  mid $mid  last $last\n";
+    # base case - we have 1 or 2 elements
+    return emit_extent_fate($extents->[$first], $indent) if $first == $mid;
+    return "
+${indent}if (codepoint >= $extents->[$mid]->{code}) {".
+            emit_binary_search_algorithm($extents, $mid, int(($last + $mid) / 2), $last, "    $indent")."
+${indent}}
+${indent}else".emit_binary_search_algorithm($extents, $first, int(($mid - 1 + $first) / 2), $mid - 1, "    $indent")
+}
+my $FATE_NORMAL = 0;
+my $FATE_NULL = 1;
+my $FATE_SPAN = 2;
+sub emit_extent_fate {
+    my ($fate, $indent) = @_;
+    my $type = $fate->{fate_type};
+    $Data::Dumper::Maxdepth = 1;
+    die Dumper($fate) unless defined $type;
+    return "\n${indent}return -1;" if $type == $FATE_NULL;
+    return "\n${indent}return $fate->{bitfield_index};" if $type == $FATE_SPAN;
+    return "\n${indent}return codepoint - $fate->{fate_offset};";
+}
 sub emit_codepoints_and_planes {
     my @bitfield_index_lines;
     my @name_lines;
     my @offsets;
     my $index = 0;
     my $bytes = 0;
-    my $compress_codepoints = 1;
-    my $gaps = [];
     my $saved_bytes = 0;
+    my $code_offset = 0;
+    my $extents = [];
     for my $plane (@$planes) {
-        next unless defined $plane->{points}->[0];
-        my $last_code = $plane->{points}->[0]->{code} - 1; # trick
+        print "emitting plane $plane->{number}\n";
+        my $first_span_point = undef;
+        my $first_plane_point = $plane->{points}->[0];
+        next unless defined $first_plane_point;
+        $first_plane_point->{fate_offset} = $code_offset;
+        $first_plane_point->{fate_type} = $FATE_NORMAL;
+        push @$extents, $first_plane_point;
+        #print "pushed a normal extent with code ".($first_plane_point->{code})." and length of extents is ".scalar(@$extents)."\n";
+        if (($plane->{number} == 1 || $plane->{number} == 2
+            || $plane->{number} >= 13 && $plane->{number} <= 15)
+                && ($last_point->{code} != $first_plane_point->{code} - 1)) {
+            # inject a NULL extent to bridge between the last 
+            push @$extents, { fate_type => $FATE_NULL, code => $last_point->{code} + 1 };
+            $code_offset += $first_plane_point->{code} - $last_point->{code} - 1;
+            #print "pushed a null extent with code ".($last_point->{code} + 1)." and length of extents is ".scalar(@$extents)."\n";
+        }
+        $plane->{extents} = $extents;
+        my $last_code = $first_plane_point->{code} - 1; # trick
         my $span_length = 0;
         my $last_point = undef;
         for my $point (@{$plane->{points}}) {
             # extremely simplistic compression of identical neighbors and gaps
             if ($compress_codepoints && $compress_codepoints
-                    && $last_code < $point->{code} - 1000) {
-                my $gap = [$last_code + 1, $point->{code} - 1];
+                    && $last_code < $point->{code} - $gap_length_threshold) {
                 print "found a compressible NULL gap of ".($point->{code} -
                     $last_code - 1)." in plane $plane->{number} between ".sprintf("%x",$last_code)
                         ." and $point->{code_str}.\n";
-                $saved_bytes += 10 * ($point->{code} - $last_code - 2);
+                $saved_bytes += 10 * ($point->{code} - $last_code - 1);
+                push @$extents, { fate_type => $FATE_NULL, code => $last_code + 1 };
+                #print "pushed a null extent with code ".($last_point->{code} + 1)." and length of extents is ".scalar(@$extents)."\n";
+                $code_offset += $point->{code} - $last_code - 1;
+                $point->{fate_offset} = $code_offset;
+                push @$extents, $point;
+                $point->{fate_type} = $FATE_NORMAL;
+                #print "pushed a normal extent with code ".($point->{code})." and length of extents is ".scalar(@$extents)."\n";
             }
+            # this point is identical to the previous point
             elsif ($compress_codepoints && $last_point
                     && $last_code == $point->{code} - 1
                     && $point->{name} eq ''
                     && $last_point->{bitfield_index} == $point->{bitfield_index}) {
-                # extend the current span
+                # create a or extend the current span
                 ++$last_code;
+                ++$span_length;
+                $first_span_point = $last_point if $span_length == 1;
                 $last_point = $point;
-                ++$span_length; next;
+                next;
             }
             # the span ended, either bridge it or skip it
             elsif ($span_length) {
-                if ($span_length >= 100) {
+                if ($span_length >= $span_length_threshold) {
                     print "found a compressible span of $span_length in plane $plane->{number}"
                         ." with index $last_point->{bitfield_index}"
                         ." at code $last_point->{code_str}.\n";
                     $saved_bytes += 10 * $span_length;
+                    $first_span_point->{fate_type} = $FATE_SPAN;
+                    push @$extents, $first_span_point;
+                    #print "pushed a span extent with code ".($first_span_point->{code})." and length of extents is ".scalar(@$extents)."\n";
+                    $first_span_point = undef;
+                    $code_offset += $span_length - 1;
+                    $point->{fate_offset} = $code_offset;
+                    $span_length = 0;
+                    push @$extents, $point;
+                    #print "pushed a normal extent with code ".($point->{code})." and length of extents is ".scalar(@$extents)."\n";
+                    $point->{fate_type} = $FATE_NORMAL;
                 }
                 else {
                     while ($last_code < $point->{code} - 1) {
@@ -367,12 +436,59 @@ sub emit_codepoints_and_planes {
     $byte_total += $bytes;
     $sections->{codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
-            stack_lines(\@name_lines, ",", ",\n    ", 0, 80).
+            stack_lines(\@name_lines, ",", ",\n    ", 0, $wrap_to_columns).
             "\n}";
     $sections->{codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
-            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, 80).
+            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $wrap_to_columns).
             "\n}";
+    $extents
+}
+sub emit_codepoint_row_lookup {
+    my $extents = shift;
+    my $SMP_start;
+    my $i = 0;
+    for (@$extents) {
+        # handle the first iteration specially to optimize for BMP lookups
+        if ($_->{code} == 0x10000) {
+            $SMP_start = $i;
+        }
+        $i++;
+    }
+    my $out = "static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint) {\n
+    MVMint32 plane = codepoint >> 16;
+    
+    if (codepoint < 0) {
+        MVM_exception_throw_adhoc(tc, \"should eventually be unreachable\");
+    }
+    
+    if (plane == 0) {"
+    .emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ")."
+    }
+    else {
+        if (plane < 0 || plane > 15 || codepoint > 0x10FFFD) {
+            return -1;
+        }
+        else".emit_binary_search_algorithm($extents, $SMP_start,
+            int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ")."
+    }
+}";
+    $sections->{codepoint_row_lookup} = $out;
+}
+sub emit_case_changes {
+    my $point = shift;
+    my @lines = ();
+    my $out = '';
+    my $rows = 1;
+    while ($point) {
+        $point = $point->{next_point} and next unless $point->{Case_Change_Index};
+        push @lines, "{0x".($point->{suc}||0).",0x".($point->{slc}||0).",0x".($point->{stc}||0)."}";
+        $point = $point->{next_point};
+        $rows++;
+    }
+    $out = "static const MVMint32 case_changes[$rows][3] = {\n    {0x0,0x0,0x0},\n    ".
+        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
+    $sections->{case_changes} = $out;
 }
 sub emit_bitfield {
     my $point = shift;
@@ -396,8 +512,8 @@ sub emit_bitfield {
     my $bytes_wide = 2;
     $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
     $byte_total += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
-    $out = "static unsigned char props_bitfield[$rows][$wide] = {\n    ".
-        stack_lines(\@lines, ",", ",\n    ", 0, 80)."\n}";
+    $out = "static const unsigned char props_bitfield[$rows][$wide] = {\n    ".
+        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
     $sections->{main_bitfield} = $out;
 }
 sub compute_bitfield {
@@ -408,7 +524,7 @@ sub compute_bitfield {
     while ($point) {
         my $line = '';
         $line .= '.'.(defined $_ ? $_ : 0) for @{$point->{bytes}};
-        $point->{prop_str} = $line; # XXX probably take this out
+        # $point->{prop_str} = $line; # XXX probably take this out
         my $refer;
         if (defined($refer = $prophash->{$line})) {
             $point->{bitfield_index} = $refer->{bitfield_index};
@@ -600,9 +716,9 @@ sub CaseFolding {
         }
     });
     my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x0,\n    0x"
-        .stack_lines(\@simple, ",0x", ",\n    0x", 0, 80)."\n}";
-    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0,0,0},\n    "
-        .stack_lines(\@grows, ",", ",\n    ", 0, 80)."\n}";
+        .stack_lines(\@simple, ",0x", ",\n    0x", 0, $wrap_to_columns)."\n}";
+    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0x0,0x0,0x0},\n    "
+        .stack_lines(\@grows, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
     my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
     $enumerated_properties->{Case_Folding} = $index_base;
