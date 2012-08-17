@@ -64,12 +64,41 @@ sub main {
     progress "...done.\ncomputing collapsed properties table...";
     compute_bitfield($first_point);
     # Emit all the things
-    $sections->{main_bitfield} = emit_bitfield($first_point);
-    $sections->{codepoints} = emit_codepoints($first_point);
+    emit_bitfield($first_point);
+    emit_codepoints_and_planes($first_point);
     
-    #sleep 60;
+    print "\ndone!\n";
     write_file('src/strings/unicode_db.c', join_sections($sections));
-    print "\n\nEstimated total bytes: $byte_total.\n";
+    print "\nEstimated total bytes: $byte_total.\n";
+}
+sub stack_lines {
+    # interleave @$lines with separator $sep, using a different
+    # separator $break every $num lines or when $wrap columns is reached
+    my ($lines, $sep, $break, $num, $wrap) = @_;
+    my $i = 1;
+    my $out = "";
+    my $first = 1;
+    my $length = 0;
+    my $sep_length = length($sep);
+    for (@$lines) {
+        my $line_length = length($_);
+        if ($first) {
+            $first = 0;
+            $length = $line_length;
+        }
+        else {
+            if ($num && ($i++ % $num) || $wrap && $length + $sep_length + $line_length <= $wrap) {
+                $out .= $sep;
+                $length += $sep_length + $line_length;
+            }
+            else {
+                $out .= $break;
+                $length = $line_length;
+            }
+        }
+        $out .= $_;
+    }
+    $out;
 }
 sub join_sections {
     my $sections = shift;
@@ -78,6 +107,9 @@ sub join_sections {
     $content
 }
 sub apply_to_range {
+    # apply a function to a range of codepoints. The starting and 
+    # ending codepoint of the range need not exist; the function will
+    # be applied to all in between.
     my $range = shift;
     chomp($range);
     my $fn = shift;
@@ -107,6 +139,7 @@ sub progress($) {
     print $txt;
 }
 sub binary_props {
+    # process a file, extracting binary properties and applying them to ranges
     my $fname = shift;
     each_line($fname, sub { $_ = shift;
         my ($range, $pname) = split /\s*[;#]\s*/;
@@ -229,8 +262,9 @@ sub allocate_bitfield {
     $first_point->{bitfield_width} = $byte_offset+1;
     print "bitfield width is ".($byte_offset+1)." bytes\n";
     for (@$allocated) {
-        print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset}\n"
+        print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset} | "
     }
+    print "\n";
     $allocated
 }
 sub compute_properties {
@@ -257,9 +291,41 @@ sub compute_properties {
         }
     }
 }
-sub emit_codepoints {
-    my @lines;
-    
+sub emit_codepoints_and_planes {
+    my @bitfield_index_lines;
+    my @name_lines;
+    my @offsets;
+    my $index = 0;
+    my $bytes = 0;
+    $Data::Dumper::Maxdepth = 1;
+    for my $plane (@$planes) {
+        next unless defined $plane->{points}->[0];
+        my $last_code = $plane->{points}->[0]->{code} - 1; # trick
+        for my $point (@{$plane->{points}}) {
+            while ($last_code < $point->{code} - 1) {
+                $last_code++;
+                $index++;
+                push @bitfield_index_lines, '0';
+                push @name_lines, 'NULL';
+                $bytes += 10;
+            }
+            $point->{main_index} = $index++;
+            push @bitfield_index_lines, "$point->{bitfield_index}";
+            $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
+            push @name_lines, "\"$point->{name}\"";
+            $bytes += length($point->{name}) + 9; # 8 for the pointer, 1 for the NUL
+            $last_code = $point->{code};
+        }
+    }
+    $byte_total += $bytes;
+    $sections->{codepoint_names} =
+        "static const char *codepoint_names[$index] = {\n    ".
+            stack_lines(\@name_lines, ",", ",\n    ", 0, 80).
+            "\n}";
+    $sections->{codepoint_bitfield_indexes} =
+        "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
+            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, 80).
+            "\n}";
 }
 sub emit_bitfield {
     my $point = shift;
@@ -284,8 +350,8 @@ sub emit_bitfield {
     $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
     $byte_total += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
     $out = "static unsigned char props_bitfield[$rows][$wide] = {\n    ".
-        join(",\n    ", @lines)."\n}";
-    $out
+        stack_lines(\@lines, ",", ",\n    ", 0, 80)."\n}";
+    $sections->{main_bitfield} = $out;
 }
 sub compute_bitfield {
     my $point = shift;
@@ -375,7 +441,6 @@ sub UnicodeData {
         points => []
     };
     push @$planes, $plane;
-    my $total_name_size = 0;
     my $ideograph_start;
     each_line('UnicodeData', sub {
         $_ = shift;
@@ -385,7 +450,6 @@ sub UnicodeData {
         
         return if $name =~ /Private|Surrogate/; # XXX pretty sure this is okay
         
-        $total_name_size += length($name) + 9;
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
         my $index = $code & 0xFFFF;
@@ -454,8 +518,6 @@ sub UnicodeData {
             $last_point = $first_point = $point;
         }
     });
-    print "name bytes: $total_name_size..";
-    $byte_total += $total_name_size;
 }
 sub BidiMirroring {
     each_line('BidiMirroring', sub { $_ = shift;
@@ -485,9 +547,9 @@ sub CaseFolding {
         }
     });
     my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x"
-        .join(",\n    0x", @simple)."\n}";
+        .stack_lines(\@simple, ",0x", ",\n    0x", 0, 80)."\n}";
     my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    "
-        .join(",\n    ", @grows)."\n}";
+        .stack_lines(\@grows, ",", ",\n    ", 0, 80)."\n}";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
     my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
     $enumerated_properties->{Case_Folding} = $index_base;
