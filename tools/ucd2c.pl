@@ -297,26 +297,74 @@ sub emit_codepoints_and_planes {
     my @offsets;
     my $index = 0;
     my $bytes = 0;
+    my $compress_codepoints = 1;
+    my $gaps = [];
+    my $saved_bytes = 0;
     $Data::Dumper::Maxdepth = 1;
     for my $plane (@$planes) {
         next unless defined $plane->{points}->[0];
         my $last_code = $plane->{points}->[0]->{code} - 1; # trick
+        my $span_length = 0;
+        my $last_point = undef;
         for my $point (@{$plane->{points}}) {
-            while ($last_code < $point->{code} - 1) {
-                $last_code++;
-                $index++;
-                push @bitfield_index_lines, '0';
-                push @name_lines, 'NULL';
-                $bytes += 10;
+            # extremely simplistic compression of identical neighbors and gaps
+            if ($compress_codepoints && $compress_codepoints
+                    && $last_code < $point->{code} - 1000) {
+                my $gap = [$last_code + 1, $point->{code} - 1];
+                print "found a compressible NULL gap of ".($point->{code} -
+                    $last_code - 1)." in plane $plane->{number} between ".sprintf("%x",$last_code)
+                        ." and $point->{code_str}.\n";
+                $saved_bytes += 10 * ($point->{code} - $last_code - 2);
             }
+            elsif ($compress_codepoints && $last_point
+                    && $last_code == $point->{code} - 1
+                    && $point->{name} eq ''
+                    && $last_point->{bitfield_index} == $point->{bitfield_index}) {
+                # extend the current span
+                ++$last_code;
+                $last_point = $point;
+                ++$span_length; next;
+            }
+            # the span ended, either bridge it or skip it
+            elsif ($span_length) {
+                if ($span_length >= 100) {
+                    print "found a compressible span of $span_length in plane $plane->{number}"
+                        ." with index $last_point->{bitfield_index}"
+                        ." at code $last_point->{code_str}.\n";
+                    $saved_bytes += 10 * $span_length;
+                }
+                else {
+                    while ($last_code < $point->{code} - 1) {
+                        $last_code++;
+                        $index++;
+                        push @bitfield_index_lines, "$last_point->{bitfield_index}";
+                        push @name_lines, "\"$last_point->{name}\"";
+                        $bytes += 10;
+                    }
+                }
+                $span_length = 0;
+            }
+            else {
+                # a gap that we don't want to compress
+                while ($last_code < $point->{code} - 1) {
+                    $last_code++;
+                    $index++;
+                    push @bitfield_index_lines, '0';
+                    push @name_lines, 'NULL';
+                    $bytes += 10;
+                }
+            }
+            # a normal codepoint that we don't want to compress
             $point->{main_index} = $index++;
             push @bitfield_index_lines, "$point->{bitfield_index}";
             $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
             push @name_lines, "\"$point->{name}\"";
             $bytes += length($point->{name}) + 9; # 8 for the pointer, 1 for the NUL
             $last_code = $point->{code};
+            $last_point = $point;
         }
     }
+    print "saved $saved_bytes bytes\n";
     $byte_total += $bytes;
     $sections->{codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
@@ -448,8 +496,6 @@ sub UnicodeData {
             $num1, $num2, $num3, $bidimirrored, $u1name, $isocomment,
             $suc, $slc, $stc) = split ';';
         
-        return if $name =~ /Private|Surrogate/; # XXX pretty sure this is okay
-        
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
         my $index = $code & 0xFFFF;
@@ -483,7 +529,7 @@ sub UnicodeData {
                 points => []
             }));
         }
-        if ($name =~ /(Ideograph|Syllable)(\s|.)*?First/) {
+        if ($name =~ /(Ideograph|Syllable|Private|Surrogate)(\s|.)*?First/) {
             $ideograph_start = $point;
             $point->{name} = '';
         }
