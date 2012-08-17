@@ -65,6 +65,7 @@ sub main {
     compute_bitfield($first_point);
     # Emit all the things
     $sections->{main_bitfield} = emit_bitfield($first_point);
+    $sections->{codepoints} = emit_codepoints($first_point);
     
     #sleep 60;
     write_file('src/strings/unicode_db.c', join_sections($sections));
@@ -256,6 +257,10 @@ sub compute_properties {
         }
     }
 }
+sub emit_codepoints {
+    my @lines;
+    
+}
 sub emit_bitfield {
     my $point = shift;
     my $wide = $point->{bitfield_width};
@@ -278,7 +283,7 @@ sub emit_bitfield {
     my $bytes_wide = 2;
     $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
     $byte_total += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
-    $out = "static unsigned char props_bitfield[$rows][$wide] {\n    ".
+    $out = "static unsigned char props_bitfield[$rows][$wide] = {\n    ".
         join(",\n    ", @lines)."\n}";
     $out
 }
@@ -479,9 +484,9 @@ sub CaseFolding {
             $grows_count++;
         }
     });
-    my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] {\n    0x"
+    my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x"
         .join(",\n    0x", @simple)."\n}";
-    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] {\n    "
+    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    "
         .join(",\n    ", @grows)."\n}";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
     my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
