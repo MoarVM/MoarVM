@@ -300,7 +300,6 @@ sub emit_codepoints_and_planes {
     my $compress_codepoints = 1;
     my $gaps = [];
     my $saved_bytes = 0;
-    $Data::Dumper::Maxdepth = 1;
     for my $plane (@$planes) {
         next unless defined $plane->{points}->[0];
         my $last_code = $plane->{points}->[0]->{code} - 1; # trick
@@ -490,6 +489,7 @@ sub UnicodeData {
     };
     push @$planes, $plane;
     my $ideograph_start;
+    my $case_count = 1;
     each_line('UnicodeData', sub {
         $_ = shift;
         my ($code_str, $name, $gencat, $ccclass, $bidiclass, $decmpspec,
@@ -523,6 +523,9 @@ sub UnicodeData {
             plane => $plane,
             'index' => $index
         };
+        if ($suc || $slc || $stc) {
+            $point->{Case_Change_Index} = $case_count++;
+        }
         while ($plane->{number} < $plane_num) {
             push(@$planes, ($plane = {
                 number => $plane->{number} + 1,
@@ -564,6 +567,10 @@ sub UnicodeData {
             $last_point = $first_point = $point;
         }
     });
+    $enumerated_properties->{Case_Change_Index} = {
+        name => 'Case_Change_Index',
+        bit_width => least_int_ge_lg2($case_count)
+    };
 }
 sub BidiMirroring {
     each_line('BidiMirroring', sub { $_ = shift;
@@ -572,8 +579,8 @@ sub BidiMirroring {
     });
 }
 sub CaseFolding {
-    my $simple_count = 0;
-    my $grows_count = 0;
+    my $simple_count = 1;
+    my $grows_count = 1;
     my @simple;
     my @grows;
     each_line('CaseFolding', sub { $_ = shift;
@@ -592,9 +599,9 @@ sub CaseFolding {
             $grows_count++;
         }
     });
-    my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x"
+    my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x0,\n    0x"
         .stack_lines(\@simple, ",0x", ",\n    0x", 0, 80)."\n}";
-    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    "
+    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0,0,0},\n    "
         .stack_lines(\@grows, ",", ",\n    ", 0, 80)."\n}";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
     my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
