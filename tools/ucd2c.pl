@@ -17,6 +17,7 @@ my $aliases = {};
 my $named_sequences = {};
 my $bitfield_table = [];
 my $allocated_properties;
+my $extents;
 my $property_index = 0;
 my $estimated_total_bytes = 0;
 my $total_bytes_saved = 0;
@@ -80,10 +81,11 @@ sub main {
     # Emit all the things
     progress "...done.\nemitting unicode_db.c...";
     emit_bitfield($first_point);
-    my $extents = emit_codepoints_and_planes($first_point);
+    $extents = emit_codepoints_and_planes($first_point);
     emit_case_changes($first_point);
     emit_codepoint_row_lookup($extents);
     emit_property_value_lookup($allocated_properties);
+    emit_names_hash_builder();
     
     print "done!";
     write_file('src/strings/unicode_db.c', join_sections($db_sections));
@@ -129,9 +131,9 @@ sub stack_lines {
     $out
 }
 sub join_sections {
-    my $db_sections = shift;
+    my $sections = shift;
     my $content = "";
-    $content .= "\n".$db_sections->{$_} for (sort keys %{$db_sections});
+    $content .= "\n".$sections->{$_} for (sort keys %{$sections});
     $content
 }
 sub apply_to_range {
@@ -470,14 +472,14 @@ sub emit_codepoints_and_planes {
     $total_bytes_saved += $bytes_saved;
     $estimated_total_bytes += $bytes;
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
-    $db_sections->{codepoint_names} =
+    $db_sections->{BBB_codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
             stack_lines(\@name_lines, ",", ",\n    ", 0, $wrap_to_columns).
-            "\n}";
-    $db_sections->{codepoint_bitfield_indexes} =
+            "\n};";
+    $db_sections->{BBB_codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $wrap_to_columns).
-            "\n}";
+            "\n};";
     $extents
 }
 sub emit_codepoint_row_lookup {
@@ -528,8 +530,8 @@ sub emit_case_changes {
         $rows++;
     }
     $out = "static const MVMint32 case_changes[$rows][3] = {\n    {0x0,0x0,0x0},\n    ".
-        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
-    $db_sections->{case_changes} = $out;
+        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
+    $db_sections->{BBB_case_changes} = $out;
 }
 sub emit_bitfield {
     my $point = shift;
@@ -538,13 +540,13 @@ sub emit_bitfield {
     my $out = '';
     my $rows = 0;
     while ($point) {
-        my $line = "/*$rows*/}{";
+        my $line = "/*$rows*/{";
         my $first = 1;
         for (my $i = 0; $i < $first_point->{bitfield_width}; ++$i) {
             $_ = $point->{bytes}->[$i];
             $line .= "," unless $first;
             $first = 0;
-            $line .= (defined $_ ? $_ : 0);
+            $line .= (defined $_ ? $_."u" : 0);
         }
         push @$bitfield_table, $point;
         push @lines, ($line . "}/* $point->{code_str} */");
@@ -564,21 +566,24 @@ sub emit_bitfield {
         ? 'MVMuint64'
         : die 'wut.';
     $out = "static const $val_type props_bitfield[$rows][$wide] = {\n    ".
-        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
-    $db_sections->{main_bitfield} = $out;
+        stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
+    $db_sections->{BBB_main_bitfield} = $out;
 }
 sub emit_property_value_lookup {
     my $allocated = shift;
+    my $hout = "typedef enum {\n";
     my $out = "static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
-    MVMuint32 bitfield_row = MVM_codepoint_to_row_index(tc, codepoint);
+    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    MVMuint16 bitfield_row;
     
-    if (bitfield_row == -1) /* non-existent codepoint; XXX should throw? */
+    if (codepoint_row == -1) /* non-existent codepoint; XXX should throw? */
         return 0;
     
+    bitfield_row = codepoint_bitfield_indexes[codepoint_row];
+    
     switch (switch_val) {";
-    my $hout = "typedef enum {\n";
     for my $prop (@$allocated) {
         $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
         $out .= "
@@ -622,6 +627,73 @@ sub emit_property_value_lookup {
     $db_sections->{MVM_unicode_get_property_value} = $out;
     $h_sections->{property_code_definitions} = $hout;
 }
+sub emit_names_hash_builder {
+    my $num_extents = scalar(@$extents);
+    my $out = "
+static MVMint32 codepoint_extents[$num_extents][3] = {";
+    $estimated_total_bytes += 4 * 3 * $num_extents;
+    my $last_extent;
+    for my $extent (@$extents) {
+        if ($last_extent) {
+            $out .= "
+    {$last_extent->{code},".($extent->{code} - $last_extent->{code}).",$last_extent->{fate_type}},";
+        }
+        $last_extent = $extent;
+    }
+    $out .= "
+    {$last_extent->{code},".(0x10FFFE - $last_extent->{code}).",$last_extent->{fate_type}}
+};
+static MVMint32 num_extents = $num_extents;
+
+/* Lazily constructed hashtable of Unicode names to codepoints.
+    Okay not to be threadsafe since its value is deterministic
+        and I don't care about the tiny potential for a memory leak
+        in the event of a race condition. */
+static MVMUnicodeNameHashEntry *codepoints_by_name = NULL;
+static void generate_codepoints_by_name(MVMThreadContext *tc) {
+    MVMint32 extent_index = 0;
+    MVMint32 codepoint = 0;
+    MVMint32 codepoint_table_index;
+    for (; extent_index < num_extents; extent_index++) {
+        MVMint32 length = codepoint_extents[extent_index][1];
+        codepoint = codepoint_extents[extent_index][0];
+        switch (codepoint_extents[extent_index][2]) {
+            case $FATE_NORMAL: {
+                MVMint32 extent_span_index = 0;
+                for (; extent_span_index < length; extent_span_index++) {
+                    MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                    const char *name = codepoint_names[codepoint_table_index];
+                    if (name) {
+                        entry->name = (char *)name;
+                        entry->codepoint = codepoint;
+                        HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
+                    }
+                    codepoint++;
+                    codepoint_table_index++;
+                }
+                break;
+            }
+            case $FATE_NULL:
+                codepoint += length;
+                break;
+            case $FATE_SPAN: {
+                MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                const char *name = codepoint_names[codepoint_table_index];
+                if (name) {
+                    entry->name = (char *)name;
+                    entry->codepoint = codepoint;
+                    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
+                }
+                codepoint += length;
+                codepoint_table_index++;
+                break;
+            }
+        }
+    }
+}
+";
+    $db_sections->{names_hash_builder} = $out;
+}#"
 sub compute_bitfield {
     my $point = shift;
     my $index = 0;
@@ -825,16 +897,16 @@ sub CaseFolding {
         }
     });
     my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x0,\n    0x"
-        .stack_lines(\@simple, ",0x", ",\n    0x", 0, $wrap_to_columns)."\n}";
+        .stack_lines(\@simple, ",0x", ",\n    0x", 0, $wrap_to_columns)."\n};";
     my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0x0,0x0,0x0},\n    "
-        .stack_lines(\@grows, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
+        .stack_lines(\@grows, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
     my $index_base = { bit_width => $bit_width };
     register_enumerated_property('Case_Folding', $index_base);
     register_binary_property('Case_Folding_simple');
     $estimated_total_bytes += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
-    $db_sections->{CaseFolding_simple} = $simple_out;
-    $db_sections->{CaseFolding_grows} = $grows_out;
+    $db_sections->{BBB_CaseFolding_simple} = $simple_out;
+    $db_sections->{BBB_CaseFolding_grows} = $grows_out;
 }
 sub DerivedNormalizationProps {
     my $binary = {

@@ -236,8 +236,7 @@ MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
     result->body.graphs = s->body.graphs;
     result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
-        MVMCodePoint *cp = MVM_unicode_codepoint_info(tc, s->body.data[i]);
-        result->body.data[i] = cp ? cp->uc : s->body.data[i];
+        result->body.data[i] = MVM_unicode_get_case_change(tc, s->body.data[i], 0);
     }
 
     return result;
@@ -261,8 +260,7 @@ MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s) {
     result->body.graphs = s->body.graphs;
     result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
-        MVMCodePoint *cp = MVM_unicode_codepoint_info(tc, s->body.data[i]);
-        result->body.data[i] = cp ? cp->lc : s->body.data[i];
+        result->body.data[i] = MVM_unicode_get_case_change(tc, s->body.data[i], 1);
     }
 
     return result;
@@ -286,8 +284,7 @@ MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
     result->body.graphs = s->body.graphs;
     result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
-        MVMCodePoint *cp = MVM_unicode_codepoint_info(tc, s->body.data[i]);
-        result->body.data[i] = cp ? cp->tc : s->body.data[i];
+        result->body.data[i] = MVM_unicode_get_case_change(tc, s->body.data[i], 2);
     }
 
     return result;
