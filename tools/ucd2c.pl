@@ -4,7 +4,8 @@ use Carp qw(cluck);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
 
-my $sections = {};
+my $db_sections = {};
+my $h_sections = {};
 my $planes = [];
 my $points_by_hex = {};
 my $points_by_code = {};
@@ -15,17 +16,18 @@ my $last_point = undef;
 my $aliases = {};
 my $named_sequences = {};
 my $bitfield_table = [];
+my $property_index = 0;
 my $estimated_total_bytes = 0;
 my $total_bytes_saved = 0;
 my $wrap_to_columns = 120;
 my $compress_codepoints = 1;
 my $gap_length_threshold = 1000;
 my $span_length_threshold = 100;
-my $skip_most_mode = 0;
+my $skip_most_mode = 1;
 
 sub progress($);
 sub main {
-    $sections->{'AAA_header'} = header();
+    $db_sections->{'AAA_header'} = header();
     
     # Load all the things
     UnicodeData(
@@ -79,9 +81,10 @@ sub main {
     my $extents = emit_codepoints_and_planes($first_point);
     emit_case_changes($first_point);
     emit_codepoint_row_lookup($extents);
+    emit_property_value_lookup();
     
     print "done!";
-    write_file('src/strings/unicode_db.c', join_sections($sections));
+    write_file('src/strings/unicode_db.c', join_sections($db_sections));
     print "\nEstimated bytes demand paged from disk: ".
         thousands($estimated_total_bytes).
         ".\nEstimated bytes saved by various compressions: ".
@@ -90,7 +93,7 @@ sub main {
 sub thousands {
     my $in = shift;
     $in = reverse "$in"; # stringify or copy the string
-    $in =~ s/(\d\d\d)/$1,/g;
+    $in =~ s/(\d\d\d)(?=\d)/$1,/g;
     reverse $in
 }
 sub stack_lines {
@@ -123,9 +126,9 @@ sub stack_lines {
     $out
 }
 sub join_sections {
-    my $sections = shift;
+    my $db_sections = shift;
     my $content = "";
-    $content .= "\n".$sections->{$_} for (sort keys %{$sections});
+    $content .= "\n".$db_sections->{$_} for (sort keys %{$db_sections});
     $content
 }
 sub apply_to_range {
@@ -166,7 +169,7 @@ sub binary_props {
     my $fname = shift; # filename
     each_line($fname, sub { $_ = shift;
         my ($range, $pname) = split /\s*[;#]\s*/; # range, property name
-        $binary_properties->{$pname} ||= 1; # define the property
+        register_binary_property($pname); # define the property
         apply_to_range($range, sub {
             my $point = shift;
             $point->{$pname} = 1; # set the property
@@ -197,10 +200,8 @@ sub derived_property {
         $keys[$base->{enum}->{$key}] = $key;
     }
     $base->{keys} = \@keys;
-    $base->{name} = $pname;
     $base->{bit_width} = least_int_ge_lg2($j);
-    $base->{name} = $pname;
-    $enumerated_properties->{$pname} = $base;
+    register_enumerated_property($pname, $base);
 }
 sub enumerated_property {
     my ($fname, $pname, $base, $j, $value_index) = @_;
@@ -225,9 +226,8 @@ sub enumerated_property {
         $keys[$base->{enum}->{$key}] = $key;
     }
     $base->{keys} = \@keys;
-    $base->{name} = $pname;
     $base->{bit_width} = least_int_ge_lg2($j);
-    $enumerated_properties->{$pname} = $base
+    register_enumerated_property($pname, $base);
 }
 sub least_int_ge_lg2 {
     int(log(shift)/log(2) - 0.00001) + 1;
@@ -246,7 +246,7 @@ sub allocate_bitfield {
             <=> $enumerated_properties->{$a}->{bit_width} }
             keys %$enumerated_properties;
     for (sort keys %$binary_properties) {
-        push @biggest, { name => $_, bit_width => 1 };
+        push @biggest, $binary_properties->{$_};
     }
     my $byte_offset = 0;
     my $bit_offset = 0;
@@ -462,11 +462,11 @@ sub emit_codepoints_and_planes {
     $total_bytes_saved += $bytes_saved;
     $estimated_total_bytes += $bytes;
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
-    $sections->{codepoint_names} =
+    $db_sections->{codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
             stack_lines(\@name_lines, ",", ",\n    ", 0, $wrap_to_columns).
             "\n}";
-    $sections->{codepoint_bitfield_indexes} =
+    $db_sections->{codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $wrap_to_columns).
             "\n}";
@@ -503,7 +503,7 @@ sub emit_codepoint_row_lookup {
         }
     }
 }";
-    $sections->{codepoint_row_lookup} = $out;
+    $db_sections->{codepoint_row_lookup} = $out;
 }
 sub emit_case_changes {
     my $point = shift;
@@ -521,7 +521,7 @@ sub emit_case_changes {
     }
     $out = "static const MVMint32 case_changes[$rows][3] = {\n    {0x0,0x0,0x0},\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
-    $sections->{case_changes} = $out;
+    $db_sections->{case_changes} = $out;
 }
 sub emit_bitfield {
     my $point = shift;
@@ -548,7 +548,14 @@ sub emit_bitfield {
     $estimated_total_bytes += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
     $out = "static const unsigned char props_bitfield[$rows][$wide] = {\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
-    $sections->{main_bitfield} = $out;
+    $db_sections->{main_bitfield} = $out;
+}
+sub emit_property_value_lookup {
+    for (keys %$binary_properties) {
+        
+    }
+    my $out = "static MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
+        ";
 }
 sub compute_bitfield {
     my $point = shift;
@@ -652,7 +659,7 @@ sub UnicodeData {
         
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
-        my $index = $code & 0xFFFF;
+        #my $index = $code & 0xFFFF;
         my $point = {
             code_str => $code_str,
             name => $name,
@@ -660,12 +667,12 @@ sub UnicodeData {
             Canonical_Combining_Class => $ccclasses->{enum}->{$ccclass},
             Bidi_Class => $bidi_classes->{enum}->{$bidiclass},
             decomp_spec => $decmpspec,
-            num1 => $num1,
-            num2 => $num2,
-            num3 => $num3,
+            #num1 => $num1,
+            #num2 => $num2,
+            #num3 => $num3,
             Bidi_Mirroring_Glyph => +$bidimirrored,
-            u1name => $u1name,
-            isocomment => $isocomment,
+            #u1name => $u1name,
+            #isocomment => $isocomment,
             suc => $suc,
             slc => $slc,
             stc => $stc,
@@ -674,8 +681,8 @@ sub UnicodeData {
             NFKD_QC => 1,
             NFKC_QC => 1,
             code => $code,
-            plane => $plane,
-            'index' => $index
+            #plane => $plane,
+            #'index' => $index
         };
         if ($suc || $slc || $stc) {
             $point->{Case_Change_Index} = $case_count++;
@@ -721,10 +728,9 @@ sub UnicodeData {
             $last_point = $first_point = $point;
         }
     });
-    $enumerated_properties->{Case_Change_Index} = {
-        name => 'Case_Change_Index',
+    register_enumerated_property('Case_Change_Index', {
         bit_width => least_int_ge_lg2($case_count)
-    };
+    });
 }
 sub BidiMirroring {
     each_line('BidiMirroring', sub { $_ = shift;
@@ -758,13 +764,12 @@ sub CaseFolding {
     my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0x0,0x0,0x0},\n    "
         .stack_lines(\@grows, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
     my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
-    my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
-    $enumerated_properties->{Case_Folding} = $index_base;
-    my $type_base = { name => 'Case_Folding_simple', bit_width => 1 };
-    $enumerated_properties->{Case_Folding_simple} = $type_base;
+    my $index_base = { bit_width => $bit_width };
+    register_enumerated_property('Case_Folding', $index_base);
+    register_binary_property('Case_Folding_simple');
     $estimated_total_bytes += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
-    $sections->{CaseFolding_simple} = $simple_out;
-    $sections->{CaseFolding_grows} = $grows_out;
+    $db_sections->{CaseFolding_simple} = $simple_out;
+    $db_sections->{CaseFolding_grows} = $grows_out;
 }
 sub DerivedNormalizationProps {
     my $binary = {
@@ -777,7 +782,7 @@ sub DerivedNormalizationProps {
         NFKD_QC => 1,
         NFKC_QC => 1
     };
-    $binary_properties->{$_} = 1 for ((keys %$binary),(keys %$inverted_binary));
+    register_binary_property($_) for ((keys %$binary),(keys %$inverted_binary));
     # XXX handle NFKC_CF
     each_line('DerivedNormalizationProps', sub { $_ = shift;
         my ($range, $property_name, $value) = split /\s*[;#]\s*/;
@@ -825,10 +830,8 @@ sub LineBreak {
         $keys[$base->{enum}->{$key}] = $key;
     }
     $base->{keys} = \@keys;
-    $base->{name} = 'Line_Break';
-    $base->{num_keys} = $j;
     $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
-    $enumerated_properties->{$base->{name}} = $base
+    register_enumerated_property('Line_Break', $base);
 }
 sub NameAliases {
     each_line('NameAliases', sub { $_ = shift;
@@ -842,5 +845,20 @@ sub NamedSequences {
         my @parts = split ' ', $codes;
         $named_sequences->{$name} = \@parts;
     });
+}
+sub register_binary_property {
+    my $name = shift;
+    $binary_properties->{$name} = {
+        property_index => $property_index++,
+        name => $name,
+        bit_width => 1
+    } unless exists $binary_properties->{$name};
+}
+sub register_enumerated_property {
+    my ($pname, $obj) = @_;
+    die if exists $enumerated_properties->{$pname};
+    $enumerated_properties->{$pname} = $obj;
+    $obj->{name} = $pname;
+    $obj
 }
 main();

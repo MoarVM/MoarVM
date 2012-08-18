@@ -35,7 +35,7 @@ MVMint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
 }
 
 MVMint64 MVM_unicode_has_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
-    return MVM_unicode_get_property_value(tc, codepoint, property_value, property_value_code) == property_value_code ? 1 : 0;
+    return (MVMint64)MVM_unicode_get_property_value(tc, codepoint, property_code) == property_value_code ? 1 : 0;
 }
 
 /*
