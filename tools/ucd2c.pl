@@ -1,5 +1,6 @@
 use warnings; use strict;
 use Data::Dumper;
+use Carp qw(cluck);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
 
@@ -13,11 +14,14 @@ my $first_point = undef;
 my $last_point = undef;
 my $aliases = {};
 my $named_sequences = {};
-my $byte_total = 0;
+my $bitfield_table = [];
+my $estimated_total_bytes = 0;
+my $total_bytes_saved = 0;
 my $wrap_to_columns = 120;
 my $compress_codepoints = 1;
 my $gap_length_threshold = 1000;
 my $span_length_threshold = 100;
+my $skip_most_mode = 0;
 
 sub progress($);
 sub main {
@@ -30,6 +34,7 @@ sub main {
         derived_property('CombiningClass',
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
+    goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedNumericType');
     binary_props('extracted/DerivedBinaryProperties');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
@@ -56,6 +61,7 @@ sub main {
     # XXX StandardizedVariants.txt # no clue what this is
     break_property('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
+  skip_most:
     break_property('Word', 'Word_Break');
     
     # Allocate all the things
@@ -74,9 +80,15 @@ sub main {
     emit_case_changes($first_point);
     emit_codepoint_row_lookup($extents);
     
-    print "done!\n";
+    print "done!";
     write_file('src/strings/unicode_db.c', join_sections($sections));
-    print "\nEstimated total bytes: $byte_total.\n";
+    print "\nEstimated bytes demand paged from disk: ".thousands($estimated_total_bytes).".\nEstimated bytes saved by various compressions: ".thousands($total_bytes_saved).".\n";
+}
+sub thousands {
+    my $in = shift;
+    $in = reverse "$in";
+    $in =~ s/(\d\d\d)/$1,/g;
+    reverse $in
 }
 sub stack_lines {
     # interleave @$lines with separator $sep, using a different
@@ -304,12 +316,20 @@ sub emit_binary_search_algorithm {
     # indexes into $extents we're supposed to subdivide.
     # protocol: start output with a newline; don't end with a newline or indent
     my ($extents, $first, $mid, $last, $indent) = @_;
-    # base case - we have 1 or 2 elements
-    return emit_extent_fate($extents->[$first], $indent) if $first == $mid;
+    return emit_extent_fate($extents->[$first], $indent) if $first == $last;
+    $mid = $last if $first == $mid;
+    my $new_mid_high = int(($last + $mid) / 2);
+    my $new_mid_low = int(($mid - 1 + $first) / 2);
+    my $high = emit_binary_search_algorithm($extents,
+        $mid, $new_mid_high, $last, "    $indent");
+    my $low = emit_binary_search_algorithm($extents,
+        $first, $new_mid_low, $mid - 1, "    $indent");
     return "
-${indent}if (codepoint >= $extents->[$mid]->{code}) /* ".sprintf("%x",$extents->[$mid]->{code})." */".
-            emit_binary_search_algorithm($extents, $mid, int(($last + $mid) / 2), $last, "    $indent")."
-${indent}else".emit_binary_search_algorithm($extents, $first, int(($mid - 1 + $first) / 2), $mid - 1, "    $indent")
+${indent}if (codepoint >= 0x".uc(sprintf("%x", $extents->[$mid]->{code})).") {".
+        " /* ".($extents->[$mid]->{name} || 'NULL')." */$high
+${indent}}
+${indent}else {$low
+${indent}}";
 }
 my $FATE_NORMAL = 0;
 my $FATE_NULL = 1;
@@ -318,8 +338,16 @@ sub emit_extent_fate {
     my ($fate, $indent) = @_;
     my $type = $fate->{fate_type};
     return "\n${indent}return -1;" if $type == $FATE_NULL;
-    return "\n${indent}return $fate->{bitfield_index};" if $type == $FATE_SPAN;
-    return "\n${indent}return codepoint - $fate->{fate_offset};";
+    return "\n${indent}return $fate->{bitfield_index}; /* ".
+        "$bitfield_table->[$fate->{bitfield_index}]->{code_str}".
+        " $bitfield_table->[$fate->{bitfield_index}]->{name} */" if $type == $FATE_SPAN;
+    return "\n${indent}return codepoint - $fate->{fate_offset};"
+    .($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
+}
+sub add_extent($$) {
+    my ($extents, $extent) = @_;
+    pop @$extents if @$extents && $extents->[-1]->{code} == $extent->{code};
+    push @$extents, $extent;
 }
 sub emit_codepoints_and_planes {
     my @bitfield_index_lines;
@@ -327,7 +355,7 @@ sub emit_codepoints_and_planes {
     my @offsets;
     my $index = 0;
     my $bytes = 0;
-    my $saved_bytes = 0;
+    my $bytes_saved = 0;
     my $code_offset = 0;
     my $extents = [];
     my $last_code = -1; # trick
@@ -344,7 +372,8 @@ sub emit_codepoints_and_planes {
             || $plane->{number} >= 13 && $plane->{number} <= 15)
                 && ($last_point->{code} != $first_plane_point->{code} - 1)) {
             # inject a NULL extent to bridge between the last 
-            push @$extents, { fate_type => $FATE_NULL, code => $last_point->{code} + 1 };
+            add_extent $extents, { fate_type => $FATE_NULL,
+                code => $last_point->{code} + 1 };
             $code_offset += $first_plane_point->{code} - $last_point->{code} - 1;
         }
         $plane->{extents} = $extents;
@@ -353,20 +382,18 @@ sub emit_codepoints_and_planes {
             # extremely simplistic compression of identical neighbors and gaps
             if ($compress_codepoints && $compress_codepoints
                     && $last_code < $point->{code} - $gap_length_threshold) {
-                #print "found a compressible NULL gap of ".($point->{code} -
-                #    $last_code - 1)." in plane $plane->{number} between ".sprintf("%x",$last_code)
-                #        ." and $point->{code_str}.\n";
-                $saved_bytes += 10 * ($point->{code} - $last_code - 1);
-                push @$extents, { fate_type => $FATE_NULL, code => $last_code + 1 };
+                $bytes_saved += 10 * ($point->{code} - $last_code - 1);
+                add_extent $extents, { fate_type => $FATE_NULL,
+                    code => $last_code + 1 };
                 $code_offset += $point->{code} - $last_code - 1;
                 $point->{fate_offset} = $code_offset;
-                push @$extents, $point;
                 $point->{fate_type} = $FATE_NORMAL;
+                add_extent $extents, $point;
             }
             # this point is identical to the previous point
             elsif ($compress_codepoints && $last_point
                     && $last_code == $point->{code} - 1
-                    && $point->{name} eq ''
+                    && $point->{name} eq $last_point->{name}
                     && $last_point->{bitfield_index} == $point->{bitfield_index}) {
                 # create a or extend the current span
                 ++$last_code;
@@ -378,25 +405,25 @@ sub emit_codepoints_and_planes {
             # the span ended, either bridge it or skip it
             elsif ($span_length) {
                 if ($span_length >= $span_length_threshold) {
-                    #print "found a compressible span of $span_length in plane $plane->{number}"
-                    #    ." with index $last_point->{bitfield_index}"
-                    #    ." at code $last_point->{code_str}.\n";
-                    $saved_bytes += 10 * $span_length;
+                    $bytes_saved += 11 * $span_length;
                     $first_span_point->{fate_type} = $FATE_SPAN;
-                    push @$extents, $first_span_point;
+                    add_extent $extents, $first_span_point;
                     $first_span_point = undef;
                     $code_offset += $span_length - 1;
-                    $point->{fate_offset} = $code_offset;
                     $span_length = 0;
-                    push @$extents, $point;
+                    $point->{fate_offset} = $code_offset;
                     $point->{fate_type} = $FATE_NORMAL;
+                    add_extent $extents, $point;
                 }
                 else {
                     while ($last_code < $point->{code} - 1) {
                         $last_code++;
+                        push @bitfield_index_lines,
+                            "/*$index*/$last_point->{bitfield_index}/*".
+                            "$last_point->{code_str} */";
+                        push @name_lines, "/*$index*/\"$last_point->{name}\"".
+                            "/* $last_point->{code_str} */";
                         $index++;
-                        push @bitfield_index_lines, "$last_point->{bitfield_index}/* $last_point->{code_str} */";
-                        push @name_lines, "\"$last_point->{name}\"/* $last_point->{code_str} */";
                         $bytes += 10;
                     }
                 }
@@ -413,17 +440,18 @@ sub emit_codepoints_and_planes {
                 }
             }
             # a normal codepoint that we don't want to compress
-            $point->{main_index} = $index++;
-            push @bitfield_index_lines, "$point->{bitfield_index}/* $point->{code_str} */";
+            push @bitfield_index_lines, "/*$index*/$point->{bitfield_index}/* $point->{code_str} */";
             $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
-            push @name_lines, "\"$point->{name}\"/* $point->{code_str} */";
+            push @name_lines, "/*$index*/\"$point->{name}\"/* $point->{code_str} */";
             $bytes += length($point->{name}) + 9; # 8 for the pointer, 1 for the NUL
             $last_code = $point->{code};
+            $point->{main_index} = $index++;
             $last_point = $point;
         }
     }
-    print "saved $saved_bytes bytes by compressing into a binary search lookup\n";
-    $byte_total += $bytes;
+    print "\nSaved ".thousands($bytes_saved)." bytes by compressing big gaps out of a binary search lookup.\n";
+    $total_bytes_saved += $bytes_saved;
+    $estimated_total_bytes += $bytes;
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
     $sections->{codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
@@ -454,13 +482,17 @@ sub emit_codepoint_row_lookup {
         MVM_exception_throw_adhoc(tc, \"should eventually be unreachable\");
     }
     
-    if (plane == 0)"
+    if (plane == 0) {"
     .emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ")."
-    else
-        if (plane < 0 || plane > 15 || codepoint > 0x10FFFD)
+    }
+    else {
+        if (plane < 0 || plane > 15 || codepoint > 0x10FFFD) {
             return -1;
-        else".emit_binary_search_algorithm($extents, $SMP_start,
+        }
+        else {".emit_binary_search_algorithm($extents, $SMP_start,
             int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ")."
+        }
+    }
 }";
     $sections->{codepoint_row_lookup} = $out;
 }
@@ -474,8 +506,7 @@ sub emit_case_changes {
             $point = $point->{next_point};
             next;
         }
-        push @lines, "{0x".($point->{suc}||0).",0x".($point->{slc}||0).",0x".($point->{stc}||0)."}/* $point->{code_str} */";
-        #die Dumper($point) unless $point->{code_str};
+        push @lines, "/*$rows*/{0x".($point->{suc}||0).",0x".($point->{slc}||0).",0x".($point->{stc}||0)."}/* $point->{code_str} */";
         $point = $point->{next_point};
         $rows++;
     }
@@ -490,7 +521,7 @@ sub emit_bitfield {
     my $out = '';
     my $rows = 0;
     while ($point) {
-        my $line = '{';
+        my $line = "/*$rows*/}{";
         my $first = 1;
         for (my $i = 0; $i < $first_point->{bitfield_width}; ++$i) {
             $_ = $point->{bytes}->[$i];
@@ -498,13 +529,14 @@ sub emit_bitfield {
             $first = 0;
             $line .= (defined $_ ? $_ : 0);
         }
+        push @$bitfield_table, $point;
         push @lines, ($line . "}/* $point->{code_str} */");
         $point = $point->{next_emit_point};
         $rows++;
     }
     my $bytes_wide = 2;
     $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
-    $byte_total += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
+    $estimated_total_bytes += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
     $out = "static const unsigned char props_bitfield[$rows][$wide] = {\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
     $sections->{main_bitfield} = $out;
@@ -514,12 +546,14 @@ sub compute_bitfield {
     my $index = 0;
     my $prophash = {};
     my $last_point = undef;
+    my $bytes_saved = 0;
     while ($point) {
         my $line = '';
         $line .= '.'.(defined $_ ? $_ : 0) for @{$point->{bytes}};
         # $point->{prop_str} = $line; # XXX probably take this out
         my $refer;
         if (defined($refer = $prophash->{$line})) {
+            $bytes_saved += 20;
             $point->{bitfield_index} = $refer->{bitfield_index};
         }
         else {
@@ -530,6 +564,8 @@ sub compute_bitfield {
         }
         $point = $point->{next_point};
     }
+    $total_bytes_saved += $bytes_saved;
+    print "\nSaved ".thousands($bytes_saved)." bytes by uniquing the bitfield table.\n";
 }
 sub header {
 '/*   DO NOT MODIFY THIS FILE!  YOU WILL LOSE YOUR CHANGES!
@@ -643,10 +679,10 @@ sub UnicodeData {
         }
         if ($name =~ /(Ideograph|Syllable|Private|Surrogate)(\s|.)*?First/) {
             $ideograph_start = $point;
-            $point->{name} = '';
+            $point->{name} =~ s/, First//;
         }
         elsif ($ideograph_start) {
-            $point->{name} = '';
+            $point->{name} = $ideograph_start->{name};
             my $current = $ideograph_start;
             while ($current->{code} < $point->{code} - 1) {
                 my $new = {};
@@ -717,7 +753,7 @@ sub CaseFolding {
     $enumerated_properties->{Case_Folding} = $index_base;
     my $type_base = { name => 'Case_Folding_simple', bit_width => 1 };
     $enumerated_properties->{Case_Folding_simple} = $type_base;
-    $byte_total += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
+    $estimated_total_bytes += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
     $sections->{CaseFolding_simple} = $simple_out;
     $sections->{CaseFolding_grows} = $grows_out;
 }
