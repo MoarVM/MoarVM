@@ -38,3 +38,5 @@ tools/nqp-cross-compiler/*.mastdump
 *.vsp
 /nmake.cmd
 UNIDATA/*
+/src/strings/unicode.c
+
