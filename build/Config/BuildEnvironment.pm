@@ -31,6 +31,7 @@ sub detect {
             $config{'rm'}           = 'del';
             $config{'noreturn'}     = '__declspec(noreturn)';
             $config{'noreturngcc'}  = '';
+            $config{'cat'}          = 'TYPE';
         }
         else {
             return (excuse => 'So far, we only support building with the Microsoft toolchain on Windows.');
@@ -55,6 +56,7 @@ sub detect {
             $config{'rm'}           = 'rm -f';
             $config{'noreturn'}     = '';
             $config{'noreturngcc'}  = '__attribute__((noreturn))';
+            $config{'cat'}          = 'cat';
         }
         else {
             return (excuse => 'So far, we only support building with gcc on Linux.');

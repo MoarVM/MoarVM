@@ -15,6 +15,7 @@ O   = @o@
 # Tool configuration
 MAKE = @make@
 RM   = @rm@
+CAT  = @cat@
 
 # APR related
 APR_LIB = @apr_lib@
@@ -49,7 +50,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/6model/reprs/KnowHOWREPR.h src/6model/reprs/KnowHOWAttributeREPR.h \
             src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h src/6model/reprs/P6str.h \
             src/6model/reprs/MVMOSHandle.h src/6model/reprs/P6int.h src/6model/reprs/P6num.h \
-            src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h src/6model/sc.h \
+            src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h src/6model/sc.h src/strings/unicode_gen.h \
             src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h \
             src/strings/latin1.h src/strings/utf16.h 3rdparty/uthash.h src/gen/config.h
 
@@ -60,6 +61,11 @@ moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
 # APR
 $(APR_LIB):
 	$(APR_BUILD_LINE)
+
+# Generated unicode database
+src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
+	$(CAT) src/strings/unicode_db.c >src/strings/unicode.c
+	$(CAT) src/strings/unicode_ops.c >>src/strings/unicode.c
 
 # VM core compilation.
 src/core/args$(O): src/core/args.c $(HEADERS)

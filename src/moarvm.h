@@ -44,6 +44,7 @@
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/ops.h"
+#include "strings/unicode_gen.h"
 #include "strings/unicode.h"
 #include "strings/latin1.h"
 #include "io/fileops.h"

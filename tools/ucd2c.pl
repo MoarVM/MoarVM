@@ -82,11 +82,14 @@ sub main {
     
     print "done!";
     write_file('src/strings/unicode_db.c', join_sections($sections));
-    print "\nEstimated bytes demand paged from disk: ".thousands($estimated_total_bytes).".\nEstimated bytes saved by various compressions: ".thousands($total_bytes_saved).".\n";
+    print "\nEstimated bytes demand paged from disk: ".
+        thousands($estimated_total_bytes).
+        ".\nEstimated bytes saved by various compressions: ".
+        thousands($total_bytes_saved).".\n";
 }
 sub thousands {
     my $in = shift;
-    $in = reverse "$in";
+    $in = reverse "$in"; # stringify or copy the string
     $in =~ s/(\d\d\d)/$1,/g;
     reverse $in
 }
@@ -117,7 +120,7 @@ sub stack_lines {
         }
         $out .= $_;
     }
-    $out;
+    $out
 }
 sub join_sections {
     my $sections = shift;
@@ -128,7 +131,7 @@ sub join_sections {
 sub apply_to_range {
     # apply a function to a range of codepoints. The starting and 
     # ending codepoint of the range need not exist; the function will
-    # be applied to all in between.
+    # be applied to all/any in between.
     my $range = shift;
     chomp($range);
     my $fn = shift;
@@ -136,7 +139,8 @@ sub apply_to_range {
     $first ||= $range;
     $last ||= $first;
     my $point = $points_by_hex->{$first};
-    if (!$point) {
+    if (!$point) { # go backwards to find the last one
+                    # (much faster than going forwards for some reason)
         my $code = hex($first) - 1;
         $code-- until ($point = $points_by_code->{$code});
         $point = $point->{next_point};
@@ -159,13 +163,13 @@ sub progress($) {
 }
 sub binary_props {
     # process a file, extracting binary properties and applying them to ranges
-    my $fname = shift;
+    my $fname = shift; # filename
     each_line($fname, sub { $_ = shift;
-        my ($range, $pname) = split /\s*[;#]\s*/;
-        $binary_properties->{$pname} ||= 1;
+        my ($range, $pname) = split /\s*[;#]\s*/; # range, property name
+        $binary_properties->{$pname} ||= 1; # define the property
         apply_to_range($range, sub {
             my $point = shift;
-            $point->{$pname} = 1;
+            $point->{$pname} = 1; # set the property
         });
     });
 }
@@ -175,22 +179,25 @@ sub break_property {
         $pname, { Other => 0 }, 1, 1);
 }
 sub derived_property {
+    # filename, property name, property object, starting counter
     my ($fname, $pname, $base, $j) = @_;
+    # wrap the provided object as the enum key in a new one
     $base = { enum => $base };
     each_line("extracted/Derived$fname", sub { $_ = shift;
         my ($range, $class) = split /\s*[;#]\s*/;
         unless (exists $base->{enum}->{$class}) {
-            #print "new class: $class\n";
+            # haven't seen this property's value before
+            # add it, and give it an index.
             $base->{enum}->{$class} = $j++;
         }
     });
-    #my @keys = ();
-    #for my $key (keys %{$base->{enum}}) {
-    #    $keys[$base->{enum}->{$key}] = $key;
-    #}
-    #$base->{keys} = \@keys;
+    my @keys = ();
+    # stash the keys in an array so they can be put in a table later
+    for my $key (keys %{$base->{enum}}) {
+        $keys[$base->{enum}->{$key}] = $key;
+    }
+    $base->{keys} = \@keys;
     $base->{name} = $pname;
-    #$base->{num_keys} = $j;
     $base->{bit_width} = least_int_ge_lg2($j);
     $base->{name} = $pname;
     $enumerated_properties->{$pname} = $base;
@@ -203,20 +210,22 @@ sub enumerated_property {
         my $range = $vals[0];
         my $value = $vals[$value_index];
         my $index = $base->{enum}->{$value};
+        # haven't seen this property value before
+        # add it, and give it an index.
         ($base->{enum}->{$value} = $index
             = $j++) unless defined $index;
         apply_to_range($range, sub {
             my $point = shift;
-            $point->{$pname} = $index;
+            $point->{$pname} = $index; # set the property's value index
         });
     });
     my @keys = ();
-    #for my $key (keys %{$base->{enum}}) {
-    #    $keys[$base->{enum}->{$key}] = $key;
-    #}
-    #$base->{keys} = \@keys;
+    # stash the keys in an array so they can be put in a table later
+    for my $key (keys %{$base->{enum}}) {
+        $keys[$base->{enum}->{$key}] = $key;
+    }
+    $base->{keys} = \@keys;
     $base->{name} = $pname;
-    #$base->{num_keys} = $j;
     $base->{bit_width} = least_int_ge_lg2($j);
     $enumerated_properties->{$pname} = $base
 }
