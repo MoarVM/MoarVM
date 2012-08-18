@@ -334,27 +334,26 @@ sub emit_codepoints_and_planes {
     my $saved_bytes = 0;
     my $code_offset = 0;
     my $extents = [];
+    my $last_code = -1; # trick
+    my $last_point = undef;
     for my $plane (@$planes) {
-        print "emitting plane $plane->{number}\n";
         my $first_span_point = undef;
         my $first_plane_point = $plane->{points}->[0];
         next unless defined $first_plane_point;
+        print "emitting plane $plane->{number}\n";
         $first_plane_point->{fate_offset} = $code_offset;
         $first_plane_point->{fate_type} = $FATE_NORMAL;
         push @$extents, $first_plane_point;
-        #print "pushed a normal extent with code ".($first_plane_point->{code})." and length of extents is ".scalar(@$extents)."\n";
         if (($plane->{number} == 1 || $plane->{number} == 2
             || $plane->{number} >= 13 && $plane->{number} <= 15)
                 && ($last_point->{code} != $first_plane_point->{code} - 1)) {
             # inject a NULL extent to bridge between the last 
             push @$extents, { fate_type => $FATE_NULL, code => $last_point->{code} + 1 };
+$Data::Dumper::Maxdepth = 1;
             $code_offset += $first_plane_point->{code} - $last_point->{code} - 1;
-            #print "pushed a null extent with code ".($last_point->{code} + 1)." and length of extents is ".scalar(@$extents)."\n";
         }
         $plane->{extents} = $extents;
-        my $last_code = $first_plane_point->{code} - 1; # trick
         my $span_length = 0;
-        my $last_point = undef;
         for my $point (@{$plane->{points}}) {
             # extremely simplistic compression of identical neighbors and gaps
             if ($compress_codepoints && $compress_codepoints
@@ -364,12 +363,10 @@ sub emit_codepoints_and_planes {
                         ." and $point->{code_str}.\n";
                 $saved_bytes += 10 * ($point->{code} - $last_code - 1);
                 push @$extents, { fate_type => $FATE_NULL, code => $last_code + 1 };
-                #print "pushed a null extent with code ".($last_point->{code} + 1)." and length of extents is ".scalar(@$extents)."\n";
                 $code_offset += $point->{code} - $last_code - 1;
                 $point->{fate_offset} = $code_offset;
                 push @$extents, $point;
                 $point->{fate_type} = $FATE_NORMAL;
-                #print "pushed a normal extent with code ".($point->{code})." and length of extents is ".scalar(@$extents)."\n";
             }
             # this point is identical to the previous point
             elsif ($compress_codepoints && $last_point
@@ -392,13 +389,11 @@ sub emit_codepoints_and_planes {
                     $saved_bytes += 10 * $span_length;
                     $first_span_point->{fate_type} = $FATE_SPAN;
                     push @$extents, $first_span_point;
-                    #print "pushed a span extent with code ".($first_span_point->{code})." and length of extents is ".scalar(@$extents)."\n";
                     $first_span_point = undef;
                     $code_offset += $span_length - 1;
                     $point->{fate_offset} = $code_offset;
                     $span_length = 0;
                     push @$extents, $point;
-                    #print "pushed a normal extent with code ".($point->{code})." and length of extents is ".scalar(@$extents)."\n";
                     $point->{fate_type} = $FATE_NORMAL;
                 }
                 else {
