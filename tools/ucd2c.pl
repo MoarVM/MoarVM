@@ -644,19 +644,20 @@ sub emit_property_value_lookup {
 sub emit_names_hash_builder {
     my $num_extents = scalar(@$extents);
     my $out = "
-static MVMint32 codepoint_extents[$num_extents][3] = {";
-    $estimated_total_bytes += 4 * 3 * $num_extents;
+static MVMint32 codepoint_extents[".($num_extents + 1)."][2] = {";
+    $estimated_total_bytes += 4 * 2 * ($num_extents + 1);
     my $last_extent;
     for my $extent (@$extents) {
         if ($last_extent) {
             #print "$extent->{code} - $last_extent->{code}\n";
             $out .= "
-    {0x".sprintf("%x",$last_extent->{code}).",".($extent->{code} - $last_extent->{code}).",$last_extent->{fate_type}},";
+    {0x".sprintf("%x",$last_extent->{code}).",$last_extent->{fate_type}},";
         }
         $last_extent = $extent;
     }
     $out .= "
-    {$last_extent->{code},".(0x10FFFE - $last_extent->{code}).",$last_extent->{fate_type}}
+    {$last_extent->{code},$last_extent->{fate_type}},
+    {0x10FFFE,0}
 };
 static MVMint32 num_extents = $num_extents;
 
@@ -670,9 +671,9 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
     for (; extent_index < num_extents; extent_index++) {
-        MVMint32 length = codepoint_extents[extent_index][1];
         codepoint = codepoint_extents[extent_index][0];
-        switch (codepoint_extents[extent_index][2]) {
+        MVMint32 length = codepoint_extents[extent_index + 1][0] - codepoint_extents[extent_index][0];
+        switch (codepoint_extents[extent_index][1]) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
                 for (; extent_span_index < length; extent_span_index++) {
