@@ -1,6 +1,6 @@
 use warnings; use strict;
 use Data::Dumper;
-$Data::Dumper::Maxdepth = 3;
+$Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
 
 my $sections = {};
@@ -267,11 +267,11 @@ sub allocate_bitfield {
         }
     }
     $first_point->{bitfield_width} = $byte_offset+1;
-    print "bitfield width is ".($byte_offset+1)." bytes\n";
-    for (@$allocated) {
-        print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset} | "
-    }
-    print "\n";
+    #print "bitfield width is ".($byte_offset+1)." bytes\n";
+    #for (@$allocated) {
+    #    print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset} | "
+    #}
+    #print "\n";
     $allocated
 }
 sub compute_properties {
@@ -304,13 +304,11 @@ sub emit_binary_search_algorithm {
     # indexes into $extents we're supposed to subdivide.
     # protocol: start output with a newline; don't end with a newline or indent
     my ($extents, $first, $mid, $last, $indent) = @_;
-    print "got first $first  mid $mid  last $last\n";
     # base case - we have 1 or 2 elements
     return emit_extent_fate($extents->[$first], $indent) if $first == $mid;
     return "
-${indent}if (codepoint >= $extents->[$mid]->{code}) {".
+${indent}if (codepoint >= $extents->[$mid]->{code}) /* ".sprintf("%x",$extents->[$mid]->{code})." */".
             emit_binary_search_algorithm($extents, $mid, int(($last + $mid) / 2), $last, "    $indent")."
-${indent}}
 ${indent}else".emit_binary_search_algorithm($extents, $first, int(($mid - 1 + $first) / 2), $mid - 1, "    $indent")
 }
 my $FATE_NORMAL = 0;
@@ -319,8 +317,6 @@ my $FATE_SPAN = 2;
 sub emit_extent_fate {
     my ($fate, $indent) = @_;
     my $type = $fate->{fate_type};
-    $Data::Dumper::Maxdepth = 1;
-    die Dumper($fate) unless defined $type;
     return "\n${indent}return -1;" if $type == $FATE_NULL;
     return "\n${indent}return $fate->{bitfield_index};" if $type == $FATE_SPAN;
     return "\n${indent}return codepoint - $fate->{fate_offset};";
@@ -340,7 +336,7 @@ sub emit_codepoints_and_planes {
         my $first_span_point = undef;
         my $first_plane_point = $plane->{points}->[0];
         next unless defined $first_plane_point;
-        print "emitting plane $plane->{number}\n";
+        #print "emitting plane $plane->{number}\n";
         $first_plane_point->{fate_offset} = $code_offset;
         $first_plane_point->{fate_type} = $FATE_NORMAL;
         push @$extents, $first_plane_point;
@@ -349,7 +345,6 @@ sub emit_codepoints_and_planes {
                 && ($last_point->{code} != $first_plane_point->{code} - 1)) {
             # inject a NULL extent to bridge between the last 
             push @$extents, { fate_type => $FATE_NULL, code => $last_point->{code} + 1 };
-$Data::Dumper::Maxdepth = 1;
             $code_offset += $first_plane_point->{code} - $last_point->{code} - 1;
         }
         $plane->{extents} = $extents;
@@ -358,9 +353,9 @@ $Data::Dumper::Maxdepth = 1;
             # extremely simplistic compression of identical neighbors and gaps
             if ($compress_codepoints && $compress_codepoints
                     && $last_code < $point->{code} - $gap_length_threshold) {
-                print "found a compressible NULL gap of ".($point->{code} -
-                    $last_code - 1)." in plane $plane->{number} between ".sprintf("%x",$last_code)
-                        ." and $point->{code_str}.\n";
+                #print "found a compressible NULL gap of ".($point->{code} -
+                #    $last_code - 1)." in plane $plane->{number} between ".sprintf("%x",$last_code)
+                #        ." and $point->{code_str}.\n";
                 $saved_bytes += 10 * ($point->{code} - $last_code - 1);
                 push @$extents, { fate_type => $FATE_NULL, code => $last_code + 1 };
                 $code_offset += $point->{code} - $last_code - 1;
@@ -383,9 +378,9 @@ $Data::Dumper::Maxdepth = 1;
             # the span ended, either bridge it or skip it
             elsif ($span_length) {
                 if ($span_length >= $span_length_threshold) {
-                    print "found a compressible span of $span_length in plane $plane->{number}"
-                        ." with index $last_point->{bitfield_index}"
-                        ." at code $last_point->{code_str}.\n";
+                    #print "found a compressible span of $span_length in plane $plane->{number}"
+                    #    ." with index $last_point->{bitfield_index}"
+                    #    ." at code $last_point->{code_str}.\n";
                     $saved_bytes += 10 * $span_length;
                     $first_span_point->{fate_type} = $FATE_SPAN;
                     push @$extents, $first_span_point;
@@ -400,8 +395,8 @@ $Data::Dumper::Maxdepth = 1;
                     while ($last_code < $point->{code} - 1) {
                         $last_code++;
                         $index++;
-                        push @bitfield_index_lines, "$last_point->{bitfield_index}";
-                        push @name_lines, "\"$last_point->{name}\"";
+                        push @bitfield_index_lines, "$last_point->{bitfield_index}/* $last_point->{code_str} */";
+                        push @name_lines, "\"$last_point->{name}\"/* $last_point->{code_str} */";
                         $bytes += 10;
                     }
                 }
@@ -427,8 +422,9 @@ $Data::Dumper::Maxdepth = 1;
             $last_point = $point;
         }
     }
-    print "saved $saved_bytes bytes\n";
+    print "saved $saved_bytes bytes by compressing into a binary search lookup\n";
     $byte_total += $bytes;
+    # jnthn: Would it still use the same amount of memory to combine these tables? XXX
     $sections->{codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
             stack_lines(\@name_lines, ",", ",\n    ", 0, $wrap_to_columns).
@@ -444,9 +440,10 @@ sub emit_codepoint_row_lookup {
     my $SMP_start;
     my $i = 0;
     for (@$extents) {
-        # handle the first iteration specially to optimize for BMP lookups
+        # handle the first recursion specially to optimize for most common BMP lookups
         if ($_->{code} == 0x10000) {
             $SMP_start = $i;
+            last;
         }
         $i++;
     }
@@ -457,16 +454,13 @@ sub emit_codepoint_row_lookup {
         MVM_exception_throw_adhoc(tc, \"should eventually be unreachable\");
     }
     
-    if (plane == 0) {"
+    if (plane == 0)"
     .emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ")."
-    }
-    else {
-        if (plane < 0 || plane > 15 || codepoint > 0x10FFFD) {
+    else
+        if (plane < 0 || plane > 15 || codepoint > 0x10FFFD)
             return -1;
-        }
         else".emit_binary_search_algorithm($extents, $SMP_start,
             int(($SMP_start + scalar(@$extents)-1)/2), scalar(@$extents) - 1, "            ")."
-    }
 }";
     $sections->{codepoint_row_lookup} = $out;
 }
@@ -476,8 +470,12 @@ sub emit_case_changes {
     my $out = '';
     my $rows = 1;
     while ($point) {
-        $point = $point->{next_point} and next unless $point->{Case_Change_Index};
-        push @lines, "{0x".($point->{suc}||0).",0x".($point->{slc}||0).",0x".($point->{stc}||0)."}";
+        unless ($point->{Case_Change_Index}) {
+            $point = $point->{next_point};
+            next;
+        }
+        push @lines, "{0x".($point->{suc}||0).",0x".($point->{slc}||0).",0x".($point->{stc}||0)."}/* $point->{code_str} */";
+        #die Dumper($point) unless $point->{code_str};
         $point = $point->{next_point};
         $rows++;
     }
@@ -500,7 +498,7 @@ sub emit_bitfield {
             $first = 0;
             $line .= (defined $_ ? $_ : 0);
         }
-        push @lines, ($line . '}');
+        push @lines, ($line . "}/* $point->{code_str} */");
         $point = $point->{next_emit_point};
         $rows++;
     }
