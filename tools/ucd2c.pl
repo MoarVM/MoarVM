@@ -672,8 +672,9 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
     for (; extent_index < num_extents; extent_index++) {
+        MVMint32 length;
         codepoint = codepoint_extents[extent_index][0];
-        MVMint32 length = codepoint_extents[extent_index + 1][0] - codepoint_extents[extent_index][0];
+        length = codepoint_extents[extent_index + 1][0] - codepoint_extents[extent_index][0];
         switch (codepoint_extents[extent_index][1]) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
