@@ -17,10 +17,6 @@ MVMint64 MVM_unicode_has_property_value(MVMThreadContext *tc, MVMint32 codepoint
         codepoint, property_code) == property_value_code ? 1 : 0;
 }
 
-MVMint64 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
-    return (MVMint64)MVM_unicode_get_property_value(tc, codepoint, property_code);
-}
-
 MVMint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMint32 codepoint, MVMint32 case_) {
     MVMint32 changes_index = MVM_unicode_get_property_value(tc,
         codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
