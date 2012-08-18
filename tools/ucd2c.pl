@@ -436,10 +436,11 @@ sub emit_codepoints_and_planes {
                     push @bitfield_index_lines,
                         "/*$index*/$last_point->{bitfield_index}/*".
                         "$last_point->{code_str} */";
-                    push @name_lines, "/*$index*/\"$last_point->{name}\"".
+                    push @name_lines, "/*$index*/".
+                    ($last_point->{name} =~ /^</ ? "NULL" : "\"$last_point->{name}\"").
                         "/* $last_point->{code_str} */";
                     $index++;
-                    $bytes += 10;
+                    $bytes += $last_point->{name} =~ /^</ ? 2 : 10;
                     $span_length--;
                 }
             }
@@ -677,9 +678,9 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
                 for (; extent_span_index < length; extent_span_index++) {
-                    MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
                     const char *name = codepoint_names[codepoint_table_index];
                     if (name) {
+                        MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
                         entry->name = (char *)name;
                         entry->codepoint = codepoint;
                         HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
@@ -693,9 +694,9 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                 codepoint += length;
                 break;
             case $FATE_SPAN: {
-                MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
                 const char *name = codepoint_names[codepoint_table_index];
                 if (name) {
+                    MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
                     entry->name = (char *)name;
                     entry->codepoint = codepoint;
                     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
