@@ -408,13 +408,12 @@ sub emit_codepoints_and_planes {
             elsif ($span_length) {
                 if ($span_length >= $span_length_threshold) {
                     $code_offset += $point->{code} - $last_code - 1;
-                    $bytes_saved += 11 * $span_length;
+                    $bytes_saved += 10 * ($span_length - 1);
                     if (!exists($last_point->{fate_type})) {
-                        $last_point->{fate_type} = $FATE_SPAN;
                         add_extent $extents, $last_point;
                     }
+                    $last_point->{fate_type} = $FATE_SPAN;
                     $code_offset += $span_length - 1;
-                    $point->{fate_type} = $FATE_NORMAL;
                     $toadd = $point;
                     $span_length = 0;
                 }
@@ -445,11 +444,7 @@ sub emit_codepoints_and_planes {
                 $index++;
                 $bytes += 10;
             }
-            if ($toadd) {
-                $point->{fate_offset} = $code_offset;
-                add_extent($extents, $point);
-            }
-            if ($plane->{number} == 1 && $plane->{points}->[0]->{code} == $point->{code} && !exists($point->{fate_type})) {
+            if ($toadd || $plane->{number} == 1 && $plane->{points}->[0]->{code} == $point->{code} && !exists($point->{fate_type})) {
                 $point->{fate_type} = $FATE_NORMAL;
                 $point->{fate_offset} = $code_offset;
                 add_extent $extents, $point;

@@ -30004,16 +30004,16 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                         return codepoint - 35177;
                                     }
                                     else {
-                                        return codepoint - 28779;
+                                        return 3810; /* F900 CJK COMPATIBILITY IDEOGRAPH-F900 */
                                     }
                                 }
                                 else {
-                                    return codepoint - 27757;
+                                    return 3809; /* E000 <Private Use> */
                                 }
                             }
                             else {
                                 if (codepoint >= 0xDB80) { /* <Private Use High Surrogate> */
-                                    return codepoint - 27631;
+                                    return 3808; /* DC00 <Low Surrogate> */
                                 }
                                 else {
                                     return 3807; /* DB80 <Private Use High Surrogate> */
@@ -30251,7 +30251,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
         }
     }
     else {
-        if (plane < 0 || plane > 15 || codepoint > 0x10FFFD) {
+        if (plane < 0 || plane > 16 || codepoint > 0x10FFFD) {
             return -1;
         }
         else {
@@ -30276,7 +30276,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 return -1;
                             }
                             else {
-                                return codepoint - 135221;
+                                return 4512; /* 2F800 CJK COMPATIBILITY IDEOGRAPH-2F800 */
                             }
                         }
                     }
@@ -30284,7 +30284,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                         if (codepoint >= 0x2626D) { /* <CJK Ideograph Extension B> */
                             if (codepoint >= 0x2626E) { /* <CJK Ideograph Extension B> */
                                 if (codepoint >= 0x2A700) { /* <CJK Ideograph Extension C> */
-                                    return codepoint - 131063;
+                                    return 4511; /* 2B740 <CJK Ideograph Extension D> */
                                 }
                                 else {
                                     return 4502; /* 20064 <CJK Ideograph Extension B> */
@@ -30459,9 +30459,9 @@ static MVMint32 codepoint_extents[83][3] = {
     {0x96f7,2223,2},
     {0x9fa6,14426,0},
     {0xd800,896,2},
-    {0xdb80,128,0},
-    {0xdc00,1024,0},
-    {0xe000,6400,0},
+    {0xdb80,128,2},
+    {0xdc00,1024,2},
+    {0xe000,6400,2},
     {0xf900,1792,0},
     {0x10000,4570,0},
     {0x111da,1264,1},
@@ -30488,8 +30488,8 @@ static MVMint32 codepoint_extents[83][3] = {
     {0x23b1c,10065,2},
     {0x2626d,1,0},
     {0x2626e,17554,2},
-    {0x2a700,4160,0},
-    {0x2b740,222,0},
+    {0x2a700,4160,2},
+    {0x2b740,222,2},
     {0x2b81e,16354,1},
     {0x2f800,542,0},
     {0x2fa1e,722898,1},
