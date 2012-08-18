@@ -414,9 +414,9 @@ sub emit_codepoints_and_planes {
             }
             # a normal codepoint that we don't want to compress
             $point->{main_index} = $index++;
-            push @bitfield_index_lines, "$point->{bitfield_index}";
+            push @bitfield_index_lines, "$point->{bitfield_index}/* $point->{code_str} */";
             $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
-            push @name_lines, "\"$point->{name}\"";
+            push @name_lines, "\"$point->{name}\"/* $point->{code_str} */";
             $bytes += length($point->{name}) + 9; # 8 for the pointer, 1 for the NUL
             $last_code = $point->{code};
             $last_point = $point;
