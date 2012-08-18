@@ -16,6 +16,7 @@ my $last_point = undef;
 my $aliases = {};
 my $named_sequences = {};
 my $bitfield_table = [];
+my $allocated_properties;
 my $property_index = 0;
 my $estimated_total_bytes = 0;
 my $total_bytes_saved = 0;
@@ -23,7 +24,8 @@ my $wrap_to_columns = 120;
 my $compress_codepoints = 1;
 my $gap_length_threshold = 1000;
 my $span_length_threshold = 100;
-my $skip_most_mode = 1;
+my $skip_most_mode = 0;
+my $bitfield_cell_bitwidth = 32;
 
 sub progress($);
 sub main {
@@ -68,10 +70,10 @@ sub main {
     
     # Allocate all the things
     progress "done.\nallocating bitfield...";
-    my $allocated = allocate_bitfield();
+    my $allocated_properties = allocate_bitfield();
     # Compute all the things
     progress "done.\ncomputing all properties...";
-    compute_properties($allocated);
+    compute_properties($allocated_properties);
     # Make the things less
     progress "...done.\ncomputing collapsed properties table...";
     compute_bitfield($first_point);
@@ -81,10 +83,11 @@ sub main {
     my $extents = emit_codepoints_and_planes($first_point);
     emit_case_changes($first_point);
     emit_codepoint_row_lookup($extents);
-    emit_property_value_lookup();
+    emit_property_value_lookup($allocated_properties);
     
     print "done!";
     write_file('src/strings/unicode_db.c', join_sections($db_sections));
+    write_file('src/strings/unicode_gen.h', join_sections($h_sections));
     print "\nEstimated bytes demand paged from disk: ".
         thousands($estimated_total_bytes).
         ".\nEstimated bytes saved by various compressions: ".
@@ -263,20 +266,20 @@ sub allocate_bitfield {
                     $prop->{byte_offset} = $byte_offset;
                     $prop->{bit_offset} = $bit_offset;
                     $bit_offset += $prop->{bit_width};
-                    while ($bit_offset >= 8) {
+                    while ($bit_offset >= $bitfield_cell_bitwidth) {
                         $byte_offset++;
-                        $bit_offset -= 8;
+                        $bit_offset -= $bitfield_cell_bitwidth;
                     }
                     push @$allocated, $prop;
                     $prop->{field_index} = $index++;
                 }
                 last;
             }
-            if ($bit_offset + $prop->{bit_width} <= 8) {
+            if ($bit_offset + $prop->{bit_width} <= $bitfield_cell_bitwidth) {
                 $prop->{byte_offset} = $byte_offset;
                 $prop->{bit_offset} = $bit_offset;
                 $bit_offset += $prop->{bit_width};
-                if ($bit_offset == 8) {
+                if ($bit_offset == $bitfield_cell_bitwidth) {
                     $byte_offset++;
                     $bit_offset = 0;
                 }
@@ -304,15 +307,20 @@ sub compute_properties {
         my $point = $first_point;
         print "..$field->{name}";
         my $i = 0;
+        my $bit = 0;
+        my $mask = 0;
+        while ($bit < $bitfield_cell_bitwidth) {
+            $mask |= 2 ** $bit++;
+        }
         while (defined $point) {
             if (defined $point->{$field->{name}}) {
                 my $byte_offset = $field->{byte_offset};
-                my $x = int(($bit_width - 1) / 8);
+                my $x = int(($bit_width - 1) / $bitfield_cell_bitwidth);
                 $byte_offset += $x;
                 while ($x + 1) {
                     # Most significant byte to least significant byte
                     $point->{bytes}->[$byte_offset - $x] |=
-                        ((($point->{$field->{name}} << $bit_offset) >> (8 * $x--)) & 0xFF);
+                        ((($point->{$field->{name}} << $bit_offset) >> ($bitfield_cell_bitwidth * $x--)) & $mask);
                 }
             }
             $point = $point->{next_point};
@@ -546,16 +554,73 @@ sub emit_bitfield {
     my $bytes_wide = 2;
     $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
     $estimated_total_bytes += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
-    $out = "static const unsigned char props_bitfield[$rows][$wide] = {\n    ".
+    my $val_type = $bitfield_cell_bitwidth == 8
+        ? 'MVMuint8'
+        : $bitfield_cell_bitwidth == 16
+        ? 'MVMuint16'
+        : $bitfield_cell_bitwidth == 32
+        ? 'MVMuint32'
+        : $bitfield_cell_bitwidth == 64
+        ? 'MVMuint64'
+        : die 'wut.';
+    $out = "static const $val_type props_bitfield[$rows][$wide] = {\n    ".
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n}";
     $db_sections->{main_bitfield} = $out;
 }
 sub emit_property_value_lookup {
-    for (keys %$binary_properties) {
-        
+    my $allocated = shift;
+    my $out = "static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
+    MVMuint32 switch_val = (MVMuint32)property_code;
+    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMuint32 bitfield_row = MVM_codepoint_to_row_index(tc, codepoint);
+    
+    if (bitfield_row == -1) /* non-existent codepoint; XXX should throw? */
+        return 0;
+    
+    switch (switch_val) {";
+    my $hout = "typedef enum {\n";
+    for my $prop (@$allocated) {
+        $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
+        $out .= "
+        case ".uc("MVM_unicode_property_$prop->{name}").":";
+        my $bit_width = $prop->{bit_width};
+        my $bit_offset = $prop->{bit_offset};
+        my $byte_offset = $prop->{byte_offset};
+        $out .= "/* $prop->{name} bit_width: $bit_width bit_offset: $bit_offset byte_offset: $byte_offset */";
+        while ($bit_width > 0) {
+            my $original_bit_offset = $bit_offset;
+            my $binary_mask = 0;
+            my $binary_string = "";
+            my $pos = 0;
+            while ($bit_offset--) {
+                $binary_string .= "0";
+                $pos++;
+            }
+            while ($pos < $bitfield_cell_bitwidth && $bit_width--) {
+                $binary_string .= "1";
+                $binary_mask += 2 ** ($bitfield_cell_bitwidth - 1 - $pos++);
+            }
+            my $shift = $bitfield_cell_bitwidth - $pos;
+            while ($pos++ < $bitfield_cell_bitwidth) {
+                $binary_string .= "0";
+            }
+            $out .= "
+            result_val |= ((props_bitfield[bitfield_row][$byte_offset] & 0x".
+                sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
+            $byte_offset++;
+            $bit_offset = 0;
+        }
+        $out .= "
+            return result_val;";
     }
-    my $out = "static MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
-        ";
+    $out .= "
+        default:
+            return 0;
+    }
+}";
+    $hout .= "} MVM_unicode_property_codes;";
+    $db_sections->{MVM_unicode_get_property_value} = $out;
+    $h_sections->{property_code_definitions} = $hout;
 }
 sub compute_bitfield {
     my $point = shift;
@@ -859,6 +924,7 @@ sub register_enumerated_property {
     die if exists $enumerated_properties->{$pname};
     $enumerated_properties->{$pname} = $obj;
     $obj->{name} = $pname;
+    $obj->{property_index} = $property_index++;
     $obj
 }
 main();
