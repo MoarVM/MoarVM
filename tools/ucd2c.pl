@@ -253,7 +253,7 @@ sub allocate_bitfield {
     for (sort keys %$binary_properties) {
         push @biggest, $binary_properties->{$_};
     }
-    my $byte_offset = 0;
+    my $word_offset = 0;
     my $bit_offset = 0;
     my $allocated = [];
     my $index = 0;
@@ -265,11 +265,11 @@ sub allocate_bitfield {
                 while (scalar @biggest) {
                     # ones bigger than 1 byte :(.  Don't prefer these.
                     $prop = shift @biggest;
-                    $prop->{byte_offset} = $byte_offset;
+                    $prop->{word_offset} = $word_offset;
                     $prop->{bit_offset} = $bit_offset;
                     $bit_offset += $prop->{bit_width};
                     while ($bit_offset >= $bitfield_cell_bitwidth) {
-                        $byte_offset++;
+                        $word_offset++;
                         $bit_offset -= $bitfield_cell_bitwidth;
                     }
                     push @$allocated, $prop;
@@ -278,11 +278,11 @@ sub allocate_bitfield {
                 last;
             }
             if ($bit_offset + $prop->{bit_width} <= $bitfield_cell_bitwidth) {
-                $prop->{byte_offset} = $byte_offset;
+                $prop->{word_offset} = $word_offset;
                 $prop->{bit_offset} = $bit_offset;
                 $bit_offset += $prop->{bit_width};
                 if ($bit_offset == $bitfield_cell_bitwidth) {
-                    $byte_offset++;
+                    $word_offset++;
                     $bit_offset = 0;
                 }
                 push @$allocated, $prop;
@@ -292,10 +292,10 @@ sub allocate_bitfield {
             }
         }
     }
-    $first_point->{bitfield_width} = $byte_offset+1;
-    #print "bitfield width is ".($byte_offset+1)." bytes\n";
+    $first_point->{bitfield_width} = $word_offset+1;
+    #print "bitfield width is ".($word_offset+1)." bytes\n";
     #for (@$allocated) {
-    #    print "$_->{name} : width:$_->{bit_width} byte:$_->{byte_offset} bit:$_->{bit_offset} | "
+    #    print "$_->{name} : width:$_->{bit_width} byte:$_->{word_offset} bit:$_->{bit_offset} | "
     #}
     #print "\n";
     $allocated
@@ -316,13 +316,27 @@ sub compute_properties {
         }
         while (defined $point) {
             if (defined $point->{$field->{name}}) {
-                my $byte_offset = $field->{byte_offset};
+                my $word_offset = $field->{word_offset};
+                # $x is one less than the number of words required to hold the field
                 my $x = int(($bit_width - 1) / $bitfield_cell_bitwidth);
-                $byte_offset += $x;
+                # move us over to the last word
+                $word_offset += $x;
+                # loop until we fill all the words, starting with the most
+                # significant byte portion.
                 while ($x + 1) {
-                    # Most significant byte to least significant byte
-                    $point->{bytes}->[$byte_offset - $x] |=
-                        ((($point->{$field->{name}} << $bit_offset) >> ($bitfield_cell_bitwidth * $x--)) & $mask);
+                    
+                    $point->{bytes}->[
+                        $word_offset - $x
+                    ] |=
+                        (
+                            (
+                                ($point->{$field->{name}} <<
+                                    ($bitfield_cell_bitwidth - $bit_offset - $bit_width)
+                                )
+                                #>> ($bitfield_cell_bitwidth * $x)
+                            ) & $mask
+                        );
+                    $x--;
                 }
             }
             $point = $point->{next_point};
@@ -365,12 +379,12 @@ sub emit_extent_fate {
 }
 sub add_extent($$) {
     my ($extents, $extent) = @_;
-    if (@$extents && $extents->[-1]->{code} > $extent->{code}) {
-        cluck();
-        die "$extents->[-1]->{code} > $extent->{code}";
-    }
+    #if (@$extents && $extents->[-1]->{code} > $extent->{code}) {
+    #    cluck();
+    #    die "$extents->[-1]->{code} > $extent->{code}";
+    #}
     #pop @$extents if @$extents && $extents->[-1]->{code} >= $extent->{code};
-    print "added extent $extent->{fate_type} at code ".sprintf("%x",$extent->{code})."\n";
+    #print "added extent $extent->{fate_type} at code ".sprintf("%x",$extent->{code})."\n";
     push @$extents, $extent;
 }
 sub emit_codepoints_and_planes {
@@ -590,8 +604,8 @@ sub emit_property_value_lookup {
         case ".uc("MVM_unicode_property_$prop->{name}").":";
         my $bit_width = $prop->{bit_width};
         my $bit_offset = $prop->{bit_offset};
-        my $byte_offset = $prop->{byte_offset};
-        $out .= "/* $prop->{name} bit_width: $bit_width bit_offset: $bit_offset byte_offset: $byte_offset */";
+        my $word_offset = $prop->{word_offset};
+        $out .= "/* $prop->{name} bit_width: $bit_width bit_offset: $bit_offset word_offset: $word_offset */";
         while ($bit_width > 0) {
             my $original_bit_offset = $bit_offset;
             my $binary_mask = 0;
@@ -610,9 +624,9 @@ sub emit_property_value_lookup {
                 $binary_string .= "0";
             }
             $out .= "
-            result_val |= ((props_bitfield[bitfield_row][$byte_offset] & 0x".
+            result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
                 sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
-            $byte_offset++;
+            $word_offset++;
             $bit_offset = 0;
         }
         $out .= "
@@ -635,7 +649,7 @@ static MVMint32 codepoint_extents[$num_extents][3] = {";
     my $last_extent;
     for my $extent (@$extents) {
         if ($last_extent) {
-            print "$extent->{code} - $last_extent->{code}\n";
+            #print "$extent->{code} - $last_extent->{code}\n";
             $out .= "
     {0x".sprintf("%x",$last_extent->{code}).",".($extent->{code} - $last_extent->{code}).",$last_extent->{fate_type}},";
         }
