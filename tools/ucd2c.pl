@@ -14,6 +14,7 @@ my $binary_properties = {};
 my $first_point = undef;
 my $last_point = undef;
 my $aliases = {};
+my $prop_names = {};
 my $named_sequences = {};
 my $bitfield_table = [];
 my $allocated_properties;
@@ -54,6 +55,16 @@ sub main {
     DerivedNormalizationProps();
     enumerated_property('extracted/DerivedNumericValues',
         'Numeric_Value', { NaN => 0 }, 1, 1);
+    enumerated_property('extracted/DerivedNumericValues',
+        'Numeric_Value_Numerator', { NaN => 0 }, 1, sub {
+            my @fraction = split('/', (shift));
+            return $fraction[0];
+        });
+    enumerated_property('extracted/DerivedNumericValues',
+        'Numeric_Value_Denominator', { NaN => 0 }, 1, sub {
+            my @fraction = split('/', (shift));
+            return $fraction[1] || '1';
+        });
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
     Jamo();
@@ -86,6 +97,7 @@ sub main {
     emit_codepoint_row_lookup($extents);
     emit_property_value_lookup($allocated_properties);
     emit_names_hash_builder();
+    emit_unicode_property_keypairs();
     
     print "done!";
     write_file('src/strings/unicode_db.c', join_sections($db_sections));
@@ -214,7 +226,9 @@ sub enumerated_property {
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
         my $range = $vals[0];
-        my $value = $vals[$value_index];
+        my $value = ref $value_index
+            ? $value_index->(\@vals)
+            : $vals[$value_index];
         my $index = $base->{enum}->{$value};
         # haven't seen this property value before
         # add it, and give it an index.
@@ -293,11 +307,6 @@ sub allocate_bitfield {
         }
     }
     $first_point->{bitfield_width} = $word_offset+1;
-    #print "bitfield width is ".($word_offset+1)." bytes\n";
-    #for (@$allocated) {
-    #    print "$_->{name} : width:$_->{bit_width} byte:$_->{word_offset} bit:$_->{bit_offset} | "
-    #}
-    #print "\n";
     $allocated
 }
 sub compute_properties {
@@ -379,12 +388,6 @@ sub emit_extent_fate {
 }
 sub add_extent($$) {
     my ($extents, $extent) = @_;
-    #if (@$extents && $extents->[-1]->{code} > $extent->{code}) {
-    #    cluck();
-    #    die "$extents->[-1]->{code} > $extent->{code}";
-    #}
-    #pop @$extents if @$extents && $extents->[-1]->{code} >= $extent->{code};
-    #print "added extent $extent->{fate_type} at code ".sprintf("%x",$extent->{code})."\n";
     push @$extents, $extent;
 }
 sub emit_codepoints_and_planes {
@@ -474,7 +477,7 @@ sub emit_codepoints_and_planes {
             $last_point = $point;
         }
     }
-    print "\nSaved ".thousands($bytes_saved)." bytes by compressing big gaps out of a binary search lookup.\n";
+    print "\nSaved ".thousands($bytes_saved)." bytes by compressing big gaps into a hotpath-optimized binary search lookup.\n";
     $total_bytes_saved += $bytes_saved;
     $estimated_total_bytes += $bytes;
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
@@ -601,6 +604,8 @@ sub emit_property_value_lookup {
     switch (switch_val) {";
     for my $prop (@$allocated) {
         $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
+        $prop_names->{$prop->{name}} = $prop_names->{lc($prop->{name})}
+            = $prop_names->{uc($prop->{name})} = $prop->{field_index};
         $out .= "
         case ".uc("MVM_unicode_property_$prop->{name}").":";
         my $bit_width = $prop->{bit_width};
@@ -712,6 +717,25 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
 ";
     $db_sections->{names_hash_builder} = $out;
 }#"
+sub emit_unicode_property_keypairs {
+    my $hout = "
+typedef struct _MVMUnicodeNamedValue {
+    const char *name;
+    MVMint32 value;
+} MVMUnicodeNamedValue;";
+    my @lines = ();
+    for my $key (keys %$prop_names) {
+        push @lines, "{\"$key\",$prop_names->{$key}}";
+    }
+    $hout .= "
+#define num_unicode_property_keypairs ".scalar(@lines)."\n";
+    my $out = "
+static const MVMUnicodeNamedValue unicode_property_keypairs[".scalar(@lines)."] = {
+    ".stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."
+};";
+    $db_sections->{BBB_unicode_property_keypairs} = $out;
+    $h_sections->{MVMUnicodeNamedValue} = $hout;
+}
 sub compute_bitfield {
     my $point = shift;
     my $index = 1;
