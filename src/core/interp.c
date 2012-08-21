@@ -817,6 +817,28 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 6);
                         break;
+                    case MVM_OP_unipropcode:
+                        GET_REG(cur_op, 0).i64 = (MVMint64)MVM_unicode_name_to_property_code(tc,
+                            GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_unipvalcode:
+                        GET_REG(cur_op, 0).i64 = (MVMint64)MVM_unicode_name_to_property_value_code(tc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break
+                    case MVM_OP_hasuniprop:
+                        GET_REG(cur_op, 0).i64 = MVM_string_offset_has_unicode_property_value(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64,
+                            GET_REG(cur_op, 8).i64);
+                        cur_op += 10;
+                        break;
+                    case MVM_OP_hasunipropc:
+                        GET_REG(cur_op, 0).i64 = MVM_string_offset_has_unicode_property_value(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, (MVMint64)GET_UI16(cur_op, 6),
+                            (MVMint64)GET_UI16(cur_op, 8));
+                        cur_op += 10;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_string, *(cur_op-1));

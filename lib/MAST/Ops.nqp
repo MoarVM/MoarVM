@@ -1226,6 +1226,41 @@ class MAST::Ops {
                     $MVM_operand_str,
                     $MVM_operand_ins
                 ]
+            ),
+            'unipropcode', nqp::hash(
+                'code', 26,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str
+                ]
+            ),
+            'unipvalcode', nqp::hash(
+                'code', 27,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str
+                ]
+            ),
+            'hasuniprop', nqp::hash(
+                'code', 28,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'hasunipropc', nqp::hash(
+                'code', 29,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_int16,
+                    $MVM_operand_int16
+                ]
             )
         ],
         [

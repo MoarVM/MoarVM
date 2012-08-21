@@ -171,6 +171,10 @@
 #define MVM_OP_replace 23
 #define MVM_OP_getcpbyname 24
 #define MVM_OP_indexat_scb 25
+#define MVM_OP_unipropcode 26
+#define MVM_OP_unipvalcode 27
+#define MVM_OP_hasuniprop 28
+#define MVM_OP_hasunipropc 29
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

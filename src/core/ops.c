@@ -954,6 +954,30 @@ static MVMOpInfo MVM_op_info_string[] = {
         4,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_str, MVM_operand_ins }
     },
+    {
+        MVM_OP_unipropcode,
+        "unipropcode",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_unipvalcode,
+        "unipvalcode",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_hasuniprop,
+        "hasuniprop",
+        5,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_hasunipropc,
+        "hasunipropc",
+        5,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int16, MVM_operand_int16 }
+    },
 };
 static MVMOpInfo MVM_op_info_math[] = {
     {
@@ -1943,7 +1967,7 @@ static unsigned char MVM_op_banks = 7;
 static unsigned char MVM_opcounts_by_bank[] = {
     126,
     5,
-    26,
+    30,
     13,
     77,
     45,

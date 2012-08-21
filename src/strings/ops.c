@@ -454,3 +454,15 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
             return 1;
     return 0;
 }
+
+MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMString *s, MVMint64 offset, MVMint64 property_code, MVMint64 property_value_code) {
+    
+    if (!IS_CONCRETE((MVMObject *)s)) {
+        MVM_exception_throw_adhoc(tc, "uniprop lookup needs a concrete string");
+    }
+    
+    if (offset < 0 || offset >= s->body.graphs)
+        return 0;
+    
+    return MVM_unicode_codepoint_has_property_value(tc, s->body.data[offset], property_code, property_value_code);
+}
