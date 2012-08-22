@@ -51,14 +51,58 @@ MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
     return result ? result->codepoint : 0;
 }
 
+static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
+    /* XXX make this synchronized, I guess... */
+    MVMUnicodeNameHashEntry **hash_array = calloc(sizeof(MVMUnicodeNameHashEntry *), MVMNUMPROPERTYCODES);
+    MVMuint32 index = 0;
+    MVMUnicodeNameHashEntry *entry = NULL, *binaries = NULL;
+    for ( ; index < num_unicode_property_value_keypairs; index++) {
+        MVMint32 property_code = unicode_property_value_keypairs[index].value >> 24;
+        entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+        entry->name = (char *)unicode_property_value_keypairs[index].name;
+        entry->codepoint = unicode_property_value_keypairs[index].value & 0xFFFFFF;
+        HASH_ADD_KEYPTR(hash_handle, hash_array[property_code],
+            entry->name, strlen(entry->name), entry);
+    }
+    for (index = 0; index < MVMNUMPROPERTYCODES; index++) {
+        if (!hash_array[index]) {
+            if (!binaries) {
+                MVMUnicodeNamedValue yes[8] = { {"T",1}, {"Y",1},
+                    {"Yes",1}, {"yes",1}, {"True",1}, {"true",1}, {"t",1}, {"y",1} };
+                MVMUnicodeNamedValue no [8] = { {"F",0}, {"N",0},
+                    {"No",0}, {"no",0}, {"False",0}, {"false",0}, {"f",0}, {"n",0} };
+                MVMuint8 i;
+                for (i = 0; i < 8; i++) {
+                    entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                    entry->name = (char *)yes[i].name;
+                    entry->codepoint = yes[i].value;
+                    HASH_ADD_KEYPTR(hash_handle, binaries, yes[i].name, strlen(yes[i].name), entry);
+                }
+                for (i = 0; i < 8; i++) {
+                    entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                    entry->name = (char *)no[i].name;
+                    entry->codepoint = no[i].value;
+                    HASH_ADD_KEYPTR(hash_handle, binaries, no[i].name, strlen(no[i].name), entry);
+                }
+            }
+            hash_array[index] = binaries;
+        }
+    }
+    unicode_property_values_hashes = hash_array;
+}
+
 MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
     MVMuint64 size;
     char *cname = MVM_string_ascii_encode(tc, name, &size);
     MVMUnicodeNameHashEntry *result;
-    if (!property_value_codes_by_names_aliases) {
-        generate_property_value_codes_by_names_aliases(tc);
+    
+    if (property_code < 0 || property_code >= MVMNUMPROPERTYCODES)
+        return 0;
+    
+    if (!unicode_property_values_hashes) {
+        generate_unicode_property_values_hashes(tc);
     }
-    HASH_FIND(hash_handle, property_codes_by_names_aliases, cname, strlen(cname), result);
+    HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen(cname), result);
     free(cname); /* not really codepoint, really just an index */
     return result ? result->codepoint : 0;
 }

@@ -826,7 +826,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = (MVMint64)MVM_unicode_name_to_property_value_code(tc,
                             GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s);
                         cur_op += 6;
-                        break
+                        break;
                     case MVM_OP_hasuniprop:
                         GET_REG(cur_op, 0).i64 = MVM_string_offset_has_unicode_property_value(tc,
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64,

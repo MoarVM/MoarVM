@@ -132,7 +132,7 @@ class QAST::MASTOperations {
         }
         
         if ($num_args != $num_operands - $operand_num) {
-            nqp::die("Arg count doesn't equal required operand count for op '$op'");
+            nqp::die("Arg count $num_args doesn't equal required operand count "~($num_operands - $operand_num)~" for op '$op'");
         }
         
         if ($op eq 'return') {

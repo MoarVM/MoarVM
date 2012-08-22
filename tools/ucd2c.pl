@@ -43,7 +43,6 @@ sub main {
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
     goto skip_most if $skip_most_mode;
-    binary_props('extracted/DerivedNumericType');
     binary_props('extracted/DerivedBinaryProperties');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
@@ -67,6 +66,8 @@ sub main {
             my @fraction = split('/', (shift));
             return $fraction[1] || '1';
         });
+    enumerated_property('extracted/DerivedNumericType',
+        'Numeric_Type', { None => 0 }, 1, 1);
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
     Jamo();
@@ -273,7 +274,7 @@ sub allocate_bitfield {
     my $word_offset = 0;
     my $bit_offset = 0;
     my $allocated = [];
-    my $index = 0;
+    my $index = 1;
     while (scalar @biggest) {
         my $i = -1;
         for(;;) {
@@ -410,10 +411,10 @@ sub emit_codepoints_and_planes {
     $first_point->{fate_type} = $FATE_NORMAL;
     $first_point->{fate_offset} = $code_offset;
     add_extent $extents, $first_point;
+    my $span_length = 0;
     
     # a bunch of spaghetti code.  Yes.
     for my $plane (@$planes) {
-        my $span_length = 0;
         for my $point (@{$plane->{points}}) {
             my $toadd = undef;
             # extremely simplistic compression of identical neighbors and gaps
@@ -424,13 +425,17 @@ sub emit_codepoints_and_planes {
                     && $last_point->{bitfield_index} == $point->{bitfield_index}) {
                 # create a or extend the current span
                 ++$last_code;
-                ++$span_length;
+                if ($span_length) {
+                    ++$span_length;
+                }
+                else {
+                    $span_length = 2;
+                }
                 next;
             }
             # the span ended, either bridge it or skip it
             elsif ($span_length) {
                 if ($span_length >= $span_length_threshold) {
-                    $code_offset += $point->{code} - $last_code - 1;
                     $bytes_saved += 10 * ($span_length - 1);
                     if (!exists($last_point->{fate_type})) {
                         add_extent $extents, $last_point;
@@ -440,8 +445,9 @@ sub emit_codepoints_and_planes {
                     $toadd = $point;
                     $span_length = 0;
                 }
-                while ($span_length > 0) {
+                while ($span_length > 1) {
                     # catch up to last code
+                    $last_point = $last_point->{next_point};
                     push @bitfield_index_lines,
                         "/*$index*/$last_point->{bitfield_index}/*".
                         "$last_point->{code_str} */";
@@ -452,6 +458,7 @@ sub emit_codepoints_and_planes {
                     $bytes += 10 + ($last_point->{name} =~ /^</ ? 0 : length($last_point->{name}) + 1);
                     $span_length--;
                 }
+                $span_length = 0;
             }
             if ($compress_codepoints
                     && $last_code < $point->{code} - $gap_length_threshold) {
@@ -468,6 +475,7 @@ sub emit_codepoints_and_planes {
                 $index++;
                 $bytes += 10;
             }
+            die "$last_code ".Dumper($point) unless $last_code == $point->{code} - 1;
             if ($toadd || $plane->{number} == 1 && $plane->{points}->[0]->{code} == $point->{code} && !exists($point->{fate_type})) {
                 $point->{fate_type} = $FATE_NORMAL;
                 $point->{fate_offset} = $code_offset;
@@ -483,7 +491,7 @@ sub emit_codepoints_and_planes {
             $last_point = $point;
         }
     }
-    print "\nSaved ".thousands($bytes_saved)." bytes by compressing big gaps into a hotpath-optimized binary search lookup.\n";
+    print "\nSaved ".thousands($bytes_saved)." bytes by compressing big gaps into a binary search lookup.\n";
     $total_bytes_saved += $bytes_saved;
     $estimated_total_bytes += $bytes;
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
@@ -495,6 +503,7 @@ sub emit_codepoints_and_planes {
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $wrap_to_columns).
             "\n};";
+    $h_sections->{codepoint_names_count} = "#define MVMCODEPOINTNAMESCOUNT $index";
     $extents
 }
 sub emit_codepoint_row_lookup {
@@ -607,7 +616,8 @@ sub emit_property_value_lookup {
     
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
     
-    switch (switch_val) {";
+    switch (switch_val) {
+        case 0: return 0;";
     for my $prop (@$allocated) {
         $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
         $prop_names->{$prop->{name}} = $prop->{field_index};
@@ -616,7 +626,7 @@ sub emit_property_value_lookup {
         my $bit_width = $prop->{bit_width};
         my $bit_offset = $prop->{bit_offset};
         my $word_offset = $prop->{word_offset};
-        $out .= "/* $prop->{name} bit_width: $bit_width bit_offset: $bit_offset word_offset: $word_offset */";
+        $out .= "\n/* $prop->{name} bit_width: $bit_width bit_offset: $bit_offset word_offset: $word_offset */\n";
         my $one_word_only = $bit_offset + $bit_width <= $bitfield_cell_bitwidth ? 1 : 0;
         while ($bit_width > 0) {
             my $original_bit_offset = $bit_offset;
@@ -658,18 +668,12 @@ sub emit_names_hash_builder {
     my $out = "
 static MVMint32 codepoint_extents[".($num_extents + 1)."][2] = {";
     $estimated_total_bytes += 4 * 2 * ($num_extents + 1);
-    my $last_extent;
     for my $extent (@$extents) {
-        if ($last_extent) {
-            #print "$extent->{code} - $last_extent->{code}\n";
-            $out .= "
-    {0x".sprintf("%x",$last_extent->{code}).",$last_extent->{fate_type}},";
-        }
-        $last_extent = $extent;
+        $out .= "
+    {0x".sprintf("%x",$extent->{code}).",$extent->{fate_type}},";
     }
     $h_sections->{MVMNUMUNICODEEXTENTS} = "#define MVMNUMUNICODEEXTENTS $num_extents\n";
     $out .= "
-    {$last_extent->{code},$last_extent->{fate_type}},
     {0x10FFFE,0}
 };
 
@@ -686,10 +690,13 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         MVMint32 length;
         codepoint = codepoint_extents[extent_index][0];
         length = codepoint_extents[extent_index + 1][0] - codepoint_extents[extent_index][0];
+        if (codepoint_table_index >= MVMCODEPOINTNAMESCOUNT)
+            continue;
         switch (codepoint_extents[extent_index][1]) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
-                for (; extent_span_index < length; extent_span_index++) {
+                for (; extent_span_index < length
+                    && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
                     if (name) {
                         MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
@@ -764,10 +771,6 @@ sub emit_unicode_property_value_keypairs {
     my $hout = "";
     my @lines = ();
     my $property;
-    my $binary_enum = { 'N' => 0, 'Y' => 1 };
-    for (keys %$binary_properties) {
-        $binary_properties->{$_}->{enum} = $binary_enum;
-    }
     for (keys %$enumerated_properties) {
         my $enum = $enumerated_properties->{$_}->{enum};
         my $toadd = {};
@@ -784,6 +787,7 @@ sub emit_unicode_property_value_keypairs {
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         if (exists $prop_names->{$propname}) {
+            return if $parts[0] eq 'Y' || $parts[0] eq 'N';
             my @others = ();
             for my $alias (@parts) {
                 my $newalias = lc("$alias");
@@ -799,10 +803,8 @@ sub emit_unicode_property_value_keypairs {
             my $enum = $all_properties->{$key}->{'enum'};
             die $propname unless $enum;
             my $value;
-            #print "$propname\n";
             my $first;
             for my $alias (@parts) {
-                #print "  $alias\n";
                 $first = $alias unless defined $first;
                 if (exists $enum->{$alias}) {
                     $value = $enum->{$alias};
@@ -811,7 +813,7 @@ sub emit_unicode_property_value_keypairs {
             }
             #die Dumper($enum) unless defined $value;
             unless (defined $value) {
-                print "couldn't resolve $propname $first\n";
+                #print "warning: couldn't resolve property $propname property value alias $first\n";
                 return;
             }
             for my $alias (@parts) {
@@ -831,14 +833,13 @@ static const MVMUnicodeNamedValue unicode_property_value_keypairs[".scalar(@line
 }
 sub compute_bitfield {
     my $point = shift;
-    my $index = 0;
+    my $index = 1;
     my $prophash = {};
     my $last_point = undef;
     my $bytes_saved = 0;
     while ($point) {
         my $line = '';
         $line .= '.'.(defined $_ ? $_ : 0) for @{$point->{bytes}};
-        # $point->{prop_str} = $line; # XXX probably take this out
         my $refer;
         if (defined($refer = $prophash->{$line})) {
             $bytes_saved += 20;
