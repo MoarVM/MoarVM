@@ -66,7 +66,7 @@ void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
         MVM_panic(1, "Illegal attempt to pop empty temporary root stack");
 }
 
-/* Pops a temporary root off the thread-local roots list. */
+/* Pops temporary roots off the thread-local roots list. */
 void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
     if (tc->num_temproots - n >= 0)
         tc->num_temproots -= n;

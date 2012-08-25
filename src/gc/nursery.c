@@ -175,7 +175,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
                 MVM_gc_worklist_add(tc, worklist, &new_addr_st->boolification_spec->method);
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
             
-            /* If it needs to have it's REPR data marked, do that. */
+            /* If it needs to have its REPR data marked, do that. */
             if (new_addr_st->REPR->gc_mark_repr_data)
                 new_addr_st->REPR->gc_mark_repr_data(tc, new_addr_st, worklist);
         }

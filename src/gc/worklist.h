@@ -8,7 +8,7 @@
  * after they are copied/moved, since an object's children will then come
  * right after the object itself - unless they were copied/moved earlier.
  * But things aren't quite so rosy for deeply nested data structures, where
- * two sibblings may thus end up far apart. Lots of stuff in the literature
+ * two siblings may thus end up far apart. Lots of stuff in the literature
  * on these issues, but for now this is probably less bad than some of the
  * other options.
  */

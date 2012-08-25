@@ -54,7 +54,7 @@ static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
 void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
     void *result;
     
-    /* Determinte the bin. If we hit a bin exactly then it's off-by-one,
+    /* Determine the bin. If we hit a bin exactly then it's off-by-one,
      * since the bins list is base-0. Otherwise we've some extra bits,
      * which round us up to the next bin, but that's a no-op. */
     MVMuint32 bin = (size >> MVM_GEN2_BIN_BITS);
