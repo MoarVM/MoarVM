@@ -5,6 +5,7 @@
                             || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
 
 
+MVMuint32 MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body);
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 start);
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b);

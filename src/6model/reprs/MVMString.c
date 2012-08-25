@@ -36,14 +36,37 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStringBody *dest_body = (MVMStringBody *)dest;
     dest_body->graphs = src_body->graphs;
     dest_body->codes  = src_body->codes;
-    dest_body->data   = malloc(sizeof(MVMint32) * dest_body->graphs);
-    memcpy(dest_body->data, src_body->data, sizeof(MVMint32) * dest_body->graphs);
+    switch(src_body->codes & MVM_STRING_TYPE_MASK) {
+        case MVM_STRING_TYPE_INT32:
+            dest_body->data.int32s = malloc(sizeof(MVMint32) * dest_body->graphs);
+            memcpy(dest_body->data.int32s, src_body->data.int32s, sizeof(MVMint32) * src_body->graphs);
+            break;
+        case MVM_STRING_TYPE_UINT8:
+            dest_body->data.uint8s = malloc(sizeof(MVMuint8) * dest_body->graphs);
+            memcpy(dest_body->data.uint8s, src_body->data.uint8s, sizeof(MVMuint8) * src_body->graphs);
+            break;
+        case MVM_STRING_TYPE_ROPE:
+            dest_body->strands = malloc(sizeof(MVMStrand) * dest_body->graphs);
+            memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * src_body->graphs);
+    }
+}
+
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMStringBody *body  = (MVMStringBody *)data;
+    if ((body->codes & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
+        MVMStrand *strands = body->strands;
+        MVMuint32 index = 0;
+        MVMuint32 size = MVM_string_rope_strands_size(tc, body);
+        while(index < body->graphs)
+            MVM_gc_worklist_add(tc, worklist, &strands[index++]->string);
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    free(str->body.data);
+    free((void *)str->body.data);
     str->body.data = NULL;
     str->body.graphs = str->body.codes = 0;
 }
@@ -74,6 +97,7 @@ MVMREPROps * MVMString_initialize(MVMThreadContext *tc) {
         this_repr->allocate = allocate;
         this_repr->initialize = initialize;
         this_repr->copy_to = copy_to;
+        this_repr->gc_mark = gc_mark;
         this_repr->gc_free = gc_free;
         this_repr->get_storage_spec = get_storage_spec;
         this_repr->compose = compose;

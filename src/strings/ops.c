@@ -1,12 +1,89 @@
 #include "moarvm.h"
 
-#define GRAPHS_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMuint32)) == 0)
+#define GRAPHS32_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMint32)) == 0)
+#define GRAPHS8_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMuint8)) == 0)
 
-/* Compares two strings for equality. */
-MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    if (a->body.graphs != b->body.graphs)
-        return 0;
-    return (MVMint64)GRAPHS_EQUAL(a->body.data, b->body.data, a->body.graphs);
+/* Returns the size of the strands array. Doesn't need to be fast/cached, I think. */
+MVMuint32 MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
+    if ((body->codes & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
+        MVMStrand *strands = body->data.strands;
+        MVMuint32 count = 0;
+        while(strands[count]->lower_index != 0 || strands[count]->higher_index)
+            count++;
+        return count + 1;
+    }
+    return 0;
+}
+
+/* returns the codepoint without doing checks, for internal VM use only. */
+MVMint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
+    MVMuint64 idx = (MVMuint64)index;
+    
+    switch(a->codes & MVM_STRING_TYPE_MASK) {
+        case MVM_STRING_TYPE_INT32:
+            return a->data.int32s[index];
+        case MVM_STRING_TYPE_UINT8:
+            return (MVMint32)a->data.uint8s[index];
+        case MVM_STRING_TYPE_ROPE: {
+            MVMStrand *strands = a->data.strands;
+            MVMuint32 table_index = 0;
+            MVMuint32 lower_visited = 4294967295ULL;
+            MVMuint32 upper_visited = 4294967295ULL;
+            /* see MVMString.h.  Starting with the first entry,
+                binary search through the strands in the string
+                searching for the strand containing that offset. */
+            for(;;) {
+                MVMStrand *strand = strands[table_index];
+                if (strand->lower_index == strand->higher_index
+                        || table_index == lower_visited
+                        || table_index == upper_visited)
+                    break;
+                if (idx >= strand->compare_offset) {
+                    /* mark that we've visited this node on the
+                        lower side so we can halt if we return to it */
+                    lower_visited = table_index;
+                    table_index = strand->higher_index;
+                }
+                else {
+                    /* mark that we've visited this node on the
+                        upper side so we can halt if we return to it */
+                    upper_visited = table_index;
+                    table_index = strand->lower_index;
+                }
+            }
+            return MVM_string_get_codepoint_at_nocheck(tc,
+                strang->string, idx - strand->compare_offset);
+        }
+    }
+    MVM_exception_throw_adhoc(tc, "internal string corruption");
+    return 0;
+}
+
+MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
+        MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
+    MVMint64 index;
+    switch(a->body.codes & MVM_STRING_TYPE_MASK) {
+        case MVM_STRING_TYPE_INT32:
+            if ((b->body.codes & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+                return (MVMint64)GRAPHS32_EQUAL(a->body.data.int32s + (size_t)starta,
+                    b->body.data.int32s + (size_t)startb, (size_t)length);
+            break;
+        case MVM_STRING_TYPE_UINT8:
+            if ((b->body.codes & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8
+                return (MVMint64)GRAPHS8_EQUAL(a->body.data.uint8s + (size_t)starta,
+                    b->body.data.uint8s + (size_t)startb, (size_t)length);
+            break;
+        case MVM_STRING_TYPE_ROPE:
+            break;
+    }
+    /* XXX This can be made far more efficient for all cases by inlining
+        and merging the 2 copies of get_codepoint_at_nocheck */
+    for (index = 0; index < length; index++) {
+        if (       MVM_string_get_codepoint_at_nocheck(tc, a, starta + index)
+                != MVM_string_get_codepoint_at_nocheck(tc, b, startb + index))
+            return 0;
+    }
+    return 1;
 }
 
 /* Returns the location of one string in another or -1  */
@@ -36,7 +113,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
         return -1;
     /* brute force for now. */
     while (index <= haystack->body.graphs - needle->body.graphs) {
-        if (GRAPHS_EQUAL(needle->body.data, haystack->body.data + index, needle->body.graphs)) {
+        if (MVM_string_substrings_equal_nocheck(needle, 0, needle->body.graphs, haystack, index)) {
             result = (MVMint64)index;
             break;
         }
@@ -165,17 +242,21 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
         MVM_exception_throw_adhoc(tc, "equal_at needs concrete strings");
     }
     
-    if (a->body.graphs < b->body.graphs)
-        return 0;
-    if (offset >= a->body.graphs) {
-        MVM_exception_throw_adhoc(tc, "equal_at got an invalid offset");
-    }
     if (offset < 0) {
         offset += a->body.graphs;
         if (offset < 0)
             offset = 0; /* XXX I think this is the right behavior here */
     }
-    return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)offset, b->body.data, b->body.graphs);
+    if (a->body.graphs - offset < b->body.graphs)
+        return 0;
+    return MVM_string_substrings_equal_nocheck(a, offset, b->body.graphs, b, 0);
+}
+
+/* Compares two strings for equality. */
+MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    if (a->body.graphs != b->body.graphs)
+        return 0;
+    return MVM_string_equal_at(a, b, 0);
 }
 
 /* more general form of has_at; compares two substrings for equality */
@@ -192,8 +273,7 @@ MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a,
         return 1;
     if (starta + length > a->body.graphs || startb + length > b->body.graphs)
         return 0;
-    return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)starta,
-            b->body.data + (size_t)startb, (size_t)length);
+    return MVM_string_substrings_equal_nocheck(tc, a, starta, length, b, startb);
 }
 
 /* returns the codepoint (could be a negative synthetic) at a given index of the string */
@@ -206,7 +286,7 @@ MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint6
     if (index < 0 || index >= a->body.graphs)
         MVM_exception_throw_adhoc(tc, "Invalid string index: max %lld, got %lld",
             index >= a->body.graphs - 1, index);
-    return (MVMint64)a->body.data[index];
+    return (MVMint64)MVM_string_get_codepoint_at_nocheck(tc, a, index);
 }
 
 /* finds the location of a codepoint in a string.  Useful for small character class lookup */
