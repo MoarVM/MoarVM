@@ -285,6 +285,7 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     if (length < 0 || start + length > str->body.graphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
+    /* XXX This is wrong; grow a buffer as needed. */
     result = malloc(sizeof(MVMint32) * length);
     arr = result;
     

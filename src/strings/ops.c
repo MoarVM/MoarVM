@@ -174,17 +174,18 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
 /* Recursively populate the binary search table for strands.
     Will *not* overflow the C stack. :) */
 static MVMuint32 MVM_string_generate_strand_binary_search_table(MVMThreadContext *tc, MVMStrand *strands, MVMuint32 bottom, MVMuint32 top) {
-    MVMuint32 mid;
+    MVMuint32 mid, lower_result;
     if (top == bottom) {
         strands[bottom].lower_index = bottom;
         strands[bottom].higher_index = bottom;
         return bottom;
     }
     mid = (top - bottom + 1)/2 + bottom;
-    strands[mid].lower_index =
+    lower_result =
         MVM_string_generate_strand_binary_search_table(tc, strands, bottom, mid - 1);
     strands[mid].higher_index =
         MVM_string_generate_strand_binary_search_table(tc, strands, mid, top);
+    strands[mid].lower_index = lower_result;
     
     return mid;
 }
@@ -260,7 +261,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         strands[count].compare_offset = result->body.graphs;
         
         while (count--) {
-            strands[count].compare_offset = result->body.graphs - (count * a->body.graphs);
+            strands[count].compare_offset = count * a->body.graphs;
             strands[count].string = a;
         }
         strands[0].higher_index =
