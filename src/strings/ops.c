@@ -171,16 +171,16 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     return result;
 }
 
-/* Recursively populate the binary search table for strands.  Runs in O(log2(top-bottom+1)).
+/* Recursively populate the binary search table for strands.
     Will *not* overflow the C stack. :) */
 static MVMuint32 MVM_string_generate_strand_binary_search_table(MVMThreadContext *tc, MVMStrand *strands, MVMuint32 bottom, MVMuint32 top) {
     MVMuint32 mid;
     if (top == bottom) {
-        strands[top].lower_index = top;
-        strands[top].higher_index = top;
-        return top;
+        strands[bottom].lower_index = bottom;
+        strands[bottom].higher_index = bottom;
+        return bottom;
     }
-    mid = (top - bottom + 1)/2;
+    mid = (top - bottom + 1)/2 + bottom;
     strands[mid].lower_index =
         MVM_string_generate_strand_binary_search_table(tc, strands, bottom, mid - 1);
     strands[mid].higher_index =
