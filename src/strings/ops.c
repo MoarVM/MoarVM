@@ -8,10 +8,12 @@ MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody 
     if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
         MVMStrand *strands = body->strands;
         MVMStrandIndex count = 0;
-        while(     strands[count].lower_index != 0
-                || strands[count].higher_index != 0)
+        MVMStringIndex position = 0;
+        while(position < body->graphs) {
+            position += body->strands[count].compare_offset;
             count++;
-        return count + 1;
+        }
+        return count;
     }
     return 0;
 }
