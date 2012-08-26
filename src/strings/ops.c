@@ -1,7 +1,6 @@
 #include "moarvm.h"
 
-#define GRAPHS32_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMCodepoint32)) == 0)
-#define GRAPHS8_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMCodepoint8)) == 0)
+#define GRAPHS_EQUAL(d1, d2, g, type) (memcmp((d1), (d2), (g) * sizeof(type)) == 0)
 
 /* Returns the size of the strands array. Doesn't need to be fast/cached, I think. */
 MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
@@ -69,13 +68,13 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
     switch(a->body.flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
             if ((b->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
-                return (MVMint64)GRAPHS32_EQUAL(a->body.int32s + (size_t)starta,
-                    b->body.int32s + (size_t)startb, (size_t)length);
+                return (MVMint64)GRAPHS_EQUAL(a->body.int32s + (size_t)starta,
+                    b->body.int32s + (size_t)startb, (size_t)length, MVMCodepoint32);
             break;
         case MVM_STRING_TYPE_UINT8:
             if ((b->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8)
-                return (MVMint64)GRAPHS8_EQUAL(a->body.uint8s + (size_t)starta,
-                    b->body.uint8s + (size_t)startb, (size_t)length);
+                return (MVMint64)GRAPHS_EQUAL(a->body.uint8s + (size_t)starta,
+                    b->body.uint8s + (size_t)startb, (size_t)length, MVMCodepoint8);
             break;
         case MVM_STRING_TYPE_ROPE:
             break;
