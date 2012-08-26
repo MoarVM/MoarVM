@@ -1261,6 +1261,30 @@ class MAST::Ops {
                     $MVM_operand_int16,
                     $MVM_operand_int16
                 ]
+            ),
+            'concatr_s', nqp::hash(
+                'code', 30,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'splice_s', nqp::hash(
+                'code', 31,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
             )
         ],
         [
