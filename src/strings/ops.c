@@ -5,14 +5,7 @@
 /* Returns the size of the strands array. Doesn't need to be fast/cached, I think. */
 MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
     if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
-        MVMStrand *strands = body->strands;
-        MVMStrandIndex count = 0;
-        MVMStringIndex position = 0;
-        while(position < body->graphs) {
-            position += body->strands[count].compare_offset;
-            count++;
-        }
-        return count;
+        return body->strand_count;
     }
     return 0;
 }
@@ -638,6 +631,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         strands[portion_index].compare_offset = position;
     }
     result->body.flags = MVM_STRING_TYPE_ROPE;
+    result->body.strand_count = portion_count;
     
     MVM_gc_root_temp_pop_n(tc, 3);
     
