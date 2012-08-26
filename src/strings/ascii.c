@@ -13,7 +13,7 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
     result->body.graphs = bytes;
     
     /* Allocate grapheme buffer and decode the ASCII string. */
-    result->body.int32s = malloc(sizeof(MVMint32) * bytes);
+    result->body.int32s = malloc(sizeof(MVMCodepoint32) * bytes);
     for (i = 0; i < bytes; i++)
         if (ascii[i] <= 127)
             result->body.int32s[i] = ascii[i];
@@ -45,12 +45,12 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > str->body.graphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > str->body.graphs)
+    if (lengthu < 0 || start + lengthu > str->body.graphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
-    result = malloc(length + 1);
-    for (i = 0; i < length; i++) {
-        MVMint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
+    result = malloc(lengthu + 1);
+    for (i = 0; i < lengthu; i++) {
+        MVMCodepoint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
         if (ord >= 0 && ord <= 127)
             result[i] = (MVMuint8)ord;
         else
@@ -58,7 +58,7 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     }
     result[i] = 0;
     if (output_size)
-        *output_size = length;
+        *output_size = lengthu;
     return result;
 }
 
