@@ -44,7 +44,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     utf16_end = utf16 + bytes;
     
     /* possibly allocating extra space; oh well */
-    result->body.data.int32s = malloc(sizeof(MVMint32) * bytes / 2);
+    result->body.int32s = malloc(sizeof(MVMint32) * bytes / 2);
     
     for (; utf16 < utf16_end; utf16 += 2) {
         
@@ -72,7 +72,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
             value = 0x10000 + ((value & 0x3FF) << 10) + (value2 & 0x3FF);
         }
         /* TODO: check for invalid values */
-        result->body.data.int32s[str_pos++] = (MVMint32)value;
+        result->body.int32s[str_pos++] = (MVMint32)value;
     }
     
     /* result->body.codes  = str_pos; */

@@ -42,8 +42,8 @@ typedef struct _MVMStringBody {
         MVMCodepoint32 *int32s;
         /* An optimization so strings containing only codepoints
             that fit in 8 bits can take up only 1 byte each */
-        MVMuint8 *uint8s;
-    } data;
+        MVMCodepoint8 *uint8s;
+    };
     
     /* The number of graphemes that make up the string
         (and in turn, the length of data in terms of the

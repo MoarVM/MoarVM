@@ -39,12 +39,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->flags  = src_body->flags;
     switch(src_body->flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
-            dest_body->data.int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
-            memcpy(dest_body->data.int32s, src_body->data.int32s, sizeof(MVMCodepoint32) * src_body->graphs);
+            dest_body->int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
+            memcpy(dest_body->int32s, src_body->int32s, sizeof(MVMCodepoint32) * src_body->graphs);
             break;
         case MVM_STRING_TYPE_UINT8:
-            dest_body->data.uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
-            memcpy(dest_body->data.uint8s, src_body->data.uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
+            dest_body->uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
+            memcpy(dest_body->uint8s, src_body->uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
             break;
         case MVM_STRING_TYPE_ROPE: {
             MVMStrandIndex strand_count = MVM_string_rope_strands_size(tc, src_body);
@@ -69,11 +69,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    if (str->body.data.int32s)
-        free(str->body.data.int32s);
+    if (str->body.int32s)
+        free(str->body.int32s);
     if (str->body.strands)
         free(str->body.strands);
-    str->body.data.int32s = NULL;
+    str->body.int32s = NULL;
     str->body.strands = NULL;
     str->body.graphs = str->body.codes = str->body.flags = 0;
 }

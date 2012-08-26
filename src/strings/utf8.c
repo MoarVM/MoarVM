@@ -259,7 +259,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
      * memory */
-    result->body.data.int32s = buffer;
+    result->body.int32s = buffer;
     
     /* XXX set codes */
     result->body.flags = MVM_STRING_TYPE_INT32;

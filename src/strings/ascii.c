@@ -13,10 +13,10 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
     result->body.graphs = bytes;
     
     /* Allocate grapheme buffer and decode the ASCII string. */
-    result->body.data.int32s = malloc(sizeof(MVMint32) * bytes);
+    result->body.int32s = malloc(sizeof(MVMint32) * bytes);
     for (i = 0; i < bytes; i++)
         if (ascii[i] <= 127)
-            result->body.data.int32s[i] = ascii[i];
+            result->body.int32s[i] = ascii[i];
         else
             MVM_exception_throw_adhoc(tc,
                 "Will not decode invalid ASCII (code point > 127 found)");

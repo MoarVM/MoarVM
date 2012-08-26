@@ -301,10 +301,10 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 MVM_string_flatten(tc, name);
                 if ((name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
                     HASH_ADD_KEYPTR(hash_handle, frames[i]->lexical_names,
-                        name->body.data.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry);
+                        name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry);
                 else
                     HASH_ADD_KEYPTR(hash_handle, frames[i]->lexical_names,
-                        name->body.data.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry);
+                        name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry);
             }
             pos += 4 * frames[i]->num_lexicals;
         }

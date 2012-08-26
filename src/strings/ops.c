@@ -22,9 +22,9 @@ MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMStri
     
     switch(a->body.flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
-            return a->body.data.int32s[idx];
+            return a->body.int32s[idx];
         case MVM_STRING_TYPE_UINT8:
-            return (MVMCodepoint32)a->body.data.uint8s[idx];
+            return (MVMCodepoint32)a->body.uint8s[idx];
         case MVM_STRING_TYPE_ROPE: {
             MVMStrand *strands = a->body.strands;
             MVMStrandIndex table_index = 0;
@@ -67,13 +67,13 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
     switch(a->body.flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
             if ((b->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
-                return (MVMint64)GRAPHS32_EQUAL(a->body.data.int32s + (size_t)starta,
-                    b->body.data.int32s + (size_t)startb, (size_t)length);
+                return (MVMint64)GRAPHS32_EQUAL(a->body.int32s + (size_t)starta,
+                    b->body.int32s + (size_t)startb, (size_t)length);
             break;
         case MVM_STRING_TYPE_UINT8:
             if ((b->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8)
-                return (MVMint64)GRAPHS8_EQUAL(a->body.data.uint8s + (size_t)starta,
-                    b->body.data.uint8s + (size_t)startb, (size_t)length);
+                return (MVMint64)GRAPHS8_EQUAL(a->body.uint8s + (size_t)starta,
+                    b->body.uint8s + (size_t)startb, (size_t)length);
             break;
         case MVM_STRING_TYPE_ROPE:
             break;
@@ -365,9 +365,9 @@ MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
     /* XXX Need to handle cases where character count varies. */
     /* result->body.codes  = s->body.codes; */
     result->body.graphs = s->body.graphs;
-    result->body.data.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
+    result->body.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
-        result->body.data.int32s[i] = MVM_unicode_get_case_change(tc,
+        result->body.int32s[i] = MVM_unicode_get_case_change(tc,
             MVM_string_get_codepoint_at_nocheck(tc, s, i), 0);
     }
 
@@ -390,9 +390,9 @@ MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s) {
     /* XXX Need to handle cases where character count varies. */
     /* result->body.codes  = s->body.codes; */
     result->body.graphs = s->body.graphs;
-    result->body.data.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
+    result->body.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
-        result->body.data.int32s[i] = MVM_unicode_get_case_change(tc,
+        result->body.int32s[i] = MVM_unicode_get_case_change(tc,
             MVM_string_get_codepoint_at_nocheck(tc, s, i), 1);
     }
 
@@ -415,9 +415,9 @@ MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
     /* XXX Need to handle cases where character count varies. */
     /* result->body.codes  = s->body.codes; */
     result->body.graphs = s->body.graphs;
-    result->body.data.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
+    result->body.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
-        result->body.data.int32s[i] = MVM_unicode_get_case_change(tc,
+        result->body.int32s[i] = MVM_unicode_get_case_change(tc,
             MVM_string_get_codepoint_at_nocheck(tc, s, i), 2);
     }
 
@@ -635,6 +635,6 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
     for (; position < s->body.graphs; position++) {
         buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
     }
-    s->body.data.int32s = buffer;
+    s->body.int32s = buffer;
     s->body.flags = MVM_STRING_TYPE_INT32;
 }

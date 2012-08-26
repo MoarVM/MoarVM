@@ -30,11 +30,11 @@ static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObj
     if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) {
         MVM_string_flatten(tc, (MVMString *)key);
         if ((((MVMString *)key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32) {
-            *kdata = ((MVMString *)key)->body.data.int32s;
+            *kdata = ((MVMString *)key)->body.int32s;
             *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMCodepoint32);
         }
         else {
-            *kdata = ((MVMString *)key)->body.data.uint8s;
+            *kdata = ((MVMString *)key)->body.uint8s;
             *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMCodepoint8);
         }
     }
