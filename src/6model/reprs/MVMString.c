@@ -48,8 +48,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             break;
         case MVM_STRING_TYPE_ROPE: {
             MVMStrandIndex strand_count = MVM_string_rope_strands_size(tc, src_body);
-            dest_body->strands = malloc(sizeof(MVMStrand) * strand_count);
-            memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * strand_count);
+            dest_body->strands = malloc(sizeof(MVMStrand) * (strand_count + 1));
+            memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * (strand_count + 1));
         }
     }
 }
