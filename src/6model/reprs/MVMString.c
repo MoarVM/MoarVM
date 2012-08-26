@@ -71,10 +71,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
     if (str->body.int32s)
         free(str->body.int32s);
-    if (str->body.strands)
-        free(str->body.strands);
     str->body.int32s = NULL;
-    str->body.strands = NULL;
     str->body.graphs = str->body.codes = str->body.flags = 0;
 }
 
