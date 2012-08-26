@@ -169,7 +169,6 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
 }
 
 /* Returns a substring of the given string */
-/* XXX If the input string a is a rope with only 1 strand, inline its strand */
 MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 start, MVMint64 length) {
     MVMString *result;
     MVMStrand *strands;
@@ -203,8 +202,15 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     MVM_gc_root_temp_pop(tc);
     
     strands = result->body.strands = calloc(sizeof(MVMStrand), 2);
-    strands[0].string_offset = (MVMStringIndex)start;
-    strands[0].string = a;
+    /* if we're substringing a substring, substring the same one */
+    if (IS_ROPE(a) && a->body.strand_count == 1) {
+        strands[0].string_offset = (MVMStringIndex)start + a->body.strands[0].string_offset;
+        strands[0].string = a->body.strands[0].string;
+    }
+    else {
+        strands[0].string_offset = (MVMStringIndex)start;
+        strands[0].string = a;
+    }
     strands[1].compare_offset = length;
     
     /* result->body.codes  = 0; /* Populate this lazily. */
@@ -631,7 +637,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         strands[portion_index].compare_offset = position;
     }
     result->body.flags = MVM_STRING_TYPE_ROPE;
-    result->body.strand_count = portion_count;
+    result->body.strand_count = portion_index;
     
     MVM_gc_root_temp_pop_n(tc, 3);
     
