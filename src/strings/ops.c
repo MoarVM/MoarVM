@@ -29,17 +29,16 @@ MVMint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a,
             MVMStrand *strands = a->body.strands;
             MVMuint32 table_index = 0;
             MVMuint32 lower_visited = 4294967295ULL;
-            MVMuint32 upper_visited = 4294967295ULL;
+            /*MVMuint32 upper_visited = 4294967295ULL;*/
             MVMStrand *strand;
             /* see MVMString.h.  Starting with the first entry,
                 binary search through the strands in the string
                 searching for the strand containing that offset. */
-                /* XXX I suspect upper_visited is unnecessary */
             for(;;) {
                 strand = &strands[table_index];
                 if (strand->lower_index == strand->higher_index
                         || table_index == lower_visited
-                        || table_index == upper_visited)
+                        /*|| table_index == upper_visited*/)
                     break;
                 if (idx >= strand->compare_offset) {
                     /* mark that we've visited this node on the
@@ -50,12 +49,12 @@ MVMint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a,
                 else {
                     /* mark that we've visited this node on the
                         upper side so we can halt if we return to it */
-                    upper_visited = table_index;
+                    /*upper_visited = table_index;*/
                     table_index = strand->lower_index;
                 }
             }
             return MVM_string_get_codepoint_at_nocheck(tc,
-                strand->string, idx - strand->compare_offset);
+                strand->string, idx - strand->compare_offset + strand->string_offset);
         }
     }
     MVM_exception_throw_adhoc(tc, "internal string corruption");
@@ -159,10 +158,9 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     MVM_gc_root_temp_pop(tc);
     
-    strands = result->body.strands = calloc(sizeof(MVMStrand), 2);
+    strands = result->body.strands = calloc(sizeof(MVMStrand), 1);
     strands[0].string_offset = (MVMuint64)start;
     strands[0].string = a;
-    strands[1].compare_offset = length;
     
     /* result->body.codes  = 0; /* Populate this lazily. */
     result->body.codes = MVM_STRING_TYPE_ROPE;
@@ -194,7 +192,7 @@ static MVMuint32 MVM_string_generate_strand_binary_search_table(MVMThreadContext
 /* XXX inline parent's strands if it's a rope too */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result;
-    MVMuint32 strand_count = 1;
+    MVMuint32 strand_count = 0;
     MVMStrand *strands;
     MVMuint64 index = 0;
     
@@ -212,7 +210,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     result->body.graphs = a->body.graphs + b->body.graphs;
     
     if (a->body.graphs)
-        strand_count = 2;
+        strand_count = 1;
     if (b->body.graphs)
         ++strand_count;
     strands = result->body.strands = calloc(sizeof(MVMStrand), strand_count);
@@ -231,9 +229,9 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         index += b->body.graphs;
         ++strand_count;
     }
-    strands[strand_count].compare_offset = index;
-    strands[0].higher_index =
-        MVM_string_generate_strand_binary_search_table(tc, strands, 0, strand_count - 1);
+    if (strand_count)
+        strands[0].higher_index =
+            MVM_string_generate_strand_binary_search_table(tc, strands, 0, strand_count - 1);
     
     return result;
 }
@@ -256,16 +254,16 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     result->body.graphs = a->body.graphs * count;
     
     if (result->body.graphs) {
-        MVMStrand *strands = result->body.strands = calloc(sizeof(MVMStrand), count + 1);
+        MVMStrand *strands = result->body.strands = calloc(sizeof(MVMStrand), count);
         result->body.codes = MVM_STRING_TYPE_ROPE;
-        strands[count].compare_offset = result->body.graphs;
         
         while (count--) {
             strands[count].compare_offset = count * a->body.graphs;
             strands[count].string = a;
         }
-        strands[0].higher_index =
-            MVM_string_generate_strand_binary_search_table(tc, strands, 0, bkup_count - 1);
+        if (bkup_count)
+            strands[0].higher_index =
+                MVM_string_generate_strand_binary_search_table(tc, strands, 0, bkup_count - 1);
     }
     
     return result;
@@ -488,13 +486,12 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
         
         index = MVM_string_index(tc, input, separator, start);
         length = sep_length ? (index == -1 ? end : index) - start : 1;
-        portion = MVM_string_substring(tc, input, start, length);
-        start += length + sep_length;
-        
-        if (portion->body.graphs) {
+        if (length) {
+            portion = MVM_string_substring(tc, input, start, length);
             REPR(result)->pos_funcs->push_boxed(tc, STABLE(result),
                 result, OBJECT_BODY(result), (MVMObject *)portion);
         }
+        start += length + sep_length;
     }
     
     MVM_gc_root_temp_pop_n(tc, 4);
@@ -503,7 +500,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
 }
 
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator) {
-    MVMint64 elems, length = 0, index = -1, position;
+    MVMint64 elems, length = 0, index = -1, position = 0;
     MVMString *portion, *result;
     MVMuint32 codes = 0, portion_index = 0;
     MVMStrand *strands;
@@ -535,7 +532,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
             MVM_exception_throw_adhoc(tc, "join needs concrete strings only");
         
         portion = (MVMString *)item;
-        if (portion->body.graphs)
+        if (portion->body.graphs) 
+            ++portion_index;
+        if (index && separator->body.graphs)
             ++portion_index;
         length += portion->body.graphs + (index ? separator->body.graphs : 0);
         /* XXX codes += portion->body.codes + (index ? separator->body.codes : 0); */
@@ -546,39 +545,39 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     if they cause new combining sequences to appear */
     /* XXX result->body.codes = codes; */
     
-    index = -1;
-    position = 0;
-    strands = result->body.strands = calloc(sizeof(MVMStrand),
-        separator->body.graphs ? 2 * portion_index : portion_index + 1);
-    
-    portion_index = 0;
-    while (++index < elems) {
-        MVMObject *item = REPR(input)->pos_funcs->at_pos_boxed(tc, STABLE(input),
-            input, OBJECT_BODY(input), index);
+    if (portion_index) {
+        index = -1;
+        position = 0;
+        strands = result->body.strands = calloc(sizeof(MVMStrand), portion_index);
         
-        if (!item)
-            continue;
-        
-        /* Note: this allows the separator to precede the empty string. */
-        if (index && separator->body.graphs) {
-            strands[portion_index].compare_offset = position;
-            strands[portion_index].string = separator;
-            position += separator->body.graphs;
-            ++portion_index;
+        portion_index = 0;
+        while (++index < elems) {
+            MVMObject *item = REPR(input)->pos_funcs->at_pos_boxed(tc, STABLE(input),
+                input, OBJECT_BODY(input), index);
+            
+            if (!item)
+                continue;
+            
+            /* Note: this allows the separator to precede the empty string. */
+            if (index && separator->body.graphs) {
+                strands[portion_index].compare_offset = position;
+                strands[portion_index].string = separator;
+                position += separator->body.graphs;
+                ++portion_index;
+            }
+            
+            portion = (MVMString *)item;
+            length = portion->body.graphs;
+            if (length) {
+                strands[portion_index].compare_offset = position;
+                strands[portion_index].string = portion;
+                position += length;
+                ++portion_index;
+            }
         }
-        
-        portion = (MVMString *)item;
-        length = portion->body.graphs;
-        if (length) {
-            strands[portion_index].compare_offset = position;
-            strands[portion_index].string = portion;
-            position += length;
-            ++portion_index;
-        }
+        strands[0].higher_index =
+            MVM_string_generate_strand_binary_search_table(tc, strands, 0, portion_index - 1);
     }
-    strands[portion_index].compare_offset = position;
-    strands[0].higher_index =
-        MVM_string_generate_strand_binary_search_table(tc, strands, 0, portion_index - 1);
     result->body.codes |= MVM_STRING_TYPE_ROPE;
     
     MVM_gc_root_temp_pop_n(tc, 3);
