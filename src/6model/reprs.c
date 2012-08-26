@@ -213,7 +213,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
         tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
     tc->instance->repr_registry[ID] = repr;
     MVM_string_flatten(tc, name);
-    if ((name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+    if (IS_WIDE(name))
         HASH_ADD_KEYPTR(hash_handle, tc->instance->repr_name_to_id_hash,
             name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry);
     else
@@ -286,7 +286,7 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
     MVMREPRHashEntry *entry;
     
     MVM_string_flatten(tc, name);
-    if ((name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+    if (IS_WIDE(name))
         HASH_FIND(hash_handle, tc->instance->repr_name_to_id_hash,
             name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry);
     else

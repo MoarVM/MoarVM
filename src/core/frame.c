@@ -251,7 +251,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
             MVMLexicalHashEntry *entry;
             
             MVM_string_flatten(tc, name);
-            if ((name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+            if (IS_WIDE(name))
                 HASH_FIND(hash_handle, lexical_names, name->body.int32s,
                     name->body.graphs * sizeof(MVMCodepoint32), entry);
             else

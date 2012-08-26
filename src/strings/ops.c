@@ -17,6 +17,56 @@ MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody 
     return 0;
 }
 
+MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMStringIndex start, MVMStringIndex length, MVMSubstringConsumer consumer, void *data) {
+    
+    switch(a->body.flags & MVM_STRING_TYPE_MASK) {
+        case MVM_STRING_TYPE_INT32:
+        case MVM_STRING_TYPE_UINT8:
+            return consumer(tc, a, start, length, data);
+        case MVM_STRING_TYPE_ROPE: {
+            MVMStrand *strands = a->body.strands;
+            MVMStrandIndex strand_index = 0;
+            MVMStrandIndex lower = 255;
+            MVMStrand *strand;
+            MVMStringIndex index = start;
+            for(;;) {
+                strand = &strands[strand_index];
+                if (strand->lower_index == strand->higher_index
+                        || strand_index == lower)
+                    break;
+                if (index >= strand->compare_offset) {
+                    lower = strand_index;
+                    strand_index = strand->higher_index;
+                }
+                else {
+                    strand_index = strand->lower_index;
+                }
+            }
+            for(;;) {
+                MVMuint8 return_val;
+                MVMStringIndex substring_length =
+                    strands[strand_index + 1].compare_offset - index;
+                if (length < substring_length)
+                    substring_length = length;
+                return_val = MVM_string_traverse_substring(tc, strand->string,
+                    index - strand->compare_offset + strand->string_offset, 
+                    substring_length, consumer, data);
+                if (return_val)
+                    return return_val;
+                length -= substring_length;
+                if (!length)
+                    return 0;
+                index += substring_length;
+                ++strand_index;
+            }
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "internal string corruption");
+    }
+    return 0;
+}
+
 /* returns the codepoint without doing checks, for internal VM use only. */
 MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
     MVMStringIndex idx = (MVMStringIndex)index;
@@ -67,12 +117,12 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
     MVMint64 index;
     switch(a->body.flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
-            if ((b->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+            if (IS_WIDE(b))
                 return (MVMint64)GRAPHS_EQUAL(a->body.int32s + (size_t)starta,
                     b->body.int32s + (size_t)startb, (size_t)length, MVMCodepoint32);
             break;
         case MVM_STRING_TYPE_UINT8:
-            if ((b->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8)
+            if (IS_ASCII(b))
                 return (MVMint64)GRAPHS_EQUAL(a->body.uint8s + (size_t)starta,
                     b->body.uint8s + (size_t)startb, (size_t)length, MVMCodepoint8);
             break;
@@ -159,13 +209,15 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     MVM_gc_root_temp_pop(tc);
     
-    strands = result->body.strands = calloc(sizeof(MVMStrand), 1);
+    strands = result->body.strands = calloc(sizeof(MVMStrand), 2);
     strands[0].string_offset = (MVMStringIndex)start;
     strands[0].string = a;
+    strands[1].compare_offset = length;
     
     /* result->body.codes  = 0; /* Populate this lazily. */
     result->body.flags = MVM_STRING_TYPE_ROPE;
     result->body.graphs = length;
+    result->body.strand_count = 1;
     
     return result;
 }
@@ -214,7 +266,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         strand_count = 1;
     if (b->body.graphs)
         ++strand_count;
-    strands = result->body.strands = calloc(sizeof(MVMStrand), strand_count);
+    strands = result->body.strands = calloc(sizeof(MVMStrand), strand_count + 1);
     strand_count = 0;
     if (a->body.graphs) {
         strands[0].string = a;
@@ -233,6 +285,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     if (strand_count)
         strands[0].higher_index =
             MVM_string_generate_strand_binary_search_table(tc, strands, 0, strand_count - 1);
+    strands[strand_count].compare_offset = index;
+    result->body.strand_count = strand_count;
     
     return result;
 }
@@ -255,7 +309,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     result->body.graphs = a->body.graphs * count;
     
     if (result->body.graphs) {
-        MVMStrand *strands = result->body.strands = calloc(sizeof(MVMStrand), count);
+        MVMStrand *strands = result->body.strands = calloc(sizeof(MVMStrand), count + 1);
         result->body.flags = MVM_STRING_TYPE_ROPE;
         
         while (count--) {
@@ -265,6 +319,8 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         if (bkup_count)
             strands[0].higher_index =
                 MVM_string_generate_strand_binary_search_table(tc, strands, 0, bkup_count - 1);
+        strands[bkup_count].compare_offset = result->body.graphs;
+        result->body.strand_count = bkup_count;
     }
     
     return result;
@@ -550,7 +606,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     if (portion_index) {
         index = -1;
         position = 0;
-        strands = result->body.strands = calloc(sizeof(MVMStrand), portion_index);
+        strands = result->body.strands = calloc(sizeof(MVMStrand), portion_index + 1);
         
         portion_index = 0;
         while (++index < elems) {
@@ -579,6 +635,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         }
         strands[0].higher_index =
             MVM_string_generate_strand_binary_search_table(tc, strands, 0, portion_index - 1);
+        strands[portion_index].compare_offset = position;
     }
     result->body.flags = MVM_STRING_TYPE_ROPE;
     
@@ -622,13 +679,9 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
 
 /* internal function so hashes can easily compute hashes of hash keys */
 void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
-    /* XXX This is temporary until we can get the hashing macros
+    /* XXX This is temporary until we can get the hashing mechanism
         to compute the hash (and test for equivalence!) using the
-        codepoint iterator interface.
-        But it's not unsafe as .strands is updated separately from
-        .data and then the flag can be changed anytime, and the
-        .strands member can just be left there until the object is
-        freed. */
+        codepoint iterator interface.  It's not thread-safe. */
     MVMStringIndex position = 0;
     MVMCodepoint32 *buffer;
     if ((s->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)

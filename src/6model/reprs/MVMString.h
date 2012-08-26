@@ -5,6 +5,7 @@ typedef MVMuint8 MVMStrandIndex;
 typedef MVMint32 MVMCodepoint32;
 typedef MVMuint8 MVMCodepoint8;
 typedef MVMuint64 MVMStringIndex;
+
 /* An entry in the strands table of a rope. */
 typedef struct _MVMStrand {
     /* The offset to compare the desired index against. */
@@ -40,9 +41,22 @@ typedef struct _MVMStringBody {
     union {
         /* Array of the codepoints in a string. */
         MVMCodepoint32 *int32s;
+        
         /* An optimization so strings containing only codepoints
             that fit in 8 bits can take up only 1 byte each */
         MVMCodepoint8 *uint8s;
+        
+        /* For a non-rope that qualified as large during a particular
+            GC run, a array of MVMStrand* that point to this large string.
+            Built up during gc_mark */
+        /* For a rope, An array of MVMStrand, each representing a
+            segment of the string, up to the last one, which
+            represents the end of the string and has values
+            compare_offset=#graphs, string=null, string_offset=0,
+            lower_index=0, higher_index=0.  The first one has
+            compare_offset=0, and lower/higher_index=midpoint of
+            strand array. */
+        MVMStrand *strands;
     };
     
     /* The number of graphemes that make up the string
@@ -51,32 +65,28 @@ typedef struct _MVMStringBody {
         a rope, the value of the last MVMStrand's compare_offset. */
     MVMStringIndex graphs;
     
-    /* The bottom 56 bits is the number of codepoints the string is
+    /* The number of codepoints the string is
         made up of were it not in NFG form. Lazily populated and cached.
-        (No, I don't think we'll have 32PB of memory anytime soon.)
-       The top 8 bits are flags about the string: 
      */
     MVMStringIndex codes;
     
-    /* For a non-rope that qualified as large during a particular
-        GC run, a array of MVMStrand* that point to this large string.
-        Built up during gc_mark */
-    /* For a rope, An array of MVMStrand, each representing a
-        segment of the string, up to the last one, which
-        represents the end of the string and has values
-        compare_offset=#graphs, string=null, string_offset=0,
-        lower_index=0, higher_index=0.  The first one has
-        compare_offset=0, and lower/higher_index=midpoint of
-        strand array. */
-    MVMStrand *strands;
+    /* max(size of strands minus 1, 0) */
+    MVMuint8 strand_count;
     
-    /* Lowest 2 bits: type of string: uint8, int32, or Rope. */
+    /* deepest rope depth below this one, counting the deepest non-rope */
+    MVMuint8 strand_depth;
+    
+    /* Lowest 2 bits: type of string: int32, uint8, or Rope. */
     MVMuint8 flags;
 } MVMStringBody;
 typedef struct _MVMString {
     MVMObject common;
     MVMStringBody body;
 } MVMString;
+
+typedef struct _MVMStringStateContainers {
+    MVMuint32 dummy;
+} MVMStringStateContainers;
 
 /* Function for REPR setup. */
 MVMREPROps * MVMString_initialize(MVMThreadContext *tc);

@@ -25,6 +25,7 @@ typedef enum {
 
 /* Information associated with an executing thread. */
 struct _MVMInstance;
+struct _MVMConcatState;
 typedef struct _MVMThreadContext {
     /* The current allocation pointer, where the next object to be allocated
      * should be placed. */
@@ -94,6 +95,10 @@ typedef struct _MVMThreadContext {
     struct _MVMFrame **frame_pool_table;
     /* Size of the pool table, so it can grow on demand. */
     MVMuint32          frame_pool_table_size;
+    
+    /* Some state containers for often-used string operations.
+        Lazily but singly allocated per thread. */
+    struct _MVMConcatState *concat_state;
 } MVMThreadContext;
 
 MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);

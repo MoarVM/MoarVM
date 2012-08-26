@@ -3,7 +3,16 @@
 #define MVM_encoding_type_latin1 3
 #define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_latin1) \
                             || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
+#define MVM_SUBSTRING_CONSUMER(name) MVMuint8 name(MVMThreadContext *tc, \
+    MVMString *string, MVMStringIndex start, MVMStringIndex length, void *data)
+typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
+#define IS_WIDE(str) ((((MVMString *)str)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+#define IS_ASCII(str) ((((MVMString *)str)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8)
+#define IS_ROPE(str) ((((MVMString *)str)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE)
 
+typedef struct _MVMConcatState {
+    MVMuint32 some_state;
+} MVMConcatState;
 
 MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
 MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body);
