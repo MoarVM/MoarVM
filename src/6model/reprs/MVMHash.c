@@ -36,8 +36,15 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
     if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) {
-        *kdata = ((MVMString *)key)->body.data.int32s;
-        *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMint32);
+        MVM_string_flatten(tc, (MVMString *)key);
+        if ((((MVMString *)key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32) {
+            *kdata = ((MVMString *)key)->body.data.int32s;
+            *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMCodepoint32);
+        }
+        else {
+            *kdata = ((MVMString *)key)->body.data.uint8s;
+            *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMCodepoint8);
+        }
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -125,6 +132,8 @@ static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         entry = malloc(sizeof(MVMHashEntry));
         HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, entry);
     }
+    else
+        entry->hash_handle.key = (void *)kdata;
     entry->key = key;
     entry->value = value;
 }

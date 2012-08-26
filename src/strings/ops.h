@@ -5,8 +5,8 @@
                             || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
 
 
-MVMint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
-MVMRopeIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body);
+MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
+MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body);
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 start);
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b);
@@ -25,3 +25,4 @@ char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint6
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *type_object, MVMString *separator);
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator);
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);
+void MVM_string_flatten(MVMThreadContext *tc, MVMString *s);

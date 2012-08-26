@@ -20,7 +20,7 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
         else
             MVM_exception_throw_adhoc(tc,
                 "Will not decode invalid ASCII (code point > 127 found)");
-    result->body.codes |= MVM_STRING_TYPE_INT32;
+    result->body.flags = MVM_STRING_TYPE_INT32;
     
     return result;
 }

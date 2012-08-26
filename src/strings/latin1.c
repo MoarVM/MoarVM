@@ -143,7 +143,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
         /* actually decode like Windows-1252, since that is mostly a superset,
            and is recommended by the HTML5 standard when latin1 is claimed */
         result->body.data.int32s[i] = latin1_char_to_cp(latin1[i]);
-    result->body.codes |= MVM_STRING_TYPE_INT32;
+    result->body.flags = MVM_STRING_TYPE_INT32;
     
     return result;
 }

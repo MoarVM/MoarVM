@@ -36,29 +36,32 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStringBody *dest_body = (MVMStringBody *)dest;
     dest_body->graphs = src_body->graphs;
     dest_body->codes  = src_body->codes;
-    switch(src_body->codes & MVM_STRING_TYPE_MASK) {
+    dest_body->flags  = src_body->flags;
+    switch(src_body->flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
-            dest_body->data.int32s = malloc(sizeof(MVMint32) * dest_body->graphs);
-            memcpy(dest_body->data.int32s, src_body->data.int32s, sizeof(MVMint32) * src_body->graphs);
+            dest_body->data.int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
+            memcpy(dest_body->data.int32s, src_body->data.int32s, sizeof(MVMCodepoint32) * src_body->graphs);
             break;
         case MVM_STRING_TYPE_UINT8:
-            dest_body->data.uint8s = malloc(sizeof(MVMuint8) * dest_body->graphs);
-            memcpy(dest_body->data.uint8s, src_body->data.uint8s, sizeof(MVMuint8) * src_body->graphs);
+            dest_body->data.uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
+            memcpy(dest_body->data.uint8s, src_body->data.uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
             break;
-        case MVM_STRING_TYPE_ROPE:
-            dest_body->strands = malloc(sizeof(MVMStrand) * dest_body->graphs);
-            memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * src_body->graphs);
+        case MVM_STRING_TYPE_ROPE: {
+            MVMStrandIndex strand_count = MVM_string_rope_strands_size(tc, src_body);
+            dest_body->strands = malloc(sizeof(MVMStrand) * strand_count);
+            memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * strand_count);
+        }
     }
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStringBody *body  = (MVMStringBody *)data;
-    if ((body->codes & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
+    if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
         MVMStrand *strands = body->strands;
-        MVMuint32 index = 0;
-        MVMuint32 size = MVM_string_rope_strands_size(tc, body);
-        while(index < body->graphs)
+        MVMStrandIndex index = 0;
+        MVMStrandIndex strand_count = MVM_string_rope_strands_size(tc, body);
+        while(index < strand_count)
             MVM_gc_worklist_add(tc, worklist, &strands[index++].string);
     }
 }
@@ -72,7 +75,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         free(str->body.strands);
     str->body.data.int32s = NULL;
     str->body.strands = NULL;
-    str->body.graphs = str->body.codes = 0;
+    str->body.graphs = str->body.codes = str->body.flags = 0;
 }
 
 /* Gets the storage specification for this representation. */

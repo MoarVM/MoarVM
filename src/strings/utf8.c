@@ -50,7 +50,7 @@ static const MVMuint8 utf8d[] = {
 };
 
 static MVMint32
-decode_utf8_byte(MVMint32 *state, MVMint32 *codep, MVMuint8 byte) {
+decode_utf8_byte(MVMint32 *state, MVMCodepoint32 *codep, MVMuint8 byte) {
   MVMint32 type = utf8d[byte];
 
   *codep = (*state != UTF8_ACCEPT) ?
@@ -99,7 +99,7 @@ enum
     U8_QUAD            = 1 << 8
 };
 
-static unsigned classify(MVMint32 cp)
+static unsigned classify(MVMCodepoint32 cp)
 {
     /* removing these two lines 
     12:06 <not_gerd> if you want to encode NUL as a zero-byte
@@ -142,7 +142,7 @@ static unsigned classify(MVMint32 cp)
     return 0;
 }
 
-static void *utf8_encode(void *bytes, MVMint32 cp)
+static void *utf8_encode(void *bytes, MVMCodepoint32 cp)
 {
     unsigned cc = classify(cp);
     MVMuint8 *bp = bytes;
@@ -193,7 +193,7 @@ static void *utf8_encode(void *bytes, MVMint32 cp)
 MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type, char *utf8, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     MVMint32 count = 0;
-    MVMint32 codepoint;
+    MVMCodepoint32 codepoint;
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = 16;
@@ -261,7 +261,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
      * memory */
     result->body.data.int32s = buffer;
     
-    result->body.codes  |= MVM_STRING_TYPE_INT32;
+    /* XXX set codes */
+    result->body.flags = MVM_STRING_TYPE_INT32;
     result->body.graphs = count; /* XXX Ignore combining chars for now. */
     
     return result;
@@ -285,7 +286,6 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     if (length < 0 || start + length > str->body.graphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
-    /* XXX This is wrong; grow a buffer as needed. */
     result = malloc(sizeof(MVMint32) * length);
     arr = result;
     

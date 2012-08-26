@@ -76,7 +76,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     }
     
     /* result->body.codes  = str_pos; */
-    result->body.codes |= MVM_STRING_TYPE_INT32;
+    result->body.flags = MVM_STRING_TYPE_INT32;
     result->body.graphs = str_pos;
     
     return result;
@@ -110,7 +110,7 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* make the result grow as needed instead of allocating so much to start? */
     result = malloc(length * 4 + 1);
     for (str_pos = 0; str_pos < length; str_pos++) {
-        MVMint32 value = MVM_string_get_codepoint_at_nocheck(tc, str, start + str_pos);
+        MVMCodepoint32 value = MVM_string_get_codepoint_at_nocheck(tc, str, start + str_pos);
         
         if (value < 0x10000) {
             result_pos[high] = value >> 8;
