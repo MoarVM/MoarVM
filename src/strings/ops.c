@@ -4,10 +4,10 @@
 #define GRAPHS8_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMuint8)) == 0)
 
 /* Returns the size of the strands array. Doesn't need to be fast/cached, I think. */
-MVMuint32 MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
+MVMRopeIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
     if ((body->codes & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
         MVMStrand *strands = body->strands;
-        MVMuint32 count = 0;
+        MVMRopeIndex count = 0;
         while(     strands[count].lower_index != 0
                 || strands[count].higher_index != 0)
             count++;
@@ -27,9 +27,9 @@ MVMint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a,
             return (MVMint32)a->body.data.uint8s[index];
         case MVM_STRING_TYPE_ROPE: {
             MVMStrand *strands = a->body.strands;
-            MVMuint32 table_index = 0;
-            MVMuint32 lower_visited = 4294967295ULL;
-            /*MVMuint32 upper_visited = 4294967295ULL;*/
+            MVMRopeIndex table_index = 0;
+            MVMRopeIndex lower_visited = 255;
+            /*MVMRopeIndex upper_visited = 255;*/
             MVMStrand *strand;
             /* see MVMString.h.  Starting with the first entry,
                 binary search through the strands in the string
@@ -171,8 +171,8 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
 
 /* Recursively populate the binary search table for strands.
     Will *not* overflow the C stack. :) */
-static MVMuint32 MVM_string_generate_strand_binary_search_table(MVMThreadContext *tc, MVMStrand *strands, MVMuint32 bottom, MVMuint32 top) {
-    MVMuint32 mid, lower_result;
+static MVMRopeIndex MVM_string_generate_strand_binary_search_table(MVMThreadContext *tc, MVMStrand *strands, MVMRopeIndex bottom, MVMRopeIndex top) {
+    MVMRopeIndex mid, lower_result;
     if (top == bottom) {
         strands[bottom].lower_index = bottom;
         strands[bottom].higher_index = bottom;
@@ -192,7 +192,7 @@ static MVMuint32 MVM_string_generate_strand_binary_search_table(MVMThreadContext
 /* XXX inline parent's strands if it's a rope too */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result;
-    MVMuint32 strand_count = 0;
+    MVMRopeIndex strand_count = 0;
     MVMStrand *strands;
     MVMuint64 index = 0;
     
@@ -502,7 +502,8 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator) {
     MVMint64 elems, length = 0, index = -1, position = 0;
     MVMString *portion, *result;
-    MVMuint32 codes = 0, portion_index = 0;
+    MVMuint32 codes = 0;
+    MVMRopeIndex portion_index = 0;
     MVMStrand *strands;
     
     if (REPR(input)->ID != MVM_REPR_ID_MVMArray || !IS_CONCRETE(input)) {

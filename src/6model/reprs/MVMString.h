@@ -1,6 +1,7 @@
 /* Representation used by VM-level strings. */
 
 struct _MVMStringBody;
+typedef MVMuint8 MVMStrandIndex;
 /* An entry in the strands table of a rope. */
 typedef struct _MVMStrand {
     /* The offset to compare the desired index against. */
@@ -19,10 +20,10 @@ typedef struct _MVMStrand {
         If they are equal, it means use the compare_offset
         string at that strand's row. */
     /* The index of the strand table for lower than. */
-    MVMuint32 lower_index;
+    MVMStrandIndex lower_index;
     
     /* The index of the strand table for higher than or equal to. */
-    MVMuint32 higher_index;
+    MVMStrandIndex higher_index;
 } MVMStrand;
 
 #define MVM_STRING_CODES_BITS 56
