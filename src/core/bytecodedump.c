@@ -98,7 +98,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         frame_lexicals[k] = lexicals;
         
         HASH_ITER(hash_handle, frame->lexical_names, current, tmp) {
-            name->body.data = (MVMint32 *)current->hash_handle.key;
+            name->body.data.int32s = (MVMint32 *)current->hash_handle.key;
             name->body.graphs = (MVMuint32)current->hash_handle.keylen / sizeof(MVMint32);
             lexicals[current->value] = MVM_string_utf8_encode_C_string(tc, name);
         }

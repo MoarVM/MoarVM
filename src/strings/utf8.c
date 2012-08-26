@@ -259,10 +259,10 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
      * memory */
-    result->body.data = buffer;
+    result->body.data.int32s = buffer;
     
-    result->body.codes  = count;
-    result->body.graphs = count; /* Ignore combining chars for now. */
+    result->body.codes  |= MVM_STRING_TYPE_INT32;
+    result->body.graphs = count; /* XXX Ignore combining chars for now. */
     
     return result;
 }
@@ -289,9 +289,11 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     arr = result;
     
     memset(result, 0, sizeof(MVMint32) * length);
-    while (i < length && (arr = utf8_encode(arr, str->body.data[i++])));
+    while (i < length && (arr = utf8_encode(arr, MVM_string_get_codepoint_at_nocheck(tc, str, i++))));
     if (!arr)
-        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d with codepoint %d", i - 1, str->body.data[i-1]);
+        MVM_exception_throw_adhoc(tc,
+            "Error encoding UTF-8 string near grapheme position %d with codepoint %d",
+                i - 1, MVM_string_get_codepoint_at_nocheck(tc, str, i-1));
     *output_size = (MVMuint64)(arr ? arr - result : 0);
     return result;
 }

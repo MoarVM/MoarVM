@@ -250,7 +250,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
              * to avoid semi-predicate issue. */
             MVMLexicalHashEntry *entry;
             
-            HASH_FIND(hash_handle, lexical_names, name->body.data,
+            HASH_FIND(hash_handle, lexical_names, name->body.data.int32s,
                 name->body.graphs * sizeof(MVMint32), entry);
             if (entry) {
                 if (cur_frame->static_info->lexical_types[entry->value] == type)

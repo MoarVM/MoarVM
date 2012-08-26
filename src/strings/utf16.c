@@ -44,7 +44,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     utf16_end = utf16 + bytes;
     
     /* possibly allocating extra space; oh well */
-    result->body.data = malloc(sizeof(MVMint32) * bytes / 2);
+    result->body.data.int32s = malloc(sizeof(MVMint32) * bytes / 2);
     
     for (; utf16 < utf16_end; utf16 += 2) {
         
@@ -72,10 +72,11 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
             value = 0x10000 + ((value & 0x3FF) << 10) + (value2 & 0x3FF);
         }
         /* TODO: check for invalid values */
-        result->body.data[str_pos++] = (MVMint32)value;
+        result->body.data.int32s[str_pos++] = (MVMint32)value;
     }
     
-    result->body.codes  = str_pos;
+    /* result->body.codes  = str_pos; */
+    result->body.codes |= MVM_STRING_TYPE_INT32;
     result->body.graphs = str_pos;
     
     return result;
@@ -109,7 +110,7 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* make the result grow as needed instead of allocating so much to start? */
     result = malloc(length * 4 + 1);
     for (str_pos = 0; str_pos < length; str_pos++) {
-        MVMint32 value = str->body.data[start + str_pos];
+        MVMint32 value = MVM_string_get_codepoint_at_nocheck(tc, str, start + str_pos);
         
         if (value < 0x10000) {
             result_pos[high] = value >> 8;

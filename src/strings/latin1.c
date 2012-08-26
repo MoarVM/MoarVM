@@ -135,14 +135,15 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
     
-    result->body.codes  = bytes;
+    /* result->body.codes  = bytes; */
     result->body.graphs = bytes;
     
-    result->body.data = malloc(sizeof(MVMint32) * bytes);
+    result->body.data.int32s = malloc(sizeof(MVMint32) * bytes);
     for (i = 0; i < bytes; i++)
         /* actually decode like Windows-1252, since that is mostly a superset,
            and is recommended by the HTML5 standard when latin1 is claimed */
-        result->body.data[i] = latin1_char_to_cp(latin1[i]);
+        result->body.data.int32s[i] = latin1_char_to_cp(latin1[i]);
+    result->body.codes |= MVM_STRING_TYPE_INT32;
     
     return result;
 }
@@ -166,7 +167,7 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     
     result = malloc(length + 1);
     for (i = 0; i < length; i++) {
-        MVMint32 codepoint = str->body.data[start + i];
+        MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
         if (codepoint >= 0 && codepoint < 128 || codepoint >=152 && codepoint < 256) {
             result[i] = (MVMuint8)codepoint;
         }

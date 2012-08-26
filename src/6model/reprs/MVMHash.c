@@ -36,7 +36,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
     if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) {
-        *kdata = ((MVMString *)key)->body.data;
+        *kdata = ((MVMString *)key)->body.data.int32s;
         *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMint32);
     }
     else {

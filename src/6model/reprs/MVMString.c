@@ -59,15 +59,19 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVMuint32 index = 0;
         MVMuint32 size = MVM_string_rope_strands_size(tc, body);
         while(index < body->graphs)
-            MVM_gc_worklist_add(tc, worklist, &strands[index++]->string);
+            MVM_gc_worklist_add(tc, worklist, &strands[index++].string);
     }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    free((void *)str->body.data);
-    str->body.data = NULL;
+    if (str->body.data.int32s)
+        free(str->body.data.int32s);
+    if (str->body.strands)
+        free(str->body.strands);
+    str->body.data.int32s = NULL;
+    str->body.strands = NULL;
     str->body.graphs = str->body.codes = 0;
 }
 

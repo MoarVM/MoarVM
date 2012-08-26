@@ -1,12 +1,13 @@
 /* Representation used by VM-level strings. */
 
+struct _MVMStringBody;
 /* An entry in the strands table of a rope. */
 typedef struct _MVMStrand {
     /* The offset to compare the desired index against. */
     MVMuint64 compare_offset;
     
     /* The string to which this strand refers. */
-    MVMString *string;
+    struct _MVMString *string;
     
     /* The offset into the referred string. The length
         is calculated by subtracting the compare_offset
