@@ -624,14 +624,15 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
 /* internal function so hashes can easily compute hashes of hash keys */
 void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
     /* XXX This is temporary until we can get the hashing macros
-        to compute the hash using the codepoint iterator interface.
+        to compute the hash (and test for equivalence!) using the
+        codepoint iterator interface.
         But it's not unsafe as .strands is updated separately from
         .data and then the flag can be changed anytime, and the
         .strands member can just be left there until the object is
         freed. */
     MVMStringIndex position = 0;
     MVMCodepoint32 *buffer;
-    if ((s->body.flags & MVM_STRING_TYPE_MASK) != MVM_STRING_TYPE_ROPE)
+    if ((s->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
         return;
     buffer = malloc(sizeof(MVMCodepoint32) * s->body.graphs);
     for (; position < s->body.graphs; position++) {
