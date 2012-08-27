@@ -4,8 +4,8 @@
 
 /* Returns the size of the strands array. Doesn't need to be fast/cached, I think. */
 MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
-    if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
-        return body->strand_count;
+    if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE && body->graphs) {
+        return body->strands[0].lower_index;
     }
     return 0;
 }
@@ -203,22 +203,22 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     
     strands = result->body.strands = calloc(sizeof(MVMStrand), 2);
     /* if we're substringing a substring, substring the same one */
-    if (IS_ROPE(a) && a->body.strand_count == 1) {
+    if (IS_SUBSTRING(a)) {
         strands[0].string_offset = (MVMStringIndex)start + a->body.strands[0].string_offset;
         strands[0].string = a->body.strands[0].string;
-        result->body.strand_depth = a->body.strands[0].string->body.strand_depth + 1;
+        _STRAND_DEPTH(result) = STRAND_DEPTH(a->body.strands[0].string) + 1;
     }
     else {
         strands[0].string_offset = (MVMStringIndex)start;
         strands[0].string = a;
-        result->body.strand_depth = a->body.strand_depth + 1;
+        _STRAND_DEPTH(result) = STRAND_DEPTH(a) + 1;
     }
     strands[1].compare_offset = length;
     
     /* result->body.codes  = 0; /* Populate this lazily. */
     result->body.flags = MVM_STRING_TYPE_ROPE;
     result->body.graphs = length;
-    result->body.strand_count = 1;
+    result->body.strands[0].lower_index = 1;
     
     return result;
 }
@@ -276,7 +276,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         strands[0].compare_offset = index;
         index = a->body.graphs;
         strand_count = 1;
-        max_strand_depth = a->body.strand_depth;
+        max_strand_depth = STRAND_DEPTH(a);
     }
     if (b->body.graphs) {
         strands[strand_count].string = b;
@@ -284,15 +284,15 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         strands[strand_count].compare_offset = index;
         index += b->body.graphs;
         ++strand_count;
-        if (b->body.strand_depth > max_strand_depth)
-            max_strand_depth = b->body.strand_depth;
+        if (STRAND_DEPTH(b) > max_strand_depth)
+            max_strand_depth = STRAND_DEPTH(b);
     }
     if (strand_count)
         strands[0].higher_index =
             MVM_string_generate_strand_binary_search_table(tc, strands, 0, strand_count - 1);
     strands[strand_count].compare_offset = index;
-    result->body.strand_count = strand_count;
-    result->body.strand_depth = max_strand_depth + 1;
+    strands[0].lower_index = strand_count;
+    _STRAND_DEPTH(result) = max_strand_depth + 1;
     
     return result;
 }
@@ -316,7 +316,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     MVM_gc_root_temp_pop(tc);
     
-    if (IS_ROPE(a) && a->body.strand_count == 1) {
+    if (IS_SUBSTRING(a)) {
         string_offset = a->body.strands[0].string_offset;
         a = a->body.strands[0].string;
     }
@@ -336,8 +336,8 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
             strands[0].higher_index =
                 MVM_string_generate_strand_binary_search_table(tc, strands, 0, bkup_count - 1);
         strands[bkup_count].compare_offset = result->body.graphs;
-        result->body.strand_count = bkup_count;
-        result->body.strand_depth = bkup_count;
+        result->body.strands[0].lower_index = bkup_count;
+        _STRAND_DEPTH(result) = bkup_count;
     }
     
     return result;
@@ -656,9 +656,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         strands[0].higher_index =
             MVM_string_generate_strand_binary_search_table(tc, strands, 0, portion_index - 1);
         strands[portion_index].compare_offset = position;
+        strands[0].lower_index = portion_index;
     }
     result->body.flags = MVM_STRING_TYPE_ROPE;
-    result->body.strand_count = portion_index;
     
     MVM_gc_root_temp_pop_n(tc, 3);
     

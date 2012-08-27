@@ -70,9 +70,6 @@ typedef struct _MVMStringBody {
      */
     MVMStringIndex codes;
     
-    /* max(size of strands minus 1, 0) */
-    MVMuint8 strand_count;
-    
     /* deepest rope depth below this one, counting the deepest non-rope */
     MVMuint8 strand_depth;
     
