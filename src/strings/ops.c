@@ -2,6 +2,20 @@
 
 #define GRAPHS_EQUAL(d1, d2, g, type) (memcmp((d1), (d2), (g) * sizeof(type)) == 0)
 
+/*  TODO:
+- add a tunable global determining at what depth it should
+    start flattening.  Write a rope-tree-flattening function
+    (not like string_flatten) that puts all the sub strands
+    in one MVMStrand array. (see below on > 256)
+- add a tunable global determining under which size result
+    string should it just do the old copying behavior.
+    This might be related to MVMString object size?
+- enable repeat and join to handle > 256 by adding a
+    recursive divvy function that takes arrays of MVMStrands
+    and allocates ropes in a tree until each has equal to or
+    fewer than N, a tunable global <= 256.
+*/
+
 /* Returns the size of the strands array. Doesn't need to be fast/cached, I think. */
 MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
     if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE && body->graphs) {
