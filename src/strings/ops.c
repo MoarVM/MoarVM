@@ -206,10 +206,12 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     if (IS_ROPE(a) && a->body.strand_count == 1) {
         strands[0].string_offset = (MVMStringIndex)start + a->body.strands[0].string_offset;
         strands[0].string = a->body.strands[0].string;
+        result->body.strand_depth = a->body.strands[0].string->body.strand_depth + 1;
     }
     else {
         strands[0].string_offset = (MVMStringIndex)start;
         strands[0].string = a;
+        result->body.strand_depth = a->body.strand_depth + 1;
     }
     strands[1].compare_offset = length;
     
@@ -247,6 +249,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     MVMStrandIndex strand_count = 0;
     MVMStrand *strands;
     MVMStringIndex index = 0;
+    MVMuint8 max_strand_depth = 0;
     
     if (!IS_CONCRETE((MVMObject *)a) || !IS_CONCRETE((MVMObject *)b)) {
         MVM_exception_throw_adhoc(tc, "Concatenate needs concrete strings");
@@ -273,6 +276,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         strands[0].compare_offset = index;
         index = a->body.graphs;
         strand_count = 1;
+        max_strand_depth = a->body.strand_depth;
     }
     if (b->body.graphs) {
         strands[strand_count].string = b;
@@ -280,12 +284,15 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         strands[strand_count].compare_offset = index;
         index += b->body.graphs;
         ++strand_count;
+        if (b->body.strand_depth > max_strand_depth)
+            max_strand_depth = b->body.strand_depth;
     }
     if (strand_count)
         strands[0].higher_index =
             MVM_string_generate_strand_binary_search_table(tc, strands, 0, strand_count - 1);
     strands[strand_count].compare_offset = index;
     result->body.strand_count = strand_count;
+    result->body.strand_depth = max_strand_depth + 1;
     
     return result;
 }
@@ -293,6 +300,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
     MVMString *result;
     MVMint64 bkup_count = count;
+    MVMStringIndex string_offset = 0;
     
     if (!IS_CONCRETE((MVMObject *)a)) {
         MVM_exception_throw_adhoc(tc, "repeat needs a concrete string");
@@ -301,9 +309,17 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     if (count < 0)
         MVM_exception_throw_adhoc(tc, "repeat count (%lld) cannot be negative", count);
     
+    if (count > 256)
+        MVM_exception_throw_adhoc(tc, "repeat count > 256 NYI...");
+    
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     MVM_gc_root_temp_pop(tc);
+    
+    if (IS_ROPE(a) && a->body.strand_count == 1) {
+        string_offset = a->body.strands[0].string_offset;
+        a = a->body.strands[0].string;
+    }
     
     result->body.graphs = a->body.graphs * count;
     
@@ -314,12 +330,14 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         while (count--) {
             strands[count].compare_offset = count * a->body.graphs;
             strands[count].string = a;
+            strands[count].string_offset = string_offset;
         }
         if (bkup_count)
             strands[0].higher_index =
                 MVM_string_generate_strand_binary_search_table(tc, strands, 0, bkup_count - 1);
         strands[bkup_count].compare_offset = result->body.graphs;
         result->body.strand_count = bkup_count;
+        result->body.strand_depth = bkup_count;
     }
     
     return result;
@@ -601,6 +619,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     /* XXX consider whether to coalesce combining characters
     if they cause new combining sequences to appear */
     /* XXX result->body.codes = codes; */
+    
+    if (portion_index > 256)
+        MVM_exception_throw_adhoc(tc, "join array items > 256 NYI...");
     
     if (portion_index) {
         index = -1;
