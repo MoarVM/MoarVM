@@ -1,7 +1,7 @@
 use MASTCompiler;
 use QASTCompilerMAST;
 use NQPP6QRegex;
-pir::load_bytecode('dumper.pbc');
+pir::load_bytecode__vs('dumper.pbc');
 
 my $moarvm;
 my $del;

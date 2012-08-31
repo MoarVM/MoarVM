@@ -466,10 +466,10 @@ QAST::MASTOperations.add_core_op('bind', -> $qastcomp, $op {
     # Sanity checks.
     my @children := $op.list;
     if +@children != 2 {
-        pir::die("A 'bind' op must have exactly two children");
+        nqp::die("A 'bind' op must have exactly two children");
     }
     unless nqp::istype(@children[0], QAST::Var) {
-        pir::die("First child of a 'bind' op must be a QAST::Var");
+        nqp::die("First child of a 'bind' op must be a QAST::Var");
     }
     
     # Set the QAST of the think we're to bind, then delegate to
