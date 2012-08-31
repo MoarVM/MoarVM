@@ -102,4 +102,4 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "",
     "test timing of lots of calling with 2 args but not taking them", 1);
-# 3.763 s at 10_000_000
+# 1.598 s at 10_000_000
