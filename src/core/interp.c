@@ -1024,35 +1024,67 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         GET_REG(cur_op, 0).i64 = IS_CONCRETE(GET_REG(cur_op, 2).o) ? 1 : 0;
                         cur_op += 4;
                         break;
+                    case MVM_OP_atpos_i: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+                            &GET_REG(cur_op, 0), MVM_reg_int64);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_atpos_n: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+                            &GET_REG(cur_op, 0), MVM_reg_num64);
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_atpos_s: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).s = (MVMString *)REPR(obj)->pos_funcs->at_pos_boxed(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 4).i64);
+                        REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+                            &GET_REG(cur_op, 0), MVM_reg_str);
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_atpos_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->at_pos_boxed(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj),
-                            GET_REG(cur_op, 4).i64);
+                        REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+                            &GET_REG(cur_op, 0), MVM_reg_obj);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_bindpos_i: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2).i64,
+                            GET_REG(cur_op, 4), MVM_reg_int64);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_bindpos_n: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2).i64,
+                            GET_REG(cur_op, 4), MVM_reg_num64);
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_bindpos_s: {
                         MVMObject *obj = GET_REG(cur_op, 0).o;
-                        REPR(obj)->pos_funcs->bind_pos_boxed(tc, STABLE(obj), obj,
+                        REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj,
                             OBJECT_BODY(obj), GET_REG(cur_op, 2).i64,
-                            (MVMObject *)GET_REG(cur_op, 4).s);
+                            GET_REG(cur_op, 4), MVM_reg_str);
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_bindpos_o: {
                         MVMObject *obj = GET_REG(cur_op, 0).o;
-                        REPR(obj)->pos_funcs->bind_pos_boxed(tc, STABLE(obj), obj,
+                        REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj,
                             OBJECT_BODY(obj), GET_REG(cur_op, 2).i64,
-                            GET_REG(cur_op, 4).o);
+                            GET_REG(cur_op, 4), MVM_reg_obj);
                         cur_op += 6;
                         break;
                     }

@@ -51,16 +51,10 @@ static void die_no_pos(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support positional access", MVM_string_utf8_encode_C_string(tc, repr_name));
 }
-static void * default_at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *target) {
+static void default_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
-static MVMObject * default_at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
-    die_no_pos(tc, st->REPR->name);
-}
-static void default_bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *addr) {
-    die_no_pos(tc, st->REPR->name);
-}
-static void default_bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMObject *obj) {
+static void default_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
 static MVMint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -153,10 +147,8 @@ static void add_default_box_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
 /* Set default positional functions on a REPR that lacks them. */
 static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    repr->pos_funcs->at_pos_ref = default_at_pos_ref;
-    repr->pos_funcs->at_pos_boxed = default_at_pos_boxed;
-    repr->pos_funcs->bind_pos_ref = default_bind_pos_ref;
-    repr->pos_funcs->bind_pos_boxed = default_bind_pos_boxed;
+    repr->pos_funcs->at_pos = default_at_pos;
+    repr->pos_funcs->bind_pos = default_bind_pos;
     repr->pos_funcs->elems = default_elems;
     repr->pos_funcs->set_elems = default_set_elems;
     repr->pos_funcs->push_ref = default_push_ref;

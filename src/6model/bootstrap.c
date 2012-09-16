@@ -230,8 +230,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     for (i = 0; i < num_attrs; i++) {
         MVMObject *attr_info = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
         MVMKnowHOWAttributeREPR *attribute = (MVMKnowHOWAttributeREPR *)
-            REPR(attributes)->pos_funcs->at_pos_boxed(tc, STABLE(attributes),
-                attributes, OBJECT_BODY(attributes), i);
+            MVM_repr_at_pos_o(tc, attributes, i);
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info);
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&attribute);
         if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)

@@ -502,14 +502,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     total_attrs = 0;
     while (mro_pos--) {
         /* Get info for the class at the current position. */
-        MVMObject *class_info = REPR(info)->pos_funcs->at_pos_boxed(tc,
-            STABLE(info), info, OBJECT_BODY(info), mro_pos);
+        MVMObject *class_info = MVM_repr_at_pos_o(tc, info, mro_pos);
         
         /* Get its list of attributes and parents. */
-        MVMObject *attr_list = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
-            STABLE(class_info), class_info, OBJECT_BODY(class_info), 1);
-        MVMObject *parent_list = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
-            STABLE(class_info), class_info, OBJECT_BODY(class_info), 2);
+        MVMObject *attr_list = MVM_repr_at_pos_o(tc, class_info, 1);
+        MVMObject *parent_list = MVM_repr_at_pos_o(tc, class_info, 2);
         
         /* If there's more than one parent, set the multiple inheritance
          * flag (this means we have non-linear layout). */
@@ -555,12 +552,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     cur_cleanup_slot = 0;
     while (mro_pos--) {
         /* Get info for the class at the current position. */
-        MVMObject *class_info = REPR(info)->pos_funcs->at_pos_boxed(tc,
-            STABLE(info), info, OBJECT_BODY(info), mro_pos);
-        MVMObject *type_obj = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
-            STABLE(class_info), class_info, OBJECT_BODY(class_info), 0);
-        MVMObject *attr_list = REPR(class_info)->pos_funcs->at_pos_boxed(tc,
-            STABLE(class_info), class_info, OBJECT_BODY(class_info), 1);
+        MVMObject *class_info = MVM_repr_at_pos_o(tc, info, mro_pos);
+        MVMObject *type_obj = MVM_repr_at_pos_o(tc, class_info, 0);
+        MVMObject *attr_list = MVM_repr_at_pos_o(tc, class_info, 1);
         
         /* Set up name map entry. */
         P6opaqueNameMap *name_map = &repr_data->name_to_index_mapping[cur_type];
@@ -575,8 +569,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
         
         /* Go over the attributes. */
         for (i = 0; i < num_attrs; i++) {
-            MVMObject *attr_info = REPR(attr_list)->pos_funcs->at_pos_boxed(tc,
-                STABLE(attr_list), attr_list, OBJECT_BODY(attr_list), i);
+            MVMObject *attr_info = MVM_repr_at_pos_o(tc, attr_list, i);
             
             /* Extract name, type and if it's a box target. */
             MVMObject *name_obj = REPR(attr_info)->ass_funcs->at_key_boxed(tc,

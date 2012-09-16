@@ -76,12 +76,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *target) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation does not support native type storage");
-}
-
-static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
+static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     
     if (index < 0) {
@@ -90,14 +85,9 @@ static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *
             MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
     }
     else if (index >= body->elems)
-        return NULL;
+        value->o = NULL;
 
-    return body->slots[body->start + index];
-}
-
-static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation does not support native type storage");
+    value->o = body->slots[body->start + index];
 }
 
 static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64 n) {
@@ -160,7 +150,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
     body->slots = slots;
 }
 
-static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMObject *obj) {
+static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     
     if (index < 0) {
@@ -171,7 +161,7 @@ static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     else if (index >= body->elems)
         set_size_internal(tc, body, index + 1);
 
-    MVM_ASSIGN_REF(tc, root, body->slots[body->start + index], obj);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start + index], value.o);
 }
 
 static MVMint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -344,9 +334,11 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     if (elems1 > 0) {
         MVMint64 i;
         for (i = 0; i < elems1; i++) {
-            MVMObject *to_copy = REPR(from)->pos_funcs->at_pos_boxed(tc,
-                STABLE(from), from, OBJECT_BODY(from), i);
-            MVM_ASSIGN_REF(tc, root, slots[start + offset + i], to_copy);
+            /* XXX Needs update for native. */
+            MVMRegister to_copy;
+            REPR(from)->pos_funcs->at_pos(tc, STABLE(from), from,
+                OBJECT_BODY(from), i, &to_copy, MVM_reg_obj);
+            MVM_ASSIGN_REF(tc, root, slots[start + offset + i], to_copy.o);
         }
     }
 }
@@ -377,10 +369,8 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec; 
     this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    this_repr->pos_funcs->at_pos_ref = at_pos_ref;
-    this_repr->pos_funcs->at_pos_boxed = at_pos_boxed;
-    this_repr->pos_funcs->bind_pos_ref = bind_pos_ref;
-    this_repr->pos_funcs->bind_pos_boxed = bind_pos_boxed;
+    this_repr->pos_funcs->at_pos = at_pos;
+    this_repr->pos_funcs->bind_pos = bind_pos;
     this_repr->pos_funcs->elems = elems;
     this_repr->pos_funcs->set_elems = set_elems;
     this_repr->pos_funcs->push_ref = push_ref;

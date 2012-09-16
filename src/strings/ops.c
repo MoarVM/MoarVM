@@ -387,8 +387,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         input, OBJECT_BODY(input));
     
     while (++index < elems) {
-        MVMObject *item = REPR(input)->pos_funcs->at_pos_boxed(tc, STABLE(input),
-            input, OBJECT_BODY(input), index);
+        MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
         
         /* allow null items in the array, I guess.. */
         if (!item)
@@ -412,8 +411,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     position = 0;
     
     while (++index < elems) {
-        MVMObject *item = REPR(input)->pos_funcs->at_pos_boxed(tc, STABLE(input),
-            input, OBJECT_BODY(input), index);
+        MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
         
         if (!item)
             continue;
