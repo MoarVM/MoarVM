@@ -29,7 +29,7 @@ else {
 my $env := pir::new__Ps('Env');
 my $DEBUG := $env<MVMDEBUG>;
 
-our sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx) {
+sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx) is export {
     # Create frame
     my $frame := MAST::Frame.new();
     
@@ -43,7 +43,7 @@ our sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx
     mast_output_is($comp_unit, $expected, $desc, $timeit, timeit => $timeit, approx => $approx);
 }
 
-our sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) {
+sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) is export {
     
     my $desc_file := $DEBUG ?? nqp::join('', match($desc, /(\w | ' ')+/, :global)) !! '';
     
@@ -79,11 +79,11 @@ our sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) {
     pir::spawnw__Is("$del temp.output");
 }
 
-our sub qast_output_is($qast, $expected, $desc, :$timeit, :$approx) {
+sub qast_output_is($qast, $expected, $desc, :$timeit, :$approx) is export {
     mast_output_is(QAST::MASTCompiler.to_mast($qast), $expected, $desc, timeit => $timeit, approx => $approx);
 }
 
-our sub op(@ins, $op, *@args) {
+sub op(@ins, $op, *@args) is export {
     my $bank;
     for MAST::Ops.WHO {
         $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
@@ -94,23 +94,23 @@ our sub op(@ins, $op, *@args) {
         ));
 }
 
-our sub label($name) {
+sub label($name) is export {
     MAST::Label.new( :name($name) )
 }
 
-our sub ival($val) {
+sub ival($val) is export {
     MAST::IVal.new( :value($val) )
 }
 
-our sub nval($val) {
+sub nval($val) is export {
     MAST::NVal.new( :value($val) )
 }
 
-our sub sval($val) {
+sub sval($val) is export {
     MAST::SVal.new( :value($val) )
 }
 
-our sub const($frame, $val) {
+sub const($frame, $val) is export {
     my $type;
     my $op;
     if ($val ~~ MAST::SVal) {
@@ -133,26 +133,26 @@ our sub const($frame, $val) {
     return $local;
 }
 
-our sub local($frame, $type) {
+sub local($frame, $type) is export {
     return MAST::Local.new(:index($frame.add_local($type)));
 }
 
-our sub lexical($frame, $type, $name) {
+sub lexical($frame, $type, $name) is export {
     my $idx := $frame.add_lexical($type, $name);
     return MAST::Lexical.new(:index($idx));
 }
 
-our sub call(@ins, $target, @flags, :$result, *@args) {
+sub call(@ins, $target, @flags, :$result, *@args) is export {
     nqp::push(@ins, MAST::Call.new(
             :target($target), :result($result), :flags(@flags), |@args
         ));
 }
 
-our sub annotated(@ins, $file, $line) {
+sub annotated(@ins, $file, $line) is export {
     MAST::Annotated.new( :file($file), :line($line), :instructions(@ins) )
 }
 
-our sub rxqast($str) {
+sub rxqast($str) is export {
     my $grammar := QRegex::P6Regex::Grammar.new();
     my $actions := QRegex::P6Regex::Actions.new();
     my $ast := $grammar.parse($str, p => 0, actions => $actions, rule => 'nibbler').ast;

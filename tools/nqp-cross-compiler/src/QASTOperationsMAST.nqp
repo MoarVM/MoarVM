@@ -794,6 +794,6 @@ sub push_op(@dest, $op, *@args) {
     ));
 }
 
-sub push_ilist(@dest, $src) {
+sub push_ilist(@dest, $src) is export {
     nqp::splice(@dest, $src.instructions, +@dest, 0);
 }
