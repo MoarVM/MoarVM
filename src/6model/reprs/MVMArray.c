@@ -174,23 +174,13 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     set_size_internal(tc, body, count);
 }
 
-static void push_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static void push_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     set_size_internal(tc, body, body->elems + 1);
-    MVM_ASSIGN_REF(tc, root, body->slots[body->start + body->elems - 1], obj);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start + body->elems - 1], value.o);
 }
 
-static void * pop_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static MVMObject * pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
 
     if (body->elems < 1)
@@ -198,15 +188,10 @@ static MVMObject * pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *roo
             "MVMArray: Can't pop from an empty array");
 
     body->elems--;
-    return body->slots[body->start + body->elems];
+    value->o = body->slots[body->start + body->elems];
 }
 
-static void unshift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static void unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
 
     /* If we don't have room at the beginning of the slots,
@@ -231,28 +216,20 @@ static void unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
 
     /* Now do the unshift */
     body->start--;
-    MVM_ASSIGN_REF(tc, root, body->slots[body->start], obj);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start], value.o);
     body->elems++;
 }
 
-static void * shift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static MVMObject * shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
-    MVMObject    *value;
 
     if (body->elems < 1)
         MVM_exception_throw_adhoc(tc,
             "MVMArray: Can't shift from an empty array");
 
-    value = body->slots[body->start];
+    value->o = body->slots[body->start];
     body->start++;
     body->elems--;
-
-    return value;
 }
 
 /* This whole splice optimization can be optimized for the case we have two
@@ -373,14 +350,10 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->bind_pos = bind_pos;
     this_repr->pos_funcs->elems = elems;
     this_repr->pos_funcs->set_elems = set_elems;
-    this_repr->pos_funcs->push_ref = push_ref;
-    this_repr->pos_funcs->push_boxed = push_boxed;
-    this_repr->pos_funcs->pop_ref = pop_ref;
-    this_repr->pos_funcs->pop_boxed = pop_boxed;
-    this_repr->pos_funcs->unshift_ref = unshift_ref;
-    this_repr->pos_funcs->unshift_boxed = unshift_boxed;
-    this_repr->pos_funcs->shift_ref = shift_ref;
-    this_repr->pos_funcs->shift_boxed = shift_boxed;
+    this_repr->pos_funcs->push = push;
+    this_repr->pos_funcs->pop = pop;
+    this_repr->pos_funcs->unshift = unshift;
+    this_repr->pos_funcs->shift = shift;
     this_repr->pos_funcs->splice = splice;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
     this_repr->compose = compose;

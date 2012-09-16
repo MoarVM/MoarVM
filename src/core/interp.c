@@ -1088,31 +1088,115 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_push_i: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->push(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_int64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_push_n: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->push(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_num64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_push_s: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->push(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_str);
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_push_o: {
                         MVMObject *obj = GET_REG(cur_op, 0).o;
-                        REPR(obj)->pos_funcs->push_boxed(tc, STABLE(obj), obj,
-                            OBJECT_BODY(obj), GET_REG(cur_op, 2).o);
+                        REPR(obj)->pos_funcs->push(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_obj);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_pop_i: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->pop(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_int64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_pop_n: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->pop(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_num64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_pop_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->pop(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_str);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_pop_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->pop_boxed(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        REPR(obj)->pos_funcs->pop(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_obj);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_unshift_i: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->unshift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_int64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_unshift_n: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->unshift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_num64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_unshift_s: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        REPR(obj)->pos_funcs->unshift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_str);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_unshift_o: {
                         MVMObject *obj = GET_REG(cur_op, 0).o;
-                        REPR(obj)->pos_funcs->unshift_boxed(tc, STABLE(obj), obj,
-                            OBJECT_BODY(obj), GET_REG(cur_op, 2).o);
+                        REPR(obj)->pos_funcs->unshift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_obj);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_shift_i: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_int64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_shift_n: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_num64);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_shift_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_str);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_shift_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).o = REPR(obj)->pos_funcs->shift_boxed(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj));
+                        REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj,
+                            OBJECT_BODY(obj), &GET_REG(cur_op, 0), MVM_reg_obj);
                         cur_op += 4;
                         break;
                     }

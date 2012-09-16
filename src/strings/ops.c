@@ -356,8 +356,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
         start += length + sep_length;
         
         if (portion->body.graphs) {
-            REPR(result)->pos_funcs->push_boxed(tc, STABLE(result),
-                result, OBJECT_BODY(result), (MVMObject *)portion);
+            MVM_repr_push_o(tc, result, (MVMObject *)portion);
         }
     }
     
