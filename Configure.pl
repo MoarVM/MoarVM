@@ -4,6 +4,7 @@ use warnings;
 use lib 'build';
 use Config::BuildEnvironment;
 use Config::APR;
+use Config::LAO;
 use Config::Generate;
 
 print "Welcome to MoarVM!\n\n";
@@ -20,13 +21,21 @@ else {
 
 print "Configuring APR ...";
 %config = Config::APR::configure(%config);
-if (!$config{'excuse'}) {
-    print ".................................... OK\n";
+
+sub check_excuse {
+    if (!$config{'excuse'}) {
+        print ".................................... OK\n";
+    }
+    else {
+        print ".................................... FAILED\n";
+        die "    $config{'excuse'}\n";
+    }
 }
-else {
-    print ".................................... FAILED\n";
-    die "    $config{'excuse'}\n";
-}
+check_excuse();
+
+print "Configuring libatomic_ops ...";
+%config = Config::LAO::configure(%config);
+check_excuse();
 
 print "Generating config.h ...";
 Config::Generate::file('build/config.h.in', 'src/gen/config.h', %config);

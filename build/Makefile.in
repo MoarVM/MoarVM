@@ -1,7 +1,7 @@
 # Compiler configuration
 CC       = @cc@
 CFLAGS   = @cflags@
-CINCLUDE = -I3rdparty/apr/include -Isrc -I3rdparty
+CINCLUDE = -I3rdparty/apr/include -I3rdparty/libatomic_ops/src -Isrc -I3rdparty
 LD       = @link@
 LDFLAGS  = @ldflags@
 LLIBS    = @llibs@
@@ -21,8 +21,14 @@ CAT  = @cat@
 APR_LIB = @apr_lib@
 APR_BUILD_LINE = @apr_build_line@
 
+# libatomic_ops related
+LAO_LIB = @lao_lib@
+LAO_BUILD_LINE = @lao_build_line@
+# the following will be the same as LAO_LIB if it's to be built, otherwise blank
+BUILD_LAO_LIB = @lao_whether_build@
+
 # Various collections of libraries, objects and sources.
-THIRDPARTY_LIBS = $(APR_LIB)
+THIRDPARTY_LIBS = $(APR_LIB) $(BUILD_LAO_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
             src/core/bytecodedump$(O) \
@@ -62,6 +68,10 @@ moarvm$(EXE): $(THIRDPARTY_LIBS) $(CORE_OBJS) $(MAIN_OBJ)
 # APR
 $(APR_LIB):
 	$(APR_BUILD_LINE)
+
+# libatomic_ops
+$(LAO_LIB):
+	$(LAO_BUILD_LINE)
 
 # Generated unicode database
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
