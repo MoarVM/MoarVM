@@ -32,6 +32,7 @@ class QAST::MASTCompiler {
             nqp::bindattr($obj, RegAlloc, '@!ints', []);
             nqp::bindattr($obj, RegAlloc, '@!nums', []);
             nqp::bindattr($obj, RegAlloc, '@!strs', []);
+            nqp::bindattr($obj, RegAlloc, '%!released_indexes', {});
             $obj
         }
         
@@ -107,6 +108,13 @@ class QAST::MASTCompiler {
             $!qast := $qast;
             $!outer := $outer;
             $!compiler := $compiler;
+            %!local_names_by_index := nqp::hash();
+            %!locals := nqp::hash(); 
+            %!local_kinds := nqp::hash();
+            %!lexicals := nqp::hash();
+            %!lexical_kinds := nqp::hash();
+            %!lexical_params := nqp::hash();
+            @!params := nqp::list()
         }
         
         method add_param($var) {

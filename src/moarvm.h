@@ -33,6 +33,7 @@
 #include "core/bytecodedump.h"
 #include "core/ops.h"
 #include "6model/reprs.h"
+#include "6model/reprconv.h"
 #include "6model/bootstrap.h"
 #include "6model/sc.h"
 #include "gc/allocation.h"

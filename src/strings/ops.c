@@ -576,8 +576,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
         length = sep_length ? (index == -1 ? end : index) - start : 1;
         if (length) {
             portion = MVM_string_substring(tc, input, start, length);
-            REPR(result)->pos_funcs->push_boxed(tc, STABLE(result),
-                result, OBJECT_BODY(result), (MVMObject *)portion);
+             MVM_repr_push_o(tc, result, (MVMObject *)portion);
         }
         start += length + sep_length;
     }
@@ -611,8 +610,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         input, OBJECT_BODY(input));
     
     while (++index < elems) {
-        MVMObject *item = REPR(input)->pos_funcs->at_pos_boxed(tc, STABLE(input),
-            input, OBJECT_BODY(input), index);
+        MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
         
         /* allow null items in the array, I guess.. */
         if (!item)
@@ -644,8 +642,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         
         portion_index = 0;
         while (++index < elems) {
-            MVMObject *item = REPR(input)->pos_funcs->at_pos_boxed(tc, STABLE(input),
-                input, OBJECT_BODY(input), index);
+            MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
             
             if (!item)
                 continue;

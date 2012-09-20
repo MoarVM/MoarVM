@@ -160,8 +160,7 @@ static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegist
     
     /* Add to method table. */
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
-    REPR(attributes)->pos_funcs->push_boxed(tc, STABLE(attributes),
-        attributes, OBJECT_BODY(attributes), attr);
+    MVM_repr_push_o(tc, attributes, attr);
     
     /* Return added attribute as result. */
     MVM_args_set_result_obj(tc, attr, MVM_RETURN_CURRENT_FRAME);
@@ -209,20 +208,17 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     type_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_info);
     REPR(type_info)->initialize(tc, STABLE(type_info), type_info, OBJECT_BODY(type_info));
-    REPR(repr_info)->pos_funcs->push_boxed(tc, STABLE(repr_info),
-        repr_info, OBJECT_BODY(repr_info), type_info);
+    MVM_repr_push_o(tc, repr_info, type_info);
         
     /* ...which in turn contains this type... */
-    REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
-        type_info, OBJECT_BODY(type_info), type_obj);
+    MVM_repr_push_o(tc, type_info, type_obj);
     
     /* ...then an array of hashes per attribute... */
     attr_info_list = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info_list);
     REPR(attr_info_list)->initialize(tc, STABLE(attr_info_list), attr_info_list,
         OBJECT_BODY(attr_info_list));
-    REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
-        type_info, OBJECT_BODY(type_info), attr_info_list);
+    MVM_repr_push_o(tc, type_info, attr_info_list);
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
     num_attrs = REPR(attributes)->pos_funcs->elems(tc, STABLE(attributes),
@@ -230,8 +226,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     for (i = 0; i < num_attrs; i++) {
         MVMObject *attr_info = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
         MVMKnowHOWAttributeREPR *attribute = (MVMKnowHOWAttributeREPR *)
-            REPR(attributes)->pos_funcs->at_pos_boxed(tc, STABLE(attributes),
-                attributes, OBJECT_BODY(attributes), i);
+            MVM_repr_at_pos_o(tc, attributes, i);
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info);
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&attribute);
         if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
@@ -249,8 +244,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
                 attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target, attr_info);
         }
         
-        REPR(attr_info_list)->pos_funcs->push_boxed(tc, STABLE(attr_info_list),
-            attr_info_list, OBJECT_BODY(attr_info_list), attr_info);
+        MVM_repr_push_o(tc, attr_info_list, attr_info);
         MVM_gc_root_temp_pop_n(tc, 2);
     }
     
@@ -259,8 +253,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&parent_info);
     REPR(parent_info)->initialize(tc, STABLE(parent_info), parent_info,
         OBJECT_BODY(parent_info));
-    REPR(type_info)->pos_funcs->push_boxed(tc, STABLE(type_info),
-        type_info, OBJECT_BODY(type_info), parent_info);
+    MVM_repr_push_o(tc, type_info, parent_info);
     
     /* Compose the representation using it. */
     REPR(type_obj)->compose(tc, STABLE(type_obj), repr_info);

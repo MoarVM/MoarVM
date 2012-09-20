@@ -37,10 +37,6 @@ class MAST::CompUnit is MAST::Node {
     # The set of frames that make up this compilation unit.
     has @!frames;
     
-    method new() {
-        nqp::create(self)
-    }
-    
     method add_frame($frame) {
         @!frames[+@!frames] := $frame;
     }

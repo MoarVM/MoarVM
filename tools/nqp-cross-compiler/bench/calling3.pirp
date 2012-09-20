@@ -1,0 +1,85 @@
+
+# decrement and compare
+.sub dec_compare
+        .local int a0
+    a0 = 10000000
+AGAIN:
+        dec a0
+        if a0 == 0 goto FIN
+        branch AGAIN
+FIN:
+        end
+.end
+# 0.122 s
+
+
+.sub callee1
+    .param int e0
+    .param int e1
+    .return (e1)
+.end
+
+# 2 args 2 params
+.sub calling
+    .local int e0
+    .local int e1
+    e0 = 10000000
+AGAIN:
+    e1 = callee1(e0, e1)
+    dec e0
+    if e0 != 0 goto AGAIN
+.end
+
+.sub callee2
+#    .param int e0
+#    .param int e1
+    .return (1)
+.end
+
+# 2 args 0 params
+.sub calling2
+    .local int e0
+    .local int e1
+    e0 = 10000000
+AGAIN:
+    e1 = callee2(e0, e1)
+    dec e0
+    if e0 != 0 goto AGAIN
+.end
+
+.sub callee3
+#    .param int e0
+#    .param int e1
+    .return (1)
+.end
+
+# 0 args 0 params
+.sub calling3
+    .local int e0
+    .local int e1
+    e0 = 10000000
+AGAIN:
+    e1 = callee2()
+    dec e0
+    if e0 != 0 goto AGAIN
+.end
+
+.sub callee4
+#    .param int e0
+#    .param int e1
+    .return (1)
+.end
+
+# 0 args 0 params
+.sub calling4 :main
+    .local int e0
+    .local int e1
+    e0 = 10000000
+    .local pmc c4
+AGAIN:
+    c4 = find_name 'callee4'
+    c4 = newclosure c4
+    e1 = c4()
+    dec e0
+    if e0 != 0 goto AGAIN
+.end

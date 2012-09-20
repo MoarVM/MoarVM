@@ -28,7 +28,8 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/core/bytecodedump$(O) \
             src/core/ops$(O) src/gc/allocation$(O) src/gc/worklist$(O) src/gc/roots$(O)  \
             src/io/fileops$(O) src/io/socketops$(O) src/io/dirops$(O) src/io/procops$(O) \
-            src/gc/nursery$(O) src/gc/gen2$(O) src/gc/wb$(O) src/6model/reprs$(O) src/6model/reprs/MVMString$(O) \
+            src/gc/nursery$(O) src/gc/gen2$(O) src/gc/wb$(O) src/6model/reprs$(O) \
+            src/6model/reprconv$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
             src/6model/reprs/KnowHOWAttributeREPR$(O) src/6model/reprs/P6str$(O) \
@@ -45,7 +46,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/core/bytecodedump.h \
             src/io/fileops.h src/io/socketops.h src/io/dirops.h src/io/procops.h \
             src/gc/allocation.h src/gc/worklist.h src/gc/nursery.h src/gc/roots.h src/gc/gen2.h \
-            src/gc/wb.h src/6model/reprs.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
+            src/gc/wb.h src/6model/reprs.h src/6model/reprconv.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
             src/6model/reprs/KnowHOWREPR.h src/6model/reprs/KnowHOWAttributeREPR.h \
             src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h src/6model/reprs/P6str.h \
@@ -110,6 +111,8 @@ src/gc/wb$(O): src/gc/wb.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/wb$(O) src/gc/wb.c
 src/6model/reprs$(O): src/6model/reprs.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs$(O) src/6model/reprs.c
+src/6model/reprconv$(O): src/6model/reprconv.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprconv$(O) src/6model/reprconv.c
 src/6model/reprs/MVMString$(O): src/6model/reprs/MVMString.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMString$(O) src/6model/reprs/MVMString.c
 src/6model/reprs/MVMArray$(O): src/6model/reprs/MVMArray.c $(HEADERS)

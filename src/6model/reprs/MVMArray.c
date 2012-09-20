@@ -76,12 +76,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-static void * at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *target) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation does not support native type storage");
-}
-
-static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
+static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     
     if (index < 0) {
@@ -90,14 +85,9 @@ static MVMObject * at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *
             MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
     }
     else if (index >= body->elems)
-        return NULL;
+        value->o = NULL;
 
-    return body->slots[body->start + index];
-}
-
-static void bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation does not support native type storage");
+    value->o = body->slots[body->start + index];
 }
 
 static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64 n) {
@@ -160,7 +150,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
     body->slots = slots;
 }
 
-static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMObject *obj) {
+static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     
     if (index < 0) {
@@ -171,7 +161,7 @@ static void bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     else if (index >= body->elems)
         set_size_internal(tc, body, index + 1);
 
-    MVM_ASSIGN_REF(tc, root, body->slots[body->start + index], obj);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start + index], value.o);
 }
 
 static MVMint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -184,23 +174,13 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     set_size_internal(tc, body, count);
 }
 
-static void push_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static void push_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     set_size_internal(tc, body, body->elems + 1);
-    MVM_ASSIGN_REF(tc, root, body->slots[body->start + body->elems - 1], obj);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start + body->elems - 1], value.o);
 }
 
-static void * pop_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static MVMObject * pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
 
     if (body->elems < 1)
@@ -208,15 +188,10 @@ static MVMObject * pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *roo
             "MVMArray: Can't pop from an empty array");
 
     body->elems--;
-    return body->slots[body->start + body->elems];
+    value->o = body->slots[body->start + body->elems];
 }
 
-static void unshift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static void unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
 
     /* If we don't have room at the beginning of the slots,
@@ -241,28 +216,20 @@ static void unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
 
     /* Now do the unshift */
     body->start--;
-    MVM_ASSIGN_REF(tc, root, body->slots[body->start], obj);
+    MVM_ASSIGN_REF(tc, root, body->slots[body->start], value.o);
     body->elems++;
 }
 
-static void * shift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMArray representation not fully implemented yet");
-}
-
-static MVMObject * shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMArrayBody *body = (MVMArrayBody *)data;
-    MVMObject    *value;
 
     if (body->elems < 1)
         MVM_exception_throw_adhoc(tc,
             "MVMArray: Can't shift from an empty array");
 
-    value = body->slots[body->start];
+    value->o = body->slots[body->start];
     body->start++;
     body->elems--;
-
-    return value;
 }
 
 /* This whole splice optimization can be optimized for the case we have two
@@ -344,9 +311,11 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     if (elems1 > 0) {
         MVMint64 i;
         for (i = 0; i < elems1; i++) {
-            MVMObject *to_copy = REPR(from)->pos_funcs->at_pos_boxed(tc,
-                STABLE(from), from, OBJECT_BODY(from), i);
-            MVM_ASSIGN_REF(tc, root, slots[start + offset + i], to_copy);
+            /* XXX Needs update for native. */
+            MVMRegister to_copy;
+            REPR(from)->pos_funcs->at_pos(tc, STABLE(from), from,
+                OBJECT_BODY(from), i, &to_copy, MVM_reg_obj);
+            MVM_ASSIGN_REF(tc, root, slots[start + offset + i], to_copy.o);
         }
     }
 }
@@ -377,20 +346,14 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec; 
     this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    this_repr->pos_funcs->at_pos_ref = at_pos_ref;
-    this_repr->pos_funcs->at_pos_boxed = at_pos_boxed;
-    this_repr->pos_funcs->bind_pos_ref = bind_pos_ref;
-    this_repr->pos_funcs->bind_pos_boxed = bind_pos_boxed;
+    this_repr->pos_funcs->at_pos = at_pos;
+    this_repr->pos_funcs->bind_pos = bind_pos;
     this_repr->pos_funcs->elems = elems;
     this_repr->pos_funcs->set_elems = set_elems;
-    this_repr->pos_funcs->push_ref = push_ref;
-    this_repr->pos_funcs->push_boxed = push_boxed;
-    this_repr->pos_funcs->pop_ref = pop_ref;
-    this_repr->pos_funcs->pop_boxed = pop_boxed;
-    this_repr->pos_funcs->unshift_ref = unshift_ref;
-    this_repr->pos_funcs->unshift_boxed = unshift_boxed;
-    this_repr->pos_funcs->shift_ref = shift_ref;
-    this_repr->pos_funcs->shift_boxed = shift_boxed;
+    this_repr->pos_funcs->push = push;
+    this_repr->pos_funcs->pop = pop;
+    this_repr->pos_funcs->unshift = unshift;
+    this_repr->pos_funcs->shift = shift;
     this_repr->pos_funcs->splice = splice;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
     this_repr->compose = compose;

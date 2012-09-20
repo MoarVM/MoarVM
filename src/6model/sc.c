@@ -17,8 +17,7 @@ MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *s
     roots = sc->root_objects;
     count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     for (i = 0; i < count; i++) {
-        MVMObject *test = REPR(roots)->pos_funcs->at_pos_boxed(tc, STABLE(roots),
-            roots, OBJECT_BODY(roots), i);
+        MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
         if (test == obj)
             return i;
     }
@@ -43,8 +42,7 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     roots = sc->root_codes;
     count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     for (i = 0; i < count; i++) {
-        MVMObject *test = REPR(roots)->pos_funcs->at_pos_boxed(tc, STABLE(roots),
-            roots, OBJECT_BODY(roots), i);
+        MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
         if (test == obj)
             return i;
     }
@@ -57,8 +55,7 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *roots = sc->root_objects;
     MVMint64   count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     if (idx < count)
-        return REPR(roots)->pos_funcs->at_pos_boxed(tc, STABLE(roots),
-            roots, OBJECT_BODY(roots), idx);
+        return MVM_repr_at_pos_o(tc, roots, idx);
     else
         MVM_exception_throw_adhoc(tc,
             "No object at index %d", idx);
@@ -78,8 +75,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
     MVMObject *roots = sc->root_codes;
     MVMint64   count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     if (idx < count)
-        return REPR(roots)->pos_funcs->at_pos_boxed(tc, STABLE(roots),
-            roots, OBJECT_BODY(roots), idx);
+        return MVM_repr_at_pos_o(tc, roots, idx);
     else
         MVM_exception_throw_adhoc(tc,
             "No code ref at index %d", idx);

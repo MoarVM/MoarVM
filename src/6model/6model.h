@@ -295,26 +295,18 @@ typedef struct _MVMREPROps_Boxing {
         MVMObject *root, void *data, MVMuint32 repr_id);
 } MVMREPROps_Boxing;
 typedef struct _MVMREPROps_Positional {
-    /* Copies the element at the specified address to the target address that
-     * is passed. Returns that address if there was such an element, or NULL
-     * if there was not. */
-    void * (*at_pos_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 index, void *target);
+    /* Gets the element and the specified index and places it in the passed
+     * location (specified as a register). Expects to be passed a kind flag
+     * that matches the kind of the attribute that is being fetched. */
+    void (*at_pos) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 index,
+        union _MVMRegister *result, MVMuint16 kind);
 
-    /* Get a boxed object representing the element at the specified position. If the
-     * object is already a reference type, simply returns that. */
-    MVMObject * (*at_pos_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 index);
-
-    /* Binds the value at the specified address into the array at the specified index.
-     * may auto-vivify or throw. */
-    void (*bind_pos_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 index, void *addr);
-
-    /* Binds the object at the specified address into the array at the specified index.
-     * For arrays of non-reference types, expects a compatible type. */
-    void (*bind_pos_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 index, MVMObject *obj);
+    /* Binds the given object or value to the specified index. The
+     * kind flag specifies the type of value being passed to be bound.*/
+    void (*bind_pos) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 index,
+        union _MVMRegister value, MVMuint16 kind);
 
     /* Gets the number of elements. */
     MVMint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
@@ -325,43 +317,22 @@ typedef struct _MVMREPROps_Positional {
     void (*set_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMint64 size);
 
-    /* Pushes the value at the specified address onto the array. */
-    void (*push_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, void *addr);
+    /* Pushes the specified value onto the array. */
+    void (*push) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, union _MVMRegister value, MVMuint16 kind);
 
-    /* Pushes the object onto the array. */
-    void (*push_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *obj);
+    /* Pops the value at the end of the array off it. */
+    void (*pop) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, union _MVMRegister *value, MVMuint16 kind);
 
-    /* Copies the element at the end of the array to the specified address
-     * and decrements the element count. Returns the target address if an
-     * element was poppoed or NULL if there is nothing to pop. */
-    void * (*pop_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, void *target);
+    /* Unshifts the value onto the array. */
+    void (*unshift) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, union _MVMRegister value, MVMuint16 kind);
 
-    /* Gets the object at the end of the array, and decrements the element count. */
-    MVMObject * (*pop_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data);
-
-    /* Unshifts the value at the specified address onto the array. */
-    void (*unshift_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, void *addr);
-
-    /* Unshifts the object onto the array. */
-    void (*unshift_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *obj);
-    
-    /* Copies the element at the start of the array to the specified address
-     * and moves the starting point of the array so that the next element is
-     * element zero. Returns the target address if an element was shifted or
-     * NULL if there is nothing to shift. */
-    void * (*shift_ref) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, void *target);
-
-    /* Gets the object at the start of the array, and moves the starting point of
+    /* Gets the value at the start of the array, and moves the starting point of
      * the array so that the next element is element zero. */
-    MVMObject * (*shift_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data);
+    void (*shift) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, union _MVMRegister *value, MVMuint16 kind);
     
     /* Splices the specified array into this one. Representations may optimize if
      * they know the type of the passed array, otherwise they should use the REPR

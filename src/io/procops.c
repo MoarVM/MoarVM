@@ -315,8 +315,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             MVMString *string = MVM_string_utf8_decode(tc,
                 tc->instance->boot_types->BOOTStr,
                 instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
-            REPR(clargs)->pos_funcs->push_boxed(tc, STABLE(clargs), clargs,
-                            OBJECT_BODY(clargs), (MVMObject *)string);
+            MVM_repr_push_o(tc, clargs, (MVMObject *)string);
         }
         instance->clargs = clargs;
     }

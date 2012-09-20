@@ -51,16 +51,10 @@ static void die_no_pos(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support positional access", MVM_string_utf8_encode_C_string(tc, repr_name));
 }
-static void * default_at_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *target) {
+static void default_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
-static MVMObject * default_at_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
-    die_no_pos(tc, st->REPR->name);
-}
-static void default_bind_pos_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, void *addr) {
-    die_no_pos(tc, st->REPR->name);
-}
-static void default_bind_pos_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMObject *obj) {
+static void default_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
 static MVMint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -69,28 +63,16 @@ static MVMint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
 static void default_set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
-static void default_push_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
+static void default_push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
-static void default_push_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
+static void default_pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
-static void * default_pop_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
+static void default_unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
-static MVMObject * default_pop_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    die_no_pos(tc, st->REPR->name);
-}
-static void default_unshift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *addr) {
-    die_no_pos(tc, st->REPR->name);
-}
-static void default_unshift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *obj) {
-    die_no_pos(tc, st->REPR->name);
-}
-static void * default_shift_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, void *target) {
-    die_no_pos(tc, st->REPR->name);
-}
-static MVMObject * default_shift_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static void default_shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
 static MVMStorageSpec default_get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -153,20 +135,14 @@ static void add_default_box_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
 /* Set default positional functions on a REPR that lacks them. */
 static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    repr->pos_funcs->at_pos_ref = default_at_pos_ref;
-    repr->pos_funcs->at_pos_boxed = default_at_pos_boxed;
-    repr->pos_funcs->bind_pos_ref = default_bind_pos_ref;
-    repr->pos_funcs->bind_pos_boxed = default_bind_pos_boxed;
+    repr->pos_funcs->at_pos = default_at_pos;
+    repr->pos_funcs->bind_pos = default_bind_pos;
     repr->pos_funcs->elems = default_elems;
     repr->pos_funcs->set_elems = default_set_elems;
-    repr->pos_funcs->push_ref = default_push_ref;
-    repr->pos_funcs->push_boxed = default_push_boxed;
-    repr->pos_funcs->pop_ref = default_pop_ref;
-    repr->pos_funcs->pop_boxed = default_pop_boxed;
-    repr->pos_funcs->unshift_ref = default_unshift_ref;
-    repr->pos_funcs->unshift_boxed = default_unshift_boxed;
-    repr->pos_funcs->shift_ref = default_shift_ref;
-    repr->pos_funcs->shift_boxed = default_shift_boxed;
+    repr->pos_funcs->push = default_push;
+    repr->pos_funcs->pop = default_pop;
+    repr->pos_funcs->unshift = default_unshift;
+    repr->pos_funcs->shift = default_shift;
     repr->pos_funcs->splice = default_splice;
     repr->pos_funcs->get_elem_storage_spec = default_get_elem_storage_spec;
 }
