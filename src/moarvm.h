@@ -13,6 +13,9 @@
 #include <apr_env.h>
 #include <apr_getopt.h>
 
+/* libatomic_ops */
+#include <atomic_ops.h>
+
 /* Configuration. */
 #include "gen/config.h"
 
