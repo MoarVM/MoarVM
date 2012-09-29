@@ -19,9 +19,15 @@ typedef enum {
     MVMAllocate_Gen2    = 1
 } MVMAllocationTarget;
 
-/* I don't know; let's start with this and see what happens. Experiment later */
-#define MVMInitialFramePoolTableSize 40
-#define MVMFramePoolLengthLimit 100
+/* To manage memory more efficiently, we cache MVMFrame instances.
+ * The initial frame pool table size sets the initial guess at the
+ * number of different types of frame (that is, an MVMStaticFrame)
+ * that we'll encounter and cache. If we do deep recursion, we run
+ * the risk of caching an enormous number of frames, so the length
+ * limit sets how many frames of a given static frame type we will
+ * keep around. */
+#define MVMInitialFramePoolTableSize    64
+#define MVMFramePoolLengthLimit         64
 
 /* Information associated with an executing thread. */
 struct _MVMInstance;
@@ -92,6 +98,7 @@ typedef struct _MVMThreadContext {
     
     /* Pool table of chains of frames for each static frame. */
     struct _MVMFrame **frame_pool_table;
+
     /* Size of the pool table, so it can grow on demand. */
     MVMuint32          frame_pool_table_size;
 } MVMThreadContext;
