@@ -13,6 +13,7 @@
 #include "6model/reprs/HashAttrStore.h"
 #include "6model/reprs/KnowHOWAttributeREPR.h"
 #include "6model/reprs/P6str.h"
+#include "6model/reprs/MVMThread.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -36,3 +37,4 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_HashAttrStore           11
 #define MVM_REPR_ID_KnowHOWAttributeREPR    12
 #define MVM_REPR_ID_P6str                   13
+#define MVM_REPR_ID_MVMThread               14
