@@ -32,6 +32,7 @@
 #include "core/bytecode.h"
 #include "core/bytecodedump.h"
 #include "core/ops.h"
+#include "core/threads.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"

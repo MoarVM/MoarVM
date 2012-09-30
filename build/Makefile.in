@@ -25,7 +25,7 @@ APR_BUILD_LINE = @apr_build_line@
 THIRDPARTY_LIBS = $(APR_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
-            src/core/bytecodedump$(O) \
+            src/core/bytecodedump$(O) src/core/threads$(O) \
             src/core/ops$(O) src/gc/allocation$(O) src/gc/worklist$(O) src/gc/roots$(O)  \
             src/io/fileops$(O) src/io/socketops$(O) src/io/dirops$(O) src/io/procops$(O) \
             src/gc/nursery$(O) src/gc/gen2$(O) src/gc/wb$(O) src/6model/reprs$(O) \
@@ -44,7 +44,7 @@ MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
             src/core/compunit.h src/core/bytecode.h src/core/ops.h src/core/validation.h \
-            src/core/bytecodedump.h \
+            src/core/bytecodedump.h src/core/threads.h \
             src/io/fileops.h src/io/socketops.h src/io/dirops.h src/io/procops.h \
             src/gc/allocation.h src/gc/worklist.h src/gc/nursery.h src/gc/roots.h src/gc/gen2.h \
             src/gc/wb.h src/6model/reprs.h src/6model/reprconv.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
@@ -89,6 +89,8 @@ src/core/bytecodedump$(O): src/core/bytecodedump.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/bytecodedump$(O) src/core/bytecodedump.c
 src/core/ops$(O): src/core/ops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/ops$(O) src/core/ops.c
+src/core/threads$(O): src/core/threads.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/threads$(O) src/core/threads.c
 src/io/fileops$(O): src/io/fileops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/fileops$(O) src/io/fileops.c
 src/io/socketops$(O): src/io/socketops.c $(HEADERS)
