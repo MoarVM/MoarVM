@@ -77,8 +77,8 @@ typedef struct _MVMThreadContext {
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
     
-    /* OS thread handle. */
-    void *os_thread; /* XXX Whatever APR uses for thread handles... */
+    /* Thread object representing the thread. */
+    struct _MVMObject *thread_obj;
     
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change

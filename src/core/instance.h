@@ -18,11 +18,14 @@ typedef struct _MVMREPRHashEntry {
 
 /* Represents a MoarVM instance. */
 typedef struct _MVMInstance {
-    /* The list of active threads. */
-    MVMThreadContext **threads;
+    /* The main thread. */
+    MVMThreadContext *main_thread;
     
-    /* The number of active threads. */
-    MVMuint16 num_threads;
+    /* The list of user-space spawned threads. */
+    struct _MVMObject **user_threads;
+    
+    /* The number of user threads. */
+    MVMuint16 num_user_threads;
     
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */
