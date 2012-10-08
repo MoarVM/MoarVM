@@ -10,7 +10,7 @@ struct _MVMThreadStart {
  * the passed code object using the passed thread context. */
 static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
-    /* XXX Actually run code... */
+    MVM_interp_run(ts->tc, ((MVMCode *)ts->invokee)->body.sf);
     return NULL;
 }
 
@@ -18,14 +18,21 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
     int apr_return_status;
     apr_threadattr_t *thread_attr;
     struct _MVMThreadStart *ts;
-
-    /* Create a new thread context. */
-    MVMThreadContext *child_tc = MVM_tc_create(tc->instance);
+    MVMObject *child_obj;
+    
+    /* Ensure we have a known code object type.
+     * XXX Generalize in the future. */
+    if (REPR(invokee)->ID != MVM_REPR_ID_MVMCode)
+        MVM_exception_throw_adhoc(tc,
+            "Thread invokee must have representation MVMCode");
 
     /* Create a thread object to wrap it up in. */
-    MVMObject *child_obj = REPR(result_type)->allocate(tc, STABLE(result_type));
+    child_obj = REPR(result_type)->allocate(tc, STABLE(result_type));
     if (REPR(child_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *child = (MVMThread *)child_obj;
+        
+        /* Create a new thread context. */
+        MVMThreadContext *child_tc = MVM_tc_create(tc->instance);
         child->body.tc = child_tc;
         
         /* Allocate APR pool. */
