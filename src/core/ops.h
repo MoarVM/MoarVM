@@ -344,5 +344,6 @@
 #define MVM_OP_rand_n 23
 #define MVM_OP_time_i 24
 #define MVM_OP_clargs 25
+#define MVM_OP_newthread 26
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);
