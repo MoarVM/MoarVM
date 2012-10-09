@@ -205,7 +205,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     
     /* Switch back to the caller frame if there is one; we also need to
      * decrement its reference count. */
-    if (caller) {
+    if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = caller->static_info->bytecode;

@@ -80,6 +80,9 @@ typedef struct _MVMThreadContext {
     /* Thread object representing the thread. */
     struct _MVMObject *thread_obj;
     
+    /* The frame lying at the base of the current thread. */
+    struct _MVMFrame *thread_entry_frame;
+    
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change
      * if the code in question also allocates, there is a need to register
