@@ -55,30 +55,35 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_goto:
                         cur_op = bytecode_start + GET_UI32(cur_op, 0);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_if_i:
                         if (GET_REG(cur_op, 0).i64)
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_unless_i:
                         if (GET_REG(cur_op, 0).i64)
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_if_n:
                         if (GET_REG(cur_op, 0).n64 != 0.0)
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_unless_n:
                         if (GET_REG(cur_op, 0).n64 != 0.0)
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_if_s: {
                         MVMString *str = GET_REG(cur_op, 0).s;
@@ -86,6 +91,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_unless_s: {
@@ -94,6 +100,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_if_s0: {
@@ -103,6 +110,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_unless_s0: {
@@ -112,6 +120,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_set:
@@ -650,6 +659,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                                 input * (6 /* size of each goto op */) 
                                 + (2 /* size of the goto instruction itself */));
                         }
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_caller: {
@@ -812,6 +822,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             cur_op += 10;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 6);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_unipropcode:
                         GET_REG(cur_op, 0).i64 = (MVMint64)MVM_unicode_name_to_property_code(tc,
