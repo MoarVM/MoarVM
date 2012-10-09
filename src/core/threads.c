@@ -6,11 +6,27 @@ struct _MVMThreadStart {
     MVMObject        *invokee;
 };
 
+/* This callback is passed to the interpreter code. It takes care of making
+ * the initial invocation of the thread code. */
+static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
+    /* The passed data is simply the code object to invoke. */
+    MVMObject *code = (MVMObject *)data;
+    
+    /* Dummy, 0-arg callsite. */
+    MVMCallsite no_arg_callsite;
+    no_arg_callsite.arg_flags = NULL;
+    no_arg_callsite.arg_count = 0;
+    no_arg_callsite.num_pos   = 0;
+    
+    /* Create initial frame, which sets up all of the interpreter state also. */
+    STABLE(code)->invoke(tc, code, &no_arg_callsite, NULL);
+}
+
 /* This callback handles starting execution of a thread. It invokes
  * the passed code object using the passed thread context. */
 static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
-    MVM_interp_run(ts->tc, ((MVMCode *)ts->invokee)->body.sf);
+    MVM_interp_run(ts->tc, &thread_initial_invoke, ts->invokee);
     return NULL;
 }
 
@@ -19,12 +35,6 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
     apr_threadattr_t *thread_attr;
     struct _MVMThreadStart *ts;
     MVMObject *child_obj;
-    
-    /* Ensure we have a known code object type.
-     * XXX Generalize in the future. */
-    if (REPR(invokee)->ID != MVM_REPR_ID_MVMCode)
-        MVM_exception_throw_adhoc(tc,
-            "Thread invokee must have representation MVMCode");
 
     /* Create a thread object to wrap it up in. */
     child_obj = REPR(result_type)->allocate(tc, STABLE(result_type));

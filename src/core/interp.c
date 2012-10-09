@@ -14,7 +14,7 @@
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
 /* This is the interpreter run loop. We have one of these per thread. */
-void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static_frame) {
+void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
     /* Points to the current opcode. */
     MVMuint8 *cur_op = NULL;
     
@@ -31,12 +31,6 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     /* The current call site we're constructing. */
     MVMCallsite *cur_callsite = NULL;
     
-    /* Dummy, 0-arg callsite. */
-    MVMCallsite no_arg_callsite;
-    no_arg_callsite.arg_flags = NULL;
-    no_arg_callsite.arg_count = 0;
-    no_arg_callsite.num_pos   = 0;
-    
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
@@ -45,8 +39,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     tc->interp_reg_base       = &reg_base;
     tc->interp_cu             = &cu;
     
-    /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, initial_static_frame, &no_arg_callsite, NULL, NULL, NULL);
+    /* With everything set up, do the initial invocation (exactly what this does
+     * varies depending on if this is starting a new thread or is the top-level
+     * program entry point). */
+    initial_invoke(tc, invoke_data);
     
     /* Enter runloop. */
     while (1) {

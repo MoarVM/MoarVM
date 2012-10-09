@@ -68,6 +68,5 @@ typedef struct _MVMOpInfo {
 #define MVM_operand_callsite    (13 << 3)
 #define MVM_operand_type_mask   (15 << 3)
 
-struct _MVMStaticFrame;
 /* Functions. */
-void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static_frame);
+void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data);

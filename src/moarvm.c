@@ -52,6 +52,19 @@ MVMInstance * MVM_vm_create_instance(void) {
     return instance;
 }
 
+/* This callback is passed to the interpreter code. It takes care of making
+ * the initial invocation. */
+static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
+    /* Dummy, 0-arg callsite. */
+    MVMCallsite no_arg_callsite;
+    no_arg_callsite.arg_flags = NULL;
+    no_arg_callsite.arg_count = 0;
+    no_arg_callsite.num_pos   = 0;
+    
+    /* Create initial frame, which sets up all of the interpreter state also. */
+    MVM_frame_invoke(tc, (MVMStaticFrame *)data, &no_arg_callsite, NULL, NULL, NULL);
+}
+
 /* Loads bytecode from the specified file name and runs it. */
 void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     /* Map the compilation unit into memory and dissect it. */
@@ -59,7 +72,7 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
     
     /* Run the first frame. */
-    MVM_interp_run(tc, cu->frames[0]);
+    MVM_interp_run(tc, &toplevel_initial_invoke, cu->frames[0]);
 }
 
 /* Loads bytecode from the specified file name and dumps it. */
