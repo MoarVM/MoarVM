@@ -5,22 +5,22 @@ struct _MVMThreadStart {
     MVMThreadContext *tc;
     MVMFrame         *caller;
     MVMObject        *invokee;
+    MVMCallsite       no_arg_callsite;
 };
 
 /* This callback is passed to the interpreter code. It takes care of making
  * the initial invocation of the thread code. */
 static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     /* The passed data is simply the code object to invoke. */
-    MVMObject *code = (MVMObject *)data;
+    struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
     
     /* Dummy, 0-arg callsite. */
-    MVMCallsite no_arg_callsite;
-    no_arg_callsite.arg_flags = NULL;
-    no_arg_callsite.arg_count = 0;
-    no_arg_callsite.num_pos   = 0;
+    ts->no_arg_callsite.arg_flags = NULL;
+    ts->no_arg_callsite.arg_count = 0;
+    ts->no_arg_callsite.num_pos   = 0;
     
     /* Create initial frame, which sets up all of the interpreter state also. */
-    STABLE(code)->invoke(tc, code, &no_arg_callsite, NULL);
+    STABLE(ts->invokee)->invoke(tc, ts->invokee, &ts->no_arg_callsite, NULL);
     
     /* This frame should be marked as the thread entry frame, so that any
      * return from it will cause us to drop out of the interpreter and end
@@ -37,7 +37,7 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
      ts->tc->cur_frame = ts->caller;
     
     /* Enter the interpreter, to run code. */
-    MVM_interp_run(ts->tc, &thread_initial_invoke, ts->invokee);
+    MVM_interp_run(ts->tc, &thread_initial_invoke, ts);
     
     /* Now we're done, decrement the reference count of the caller. */
     MVM_frame_dec_ref(ts->tc, ts->caller);
