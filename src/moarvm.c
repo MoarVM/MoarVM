@@ -56,7 +56,7 @@ MVMInstance * MVM_vm_create_instance(void) {
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Dummy, 0-arg callsite. */
-    MVMCallsite no_arg_callsite;
+    static MVMCallsite no_arg_callsite;
     no_arg_callsite.arg_flags = NULL;
     no_arg_callsite.arg_count = 0;
     no_arg_callsite.num_pos   = 0;
