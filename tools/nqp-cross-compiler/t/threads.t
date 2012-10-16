@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(2);
+plan(3);
 
 sub make_thread_type($frame) {
     my @ins := $frame.instructions;
@@ -110,3 +110,41 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "Before thread\nIn new thread\nLexical from outer\nIn main thread at end\n",
     "Thread can access outer lexicals");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        sub thread_code() {
+            my $frame := MAST::Frame.new();
+            my $r0 := local($frame, str);
+            my $r1 := local($frame, int);
+            my @ins := $frame.instructions;
+            op(@ins, 'const_s', $r0, sval('In new thread'));
+            op(@ins, 'say_s', $r0);
+            op(@ins, 'const_i64', $r1, ival(200000));
+            op(@ins, 'sleep', $r1);
+            op(@ins, 'const_s', $r0, sval('In new thread after sleep'));
+            op(@ins, 'say_s', $r0);
+            op(@ins, 'return');
+            return $frame;
+        }
+
+        my $type := make_thread_type($frame);
+        
+        my $thread_code := thread_code();
+        $cu.add_frame($thread_code);
+        
+        my $code   := local($frame, NQPMu);
+        my $thread := local($frame, NQPMu);
+        my $str    := local($frame, str);
+        my $time   := local($frame, int);
+        
+        op(@ins, 'const_s', $str, sval('Before thread'));
+        op(@ins, 'say_s', $str);
+        op(@ins, 'getcode', $code, $thread_code);
+        op(@ins, 'newthread', $thread, $code, $type);
+        op(@ins, 'jointhread', $thread);
+        op(@ins, 'const_s', $str, sval('In main thread after join'));
+        op(@ins, 'say_s', $str);
+        op(@ins, 'return');
+    },
+    "Before thread\nIn new thread\nIn new thread after sleep\nIn main thread after join\n",
+    "Can join a thread");
