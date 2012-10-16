@@ -93,3 +93,17 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
     
     return child_obj;
 }
+
+void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
+        MVMThread *thread = (MVMThread *)thread_obj;
+        apr_status_t thread_return_status;
+        apr_status_t apr_return_status = apr_thread_join(&thread_return_status, thread->body.apr_thread);
+        if (apr_return_status != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_compunit, "Could not join thread: errorcode %d", apr_return_status);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Thread handle passed to join must have representation MVMThread");
+    }
+}
