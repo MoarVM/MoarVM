@@ -41,7 +41,9 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     
     /* Now we're done, decrement the reference count of the caller. */
     MVM_frame_dec_ref(ts->tc, ts->caller);
-    
+
+    /* Exit the thread, now it's completed. */
+    apr_thread_exit(thread, APR_SUCCESS);
     return NULL;
 }
 
