@@ -69,6 +69,9 @@ typedef struct _MVMInstance {
      * is fine since only equality ever matters. */
     MVMuint32 gc_seq_number;
     
+    /* The number of threads that agree we're starting GC. */
+    MVMuint32 starting_gc;
+    
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
     
