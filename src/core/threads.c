@@ -47,6 +47,14 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     return NULL;
 }
 
+/* Adds a thread to the instance's user_threads list. Note that this should only
+ * be called by code holding the user_threads mutex. */
+static void add_user_threads_entry(MVMInstance *i, MVMThread *thread) {
+    i->num_user_threads++;
+    i->user_threads = realloc(i->user_threads, i->num_user_threads * sizeof(MVMThread *));
+    i->user_threads[i->num_user_threads - 1] = thread;
+}
+
 MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject *result_type) {
     int apr_return_status;
     apr_threadattr_t *thread_attr;
@@ -58,14 +66,25 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
     if (REPR(child_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *child = (MVMThread *)child_obj;
         
-        /* Create a new thread context. */
+        /* Create a new thread context and set it up. */
         MVMThreadContext *child_tc = MVM_tc_create(tc->instance);
         child->body.tc = child_tc;
+        child_tc->thread_obj = child;
 
-        /* Allocate APR pool. */
+        /* Allocate APR pool for the thread. */
         if ((apr_return_status = apr_pool_create(&child->body.apr_pool, NULL)) != APR_SUCCESS) {
-            MVM_panic(MVM_exitcode_compunit, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
+            MVM_panic(MVM_exitcode_threads, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
         }
+        
+        /* Take the user threads mutex and update global thread-related state,
+         * give the thread an ID, etc. */
+        if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_threads, "Unable to lock user_threads mutex");
+        child_tc->thread_id = tc->instance->next_user_thread_id;
+        tc->instance->next_user_thread_id++;
+        add_user_threads_entry(tc->instance, child);
+        if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_threads, "Unable to unlock user_threads mutex");
         
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was

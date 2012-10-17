@@ -26,12 +26,20 @@ MVMInstance * MVM_vm_create_instance(void) {
         exit(1);
     }
     
-    /* Stash the main thread's ThreadContext. */
+    /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(instance);
     
-    /* No user threads when we start. */
-    instance->num_user_threads = 0;
-    
+    /* No user threads when we start, and next thread to be created gets ID 1
+     * (the main thread got ID 0). */
+    instance->num_user_threads    = 0;
+    instance->next_user_thread_id = 1;
+    if ((apr_init_stat = apr_thread_mutex_create(&instance->mutex_user_threads, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) {
+        char error[256];
+        fprintf(stderr, "MoarVM: Initialization of user threads mutex failed\n    %s\n",
+            apr_strerror(apr_init_stat, error, 256));
+        exit(1);
+	}
+
     /* Set up the permanent roots storage. */
     instance->num_permroots   = 0;
     instance->alloc_permroots = 16;

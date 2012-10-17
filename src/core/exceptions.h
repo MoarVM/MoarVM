@@ -7,3 +7,4 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *m
 #define MVM_exitcode_gcalloc        15
 #define MVM_exitcode_gcroots        16
 #define MVM_exitcode_gcnursery      17
+#define MVM_exitcode_threads        18

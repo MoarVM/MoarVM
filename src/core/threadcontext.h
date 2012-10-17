@@ -78,7 +78,7 @@ typedef struct _MVMThreadContext {
     MVMuint32 thread_id;
     
     /* Thread object representing the thread. */
-    struct _MVMObject *thread_obj;
+    struct _MVMThread *thread_obj;
     
     /* The frame lying at the base of the current thread. */
     struct _MVMFrame *thread_entry_frame;

@@ -22,10 +22,16 @@ typedef struct _MVMInstance {
     MVMThreadContext *main_thread;
     
     /* The list of user-space spawned threads. */
-    struct _MVMObject **user_threads;
+    struct _MVMThread **user_threads;
+
+    /* The ID to allocate the next-created thread. */
+    MVMuint32 next_user_thread_id;
     
-    /* The number of user threads. */
+    /* The number of active user threads. */
     MVMuint16 num_user_threads;
+
+    /* Mutex controlling access to the user_thread related fields. */
+    apr_thread_mutex_t *mutex_user_threads;
     
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */
