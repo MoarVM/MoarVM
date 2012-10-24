@@ -13,7 +13,13 @@ typedef enum {
      * is currently blocked waiting on an operation in the outside
      * world (such as, waiting for another thread to join, or for
      * some I/O to complete). */
-    MVMGCStatus_UNABLE = 2
+    MVMGCStatus_UNABLE = 2,
+    
+    /* Indicates that, while the thread was in unable status, a GC
+     * run was triggered and the scanning work was stolen. A thread
+     * that becomes unblocked upon seeing this will wait for the GC
+     * run to be done. */
+    MVMGCStatus_STOLEN = 3
 } MVMGCStatus;
 
 /* Are we allocating in the nursery, or direct into generation 2? (The
