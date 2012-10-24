@@ -21,6 +21,18 @@ static void wait_for_all_threads(MVMInstance *i) {
         1;
 }
 
+/* Called by a thread to indicate it is about to enter a blocking operation.
+ * This gets any thread that is coordinating a GC run that this thread will
+ * be unable to participate. */
+void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
+}
+
+/* Called by a thread to indicate it has completed a block operation and is
+ * thus able to particpate in a GC run again. Note that this case needs some
+ * special handling if it comes out of this mode when a GC run is taking place. */
+void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
+}
+
 /* This is called when the allocator finds it has run out of memory and wants
  * to trigger a GC run. In this case, it's possible (probable, really) that it
  * will need to do that triggering, notifying other running threads that the
