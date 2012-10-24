@@ -5,7 +5,7 @@
  * really only means we need to do this enough to make sure tight native
  * loops trigger it. */
 #define GC_SYNC_POINT(tc) \
-    if (tc->interrupt) { \
+    if (tc->gc_status) { \
     }
 
 /* Different views of a register. */

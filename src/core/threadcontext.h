@@ -1,11 +1,20 @@
 /* Possible values for the thread execution interrupt flag. */
 typedef enum {
-    /* No interruption needed, continue execution. */
-    MVMInterrupt_NONE   = 0,
+    /* Indicates that the thread is currently executing, and should
+     * continue to do so. */
+    MVMGCStatus_NONE   = 0,
 
-    /* Stop and do a GC scan. */
-    MVMInterrupt_GCSCAN = 1
-} MVMInterruptType;
+    /* Set when another thread decides it wants to do a GC run. The
+     * current thread, on detecting this condition at a safe point,
+     * should join in with the current GC run. */
+    MVMGCStatus_INTERRUPT = 1,
+    
+    /* Set by a thread when it is unable to do any GC work because it
+     * is currently blocked waiting on an operation in the outside
+     * world (such as, waiting for another thread to join, or for
+     * some I/O to complete). */
+    MVMGCStatus_UNABLE = 2
+} MVMGCStatus;
 
 /* Are we allocating in the nursery, or direct into generation 2? (The
  * latter is used in the case of deserialization, when we know the
@@ -40,7 +49,7 @@ typedef struct _MVMThreadContext {
     void *nursery_alloc_limit;
     
     /* Execution interrupt flag. */
-    MVMInterruptType interrupt;
+    MVMint32 gc_status;
     
     /* Where we're allocating. */
     MVMAllocationTarget allocate_in;
