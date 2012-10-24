@@ -14,7 +14,7 @@
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
 /* This is the interpreter run loop. We have one of these per thread. */
-void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static_frame) {
+void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
     /* Points to the current opcode. */
     MVMuint8 *cur_op = NULL;
     
@@ -31,12 +31,6 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     /* The current call site we're constructing. */
     MVMCallsite *cur_callsite = NULL;
     
-    /* Dummy, 0-arg callsite. */
-    MVMCallsite no_arg_callsite;
-    no_arg_callsite.arg_flags = NULL;
-    no_arg_callsite.arg_count = 0;
-    no_arg_callsite.num_pos   = 0;
-    
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
@@ -45,8 +39,10 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
     tc->interp_reg_base       = &reg_base;
     tc->interp_cu             = &cu;
     
-    /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, initial_static_frame, &no_arg_callsite, NULL, NULL, NULL);
+    /* With everything set up, do the initial invocation (exactly what this does
+     * varies depending on if this is starting a new thread or is the top-level
+     * program entry point). */
+    initial_invoke(tc, invoke_data);
     
     /* Enter runloop. */
     while (1) {
@@ -59,30 +55,35 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         break;
                     case MVM_OP_goto:
                         cur_op = bytecode_start + GET_UI32(cur_op, 0);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_if_i:
                         if (GET_REG(cur_op, 0).i64)
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_unless_i:
                         if (GET_REG(cur_op, 0).i64)
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_if_n:
                         if (GET_REG(cur_op, 0).n64 != 0.0)
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_unless_n:
                         if (GET_REG(cur_op, 0).n64 != 0.0)
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_if_s: {
                         MVMString *str = GET_REG(cur_op, 0).s;
@@ -90,6 +91,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_unless_s: {
@@ -98,6 +100,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_if_s0: {
@@ -107,6 +110,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_unless_s0: {
@@ -116,6 +120,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_set:
@@ -654,6 +659,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                                 input * (6 /* size of each goto op */) 
                                 + (2 /* size of the goto instruction itself */));
                         }
+                        GC_SYNC_POINT(tc);
                         break;
                     }
                     case MVM_OP_caller: {
@@ -816,6 +822,7 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                             cur_op += 10;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 6);
+                        GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_unipropcode:
                         GET_REG(cur_op, 0).i64 = (MVMint64)MVM_unicode_name_to_property_code(tc,
@@ -1695,6 +1702,15 @@ void MVM_interp_run(MVMThreadContext *tc, struct _MVMStaticFrame *initial_static
                         break;
                     case MVM_OP_clargs:
                         GET_REG(cur_op, 0).o = MVM_proc_clargs(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_newthread:
+                        GET_REG(cur_op, 0).o = MVM_thread_start(tc, GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_jointhread:
+                        MVM_thread_join(tc, GET_REG(cur_op, 0).o);
                         cur_op += 2;
                         break;
                     default: {

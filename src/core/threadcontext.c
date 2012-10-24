@@ -2,7 +2,7 @@
 
 /* Initializes a new thread context. Note that this doesn't set up a
  * thread itself, it just creates the data structure that exists in
-  * MoarVM per thread. */
+ * MoarVM per thread. */
 MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     MVMThreadContext *tc = calloc(1, sizeof(MVMThreadContext));
     

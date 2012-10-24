@@ -1950,6 +1950,18 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_newthread,
+        "newthread",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_jointhread,
+        "jointhread",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
 static MVMOpInfo *MVM_op_info[] = {
@@ -1971,7 +1983,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     13,
     77,
     45,
-    26,
+    28,
 };
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {
