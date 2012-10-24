@@ -63,7 +63,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
-    gen2 = tc->instance->gen2;
+    gen2 = tc->gen2;
     
     while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
         /* Dereference the object we're considering. */

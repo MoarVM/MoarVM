@@ -50,10 +50,7 @@ MVMInstance * MVM_vm_create_instance(void) {
             apr_strerror(apr_init_stat, error, 256));
         exit(1);
 	}
-    
-    /* Set up the second generation allocator. */
-    instance->gen2 = MVM_gc_gen2_create(instance);
-    
+
     /* Bootstrap 6model. */
     MVM_6model_bootstrap(instance->main_thread);
     
@@ -106,10 +103,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up GC permanent roots related resources. */
     apr_thread_mutex_destroy(instance->mutex_permroots);
     free(instance->permroots);
-    
-    /* Destroy the second generation allocator. */
-    MVM_gc_gen2_destroy(instance, instance->gen2);
-    
+
     /* Free APR pool. */
     apr_pool_destroy(instance->apr_pool);
     

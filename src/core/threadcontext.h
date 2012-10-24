@@ -88,6 +88,9 @@ typedef struct _MVMThreadContext {
     /* Where we evacuate objects to when collecting this thread's nursery, or
      * allocate new ones. */
     void *nursery_tospace;
+
+    /* The second GC generation allocator. */
+    struct _MVMGen2Allocator *gen2;
     
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
