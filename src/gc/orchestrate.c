@@ -48,7 +48,7 @@ static void signal_all_but(MVMThreadContext *tc) {
  * spinning. */
 static void wait_for_all_threads(MVMInstance *i) {
     printf("Waiting for all threads...\n");
-    while (i->starting_gc != i->num_user_threads + 1)
+    while (i->starting_gc != i->expected_gc_threads)
         1;
     printf("All threads now registered for the GC run\n");
 }
@@ -88,15 +88,33 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
  * will need to do that triggering, notifying other running threads that the
  * time has come to GC. */
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
+    MVMuint32 num_gc_threads;
+    
+    /* Grab the thread starting mutex while we start GC. This is so we
+     * can get an accurate and stable number of threads that we expect to
+     * join in with the GC. */
+     if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_gcorch, "Unable to lock user_threads mutex");
+    num_gc_threads = tc->instance->num_user_threads + 1;
+    
     /* Try to start the GC run. */
-    if (apr_atomic_cas32(&tc->instance->starting_gc, 1, 0) == 0) {
+    if (apr_atomic_cas32(&tc->instance->expected_gc_threads, num_gc_threads, 0) == 0) {
         /* We are the winner of the GC starting race. This gives us some
          * extra responsibilities as well as doing the usual things.
          * First, increment GC sequence number. */
         tc->instance->gc_seq_number++;
 printf("GC thread elected coordinator\n");
+
+        /* Count us in to the GC run. */
+        apr_atomic_inc32(&tc->instance->starting_gc);
+
         /* Signal other threads to do a GC run. */
         signal_all_but(tc);
+        
+        /* Now that we've signalled all threads we expect to join in,
+         * we can safely release the thread starting mutex. */
+        if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_gcorch, "Unable to unlock user_threads mutex");
         
         /* Wait for all thread to indicate readiness to collect. */
         wait_for_all_threads(tc->instance);
@@ -106,12 +124,16 @@ printf("GC thread elected coordinator\n");
         /* XXX Only we should mark instance wide things. */
         run_gc(tc);
         
-        /* Clear the starting GC flag (no other thread need do this). */
+        /* Clear the starting and expected GC counters (no other thread need do this). */
         tc->instance->starting_gc = 0;
+        tc->instance->expected_gc_threads = 0;
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
-         * if we were interupted to GC. */
+         * if we were interupted to GC; also release that thread starting mutex
+         * that we (in the end needlessly) took. */
+        if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_gcorch, "Unable to unlock user_threads mutex");
         MVM_gc_enter_from_interupt(tc);
     }
 }

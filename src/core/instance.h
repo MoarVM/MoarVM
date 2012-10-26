@@ -69,6 +69,9 @@ typedef struct _MVMInstance {
     /* The number of threads that agree we're starting GC. */
     MVMuint32 starting_gc;
     
+    /* The number of threads that are/will be involved in GC. */
+    MVMuint32 expected_gc_threads;
+    
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
     
