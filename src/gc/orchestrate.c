@@ -1,5 +1,8 @@
 #include "moarvm.h"
 
+#define GCORCH_DEGUG 1
+#define GCORCH_LOG(x) if (GCORCH_DEGUG) printf(x)
+
 /* Does a garbage collection run (not updated for real multi-thread work yet). */
 void run_gc(MVMThreadContext *tc) {
     /* Do a nursery collection. We record the current tospace allocation
@@ -27,7 +30,7 @@ static void signal_one_thread(MVMThreadContext *tc) {
             /* We stole the work; it's now sufficiently opted in to GC that
              * we can increment the count of threads that are opted in. */
             apr_atomic_inc32(&tc->instance->starting_gc);
-printf("A blocked thread spotted\n");
+            GCORCH_LOG("A blocked thread spotted\n");
             return;
         }
     }    
@@ -47,10 +50,10 @@ static void signal_all_but(MVMThreadContext *tc) {
 /* Waits for all threads to have enlisted in the GC run. For now, just stupid
  * spinning. */
 static void wait_for_all_threads(MVMInstance *i) {
-    printf("Waiting for all threads...\n");
+    GCORCH_LOG("Waiting for all threads...\n");
     while (i->starting_gc != i->expected_gc_threads)
         1;
-    printf("All threads now registered for the GC run\n");
+    GCORCH_LOG("All threads now registered for the GC run\n");
 }
 
 /* Called by a thread to indicate it is about to enter a blocking operation.
@@ -102,8 +105,8 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* We are the winner of the GC starting race. This gives us some
          * extra responsibilities as well as doing the usual things.
          * First, increment GC sequence number. */
+        GCORCH_LOG("GC thread elected coordinator\n");
         tc->instance->gc_seq_number++;
-printf("GC thread elected coordinator\n");
 
         /* Count us in to the GC run. */
         apr_atomic_inc32(&tc->instance->starting_gc);
@@ -143,8 +146,9 @@ printf("GC thread elected coordinator\n");
  * try and do that, just enlist in the run. */
 void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
     /* Count us in to the GC run. */
+    GCORCH_LOG("Entered from interrupt\n");
     apr_atomic_inc32(&tc->instance->starting_gc);
-printf("entered from interrupt\n");
+
     /* Wait for all thread to indicate readiness to collect. */
     wait_for_all_threads(tc->instance);
     
