@@ -89,6 +89,33 @@ static void finish_gc(MVMThreadContext *tc) {
     }
 }
 
+/* Cleans up after a GC run, resetting flags and so forth. */
+static void cleanup_all(MVMThreadContext *tc) {
+    /* Reset GC status flags for any stolen threads. */
+    if (tc->stolen_for_gc) {
+        MVMuint32 i = 0;
+        while (tc->stolen_for_gc[i]) {
+            apr_atomic_cas32(&tc->stolen_for_gc[i]->gc_status, MVMGCStatus_UNABLE,
+                MVMGCStatus_STOLEN);
+            i++;
+        }
+    }
+    
+    /* Reset status for all other threads. */
+    apr_atomic_cas32(&tc->instance->main_thread->gc_status, MVMGCStatus_NONE,
+        MVMGCStatus_INTERRUPT);
+    if (tc->instance->num_user_threads) {
+        MVMuint32 n = tc->instance->num_user_threads;
+        MVMuint32 i;
+        for (i = 0; i < n; i++)
+            apr_atomic_cas32(&tc->instance->user_threads[i]->body.tc->gc_status,
+                MVMGCStatus_NONE, MVMGCStatus_INTERRUPT);
+    }
+    
+    /* Clear the expected GC counter, to allow future runs. */
+    tc->instance->expected_gc_threads = 0;
+}
+
 /* Called by the coordinator in order to arrange agreement between the threads
  * that GC is done. */
 static void coordinate_finishing_gc(MVMThreadContext *tc) {
@@ -130,9 +157,11 @@ static void coordinate_finishing_gc(MVMThreadContext *tc) {
         if (tc->instance->starting_gc > 1)
             termination_void = 1;
             
-        /* If termination wasn't voided, do the final decrement. */
+        /* If termination wasn't voided, clean up after the run and do the
+         * final decrement. */
         if (!termination_void) {
             GCORCH_LOG("Coordinator decided GC is terminated\n");
+            cleanup_all(tc);
             apr_atomic_dec32(&tc->instance->starting_gc);
             break;
         }
@@ -211,10 +240,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         
         /* Wait for all thread to indicate readiness to collect. */
         wait_for_all_threads(tc->instance);
-
-        /* Clear the expected GC counter, so we don't block future runs (should
-         * do it now in case we get suspended right after finishing). */
-        tc->instance->expected_gc_threads = 0;
         
         /* Do GC work for this thread, or at least all we know about. */
         limit = tc->nursery_alloc;
