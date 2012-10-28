@@ -54,7 +54,7 @@ typedef struct _MVMThreadContext {
     /* The end of the space we're allowed to allocate to. */
     void *nursery_alloc_limit;
     
-    /* Execution interrupt flag. */
+    /* This thread's GC status. */
     MVMint32 gc_status;
     
     /* Where we're allocating. */
