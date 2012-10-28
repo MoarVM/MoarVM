@@ -7,7 +7,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
  * is not copied to tospace, but instead promoted to the second generation,
  * which is managed through mark-compact. Note that it adds the roots and
  * processes them in phases, to try to avoid building up a huge worklist. */
-void MVM_gc_nursery_collect(MVMThreadContext *tc) {
+void MVM_gc_nursery_collect(MVMThreadContext *tc, MVMuint8 process_perms) {
     MVMGCWorklist *worklist;
     void *fromspace;
     void *tospace;
@@ -25,17 +25,20 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc) {
     /* Create a GC worklist. */
     worklist = MVM_gc_worklist_create(tc);
     
-    /* Add permanent roots and process them. */
-    MVM_gc_root_add_permanents_to_worklist(tc, worklist);
-    process_worklist(tc, worklist);
+    /* Add permanent roots and process them; only one thread will do
+     * this, since they are instance-wide. */
+    if (process_perms) {
+        MVM_gc_root_add_permanents_to_worklist(tc, worklist);
+        process_worklist(tc, worklist);
+    }
     
-    /* Add temporary roots and process them. */
+    /* Add temporary roots and process them (these are per-thread). */
     MVM_gc_root_add_temps_to_worklist(tc, worklist);
     process_worklist(tc, worklist);
     
     /* Add things that are roots for the first generation because
      * they are pointed to by objects in the second generation and
-     * process them. */
+     * process them (also per-thread). */
     MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
     process_worklist(tc, worklist);
     

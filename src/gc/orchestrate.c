@@ -4,11 +4,11 @@
 #define GCORCH_LOG(x) if (GCORCH_DEGUG) printf(x)
 
 /* Does a garbage collection run (not updated for real multi-thread work yet). */
-void run_gc(MVMThreadContext *tc) {
+static void run_gc(MVMThreadContext *tc, MVMuint8 process_perms) {
     /* Do a nursery collection. We record the current tospace allocation
      * pointer to serve as a limit for the later sweep phase. */
     void *limit = tc->nursery_alloc;
-    MVM_gc_nursery_collect(tc);
+    MVM_gc_nursery_collect(tc, process_perms);
     MVM_gc_nursery_free_uncopied(tc, limit);
 }
 
@@ -124,8 +124,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         
         /* Do GC work for this thread. */
         /* XXX Finishing sync not at all handled yet... */
-        /* XXX Only we should mark instance wide things. */
-        run_gc(tc);
+        run_gc(tc, MVMPerms_Yes);
         
         /* Clear the starting and expected GC counters (no other thread need do this). */
         tc->instance->starting_gc = 0;
@@ -154,5 +153,5 @@ void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
     
     /* Do GC work for this thread. */
     /* XXX Finishing sync not at all handled yet... */
-    run_gc(tc);
+    run_gc(tc, MVMPerms_No);
 }
