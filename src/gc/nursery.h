@@ -4,10 +4,11 @@
 
 /* Should this thread process permanent roots or not? */
 typedef enum {
-    MVMPerms_No  = 0,
-    MVMPerms_Yes = 1
-} MVMPerms;
+    MVMGCWhatToDo_All     = 0,
+    MVMGCWhatToDo_NoPerms = 1,
+    MVMGCWhatToDo_InTray  = 2
+} MVMGCWhatToDo;
 
 /* Functions. */
-void MVM_gc_nursery_collect(MVMThreadContext *tc, MVMuint8 process_perms);
+void MVM_gc_nursery_collect(MVMThreadContext *tc, MVMuint8 what_to_do);
 void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit);
