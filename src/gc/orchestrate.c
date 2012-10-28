@@ -3,34 +3,39 @@
 #define GCORCH_DEGUG 1
 #define GCORCH_LOG(x) if (GCORCH_DEGUG) printf(x)
 
-/* Does a garbage collection run (not updated for real multi-thread work yet). */
-static void run_gc(MVMThreadContext *tc, MVMuint8 process_perms) {
-    /* Do a nursery collection. We record the current tospace allocation
-     * pointer to serve as a limit for the later sweep phase. */
-    void *limit = tc->nursery_alloc;
-    MVM_gc_nursery_collect(tc, process_perms);
-    MVM_gc_nursery_free_uncopied(tc, limit);
+/* If we steal the job of doing GC for a thread, we add it to our stolen
+ * list. */
+static void add_stolen(MVMThreadContext *us, MVMThreadContext *stolen) {
+    MVMuint32 i = 0;
+    if (us->stolen_for_gc == NULL) {
+        us->stolen_for_gc = malloc(us->instance->expected_gc_threads * sizeof(MVMThreadContext *));
+        memset(us->stolen_for_gc, 0, us->instance->expected_gc_threads * sizeof(MVMThreadContext *));
+    }
+    while (us->stolen_for_gc[i])
+        i++;
+    us->stolen_for_gc[i] = stolen;
 }
 
 /* Goes through all threads but the current one and notifies them that a
  * GC run is starting. Those that are blocked are considered excluded from
  * the run, but still counted. */
-static void signal_one_thread(MVMThreadContext *tc) {
+static void signal_one_thread(MVMThreadContext *us, MVMThreadContext *to_signal) {
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
     while (1) {
         /* Try to set it from running to interrupted - the common case. */
-        if (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_INTERRUPT,
+        if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_INTERRUPT,
                 MVMGCStatus_NONE) == MVMGCStatus_NONE)
             return;
         
         /* Otherwise, it's blocked; try to set it to work stolen. */
-        if (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_STOLEN,
+        if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_STOLEN,
                 MVMGCStatus_UNABLE) == MVMGCStatus_UNABLE) {
             /* We stole the work; it's now sufficiently opted in to GC that
              * we can increment the count of threads that are opted in. */
-            apr_atomic_inc32(&tc->instance->starting_gc);
-            GCORCH_LOG("A blocked thread spotted\n");
+            add_stolen(us, to_signal);
+            apr_atomic_inc32(&to_signal->instance->starting_gc);
+            GCORCH_LOG("A blocked thread spotted; work stolen\n");
             return;
         }
     }    
@@ -39,11 +44,11 @@ static void signal_all_but(MVMThreadContext *tc) {
     MVMInstance *ins = tc->instance;
     MVMuint32 i;
     if (ins->main_thread != tc)
-        signal_one_thread(ins->main_thread);
+        signal_one_thread(tc, ins->main_thread);
     for (i = 0; i < ins->num_user_threads; i++) {
         MVMThreadContext *target = ins->user_threads[i]->body.tc;
         if (target != tc)
-            signal_one_thread(target);
+            signal_one_thread(tc, target);
     }
 }
 
@@ -54,6 +59,15 @@ static void wait_for_all_threads(MVMInstance *i) {
     while (i->starting_gc != i->expected_gc_threads)
         1;
     GCORCH_LOG("All threads now registered for the GC run\n");
+}
+
+/* Called by a thread when it thinks it is done with GC. It may get some more
+ * work yet, though. */
+static void finish_gc(MVMThreadContext *tc) {
+    GCORCH_LOG("Waiting for GC termination...\n");
+    /* XXX To do, just hangs right now... */
+    while (tc->instance->starting_gc > 0)
+        1;
 }
 
 /* Called by a thread to indicate it is about to enter a blocking operation.
@@ -91,7 +105,8 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
  * will need to do that triggering, notifying other running threads that the
  * time has come to GC. */
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
-    MVMuint32 num_gc_threads;
+    MVMuint32  num_gc_threads;
+    void      *limit;
     
     /* Grab the thread starting mutex while we start GC. This is so we
      * can get an accurate and stable number of threads that we expect to
@@ -111,6 +126,12 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Count us in to the GC run. */
         apr_atomic_inc32(&tc->instance->starting_gc);
 
+        /* Ensure our stolen list is empty. */
+        if (tc->stolen_for_gc) {
+            free(tc->stolen_for_gc);
+            tc->stolen_for_gc = NULL;
+        }
+
         /* Signal other threads to do a GC run. */
         signal_all_but(tc);
         
@@ -121,14 +142,20 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         
         /* Wait for all thread to indicate readiness to collect. */
         wait_for_all_threads(tc->instance);
-        
-        /* Do GC work for this thread. */
-        /* XXX Finishing sync not at all handled yet... */
-        run_gc(tc, MVMPerms_Yes);
-        
-        /* Clear the starting and expected GC counters (no other thread need do this). */
-        tc->instance->starting_gc = 0;
+
+        /* Clear the expected GC counter, so we don't block future runs (should
+         * do it now in case we get suspended right after finishing). */
         tc->instance->expected_gc_threads = 0;
+        
+        /* Do GC work for this thread, or at least all we know about. */
+        limit = tc->nursery_alloc;
+        MVM_gc_nursery_collect(tc, MVMPerms_Yes);
+
+        /* Try to terminate. */
+        finish_gc(tc);
+        
+        /* Now we're all done, it's safe to finalize any objects that need it. */
+        MVM_gc_nursery_free_uncopied(tc, limit);
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
@@ -144,14 +171,28 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * that another thread is already trying to start a GC run, so we don't need to
  * try and do that, just enlist in the run. */
 void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
+    void *limit;
+
     /* Count us in to the GC run. */
     GCORCH_LOG("Entered from interrupt\n");
     apr_atomic_inc32(&tc->instance->starting_gc);
+    
+    /* Ensure our stolen list is empty. */
+    if (tc->stolen_for_gc) {
+        free(tc->stolen_for_gc);
+        tc->stolen_for_gc = NULL;
+    }
 
     /* Wait for all thread to indicate readiness to collect. */
     wait_for_all_threads(tc->instance);
     
-    /* Do GC work for this thread. */
-    /* XXX Finishing sync not at all handled yet... */
-    run_gc(tc, MVMPerms_No);
+    /* Do GC work for this thread, or at least all we know about. */
+    limit = tc->nursery_alloc;
+    MVM_gc_nursery_collect(tc, MVMPerms_No);
+
+    /* Wait for completion, doing any extra work that we need to. */
+    finish_gc(tc);
+
+    /* Now we're all done, it's safe to finalize any objects that need it. */
+    MVM_gc_nursery_free_uncopied(tc, limit);
 }
