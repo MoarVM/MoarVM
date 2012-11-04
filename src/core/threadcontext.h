@@ -54,7 +54,7 @@ typedef struct _MVMThreadContext {
     /* The end of the space we're allowed to allocate to. */
     void *nursery_alloc_limit;
     
-    /* Execution interrupt flag. */
+    /* This thread's GC status. */
     MVMint32 gc_status;
     
     /* Where we're allocating. */
@@ -88,6 +88,9 @@ typedef struct _MVMThreadContext {
     /* Where we evacuate objects to when collecting this thread's nursery, or
      * allocate new ones. */
     void *nursery_tospace;
+
+    /* The second GC generation allocator. */
+    struct _MVMGen2Allocator *gen2;
     
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
@@ -113,6 +116,14 @@ typedef struct _MVMThreadContext {
     MVMuint32             num_gen2roots;
     MVMuint32             alloc_gen2roots;
     MVMCollectable     ***gen2roots;
+    
+    /* The GC's cross-thread in-tray of processing work. */
+    struct _MVMGCPassedWork *gc_in_tray;
+    
+    /* A NULL-terminated array of threads that we have stolen GC
+     * responsibility for, because they were blocked when we were
+     * planning a GC run. */
+    struct _MVMThreadContext **stolen_for_gc;
     
     /* Pool table of chains of frames for each static frame. */
     struct _MVMFrame **frame_pool_table;

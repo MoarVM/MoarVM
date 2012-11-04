@@ -53,9 +53,6 @@ typedef struct _MVMInstance {
     /* Hash mapping representation names to IDs. */
     MVMREPRHashEntry *repr_name_to_id_hash;
     
-    /* The second GC generation allocator. */
-    struct _MVMGen2Allocator *gen2;
-    
     /* Number of permanent GC roots we've got, allocated space for, and
      * a list of the addresses to them. The mutex controls writing to the
      * list, just in case multiple threads somehow end up doing so. Note
@@ -71,6 +68,9 @@ typedef struct _MVMInstance {
     
     /* The number of threads that agree we're starting GC. */
     MVMuint32 starting_gc;
+    
+    /* The number of threads that are/will be involved in GC. */
+    MVMuint32 expected_gc_threads;
     
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;

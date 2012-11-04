@@ -7,43 +7,51 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
  * is not copied to tospace, but instead promoted to the second generation,
  * which is managed through mark-compact. Note that it adds the roots and
  * processes them in phases, to try to avoid building up a huge worklist. */
-void MVM_gc_nursery_collect(MVMThreadContext *tc) {
-    MVMGCWorklist *worklist;
-    void *fromspace;
-    void *tospace;
-    
-    /* Swap fromspace and tospace. */
-    fromspace = tc->nursery_tospace;
-    tospace   = tc->nursery_fromspace;
-    tc->nursery_fromspace = fromspace;
-    tc->nursery_tospace   = tospace;
-    
-    /* Reset nursery allocation pointers to the new tospace. */
-    tc->nursery_alloc       = tospace;
-    tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
-    
+void MVM_gc_nursery_collect(MVMThreadContext *tc, MVMuint8 what_to_do) {
     /* Create a GC worklist. */
-    worklist = MVM_gc_worklist_create(tc);
+    MVMGCWorklist *worklist = MVM_gc_worklist_create(tc);
     
-    /* Add permanent roots and process them. */
-    MVM_gc_root_add_permanents_to_worklist(tc, worklist);
-    process_worklist(tc, worklist);
-    
-    /* Add temporary roots and process them. */
-    MVM_gc_root_add_temps_to_worklist(tc, worklist);
-    process_worklist(tc, worklist);
-    
-    /* Add things that are roots for the first generation because
-     * they are pointed to by objects in the second generation and
-     * process them. */
-    MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
-    process_worklist(tc, worklist);
-    
-    /* Find roots in frames and process them. */
-    if (tc->cur_frame)
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
-    process_worklist(tc, worklist);
+    /* If we're starting a run (as opposed to just coming back here to do a
+     * little more work we got after we first thought we were done...) */
+    if (what_to_do != MVMGCWhatToDo_InTray) {
+        /* Swap fromspace and tospace. */
+        void * fromspace = tc->nursery_tospace;
+        void * tospace   = tc->nursery_fromspace;
+        tc->nursery_fromspace = fromspace;
+        tc->nursery_tospace   = tospace;
+        
+        /* Reset nursery allocation pointers to the new tospace. */
+        tc->nursery_alloc       = tospace;
+        tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
+        
+        /* Add permanent roots and process them; only one thread will do
+        * this, since they are instance-wide. */
+        if (what_to_do != MVMGCWhatToDo_NoPerms) {
+            MVM_gc_root_add_permanents_to_worklist(tc, worklist);
+            process_worklist(tc, worklist);
+        }
 
+        /* Add temporary roots and process them (these are per-thread). */
+        MVM_gc_root_add_temps_to_worklist(tc, worklist);
+        process_worklist(tc, worklist);
+        
+        /* Add things that are roots for the first generation because
+        * they are pointed to by objects in the second generation and
+        * process them (also per-thread). */
+        MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
+        process_worklist(tc, worklist);
+        
+        /* Find roots in frames and process them. */
+        if (tc->cur_frame)
+            MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
+        process_worklist(tc, worklist);
+    }
+    else {
+        /* Process anything in the in-tray. */
+        /* XXX */
+        process_worklist(tc, worklist);
+    }
+    
     /* Destroy the worklist. */
     MVM_gc_worklist_destroy(tc, worklist);
     
@@ -63,7 +71,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
-    gen2 = tc->instance->gen2;
+    gen2 = tc->gen2;
     
     while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
         /* Dereference the object we're considering. */
