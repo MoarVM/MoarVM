@@ -29,6 +29,8 @@ void MVM_gc_nursery_collect(MVMThreadContext *tc, MVMuint8 what_to_do) {
         if (what_to_do != MVMGCWhatToDo_NoPerms) {
             MVM_gc_root_add_permanents_to_worklist(tc, worklist);
             process_worklist(tc, worklist);
+            MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
+            process_worklist(tc, worklist);
         }
 
         /* Add temporary roots and process them (these are per-thread). */

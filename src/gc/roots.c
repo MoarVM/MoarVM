@@ -40,6 +40,14 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
         MVM_gc_worklist_add(tc, worklist, permroots[i]);
 }
 
+/* Adds anything that is a root thanks to being referenced by instance,
+ * but that isn't permanent. */
+void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMuint32 i;
+    for (i = 0; i < tc->instance->num_user_threads; i++)
+        MVM_gc_worklist_add(tc, worklist, &tc->instance->user_threads[i]);
+}
+
 /* Pushes a temporary root onto the thread-local roots list. */
 void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Ensure the root is not null. */
