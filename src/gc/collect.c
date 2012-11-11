@@ -92,14 +92,17 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMu
     while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
         /* Dereference the object we're considering. */
         MVMCollectable *item = *item_ptr;
+        MVMuint8 item_gen2;
 
         /* If the item is NULL, that's fine - it's just a null reference and
          * thus we've no object to consider. */
         if (item == NULL)
             continue;
 
-        /* If it's in the second generation, we have nothing to do. */
-        if (item->flags & MVM_CF_SECOND_GEN)
+        /* If it's in the second generation and we're only doing a nursery,
+         * collection, we have nothing to do. */
+        item_gen2 = item->flags & MVM_CF_SECOND_GEN;
+        if (item_gen2 && gen == MVMGCGenerations_Nursery)
             continue;
         
         /* If the item was already seen and copied, then it will have a
@@ -122,49 +125,59 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMu
                 item->owner, tc->thread_id);
             continue;
         }
+        
+        /* At this point, we didn't already see the object, which means we
+         * need to take some action. Go on the generation... */
+        if (item_gen2) {
+            /* It's in the second generation. We'll just mark it, which is
+             * done by setting the forwarding pointer to the object itself,
+             * since we don't do moving. */
+             new_addr = item;
+             *item_ptr = item->forwarder = new_addr;
+        } else {
+            /* We've got a live object in the nursery; this means some kind of
+            * copying is going to happen. Work out the size. */
+            if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
+                size = ((MVMObject *)item)->st->size;
+            else if (item->flags & MVM_CF_TYPE_OBJECT)
+                size = sizeof(MVMObject);
+            else if (item->flags & MVM_CF_STABLE)
+                size = sizeof(MVMSTable);
+            else if (item->flags & MVM_CF_SC)
+                MVM_panic(MVM_exitcode_gcnursery, "Can't handle serialization contexts in the GC yet");
+            else
+                MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC sizing");
+            
+            /* Did we see it in the nursery before? */
+            if (item->flags & MVM_CF_NURSERY_SEEN) {
+                /* Yes; we should move it to the second generation. Allocate
+                * space in the second generation. */
+                new_addr = MVM_gc_gen2_allocate(gen2, size);
+                
+                /* Copy the object to the second generation and mark it as
+                * living there. */
+                memcpy(new_addr, item, size);
+                new_addr->flags ^= MVM_CF_NURSERY_SEEN;
+                new_addr->flags |= MVM_CF_SECOND_GEN;
+            }
+            else {
+                /* No, so it will live in the nursery for another GC
+                * iteration. Allocate space in the nursery. */
+                new_addr = (MVMCollectable *)tc->nursery_alloc;
+                tc->nursery_alloc = (char *)tc->nursery_alloc + size;
+                
+                /* Copy the object to tospace and mark it as seen in the
+                * nursery (so the next time around it will move to the
+                * older generation, if it survives). */
+                memcpy(new_addr, item, size);
+                new_addr->flags |= MVM_CF_NURSERY_SEEN;
+            }
+            
+            /* Store the forwarding pointer and update the original
+            * reference. */
+            *item_ptr = item->forwarder = new_addr;
+        }
 
-        /* At this point, we know we're going to be copying the object, but
-         * we don't know where. Work out the size. */
-        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
-            size = ((MVMObject *)item)->st->size;
-        else if (item->flags & MVM_CF_TYPE_OBJECT)
-            size = sizeof(MVMObject);
-        else if (item->flags & MVM_CF_STABLE)
-            size = sizeof(MVMSTable);
-        else if (item->flags & MVM_CF_SC)
-            MVM_panic(MVM_exitcode_gcnursery, "Can't handle serialization contexts in the GC yet");
-        else
-            MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC sizing");
-        
-        /* Did we see it in the nursery before? */
-        if (item->flags & MVM_CF_NURSERY_SEEN) {
-            /* Yes; we should move it to the second generation. Allocate
-             * space in the second generation. */
-            new_addr = MVM_gc_gen2_allocate(gen2, size);
-            
-            /* Copy the object to the second generation and mark it as
-             * living there. */
-            memcpy(new_addr, item, size);
-            new_addr->flags ^= MVM_CF_NURSERY_SEEN;
-            new_addr->flags |= MVM_CF_SECOND_GEN;
-        }
-        else {
-            /* No, so it will live in the nursery for another GC
-             * iteration. Allocate space in the nursery. */
-            new_addr = (MVMCollectable *)tc->nursery_alloc;
-            tc->nursery_alloc = (char *)tc->nursery_alloc + size;
-            
-            /* Copy the object to tospace and mark it as seen in the
-             * nursery (so the next time around it will move to the
-             * older generation, if it survives). */
-            memcpy(new_addr, item, size);
-            new_addr->flags |= MVM_CF_NURSERY_SEEN;
-        }
-        
-        /* Store the forwarding pointer and update the original
-         * reference. */
-        *item_ptr = item->forwarder = new_addr;
-        
         /* Add the serialization context address to the worklist. */
         MVM_gc_worklist_add(tc, worklist, &new_addr->sc);
         
@@ -225,7 +238,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMu
                 MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_stables[i]);
         }
         else {
-            MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC copy");
+            MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC marking");
         }
     }
 }
