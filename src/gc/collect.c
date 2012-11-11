@@ -7,7 +7,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
  * is not copied to tospace, but instead promoted to the second generation,
  * which is managed through mark-compact. Note that it adds the roots and
  * processes them in phases, to try to avoid building up a huge worklist. */
-void MVM_gc_nursery_collect(MVMThreadContext *tc, MVMuint8 what_to_do) {
+void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do) {
     /* Create a GC worklist. */
     MVMGCWorklist *worklist = MVM_gc_worklist_create(tc);
     
@@ -88,7 +88,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         if (item->flags & MVM_CF_SECOND_GEN)
             continue;
         
-        /* If we already saw the item and copied it, then it will have a
+        /* If the item was already seen and copied, then it will have a
          * forwarding address already. Just update this pointer to the
          * new address and we're done. */
         if (item->forwarder) {
@@ -101,6 +101,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc_limit)
             continue;
             
+        /* If it's owned by a different thread, we need to pass it over to
+         * the owning thread. */
+        if (item->owner != tc->thread_id) {
+            printf("XXX Cross-thread object passing to do (%d != %d)\n",
+                item->owner, tc->thread_id);
+            continue;
+        }
+
         /* At this point, we know we're going to be copying the object, but
          * we don't know where. Work out the size. */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
@@ -212,7 +220,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
  * need to do some additional freeing, however. This goes through the
  * fromspace and does any needed work to free uncopied things (this may
  * run in parallel with the mutator, which will be operating on tospace). */
-void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit) {
+void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
     /* We start scanning the fromspace, and keep going until we hit
      * the end of the area allocated in it. */
     void *scan = tc->nursery_fromspace;

@@ -39,7 +39,7 @@
 #include "6model/sc.h"
 #include "gc/allocation.h"
 #include "gc/worklist.h"
-#include "gc/nursery.h"
+#include "gc/collect.h"
 #include "gc/orchestrate.h"
 #include "gc/gen2.h"
 #include "gc/roots.h"

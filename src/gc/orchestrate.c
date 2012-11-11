@@ -69,7 +69,7 @@ static void process_in_tray(MVMThreadContext *tc) {
     if (tc->gc_in_tray) {
         GCORCH_LOG("Was given extra work by another thread; doing it\n");
         apr_atomic_inc32(&tc->instance->starting_gc);
-        MVM_gc_nursery_collect(tc, MVMGCWhatToDo_InTray);
+        MVM_gc_collect(tc, MVMGCWhatToDo_InTray);
         apr_atomic_dec32(&tc->instance->starting_gc);
     }
 }
@@ -243,13 +243,13 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         
         /* Do GC work for this thread, or at least all we know about. */
         limit = tc->nursery_alloc;
-        MVM_gc_nursery_collect(tc, MVMGCWhatToDo_All);
+        MVM_gc_collect(tc, MVMGCWhatToDo_All);
         
         /* Do GC work for any stolen threads. */
         if (tc->stolen_for_gc) {
             MVMuint32 i = 0;
             while (tc->stolen_for_gc[i]) {
-                MVM_gc_nursery_collect(tc->stolen_for_gc[i], MVMGCWhatToDo_NoPerms);
+                MVM_gc_collect(tc->stolen_for_gc[i], MVMGCWhatToDo_NoPerms);
                 i++;
             }
         }
@@ -258,7 +258,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         coordinate_finishing_gc(tc);
         
         /* Now we're all done, it's safe to finalize any objects that need it. */
-        MVM_gc_nursery_free_uncopied(tc, limit);
+        MVM_gc_collect_free_nursery_uncopied(tc, limit);
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
@@ -291,11 +291,11 @@ void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
     
     /* Do GC work for this thread, or at least all we know about. */
     limit = tc->nursery_alloc;
-    MVM_gc_nursery_collect(tc, MVMGCWhatToDo_NoPerms);
+    MVM_gc_collect(tc, MVMGCWhatToDo_NoPerms);
 
     /* Wait for completion, doing any extra work that we need to. */
     finish_gc(tc);
 
     /* Now we're all done, it's safe to finalize any objects that need it. */
-    MVM_gc_nursery_free_uncopied(tc, limit);
+    MVM_gc_collect_free_nursery_uncopied(tc, limit);
 }

@@ -10,5 +10,5 @@ typedef enum {
 } MVMGCWhatToDo;
 
 /* Functions. */
-void MVM_gc_nursery_collect(MVMThreadContext *tc, MVMuint8 what_to_do);
-void MVM_gc_nursery_free_uncopied(MVMThreadContext *tc, void *limit);
+void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do);
+void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit);
