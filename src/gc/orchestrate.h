@@ -10,7 +10,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc);
 /* Represents a piece of work (some addresses to visit) that have been passed
  * from one thread doing GC to another thread doing GC. */
 typedef struct _MVMGCPassedWork {
-    MVMCollectable         **work[MVM_GC_PASS_WORK_SIZE];
+    MVMCollectable         **items[MVM_GC_PASS_WORK_SIZE];
     MVMint32                 num_items;
     struct _MVMGCPassedWork *next;
 } MVMGCPassedWork;
