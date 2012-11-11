@@ -295,3 +295,9 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
      * the next GC run will be zeroed. */
     memset(tc->nursery_fromspace, 0, MVM_NURSERY_SIZE);
 }
+
+/* Goes through the unmarked objects in the second generation heap and builds free
+ * lists out of them. Also does any required finalization. */
+void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
+    /* XXX TODO. */
+}

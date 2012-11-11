@@ -263,6 +263,8 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         
         /* Now we're all done, it's safe to finalize any objects that need it. */
         MVM_gc_collect_free_nursery_uncopied(tc, limit);
+        if (gen == MVMGCGenerations_Both)
+            MVM_gc_collect_free_gen2_unmarked(tc);
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
@@ -306,4 +308,6 @@ void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
 
     /* Now we're all done, it's safe to finalize any objects that need it. */
     MVM_gc_collect_free_nursery_uncopied(tc, limit);
+    if (gen == MVMGCGenerations_Both)
+        MVM_gc_collect_free_gen2_unmarked(tc);
 }
