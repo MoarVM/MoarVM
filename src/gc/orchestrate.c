@@ -205,6 +205,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     MVMuint32  num_gc_threads;
     void      *limit;
+    void     **stolen_limits;
     MVMuint8   gen;
     
     /* Grab the thread starting mutex while we start GC. This is so we
@@ -251,10 +252,13 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         
         /* Do GC work for any stolen threads. */
         if (tc->stolen_for_gc) {
-            MVMuint32 i = 0;
-            while (tc->stolen_for_gc[i]) {
+            MVMuint32 i = 0, n = 0;
+            while (tc->stolen_for_gc[i++])
+                n++;
+            stolen_limits = malloc(n * sizeof(void *));
+            for (i = 0; i < n; i++) {
+                stolen_limits[i] = tc->stolen_for_gc[i]->nursery_alloc;
                 MVM_gc_collect(tc->stolen_for_gc[i], MVMGCWhatToDo_NoInstance, gen);
-                i++;
             }
         }
 
@@ -265,6 +269,16 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         MVM_gc_collect_free_nursery_uncopied(tc, limit);
         if (gen == MVMGCGenerations_Both)
             MVM_gc_collect_free_gen2_unmarked(tc);
+        if (tc->stolen_for_gc) {
+            MVMuint32 i = 0;
+            while (tc->stolen_for_gc[i]) {
+                MVM_gc_collect_free_nursery_uncopied(tc->stolen_for_gc[i], stolen_limits[i]);
+                if (gen == MVMGCGenerations_Both)
+                    MVM_gc_collect_free_gen2_unmarked(tc->stolen_for_gc[i]);
+                i++;
+            }
+            free(stolen_limits);
+        }
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
