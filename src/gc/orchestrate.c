@@ -62,21 +62,21 @@ static void wait_for_all_threads(MVMInstance *i) {
 }
 
 /* Does work in a thread's in-tray, if any. */
-static void process_in_tray(MVMThreadContext *tc) {
+static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen) {
     /* Do we have any more work given by another thread? If so, re-enter
      * GC loop to process it. Note that since we're now doing GC stuff
      * again, we bump the count. */
     if (tc->gc_in_tray) {
         GCORCH_LOG("Was given extra work by another thread; doing it\n");
         apr_atomic_inc32(&tc->instance->starting_gc);
-        MVM_gc_collect(tc, MVMGCWhatToDo_InTray);
+        MVM_gc_collect(tc, MVMGCWhatToDo_InTray, gen);
         apr_atomic_dec32(&tc->instance->starting_gc);
     }
 }
 
 /* Called by a thread when it thinks it is done with GC. It may get some more
  * work yet, though. Called by all threads except the co-ordinator. */
-static void finish_gc(MVMThreadContext *tc) {
+static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
     /* Decrement number of threads in GC. */
     GCORCH_LOG("Waiting for GC termination...\n");
     apr_atomic_dec32(&tc->instance->starting_gc);
@@ -85,7 +85,7 @@ static void finish_gc(MVMThreadContext *tc) {
      * that we are given. The coordinator decrements its count last, which
      * is how we know all is over. */
     while (tc->instance->starting_gc > 0) {
-        process_in_tray(tc);
+        process_in_tray(tc, gen);
     }
 }
 
@@ -118,7 +118,7 @@ static void cleanup_all(MVMThreadContext *tc) {
 
 /* Called by the coordinator in order to arrange agreement between the threads
  * that GC is done. */
-static void coordinate_finishing_gc(MVMThreadContext *tc) {
+static void coordinate_finishing_gc(MVMThreadContext *tc, MVMuint8 gen) {
     GCORCH_LOG("Coordinating GC termination...\n");
     
     /* We may have stolen the work of a blocked thread. Just decrement the count
@@ -140,11 +140,11 @@ static void coordinate_finishing_gc(MVMThreadContext *tc) {
          * our stolen threads get work in their in-tray. */
         while (tc->instance->starting_gc > 1) {
             /* Process our in-tray, and that of any stolen threads. */
-            process_in_tray(tc);
+            process_in_tray(tc, gen);
             if (tc->stolen_for_gc) {
                 MVMuint32 i = 0;
                 while (tc->stolen_for_gc[i]) {
-                    process_in_tray(tc->stolen_for_gc[i]);
+                    process_in_tray(tc->stolen_for_gc[i], gen);
                     i++;
                 }
             }
@@ -205,6 +205,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     MVMuint32  num_gc_threads;
     void      *limit;
+    MVMuint8   gen;
     
     /* Grab the thread starting mutex while we start GC. This is so we
      * can get an accurate and stable number of threads that we expect to
@@ -242,20 +243,23 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         wait_for_all_threads(tc->instance);
         
         /* Do GC work for this thread, or at least all we know about. */
+        gen = tc->instance->gc_seq_number % MVM_GC_GEN2_RATIO == 0
+            ? MVMGCGenerations_Both
+            : MVMGCGenerations_Nursery;
         limit = tc->nursery_alloc;
-        MVM_gc_collect(tc, MVMGCWhatToDo_All);
+        MVM_gc_collect(tc, MVMGCWhatToDo_All, gen);
         
         /* Do GC work for any stolen threads. */
         if (tc->stolen_for_gc) {
             MVMuint32 i = 0;
             while (tc->stolen_for_gc[i]) {
-                MVM_gc_collect(tc->stolen_for_gc[i], MVMGCWhatToDo_NoPerms);
+                MVM_gc_collect(tc->stolen_for_gc[i], MVMGCWhatToDo_NoInstance, gen);
                 i++;
             }
         }
 
         /* Try to get everybody to agree we're done. */
-        coordinate_finishing_gc(tc);
+        coordinate_finishing_gc(tc, gen);
         
         /* Now we're all done, it's safe to finalize any objects that need it. */
         MVM_gc_collect_free_nursery_uncopied(tc, limit);
@@ -275,6 +279,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * try and do that, just enlist in the run. */
 void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
     void *limit;
+    MVMuint8 gen;
 
     /* Count us in to the GC run. */
     GCORCH_LOG("Entered from interrupt\n");
@@ -290,11 +295,14 @@ void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
     wait_for_all_threads(tc->instance);
     
     /* Do GC work for this thread, or at least all we know about. */
+    gen = tc->instance->gc_seq_number % MVM_GC_GEN2_RATIO == 0
+        ? MVMGCGenerations_Both
+        : MVMGCGenerations_Nursery;
     limit = tc->nursery_alloc;
-    MVM_gc_collect(tc, MVMGCWhatToDo_NoPerms);
+    MVM_gc_collect(tc, MVMGCWhatToDo_NoInstance, gen);
 
     /* Wait for completion, doing any extra work that we need to. */
-    finish_gc(tc);
+    finish_gc(tc, gen);
 
     /* Now we're all done, it's safe to finalize any objects that need it. */
     MVM_gc_collect_free_nursery_uncopied(tc, limit);

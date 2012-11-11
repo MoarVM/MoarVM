@@ -1,13 +1,27 @@
 #include "moarvm.h"
-static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
+static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMuint8 gen);
 
-/* Garbage collects the nursery. This is a semi-space copying collector,
- * but only copies very young objects. Once an object is seen/copied once
- * in here (may be tuned in the future to twice or so - we'll see) then it
- * is not copied to tospace, but instead promoted to the second generation,
- * which is managed through mark-compact. Note that it adds the roots and
- * processes them in phases, to try to avoid building up a huge worklist. */
-void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do) {
+/* Does a garbage collection run. Exactly what it does is configured by the
+ * couple of arguments that it takes.
+ * 
+ * The what_to_do argument specifies where it should look for things to add
+ * to the worklist: everywhere, just at thread local stuff, or just in the
+ * thread's in-tray.
+ * 
+ * The gen argument specifies whether to collect the nursery or both of the
+ * generations. Nursery collection is done by semi-space copying. Once an
+ * object is seen/copied once in the nursery (may be tuned in the future to
+ * twice or so - we'll see) then it is not copied to tospace, but instead
+ * promoted to the second generation. If we are collecting generation 2 also,
+ * then objects that are alive in the second generation are simply marked.
+ * Since the second generation is managed as a set of sized pools, there is
+ * much less motivation for any kind of copying/compaction; the internal
+ * fragmentation that makes finding a right-sized gap problematic will not
+ * happen.
+ * 
+ * Note that it adds the roots and processes them in phases, to try to avoid
+ * building up a huge worklist. */
+void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     /* Create a GC worklist. */
     MVMGCWorklist *worklist = MVM_gc_worklist_create(tc);
     
@@ -26,32 +40,32 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do) {
         
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
-        if (what_to_do != MVMGCWhatToDo_NoPerms) {
+        if (what_to_do != MVMGCWhatToDo_NoInstance) {
             MVM_gc_root_add_permanents_to_worklist(tc, worklist);
-            process_worklist(tc, worklist);
+            process_worklist(tc, worklist, gen);
             MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
-            process_worklist(tc, worklist);
+            process_worklist(tc, worklist, gen);
         }
 
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist);
-        process_worklist(tc, worklist);
+        process_worklist(tc, worklist, gen);
         
         /* Add things that are roots for the first generation because
         * they are pointed to by objects in the second generation and
         * process them (also per-thread). */
         MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
-        process_worklist(tc, worklist);
+        process_worklist(tc, worklist, gen);
         
         /* Find roots in frames and process them. */
         if (tc->cur_frame)
             MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
-        process_worklist(tc, worklist);
+        process_worklist(tc, worklist, gen);
     }
     else {
         /* Process anything in the in-tray. */
         /* XXX */
-        process_worklist(tc, worklist);
+        process_worklist(tc, worklist, gen);
     }
     
     /* Destroy the worklist. */
@@ -64,7 +78,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do) {
 }
 
 /* Processes the current worklist. */
-static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMuint8 gen) {
     MVMGen2Allocator  *gen2;
     MVMCollectable   **item_ptr;
     MVMCollectable    *new_addr;
