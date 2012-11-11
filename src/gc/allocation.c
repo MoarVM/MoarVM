@@ -11,6 +11,11 @@ static void run_gc(MVMThreadContext *tc);
 void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     void *allocated;
     
+    /* Before an allocation is a GC safe-point and thus a good GC sync point
+     * also; check if we've been signalled to allocate. */
+    if (tc->gc_status)
+        MVM_gc_enter_from_interupt(tc);
+    
     /* Guard against 0-byte allocation. */
     if (size > 0) {
         /* Do a GC run if this allocation won't fit in what we have
@@ -23,7 +28,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
         while ((char *)tc->nursery_alloc + size >= (char *)tc->nursery_alloc_limit) {
             if (size > MVM_NURSERY_SIZE)
                 MVM_panic(MVM_exitcode_gcalloc, "Attempt to allocate more than the maximum nursery size");
-            run_gc(tc);
+            MVM_gc_enter_from_allocator(tc);
         }
         
         /* Allocate (just bump the pointer). */
@@ -90,21 +95,4 @@ void MVM_gc_allocate_gen2_default_set(MVMThreadContext *tc) {
 /* Sets allocation for this thread to be from the nursery by default. */
 void MVM_gc_allocate_gen2_default_clear(MVMThreadContext *tc) {
     tc->allocate_in = MVMAllocate_Gen2;
-}
-
-/* Does a garbage collection run. */
-static void run_gc(MVMThreadContext *tc) {
-    /* Increment GC sequence number. */
-    tc->instance->gc_seq_number++;
-    
-    /* XXX At some point, we need to decide here whether to sweep the
-     * second generation too. But since that's NYI, for now we just
-     * always collect the first one for now. */
-    if (1) {
-        /* Do a nursery collection. We record the current tospace allocation
-         * pointer to serve as a limit for the later sweep phase. */
-        void *limit = tc->nursery_alloc;
-        MVM_gc_nursery_collect(tc);
-        MVM_gc_nursery_free_uncopied(tc, limit);
-    }
 }
