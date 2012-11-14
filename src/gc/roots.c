@@ -165,7 +165,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         /* Handle any frames in the work list. */
         while (cur_frame = (MVMFrame *)MVM_gc_worklist_get(tc, frame_worklist)) {
             /* If we already saw the frame this run, skip it. */
-            if (cur_frame->gc_seq_number == cur_seq_number)
+            MVMuint32 orig_seq = cur_frame->gc_seq_number;
+            if (orig_seq == cur_seq_number)
+                continue;
+            if (apr_atomic_cas32(&cur_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
                 continue;
                 
             /* Add static frame to work list if needed. */
@@ -187,14 +190,16 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             
             /* Mark that we did some work (and thus possibly have more work
              * to do later). */
-            cur_frame->gc_seq_number = cur_seq_number;
             did_something = 1;
         }
         
         /* Handle any static frames in the work list. */
         while (cur_static_frame = (MVMStaticFrame *)MVM_gc_worklist_get(tc, static_frame_worklist)) {
             /* If we already saw the static frame this run, skip it. */
-            if (cur_static_frame->gc_seq_number == cur_seq_number)
+            MVMuint32 orig_seq = cur_static_frame->gc_seq_number;
+            if (orig_seq == cur_seq_number)
+                continue;
+            if (apr_atomic_cas32(&cur_static_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
                 continue;
         
             /* Add compilation unit to worklist if needed. */
@@ -207,7 +212,6 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             
             /* Mark that we did some work (and thus possibly have more work
              * to do later). */
-            cur_static_frame->gc_seq_number = cur_seq_number;
             did_something = 1;
         }
         
@@ -216,7 +220,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             MVMuint32 i;
             
             /* If we already saw the compunit this run, skip it. */
-            if (cur_compunit->gc_seq_number == cur_seq_number)
+            MVMuint32 orig_seq = cur_compunit->gc_seq_number;
+            if (orig_seq == cur_seq_number)
+                continue;
+            if (apr_atomic_cas32(&cur_compunit->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
                 continue;
 
             /* Add code refs and static frames to the worklists. */
@@ -231,7 +238,6 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             
             /* Mark that we did some work (and thus possibly have more work
              * to do later). */
-            cur_compunit->gc_seq_number = cur_seq_number;
             did_something = 1;
         }
     }
