@@ -37,7 +37,9 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
      ts->tc->cur_frame = ts->caller;
      
      /* If we happen to be in a GC run right now, pause until it's done. */
-     while (ts->tc->instance->starting_gc && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
+     while (ts->tc->instance->gc_orch
+            && !ts->tc->instance->gc_orch->finished
+            && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
         apr_thread_yield();
     
     /* Enter the interpreter, to run code. */
