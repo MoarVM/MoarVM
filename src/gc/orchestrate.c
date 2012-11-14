@@ -172,17 +172,20 @@ static void coordinate_finishing_gc(MVMThreadContext *tc, MVMuint8 gen) {
  * This gets any thread that is coordinating a GC run that this thread will
  * be unable to participate. */
 void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
-    /* Try to set it from running to unable - the common case. */
-    if (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_UNABLE,
-            MVMGCStatus_NONE) == MVMGCStatus_NONE)
-        return;
-    
-    /* The only way this can fail is if another thread just decided we're to
-     * participate in a GC run. */
-    if (tc->gc_status == MVMGCStatus_INTERRUPT)
-        MVM_gc_enter_from_interupt(tc);
-    else
-        MVM_panic(MVM_exitcode_gcorch, "Invalid GC status observed; aborting");
+    /* This may need more than one attempt. */
+    while (1) {
+        /* Try to set it from running to unable - the common case. */
+        if (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_UNABLE,
+                MVMGCStatus_NONE) == MVMGCStatus_NONE)
+            return;
+        
+        /* The only way this can fail is if another thread just decided we're to
+        * participate in a GC run. */
+        if (tc->gc_status == MVMGCStatus_INTERRUPT)
+            MVM_gc_enter_from_interupt(tc);
+        else
+            MVM_panic(MVM_exitcode_gcorch, "Invalid GC status observed; aborting");
+    }
 }
 
 /* Called by a thread to indicate it has completed a block operation and is
