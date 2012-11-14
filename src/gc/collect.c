@@ -60,7 +60,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         /* Reset nursery allocation pointers to the new tospace. */
         tc->nursery_alloc       = tospace;
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
-        
+
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
         if (what_to_do != MVMGCWhatToDo_NoInstance) {
@@ -83,12 +83,22 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         /* Find roots in frames and process them. */
         if (tc->cur_frame)
             MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
+        
+        /* Process anything in the in-tray. */
+        add_in_tray_to_worklist(tc, worklist);
+        process_worklist(tc, worklist, &wtp, gen);
+
+        /* At this point, we have probably done most of the work we will
+         * need to (only get more if another thread passes us more); zero
+         * out the remaining tospace. */
+        memset(tc->nursery_alloc, 0, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc);
+    }
+    else {
+        /* We just need to process anything in the in-tray. */
+        add_in_tray_to_worklist(tc, worklist);
+        process_worklist(tc, worklist, &wtp, gen);
     }
 
-    /* Process anything in the in-tray. */
-    add_in_tray_to_worklist(tc, worklist);
-    process_worklist(tc, worklist, &wtp, gen);
-    
     /* Destroy the worklist. */
     MVM_gc_worklist_destroy(tc, worklist);
     
@@ -428,10 +438,6 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC free");
         }
     }
-    
-    /* Zero out the fromspace; this means all memory that comes out of tospace after
-     * the next GC run will be zeroed. */
-    memset(tc->nursery_fromspace, 0, MVM_NURSERY_SIZE);
 }
 
 /* Goes through the unmarked objects in the second generation heap and builds free
