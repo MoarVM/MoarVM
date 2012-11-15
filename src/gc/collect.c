@@ -443,5 +443,42 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
 /* Goes through the unmarked objects in the second generation heap and builds free
  * lists out of them. Also does any required finalization. */
 void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
-    /* XXX TODO. */
+    /* Visit each of the size class bins. */
+    MVMGen2Allocator *gen2 = tc->gen2;
+    MVMuint32 bin, obj_size, page;
+    for (bin = 0; bin < MVM_GEN2_BINS; bin++) {
+        /* If we've nothing allocated in this size class, skip it. */
+        if (gen2->size_classes[bin].pages == NULL)
+            continue;
+
+        /* Calculate object size for this bin. */
+        obj_size = (bin + 1) << MVM_GEN2_BIN_BITS;
+
+        /* Visit each page. */
+        for (page = 0; page < gen2->size_classes[bin].num_pages; page++) {
+            /* Visit all the objects, looking for dead ones and reset the
+             * mark for each of them. */
+            char *cur_ptr = gen2->size_classes[bin].pages[page];
+            char *end_ptr = cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
+            while (cur_ptr < end_ptr) {
+                MVMCollectable *col = (MVMCollectable *)cur_ptr;
+                
+                /* Is this a free list slot? */
+                /* XXX */
+                
+                /* Otherwise, it must be an object. Is it live? */
+                if (col->forwarder) {
+                    /* Yes; clear the mark. */
+                    col->forwarder = NULL;
+                }
+                else {
+                    /* No, it's dead. */
+                    /* XXX */
+                }
+                
+                /* Move to the next object. */
+                cur_ptr += obj_size;
+            }
+        }
+    }
 }
