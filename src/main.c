@@ -26,13 +26,6 @@ int main(int argc, const char *argv[]) {
     int processed_args = 0;
     
     instance = MVM_vm_create_instance();
-    {
-        /* Uncomment to try a GC run at startup. */
-        /*MVMThreadContext *tc = instance->threads[0];
-        void *limit = tc->nursery_alloc;
-        MVM_gc_nursery_collect(tc);
-        MVM_gc_nursery_free_uncopied(tc, limit);*/
-    }
     
     apr_pool_create(&mp, NULL);
     apr_getopt_init(&opt, mp, argc, argv);

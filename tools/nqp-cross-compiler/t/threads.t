@@ -233,6 +233,6 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_s', $str);
         op(@ins, 'return');
     },
-    "Before threads\nIn new thread\nIn new thread\nIn new thread\nIn new thread\nLived until after joins\n",
+    "Before new threads\nIn new thread\nIn new thread\nIn new thread\nIn new thread\nLived until after joins\n",
     "Multiple allocating threads work (threads + GC interaction)");
     

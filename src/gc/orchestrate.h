@@ -3,14 +3,20 @@ void MVM_gc_enter_from_interupt(MVMThreadContext *tc);
 void MVM_gc_mark_thread_blocked(MVMThreadContext *tc);
 void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc);
 
-/* The number of items we must reach in a bucket of work before passing it
- * off to the next thread. (Power of 2, minus 2, is a decent choice.) */
-#define MVM_GC_PASS_WORK_SIZE   14
+/* This structure tracks the orchestration of a given GC run. */
+typedef struct _MVMGCOrchestration {    
+    /* The number of threads that we expect to join in with GC. */
+    MVMuint32 expected_gc_threads;
 
-/* Represents a piece of work (some addresses to visit) that have been passed
- * from one thread doing GC to another thread doing GC. */
-typedef struct _MVMGCPassedWork {
-    MVMCollectable         **work[MVM_GC_PASS_WORK_SIZE];
-    MVMint32                 num_items;
-    struct _MVMGCPassedWork *next;
-} MVMGCPassedWork;
+    /* The number of threads that vote for starting GC. */
+    MVMuint32 start_votes;
+    
+    /* The number of threads that vote for considering GC done. */
+    MVMuint32 finish_votes;
+    
+    /* The number of threads that have yet to acknowledge the finish. */
+    MVMuint32 finish_ack_remaining;
+    
+    /* Flag indicating the coordinator decided this GC run is finished. */
+    MVMuint32 finished;
+} MVMGCOrchestration;

@@ -37,7 +37,9 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
      ts->tc->cur_frame = ts->caller;
      
      /* If we happen to be in a GC run right now, pause until it's done. */
-     while (ts->tc->instance->starting_gc && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
+     while (ts->tc->instance->gc_orch
+            && !ts->tc->instance->gc_orch->finished
+            && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
         apr_thread_yield();
     
     /* Enter the interpreter, to run code. */
@@ -45,6 +47,12 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     
     /* Now we're done, decrement the reference count of the caller. */
     MVM_frame_dec_ref(ts->tc, ts->caller);
+
+    /* Mark ourselves as blocked, so that another thread will take care
+     * of GC-ing our objects. */
+    /* XXX This isn't really enough, because it means we never actually
+     * free our nursery after the thread ends... */
+    MVM_gc_mark_thread_blocked(ts->tc);
 
     /* Exit the thread, now it's completed. */
     apr_thread_exit(thread, APR_SUCCESS);
