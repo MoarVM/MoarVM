@@ -196,6 +196,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 memcpy(new_addr, item, size);
                 new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
+                
+                /* If we're going to sweep the second generation, also need
+                 * to mark it as live. */
+                if (gen == MVMGCGenerations_Both)
+                    new_addr->forwarder = new_addr;
             }
             else {
                 /* No, so it will live in the nursery for another GC
