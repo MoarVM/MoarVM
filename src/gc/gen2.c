@@ -75,14 +75,15 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
             result = (void *)al->size_classes[bin].free_list;
             al->size_classes[bin].free_list = (char **)*(al->size_classes[bin].free_list);
         }
-
-        /* If we're at the page limit, add a new page. */
-        if (al->size_classes[bin].alloc_pos == al->size_classes[bin].alloc_limit)
-            add_page(al, bin);
-        
-        /* Now we can allocate. */
-        result = al->size_classes[bin].alloc_pos;
-        al->size_classes[bin].alloc_pos += (bin + 1) << MVM_GEN2_BIN_BITS;
+        else {
+            /* If we're at the page limit, add a new page. */
+            if (al->size_classes[bin].alloc_pos == al->size_classes[bin].alloc_limit)
+                add_page(al, bin);
+            
+            /* Now we can allocate. */
+            result = al->size_classes[bin].alloc_pos;
+            al->size_classes[bin].alloc_pos += (bin + 1) << MVM_GEN2_BIN_BITS;
+        }
     }
     else {
         /* We're beyond the size class bins, so resort to malloc. */

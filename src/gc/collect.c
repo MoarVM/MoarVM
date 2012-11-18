@@ -196,6 +196,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 memcpy(new_addr, item, size);
                 new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
+                
+                /* If we're going to sweep the second generation, also need
+                 * to mark it as live. */
+                if (gen == MVMGCGenerations_Both)
+                    new_addr->forwarder = new_addr;
             }
             else {
                 /* No, so it will live in the nursery for another GC
@@ -446,6 +451,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
     /* Visit each of the size class bins. */
     MVMGen2Allocator *gen2 = tc->gen2;
     MVMuint32 bin, obj_size, page;
+    char ***freelist_insert_pos;
     for (bin = 0; bin < MVM_GEN2_BINS; bin++) {
         /* If we've nothing allocated in this size class, skip it. */
         if (gen2->size_classes[bin].pages == NULL)
@@ -453,27 +459,58 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
 
         /* Calculate object size for this bin. */
         obj_size = (bin + 1) << MVM_GEN2_BIN_BITS;
+        
+        /* Initialize freelist insertion position to free list head. */
+        freelist_insert_pos = &gen2->size_classes[bin].free_list;
 
         /* Visit each page. */
         for (page = 0; page < gen2->size_classes[bin].num_pages; page++) {
             /* Visit all the objects, looking for dead ones and reset the
              * mark for each of them. */
             char *cur_ptr = gen2->size_classes[bin].pages[page];
-            char *end_ptr = cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
+            char *end_ptr = page + 1 == gen2->size_classes[bin].num_pages
+                ? gen2->size_classes[bin].alloc_pos
+                : cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
             while (cur_ptr < end_ptr) {
                 MVMCollectable *col = (MVMCollectable *)cur_ptr;
                 
-                /* Is this a free list slot? */
-                /* XXX */
+                /* Is this already a free list slot? If so, it becomes the
+                 * new free list insert position. */
+                if (*freelist_insert_pos && **freelist_insert_pos == cur_ptr) {
+                    freelist_insert_pos = &((char**)cur_ptr);
+                }
                 
-                /* Otherwise, it must be an object. Is it live? */
-                if (col->forwarder) {
+                /* Otherwise, it must be a collectable of some kind. Is it
+                 * live? */
+                else if (col->forwarder) {
                     /* Yes; clear the mark. */
                     col->forwarder = NULL;
                 }
                 else {
-                    /* No, it's dead. */
-                    /* XXX */
+                    /* No, it's dead. Do any cleanup. */
+                    if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
+                        /* Object instance; call gc_free if needed. */
+                        MVMObject *obj = (MVMObject *)col;
+                        if (REPR(obj)->gc_free)
+                            REPR(obj)->gc_free(tc, obj);
+                    }
+                    else if (col->flags & MVM_CF_TYPE_OBJECT) {
+                        /* Type object; doesn't have anything extra that needs freeing. */
+                    }
+                    else if (col->flags & MVM_CF_STABLE) {
+                        MVM_panic(MVM_exitcode_gcnursery, "Can't free STables in gen2 GC yet");
+                    }
+                    else if (col->flags & MVM_CF_SC) {
+                        MVM_panic(MVM_exitcode_gcnursery, "Can't free serialization contexts in gen2 GC yet");
+                    }
+                    else {
+                        printf("item flags: %d\n", col->flags);
+                        MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in gen2 GC free");
+                    }
+                    
+                    /* Chain in to the free list. */
+                    *((char ***)cur_ptr) = *freelist_insert_pos;
+                    *freelist_insert_pos = (char **)cur_ptr;
                 }
                 
                 /* Move to the next object. */

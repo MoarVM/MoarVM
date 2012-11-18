@@ -43,14 +43,13 @@ MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     /* Note that we get zero if we really hit zero here, but dec32 may
      * not give the exact count back if it ends up non-zero. */
-    if (apr_atomic_dec32(&frame->ref_count) == 0) {
+    while (apr_atomic_dec32(&frame->ref_count) == 0) {
         MVMuint32 pool_index = frame->static_info->pool_index;
         MVMFrame *node = tc->frame_pool_table[pool_index];
+        MVMFrame *outer_to_decr = frame->outer;
         
         if (node && node->ref_count >= MVMFramePoolLengthLimit) {
             /* There's no room on the free list, so destruction.*/
-            if (frame->outer)
-                MVM_frame_dec_ref(tc, frame->outer);
             if (frame->env) {
                 free(frame->env);
                 frame->env = NULL;
@@ -66,6 +65,10 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
             frame->ref_count = (frame->outer = node) ? node->ref_count + 1 : 1;
             tc->frame_pool_table[pool_index] = frame;
         }
+        if (outer_to_decr)
+            frame = outer_to_decr; /* and loop */
+        else
+            return;
     }
 }
 
