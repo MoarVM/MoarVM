@@ -1,11 +1,26 @@
 /* Possible values for the thread execution interrupt flag. */
 typedef enum {
-    /* No interruption needed, continue execution. */
-    MVMInterrupt_NONE   = 0,
+    /* Indicates that the thread is currently executing, and should
+     * continue to do so. */
+    MVMGCStatus_NONE   = 0,
 
-    /* Stop and do a GC scan. */
-    MVMInterrupt_GCSCAN = 1
-} MVMInterruptType;
+    /* Set when another thread decides it wants to do a GC run. The
+     * current thread, on detecting this condition at a safe point,
+     * should join in with the current GC run. */
+    MVMGCStatus_INTERRUPT = 1,
+    
+    /* Set by a thread when it is unable to do any GC work because it
+     * is currently blocked waiting on an operation in the outside
+     * world (such as, waiting for another thread to join, or for
+     * some I/O to complete). */
+    MVMGCStatus_UNABLE = 2,
+    
+    /* Indicates that, while the thread was in unable status, a GC
+     * run was triggered and the scanning work was stolen. A thread
+     * that becomes unblocked upon seeing this will wait for the GC
+     * run to be done. */
+    MVMGCStatus_STOLEN = 3
+} MVMGCStatus;
 
 /* Are we allocating in the nursery, or direct into generation 2? (The
  * latter is used in the case of deserialization, when we know the
@@ -19,9 +34,15 @@ typedef enum {
     MVMAllocate_Gen2    = 1
 } MVMAllocationTarget;
 
-/* I don't know; let's start with this and see what happens. Experiment later */
-#define MVMInitialFramePoolTableSize 40
-#define MVMFramePoolLengthLimit 100
+/* To manage memory more efficiently, we cache MVMFrame instances.
+ * The initial frame pool table size sets the initial guess at the
+ * number of different types of frame (that is, an MVMStaticFrame)
+ * that we'll encounter and cache. If we do deep recursion, we run
+ * the risk of caching an enormous number of frames, so the length
+ * limit sets how many frames of a given static frame type we will
+ * keep around. */
+#define MVMInitialFramePoolTableSize    64
+#define MVMFramePoolLengthLimit         64
 
 /* Information associated with an executing thread. */
 struct _MVMInstance;
@@ -34,8 +55,8 @@ typedef struct _MVMThreadContext {
     /* The end of the space we're allowed to allocate to. */
     void *nursery_alloc_limit;
     
-    /* Execution interrupt flag. */
-    MVMInterruptType interrupt;
+    /* This thread's GC status. */
+    MVMint32 gc_status;
     
     /* Where we're allocating. */
     MVMAllocationTarget allocate_in;
@@ -68,12 +89,18 @@ typedef struct _MVMThreadContext {
     /* Where we evacuate objects to when collecting this thread's nursery, or
      * allocate new ones. */
     void *nursery_tospace;
+
+    /* The second GC generation allocator. */
+    struct _MVMGen2Allocator *gen2;
     
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
     
-    /* OS thread handle. */
-    void *os_thread; /* XXX Whatever APR uses for thread handles... */
+    /* Thread object representing the thread. */
+    struct _MVMThread *thread_obj;
+    
+    /* The frame lying at the base of the current thread. */
+    struct _MVMFrame *thread_entry_frame;
     
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change
@@ -91,8 +118,17 @@ typedef struct _MVMThreadContext {
     MVMuint32             alloc_gen2roots;
     MVMCollectable     ***gen2roots;
     
+    /* The GC's cross-thread in-tray of processing work. */
+    struct _MVMGCPassedWork *gc_in_tray;
+    
+    /* A NULL-terminated array of threads that we have stolen GC
+     * responsibility for, because they were blocked when we were
+     * planning a GC run. */
+    struct _MVMThreadContext **stolen_for_gc;
+    
     /* Pool table of chains of frames for each static frame. */
     struct _MVMFrame **frame_pool_table;
+
     /* Size of the pool table, so it can grow on demand. */
     MVMuint32          frame_pool_table_size;
     

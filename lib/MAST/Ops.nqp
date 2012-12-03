@@ -2499,6 +2499,20 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
+            ),
+            'newthread', nqp::hash(
+                'code', 26,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'jointhread', nqp::hash(
+                'code', 27,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
             )
         ]
     ];

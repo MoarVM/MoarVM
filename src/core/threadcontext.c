@@ -2,7 +2,7 @@
 
 /* Initializes a new thread context. Note that this doesn't set up a
  * thread itself, it just creates the data structure that exists in
-  * MoarVM per thread. */
+ * MoarVM per thread. */
 MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     MVMThreadContext *tc = calloc(1, sizeof(MVMThreadContext));
     
@@ -24,7 +24,10 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->num_gen2roots   = 0;
     tc->alloc_gen2roots = 64;
     tc->gen2roots       = malloc(sizeof(MVMCollectable **) * tc->alloc_gen2roots);
-    
+
+    /* Set up the second generation allocator. */
+    tc->gen2 = MVM_gc_gen2_create(instance);
+
     /* Set up table of per-static-frame chains. */
     /* XXX For non-first threads, make them start with the size of the 
        main thread's table. or, look into lazily initializing this. */
@@ -43,6 +46,9 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* Free the nursery. */
     free(tc->nursery_fromspace);
     free(tc->nursery_tospace);
+    
+    /* Destroy the second generation allocator. */
+    MVM_gc_gen2_destroy(tc->instance, tc->gen2);
     
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));

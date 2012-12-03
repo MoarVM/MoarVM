@@ -303,8 +303,6 @@ class QAST::MASTRegexCompiler {
         my $conjlabel := @*RXJUMPS[$conjlabel_index];
         my $firstlabel := label($prefix ~ '_first');
         my $iter := nqp::iterator($node.list);
-        # make a mark that holds our starting position in the pos slot
-        self.regex_mark(@ins, $conjlabel, %*REG<pos>, %*REG<zero>);
         my @ins := [
             op('goto', $firstlabel),
             $conjlabel,
@@ -312,6 +310,8 @@ class QAST::MASTRegexCompiler {
             # call the first child
             $firstlabel
         ];
+        # make a mark that holds our starting position in the pos slot
+        self.regex_mark(@ins, $conjlabel, %*REG<pos>, %*REG<zero>);
         merge_ins(@ins, self.regex_mast(nqp::shift($iter)));
         # use previous mark to make one with pos=start, rep=end
         my $i11 := fresh_i();

@@ -335,3 +335,5 @@ BANK 6 processthread
 0x17    rand_n      w(num64)
 0x18    time_i      w(int64)
 0x19    clargs      w(obj)
+0x1A    newthread   w(obj) r(obj) r(obj)
+0x1B    jointhread  r(obj)

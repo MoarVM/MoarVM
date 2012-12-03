@@ -31,10 +31,10 @@ BUILD_LAO_LIB = @lao_whether_build@
 THIRDPARTY_LIBS = $(APR_LIB) $(BUILD_LAO_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
-            src/core/bytecodedump$(O) \
-            src/core/ops$(O) src/gc/allocation$(O) src/gc/worklist$(O) src/gc/roots$(O)  \
+            src/core/bytecodedump$(O) src/core/threads$(O) src/core/ops$(O) \
+            src/gc/orchestrate$(O) src/gc/allocation$(O) src/gc/worklist$(O) src/gc/roots$(O) \
             src/io/fileops$(O) src/io/socketops$(O) src/io/dirops$(O) src/io/procops$(O) \
-            src/gc/nursery$(O) src/gc/gen2$(O) src/gc/wb$(O) src/6model/reprs$(O) \
+            src/gc/collect$(O) src/gc/gen2$(O) src/gc/wb$(O) src/6model/reprs$(O) \
             src/6model/reprconv$(O) src/6model/reprs/MVMString$(O) \
             src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
             src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
@@ -42,6 +42,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/P6opaque$(O) src/6model/reprs/MVMCode$(O) \
             src/6model/reprs/MVMOSHandle$(O) src/6model/reprs/P6int$(O) src/6model/reprs/P6num$(O) \
             src/6model/reprs/Uninstantiable$(O) src/6model/reprs/HashAttrStore$(O) \
+            src/6model/reprs/MVMThread$(O) \
             src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
             src/strings/latin1$(O) src/strings/utf16$(O) src/moarvm$(O)
@@ -49,15 +50,16 @@ MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
             src/core/compunit.h src/core/bytecode.h src/core/ops.h src/core/validation.h \
-            src/core/bytecodedump.h \
-            src/io/fileops.h src/io/socketops.h src/io/dirops.h src/io/procops.h \
-            src/gc/allocation.h src/gc/worklist.h src/gc/nursery.h src/gc/roots.h src/gc/gen2.h \
+            src/core/bytecodedump.h src/core/threads.h \
+            src/io/fileops.h src/io/socketops.h src/io/dirops.h src/io/procops.h src/gc/orchestrate.h \
+            src/gc/allocation.h src/gc/worklist.h src/gc/collect.h src/gc/roots.h src/gc/gen2.h \
             src/gc/wb.h src/6model/reprs.h src/6model/reprconv.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
             src/6model/reprs/KnowHOWREPR.h src/6model/reprs/KnowHOWAttributeREPR.h \
             src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h src/6model/reprs/P6str.h \
             src/6model/reprs/MVMOSHandle.h src/6model/reprs/P6int.h src/6model/reprs/P6num.h \
-            src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h src/6model/sc.h src/strings/unicode_gen.h \
+            src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h \
+            src/6model/reprs/MVMThread.h src/6model/sc.h src/strings/unicode_gen.h \
             src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h \
             src/strings/latin1.h src/strings/utf16.h 3rdparty/uthash.h src/gen/config.h
 
@@ -97,6 +99,8 @@ src/core/bytecodedump$(O): src/core/bytecodedump.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/bytecodedump$(O) src/core/bytecodedump.c
 src/core/ops$(O): src/core/ops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/ops$(O) src/core/ops.c
+src/core/threads$(O): src/core/threads.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/threads$(O) src/core/threads.c
 src/io/fileops$(O): src/io/fileops.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/fileops$(O) src/io/fileops.c
 src/io/socketops$(O): src/io/socketops.c $(HEADERS)
@@ -113,8 +117,10 @@ src/gc/worklist$(O): src/gc/worklist.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/worklist$(O) src/gc/worklist.c
 src/gc/roots$(O): src/gc/roots.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/roots$(O) src/gc/roots.c
-src/gc/nursery$(O): src/gc/nursery.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/nursery$(O) src/gc/nursery.c
+src/gc/collect$(O): src/gc/collect.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/collect$(O) src/gc/collect.c
+src/gc/orchestrate$(O): src/gc/orchestrate.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/orchestrate$(O) src/gc/orchestrate.c
 src/gc/gen2$(O): src/gc/gen2.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/gen2$(O) src/gc/gen2.c
 src/gc/wb$(O): src/gc/wb.c $(HEADERS)
@@ -151,6 +157,8 @@ src/6model/reprs/HashAttrStore$(O): src/6model/reprs/HashAttrStore.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/HashAttrStore$(O) src/6model/reprs/HashAttrStore.c
 src/6model/reprs/KnowHOWAttributeREPR$(O): src/6model/reprs/KnowHOWAttributeREPR.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/KnowHOWAttributeREPR$(O) src/6model/reprs/KnowHOWAttributeREPR.c
+src/6model/reprs/MVMThread$(O): src/6model/reprs/MVMThread.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMThread$(O) src/6model/reprs/MVMThread.c
 src/6model/6model$(O): src/6model/6model.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/6model$(O) src/6model/6model.c
 src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)

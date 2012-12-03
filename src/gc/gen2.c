@@ -30,6 +30,9 @@ static void setup_bin(MVMGen2Allocator *al, MVMuint32 bin) {
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[0];
     al->size_classes[bin].alloc_limit = al->size_classes[bin].alloc_pos + page_size;
+    
+    /* Free list is empty until GC run (and we just do page by page allocation). */
+    al->size_classes[bin].free_list = NULL;
 }
 
 /* Adds a new page to a size class bin. */
@@ -67,13 +70,20 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
         if (al->size_classes[bin].pages == NULL)
             setup_bin(al, bin);
         
-        /* If we're at the page limit, add a new page. */
-        if (al->size_classes[bin].alloc_pos == al->size_classes[bin].alloc_limit)
-            add_page(al, bin);
-        
-        /* Now we can allocate. */
-        result = al->size_classes[bin].alloc_pos;
-        al->size_classes[bin].alloc_pos += (bin + 1) << MVM_GEN2_BIN_BITS;
+        /* If there's a free list entry, use that. */
+        if (al->size_classes[bin].free_list) {
+            result = (void *)al->size_classes[bin].free_list;
+            al->size_classes[bin].free_list = (char **)*(al->size_classes[bin].free_list);
+        }
+        else {
+            /* If we're at the page limit, add a new page. */
+            if (al->size_classes[bin].alloc_pos == al->size_classes[bin].alloc_limit)
+                add_page(al, bin);
+            
+            /* Now we can allocate. */
+            result = al->size_classes[bin].alloc_pos;
+            al->size_classes[bin].alloc_pos += (bin + 1) << MVM_GEN2_BIN_BITS;
+        }
     }
     else {
         /* We're beyond the size class bins, so resort to malloc. */

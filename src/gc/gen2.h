@@ -4,11 +4,15 @@ typedef struct _MVMGen2SizeClass {
      * nothing of the size statically, so we'll work in bytes. */
     char **pages;
     
-    /* The current allocation position. */
+    /* Head of the free list. */
+    char **free_list;
+    
+    /* The current allocation position if we've nothing on the
+     * free list. */
     char *alloc_pos;
     
     /* The current page allocation limit (once we hit this, we need
-     * to go to the next page). */
+     * to go to the next page) Also just used when no free list. */
     char *alloc_limit;
     
     /* The current page number that we're allocating in. */

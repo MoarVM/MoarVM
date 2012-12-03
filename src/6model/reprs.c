@@ -209,8 +209,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
 
 /* Initializes the representations registry, building up all of the various
  * representations. */
-void MVM_repr_initialize_registry(MVMThreadContext *tc) {
-    
+void MVM_repr_initialize_registry(MVMThreadContext *tc) {    
     /* Add all core representations. (If order changed, update reprs.h IDs.) */
     register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMString"),
@@ -254,6 +253,9 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6str"),
         P6str_initialize(tc));
+    register_repr(tc,
+        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMThread"),
+        MVMThread_initialize(tc));
 }
 
 /* Get a representation's ID from its name. Note that the IDs may change so
