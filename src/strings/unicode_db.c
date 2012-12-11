@@ -33361,6 +33361,7 @@ static const MVMUnicodeNamedValue unicode_property_value_keypairs[2083] = {
     {"Numeric",251658251},{"nu",251658251},{"numeric",251658251},{"XX",251658240},{"Other",251658240},{"xx",251658240},
     {"other",251658240}
 };
+static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint);
 static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
