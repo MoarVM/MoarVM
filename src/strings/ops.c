@@ -24,6 +24,13 @@ MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody 
     return 0;
 }
 
+/* for physical strings, applies the consumer function directly. For
+ * "ropes", performs the binary search as directed by the strands table
+ * to find the first starting strand index of the desired substring. 
+ * Then recursively traverses more strands until the desired number of
+ * characters are passed to the consumer function from the strand tree.
+ * Both this and the consumer function return a boolean saying whether
+ * to abort the traversal early. */
 MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMStringIndex start, MVMStringIndex length, MVMSubstringConsumer consumer, void *data) {
     
     switch(a->body.flags & MVM_STRING_TYPE_MASK) {
@@ -51,27 +58,289 @@ MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMSt
             }
             for(;;) {
                 MVMuint8 return_val;
+                /* get the number of available codepoints from
+                 * this strand. */
                 MVMStringIndex substring_length =
                     strands[strand_index + 1].compare_offset - index;
+                /* determine how many codepoints to actually consume */
                 if (length < substring_length)
                     substring_length = length;
+                /* call ourself on the sub-strand */
                 return_val = MVM_string_traverse_substring(tc, strand->string,
                     index - strand->compare_offset + strand->string_offset, 
                     substring_length, consumer, data);
+                /* if we've been instructed to, abort early */
                 if (return_val)
                     return return_val;
+                /* reduce the number of codepoints requested by the number
+                 * consumed. */
                 length -= substring_length;
+                /* if we've consumed all the codepoints, return without 
+                 * indicating abort early. */
                 if (!length)
                     return 0;
+                /* advance the index by the number of codepoints consumed. */
                 index += substring_length;
+                /* advance in the strand table. The caller must guarantee
+                 * this won't overflow by checking lengths. */
                 ++strand_index;
             }
-            break;
+            break; // should be unreachable
         }
         default:
             MVM_exception_throw_adhoc(tc, "internal string corruption");
     }
-    return 0;
+    return 0; // should be unreachable
+}
+
+/* stack record created with each invocation of the string descent. */
+typedef struct _MVMCompareCursor {
+    MVMString *string; /* string into which descended */
+    struct _MVMCompareCursor *parent; /* parent cursor */
+    MVMint16 *gaps; /* number of gaps can ascend */
+    MVMStringIndex string_idx; /* in string, not strand */
+    MVMStringIndex end_idx; /* index past last codepoint needed */
+    MVMStrandIndex strand_idx; /* current strand index */
+    MVMuint8 owns_buffer; /* whether it owns the last buffer.
+            for ropes, whether it's uninitialized. */
+    MVMuint8 isa; /* whether it's from string tree a */
+} MVMCompareCursor;
+
+typedef struct _MVMCompareDescentState {
+    MVMCompareCursor *cursora, *cursorb; /* cursors */
+    MVMCodepoint32 *int32s; /* last physical string's buffer */
+    MVMCodepoint8 *uint8s; /* last physical string's buffer */
+    MVMStringIndex available; /* number of codepoints in the buffer */
+    MVMStringIndex needed; /* number of codepoints still needed */
+} MVMCompareDescentState;
+
+/* uses the computed binary search table to find the strand containing the index */
+static MVMStrandIndex find_strand_index(MVMString *s, MVMStringIndex index) {
+    MVMStrand *strands = s->body.strands;
+    MVMStrandIndex strand_index = 0;
+    MVMStrandIndex lower = 255;
+    MVMStrand *strand;
+    while(1) {
+        strand = &strands[strand_index];
+        if (strand->lower_index == strand->higher_index
+                || strand_index == lower)
+            return strand_index;
+        if (index >= strand->compare_offset) {
+            lower = strand_index;
+            strand_index = strand->higher_index;
+        }
+        else {
+            strand_index = strand->lower_index;
+        }
+    }
+}
+
+/* If a is composed of strands, create a descent record, initialize it, and
+ * descend into the substring. If result is set when it returns, return. 
+ * If a is a real string, grab some codepoints from a string, compare
+ * with codepoints from the other buffer. If different, set result nonzero and
+ * it will fast return. Otherwise, reset buffer indexes
+ * to zero. Loop if `needed` for the current string is nonzero. */
+static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
+        MVMuint8 *result, MVMCompareCursor *orig) {
+    /* while we still need to compare some things */
+    while (st->needed) {
+        /* pick a tree from which to get more characters. */
+        MVMCompareCursor *c = st->cursora->owns_buffer ? st->cursorb : st->cursora;
+        
+        if (*c->gaps) {
+            (*c->gaps)--;
+            if (c->isa) { st->cursora = c->parent; }
+            else { st->cursorb = c->parent; }
+            return;
+        }
+        
+        /* get some characters, comparing as they're found */
+        switch(c->string->body.flags & MVM_STRING_TYPE_MASK) {
+            case MVM_STRING_TYPE_INT32: {
+                MVMStringIndex wehave = c->end_idx - c->string_idx;
+                if (st->available) {
+                    MVMStringIndex tocompare = st->available < wehave ? st->available : wehave;
+                    if (st->int32s) {
+                        if (memcmp(st->int32s, c->string->body.int32s + c->string_idx,
+                               wehave * sizeof(MVMCodepoint32))) { /* mismatch */
+                            *result = 1;
+                            return;
+                        }
+                        else {
+                            st->needed -= tocompare;
+                            if (!st->needed) { /* done */
+                                *result = 2;
+                                return;
+                            }
+                            else if (wehave > tocompare) { /* we're the new available buffer */
+                                st->int32s = c->string->body.int32s + c->string_idx + tocompare;
+                                st->available = wehave - tocompare;
+                                c->owns_buffer = 1;
+                            }
+                            else { /* keep chewing from the same other string */
+                                st->int32s += tocompare;
+                                st->available -= tocompare;
+                            }
+                        }
+                    }
+                    else { /* compare codepoint by different-sized codepoint */
+                        MVMCodepoint32
+                            *cp32 = c->string->body.int32s + c->string_idx,
+                            *final32 = cp32 + tocompare;
+                        MVMCodepoint8 *cp8 = st->uint8s;
+                        for (; cp32 < final32; ) {
+                            if (*cp32++ != (MVMCodepoint32) *cp8++) {
+                                *result = 1;
+                                return;
+                            }
+                        }
+                        st->needed -= tocompare;
+                        if (!st->needed) { /* done */
+                            *result = 2;
+                            return;
+                        }
+                        else if (wehave > tocompare) { /* we're the new available buffer */
+                            st->int32s = c->string->body.int32s + c->string_idx + tocompare;
+                            st->available = wehave - tocompare;
+                            c->owns_buffer = 1;
+                            st->uint8s = NULL;
+                        }
+                        else { /* keep chewing from the same other string */
+                            st->uint8s += tocompare;
+                            st->available -= tocompare;
+                        }
+                    }
+                    if (c->isa) { st->cursora = c->parent; }
+                    else { st->cursorb = c->parent; }
+                    return;
+                }
+                /* we're the first string to start comparison */
+                st->int32s = c->string->body.int32s + c->string_idx;
+                st->uint8s = NULL;
+                st->available = wehave;
+                c->owns_buffer = 1;
+                continue;
+            }
+            case MVM_STRING_TYPE_UINT8: {
+                MVMStringIndex wehave = c->end_idx - c->string_idx;
+                if (st->available) {
+                    MVMStringIndex tocompare = st->available < wehave ? st->available : wehave;
+                    if (st->uint8s) {
+                        if (memcmp(st->uint8s, c->string->body.uint8s + c->string_idx,
+                               wehave * sizeof(MVMCodepoint8))) { /* mismatch */
+                            *result = 1;
+                            return;
+                        }
+                        else {
+                            st->needed -= tocompare;
+                            if (!st->needed) { /* done */
+                                *result = 2;
+                                return;
+                            }
+                            else if (wehave > tocompare) { /* we're the new available buffer */
+                                st->uint8s = c->string->body.uint8s + c->string_idx + tocompare;
+                                st->available = wehave - tocompare;
+                                c->owns_buffer = 1;
+                            }
+                            else { /* keep chewing from the same other string */
+                                st->uint8s += tocompare;
+                                st->available -= tocompare;
+                            }
+                        }
+                    }
+                    else { /* compare codepoint by different-sized codepoint */
+                        MVMCodepoint8
+                            *cp8 = c->string->body.uint8s + c->string_idx,
+                            *final8 = cp8 + tocompare;
+                        MVMCodepoint32 *cp32 = st->int32s;
+                        for (; cp8 < final8; ) {
+                            if (*cp32++ != (MVMCodepoint32) *cp8++) {
+                                *result = 1;
+                                return;
+                            }
+                        }
+                        st->needed -= tocompare;
+                        if (!st->needed) { /* done */
+                            *result = 2;
+                            return;
+                        }
+                        else if (wehave > tocompare) { /* we're the new available buffer */
+                            st->uint8s = c->string->body.uint8s + c->string_idx + tocompare;
+                            st->available = wehave - tocompare;
+                            c->owns_buffer = 1;
+                            st->int32s = NULL;
+                        }
+                        else { /* keep chewing from the same other string */
+                            st->int32s += tocompare;
+                            st->available -= tocompare;
+                        }
+                    }
+                    if (c->isa) { st->cursora = c->parent; }
+                    else { st->cursorb = c->parent; }
+                    return;
+                }
+                /* we're the first string to start comparison */
+                st->uint8s = c->string->body.uint8s + c->string_idx;
+                st->int32s = NULL;
+                st->available = wehave;
+                c->owns_buffer = 1;
+                continue;
+            }
+            case MVM_STRING_TYPE_ROPE: {
+                MVMStrand *strand;
+                MVMStringIndex next_compare_offset, child_length, child_idx, child_end_idx;
+                if (c->owns_buffer) { /* first time we've seen this rope */
+                    c->strand_idx = find_strand_index(c->string, c->string_idx);
+                    c->owns_buffer = 0;
+                }
+                strand = c->string->body.strands + c->strand_idx;
+                child_idx = c->string_idx - strand->compare_offset;
+                next_compare_offset = (strand + 1)->compare_offset;
+                child_length = next_compare_offset - strand->compare_offset;
+                child_length = child_length > c->end_idx - c->string_idx
+                    ? c->end_idx - c->string_idx : child_length;
+                child_end_idx = child_idx + child_length;
+                c->string_idx += child_length;
+                c->strand_idx++;
+                {
+                    MVMCompareCursor child = { strand->string, c, c->gaps, child_idx,
+                        child_end_idx, IS_ROPE(strand->string)?1:0, c == st->cursora?1:0 };
+                    if (c->isa) { st->cursora = &child; } else { st->cursorb = &child; }
+                    compare_descend(tc, st, result, &child);
+                }
+                if (*result) return;
+                if (!st->needed) { *result = 2; return; }
+                if (c->string_idx == c->end_idx) {
+                    if (c->isa) { st->cursora = c->parent; }
+                    else { st->cursorb = c->parent; }
+                    if (orig == c)
+                        return;
+                    (*c->gaps)++;
+                }
+                continue;
+            }
+            default:
+                MVM_exception_throw_adhoc(tc, "internal string corruption");
+        }
+    }
+    *result = 2;
+}
+
+/* returns nonzero if two substrings are equal, doesn't check bounds */
+MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
+        MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
+    MVMint16 gapsa = 0, gapsb = 0;
+    MVMuint8 result = 0;
+    MVMCompareCursor
+        cursora = { a, NULL, &gapsa, starta, starta + length, 0,
+            IS_ROPE(a)?1:0, 1 },
+        cursorb = { b, NULL, &gapsb, startb, startb + length, 0,
+            IS_ROPE(b)?1:0, 0 };
+    MVMCompareDescentState st = { &cursora, &cursorb, NULL, NULL, 0, length };
+    
+    compare_descend(tc, &st, &result, &cursora);
+    return result ? result - 1 : 1;
 }
 
 /* returns the codepoint without doing checks, for internal VM use only. */
@@ -118,7 +387,7 @@ MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMStri
     MVM_exception_throw_adhoc(tc, "internal string corruption");
     return 0;
 }
-
+/*
 MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
     MVMint64 index;
@@ -136,8 +405,16 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         case MVM_STRING_TYPE_ROPE:
             break;
     }
-    /* XXX This can be made far more efficient for all cases by inlining
-        and merging the 2 copies of get_codepoint_at_nocheck */
+    {
+        MVMCodepoint32 achars[MVM_SUBSTRING_PUMP_BUFFER_SIZE] = {},
+                       bchars[MVM_SUBSTRING_PUMP_BUFFER_SIZE] = {};
+        MVMint64 i;
+        for (i = 0; length > 0;) {
+            MVMint64 j = length > MVM_SUBSTRING_PUMP_BUFFER_SIZE
+                ? MVM_SUBSTRING_PUMP_BUFFER_SIZE : length;
+            
+        }
+    }
     for (index = 0; index < length; index++) {
         if (       MVM_string_get_codepoint_at_nocheck(tc, a, starta + index)
                 != MVM_string_get_codepoint_at_nocheck(tc, b, startb + index))
@@ -145,7 +422,7 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
     }
     return 1;
 }
-
+*/
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
     MVMint64 result = -1;

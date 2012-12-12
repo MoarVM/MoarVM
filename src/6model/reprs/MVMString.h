@@ -62,7 +62,7 @@ typedef struct _MVMStringBody {
     /* The number of graphemes that make up the string
         (and in turn, the length of data in terms of the
         number of 32-bit integers or bytes it has, or when
-        a rope, the value of the last MVMStrand's compare_offset. */
+        a rope, the value of the last MVMStrand's compare_offset). */
     MVMStringIndex graphs;
     
     /* The number of codepoints the string is
