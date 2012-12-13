@@ -294,6 +294,14 @@ static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
                     c->strand_idx = find_strand_index(c->string, c->string_idx);
                     c->owns_buffer = 0;
                 }
+                if (c->string_idx == c->end_idx) {
+                    if (c->isa) { st->cursora = c->parent; }
+                    else { st->cursorb = c->parent; }
+                    if (orig == c)
+                        return;
+                    (*c->gaps)++;
+                    continue;
+                }
                 strand = c->string->body.strands + c->strand_idx;
                 child_idx = c->string_idx - strand->compare_offset;
                 next_compare_offset = (strand + 1)->compare_offset;
@@ -305,19 +313,19 @@ static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
                 c->strand_idx++;
                 {
                     MVMCompareCursor child = { strand->string, c, c->gaps, child_idx,
-                        child_end_idx, IS_ROPE(strand->string)?1:0, c == st->cursora?1:0 };
+                        child_end_idx, 0, IS_ROPE(strand->string)?1:0, c == st->cursora?1:0 };
                     if (c->isa) { st->cursora = &child; } else { st->cursorb = &child; }
                     compare_descend(tc, st, result, &child);
                 }
                 if (*result) return;
-                if (!st->needed) { *result = 2; return; }
+            /*    if (!st->needed) { *result = 2; return; }
                 if (c->string_idx == c->end_idx) {
                     if (c->isa) { st->cursora = c->parent; }
                     else { st->cursorb = c->parent; }
                     if (orig == c)
                         return;
                     (*c->gaps)++;
-                }
+                }*/
                 continue;
             }
             default:
@@ -495,13 +503,13 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     strands = result->body.strands = calloc(sizeof(MVMStrand), 2);
     /* if we're substringing a substring, substring the same one */
     if (IS_SUBSTRING(a)) {
-        strands[0].string_offset = (MVMStringIndex)start + a->body.strands[0].string_offset;
-        strands[0].string = a->body.strands[0].string;
-        _STRAND_DEPTH(result) = STRAND_DEPTH(a->body.strands[0].string) + 1;
+        strands->string_offset = (MVMStringIndex)start + a->body.strands->string_offset;
+        strands->string = a->body.strands->string;
+        _STRAND_DEPTH(result) = STRAND_DEPTH(a->body.strands->string) + 1;
     }
     else {
-        strands[0].string_offset = (MVMStringIndex)start;
-        strands[0].string = a;
+        strands->string_offset = (MVMStringIndex)start;
+        strands->string = a;
         _STRAND_DEPTH(result) = STRAND_DEPTH(a) + 1;
     }
     strands[1].compare_offset = length;
@@ -509,7 +517,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     /* result->body.codes  = 0; /* Populate this lazily. */
     result->body.flags = MVM_STRING_TYPE_ROPE;
     result->body.graphs = length;
-    result->body.strands[0].lower_index = 1;
+    result->body.strands->lower_index = 1;
     
     return result;
 }
@@ -591,7 +599,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
     MVMString *result;
     MVMint64 bkup_count = count;
-    MVMStringIndex string_offset = 0;
+    MVMStringIndex string_offset = 0, graphs = 0;
     
     if (!IS_CONCRETE((MVMObject *)a)) {
         MVM_exception_throw_adhoc(tc, "repeat needs a concrete string");
@@ -608,26 +616,29 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     MVM_gc_root_temp_pop(tc);
     
     if (IS_SUBSTRING(a)) {
-        string_offset = a->body.strands[0].string_offset;
-        a = a->body.strands[0].string;
+        string_offset = a->body.strands->string_offset;
+        graphs = a->body.strands[1].compare_offset;
+        a = a->body.strands->string;
+    }
+    else {
+        graphs = a->body.graphs;
     }
     
-    result->body.graphs = a->body.graphs * count;
+    result->body.graphs = graphs * count;
     
     if (result->body.graphs) {
         MVMStrand *strands = result->body.strands = calloc(sizeof(MVMStrand), count + 1);
         result->body.flags = MVM_STRING_TYPE_ROPE;
         
         while (count--) {
-            strands[count].compare_offset = count * a->body.graphs;
+            strands[count].compare_offset = count * graphs;
             strands[count].string = a;
             strands[count].string_offset = string_offset;
         }
-        if (bkup_count)
-            strands[0].higher_index =
-                MVM_string_generate_strand_binary_search_table(tc, strands, 0, bkup_count - 1);
+        strands->higher_index =
+            MVM_string_generate_strand_binary_search_table(tc, strands, 0, bkup_count - 1);
         strands[bkup_count].compare_offset = result->body.graphs;
-        result->body.strands[0].lower_index = bkup_count;
+        result->body.strands->lower_index = bkup_count;
         _STRAND_DEPTH(result) = bkup_count;
     }
     

@@ -6,12 +6,13 @@
 #define MVM_SUBSTRING_CONSUMER(name) MVMuint8 name(MVMThreadContext *tc, \
     MVMString *string, MVMStringIndex start, MVMStringIndex length, void *data)
 typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
-#define IS_WIDE(str) ((((MVMString *)(str))->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
-#define IS_ASCII(str) ((((MVMString *)(str))->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8)
-#define IS_ROPE(str) ((((MVMString *)(str))->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE)
-#define _STRAND_DEPTH(str) ((str)->body.strands[(str)->body.strands[0].lower_index].lower_index)
+#define STR_FLAGS(str) (((MVMString *)(str))->body.flags & MVM_STRING_TYPE_MASK)
+#define IS_WIDE(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_INT32)
+#define IS_ASCII(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_UINT8)
+#define IS_ROPE(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_ROPE)
+#define _STRAND_DEPTH(str) ((str)->body.strands[(str)->body.strands->lower_index].lower_index)
 #define STRAND_DEPTH(str) ((IS_ROPE(str) && (str)->body.graphs) ? _STRAND_DEPTH(str) : 0)
-#define IS_SUBSTRING(str) (IS_ROPE(str) && (str)->body.strands[0].lower_index == 1)
+#define IS_SUBSTRING(str) (IS_ROPE(str) && (str)->body.strands[1].compare_offset == (str)->body.graphs)
 #define MVM_SUBSTRING_PUMP_BUFFER_SIZE 50
 #define MVM_COMPARE_BUFFER_SIZE 512
 

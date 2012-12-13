@@ -24,6 +24,8 @@ typedef struct _MVMStrand {
         If they are equal, it means use the compare_offset
         string at that strand's row. */
     /* The index of the strand table for lower than. */
+    /* on the first strand record, this value is the
+        index of the last strand record. */
     MVMStrandIndex lower_index;
     
     /* The index of the strand table for higher than or equal to. */
