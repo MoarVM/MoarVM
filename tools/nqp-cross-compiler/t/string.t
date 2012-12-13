@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(39);
+plan(41);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
@@ -634,7 +634,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r1, ival(4));
         op(@ins, 'repeat_s', $r2, $r0, $r1);
         op(@ins, 'repeat_s', $r2, $r2, $r1);
-        op(@ins, 'const_s', $r0, sval('barbar'));
+        op(@ins, 'uc', $r2, $r2);
+        op(@ins, 'const_s', $r0, sval('BARBAR'));
         op(@ins, 'const_i64', $r1, ival(2));
         op(@ins, 'repeat_s', $r3, $r0, $r1);
         op(@ins, 'const_i64', $r1, ival(4));
@@ -644,4 +645,4 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
     },
     "1\n",
-    "equals of tree of differently sized joined segments");
+    "equals of tree of UPPERed string tree");

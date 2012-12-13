@@ -14,7 +14,7 @@
     Returns nonzero if the traverser is supposed to stop traversal
     early. See how it's used in ops.c */
 #define MVM_SUBSTRING_CONSUMER(name) MVMuint8 name(MVMThreadContext *tc, \
-    MVMString *string, MVMStringIndex start, MVMStringIndex length, void *data)
+    MVMString *string, MVMStringIndex start, MVMStringIndex length, MVMStringIndex top_index, void *data)
 typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
 
 /* gets the code that defines the type of string. More things could be
