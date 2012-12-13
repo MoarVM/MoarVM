@@ -7,19 +7,30 @@
     start flattening.  Write a rope-tree-flattening function
     (not like string_flatten) that puts all the sub strands
     in one MVMStrand array. (see below on > 256)
+    (optimization)
 - add a tunable global determining under which size result
-    string should it just do the old copying behavior.
+    string should it just do the old copying behavior, for
+    join, concat, split, and repeat.
     This might be related to MVMString object size?
+    (optimization)
 - enable repeat and join to handle > 256 by adding a
     recursive divvy function that takes arrays of MVMStrands
     and allocates ropes in a tree until each has equal to or
     fewer than N, a tunable global <= 256.
+    (necessary feature)
+- make all the functions that iterate every character use
+    the substring consumer function instead of traversing the
+    rope tree every character lookup.
+    (necessary optimization)
+- make the uc, lc, tc functions intelligently
+    create ropes from the originals when deemed advantageous.
+    (optimization)
 */
 
 /* Returns the size of the strands array. Doesn't need to be fast/cached, I think. */
 MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body) {
     if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE && body->graphs) {
-        return body->strands[0].lower_index;
+        return body->strands->lower_index;
     }
     return 0;
 }
@@ -313,7 +324,7 @@ static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
                 c->strand_idx++;
                 {
                     MVMCompareCursor child = { strand->string, c, c->gaps, child_idx,
-                        child_end_idx, 0, IS_ROPE(strand->string)?1:0, c == st->cursora?1:0 };
+                        child_end_idx, 0, IS_ROPE(strand->string)?1:0, c->isa?1:0 };
                     if (c->isa) { st->cursora = &child; } else { st->cursorb = &child; }
                     compare_descend(tc, st, result, &child);
                 }
@@ -395,42 +406,7 @@ MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMStri
     MVM_exception_throw_adhoc(tc, "internal string corruption");
     return 0;
 }
-/*
-MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
-        MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
-    MVMint64 index;
-    switch(a->body.flags & MVM_STRING_TYPE_MASK) {
-        case MVM_STRING_TYPE_INT32:
-            if (IS_WIDE(b))
-                return (MVMint64)GRAPHS_EQUAL(a->body.int32s + (size_t)starta,
-                    b->body.int32s + (size_t)startb, (size_t)length, MVMCodepoint32);
-            break;
-        case MVM_STRING_TYPE_UINT8:
-            if (IS_ASCII(b))
-                return (MVMint64)GRAPHS_EQUAL(a->body.uint8s + (size_t)starta,
-                    b->body.uint8s + (size_t)startb, (size_t)length, MVMCodepoint8);
-            break;
-        case MVM_STRING_TYPE_ROPE:
-            break;
-    }
-    {
-        MVMCodepoint32 achars[MVM_SUBSTRING_PUMP_BUFFER_SIZE] = {},
-                       bchars[MVM_SUBSTRING_PUMP_BUFFER_SIZE] = {};
-        MVMint64 i;
-        for (i = 0; length > 0;) {
-            MVMint64 j = length > MVM_SUBSTRING_PUMP_BUFFER_SIZE
-                ? MVM_SUBSTRING_PUMP_BUFFER_SIZE : length;
-            
-        }
-    }
-    for (index = 0; index < length; index++) {
-        if (       MVM_string_get_codepoint_at_nocheck(tc, a, starta + index)
-                != MVM_string_get_codepoint_at_nocheck(tc, b, startb + index))
-            return 0;
-    }
-    return 1;
-}
-*/
+
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
     MVMint64 result = -1;
@@ -505,13 +481,12 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     if (IS_SUBSTRING(a)) {
         strands->string_offset = (MVMStringIndex)start + a->body.strands->string_offset;
         strands->string = a->body.strands->string;
-        _STRAND_DEPTH(result) = STRAND_DEPTH(a->body.strands->string) + 1;
     }
     else {
         strands->string_offset = (MVMStringIndex)start;
         strands->string = a;
-        _STRAND_DEPTH(result) = STRAND_DEPTH(a) + 1;
     }
+    _STRAND_DEPTH(result) = STRAND_DEPTH(strands->string) + 1;
     strands[1].compare_offset = length;
     
     /* result->body.codes  = 0; /* Populate this lazily. */
@@ -570,9 +545,9 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     strands = result->body.strands = calloc(sizeof(MVMStrand), strand_count + 1);
     strand_count = 0;
     if (a->body.graphs) {
-        strands[0].string = a;
-        strands[0].string_offset = 0;
-        strands[0].compare_offset = index;
+        strands->string = a;
+        strands->string_offset = 0;
+        strands->compare_offset = index;
         index = a->body.graphs;
         strand_count = 1;
         max_strand_depth = STRAND_DEPTH(a);
@@ -587,10 +562,10 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             max_strand_depth = STRAND_DEPTH(b);
     }
     if (strand_count)
-        strands[0].higher_index =
+        strands->higher_index =
             MVM_string_generate_strand_binary_search_table(tc, strands, 0, strand_count - 1);
     strands[strand_count].compare_offset = index;
-    strands[0].lower_index = strand_count;
+    strands->lower_index = strand_count;
     _STRAND_DEPTH(result) = max_strand_depth + 1;
     
     return result;
@@ -720,6 +695,7 @@ MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint6
 MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint) {
     size_t index = -1;
     while (++index < a->body.graphs)
+        /* XXX make this traverse the rope tree once recursively */
         if (MVM_string_get_codepoint_at_nocheck(tc, a, index) == codepoint)
             return index;
     return -1;
@@ -744,6 +720,7 @@ MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
     result->body.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
         result->body.int32s[i] = MVM_unicode_get_case_change(tc,
+            /* XXX this needs to traverse the rope tree */
             MVM_string_get_codepoint_at_nocheck(tc, s, i), 0);
     }
 
@@ -769,6 +746,7 @@ MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s) {
     result->body.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
         result->body.int32s[i] = MVM_unicode_get_case_change(tc,
+            /* XXX this needs to traverse the rope tree */
             MVM_string_get_codepoint_at_nocheck(tc, s, i), 1);
     }
 
@@ -794,6 +772,7 @@ MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
     result->body.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
     for (i = 0; i < s->body.graphs; i++) {
         result->body.int32s[i] = MVM_unicode_get_case_change(tc,
+            /* XXX this needs to traverse the rope tree */
             MVM_string_get_codepoint_at_nocheck(tc, s, i), 2);
     }
 
@@ -979,6 +958,7 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
     codepoint = MVM_string_get_codepoint_at_nocheck(tc, a, offset);
     
     for (index = 0; index < b->body.graphs; index++)
+            /* XXX this needs to traverse the rope tree */
         if (MVM_string_get_codepoint_at_nocheck(tc, b, index) == codepoint)
             return 1;
     return 0;
@@ -1008,6 +988,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
         return;
     buffer = malloc(sizeof(MVMCodepoint32) * s->body.graphs);
     for (; position < s->body.graphs; position++) {
+            /* XXX this needs to traverse the rope tree */
         buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
     }
     s->body.int32s = buffer;
