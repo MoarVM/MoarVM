@@ -44,7 +44,7 @@ MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody 
  * to abort the traversal early. */
 MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMStringIndex start, MVMStringIndex length, MVMSubstringConsumer consumer, void *data) {
     
-    switch(a->body.flags & MVM_STRING_TYPE_MASK) {
+    switch(STR_FLAGS(a)) {
         case MVM_STRING_TYPE_INT32:
         case MVM_STRING_TYPE_UINT8:
             return consumer(tc, a, start, length, data);
@@ -94,7 +94,7 @@ MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMSt
                 index += substring_length;
                 /* advance in the strand table. The caller must guarantee
                  * this won't overflow by checking lengths. */
-                ++strand_index;
+                strand = &strands[++strand_index];
             }
             break; // should be unreachable
         }
@@ -167,7 +167,7 @@ static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
         }
         
         /* get some characters, comparing as they're found */
-        switch(c->string->body.flags & MVM_STRING_TYPE_MASK) {
+        switch(STR_FLAGS(c->string)) {
             case MVM_STRING_TYPE_INT32: {
                 MVMStringIndex wehave = c->end_idx - c->string_idx;
                 if (st->available) {
@@ -366,7 +366,7 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
 MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
     MVMStringIndex idx = (MVMStringIndex)index;
     
-    switch(a->body.flags & MVM_STRING_TYPE_MASK) {
+    switch(STR_FLAGS(a)) {
         case MVM_STRING_TYPE_INT32:
             return a->body.int32s[idx];
         case MVM_STRING_TYPE_UINT8:
@@ -701,29 +701,89 @@ MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMin
     return -1;
 }
 
+typedef struct _MVMCaseChangeState {
+    MVMString *dest;
+    MVMStringIndex size;
+    MVMint32 case_change_type;
+} MVMCaseChangeState;
+
+MVM_SUBSTRING_CONSUMER(MVM_string_case_change_consumer) {
+    MVMCaseChangeState *state = (MVMCaseChangeState *)data;
+    MVMString *dest = state->dest;
+    MVMStringIndex i;
+    switch (STR_FLAGS(string)) {
+        case MVM_STRING_TYPE_INT32: {
+            if (!IS_WIDE(dest)) {
+                MVM_string_flatten(tc, dest);
+            }
+            for (i = start; i < start + length; i++) {
+                if (dest->body.graphs == state->size) {
+                    if (!state->size) state->size = 16;
+                    else state->size *= 2;
+                    dest->body.int32s = realloc(dest->body.int32s,
+                        state->size * sizeof(MVMCodepoint32));
+                }
+                dest->body.int32s[dest->body.graphs++] = 
+                    MVM_unicode_get_case_change(tc, string->body.int32s[i],
+                        state->case_change_type);
+            }
+            break;
+        }
+        case MVM_STRING_TYPE_UINT8: {
+            if (IS_WIDE(dest)) {
+                for (i = start; i < start + length; i++) {
+                    if (dest->body.graphs == state->size) {
+                        if (!state->size) state->size = 16;
+                        else state->size *= 2;
+                        dest->body.int32s = realloc(dest->body.int32s,
+                            state->size * sizeof(MVMCodepoint32));
+                    }
+                    dest->body.int32s[dest->body.graphs++] = 
+                        MVM_unicode_get_case_change(tc, (MVMCodepoint32) string->body.uint8s[i],
+                            state->case_change_type);
+                }
+            }
+            else { /* hopefully most common/fast case of ascii->ascii */
+                for (i = start; i < start + length; i++) {
+                    if (dest->body.graphs == state->size) {
+                        if (!state->size) state->size = 16;
+                        else state->size *= 2;
+                        dest->body.uint8s = realloc(dest->body.uint8s,
+                            state->size * sizeof(MVMCodepoint8));
+                    }
+                    dest->body.uint8s[dest->body.graphs++] = 
+                        MVM_unicode_get_case_change(tc, (MVMCodepoint32) string->body.uint8s[i],
+                            state->case_change_type);
+                }
+            }
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "internal string corruption");
+    }
+    return 0;
+}
+
 /* Uppercases a string. */
 MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
     MVMString *result;
     MVMStringIndex i;
+    MVMCaseChangeState state = { NULL, 0,
+        MVM_unicode_case_change_type_upper };
     
     if (!IS_CONCRETE((MVMObject *)s)) {
         MVM_exception_throw_adhoc(tc, "uc needs a concrete string");
     }
     
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&s);
-    result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
+    state.dest = result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
     MVM_gc_root_temp_pop(tc);
     
     /* XXX Need to handle cases where character count varies. */
     /* result->body.codes  = s->body.codes; */
-    result->body.graphs = s->body.graphs;
-    result->body.int32s = malloc(sizeof(MVMCodepoint32) * result->body.graphs);
-    for (i = 0; i < s->body.graphs; i++) {
-        result->body.int32s[i] = MVM_unicode_get_case_change(tc,
-            /* XXX this needs to traverse the rope tree */
-            MVM_string_get_codepoint_at_nocheck(tc, s, i), 0);
-    }
-
+    MVM_string_traverse_substring(tc, s, 0, s->body.graphs,
+        MVM_string_case_change_consumer, &state);
+    
     return result;
 }
 
@@ -984,7 +1044,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
         codepoint iterator interface.  It's not thread-safe. */
     MVMStringIndex position = 0;
     MVMCodepoint32 *buffer;
-    if ((s->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+    if (IS_WIDE(s))
         return;
     buffer = malloc(sizeof(MVMCodepoint32) * s->body.graphs);
     for (; position < s->body.graphs; position++) {

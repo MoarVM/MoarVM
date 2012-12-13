@@ -1,20 +1,39 @@
 #define MVM_encoding_type_utf8 1
 #define MVM_encoding_type_ascii 2
 #define MVM_encoding_type_latin1 3
+/* whether the encoding is valid. XXX make take tc as parameter */
 #define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_latin1) \
                             || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
+
+/* substring consumer functions accept a state object in *data and
+    consume a substring portion. Utilized by many of the string ops
+    so traversal state can be maintained while applying a function to
+    each subsection of a string. Accepts physical strings only. (non-
+    ropes). Each function should branch for the ascii and wide modes
+    so there doesn't have to be a function call on every codepoint.
+    Returns nonzero if the traverser is supposed to stop traversal
+    early. See how it's used in ops.c */
 #define MVM_SUBSTRING_CONSUMER(name) MVMuint8 name(MVMThreadContext *tc, \
     MVMString *string, MVMStringIndex start, MVMStringIndex length, void *data)
 typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
+
+/* gets the code that defines the type of string. More things could be
+    stored in flags later. */
 #define STR_FLAGS(str) (((MVMString *)(str))->body.flags & MVM_STRING_TYPE_MASK)
+/* whether it's a string of full-blown 4-byte (positive and/or negative)
+    codepoints. */
 #define IS_WIDE(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_INT32)
+/* whether it's a string of only codepoints that fit in 8 bits, so
+    are stored compactly in a byte array. */
 #define IS_ASCII(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_UINT8)
+/* whether it's a composite of strand segments */
 #define IS_ROPE(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_ROPE)
+/* potentially lvalue version of the below */
 #define _STRAND_DEPTH(str) ((str)->body.strands[(str)->body.strands->lower_index].lower_index)
+/* the max number of levels deep the rope tree goes */
 #define STRAND_DEPTH(str) ((IS_ROPE(str) && (str)->body.graphs) ? _STRAND_DEPTH(str) : 0)
+/* whether the rope is composed of only one segment of another string */
 #define IS_SUBSTRING(str) (IS_ROPE(str) && (str)->body.strands[1].compare_offset == (str)->body.graphs)
-#define MVM_SUBSTRING_PUMP_BUFFER_SIZE 50
-#define MVM_COMPARE_BUFFER_SIZE 512
 
 typedef struct _MVMConcatState {
     MVMuint32 some_state;
