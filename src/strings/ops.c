@@ -18,10 +18,6 @@
     and allocates ropes in a tree until each has equal to or
     fewer than N, a tunable global <= 256.
     (necessary feature)
-- make all the functions that iterate every character use
-    the substring consumer function instead of traversing the
-    rope tree every character lookup.
-    (necessary optimization)
 - make the uc, lc, tc functions intelligently
     create ropes from the originals when deemed advantageous.
     (optimization)
@@ -517,7 +513,7 @@ static MVMStrandIndex MVM_string_generate_strand_binary_search_table(MVMThreadCo
 }
 
 /* Append one string to another. */
-/* XXX inline parent's strands if it's a rope too */
+/* XXX inline parent's strands if it's a rope too? */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result;
     MVMStrandIndex strand_count = 0;
@@ -1006,8 +1002,8 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
     state.search = MVM_string_get_codepoint_at_nocheck(tc, a, offset);
     state.result = -1;
     
-    MVM_string_traverse_substring(tc, b, 0, b->body.graphs, 0, \
-        MVM_string_char_at_consumer, &state); \
+    MVM_string_traverse_substring(tc, b, 0, b->body.graphs, 0,
+        MVM_string_char_at_consumer, &state);
     return state.result;
 }
 
