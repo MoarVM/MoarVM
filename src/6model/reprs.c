@@ -189,13 +189,8 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
         tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
     tc->instance->repr_registry[ID] = repr;
     MVM_string_flatten(tc, name);
-    if (IS_WIDE(name))
-        HASH_ADD_KEYPTR(hash_handle, tc->instance->repr_name_to_id_hash,
-            name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry);
-    else
-        HASH_ADD_KEYPTR(hash_handle, tc->instance->repr_name_to_id_hash,
-            name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry);
-        
+    MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
+    
     /* Add default "not implemented" function table implementations. */
     if (!repr->attr_funcs)
         add_default_attr_funcs(tc, repr);

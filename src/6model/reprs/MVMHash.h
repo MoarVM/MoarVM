@@ -24,3 +24,11 @@ typedef struct _MVMHash {
 
 /* Function for REPR setup. */
 MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
+
+#define MVM_HASH_BIND(tc, hash, name, entry) \
+if (IS_WIDE(name)) \
+    HASH_ADD_KEYPTR(hash_handle, hash, \
+        name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry); \
+else \
+    HASH_ADD_KEYPTR(hash_handle, hash, \
+        name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry); 

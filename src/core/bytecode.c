@@ -299,12 +299,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 
                 frames[i]->lexical_types[j] = read_int16(pos, 4 * j);
                 MVM_string_flatten(tc, name);
-                if (IS_WIDE(name))
-                    HASH_ADD_KEYPTR(hash_handle, frames[i]->lexical_names,
-                        name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry);
-                else
-                    HASH_ADD_KEYPTR(hash_handle, frames[i]->lexical_names,
-                        name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry);
+                MVM_HASH_BIND(tc, frames[i]->lexical_names, name, entry)
             }
             pos += 4 * frames[i]->num_lexicals;
         }
