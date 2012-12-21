@@ -142,6 +142,23 @@ static MVMStrandIndex find_strand_index(MVMString *s, MVMStringIndex index) {
     }
 }
 
+#define descend_sized_chew_success(member, other_member) \
+st->needed -= tocompare; \
+if (!st->needed) { \
+    *result = 2; \
+    return; \
+} \
+else if (wehave > tocompare) { \
+    st->member = c->string->body.member + c->string_idx + tocompare; \
+    st->available = wehave - tocompare; \
+    c->owns_buffer = 1; \
+    st->other_member = NULL; \
+} \
+else { \
+    st->other_member += tocompare; \
+    st->available -= tocompare;\
+} \
+
 #define descend_sized(member, other_member, size, cp, other_cp) \
 MVMStringIndex wehave = c->end_idx - c->string_idx; \
 if (st->available) { \
@@ -152,6 +169,7 @@ if (st->available) { \
             *result = 1; \
             return; \
         } \
+        descend_sized_chew_success(member, other_member) \
     } \
     else { \
         size \
@@ -164,21 +182,7 @@ if (st->available) { \
                 return; \
             } \
         } \
-    } \
-    st->needed -= tocompare; \
-    if (!st->needed) { \
-        *result = 2; \
-        return; \
-    } \
-    else if (wehave > tocompare) { \
-        st->member = c->string->body.member + c->string_idx + tocompare; \
-        st->available = wehave - tocompare; \
-        c->owns_buffer = 1; \
-        st->other_member = NULL; \
-    } \
-    else { \
-        st->other_member += tocompare; \
-        st->available -= tocompare;\
+        descend_sized_chew_success(other_member, member) \
     } \
     if (c->isa) { st->cursora = c->parent; } \
     else { st->cursorb = c->parent; } \
