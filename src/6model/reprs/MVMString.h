@@ -72,9 +72,6 @@ typedef struct _MVMStringBody {
      */
     MVMStringIndex codes;
     
-    /* deepest rope depth below this one, counting the deepest non-rope */
-    MVMuint8 strand_depth;
-    
     /* Lowest 2 bits: type of string: int32, uint8, or Rope. */
     MVMuint8 flags;
 } MVMStringBody;
