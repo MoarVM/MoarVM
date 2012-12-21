@@ -84,9 +84,5 @@ typedef struct _MVMString {
     MVMStringBody body;
 } MVMString;
 
-typedef struct _MVMStringStateContainers {
-    MVMuint32 dummy;
-} MVMStringStateContainers;
-
 /* Function for REPR setup. */
 MVMREPROps * MVMString_initialize(MVMThreadContext *tc);
