@@ -37,6 +37,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->graphs = src_body->graphs;
     dest_body->codes  = src_body->codes;
     dest_body->flags  = src_body->flags;
+    if (src_body->graphs)
     switch(src_body->flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
             dest_body->int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
@@ -51,6 +52,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             dest_body->strands = malloc(sizeof(MVMStrand) * (strand_count + 1));
             memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * (strand_count + 1));
         }
+        default:
+            MVM_exception_throw_adhoc(tc, "internal string corruption");
     }
 }
 
