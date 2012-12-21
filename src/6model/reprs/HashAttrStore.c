@@ -27,21 +27,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 }
 
 static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
-    if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) {
-        MVM_string_flatten(tc, (MVMString *)key);
-        if (IS_WIDE(key)) {
-            *kdata = ((MVMString *)key)->body.int32s;
-            *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMCodepoint32);
-        }
-        else {
-            *kdata = ((MVMString *)key)->body.uint8s;
-            *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMCodepoint8);
-        }
-    }
-    else {
-        MVM_exception_throw_adhoc(tc,
-            "HashAttrStore representation requires MVMString keys");
-    }
+    MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, "HashAttrStore representation requires MVMString keys")
 }
 
 /* Copies the body of one object to another. */
