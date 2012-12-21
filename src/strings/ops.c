@@ -288,33 +288,7 @@ MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMStri
         case MVM_STRING_TYPE_UINT8:
             return (MVMCodepoint32)a->body.uint8s[idx];
         case MVM_STRING_TYPE_ROPE: {
-            MVMStrand *strands = a->body.strands;
-            MVMStrandIndex table_index = 0;
-            MVMStrandIndex lower_visited = 255;
-            /*MVMStrandIndex upper_visited = 255;*/
-            MVMStrand *strand;
-            /* see MVMString.h.  Starting with the first entry,
-                binary search through the strands in the string
-                searching for the strand containing that offset. */
-            for(;;) {
-                strand = &strands[table_index];
-                if (strand->lower_index == strand->higher_index
-                        || table_index == lower_visited
-                        /*|| table_index == upper_visited*/)
-                    break;
-                if (idx >= strand->compare_offset) {
-                    /* mark that we've visited this node on the
-                        lower side so we can halt if we return to it */
-                    lower_visited = table_index;
-                    table_index = strand->higher_index;
-                }
-                else {
-                    /* mark that we've visited this node on the
-                        upper side so we can halt if we return to it */
-                    /*upper_visited = table_index;*/
-                    table_index = strand->lower_index;
-                }
-            }
+            MVMStrand *strand = a->body.strands + find_strand_index(a, idx);
             return MVM_string_get_codepoint_at_nocheck(tc,
                 strand->string, idx - strand->compare_offset + strand->string_offset);
         }
@@ -756,7 +730,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
         length = sep_length ? (index == -1 ? end : index) - start : 1;
         if (length) {
             portion = MVM_string_substring(tc, input, start, length);
-             MVM_repr_push_o(tc, result, (MVMObject *)portion);
+            MVM_repr_push_o(tc, result, (MVMObject *)portion);
         }
         start += length + sep_length;
     }
