@@ -32,3 +32,11 @@ if (IS_WIDE(name)) \
 else \
     HASH_ADD_KEYPTR(hash_handle, hash, \
         name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry); 
+
+#define MVM_HASH_GET(tc, hash, name, entry) \
+if (IS_WIDE(name)) \
+    HASH_FIND(hash_handle, hash, \
+        name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry); \
+else \
+    HASH_FIND(hash_handle, hash, \
+        name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry);

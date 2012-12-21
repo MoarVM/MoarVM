@@ -259,12 +259,7 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
     MVMREPRHashEntry *entry;
     
     MVM_string_flatten(tc, name);
-    if (IS_WIDE(name))
-        HASH_FIND(hash_handle, tc->instance->repr_name_to_id_hash,
-            name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry);
-    else
-        HASH_FIND(hash_handle, tc->instance->repr_name_to_id_hash,
-            name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry);
+    MVM_HASH_GET(tc, tc->instance->repr_name_to_id_hash, name, entry)
     
     if (entry == NULL)
         MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",

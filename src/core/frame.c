@@ -254,12 +254,8 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
             MVMLexicalHashEntry *entry;
             
             MVM_string_flatten(tc, name);
-            if (IS_WIDE(name))
-                HASH_FIND(hash_handle, lexical_names, name->body.int32s,
-                    name->body.graphs * sizeof(MVMCodepoint32), entry);
-            else
-                HASH_FIND(hash_handle, lexical_names, name->body.uint8s,
-                    name->body.graphs * sizeof(MVMCodepoint8), entry);
+            MVM_HASH_GET(tc, lexical_names, name, entry)
+            
             if (entry) {
                 if (cur_frame->static_info->lexical_types[entry->value] == type)
                     return &cur_frame->env[entry->value];
