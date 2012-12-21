@@ -72,9 +72,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    if (str->body.int32s)
-        free(str->body.int32s);
-    str->body.int32s = NULL;
+    if (str->body.storage)
+        free(str->body.storage);
+    str->body.storage = NULL;
     str->body.graphs = str->body.codes = str->body.flags = 0;
 }
 

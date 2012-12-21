@@ -48,9 +48,6 @@ typedef struct _MVMStringBody {
             that fit in 8 bits can take up only 1 byte each */
         MVMCodepoint8 *uint8s;
         
-        /* For a non-rope that qualified as large during a particular
-            GC run, a array of MVMStrand* that point to this large string.
-            Built up during gc_mark */
         /* For a rope, An array of MVMStrand, each representing a
             segment of the string, up to the last one, which
             represents the end of the string and has values
@@ -59,6 +56,9 @@ typedef struct _MVMStringBody {
             compare_offset=0, and lower/higher_index=midpoint of
             strand array. */
         MVMStrand *strands;
+        
+        /* generic pointer for the union */
+        void *storage;
     };
     
     /* The number of graphemes that make up the string
