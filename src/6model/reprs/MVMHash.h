@@ -25,18 +25,18 @@ typedef struct _MVMHash {
 /* Function for REPR setup. */
 MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
-#define MVM_HASH_BIND(tc, hash, name, entry) \
-if (IS_WIDE(name)) \
-    HASH_ADD_KEYPTR(hash_handle, hash, \
+#define MVM_HASH_ACTION(tc, hash, name, entry, action, member, size) \
+    action(hash_handle, hash, \
         name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry); \
+
+#define MVM_HASH_ACTION_SELECT(tc, hash, name, entry, action) \
+if (IS_WIDE(name)) \
+    MVM_HASH_ACTION(tc, hash, name, entry, action, int32s, MVMCodepoint32) \
 else \
-    HASH_ADD_KEYPTR(hash_handle, hash, \
-        name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry); 
+    MVM_HASH_ACTION(tc, hash, name, entry, action, uint8s, MVMCodepoint8)
+
+#define MVM_HASH_BIND(tc, hash, name, entry) \
+    MVM_HASH_ACTION_SELECT(tc, hash, name, entry, HASH_ADD_KEYPTR)
 
 #define MVM_HASH_GET(tc, hash, name, entry) \
-if (IS_WIDE(name)) \
-    HASH_FIND(hash_handle, hash, \
-        name->body.int32s, name->body.graphs * sizeof(MVMCodepoint32), entry); \
-else \
-    HASH_FIND(hash_handle, hash, \
-        name->body.uint8s, name->body.graphs * sizeof(MVMCodepoint8), entry);
+    MVM_HASH_ACTION_SELECT(tc, hash, name, entry, HASH_FIND)
