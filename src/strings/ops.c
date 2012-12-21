@@ -159,7 +159,7 @@ else { \
     st->available -= tocompare;\
 } \
 
-#define descend_sized(member, other_member, size, cp, other_cp) \
+#define descend_sized(member, other_member, size, other_size, cp, other_cp) \
 MVMStringIndex wehave = c->end_idx - c->string_idx; \
 if (st->available) { \
     MVMStringIndex tocompare = st->available < wehave ? st->available : wehave; \
@@ -175,7 +175,7 @@ if (st->available) { \
         size \
             *cp = c->string->body.member + c->string_idx, \
             *final = cp + tocompare; \
-        MVMCodepoint8 *other_cp = st->other_member; \
+        other_size *other_cp = st->other_member; \
         for (; cp < final; ) { \
             if (*cp32++ != (MVMCodepoint32) *cp8++) { \
                 *result = 1; \
@@ -217,10 +217,10 @@ static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
         /* get some characters, comparing as they're found */
         switch(STR_FLAGS(c->string)) {
             case MVM_STRING_TYPE_INT32: {
-                descend_sized(int32s, uint8s, MVMCodepoint32, cp32, cp8)
+                descend_sized(int32s, uint8s, MVMCodepoint32, MVMCodepoint8, cp32, cp8)
             }
             case MVM_STRING_TYPE_UINT8: {
-                descend_sized(uint8s, int32s, MVMCodepoint8, cp8, cp32)
+                descend_sized(uint8s, int32s, MVMCodepoint8, MVMCodepoint32, cp8, cp32)
             }
             case MVM_STRING_TYPE_ROPE: {
                 MVMStrand *strand;
