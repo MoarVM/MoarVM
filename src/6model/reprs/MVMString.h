@@ -3,6 +3,10 @@
 struct _MVMStringBody;
 typedef MVMuint8 MVMStrandIndex;
 typedef MVMint32 MVMCodepoint32;
+/* 8-bit-only (optimization) strings don't have synthetics
+Note though that an enormous 8-bit string can have a tiny
+wide synthetic codepoint in the middle of it via the
+strands system.  Another thing to optimize someday [soon]. */
 typedef MVMuint8 MVMCodepoint8;
 typedef MVMuint64 MVMStringIndex;
 

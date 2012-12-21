@@ -623,6 +623,18 @@ typedef struct _MVMCaseChangeState {
     MVMint32 case_change_type;
 } MVMCaseChangeState;
 
+#define change_case_iterate(member, dest_member, dest_size) \
+for (i = string->body.member + start; i < string->body.member + start + length; ) { \
+    if (dest->body.graphs == state->size) { \
+        if (!state->size) state->size = 16; \
+        else state->size *= 2; \
+        dest->body.dest_member = realloc(dest->body.dest_member, \
+            state->size * sizeof(dest_size)); \
+    } \
+    dest->body.dest_member[dest->body.graphs++] = \
+        MVM_unicode_get_case_change(tc, (MVMCodepoint32) *i++, state->case_change_type); \
+}
+
 /* XXX make this handle case changes that change the number of characters.
     Will require some form of buffering/lookahead, or rollback of a placed
     char if a following char forms a composite sequence that case changes
@@ -636,45 +648,16 @@ MVM_SUBSTRING_CONSUMER(MVM_string_case_change_consumer) {
             if (!IS_WIDE(dest)) {
                 MVM_string_flatten(tc, dest);
             }
-            for (i = string->body.int32s + start; i < string->body.int32s + start + length; ) {
-                if (dest->body.graphs == state->size) {
-                    if (!state->size) state->size = 16;
-                    else state->size *= 2;
-                    dest->body.int32s = realloc(dest->body.int32s,
-                        state->size * sizeof(MVMCodepoint32));
-                }
-                dest->body.int32s[dest->body.graphs++] = 
-                    MVM_unicode_get_case_change(tc, *i++, state->case_change_type);
-            }
+            change_case_iterate(int32s, int32s, MVMCodepoint32)
             break;
         }
         case MVM_STRING_TYPE_UINT8: {
             MVMCodepoint8 *i;
             if (IS_WIDE(dest)) {
-                for (i = string->body.uint8s + start; i < string->body.uint8s + start + length; ) {
-                    if (dest->body.graphs == state->size) {
-                        if (!state->size) state->size = 16;
-                        else state->size *= 2;
-                        dest->body.int32s = realloc(dest->body.int32s,
-                            state->size * sizeof(MVMCodepoint32));
-                    }
-                    dest->body.int32s[dest->body.graphs++] = 
-                        MVM_unicode_get_case_change(tc, (MVMCodepoint32) *i++,
-                            state->case_change_type);
-                }
+                change_case_iterate(uint8s, int32s, MVMCodepoint32)
             }
             else { /* hopefully most common/fast case of ascii->ascii */
-                for (i = string->body.uint8s + start; i < string->body.uint8s + start + length; ) {
-                    if (dest->body.graphs == state->size) {
-                        if (!state->size) state->size = 16;
-                        else state->size *= 2;
-                        dest->body.uint8s = realloc(dest->body.uint8s,
-                            state->size * sizeof(MVMCodepoint8));
-                    }
-                    dest->body.uint8s[dest->body.graphs++] = 
-                        MVM_unicode_get_case_change(tc, (MVMCodepoint32) *i++,
-                            state->case_change_type);
-                }
+                change_case_iterate(uint8s, uint8s, MVMCodepoint8)
             }
             break;
         }
@@ -812,8 +795,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
         /* allow null items in the array, I guess.. */
         if (!item)
             continue;
-        if (REPR(item)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(item))
+        if (REPR(item)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(item)) {
+            MVM_gc_root_temp_pop_n(tc, 3);
             MVM_exception_throw_adhoc(tc, "join needs concrete strings only");
+        }
         
         portion = (MVMString *)item;
         if (portion->body.graphs) 
@@ -829,8 +814,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     if they cause new combining sequences to appear */
     /* XXX result->body.codes = codes; */
     
-    if (portion_index > 256)
+    if (portion_index > 256) {
+        MVM_gc_root_temp_pop_n(tc, 3);
         MVM_exception_throw_adhoc(tc, "join array items > 256 NYI...");
+    }
     
     if (portion_index) {
         index = -1;
