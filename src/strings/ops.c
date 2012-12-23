@@ -872,6 +872,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
         to compute the hash (and test for equivalence!) using the
         codepoint iterator interface.  It's not thread-safe. */
     MVMStringIndex position = 0, sgraphs = NUM_GRAPHS(s);
+    void *storage = s->body.storage;
     MVMCodepoint32 *buffer;
     if (IS_WIDE(s))
         return;
@@ -882,5 +883,6 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
     }
     s->body.graphs = position;
     s->body.int32s = buffer;
+    free(storage); /* not thread-safe */
     s->body.flags = MVM_STRING_TYPE_INT32;
 }
