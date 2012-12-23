@@ -876,19 +876,19 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
     MVMCodepoint32 *buffer;
     if (IS_WIDE(s))
         return;
-    s->body.flags = MVM_STRING_TYPE_INT32;
     if (!sgraphs) {
         if (storage) free(storage);
         s->body.int32s = malloc(1); /* just in case a hash tries to hash */
+        s->body.flags = MVM_STRING_TYPE_INT32;
         return;
     }
-    buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
+    buffer = calloc(sizeof(MVMCodepoint32), sgraphs);
     for (; position < sgraphs; position++) {
             /* XXX make this use the iterator */
         buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
     }
-    s->body.graphs = position;
+    s->body.flags = MVM_STRING_TYPE_INT32;
+    s->body.graphs = sgraphs;
     s->body.int32s = buffer;
     if (storage) free(storage); /* not thread-safe */
-    s->body.flags = MVM_STRING_TYPE_INT32;
 }
