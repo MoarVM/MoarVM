@@ -66,12 +66,11 @@ MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMSt
                  * this won't overflow by checking lengths. */
                 strand = &strands[++strand_index];
             }
-            break; // should be unreachable
         }
         default:
             MVM_exception_throw_adhoc(tc, "internal string corruption");
     }
-    return 0; // should be unreachable
+    MVM_exception_throw_adhoc(tc, "internal string corruption");
 }
 
 /* stack record created with each invocation of the string descent. */
