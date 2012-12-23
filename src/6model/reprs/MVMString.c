@@ -34,23 +34,28 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMStringBody *src_body  = (MVMStringBody *)src;
     MVMStringBody *dest_body = (MVMStringBody *)dest;
-    dest_body->graphs = src_body->graphs;
     dest_body->codes  = src_body->codes;
     dest_body->flags  = src_body->flags;
-    if (src_body->graphs)
     switch(src_body->flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
-            dest_body->int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
-            memcpy(dest_body->int32s, src_body->int32s, sizeof(MVMCodepoint32) * src_body->graphs);
+            if (dest_body->graphs = src_body->graphs) {
+                dest_body->int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
+                memcpy(dest_body->int32s, src_body->int32s, sizeof(MVMCodepoint32) * src_body->graphs);
+            }
             break;
         case MVM_STRING_TYPE_UINT8:
-            dest_body->uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
-            memcpy(dest_body->uint8s, src_body->uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
+            if (dest_body->graphs = src_body->graphs) {
+                dest_body->uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
+                memcpy(dest_body->uint8s, src_body->uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
+            }
             break;
         case MVM_STRING_TYPE_ROPE: {
-            MVMStrandIndex strand_count = MVM_string_rope_strands_size(tc, src_body);
-            dest_body->strands = malloc(sizeof(MVMStrand) * (strand_count + 1));
-            memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * (strand_count + 1));
+            MVMStrandIndex strand_count = dest_body->num_strands = src_body->num_strands;
+            if (strand_count) {
+                dest_body->strands = malloc(sizeof(MVMStrand) * (strand_count + 1));
+                memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * (strand_count + 1));
+            }
+            break;
         }
         default:
             MVM_exception_throw_adhoc(tc, "internal string corruption");
@@ -63,9 +68,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
         MVMStrand *strands = body->strands;
         MVMStrandIndex index = 0;
-        MVMStrandIndex strand_count = MVM_string_rope_strands_size(tc, body);
+        MVMStrandIndex strand_count = body->num_strands;
         while(index < strand_count)
-            MVM_gc_worklist_add(tc, worklist, &strands[index++].string);
+            MVM_gc_worklist_add(tc, worklist, (strands + index++)->string);
     }
 }
 

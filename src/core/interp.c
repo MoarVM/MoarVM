@@ -87,7 +87,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_if_s: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || str->body.graphs == 0)
+                        if (!str || NUM_GRAPHS(str) == 0)
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
@@ -96,7 +96,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_unless_s: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || str->body.graphs == 0)
+                        if (!str || NUM_GRAPHS(str) == 0)
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
@@ -105,7 +105,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_if_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || str->body.graphs != 1
+                        if (!str || NUM_GRAPHS(str) != 1
                             || MVM_string_get_codepoint_at_nocheck(tc, str, 0) != 48) /* zero char */
                             cur_op += 6;
                         else
@@ -115,7 +115,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_unless_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || str->body.graphs != 1
+                        if (!str || NUM_GRAPHS(str) != 1
                             || MVM_string_get_codepoint_at_nocheck(tc, str, 0) != 48) /* zero char */
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else

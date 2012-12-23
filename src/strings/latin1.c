@@ -155,14 +155,15 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     /* latin-1 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs - startu : length);
+    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t i;
     
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > str->body.graphs)
+    if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > str->body.graphs)
+    if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
     result = malloc(length + 1);

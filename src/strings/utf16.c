@@ -89,7 +89,8 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* latin-1 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs - start : length);
+    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
     MVMuint8 *result;
     size_t str_pos;
     MVMuint8 * result_pos;
@@ -102,9 +103,9 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
 #endif
     
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > str->body.graphs)
+    if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > str->body.graphs)
+    if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
     /* make the result grow as needed instead of allocating so much to start? */

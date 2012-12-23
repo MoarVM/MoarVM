@@ -27,7 +27,7 @@ MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_ACTION(tc, hash, name, entry, action, member, size) \
     action(hash_handle, hash, \
-        name->body.int32s, name->body.graphs * sizeof(size), entry); \
+        name->body.int32s, NUM_GRAPHS(name) * sizeof(size), entry); \
 
 #define MVM_HASH_ACTION_SELECT(tc, hash, name, entry, action) \
 if (IS_WIDE(name)) \

@@ -9,7 +9,7 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
     /* There's no combining chars and such stuff in ASCII, so the codes
      * count and grapheme count are trivially the same as the buffer
      * length. */
-    /* result->body.codes  = bytes; */
+    result->body.codes  = bytes;
     result->body.graphs = bytes;
     
     /* Allocate grapheme buffer and decode the ASCII string. */
@@ -38,14 +38,15 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* ASCII is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs - startu : length);
+    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t i;
     
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > str->body.graphs)
+    if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (lengthu < 0 || start + lengthu > str->body.graphs)
+    if (lengthu < 0 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
     result = malloc(lengthu + 1);
@@ -64,5 +65,5 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
 
 /* Encodes the specified string to ASCII.  */
 MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_ascii_encode_substr(tc, str, output_size, 0, str->body.graphs);
+    return MVM_string_ascii_encode_substr(tc, str, output_size, 0, NUM_GRAPHS(str));
 }

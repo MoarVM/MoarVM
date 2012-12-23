@@ -637,9 +637,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'repeat_s', $r3, $r0, $r1);
         op(@ins, 'const_i64', $r1, ival(4));
         op(@ins, 'repeat_s', $r3, $r3, $r1);
+        op(@ins, 'say_s', $r2);
+        op(@ins, 'say_s', $r3);
         op(@ins, 'eq_s', $r1, $r2, $r3);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },
-    "1\n",
+    "BARBARBARBARBARBARBARBARBARBARBARBARBARBARBARBAR\n"~
+    "BARBARBARBARBARBARBARBARBARBARBARBARBARBARBARBAR\n1\n",
     "equals of tree of UPPERed string tree");

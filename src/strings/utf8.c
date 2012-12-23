@@ -276,17 +276,19 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     MVMuint8 *result;
     MVMuint8 *arr;
     size_t i = start;
+    MVMStringIndex strgraphs = NUM_GRAPHS(str);
     
     if (length == -1)
-        length = str->body.graphs;
+        length = strgraphs;
     
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > str->body.graphs)
+    if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > str->body.graphs)
+    if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
-    result = malloc(sizeof(MVMint32) * length);
+    /* give it two spaces for padding in case `say` wants to append a \r\n or \n */
+    result = malloc(sizeof(MVMint32) * length + 2);
     arr = result;
     
     memset(result, 0, sizeof(MVMint32) * length);
@@ -301,7 +303,7 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
 
 /* Encodes the specified string to UTF-8. */
 MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_utf8_encode_substr(tc, str, output_size, 0, str->body.graphs);
+    return MVM_string_utf8_encode_substr(tc, str, output_size, 0, NUM_GRAPHS(str));
 }
 
 /* Encodes the specified string to a UTF-8 C string. */

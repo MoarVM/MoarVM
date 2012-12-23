@@ -17,6 +17,9 @@
     MVMString *string, MVMStringIndex start, MVMStringIndex length, MVMStringIndex top_index, void *data)
 typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
 
+/* number of grahemes in the string */
+#define NUM_ROPE_GRAPHS(str) ((str)->body.num_strands ? (str)->body.strands[(str)->body.num_strands].graphs : 0)
+#define NUM_GRAPHS(str) (IS_ROPE((str)) ? NUM_ROPE_GRAPHS((str)) : (str)->body.graphs)
 /* gets the code that defines the type of string. More things could be
     stored in flags later. */
 #define STR_FLAGS(str) (((MVMString *)(str))->body.flags & MVM_STRING_TYPE_MASK)
@@ -29,18 +32,17 @@ typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
 /* whether it's a composite of strand segments */
 #define IS_ROPE(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_ROPE)
 /* potentially lvalue version of the below */
-#define _STRAND_DEPTH(str) ((str)->body.strands[(str)->body.strands->lower_index].lower_index)
+#define _STRAND_DEPTH(str) ((str)->body.strands[(str)->body.num_strands].strand_depth)
 /* the max number of levels deep the rope tree goes */
-#define STRAND_DEPTH(str) ((IS_ROPE(str) && (str)->body.graphs) ? _STRAND_DEPTH(str) : 0)
+#define STRAND_DEPTH(str) ((IS_ROPE((str)) && NUM_ROPE_GRAPHS(str)) ? _STRAND_DEPTH((str)) : 0)
 /* whether the rope is composed of only one segment of another string */
-#define IS_SUBSTRING(str) (IS_ROPE(str) && (str)->body.strands[1].compare_offset == (str)->body.graphs)
+#define IS_ONE_STRING_ROPE(str) (IS_ROPE((str)) && (str)->body.num_strands == 1)
 
 typedef struct _MVMConcatState {
     MVMuint32 some_state;
 } MVMConcatState;
 
 MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
-MVMStrandIndex MVM_string_rope_strands_size(MVMThreadContext *tc, MVMStringBody *body);
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 start);
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b);

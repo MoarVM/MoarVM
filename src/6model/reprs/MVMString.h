@@ -1,7 +1,7 @@
 /* Representation used by VM-level strings. */
 
 struct _MVMStringBody;
-typedef MVMuint8 MVMStrandIndex;
+typedef MVMuint32 MVMStrandIndex;
 typedef MVMint32 MVMCodepoint32;
 /* 8-bit-only (optimization) strings don't have synthetics
 Note though that an enormous 8-bit string can have a tiny
@@ -12,28 +12,29 @@ typedef MVMuint64 MVMStringIndex;
 
 /* An entry in the strands table of a rope. */
 typedef struct _MVMStrand {
-    /* The offset to compare the desired index against. */
-    MVMStringIndex compare_offset;
+    union {
+        /* The offset to compare the desired index against. */
+        MVMStringIndex compare_offset;
+        
+        /* total length */
+        MVMStringIndex graphs;
+    };
     
     /* The string to which this strand refers. */
     struct _MVMString *string;
     
-    /* The offset into the referred string. The length
-        is calculated by subtracting the compare_offset
-        from the compare_offset of the next entry. */
-    MVMStringIndex string_offset;
+    union {
+        /* The offset into the referred string. The length
+            is calculated by subtracting the compare_offset
+            from the compare_offset of the next entry. */
+        MVMStringIndex string_offset;
+        
+        /* on the last strand row, it's the depth of the tree. */
+        MVMStringIndex strand_depth;
+    };
     
-    /* The destinations in the table to branch when
-        binary searching for an offset into the string. 
-        If they are equal, it means use the compare_offset
-        string at that strand's row. */
-    /* The index of the strand table for lower than. */
-    /* on the first strand record, this value is the
-        index of the last strand record. */
-    MVMStrandIndex lower_index;
-    
-    /* The index of the strand table for higher than or equal to. */
-    MVMStrandIndex higher_index;
+    /* repeat count. currently unused. */
+    /* MVMStringIndex repeat_count; */
 } MVMStrand;
 
 #define MVM_STRING_TYPE_INT32 0
@@ -65,11 +66,14 @@ typedef struct _MVMStringBody {
         void *storage;
     };
     
-    /* The number of graphemes that make up the string
-        (and in turn, the length of data in terms of the
-        number of 32-bit integers or bytes it has, or when
-        a rope, the value of the last MVMStrand's compare_offset). */
-    MVMStringIndex graphs;
+    union {
+        /* The number of graphemes that make up the string
+            (and in turn, the length of data in terms of the
+            number of 32-bit integers or bytes it has) */
+        MVMStringIndex graphs;
+        /* for ropes, the number of strands */
+        MVMStrandIndex num_strands;
+    };
     
     /* The number of codepoints the string is
         made up of were it not in NFG form. Lazily populated and cached.
