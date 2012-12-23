@@ -399,6 +399,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     }
     strands[strand_count].graphs = index;
     result->body.num_strands = strand_count;
+    result->body.flags = MVM_STRING_TYPE_ROPE;
     _STRAND_DEPTH(result) = max_strand_depth + 1;
     
     return result;
@@ -880,6 +881,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
             /* XXX make this use the iterator */
         buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
     }
+    s->body.graphs = position;
     s->body.int32s = buffer;
     s->body.flags = MVM_STRING_TYPE_INT32;
 }
