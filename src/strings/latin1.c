@@ -135,7 +135,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
     
-    /* result->body.codes  = bytes; */
+    result->body.codes  = bytes;
     result->body.graphs = bytes;
     
     result->body.int32s = malloc(sizeof(MVMint32) * bytes);
