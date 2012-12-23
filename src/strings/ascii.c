@@ -46,7 +46,7 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < -1 || lstart + lengthu > strgraphs)
+    if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
     result = malloc(lengthu + 1);
