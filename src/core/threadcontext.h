@@ -131,10 +131,6 @@ typedef struct _MVMThreadContext {
 
     /* Size of the pool table, so it can grow on demand. */
     MVMuint32          frame_pool_table_size;
-    
-    /* Some state containers for often-used string operations.
-        Lazily but singly allocated per thread. */
-    struct _MVMConcatState *concat_state;
 } MVMThreadContext;
 
 MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);
