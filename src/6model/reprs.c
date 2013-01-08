@@ -188,9 +188,9 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     else
         tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
     tc->instance->repr_registry[ID] = repr;
-    HASH_ADD_KEYPTR(hash_handle, tc->instance->repr_name_to_id_hash,
-        name->body.data, name->body.graphs * sizeof(MVMint32), entry);
-        
+    MVM_string_flatten(tc, name);
+    MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
+    
     /* Add default "not implemented" function table implementations. */
     if (!repr->attr_funcs)
         add_default_attr_funcs(tc, repr);
@@ -258,8 +258,8 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
     MVMREPRHashEntry *entry;
     
-    HASH_FIND(hash_handle, tc->instance->repr_name_to_id_hash,
-        name->body.data, name->body.graphs * sizeof(MVMint32), entry);
+    MVM_string_flatten(tc, name);
+    MVM_HASH_GET(tc, tc->instance->repr_name_to_id_hash, name, entry)
     
     if (entry == NULL)
         MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",

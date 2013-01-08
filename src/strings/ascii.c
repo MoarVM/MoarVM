@@ -13,13 +13,14 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
     result->body.graphs = bytes;
     
     /* Allocate grapheme buffer and decode the ASCII string. */
-    result->body.data = malloc(sizeof(MVMint32) * bytes);
+    result->body.uint8s = malloc(sizeof(MVMCodepoint8) * bytes);
     for (i = 0; i < bytes; i++)
         if (ascii[i] <= 127)
-            result->body.data[i] = ascii[i];
+            result->body.uint8s[i] = ascii[i];
         else
             MVM_exception_throw_adhoc(tc,
                 "Will not decode invalid ASCII (code point > 127 found)");
+    result->body.flags = MVM_STRING_TYPE_UINT8;
     
     return result;
 }
@@ -37,19 +38,20 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* ASCII is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs - startu : length);
+    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t i;
     
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > str->body.graphs)
+    if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > str->body.graphs)
+    if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
-    result = malloc(length + 1);
-    for (i = 0; i < length; i++) {
-        MVMint32 ord = str->body.data[start + i];
+    result = malloc(lengthu + 1);
+    for (i = 0; i < lengthu; i++) {
+        MVMCodepoint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
         if (ord >= 0 && ord <= 127)
             result[i] = (MVMuint8)ord;
         else
@@ -57,11 +59,11 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     }
     result[i] = 0;
     if (output_size)
-        *output_size = length;
+        *output_size = lengthu;
     return result;
 }
 
 /* Encodes the specified string to ASCII.  */
 MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_ascii_encode_substr(tc, str, output_size, 0, str->body.graphs);
+    return MVM_string_ascii_encode_substr(tc, str, output_size, 0, NUM_GRAPHS(str));
 }

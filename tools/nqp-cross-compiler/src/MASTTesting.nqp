@@ -164,7 +164,7 @@ sub rxqast($str) is export {
             say("type: " ~ pir::typeof__SP($ast));
         }
     }
-    say((Q:PIR { %r = get_root_global ['parrot'], '_dumper' })($ast));
+    #say((Q:PIR { %r = get_root_global ['parrot'], '_dumper' })($ast));
     #say("type: " ~ $ast.HOW.name($ast)) unless $caught;
     $ast
 }

@@ -1,18 +1,270 @@
 #include "moarvm.h"
 
-#define GRAPHS_EQUAL(d1, d2, g) (memcmp((d1), (d2), (g) * sizeof(MVMuint32)) == 0)
+/*  TODO:
+- add a tunable global determining at what depth it should
+    start flattening.  Write a rope-tree-flattening function
+    (not like string_flatten) that puts all the sub strands
+    in one MVMStrand array.
+    (optimization)
+- add a tunable global determining under which size result
+    string should it just do the old copying behavior, for
+    join, concat, split, and repeat.
+    This might be related to MVMString object size?
+    (optimization)
+- make the uc, lc, tc functions intelligently
+    create ropes from the originals when deemed advantageous.
+    (optimization)
+*/
 
-/* Compares two strings for equality. */
-MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    if (a->body.graphs != b->body.graphs)
-        return 0;
-    return (MVMint64)GRAPHS_EQUAL(a->body.data, b->body.data, a->body.graphs);
+static MVMStrandIndex find_strand_index(MVMString *s, MVMStringIndex index);
+
+/* for physical strings, applies the consumer function directly. For
+ * "ropes", performs the binary search as directed by the strands table
+ * to find the first starting strand index of the desired substring. 
+ * Then recursively traverses more strands until the desired number of
+ * characters are passed to the consumer function from the strand tree.
+ * Both this and the consumer function return a boolean saying whether
+ * to abort the traversal early. */
+MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMStringIndex start, MVMStringIndex length, MVMStringIndex top_index, MVMSubstringConsumer consumer, void *data) {
+    
+    switch(STR_FLAGS(a)) {
+        case MVM_STRING_TYPE_INT32:
+        case MVM_STRING_TYPE_UINT8:
+            return consumer(tc, a, start, length, top_index, data);
+        case MVM_STRING_TYPE_ROPE: {
+            MVMStrand *strands = a->body.strands;
+            MVMStrandIndex lower = 255;
+            MVMStringIndex index = start;
+            MVMStrandIndex strand_index = find_strand_index(a, index);
+            MVMStrand *strand = a->body.strands + strand_index;
+            for(;;) {
+                MVMuint8 return_val;
+                /* get the number of available codepoints from
+                 * this strand. */
+                MVMStringIndex substring_length =
+                    strands[strand_index + 1].compare_offset - index;
+                /* determine how many codepoints to actually consume */
+                if (length < substring_length)
+                    substring_length = length;
+                /* call ourself on the sub-strand */
+                return_val = MVM_string_traverse_substring(tc, strand->string,
+                    index - strand->compare_offset + strand->string_offset, 
+                    substring_length, top_index + index, consumer, data);
+                /* if we've been instructed to, abort early */
+                if (return_val)
+                    return return_val;
+                /* reduce the number of codepoints requested by the number
+                 * consumed. */
+                length -= substring_length;
+                /* if we've consumed all the codepoints, return without 
+                 * indicating abort early. */
+                if (!length)
+                    return 0;
+                /* advance the index by the number of codepoints consumed. */
+                index += substring_length;
+                /* advance in the strand table. The caller must guarantee
+                 * this won't overflow by checking lengths. */
+                strand = &strands[++strand_index];
+            }
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "internal string corruption");
+    }
+    MVM_exception_throw_adhoc(tc, "internal string corruption");
+}
+
+/* stack record created with each invocation of the string descent. */
+typedef struct _MVMCompareCursor {
+    MVMString *string; /* string into which descended */
+    struct _MVMCompareCursor *parent; /* parent cursor */
+    MVMint16 *gaps; /* number of gaps can ascend */
+    MVMStringIndex string_idx; /* in string, not strand */
+    MVMStringIndex end_idx; /* index past last codepoint needed */
+    MVMStrandIndex strand_idx; /* current strand index */
+    MVMuint8 owns_buffer; /* whether it owns the last buffer.
+            for ropes, whether it's uninitialized. */
+    MVMuint8 isa; /* whether it's from string tree a */
+} MVMCompareCursor;
+
+typedef struct _MVMCompareDescentState {
+    MVMCompareCursor *cursora, *cursorb; /* cursors */
+    MVMCodepoint32 *int32s; /* last physical string's buffer */
+    MVMCodepoint8 *uint8s; /* last physical string's buffer */
+    MVMStringIndex available; /* number of codepoints in the buffer */
+    MVMStringIndex needed; /* number of codepoints still needed */
+} MVMCompareDescentState;
+
+/* uses the computed binary search table to find the strand containing the index */
+static MVMStrandIndex find_strand_index(MVMString *s, MVMStringIndex index) {
+    MVMStrand *strands = s->body.strands;
+    MVMStrandIndex strand_index = s->body.num_strands / 2;
+    MVMStrandIndex upper = s->body.num_strands, lower = 0;
+    while (1) {
+        MVMStrand *strand = strands + strand_index;
+        if (strand_index == lower) return strand_index;
+        *(index >= strand->compare_offset ? &lower : &upper) = strand_index;
+        strand_index = lower + (upper - lower) / 2;
+    }
+}
+
+#define descend_sized_chew_success(member, other_member) \
+st->needed -= tocompare; \
+if (!st->needed) { \
+    *result = 2; \
+    return; \
+} \
+else if (wehave > tocompare) { \
+    st->member = c->string->body.member + c->string_idx + tocompare; \
+    st->available = wehave - tocompare; \
+    c->owns_buffer = 1; \
+    st->other_member = NULL; \
+} \
+else { \
+    st->other_member += tocompare; \
+    st->available -= tocompare;\
+} \
+
+#define descend_sized(member, other_member, size, other_size, cp, other_cp) \
+MVMStringIndex wehave = c->end_idx - c->string_idx; \
+if (st->available) { \
+    MVMStringIndex tocompare = st->available < wehave ? st->available : wehave; \
+    if (st->member) { \
+        if (memcmp(st->member, c->string->body.member + c->string_idx, \
+               wehave * sizeof(size))) { \
+            *result = 1; \
+            return; \
+        } \
+        descend_sized_chew_success(member, other_member) \
+    } \
+    else { \
+        size \
+            *cp = c->string->body.member + c->string_idx, \
+            *final = cp + tocompare; \
+        other_size *other_cp = st->other_member; \
+        for (; cp < final; ) { \
+            if (*cp32++ != (MVMCodepoint32) *cp8++) { \
+                *result = 1; \
+                return; \
+            } \
+        } \
+        descend_sized_chew_success(other_member, member) \
+    } \
+    if (c->isa) { st->cursora = c->parent; } \
+    else { st->cursorb = c->parent; } \
+    return; \
+} \
+st->member = c->string->body.member + c->string_idx; \
+st->other_member = NULL; \
+st->available = wehave; \
+c->owns_buffer = 1; \
+continue;
+
+/* If a is composed of strands, create a descent record, initialize it, and
+ * descend into the substring. If result is set when it returns, return. 
+ * If a is a real string, grab some codepoints from a string, compare
+ * with codepoints from the other buffer. If different, set result nonzero and
+ * it will fast return. Otherwise, reset buffer indexes
+ * to zero. Loop if `needed` for the current string is nonzero. */
+static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
+        MVMuint8 *result, MVMCompareCursor *orig) {
+    /* while we still need to compare some things */
+    while (st->needed) {
+        /* pick a tree from which to get more characters. */
+        MVMCompareCursor *c = st->cursora->owns_buffer ? st->cursorb : st->cursora;
+        
+        if (*c->gaps) {
+            (*c->gaps)--;
+            if (c->isa) { st->cursora = c->parent; }
+            else { st->cursorb = c->parent; }
+            return;
+        }
+        
+        /* get some characters, comparing as they're found */
+        switch(STR_FLAGS(c->string)) {
+            case MVM_STRING_TYPE_INT32: {
+                descend_sized(int32s, uint8s, MVMCodepoint32, MVMCodepoint8, cp32, cp8)
+            }
+            case MVM_STRING_TYPE_UINT8: {
+                descend_sized(uint8s, int32s, MVMCodepoint8, MVMCodepoint32, cp8, cp32)
+            }
+            case MVM_STRING_TYPE_ROPE: {
+                MVMStrand *strand;
+                MVMStringIndex next_compare_offset, child_length, child_idx, child_end_idx;
+                if (c->owns_buffer) { /* first time we've seen this rope */
+                    c->strand_idx = find_strand_index(c->string, c->string_idx);
+                    c->owns_buffer = 0;
+                }
+                if (c->string_idx == c->end_idx) {
+                    if (c->isa) { st->cursora = c->parent; }
+                    else { st->cursorb = c->parent; }
+                    if (orig == c)
+                        return;
+                    (*c->gaps)++;
+                    continue;
+                }
+                strand = c->string->body.strands + c->strand_idx;
+                child_idx = c->string_idx - strand->compare_offset;
+                next_compare_offset = (strand + 1)->compare_offset;
+                child_length = next_compare_offset - strand->compare_offset;
+                child_length = child_length > c->end_idx - c->string_idx
+                    ? c->end_idx - c->string_idx : child_length;
+                child_end_idx = child_idx + child_length;
+                c->string_idx += child_length;
+                c->strand_idx++;
+                {
+                    MVMCompareCursor child = { strand->string, c, c->gaps, child_idx,
+                        child_end_idx, 0, IS_ROPE(strand->string), c->isa };
+                    if (c->isa) { st->cursora = &child; } else { st->cursorb = &child; }
+                    compare_descend(tc, st, result, &child);
+                }
+                if (*result) return;
+                continue;
+            }
+            default:
+                MVM_exception_throw_adhoc(tc, "internal string corruption");
+        }
+    }
+    *result = 2;
+}
+
+/* returns nonzero if two substrings are equal, doesn't check bounds */
+MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
+        MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
+    MVMint16 gapsa = 0, gapsb = 0;
+    MVMuint8 result = 0;
+    MVMCompareCursor
+        cursora = { a, NULL, &gapsa, starta, starta + length, 0, IS_ROPE(a), 1 },
+        cursorb = { b, NULL, &gapsb, startb, startb + length, 0, IS_ROPE(b), 0 };
+    MVMCompareDescentState st = { &cursora, &cursorb, NULL, NULL, 0, length };
+    
+    compare_descend(tc, &st, &result, &cursora);
+    return result ? result - 1 : 1;
+}
+
+/* returns the codepoint without doing checks, for internal VM use only. */
+MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
+    MVMStringIndex idx = (MVMStringIndex)index;
+    
+    switch(STR_FLAGS(a)) {
+        case MVM_STRING_TYPE_INT32:
+            return a->body.int32s[idx];
+        case MVM_STRING_TYPE_UINT8:
+            return (MVMCodepoint32)a->body.uint8s[idx];
+        case MVM_STRING_TYPE_ROPE: {
+            MVMStrand *strand = a->body.strands + find_strand_index(a, idx);
+            return MVM_string_get_codepoint_at_nocheck(tc,
+                strand->string, idx - strand->compare_offset + strand->string_offset);
+        }
+    }
+    MVM_exception_throw_adhoc(tc, "internal string corruption");
+    return 0;
 }
 
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
     MVMint64 result = -1;
     size_t index    = (size_t)start;
+    MVMStringIndex hgraphs = NUM_GRAPHS(haystack), ngraphs = NUM_GRAPHS(needle);
     
     if (!IS_CONCRETE((MVMObject *)haystack)) {
         MVM_exception_throw_adhoc(tc, "index needs a concrete search target");
@@ -22,21 +274,21 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
         MVM_exception_throw_adhoc(tc, "index needs a concrete search term");
     }
     
-    if (!needle->body.graphs && !haystack->body.graphs)
+    if (!ngraphs && !hgraphs)
         return 0; /* the empty strings are equal and start at zero */
     
-    if (!haystack->body.graphs)
+    if (!hgraphs)
         return -1;
     
-    if (start < 0 || start >= haystack->body.graphs)
+    if (start < 0 || start >= hgraphs)
         /* maybe return -1 instead? */
         MVM_exception_throw_adhoc(tc, "index start offset out of range");
     
-    if (needle->body.graphs > haystack->body.graphs || needle->body.graphs < 1)
+    if (ngraphs > hgraphs || ngraphs < 1)
         return -1;
-    /* brute force for now. */
-    while (index <= haystack->body.graphs - needle->body.graphs) {
-        if (GRAPHS_EQUAL(needle->body.data, haystack->body.data + index, needle->body.graphs)) {
+    /* brute force for now. horrible, yes. halp. */
+    while (index <= hgraphs - ngraphs) {
+        if (MVM_string_substrings_equal_nocheck(tc, needle, 0, ngraphs, haystack, index)) {
             result = (MVMint64)index;
             break;
         }
@@ -48,9 +300,11 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
 /* Returns a substring of the given string */
 MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 start, MVMint64 length) {
     MVMString *result;
+    MVMStrand *strands;
+    MVMStringIndex agraphs = NUM_GRAPHS(a);
     
     if (start < 0) {
-        start += a->body.graphs;
+        start += agraphs;
         if (start < 0)
             start = 0;
     }
@@ -59,37 +313,52 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
         MVM_exception_throw_adhoc(tc, "Substring needs a concrete string");
     }
     
-    if (start >= a->body.graphs)
+    if (start >= agraphs)
         MVM_exception_throw_adhoc(tc, "Substring start offset (%lld) cannot be past end of string (%lld)",
-            start, a->body.graphs);
+            start, agraphs);
     
     if (length < -1) /* -1 signifies go to the end of the string */
         MVM_exception_throw_adhoc(tc, "Substring length (%lld) cannot be negative", length);
     
     if (length == -1)
-        length = a->body.graphs - start;
+        length = agraphs - start;
     
-    if (start + length > a->body.graphs)
+    if (start + length > agraphs)
         MVM_exception_throw_adhoc(tc, "Substring end (%lld) cannot be past end of string (%lld)",
-            start + length, a->body.graphs);
+            start + length, agraphs);
     
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     MVM_gc_root_temp_pop(tc);
     
-    result->body.codes  = length; /* XXX TODO this is wrong */
-    result->body.graphs = length;
-    
-    if (length > 0) {
-        result->body.data = malloc(sizeof(MVMint32) * length);
-        memcpy(result->body.data, a->body.data + start, sizeof(MVMint32) * length);
+    strands = result->body.strands = calloc(sizeof(MVMStrand), 2);
+    /* if we're substringing a substring, substring the same one */
+    if (IS_ONE_STRING_ROPE(a)) {
+        strands->string_offset = (MVMStringIndex)start + a->body.strands->string_offset;
+        strands->string = a->body.strands->string;
     }
+    else {
+        strands->string_offset = (MVMStringIndex)start;
+        strands->string = a;
+    }
+    /* result->body.codes  = 0; /* Populate this lazily. */
+    result->body.flags = MVM_STRING_TYPE_ROPE;
+    result->body.num_strands = 1;
+    strands[1].graphs = length;
+    _STRAND_DEPTH(result) = STRAND_DEPTH(strands->string) + 1;
     
     return result;
 }
 
+/* Append one string to another. */
+/* XXX inline parent's strands if it's a rope too? */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result;
+    MVMStrandIndex strand_count = 0;
+    MVMStrand *strands;
+    MVMStringIndex index = 0;
+    MVMStrandIndex max_strand_depth = 0;
+    MVMStringIndex agraphs = NUM_GRAPHS(a), bgraphs = NUM_GRAPHS(b), rgraphs;
     
     if (!IS_CONCRETE((MVMObject *)a) || !IS_CONCRETE((MVMObject *)b)) {
         MVM_exception_throw_adhoc(tc, "Concatenate needs concrete strings");
@@ -101,42 +370,87 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     
     /* there could be unattached combining chars at the beginning of b,
        so, XXX TODO handle this */
-    result->body.codes  = a->body.codes + b->body.codes;
-    result->body.graphs = a->body.graphs + b->body.graphs;
+    result->body.flags = MVM_STRING_TYPE_ROPE;
+    rgraphs = agraphs + bgraphs;
     
-    if (result->body.graphs) {
-        result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
-        if (a->body.graphs)
-            memcpy(result->body.data, a->body.data, sizeof(MVMint32) * a->body.graphs);
-        if (b->body.graphs)
-            memcpy(result->body.data + a->body.graphs, b->body.data, sizeof(MVMint32) * b->body.graphs);
+    if (agraphs)
+        strand_count = 1;
+    if (bgraphs)
+        ++strand_count;
+    strands = result->body.strands = calloc(sizeof(MVMStrand), strand_count + 1);
+    strand_count = 0;
+    if (agraphs) {
+        strands->string = a;
+        strands->string_offset = 0;
+        strands->compare_offset = index;
+        index = agraphs;
+        strand_count = 1;
+        max_strand_depth = STRAND_DEPTH(a);
     }
+    if (bgraphs) {
+        strands[strand_count].string = b;
+        strands[strand_count].string_offset = 0;
+        strands[strand_count].compare_offset = index;
+        index += bgraphs;
+        ++strand_count;
+        if (STRAND_DEPTH(b) > max_strand_depth)
+            max_strand_depth = STRAND_DEPTH(b);
+    }
+    strands[strand_count].graphs = index;
+    result->body.num_strands = strand_count;
+    result->body.flags = MVM_STRING_TYPE_ROPE;
+    _STRAND_DEPTH(result) = max_strand_depth + 1;
     
     return result;
 }
 
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
     MVMString *result;
-    size_t i = 0;
+    MVMint64 bkup_count = count;
+    MVMStringIndex string_offset = 0, graphs = 0, rgraphs;
     
     if (!IS_CONCRETE((MVMObject *)a)) {
         MVM_exception_throw_adhoc(tc, "repeat needs a concrete string");
     }
     
+    if (count < 0)
+        MVM_exception_throw_adhoc(tc, "repeat count (%lld) cannot be negative", count);
+    
+    if (count > (1<<30))
+        MVM_exception_throw_adhoc(tc, "repeat count > %lld arbitrarily unsupported...", (1<<30));
+    
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
     MVM_gc_root_temp_pop(tc);
     
-    if (count < 0)
-        MVM_exception_throw_adhoc(tc, "repeat count (%lld) cannot be negative", count);
+    if (IS_ONE_STRING_ROPE(a)) {
+        string_offset = a->body.strands->string_offset;
+        graphs = a->body.strands[1].graphs;
+        a = a->body.strands->string;
+    }
+    else {
+        graphs = NUM_GRAPHS(a);
+    }
     
-    result->body.codes  = a->body.codes * count;
-    result->body.graphs = a->body.graphs * count;
+    rgraphs = graphs * count;
     
-    if (count) {
-        result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
-        while (count--)
-            memcpy(result->body.data + (i++ * a->body.graphs), a->body.data, sizeof(MVMint32) * a->body.graphs);
+    /* XXX compute tradeoff here of space usage of the strands table vs real string */
+    if (rgraphs) {
+        MVMStrand *strands = result->body.strands = calloc(sizeof(MVMStrand), count + 1);
+        result->body.flags = MVM_STRING_TYPE_ROPE;
+        
+        while (count--) {
+            strands[count].compare_offset = count * graphs;
+            strands[count].string = a;
+            strands[count].string_offset = string_offset;
+        }
+        strands[bkup_count].graphs = rgraphs;
+        result->body.num_strands = bkup_count;
+        _STRAND_DEPTH(result) = STRAND_DEPTH(a) + 1;
+    }
+    else {
+        result->body.flags = MVM_STRING_TYPE_UINT8;
+        /* leave graphs 0 and storage null */
     }
     
     return result;
@@ -150,10 +464,11 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
         MVM_exception_throw_adhoc(tc, "say needs a concrete string");
     }
     
+    /* XXX send a buffer of substrings of size 100 or something? */
     utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
+    utf8_encoded[utf8_encoded_length] = '\n';
     
-    fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
-    printf("\n");
+    fwrite(utf8_encoded, 1, utf8_encoded_length + 1, stdout);
     
     free(utf8_encoded);
 }
@@ -161,21 +476,30 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
 /* Tests whether one string a has the other string b as a substring at that index */
 MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
     
+    MVMStringIndex agraphs, bgraphs;
+    
     if (!IS_CONCRETE((MVMObject *)a) || !IS_CONCRETE((MVMObject *)b)) {
         MVM_exception_throw_adhoc(tc, "equal_at needs concrete strings");
     }
     
-    if (a->body.graphs < b->body.graphs)
-        return 0;
-    if (offset >= a->body.graphs) {
-        MVM_exception_throw_adhoc(tc, "equal_at got an invalid offset");
-    }
+    agraphs = NUM_GRAPHS(a);
+    bgraphs = NUM_GRAPHS(b);
+    
     if (offset < 0) {
-        offset += a->body.graphs;
+        offset += agraphs;
         if (offset < 0)
             offset = 0; /* XXX I think this is the right behavior here */
     }
-    return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)offset, b->body.data, b->body.graphs);
+    if (agraphs - offset < bgraphs)
+        return 0;
+    return MVM_string_substrings_equal_nocheck(tc, a, offset, bgraphs, b, 0);
+}
+
+/* Compares two strings for equality. */
+MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    if (NUM_GRAPHS(a) != NUM_GRAPHS(b))
+        return 0;
+    return MVM_string_equal_at(tc, a, b, 0);
 }
 
 /* more general form of has_at; compares two substrings for equality */
@@ -190,105 +514,111 @@ MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a,
         return 0;
     if (length == 0)
         return 1;
-    if (starta + length > a->body.graphs || startb + length > b->body.graphs)
+    if (starta + length > NUM_GRAPHS(a) || startb + length > NUM_GRAPHS(b))
         return 0;
-    return (MVMint64)GRAPHS_EQUAL(a->body.data + (size_t)starta,
-            b->body.data + (size_t)startb, (size_t)length);
+    return MVM_string_substrings_equal_nocheck(tc, a, starta, length, b, startb);
 }
 
 /* returns the codepoint (could be a negative synthetic) at a given index of the string */
 MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
+    MVMStringIndex agraphs;
     
     if (!IS_CONCRETE((MVMObject *)a)) {
         MVM_exception_throw_adhoc(tc, "codepoint_at needs a concrete string");
     }
     
-    if (index < 0 || index >= a->body.graphs)
+    agraphs = NUM_GRAPHS(a);
+    
+    if (index < 0 || index >= agraphs)
         MVM_exception_throw_adhoc(tc, "Invalid string index: max %lld, got %lld",
-            index >= a->body.graphs - 1, index);
-    return (MVMint64)a->body.data[index];
+            agraphs - 1, index);
+    return (MVMint64)MVM_string_get_codepoint_at_nocheck(tc, a, index);
 }
 
 /* finds the location of a codepoint in a string.  Useful for small character class lookup */
 MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint) {
     size_t index = -1;
-    while (++index < a->body.graphs)
-        if (a->body.data[index] == codepoint)
+    while (++index < NUM_GRAPHS(a))
+        /* XXX make this use the traversal function */
+        if (MVM_string_get_codepoint_at_nocheck(tc, a, index) == codepoint)
             return index;
     return -1;
 }
 
+typedef struct _MVMCaseChangeState {
+    MVMString *dest;
+    MVMStringIndex size;
+    MVMint32 case_change_type;
+} MVMCaseChangeState;
+
+#define change_case_iterate(member, dest_member, dest_size) \
+for (i = string->body.member + start; i < string->body.member + start + length; ) { \
+    if (dest->body.graphs == state->size) { \
+        if (!state->size) state->size = 16; \
+        else state->size *= 2; \
+        dest->body.dest_member = realloc(dest->body.dest_member, \
+            state->size * sizeof(dest_size)); \
+    } \
+    dest->body.dest_member[dest->body.graphs++] = \
+        MVM_unicode_get_case_change(tc, (MVMCodepoint32) *i++, state->case_change_type); \
+}
+
+/* XXX make this handle case changes that change the number of characters.
+    Will require some form of buffering/lookahead, or rollback of a placed
+    char if a following char forms a composite sequence that case changes
+    together. */
+MVM_SUBSTRING_CONSUMER(MVM_string_case_change_consumer) {
+    MVMCaseChangeState *state = (MVMCaseChangeState *)data;
+    MVMString *dest = state->dest;
+    switch (STR_FLAGS(string)) {
+        case MVM_STRING_TYPE_INT32: {
+            MVMCodepoint32 *i;
+            if (!IS_WIDE(dest)) {
+                MVM_string_flatten(tc, dest);
+            }
+            change_case_iterate(int32s, int32s, MVMCodepoint32)
+            break;
+        }
+        case MVM_STRING_TYPE_UINT8: {
+            MVMCodepoint8 *i;
+            if (IS_WIDE(dest)) {
+                change_case_iterate(uint8s, int32s, MVMCodepoint32)
+            }
+            else { /* hopefully most common/fast case of ascii->ascii */
+                change_case_iterate(uint8s, uint8s, MVMCodepoint8)
+            }
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "internal string corruption");
+    }
+    return 0;
+}
+
 /* Uppercases a string. */
-MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
-    MVMString *result;
-    MVMuint64 i;
-    
-    if (!IS_CONCRETE((MVMObject *)s)) {
-        MVM_exception_throw_adhoc(tc, "uc needs a concrete string");
-    }
-    
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&s);
-    result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
-    MVM_gc_root_temp_pop(tc);
-    
-    /* XXX Need to handle cases where character count varies. */
-    result->body.codes  = s->body.codes;
-    result->body.graphs = s->body.graphs;
-    result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
-    for (i = 0; i < s->body.graphs; i++) {
-        result->body.data[i] = MVM_unicode_get_case_change(tc, s->body.data[i], 0);
-    }
-
-    return result;
+#define case_change_func(funcname, type, error) \
+MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
+    MVMString *result; \
+    MVMStringIndex i; \
+    MVMCaseChangeState state = { NULL, 0, type }; \
+    \
+    if (!IS_CONCRETE((MVMObject *)s)) { \
+        MVM_exception_throw_adhoc(tc, error); \
+    } \
+    \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&s); \
+    state.dest = result = (MVMString *)REPR(s)->allocate(tc, STABLE(s)); \
+    MVM_gc_root_temp_pop(tc); \
+     \
+    MVM_string_traverse_substring(tc, s, 0, NUM_GRAPHS(s), 0, \
+        MVM_string_case_change_consumer, &state); \
+     \
+    return result; \
 }
 
-/* Lowercases a string. */
-MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s) {
-    MVMString *result;
-    MVMuint64 i;
-    
-    if (!IS_CONCRETE((MVMObject *)s)) {
-        MVM_exception_throw_adhoc(tc, "lc needs a concrete string");
-    }
-    
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&s);
-    result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
-    MVM_gc_root_temp_pop(tc);
-    
-    /* XXX Need to handle cases where character count varies. */
-    result->body.codes  = s->body.codes;
-    result->body.graphs = s->body.graphs;
-    result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
-    for (i = 0; i < s->body.graphs; i++) {
-        result->body.data[i] = MVM_unicode_get_case_change(tc, s->body.data[i], 1);
-    }
-
-    return result;
-}
-
-/* Titlecases a string. */
-MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
-    MVMString *result;
-    MVMuint64 i;
-    
-    if (!IS_CONCRETE((MVMObject *)s)) {
-        MVM_exception_throw_adhoc(tc, "tc needs a concrete string");
-    }
-    
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&s);
-    result = (MVMString *)REPR(s)->allocate(tc, STABLE(s));
-    MVM_gc_root_temp_pop(tc);
-    
-    /* XXX Need to handle cases where character count varies. */
-    result->body.codes  = s->body.codes;
-    result->body.graphs = s->body.graphs;
-    result->body.data = malloc(sizeof(MVMint32) * result->body.graphs);
-    for (i = 0; i < s->body.graphs; i++) {
-        result->body.data[i] = MVM_unicode_get_case_change(tc, s->body.data[i], 2);
-    }
-
-    return result;
-}
+case_change_func(MVM_string_uc, MVM_unicode_case_change_type_upper, "uc needs a concrete string")
+case_change_func(MVM_string_lc, MVM_unicode_case_change_type_lower, "lc needs a concrete string")
+case_change_func(MVM_string_tc, MVM_unicode_case_change_type_title, "tc needs a concrete string")
 
 /* decodes a C buffer to an MVMString, dependent on the encoding type flag */
 MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc,
@@ -326,7 +656,7 @@ char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint6
 
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *type_object, MVMString *separator) {
     MVMObject *result;
-    MVMint64 start, end, sep_length;
+    MVMStringIndex start, end, sep_length;
     
     if (!IS_CONCRETE((MVMObject *)separator)) {
         MVM_exception_throw_adhoc(tc, "split needs a concrete string separator");
@@ -337,27 +667,28 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
     }
     
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_object);
-    result = REPR(type_object)->allocate(tc, STABLE(type_object));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&input);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&separator);
+    result = REPR(type_object)->allocate(tc, STABLE(type_object));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
     
     start = 0;
-    end = input->body.graphs;
-    sep_length = separator->body.graphs;
+    end = NUM_GRAPHS(input);
+    sep_length = NUM_GRAPHS(separator);
     
     while (start < end) {
         MVMString *portion;
-        MVMint64 index, length;
+        MVMStringIndex index, length;
         
+        /* XXX make this use the dual-traverse iterator, but such that it
+            can reset the index of what it's comparing... <!> */
         index = MVM_string_index(tc, input, separator, start);
         length = sep_length ? (index == -1 ? end : index) - start : 1;
-        portion = MVM_string_substring(tc, input, start, length);
-        start += length + sep_length;
-        
-        if (portion->body.graphs) {
+        if (length) {
+            portion = MVM_string_substring(tc, input, start, length);
             MVM_repr_push_o(tc, result, (MVMObject *)portion);
         }
+        start += length + sep_length;
     }
     
     MVM_gc_root_temp_pop_n(tc, 4);
@@ -366,9 +697,12 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
 }
 
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator) {
-    MVMint64 elems, length = 0, index = -1, position;
+    MVMint64 elems, length = 0, index = -1, position = 0;
     MVMString *portion, *result;
     MVMuint32 codes = 0;
+    MVMStrandIndex portion_index = 0, max_strand_depth;
+    MVMStringIndex sgraphs, rgraphs;
+    MVMStrand *strands;
     
     if (REPR(input)->ID != MVM_REPR_ID_MVMArray || !IS_CONCRETE(input)) {
         MVM_exception_throw_adhoc(tc, "join needs a concrete object with MVMArray REPR");
@@ -380,76 +714,143 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&separator);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&input);
+    /* inherit the string type of the separator.... seems ok to me */
     result = (MVMString *)(REPR(separator)->allocate(tc, STABLE(separator)));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
     
     elems = REPR(input)->pos_funcs->elems(tc, STABLE(input),
         input, OBJECT_BODY(input));
     
+    sgraphs = NUM_GRAPHS(separator);
+    max_strand_depth = STRAND_DEPTH(separator);
+    
     while (++index < elems) {
         MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
+        MVMStringIndex pgraphs;
         
         /* allow null items in the array, I guess.. */
         if (!item)
             continue;
-        if (REPR(item)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE((MVMObject *)item))
+        if (REPR(item)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(item)) {
+            MVM_gc_root_temp_pop_n(tc, 3);
             MVM_exception_throw_adhoc(tc, "join needs concrete strings only");
-        
-        portion = (MVMString *)item;
-        length += portion->body.graphs + (index ? separator->body.graphs : 0);
-        codes += portion->body.codes + (index ? separator->body.codes : 0);
-    }
-    
-    result->body.graphs = length;
-    /* consider whether to coalesce combining characters
-    if they cause new combining sequences to appear */
-    result->body.codes = codes;
-    if (length)
-        result->body.data = malloc(sizeof(MVMint32) * length);
-    
-    index = -1;
-    position = 0;
-    
-    while (++index < elems) {
-        MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
-        
-        if (!item)
-            continue;
-        
-        if (index && separator->body.graphs) {
-            memcpy(result->body.data + position, separator->body.data, sizeof(MVMint32) * separator->body.graphs);
-            position += separator->body.graphs;
         }
         
         portion = (MVMString *)item;
-        length = portion->body.graphs;
-        
-        memcpy(result->body.data + position, portion->body.data, sizeof(MVMint32) * length);
-        
-        position += length;
+        pgraphs = NUM_GRAPHS(portion);
+        if (pgraphs) 
+            ++portion_index;
+        if (index && sgraphs)
+            ++portion_index;
+        length += pgraphs + (index ? sgraphs : 0);
+        /* XXX codes += portion->body.codes + (index ? separator->body.codes : 0); */
+        if (STRAND_DEPTH(portion) > max_strand_depth)
+            max_strand_depth = STRAND_DEPTH(portion);
     }
     
-    MVM_gc_root_temp_pop_n(tc, 2);
+    rgraphs = length;
+    /* XXX consider whether to coalesce combining characters
+    if they cause new combining sequences to appear */
+    /* XXX result->body.codes = codes; */
     
-    if (result->body.graphs != position)
+    if (portion_index > (1<<30)) {
+        MVM_gc_root_temp_pop_n(tc, 3);
+        MVM_exception_throw_adhoc(tc, "join array items > %lld arbitrarily unsupported...", (1<<30));
+    }
+    
+    if (portion_index) {
+        index = -1;
+        position = 0;
+        strands = result->body.strands = calloc(sizeof(MVMStrand), portion_index + 1);
+        
+        portion_index = 0;
+        while (++index < elems) {
+            MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
+            
+            if (!item)
+                continue;
+            
+            /* Note: this allows the separator to precede the empty string. */
+            if (index && sgraphs) {
+                strands[portion_index].compare_offset = position;
+                strands[portion_index].string = separator;
+                position += sgraphs;
+                ++portion_index;
+            }
+            
+            portion = (MVMString *)item;
+            length = NUM_GRAPHS(portion);
+            if (length) {
+                strands[portion_index].compare_offset = position;
+                strands[portion_index].string = portion;
+                position += length;
+                ++portion_index;
+            }
+        }
+        strands[portion_index].graphs = position;
+        strands[portion_index].strand_depth = max_strand_depth + 1;
+        result->body.flags = MVM_STRING_TYPE_ROPE;
+        result->body.num_strands = portion_index;
+    }
+    else {
+        /* leave type default of int32 and graphs 0 */
+    }
+    
+    MVM_gc_root_temp_pop_n(tc, 3);
+    
+    /* assertion/check */
+    if (NUM_GRAPHS(result) != position)
         MVM_exception_throw_adhoc(tc, "join had an internal error");
     
     return result;
 }
 
-/* returning nonzero means it found the char at the position specified in 'a' in 'b' */
+typedef struct _MVMCharAtState {
+    MVMCodepoint32 search;
+    MVMStringIndex result;
+} MVMCharAtState;
+
+#define substring_consumer_iterate(member, size) \
+size *i; \
+for (i = string->body.member + start; i < string->body.member + start + length; ) { \
+    if (*i++ == state->search) { \
+        state->result = top_index + (MVMStringIndex)(i - (string->body.member + start) - 1); \
+        return 1; \
+    } \
+} \
+break; \
+
+
+MVM_SUBSTRING_CONSUMER(MVM_string_char_at_consumer) {
+    MVMCharAtState *state = (MVMCharAtState *)data;
+    switch (STR_FLAGS(string)) {
+        case MVM_STRING_TYPE_INT32: {
+            substring_consumer_iterate(int32s, MVMCodepoint32);
+        }
+        case MVM_STRING_TYPE_UINT8: {
+            substring_consumer_iterate(uint8s, MVMCodepoint8);
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "internal string corruption");
+    }
+    return 0;
+}
+
+/* returning nonzero means it found the char at the position specified in 'a' in 'b'.
+    For character enumerations in regexes.  */
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b) {
     MVMuint32 index;
-    MVMint32 codepoint;
+    MVMCharAtState state;
     
-    if (offset < 0 || offset >= a->body.graphs)
+    if (offset < 0 || offset >= NUM_GRAPHS(a))
         return 0;
     
-    codepoint = a->body.data[offset];
+    state.search = MVM_string_get_codepoint_at_nocheck(tc, a, offset);
+    state.result = -1;
     
-    for (index = 0; index < b->body.graphs; index++)
-        if (b->body.data[index] == codepoint)
-            return 1;
-    return 0;
+    MVM_string_traverse_substring(tc, b, 0, NUM_GRAPHS(b), 0,
+        MVM_string_char_at_consumer, &state);
+    return state.result;
 }
 
 MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMString *s, MVMint64 offset, MVMint64 property_code, MVMint64 property_value_code) {
@@ -458,8 +859,36 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
         MVM_exception_throw_adhoc(tc, "uniprop lookup needs a concrete string");
     }
     
-    if (offset < 0 || offset >= s->body.graphs)
+    if (offset < 0 || offset >= NUM_GRAPHS(s))
         return 0;
     
-    return MVM_unicode_codepoint_has_property_value(tc, s->body.data[offset], property_code, property_value_code);
+    return MVM_unicode_codepoint_has_property_value(tc,
+        MVM_string_get_codepoint_at_nocheck(tc, s, offset), property_code, property_value_code);
+}
+
+/* internal function so hashes can easily compute hashes of hash keys */
+void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
+    /* XXX This is temporary until we can get the hashing mechanism
+        to compute the hash (and test for equivalence!) using the
+        codepoint iterator interface.  It's not thread-safe. */
+    MVMStringIndex position = 0, sgraphs = NUM_GRAPHS(s);
+    void *storage = s->body.storage;
+    MVMCodepoint32 *buffer;
+    if (IS_WIDE(s))
+        return;
+    if (!sgraphs) {
+        if (storage) free(storage);
+        s->body.int32s = malloc(1); /* just in case a hash tries to hash */
+        s->body.flags = MVM_STRING_TYPE_INT32;
+        return;
+    }
+    buffer = calloc(sizeof(MVMCodepoint32), sgraphs);
+    for (; position < sgraphs; position++) {
+            /* XXX make this use the iterator */
+        buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
+    }
+    s->body.flags = MVM_STRING_TYPE_INT32;
+    s->body.graphs = sgraphs;
+    s->body.int32s = buffer;
+    if (storage) free(storage); /* not thread-safe */
 }

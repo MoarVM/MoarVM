@@ -164,6 +164,8 @@ BANK 2 string
 0x1B    unipvalcode w(int64) r(int64) r(str)
 0x1C    hasuniprop  w(int64) r(str) r(int64) r(int64) r(int64)
 0x1D    hasunipropc w(int64) r(str) r(int64) int16 int16
+0x1E    concatr_s   w(str) r(str) r(int64) r(int64) r(str) r(int64) r(int64)
+0x1F    splice_s    w(str) r(str) r(int64) r(int64) r(str) r(int64) r(int64)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)

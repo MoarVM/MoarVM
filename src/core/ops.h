@@ -175,6 +175,8 @@
 #define MVM_OP_unipvalcode 27
 #define MVM_OP_hasuniprop 28
 #define MVM_OP_hasunipropc 29
+#define MVM_OP_concatr_s 30
+#define MVM_OP_splice_s 31
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

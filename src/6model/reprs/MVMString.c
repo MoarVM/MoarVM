@@ -34,18 +34,53 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMStringBody *src_body  = (MVMStringBody *)src;
     MVMStringBody *dest_body = (MVMStringBody *)dest;
-    dest_body->graphs = src_body->graphs;
     dest_body->codes  = src_body->codes;
-    dest_body->data   = malloc(sizeof(MVMint32) * dest_body->graphs);
-    memcpy(dest_body->data, src_body->data, sizeof(MVMint32) * dest_body->graphs);
+    dest_body->flags  = src_body->flags;
+    switch(src_body->flags & MVM_STRING_TYPE_MASK) {
+        case MVM_STRING_TYPE_INT32:
+            if (dest_body->graphs = src_body->graphs) {
+                dest_body->int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
+                memcpy(dest_body->int32s, src_body->int32s, sizeof(MVMCodepoint32) * src_body->graphs);
+            }
+            break;
+        case MVM_STRING_TYPE_UINT8:
+            if (dest_body->graphs = src_body->graphs) {
+                dest_body->uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
+                memcpy(dest_body->uint8s, src_body->uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
+            }
+            break;
+        case MVM_STRING_TYPE_ROPE: {
+            MVMStrandIndex strand_count = dest_body->num_strands = src_body->num_strands;
+            if (strand_count) {
+                dest_body->strands = malloc(sizeof(MVMStrand) * (strand_count + 1));
+                memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * (strand_count + 1));
+            }
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "internal string corruption");
+    }
+}
+
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMStringBody *body  = (MVMStringBody *)data;
+    if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
+        MVMStrand *strands = body->strands;
+        MVMStrandIndex index = 0;
+        MVMStrandIndex strand_count = body->num_strands;
+        while(index < strand_count)
+            MVM_gc_worklist_add(tc, worklist, (strands + index++)->string);
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    free(str->body.data);
-    str->body.data = NULL;
-    str->body.graphs = str->body.codes = 0;
+    if (str->body.storage)
+        free(str->body.storage);
+    str->body.storage = NULL;
+    str->body.graphs = str->body.codes = str->body.flags = 0;
 }
 
 /* Gets the storage specification for this representation. */
@@ -74,6 +109,7 @@ MVMREPROps * MVMString_initialize(MVMThreadContext *tc) {
         this_repr->allocate = allocate;
         this_repr->initialize = initialize;
         this_repr->copy_to = copy_to;
+        this_repr->gc_mark = gc_mark;
         this_repr->gc_free = gc_free;
         this_repr->get_storage_spec = get_storage_spec;
         this_repr->compose = compose;

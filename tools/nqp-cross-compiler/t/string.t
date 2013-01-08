@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(39);
+plan(40);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
@@ -337,9 +337,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_s', $r0);
         op(@ins, 'return');
     },
-    "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««"~
-    "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««"~
-    "«««««««««««««««««««««««««««««««««««««««««««««««««««««««««\n",
+    nqp::x("«", 171) ~ "\n",
     "string repeat with non-ASCII char");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
@@ -623,3 +621,28 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'join', $output_str, $arr, $delimiter);
     op(@ins, 'say_s', $output_str);
 }, "foobaz\n", "join sparse array");
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        my $r0 := local($frame, str);
+        my $r1 := local($frame, int);
+        my $r2 := local($frame, str);
+        my $r3 := local($frame, str);
+        op(@ins, 'const_s', $r0, sval('bar'));
+        op(@ins, 'const_i64', $r1, ival(4));
+        op(@ins, 'repeat_s', $r2, $r0, $r1);
+        op(@ins, 'repeat_s', $r2, $r2, $r1);
+        op(@ins, 'uc', $r2, $r2);
+        op(@ins, 'const_s', $r0, sval('BARBAR'));
+        op(@ins, 'const_i64', $r1, ival(2));
+        op(@ins, 'repeat_s', $r3, $r0, $r1);
+        op(@ins, 'const_i64', $r1, ival(4));
+        op(@ins, 'repeat_s', $r3, $r3, $r1);
+        op(@ins, 'say_s', $r2);
+        op(@ins, 'say_s', $r3);
+        op(@ins, 'eq_s', $r1, $r2, $r3);
+        op(@ins, 'say_i', $r1);
+        op(@ins, 'return');
+    },
+    "BARBARBARBARBARBARBARBARBARBARBARBARBARBARBARBAR\n"~
+    "BARBARBARBARBARBARBARBARBARBARBARBARBARBARBARBAR\n1\n",
+    "equals of tree of UPPERed string tree");

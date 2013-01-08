@@ -138,11 +138,12 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
     result->body.codes  = bytes;
     result->body.graphs = bytes;
     
-    result->body.data = malloc(sizeof(MVMint32) * bytes);
+    result->body.int32s = malloc(sizeof(MVMint32) * bytes);
     for (i = 0; i < bytes; i++)
         /* actually decode like Windows-1252, since that is mostly a superset,
            and is recommended by the HTML5 standard when latin1 is claimed */
-        result->body.data[i] = latin1_char_to_cp(latin1[i]);
+        result->body.int32s[i] = latin1_char_to_cp(latin1[i]);
+    result->body.flags = MVM_STRING_TYPE_INT32;
     
     return result;
 }
@@ -154,19 +155,20 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     /* latin-1 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? str->body.graphs - startu : length);
+    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t i;
     
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > str->body.graphs)
+    if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > str->body.graphs)
+    if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
     result = malloc(length + 1);
     for (i = 0; i < length; i++) {
-        MVMint32 codepoint = str->body.data[start + i];
+        MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
         if (codepoint >= 0 && codepoint < 128 || codepoint >=152 && codepoint < 256) {
             result[i] = (MVMuint8)codepoint;
         }

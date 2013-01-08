@@ -249,12 +249,13 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
     while (cur_frame != NULL) {
         MVMLexicalHashEntry *lexical_names = cur_frame->static_info->lexical_names;
         if (lexical_names) {
-            /* Indexes were formerely stored off-by-one
+            /* Indexes were formerly stored off-by-one
              * to avoid semi-predicate issue. */
             MVMLexicalHashEntry *entry;
             
-            HASH_FIND(hash_handle, lexical_names, name->body.data,
-                name->body.graphs * sizeof(MVMint32), entry);
+            MVM_string_flatten(tc, name);
+            MVM_HASH_GET(tc, lexical_names, name, entry)
+            
             if (entry) {
                 if (cur_frame->static_info->lexical_types[entry->value] == type)
                     return &cur_frame->env[entry->value];

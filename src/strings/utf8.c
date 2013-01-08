@@ -50,7 +50,7 @@ static const MVMuint8 utf8d[] = {
 };
 
 static MVMint32
-decode_utf8_byte(MVMint32 *state, MVMint32 *codep, MVMuint8 byte) {
+decode_utf8_byte(MVMint32 *state, MVMCodepoint32 *codep, MVMuint8 byte) {
   MVMint32 type = utf8d[byte];
 
   *codep = (*state != UTF8_ACCEPT) ?
@@ -99,7 +99,7 @@ enum
     U8_QUAD            = 1 << 8
 };
 
-static unsigned classify(MVMint32 cp)
+static unsigned classify(MVMCodepoint32 cp)
 {
     /* removing these two lines 
     12:06 <not_gerd> if you want to encode NUL as a zero-byte
@@ -142,7 +142,7 @@ static unsigned classify(MVMint32 cp)
     return 0;
 }
 
-static void *utf8_encode(void *bytes, MVMint32 cp)
+static void *utf8_encode(void *bytes, MVMCodepoint32 cp)
 {
     unsigned cc = classify(cp);
     MVMuint8 *bp = bytes;
@@ -193,7 +193,7 @@ static void *utf8_encode(void *bytes, MVMint32 cp)
 MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type, char *utf8, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     MVMint32 count = 0;
-    MVMint32 codepoint;
+    MVMCodepoint32 codepoint;
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = 16;
@@ -259,10 +259,11 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
      * memory */
-    result->body.data = buffer;
+    result->body.int32s = buffer;
     
-    result->body.codes  = count;
-    result->body.graphs = count; /* Ignore combining chars for now. */
+    /* XXX set codes */
+    result->body.flags = MVM_STRING_TYPE_INT32;
+    result->body.graphs = count; /* XXX Ignore combining chars for now. */
     
     return result;
 }
@@ -275,30 +276,34 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     MVMuint8 *result;
     MVMuint8 *arr;
     size_t i = start;
+    MVMStringIndex strgraphs = NUM_GRAPHS(str);
     
     if (length == -1)
-        length = str->body.graphs;
+        length = strgraphs;
     
     /* must check start first since it's used in the length check */
-    if (start < 0 || start > str->body.graphs)
+    if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > str->body.graphs)
+    if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
     
-    result = malloc(sizeof(MVMint32) * length);
+    /* give it two spaces for padding in case `say` wants to append a \r\n or \n */
+    result = malloc(sizeof(MVMint32) * length + 2);
     arr = result;
     
     memset(result, 0, sizeof(MVMint32) * length);
-    while (i < length && (arr = utf8_encode(arr, str->body.data[i++])));
+    while (i < length && (arr = utf8_encode(arr, MVM_string_get_codepoint_at_nocheck(tc, str, i++))));
     if (!arr)
-        MVM_exception_throw_adhoc(tc, "Error encoding UTF-8 string near grapheme position %d with codepoint %d", i - 1, str->body.data[i-1]);
+        MVM_exception_throw_adhoc(tc,
+            "Error encoding UTF-8 string near grapheme position %d with codepoint %d",
+                i - 1, MVM_string_get_codepoint_at_nocheck(tc, str, i-1));
     *output_size = (MVMuint64)(arr ? arr - result : 0);
     return result;
 }
 
 /* Encodes the specified string to UTF-8. */
 MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_utf8_encode_substr(tc, str, output_size, 0, str->body.graphs);
+    return MVM_string_utf8_encode_substr(tc, str, output_size, 0, NUM_GRAPHS(str));
 }
 
 /* Encodes the specified string to a UTF-8 C string. */

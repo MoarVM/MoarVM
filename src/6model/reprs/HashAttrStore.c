@@ -27,14 +27,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 }
 
 static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
-    if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) {
-        *kdata = ((MVMString *)key)->body.data;
-        *klen  = ((MVMString *)key)->body.graphs * sizeof(MVMint32);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc,
-            "HashAttrStore representation requires MVMString keys");
-    }
+    MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, "HashAttrStore representation requires MVMString keys")
 }
 
 /* Copies the body of one object to another. */
@@ -117,6 +110,8 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
             entry = malloc(sizeof(MVMHashEntry));
             HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, entry);
         }
+        else
+            entry->hash_handle.key = (void *)kdata;
         entry->key = (MVMObject *)name;
         entry->value = value_reg.o;
     }

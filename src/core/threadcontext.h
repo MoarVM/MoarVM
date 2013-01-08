@@ -46,6 +46,7 @@ typedef enum {
 
 /* Information associated with an executing thread. */
 struct _MVMInstance;
+struct _MVMConcatState;
 typedef struct _MVMThreadContext {
     /* The current allocation pointer, where the next object to be allocated
      * should be placed. */

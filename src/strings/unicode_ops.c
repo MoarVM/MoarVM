@@ -1,6 +1,6 @@
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
-MVMint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
+MVMCodepoint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     char *cname = MVM_string_ascii_encode(tc, name, &size);
     MVMUnicodeNameHashEntry *result;
@@ -12,12 +12,12 @@ MVMint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     return result ? result->codepoint : -1;
 }
 
-MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
+MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
     return (MVMint64)MVM_unicode_get_property_value(tc,
         codepoint, property_code) == property_value_code ? 1 : 0;
 }
 
-MVMint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMint32 codepoint, MVMint32 case_) {
+MVMCodepoint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint32 case_) {
     MVMint32 changes_index = MVM_unicode_get_property_value(tc,
         codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
     
