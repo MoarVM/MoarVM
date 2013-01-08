@@ -7,15 +7,15 @@ manner of shapes then no doubt MoarVM can be put to work in a bunch of
 different situations too.
 
 ## Key Principles
-MoarVM is interesting (or, depending on your needs, perhaps uninteresting)
-in a few ways.
+
+MoarVM distinguishes itself in a number of ways:
 
 * MoarVM is gradually typed, rather than having a focus on static or dynamic
   typing. In general, it is built to use type information when it has it,
-  but is comfortable operating in an absence of it too.
+  but is comfortable operating in its absence too.
 
 * MoarVM has a notion of ubiquitous representation polymorphism; storage
-  strategy is on a separate plane to the nominal type system.
+  strategy is not tangled up with the nominal type system.
   
 * MoarVM doesn't have any kind of intermediate language or assembly
   language; as input, it takes a low level AST, which is packed in a
@@ -26,7 +26,7 @@ in a few ways.
   it possible to talk about encoded buffers - but they need to be turned
   into NFG strings before string operations are performed.
 
-* MoarVM doesn't re-invent wheels that it doesn't have to. As a result, it
+* MoarVM doesn't re-invent wheels when it doesn't have to. As a result, it
   uses the Apache Portable Runtime for a whole bunch of things, libtommath
   for providing big integer support and dyncall for providing calls to C
   native libraries.
