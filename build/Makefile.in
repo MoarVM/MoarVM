@@ -185,4 +185,4 @@ src/main$(O): src/main.c $(HEADERS)
 # Cleanup.
 clean:
 	$(RM) moarvm$(EXE)
-	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O) src/io/*$(O)
+	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O) src/strings/unicode.c src/io/*$(O)

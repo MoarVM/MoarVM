@@ -477,7 +477,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                 /* Is this already a free list slot? If so, it becomes the
                  * new free list insert position. */
                 if (*freelist_insert_pos && **freelist_insert_pos == cur_ptr) {
-                    freelist_insert_pos = &((char**)cur_ptr);
+                    freelist_insert_pos = (char***)&cur_ptr;
                 }
                 
                 /* Otherwise, it must be a collectable of some kind. Is it
