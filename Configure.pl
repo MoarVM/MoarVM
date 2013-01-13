@@ -21,16 +21,6 @@ else {
 
 print dots("Configuring APR ...");
 %config = Config::APR::configure(%config);
-
-sub check_excuse {
-    if (!$config{'excuse'}) {
-        print " OK\n";
-    }
-    else {
-        print " FAILED\n";
-        die "    $config{'excuse'}\n";
-    }
-}
 check_excuse();
 
 print dots("Configuring libatomic_ops ...");
@@ -53,4 +43,14 @@ sub dots {
     my $length  = shift || 55;
 
     return $message . '.' x ($length - length $message);
+}
+
+sub check_excuse {
+    if (!$config{'excuse'}) {
+        print " OK\n";
+    }
+    else {
+        print " FAILED\n";
+        die "    $config{'excuse'}\n";
+    }
 }
