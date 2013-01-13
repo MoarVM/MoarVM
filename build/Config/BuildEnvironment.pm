@@ -44,7 +44,7 @@ sub detect {
         
         if (can_run('gcc')) {
             $config{'cc'}           = 'gcc';
-            $config{'cflags'}       = '-Wno-format-security';
+            $config{'cflags'}       = ' -D_REENTRANT -D_GNU_SOURCE -D_LARGEFILE64_SOURCE -Wno-format-security';
             $config{'couto'}        = '-o ';
             $config{'link'}         = 'gcc';
             $config{'louto'}        = '-o ';
