@@ -44,11 +44,11 @@ sub detect {
         
         if (can_run('gcc')) {
             $config{'cc'}           = 'gcc';
-            $config{'cflags'}       = ' -D_REENTRANT -D_LARGEFILE64_SOURCE -Wno-format-security';
+            $config{'cflags'}       = ' -D_REENTRANT -D_LARGEFILE64_SOURCE -Wno-format-security -g';
             $config{'couto'}        = '-o ';
             $config{'link'}         = 'gcc';
             $config{'louto'}        = '-o ';
-            $config{'ldflags'}      = '-L 3rdparty/apr/.libs';
+            $config{'ldflags'}      = '-L 3rdparty/apr/.libs -g';
             $config{'llibs'}        = '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm';
             $config{'make'}         = 'make';
             $config{'exe'}          = '';
