@@ -150,14 +150,18 @@ void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsi
 void cleanup_frame(VM, FrameState *fs) {
     CallsiteReuseEntry *current, *tmp;
     
-    if (fs->local_types)
+    if (fs->local_types) {
         free(fs->local_types);
-    if (fs->lexical_types)
+        fs->local_types = NULL;
+    }
+    if (fs->lexical_types) {
         free(fs->lexical_types);
+        fs->lexical_types = NULL;
+    }
     
     /* the macros already check for null */
     HASH_ITER(hash_handle, fs->callsite_reuse_head, current, tmp)
-        free(current);
+        if (current) free(current);
     HASH_CLEAR(hash_handle, fs->callsite_reuse_head);
     
     free(fs);
@@ -423,8 +427,6 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
 
 /* Takes a set of flags describing a callsite. Writes out a callsite
  * descriptor and returns the index of it. */
-/* TODO: We'll be able to get massive re-use of these. Use some hash or
- * something. */
 unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     /* Work out callsite size. */
     unsigned short elems = (unsigned short)ELEMS(vm, flags);
