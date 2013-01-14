@@ -42,7 +42,23 @@ sub detect {
     elsif ($^O =~ /linux/) {
         $config{'os'} = 'Linux';
         
-        if (can_run('gcc')) {
+        if (can_run('clang')) {
+            $config{'cc'}           = 'clang';
+            $config{'cflags'}       = '-g -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls';
+            $config{'couto'}        = '-o ';
+            $config{'link'}         = 'clang';
+            $config{'louto'}        = '-o ';
+            $config{'ldflags'}      = '-L 3rdparty/apr/.libs -g -fsanitize=address';
+            $config{'llibs'}        = '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm';
+            $config{'make'}         = 'make';
+            $config{'exe'}          = '';
+            $config{'o'}            = '.o';
+            $config{'rm'}           = 'rm -f';
+            $config{'noreturn'}     = '';
+            $config{'noreturngcc'}  = '__attribute__((noreturn))';
+            $config{'cat'}          = 'cat';
+        }
+        elsif (can_run('gcc')) {
             $config{'cc'}           = 'gcc';
             $config{'cflags'}       = ' -D_REENTRANT -D_LARGEFILE64_SOURCE -Wno-format-security -g';
             $config{'couto'}        = '-o ';
