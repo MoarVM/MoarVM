@@ -157,8 +157,12 @@ void cleanup_frame(VM, FrameState *fs) {
     
     /* the macros already check for null */
     HASH_ITER(hash_handle, fs->callsite_reuse_head, current, tmp)
-        free(current);
+        if (current != fs->callsite_reuse_head)
+            free(current);
+    
     HASH_CLEAR(hash_handle, fs->callsite_reuse_head);
+    if (fs->callsite_reuse_head)
+        free(fs->callsite_reuse_head);
     
     free(fs);
 }

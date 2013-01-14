@@ -20,6 +20,16 @@ Makefile
 3rdparty/apr/include/arch/unix/apr_private.h
 3rdparty/apr/include/arch/unix/apr_private.h.in~
 3rdparty/apr/libtool
+3rdparty/libatomic_ops/config.log
+3rdparty/libatomic_ops/config.status
+3rdparty/libatomic_ops/pkgconfig/atomic_ops-uninstalled.pc
+3rdparty/libatomic_ops/pkgconfig/atomic_ops.pc
+3rdparty/libatomic_ops/src/.deps/
+3rdparty/libatomic_ops/src/config.h
+3rdparty/libatomic_ops/src/libatomic_ops.a
+3rdparty/libatomic_ops/src/stamp-h1
+3rdparty/libatomic_ops/tests/.deps/
+3rdparty/libatomic_ops/tests/list_atomic.i
 src/gen/
 *.la
 *.obj
