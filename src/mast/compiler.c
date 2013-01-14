@@ -894,7 +894,10 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     write_int32(output, 52, ELEMS(vm, ws->strings));
     memcpy(output + pos, string_heap, string_heap_size);
     pos += string_heap_size;
-    free(string_heap);
+    if (string_heap) {
+        free(string_heap);
+        string_heap = NULL;
+    }
     
     /* Add bytecode section and its header entries (offset, length). */
     write_int32(output, 64, pos);
