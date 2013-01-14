@@ -14,7 +14,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     /* Before an allocation is a GC safe-point and thus a good GC sync point
      * also; check if we've been signalled to allocate. */
     if (tc->gc_status)
-        MVM_gc_enter_from_interupt(tc);
+        MVM_gc_enter_from_interrupt(tc);
     
     /* Guard against 0-byte allocation. */
     if (size > 0) {

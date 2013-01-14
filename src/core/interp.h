@@ -6,7 +6,7 @@
  * loops trigger it. */
 #define GC_SYNC_POINT(tc) \
     if (tc->gc_status) { \
-        MVM_gc_enter_from_interupt(tc);\
+        MVM_gc_enter_from_interrupt(tc);\
     }
 
 /* Different views of a register. */

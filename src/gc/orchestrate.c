@@ -201,7 +201,7 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
         /* The only way this can fail is if another thread just decided we're to
         * participate in a GC run. */
         if (tc->gc_status == MVMGCStatus_INTERRUPT)
-            MVM_gc_enter_from_interupt(tc);
+            MVM_gc_enter_from_interrupt(tc);
         else
             MVM_panic(MVM_exitcode_gcorch, "Invalid GC status observed; aborting");
     }
@@ -245,9 +245,9 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     /* Grab the thread starting mutex while we start GC. This is so we
      * can get an accurate and stable number of threads that we expect to
      * join in with the GC. Store it in a new GC orchestration structure. */
-     gc_orch = malloc(sizeof(MVMGCOrchestration));
-     if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
-            MVM_panic(MVM_exitcode_gcorch, "Unable to lock user_threads mutex");
+    gc_orch = malloc(sizeof(MVMGCOrchestration));
+    if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+        MVM_panic(MVM_exitcode_gcorch, "Unable to lock user_threads mutex");
     gc_orch->expected_gc_threads = tc->instance->num_user_threads + 1;
     
     /* Count us into the GC run from the start. */
@@ -324,22 +324,22 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
-         * if we were interupted to GC; also release that thread starting mutex
-         * that we (in the end needlessly) took and the un-used orchestration
+         * if we were interrupted to GC; also release that thread starting mutex
+         * that we (in the end needlessly) took and the unused orchestration
          * structure that was allocated. */
         if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
             MVM_panic(MVM_exitcode_gcorch, "Unable to unlock user_threads mutex");
         free(gc_orch);
         if (free_old)
             free(old_gc_orch);
-        MVM_gc_enter_from_interupt(tc);
+        MVM_gc_enter_from_interrupt(tc);
     }
 }
 
-/* This is called when a thread hits an interupt at a GC safe point. This means
+/* This is called when a thread hits an interrupt at a GC safe point. This means
  * that another thread is already trying to start a GC run, so we don't need to
  * try and do that, just enlist in the run. */
-void MVM_gc_enter_from_interupt(MVMThreadContext *tc) {
+void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     void *limit;
     MVMuint8 gen;
 

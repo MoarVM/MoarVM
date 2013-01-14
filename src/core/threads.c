@@ -31,14 +31,15 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
 /* This callback handles starting execution of a thread. */
 static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
+    MVMGCOrchestration *orch;
     
     /* Set the current frame in the thread to be the initial caller;
      * the ref count for this was incremented in the original thread. */
      ts->tc->cur_frame = ts->caller;
      
      /* If we happen to be in a GC run right now, pause until it's done. */
-     while (ts->tc->instance->gc_orch
-            && !ts->tc->instance->gc_orch->finished
+     while ((orch = ts->tc->instance->gc_orch)
+            && !orch->finished
             && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
         apr_thread_yield();
     
@@ -74,7 +75,9 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
     MVMObject *child_obj;
 
     /* Create a thread object to wrap it up in. */
+    MVM_gc_root_temp_push(tc, &invokee);
     child_obj = REPR(result_type)->allocate(tc, STABLE(result_type));
+    MVM_gc_root_temp_pop();
     if (REPR(child_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *child = (MVMThread *)child_obj;
         
