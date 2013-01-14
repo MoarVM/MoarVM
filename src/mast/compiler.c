@@ -150,18 +150,14 @@ void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsi
 void cleanup_frame(VM, FrameState *fs) {
     CallsiteReuseEntry *current, *tmp;
     
-    if (fs->local_types) {
+    if (fs->local_types)
         free(fs->local_types);
-        fs->local_types = NULL;
-    }
-    if (fs->lexical_types) {
+    if (fs->lexical_types)
         free(fs->lexical_types);
-        fs->lexical_types = NULL;
-    }
     
     /* the macros already check for null */
     HASH_ITER(hash_handle, fs->callsite_reuse_head, current, tmp)
-        if (current) free(current);
+        free(current);
     HASH_CLEAR(hash_handle, fs->callsite_reuse_head);
     
     free(fs);
