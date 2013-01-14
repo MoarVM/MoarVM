@@ -378,11 +378,15 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             /* Check the type matches. */
             local_type = ws->cur_frame->local_types[l->index];
             if (op_type != local_type << 3 && op_type != MVM_operand_type_var) {
+                unsigned int  current_frame_idx = ws->current_frame_idx;
+                unsigned int  current_ins_idx = ws->current_ins_idx;
+                const char *name = ws->current_op_info->name;
+                unsigned int  current_operand_idx = ws->current_operand_idx;
                 cleanup_all(vm, ws);
                 DIE(vm, "At Frame %u, Instruction %u, op '%s', operand %u, "
                     "MAST::Local of wrong type (%u) specified; expected %u",
-                    ws->current_frame_idx, ws->current_ins_idx,
-                    ws->current_op_info->name, ws->current_operand_idx,
+                    current_frame_idx, current_ins_idx,
+                    name, current_operand_idx,
                     local_type, (op_type >> 3));
             }
             
@@ -392,9 +396,13 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             ws->bytecode_pos += 2;
         }
         else {
+            unsigned int  current_frame_idx = ws->current_frame_idx;
+            unsigned int  current_ins_idx = ws->current_ins_idx;
+            const char *name = ws->current_op_info->name;
+            unsigned int  current_operand_idx = ws->current_operand_idx;
             cleanup_all(vm, ws);
             DIE(vm, "At Frame %u, Instruction %u, op '%s', operand %u, expected MAST::Local, but didn't get one",
-                ws->current_frame_idx, ws->current_ins_idx, ws->current_op_info->name, ws->current_operand_idx);
+                current_frame_idx, current_ins_idx, name, current_operand_idx);
         }
     }
     else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
@@ -476,9 +484,12 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         
         /* Ensure argument count matches up. */
         if (ELEMS(vm, o->operands) != info->num_operands) {
+            unsigned int  current_frame_idx = ws->current_frame_idx;
+            unsigned int  current_ins_idx = ws->current_ins_idx;
+            const char *name = ws->current_op_info->name;
             cleanup_all(vm, ws);
             DIE(vm, "At Frame %u, Instruction %u, op '%s' has invalid number (%u) of operands; needs %u.",
-                ws->current_frame_idx, ws->current_ins_idx, ws->current_op_info->name,
+                current_frame_idx, current_ins_idx, name,
                 ELEMS(vm, o->operands), info->num_operands);
         }
         
