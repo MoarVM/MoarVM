@@ -75,9 +75,9 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
     MVMObject *child_obj;
 
     /* Create a thread object to wrap it up in. */
-    MVM_gc_root_temp_push(tc, &invokee);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&invokee);
     child_obj = REPR(result_type)->allocate(tc, STABLE(result_type));
-    MVM_gc_root_temp_pop();
+    MVM_gc_root_temp_pop(tc);
     if (REPR(child_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *child = (MVMThread *)child_obj;
         
