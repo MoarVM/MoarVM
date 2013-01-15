@@ -39,7 +39,7 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
      
      /* If we happen to be in a GC run right now, pause until it's done. */
      while ((orch = ts->tc->instance->gc_orch)
-            && !orch->finished
+            && orch->stage == (void *)0
             && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
         apr_thread_yield();
     
@@ -132,9 +132,11 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *thread = (MVMThread *)thread_obj;
         apr_status_t thread_return_status, apr_return_status;
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&thread);
         MVM_gc_mark_thread_blocked(tc);
         apr_return_status = apr_thread_join(&thread_return_status, thread->body.apr_thread);
         MVM_gc_mark_thread_unblocked(tc);
+        MVM_gc_root_temp_pop(tc);
         if (apr_return_status != APR_SUCCESS)
             MVM_panic(MVM_exitcode_compunit, "Could not join thread: errorcode %d", apr_return_status);
     }

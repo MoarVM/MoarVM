@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 #define GCORCH_DEGUG 0
-#define GCORCH_LOG(x) if (GCORCH_DEGUG) printf(x)
+#define GCORCH_LOG(tc, s, ...) if (GCORCH_DEGUG) printf("Thread %d : "##s, tc->thread_id, __VA_ARGS__)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
  * list. */
@@ -35,7 +35,7 @@ static void signal_one_thread(MVMThreadContext *us, MVMThreadContext *to_signal)
              * we can increment the count of threads that are opted in. */
             add_stolen(us, to_signal);
             apr_atomic_inc32(&to_signal->instance->gc_orch->start_votes);
-            GCORCH_LOG("A blocked thread spotted; work stolen\n");
+            GCORCH_LOG(us, "A blocked thread spotted; work stolen\n");
             return;
         }
     }    
@@ -54,11 +54,11 @@ static void signal_all_but(MVMThreadContext *tc) {
 
 /* Waits for all threads to have enlisted in the GC run. For now, just stupid
  * spinning. */
-static void wait_for_all_threads(MVMInstance *i) {
-    GCORCH_LOG("Waiting for all threads...\n");
+static void wait_for_all_threads(MVMThreadContext *tc, MVMInstance *i) {
+    GCORCH_LOG(tc, "Waiting for all threads...\n");
     while (i->gc_orch->start_votes != i->gc_orch->expected_gc_threads)
         1;
-    GCORCH_LOG("All threads now registered for the GC run\n");
+    GCORCH_LOG(tc, "All threads now registered for the GC run\n");
 }
 
 /* Does work in a thread's in-tray, if any. */
@@ -67,7 +67,7 @@ static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen) {
      * GC loop to process it. Note that since we're now doing GC stuff
      * again, we take back our vote to finish. */
     if (tc->gc_in_tray) {
-        GCORCH_LOG("Was given extra work by another thread; doing it\n");
+        GCORCH_LOG(tc, "Was given extra work by another thread; doing it\n");
         apr_atomic_dec32(&tc->instance->gc_orch->finish_votes);
         MVM_gc_collect(tc, MVMGCWhatToDo_InTray, gen);
         apr_atomic_inc32(&tc->instance->gc_orch->finish_votes);
@@ -78,7 +78,7 @@ static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen) {
  * work yet, though. Called by all threads except the co-ordinator. */
 static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
     /* Vote to finish. */
-    GCORCH_LOG("Waiting for GC termination...\n");
+    GCORCH_LOG(tc, "Waiting for GC termination...\n");
     apr_atomic_inc32(&tc->instance->gc_orch->finish_votes);
     
     /* Loop until other threads have terminated, processing any extra work
@@ -121,14 +121,14 @@ static void cleanup_all(MVMThreadContext *tc) {
 static void coordinate_finishing_gc(MVMThreadContext *tc, MVMuint8 gen) {
     MVMuint32 num_stolen = 0;
 
-    GCORCH_LOG("Coordinating GC termination...\n");
+    GCORCH_LOG(tc, "Coordinating GC termination...\n");
     
     /* We may have stolen the work of a blocked thread. These always vote for
      * finishing GC. */
     if (tc->stolen_for_gc) {
         MVMuint32 i = 0;
         while (tc->stolen_for_gc[i]) {
-            GCORCH_LOG("Decrementing thread GC count for a bocked/stolen thread\n");
+            GCORCH_LOG(tc, "Decrementing thread GC count for a blocked/stolen thread\n");
             apr_atomic_inc32(&tc->instance->gc_orch->finish_votes);
             i++;
             num_stolen++;
@@ -175,12 +175,12 @@ static void coordinate_finishing_gc(MVMThreadContext *tc, MVMuint8 gen) {
          * final vote. Also set number of threads that need to acknowledge
          * that we're done with GC. */
         if (!termination_void) {
-            GCORCH_LOG("Coordinator decided GC is terminated\n");
+            GCORCH_LOG(tc, "Coordinator decided GC is terminated\n");
             cleanup_all(tc);
             tc->instance->gc_orch->finish_ack_remaining = 
                 tc->instance->gc_orch->expected_gc_threads -
                 (1 + num_stolen);
-            tc->instance->gc_orch->finished = 1;
+            tc->instance->gc_orch->stage = (void *)1;
             apr_atomic_inc32(&tc->instance->gc_orch->finish_votes);
             break;
         }
@@ -228,52 +228,69 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     MVMGCOrchestration *old_gc_orch, *gc_orch;
     void               *limit;
     void              **stolen_limits;
-    MVMuint8            gen, free_old;
+    MVMuint8            gen, set_orch;
+    
+    GCORCH_LOG(tc, "Entered from allocate\n");
     
     /* Wait just in case other threads didn't agree we finished the
-     * previous GC run yet. Also ensure that somebody frees the previous
-     * GC orchestration struct. */
+     * previous GC run yet. */
     old_gc_orch = tc->instance->gc_orch;
-    free_old    = 0;
-    if (old_gc_orch && old_gc_orch->finished) {
-        while (old_gc_orch->finish_ack_remaining)
-            apr_thread_yield();
-        if (apr_atomic_casptr(&tc->instance->gc_orch, NULL, old_gc_orch) == old_gc_orch)
-            free_old = 1;
+    set_orch = 0;
+    if (old_gc_orch) {
+        if (old_gc_orch->stage == (void *)1) {
+            GCORCH_LOG(tc, "Waiting for remaining to acknowledge last complete\n");
+            while (old_gc_orch->finish_ack_remaining)
+                apr_thread_yield();
+        }
+        if (old_gc_orch->stage == (void *)2) {
+            GCORCH_LOG(tc, "Waiting for the thing to be initialized\n");
+            while (old_gc_orch->stage == (void *)2);
+        }
+        gc_orch = old_gc_orch;
+    }
+    else {
+        gc_orch = malloc(sizeof(MVMGCOrchestration));
+        gc_orch->stage = (void *)2;
+        if ((old_gc_orch = apr_atomic_casptr(&tc->instance->gc_orch, gc_orch, NULL)) != NULL) {
+            free(gc_orch);
+            gc_orch = old_gc_orch;
+        }
+        else {
+            set_orch = 1;
+        }
     }
     
-    /* Grab the thread starting mutex while we start GC. This is so we
-     * can get an accurate and stable number of threads that we expect to
-     * join in with the GC. Store it in a new GC orchestration structure. */
-    gc_orch = malloc(sizeof(MVMGCOrchestration));
-    if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
-        MVM_panic(MVM_exitcode_gcorch, "Unable to lock user_threads mutex");
-    gc_orch->expected_gc_threads = tc->instance->num_user_threads + 1;
-    
-    /* Count us into the GC run from the start. */
-    gc_orch->start_votes = 1;
-    gc_orch->finish_votes = 0;
-    gc_orch->finish_ack_remaining = 0;
-    gc_orch->finished = 0;
-    
     /* Try to start the GC run. */
-    if (apr_atomic_casptr(&tc->instance->gc_orch, gc_orch, NULL) == NULL) {
+    if (set_orch || apr_atomic_casptr((volatile void **)&gc_orch->stage, (void *)2, (void *)1) == (void *)1) {
         /* We are the winner of the GC starting race. This gives us some
          * extra responsibilities as well as doing the usual things.
          * First, increment GC sequence number. */
-        GCORCH_LOG("GC thread elected coordinator\n");
+        GCORCH_LOG(tc, "GC thread elected coordinator\n");
+        
+        /* Grab the thread starting mutex while we start GC. This is so we
+         * can get an accurate and stable number of threads that we expect to
+         * join in with the GC. Store it in a new GC orchestration structure. */
+        if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_gcorch, "Unable to lock user_threads mutex");
+        
+        gc_orch->expected_gc_threads = tc->instance->num_user_threads + 1;
+        GCORCH_LOG(tc, "expected_gc_threads is %d\n", gc_orch->expected_gc_threads);
+        
+        /* Count us into the GC run from the start. */
+        gc_orch->start_votes = 1;
+        gc_orch->finish_votes = 0;
+        gc_orch->finish_ack_remaining = 0;
         tc->instance->gc_seq_number++;
         
-        /* Free previous GC orchestration info if needed. */
-        if (free_old)
-            free(old_gc_orch);
-
         /* Ensure our stolen list is empty. */
         if (tc->stolen_for_gc) {
             free(tc->stolen_for_gc);
             tc->stolen_for_gc = NULL;
         }
-
+        
+        /* set the state of the gc_orch object to unfinished. */
+        gc_orch->stage = (void *)0;
+        
         /* Signal other threads to do a GC run. */
         signal_all_but(tc);
         
@@ -283,7 +300,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             MVM_panic(MVM_exitcode_gcorch, "Unable to unlock user_threads mutex");
         
         /* Wait for all thread to indicate readiness to collect. */
-        wait_for_all_threads(tc->instance);
+        wait_for_all_threads(tc, tc->instance);
         
         /* Do GC work for this thread, or at least all we know about. */
         gen = tc->instance->gc_seq_number % MVM_GC_GEN2_RATIO == 0
@@ -324,14 +341,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
-         * if we were interrupted to GC; also release that thread starting mutex
-         * that we (in the end needlessly) took and the unused orchestration
-         * structure that was allocated. */
-        if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
-            MVM_panic(MVM_exitcode_gcorch, "Unable to unlock user_threads mutex");
-        free(gc_orch);
-        if (free_old)
-            free(old_gc_orch);
+         * if we were interrupted to GC. */
         MVM_gc_enter_from_interrupt(tc);
     }
 }
@@ -343,9 +353,12 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     void *limit;
     MVMuint8 gen;
 
+    while (tc->instance->gc_orch->stage != (void *)0);
+    
     /* Count us in to the GC run. */
-    GCORCH_LOG("Entered from interrupt\n");
+    GCORCH_LOG(tc, "Entered from interrupt\n");
     apr_atomic_inc32(&tc->instance->gc_orch->start_votes);
+    GCORCH_LOG(tc, "Start votes is %d\n", tc->instance->gc_orch->start_votes);
     
     /* Ensure our stolen list is empty. */
     if (tc->stolen_for_gc) {
@@ -354,7 +367,7 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     }
 
     /* Wait for all thread to indicate readiness to collect. */
-    wait_for_all_threads(tc->instance);
+    wait_for_all_threads(tc, tc->instance);
     
     /* Do GC work for this thread, or at least all we know about. */
     gen = tc->instance->gc_seq_number % MVM_GC_GEN2_RATIO == 0

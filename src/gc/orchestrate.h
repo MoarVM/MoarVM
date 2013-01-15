@@ -17,6 +17,8 @@ typedef struct _MVMGCOrchestration {
     /* The number of threads that have yet to acknowledge the finish. */
     MVMuint32 finish_ack_remaining;
     
-    /* Flag indicating the coordinator decided this GC run is finished. */
-    MVMuint32 finished;
+    /* Stage state flag. When it equals 1, it indicates the coordinator
+     * decided this GC run is finished. When 2, it is being initialized.
+     * 0 means not yet finished. */
+    void *stage;
 } MVMGCOrchestration;
