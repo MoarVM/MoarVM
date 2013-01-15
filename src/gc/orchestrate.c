@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 #define GCORCH_DEGUG 0
-#define GCORCH_LOG(tc, s, ...) if (GCORCH_DEGUG) printf("Thread %d : "##s, tc->thread_id, __VA_ARGS__)
+#define GCORCH_LOG(tc, msg) if (GCORCH_DEGUG) printf("Thread %d : ", tc->thread_id, msg)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
  * list. */
@@ -274,7 +274,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             MVM_panic(MVM_exitcode_gcorch, "Unable to lock user_threads mutex");
         
         gc_orch->expected_gc_threads = tc->instance->num_user_threads + 1;
-        GCORCH_LOG(tc, "expected_gc_threads is %d\n", gc_orch->expected_gc_threads);
         
         /* Count us into the GC run from the start. */
         gc_orch->start_votes = 1;
@@ -358,7 +357,6 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     /* Count us in to the GC run. */
     GCORCH_LOG(tc, "Entered from interrupt\n");
     apr_atomic_inc32(&tc->instance->gc_orch->start_votes);
-    GCORCH_LOG(tc, "Start votes is %d\n", tc->instance->gc_orch->start_votes);
     
     /* Ensure our stolen list is empty. */
     if (tc->stolen_for_gc) {
