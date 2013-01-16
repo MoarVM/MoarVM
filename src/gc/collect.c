@@ -460,6 +460,8 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
         /* Calculate object size for this bin. */
         obj_size = (bin + 1) << MVM_GEN2_BIN_BITS;
         
+        /* freelist_insert_pos is a pointer to a memory location that
+         * stores the address of the last traversed free list node (char **). */
         /* Initialize freelist insertion position to free list head. */
         freelist_insert_pos = &gen2->size_classes[bin].free_list;
 
@@ -471,13 +473,27 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
             char *end_ptr = page + 1 == gen2->size_classes[bin].num_pages
                 ? gen2->size_classes[bin].alloc_pos
                 : cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
+            char **last_insert_pos = NULL;
             while (cur_ptr < end_ptr) {
                 MVMCollectable *col = (MVMCollectable *)cur_ptr;
                 
+                /* If we just arrived at the head of the free list (we possibly
+                 * traversed some memory before catching up to it), */
+                if (*freelist_insert_pos == (char **)cur_ptr) {
+                    /* Don't do anything; gen2->size_classes[bin].free_list
+                     * is correct, and so is freelist_insert_pos. */
+                }
+                
                 /* Is this already a free list slot? If so, it becomes the
                  * new free list insert position. */
-                if (*freelist_insert_pos && **freelist_insert_pos == cur_ptr) {
-                    freelist_insert_pos = (char***)&cur_ptr;
+                /* if the list is non-empty && the "next" link from the last
+                 * free node (the one pointed to by *freelist_insert_pos)
+                 * equals us, it means the head of the list has already been
+                 * traversed (we are past the head), so we just need to update
+                 * freelist_insert_pos to point to us. */
+                else if (*freelist_insert_pos && **freelist_insert_pos == cur_ptr) {
+                    last_insert_pos = (char **)cur_ptr;
+                    freelist_insert_pos = &last_insert_pos;
                 }
                 
                 /* Otherwise, it must be a collectable of some kind. Is it
@@ -509,8 +525,22 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     }
                     
                     /* Chain in to the free list. */
-                    *((char ***)cur_ptr) = *freelist_insert_pos;
-                    *freelist_insert_pos = (char **)cur_ptr;
+                    /* We either haven't yet caught up to the head of the free list,
+                     * or we have passed it, or the list is empty and we will be the head. */
+                    /* if we're the new head of the list or we have not yet caught up to the head. */
+                    if (*freelist_insert_pos == NULL || *freelist_insert_pos > (char **)cur_ptr)  {
+                        *((char **)cur_ptr) = NULL;
+                        *freelist_insert_pos = (char **)cur_ptr;
+                    }
+                    /* The insert position is behind us. */
+                    else {
+                        *((char **)cur_ptr) = **freelist_insert_pos;
+                        **freelist_insert_pos = cur_ptr;
+                    }
+                    
+                    /* Update the pointer to the insert position to point to us */
+                    last_insert_pos = (char **)cur_ptr;
+                    freelist_insert_pos = &last_insert_pos;
                 }
                 
                 /* Move to the next object. */
