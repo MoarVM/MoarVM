@@ -529,7 +529,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                      * or we have passed it, or the list is empty and we will be the head. */
                     /* if we're the new head of the list or we have not yet caught up to the head. */
                     if (*freelist_insert_pos == NULL || *freelist_insert_pos > (char **)cur_ptr)  {
-                        *((char **)cur_ptr) = NULL;
+                        *((char **)cur_ptr) = (char *)*freelist_insert_pos;
                         *freelist_insert_pos = (char **)cur_ptr;
                     }
                     /* The insert position is behind us. */
