@@ -2,8 +2,8 @@
 typedef enum {
     /* Indicates that the thread is currently executing, and should
      * continue to do so. */
-    MVMGCStatus_NONE   = 0,
-
+    MVMGCStatus_NONE = 0,
+    
     /* Set when another thread decides it wants to do a GC run. The
      * current thread, on detecting this condition at a safe point,
      * should join in with the current GC run. */
@@ -19,7 +19,21 @@ typedef enum {
      * run was triggered and the scanning work was stolen. A thread
      * that becomes unblocked upon seeing this will wait for the GC
      * run to be done. */
-    MVMGCStatus_STOLEN = 3
+    MVMGCStatus_STOLEN = 3,
+    
+    /* A thread attempts to CAS MVMGCStatus_NONE to this when it's
+     * ready to die. If it succeeds, it has signalled to the next
+     * GC run to collect and move its objects. If it didn't succeed,
+     * it tries the whole thing again. */
+    MVMGCStatus_DYING = 4,
+    
+    /* If the coordinator thread CAS's MVMGCStatus_DYING to reaping,
+     * it signals the coordinator thread to move this thread's objects
+     * to its own gen2. */
+    MVMGCStatus_REAPING = 5,
+    
+    /* The threadcontext is about to be destroyed by the GC coordinator. */
+    MVMGCStatus_REAPED = 6
 } MVMGCStatus;
 
 /* Are we allocating in the nursery, or direct into generation 2? (The

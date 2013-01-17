@@ -69,6 +69,9 @@ typedef struct _MVMInstance {
     /* GC orchestration strucutre. */
     struct _MVMGCOrchestration *gc_orch;
     
+    /* MVMThreads launched since or weren't finished starting at the last GC. */
+    MVMObject *starting_threads;
+    
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
     

@@ -17,7 +17,7 @@ typedef enum {
     MVMGCWhatToDo_NoInstance = 1,
     
     /* Only process the in-tray of work given by other threads. */
-    MVMGCWhatToDo_InTray  = 2
+    MVMGCWhatToDo_InTray = 2
 } MVMGCWhatToDo;
 
 /* What generation(s) to collect? */
@@ -42,6 +42,7 @@ typedef struct _MVMGCPassedWork {
 } MVMGCPassedWork;
 
 /* Functions. */
+void MVM_gc_collect_with_tc(MVMThreadContext *tc, MVMThreadContext *dest_tc, MVMuint8 what_to_do, MVMuint8 gen);
 void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen);
 void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit);
 void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc);

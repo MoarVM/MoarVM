@@ -6,7 +6,7 @@
         MVMCollectable *u = (MVMCollectable *)update_root; \
         MVMCollectable *r = (MVMCollectable *)referenced; \
         if (((u->flags & MVM_CF_SECOND_GEN) && !(r->flags & MVM_CF_SECOND_GEN)) || u->sc) \
-            MVM_gc_write_barrier_hit(tc, u, (MVMCollectable **)&(update_addr), r);\
+            MVM_gc_write_barrier_hit(tc, u, (MVMCollectable **)&(update_addr), r); \
     }
 
 #define MVM_ASSIGN_REF(tc, update_root, update_addr, referenced) \

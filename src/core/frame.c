@@ -191,7 +191,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     /* Clear up the work area, which is not needed beyond the return.
      * (The lexical environment is left in place, though). */
     MVMFrame *returner = tc->cur_frame;
-    MVMFrame *caller = returner->caller; 
+    MVMFrame *caller = returner->caller;
     if (returner->work) {
         MVM_args_proc_cleanup(tc, &returner->params);
         

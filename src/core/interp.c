@@ -945,7 +945,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                          * if initialize allocates, obj may have moved after
                          * we called it. Note that type is never used after
                          * the initial allocate call also. This saves us having
-                         * to put things on the temporary stack. */
+                         * to put things on the temporary stack. The GC will
+                         * know to update it in the register if it moved. */
                         MVMObject *type = GET_REG(cur_op, 2).o;
                         MVMObject *obj  = REPR(type)->allocate(tc, STABLE(type));
                         GET_REG(cur_op, 0).o = obj;

@@ -12,7 +12,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     void *allocated;
     
     /* Before an allocation is a GC safe-point and thus a good GC sync point
-     * also; check if we've been signalled to allocate. */
+     * also; check if we've been signalled to collect. */
     if (tc->gc_status)
         MVM_gc_enter_from_interrupt(tc);
     

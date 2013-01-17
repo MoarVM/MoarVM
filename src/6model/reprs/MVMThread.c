@@ -27,6 +27,15 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_exception_throw_adhoc(tc, "Cannot copy object with representation MVMThread");
 }
 
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMThreadBody *body = (MVMThreadBody *)data;
+    if (body->invokee) {
+        MVM_gc_worklist_add(tc, worklist, body->invokee);
+    }
+    /* Don't add the next object; the GC itself does that */
+}
+
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* XXX Cleanup the ThreadContext, etc. */
@@ -55,6 +64,7 @@ MVMREPROps * MVMThread_initialize(MVMThreadContext *tc) {
     this_repr->allocate = allocate;
     this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
+    this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->compose = compose;

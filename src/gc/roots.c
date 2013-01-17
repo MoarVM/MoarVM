@@ -96,7 +96,7 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Ensure the root is not null. */
     if (obj_ref == NULL)
-        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a inter-generational root");
+        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as an inter-generational root");
     
     /* Allocate extra gen2 root space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
@@ -170,7 +170,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
                 continue;
             if (apr_atomic_cas32(&cur_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
                 continue;
-                
+            
             /* Add static frame to work list if needed. */
             if (cur_frame->static_info->gc_seq_number != cur_seq_number)
                 MVM_gc_worklist_add(tc, static_frame_worklist, cur_frame->static_info);

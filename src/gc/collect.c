@@ -14,7 +14,8 @@ typedef struct {
 } WorkToPass;
 
 /* Foward decls. */
-static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, WorkToPass *wtp, MVMuint8 gen);
+static void process_worklist(MVMThreadContext *tc, MVMThreadContext *dest_tc,
+    MVMGCWorklist *worklist, WorkToPass *wtp, MVMuint8 gen);
 static void pass_work_item(MVMInstance *i, WorkToPass *wtp, MVMCollectable **item_ptr);
 static void pass_leftover_work(MVMInstance *i, WorkToPass *wtp);
 static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
@@ -39,7 +40,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
  * 
  * Note that it adds the roots and processes them in phases, to try to avoid
  * building up a huge worklist. */
-void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
+void MVM_gc_collect_with_tc(MVMThreadContext *tc, MVMThreadContext *dest_tc, MVMuint8 what_to_do, MVMuint8 gen) {
     /* Create a GC worklist. */
     MVMGCWorklist *worklist = MVM_gc_worklist_create(tc);
     
@@ -65,20 +66,22 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         * this, since they are instance-wide. */
         if (what_to_do != MVMGCWhatToDo_NoInstance) {
             MVM_gc_root_add_permanents_to_worklist(tc, worklist);
-            process_worklist(tc, worklist, &wtp, gen);
+            process_worklist(tc, dest_tc, worklist, &wtp, gen);
             MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
-            process_worklist(tc, worklist, &wtp, gen);
+            process_worklist(tc, dest_tc, worklist, &wtp, gen);
+            MVM_thread_add_starting_threads_to_worklist(tc, worklist);
+            process_worklist(tc, dest_tc, worklist, &wtp, gen);
         }
 
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist);
-        process_worklist(tc, worklist, &wtp, gen);
+        process_worklist(tc, dest_tc, worklist, &wtp, gen);
         
         /* Add things that are roots for the first generation because
         * they are pointed to by objects in the second generation and
         * process them (also per-thread). */
         MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
-        process_worklist(tc, worklist, &wtp, gen);
+        process_worklist(tc, dest_tc, worklist, &wtp, gen);
         
         /* Find roots in frames and process them. */
         if (tc->cur_frame)
@@ -86,8 +89,8 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         
         /* Process anything in the in-tray. */
         add_in_tray_to_worklist(tc, worklist);
-        process_worklist(tc, worklist, &wtp, gen);
-
+        process_worklist(tc, dest_tc, worklist, &wtp, gen);
+        
         /* At this point, we have probably done most of the work we will
          * need to (only get more if another thread passes us more); zero
          * out the remaining tospace. */
@@ -96,7 +99,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     else {
         /* We just need to process anything in the in-tray. */
         add_in_tray_to_worklist(tc, worklist);
-        process_worklist(tc, worklist, &wtp, gen);
+        process_worklist(tc, dest_tc, worklist, &wtp, gen);
     }
 
     /* Destroy the worklist. */
@@ -115,8 +118,15 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     MVM_gc_root_gen2_cleanup_promoted(tc);
 }
 
+void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
+    MVM_gc_collect_with_tc(tc, NULL, what_to_do, gen);
+}
+
 /* Processes the current worklist. */
-static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, WorkToPass *wtp, MVMuint8 gen) {
+/* Can make this a macro so the value NULL can be inlined for dest_tc,
+ * relying on the compiler to eliminate dead branches. */
+static void process_worklist(MVMThreadContext *tc, MVMThreadContext *dest_tc,
+        MVMGCWorklist *worklist, WorkToPass *wtp, MVMuint8 gen) {
     MVMGen2Allocator  *gen2;
     MVMCollectable   **item_ptr;
     MVMCollectable    *new_addr;
@@ -125,7 +135,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
-    gen2 = tc->gen2;
+    gen2 = dest_tc ? dest_tc->gen2 : tc->gen2;
     
     while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
         /* Dereference the object we're considering. */
@@ -155,17 +165,20 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
          * so we're done. */
         if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc_limit)
             continue;
-            
+        
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
             pass_work_item(tc->instance, wtp, item_ptr);
             continue;
         }
+        else if (dest_tc) { /* claim it for the destination tc */
+            item->owner = dest_tc->thread_id;
+        }
         
         /* At this point, we didn't already see the object, which means we
          * need to take some action. Go on the generation... */
-        if (item_gen2) {
+        if (item_gen2 && !dest_tc) {
             /* It's in the second generation. We'll just mark it, which is
              * done by setting the forwarding pointer to the object itself,
              * since we don't do moving. */
@@ -173,7 +186,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              *item_ptr = item->forwarder = new_addr;
         } else {
             /* We've got a live object in the nursery; this means some kind of
-            * copying is going to happen. Work out the size. */
+             * copying is going to happen. Work out the size. */
             if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
                 size = ((MVMObject *)item)->st->size;
             else if (item->flags & MVM_CF_TYPE_OBJECT)
@@ -186,13 +199,13 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC sizing");
             
             /* Did we see it in the nursery before? */
-            if (item->flags & MVM_CF_NURSERY_SEEN) {
+            if (dest_tc || item->flags & MVM_CF_NURSERY_SEEN) {
                 /* Yes; we should move it to the second generation. Allocate
-                * space in the second generation. */
+                 * space in the second generation. */
                 new_addr = MVM_gc_gen2_allocate(gen2, size);
                 
                 /* Copy the object to the second generation and mark it as
-                * living there. */
+                 * living there. */
                 memcpy(new_addr, item, size);
                 new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
@@ -204,19 +217,19 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
             else {
                 /* No, so it will live in the nursery for another GC
-                * iteration. Allocate space in the nursery. */
+                 * iteration. Allocate space in the nursery. */
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + size;
                 
                 /* Copy the object to tospace and mark it as seen in the
-                * nursery (so the next time around it will move to the
-                * older generation, if it survives). */
+                 * nursery (so the next time around it will move to the
+                 * older generation, if it survives). */
                 memcpy(new_addr, item, size);
                 new_addr->flags |= MVM_CF_NURSERY_SEEN;
             }
             
             /* Store the forwarding pointer and update the original
-            * reference. */
+             * reference. */
             *item_ptr = item->forwarder = new_addr;
         }
 
@@ -318,7 +331,7 @@ static void push_work_to_thread_in_tray(MVMInstance *i, MVMuint32 target, MVMGCP
 }
 
 /* Adds work to list of items to pass over to another thread, and if we 
- * reach the pass threshold then doing the passing. */
+ * reach the pass threshold then does the passing. */
 static void pass_work_item(MVMInstance *i, WorkToPass *wtp, MVMCollectable **item_ptr) {
     ThreadWork *target_info = NULL;
     MVMuint32   target      = (*item_ptr)->owner;

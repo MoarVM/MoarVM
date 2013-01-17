@@ -4,7 +4,9 @@
 struct _MVMThreadStart {
     MVMThreadContext *tc;
     MVMFrame         *caller;
-    MVMObject        *invokee;
+    /* was formerly the MVMCode invokee representing the object, but now
+     * it is the MVMThread (which in turns has a handle to the invokee). */
+    MVMObject        *thread_obj;
     MVMCallsite       no_arg_callsite;
 };
 
@@ -13,6 +15,11 @@ struct _MVMThreadStart {
 static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     /* The passed data is simply the code object to invoke. */
     struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
+    MVMThread *thread = (MVMThread *)ts->thread_obj;
+    MVMObject *invokee = thread->body.invokee;
+    
+    thread->body.started = 1;
+    thread->body.invokee = NULL;
     
     /* Dummy, 0-arg callsite. */
     ts->no_arg_callsite.arg_flags = NULL;
@@ -20,7 +27,7 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     ts->no_arg_callsite.num_pos   = 0;
     
     /* Create initial frame, which sets up all of the interpreter state also. */
-    STABLE(ts->invokee)->invoke(tc, ts->invokee, &ts->no_arg_callsite, NULL);
+    STABLE(invokee)->invoke(tc, invokee, &ts->no_arg_callsite, NULL);
     
     /* This frame should be marked as the thread entry frame, so that any
      * return from it will cause us to drop out of the interpreter and end
@@ -35,11 +42,11 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     
     /* Set the current frame in the thread to be the initial caller;
      * the ref count for this was incremented in the original thread. */
-     ts->tc->cur_frame = ts->caller;
-     
-     /* If we happen to be in a GC run right now, pause until it's done. */
-     while ((orch = ts->tc->instance->gc_orch)
-            && orch->stage == (void *)0
+    ts->tc->cur_frame = ts->caller;
+    
+    /* If we happen to be in a GC run right now, pause until it's done. */
+    while ((orch = ts->tc->instance->gc_orch)
+            && orch->stage == MVM_gc_stage_started
             && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
         apr_thread_yield();
     
@@ -48,13 +55,11 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     
     /* Now we're done, decrement the reference count of the caller. */
     MVM_frame_dec_ref(ts->tc, ts->caller);
-
-    /* Mark ourselves as blocked, so that another thread will take care
-     * of GC-ing our objects. */
-    /* XXX This isn't really enough, because it means we never actually
-     * free our nursery after the thread ends... */
-    MVM_gc_mark_thread_blocked(ts->tc);
-
+    
+    /* Mark ourselves as dying, so that another thread will take care
+     * of GC-ing our objects and cleaning up our thread context. */
+    MVM_gc_mark_thread_dying(ts->tc);
+    
     /* Exit the thread, now it's completed. */
     apr_thread_exit(thread, APR_SUCCESS);
     return NULL;
@@ -84,8 +89,9 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         /* Create a new thread context and set it up. */
         MVMThreadContext *child_tc = MVM_tc_create(tc->instance);
         child->body.tc = child_tc;
+        child->body.invokee = invokee;
         child_tc->thread_obj = child;
-
+        
         /* Allocate APR pool for the thread. */
         if ((apr_return_status = apr_pool_create(&child->body.apr_pool, NULL)) != APR_SUCCESS) {
             MVM_panic(MVM_exitcode_threads, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
@@ -95,11 +101,14 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
          * give the thread an ID, etc. */
         if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
             MVM_panic(MVM_exitcode_threads, "Unable to lock user_threads mutex");
+        
+        /* push to starting threads list */
+        child->body.next = tc->instance->starting_threads;
+        tc->instance->starting_threads = child_obj;
+        
         child_tc->thread_id = tc->instance->next_user_thread_id;
         tc->instance->next_user_thread_id++;
         add_user_threads_entry(tc->instance, child);
-        if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
-            MVM_panic(MVM_exitcode_threads, "Unable to unlock user_threads mutex");
         
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was
@@ -109,16 +118,22 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         ts = malloc(sizeof(struct _MVMThreadStart));
         ts->tc = child_tc;
         ts->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
-        ts->invokee = invokee;
+        ts->thread_obj = child_obj;
         apr_return_status = apr_threadattr_create(&thread_attr, child->body.apr_pool);
         if (apr_return_status != APR_SUCCESS) {
             MVM_panic(MVM_exitcode_compunit, "Could not create threadattr: errorcode %d", apr_return_status);
         }
         apr_return_status = apr_thread_create(&child->body.apr_thread,
             thread_attr, &start_thread, ts, child->body.apr_pool);
+        
         if (apr_return_status != APR_SUCCESS) {
             MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", apr_return_status);
         }
+        
+        /* We can't release the mutex until the thread has been launched, so it
+         * can respond to a GC interrupt when it needs to. */
+        if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
+            MVM_panic(MVM_exitcode_threads, "Unable to unlock user_threads mutex");
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -144,4 +159,18 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
         MVM_exception_throw_adhoc(tc,
             "Thread handle passed to join must have representation MVMThread");
     }
+}
+
+void MVM_thread_add_starting_threads_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    /* Guaranteed to be the only thread accessing the list. */
+    MVMThread *new_list = NULL, *this = (MVMThread *)tc->instance->starting_threads;
+    while (this) {
+        if (!this->body.started) {
+            MVM_gc_worklist_add(tc, worklist, (MVMObject *)this);
+            this->body.next = (MVMObject *)new_list;
+            new_list = this;
+        }
+        this = (MVMThread *)this->body.next;
+    }
+    tc->instance->starting_threads = (MVMObject *)new_list;
 }
