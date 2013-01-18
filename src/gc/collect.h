@@ -42,7 +42,6 @@ typedef struct _MVMGCPassedWork {
 } MVMGCPassedWork;
 
 /* Functions. */
-void MVM_gc_collect_with_tc(MVMThreadContext *tc, MVMThreadContext *dest_tc, MVMuint8 what_to_do, MVMuint8 gen);
 void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen);
 void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit);
 void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc);

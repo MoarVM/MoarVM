@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEGUG 0
+#define GCORCH_DEGUG 1
 #define GCORCH_LOG(tc, msg) if (GCORCH_DEGUG) printf("Thread %d : %s", tc->thread_id, msg)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
@@ -64,14 +64,14 @@ static void wait_for_all_threads(MVMThreadContext *tc, MVMInstance *i) {
 }
 
 /* Does work in a thread's in-tray, if any. */
-static void process_in_tray(MVMThreadContext *tc, MVMThreadContext *dest_tc, MVMuint8 gen) {
+static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen) {
     /* Do we have any more work given by another thread? If so, re-enter
      * GC loop to process it. Note that since we're now doing GC stuff
      * again, we take back our vote to finish. */
     if (tc->gc_in_tray) {
         GCORCH_LOG(tc, "Was given extra work by another thread; doing it\n");
         apr_atomic_dec32(&tc->instance->gc_orch->finish_votes);
-        MVM_gc_collect_with_tc(tc, dest_tc, MVMGCWhatToDo_InTray, gen);
+        MVM_gc_collect(tc, MVMGCWhatToDo_InTray, gen);
         apr_atomic_inc32(&tc->instance->gc_orch->finish_votes);
     }
 }
@@ -87,7 +87,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
      * that we are given. The coordinator decrements its count last, which
      * is how we know all is over. */
     while (tc->instance->gc_orch->finish_votes != tc->instance->gc_orch->expected_gc_threads) {
-        process_in_tray(tc, NULL, gen);
+        process_in_tray(tc, gen);
     }
     
     /* Now we agree we're done, decrement threads still to acknowledge. */
@@ -144,13 +144,11 @@ static void coordinate_finishing_gc(MVMThreadContext *tc, MVMuint8 gen) {
         MVMint8 termination_void = 0;
         
         /* Process our in-tray, and that of any stolen threads. */
-        process_in_tray(tc, NULL, gen);
+        process_in_tray(tc, gen);
         if (tc->stolen_for_gc) {
             MVMuint32 i = 0;
             while (tc->stolen_for_gc[i]) {
-                process_in_tray(tc->stolen_for_gc[i],
-                    (tc->stolen_for_gc[i]->gc_status == MVMGCStatus_REAPING
-                        ? tc : NULL), gen);
+                process_in_tray(tc->stolen_for_gc[i], gen);
                 i++;
             }
         }
@@ -340,9 +338,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             stolen_limits = malloc(n * sizeof(void *));
             for (i = 0; i < n; i++) {
                 stolen_limits[i] = tc->stolen_for_gc[i]->nursery_alloc;
-                MVM_gc_collect_with_tc(tc->stolen_for_gc[i],
-                    (tc->stolen_for_gc[i]->gc_status == MVMGCStatus_REAPING
-                        ? tc : NULL),
+                MVM_gc_collect(tc->stolen_for_gc[i],
                     MVMGCWhatToDo_NoInstance, gen);
             }
         }
