@@ -6,6 +6,7 @@ struct _MVMBootTypes {
     MVMObject *BOOTHash;
     MVMObject *BOOTCCode;
     MVMObject *BOOTCode;
+    MVMObject *BOOTThread;
 };
 
 typedef struct _MVMREPRHashEntry {
@@ -70,7 +71,10 @@ typedef struct _MVMInstance {
     struct _MVMGCOrchestration *gc_orch;
     
     /* MVMThreads launched since or weren't finished starting at the last GC. */
-    MVMObject *starting_threads;
+    struct _MVMThread *starting_threads;
+    
+    /* MVMThreads completed starting and/or exited. */
+    struct _MVMThread *running_threads;
     
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;

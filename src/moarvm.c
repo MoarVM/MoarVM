@@ -51,8 +51,13 @@ MVMInstance * MVM_vm_create_instance(void) {
         exit(1);
 	}
 
-    /* Bootstrap 6model. */
+    /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
+    
+    instance->running_threads = 
+        instance->main_thread->thread_obj = (MVMThread *)
+            REPR(instance->boot_types->BOOTThread)->allocate(
+                instance->main_thread, STABLE(instance->boot_types->BOOTThread));
     
     return instance;
 }

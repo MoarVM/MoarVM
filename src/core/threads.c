@@ -60,7 +60,7 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
      * of GC-ing our objects and cleaning up our thread context. */
     MVM_gc_mark_thread_dying(ts->tc);
     
-    printf("thread %d exiting\n", ts->tc->thread_id);
+    //printf("thread %d exiting\n", ts->tc->thread_id);
     
     /* Exit the thread, now it's completed. */
     apr_thread_exit(thread, APR_SUCCESS);
@@ -165,14 +165,19 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
 
 void MVM_thread_add_starting_threads_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     /* Guaranteed to be the only thread accessing the list. */
-    MVMThread *new_list = NULL, *this = (MVMThread *)tc->instance->starting_threads;
+    MVMThread *new_list = NULL, *this = tc->instance->starting_threads, *next;
     while (this) {
-        if (!this->body.started) {
-            MVM_gc_worklist_add(tc, worklist, (MVMObject *)this);
-            this->body.next = (MVMObject *)new_list;
+        next = this->body.next;
+        if (this->body.started) {
+            this->body.next = tc->instance->running_threads;
+            tc->instance->running_threads = this;
+        }
+        else {
+            MVM_gc_worklist_add(tc, worklist, this);
+            this->body.next = new_list;
             new_list = this;
         }
-        this = (MVMThread *)this->body.next;
+        this = next;
     }
-    tc->instance->starting_threads = (MVMObject *)new_list;
+    tc->instance->starting_threads = new_list;
 }

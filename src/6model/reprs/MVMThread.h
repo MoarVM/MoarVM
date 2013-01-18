@@ -11,7 +11,7 @@ typedef struct _MVMThreadBody {
     apr_pool_t *apr_pool;
     
     /* next in tc's starting_threads list */
-    MVMObject *next;
+    struct _MVMThread *next;
     
     /* flag */
     MVMuint8 started;
