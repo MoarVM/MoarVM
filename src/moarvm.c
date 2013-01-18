@@ -33,12 +33,6 @@ MVMInstance * MVM_vm_create_instance(void) {
      * (the main thread got ID 0). */
     instance->num_user_threads    = 0;
     instance->next_user_thread_id = 1;
-    if ((apr_init_stat = apr_thread_mutex_create(&instance->mutex_user_threads, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) {
-        char error[256];
-        fprintf(stderr, "MoarVM: Initialization of user threads mutex failed\n    %s\n",
-            apr_strerror(apr_init_stat, error, 256));
-        exit(1);
-	}
 
     /* Set up the permanent roots storage. */
     instance->num_permroots   = 0;
@@ -58,6 +52,8 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->main_thread->thread_obj = (MVMThread *)
             REPR(instance->boot_types->BOOTThread)->allocate(
                 instance->main_thread, STABLE(instance->boot_types->BOOTThread));
+    instance->running_threads->body.stage = MVM_thread_stage_started;
+    instance->running_threads->body.tc = instance->main_thread;
     
     return instance;
 }
@@ -113,8 +109,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     apr_pool_destroy(instance->apr_pool);
     
     /* Clear up VM instance memory. */
-    if (instance->user_threads)
-        free(instance->user_threads);
     free(instance);
     
     /* Terminate APR. */

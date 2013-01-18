@@ -134,11 +134,9 @@ typedef struct _MVMThreadContext {
     
     /* The GC's cross-thread in-tray of processing work. */
     struct _MVMGCPassedWork *gc_in_tray;
-    
-    /* A NULL-terminated array of threads that we have stolen GC
-     * responsibility for, because they were blocked when we were
-     * planning a GC run. */
-    struct _MVMThreadContext **stolen_for_gc;
+    /* The GC's thread-local "sent items" list, by next_by_sender. */
+    struct _MVMGCPassedWork *gc_sent_items;
+    struct _MVMGCPassedWork *gc_next_to_check;
     
     /* Pool table of chains of frames for each static frame. */
     struct _MVMFrame **frame_pool_table;

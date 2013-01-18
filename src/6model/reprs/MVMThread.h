@@ -1,4 +1,11 @@
 /* Representation used for VM thread handles. */
+typedef enum {
+    MVM_thread_stage_starting = 0,
+    MVM_thread_stage_waiting = 1,
+    MVM_thread_stage_started = 2,
+    MVM_thread_stage_exited = 3
+} MVMThreadStages;
+
 typedef struct _MVMThreadBody {
     MVMThreadContext *tc;
     
@@ -10,11 +17,11 @@ typedef struct _MVMThreadBody {
     apr_thread_t *apr_thread;
     apr_pool_t *apr_pool;
     
-    /* next in tc's starting_threads list */
+    /* next in tc's starting_threads or running_threads list */
     struct _MVMThread *next;
     
-    /* flag */
-    MVMuint8 started;
+    /* MVMThreadStages */
+    AO_t stage;
 } MVMThreadBody;
 typedef struct _MVMThread {
     MVMObject common;

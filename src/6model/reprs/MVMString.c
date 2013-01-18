@@ -70,7 +70,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVMStrandIndex index = 0;
         MVMStrandIndex strand_count = body->num_strands;
         while(index < strand_count)
-            MVM_gc_worklist_add(tc, worklist, (strands + index++)->string);
+            MVM_gc_worklist_add(tc, worklist, &(strands + index++)->string);
     }
 }
 

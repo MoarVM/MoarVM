@@ -15,8 +15,8 @@ typedef struct {
 
 /* Foward decls. */
 static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, WorkToPass *wtp, MVMuint8 gen);
-static void pass_work_item(MVMInstance *i, WorkToPass *wtp, MVMCollectable **item_ptr);
-static void pass_leftover_work(MVMInstance *i, WorkToPass *wtp);
+static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable **item_ptr);
+static void pass_leftover_work(MVMThreadContext *tc, WorkToPass *wtp);
 static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
 /* Does a garbage collection run. Exactly what it does is configured by the
@@ -60,6 +60,8 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         /* Reset nursery allocation pointers to the new tospace. */
         tc->nursery_alloc       = tospace;
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
+        
+        MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
 
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
@@ -67,8 +69,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
             MVM_gc_root_add_permanents_to_worklist(tc, worklist);
             process_worklist(tc, worklist, &wtp, gen);
             MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
-            process_worklist(tc, worklist, &wtp, gen);
-            MVM_thread_add_starting_threads_to_worklist(tc, worklist);
             process_worklist(tc, worklist, &wtp, gen);
         }
 
@@ -107,7 +107,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     /* Pass any work for other threads we accumulated but that didn't trigger
      * the work passing threshold, then cleanup work passing list. */
     if (wtp.num_target_threads) {
-        pass_leftover_work(tc->instance, &wtp);
+        pass_leftover_work(tc, &wtp);
         free(wtp.target_work);
     }
     
@@ -161,7 +161,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
-            pass_work_item(tc->instance, wtp, item_ptr);
+            pass_work_item(tc, wtp, item_ptr);
             continue;
         }
         
@@ -174,6 +174,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              new_addr = item;
              *item_ptr = item->forwarder = new_addr;
         } else {
+            if ((char *)item < (char *)tc->nursery_fromspace || (char *)item >= (char *)tc->nursery_fromspace + MVM_NURSERY_SIZE)
+                MVM_panic(MVM_exitcode_gcnursery, "Bad pointer in the GC");
             /* We've got a live object in the nursery; this means some kind of
              * copying is going to happen. Work out the size. */
             if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
@@ -288,27 +290,38 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 }
 
 /* Adds a chunk of work to another thread's in-tray. */
-static void push_work_to_thread_in_tray(MVMInstance *i, MVMuint32 target, MVMGCPassedWork *work) {
+static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, MVMGCPassedWork *work) {
     MVMint32 j;
     
     /* Locate the thread to pass the work to. */
     MVMThreadContext *target_tc = NULL;
     if (target == 0) {
         /* It's going to the main thread. */
-        target_tc = i->main_thread;
+        target_tc = tc->instance->main_thread;
     }
     else {
-        for (j = 0; j < i->num_user_threads; j++) {
-            MVMThread *t = i->user_threads[j];
+        MVMThread *t = tc->instance->running_threads;
+        do {
             if (t->body.tc->thread_id == target) {
                 target_tc = t->body.tc;
                 break;
             }
-        }
+        } while (t = t->body.next);
+        if (!target_tc)
+            MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID in GC work pass");
     }
-    if (!target_tc)
-        MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID in GC work pass");
-
+    
+    /* push to sent_items list */
+    if (tc->gc_sent_items) {
+        tc->gc_sent_items->next_by_sender = work;
+        work->last_by_sender = tc->gc_sent_items;
+    }
+    /* queue it up to check if the check list isn't clear */
+    if (!tc->gc_next_to_check) {
+        tc->gc_next_to_check = work;
+    }
+    tc->gc_sent_items = work;
+    
     /* Pass the work, chaining any other in-tray entries for the thread
      * after us. */
     while (1) {
@@ -321,10 +334,11 @@ static void push_work_to_thread_in_tray(MVMInstance *i, MVMuint32 target, MVMGCP
 
 /* Adds work to list of items to pass over to another thread, and if we 
  * reach the pass threshold then does the passing. */
-static void pass_work_item(MVMInstance *i, WorkToPass *wtp, MVMCollectable **item_ptr) {
+static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable **item_ptr) {
     ThreadWork *target_info = NULL;
     MVMuint32   target      = (*item_ptr)->owner;
     MVMuint32   j;
+    MVMInstance *i          = tc->instance;
     
     /* Find any existing thread work passing list for the target. */
     for (j = 0; j < wtp->num_target_threads; j++) {
@@ -346,9 +360,7 @@ static void pass_work_item(MVMInstance *i, WorkToPass *wtp, MVMCollectable **ite
 
     /* See if there's a currently active list; create it if not. */
     if (!target_info->work) {
-        target_info->work = malloc(sizeof(MVMGCPassedWork));
-        target_info->work->num_items = 0;
-        target_info->work->next = NULL;
+        target_info->work = calloc(sizeof(MVMGCPassedWork), 1);
     }
 
     /* Add this item to the work list. */
@@ -357,17 +369,17 @@ static void pass_work_item(MVMInstance *i, WorkToPass *wtp, MVMCollectable **ite
 
     /* If we've hit the limit, pass this work to the target thread. */
     if (target_info->work->num_items == MVM_GC_PASS_WORK_SIZE) {
-        push_work_to_thread_in_tray(i, target, target_info->work);
+        push_work_to_thread_in_tray(tc, target, target_info->work);
         target_info->work = NULL;
     }
 }
 
 /* Passes all work for other threads that we've got left in our to-pass list. */
-static void pass_leftover_work(MVMInstance *i, WorkToPass *wtp) {
+static void pass_leftover_work(MVMThreadContext *tc, WorkToPass *wtp) {
     MVMuint32 j;
     for (j = 0; j < wtp->num_target_threads; j++)
         if (wtp->target_work[j].work)
-            push_work_to_thread_in_tray(i, wtp->target_work[j].target,
+            push_work_to_thread_in_tray(tc, wtp->target_work[j].target,
                 wtp->target_work[j].work);
 }
 
@@ -393,7 +405,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
         MVMuint32 i;
         for (i = 0; i < head->num_items; i++)
             MVM_gc_worklist_add(tc, worklist, head->items[i]);
-        free(head);
+        head->completed = 1;
         head = next;
     }
 }

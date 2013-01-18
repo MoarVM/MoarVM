@@ -30,10 +30,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMThreadBody *body = (MVMThreadBody *)data;
-    if (body->invokee) {
-        MVM_gc_worklist_add(tc, worklist, body->invokee);
-    }
-    /* Don't add the next object; the GC itself does that */
+    MVM_gc_worklist_add(tc, worklist, &body->invokee);
+    MVM_gc_worklist_add(tc, worklist, &body->next);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

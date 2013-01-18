@@ -18,7 +18,6 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     MVMThread *thread = (MVMThread *)ts->thread_obj;
     MVMObject *invokee = thread->body.invokee;
     
-    thread->body.started = 1;
     thread->body.invokee = NULL;
     
     /* Dummy, 0-arg callsite. */
@@ -45,10 +44,23 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     ts->tc->cur_frame = ts->caller;
     
     /* If we happen to be in a GC run right now, pause until it's done. */
+    if ((orch = ts->tc->instance->gc_orch)
+            && orch->stage != MVM_gc_stage_finished
+            && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
+        MVM_cas(&ts->tc->thread_obj->body.stage, MVM_thread_stage_starting, MVM_thread_stage_waiting);
+        printf("Thread %d - pausing until GC complete\n", ts->tc->thread_id);
+    }
     while ((orch = ts->tc->instance->gc_orch)
-            && orch->stage == MVM_gc_stage_started
-            && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
+            && orch->stage != MVM_gc_stage_finished
+            && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
         apr_thread_yield();
+    }
+    if (ts->tc->gc_status == MVMGCStatus_INTERRUPT) {
+        printf("Thread %d - caught an interrupt to join the GC run\n", ts->tc->thread_id);
+    }
+    ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
+    
+    GC_SYNC_POINT(ts->tc);
     
     /* Enter the interpreter, to run code. */
     MVM_interp_run(ts->tc, &thread_initial_invoke, ts);
@@ -60,19 +72,14 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
      * of GC-ing our objects and cleaning up our thread context. */
     MVM_gc_mark_thread_dying(ts->tc);
     
+    /* mark as exited */
+    ts->tc->thread_obj->body.stage = MVM_thread_stage_exited;
+    
     //printf("thread %d exiting\n", ts->tc->thread_id);
     
     /* Exit the thread, now it's completed. */
     apr_thread_exit(thread, APR_SUCCESS);
     return NULL;
-}
-
-/* Adds a thread to the instance's user_threads list. Note that this should only
- * be called by code holding the user_threads mutex. */
-static void add_user_threads_entry(MVMInstance *i, MVMThread *thread) {
-    i->num_user_threads++;
-    i->user_threads = realloc(i->user_threads, i->num_user_threads * sizeof(MVMThread *));
-    i->user_threads[i->num_user_threads - 1] = thread;
 }
 
 MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject *result_type) {
@@ -99,18 +106,13 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
             MVM_panic(MVM_exitcode_threads, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
         }
         
-        /* Take the user threads mutex and update global thread-related state,
-         * give the thread an ID, etc. */
-        if (apr_thread_mutex_lock(tc->instance->mutex_user_threads) != APR_SUCCESS)
-            MVM_panic(MVM_exitcode_threads, "Unable to lock user_threads mutex");
-        
         /* push to starting threads list */
-        child->body.next = tc->instance->starting_threads;
-        tc->instance->starting_threads = (MVMThread *)child_obj;
+        do {
+            child->body.next = tc->instance->starting_threads;
+        } while (apr_atomic_casptr(&tc->instance->starting_threads, child, child->body.next) != child->body.next);
         
-        child_tc->thread_id = tc->instance->next_user_thread_id;
-        tc->instance->next_user_thread_id++;
-        add_user_threads_entry(tc->instance, child);
+        child_tc->thread_id = MVM_atomic_incr(
+        &tc->instance->next_user_thread_id);
         
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was
@@ -131,11 +133,6 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         if (apr_return_status != APR_SUCCESS) {
             MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", apr_return_status);
         }
-        
-        /* We can't release the mutex until the thread has been launched, so it
-         * can respond to a GC interrupt when it needs to. */
-        if (apr_thread_mutex_unlock(tc->instance->mutex_user_threads) != APR_SUCCESS)
-            MVM_panic(MVM_exitcode_threads, "Unable to unlock user_threads mutex");
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -163,19 +160,27 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     }
 }
 
-void MVM_thread_add_starting_threads_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    /* Guaranteed to be the only thread accessing the list. */
+void MVM_thread_cleanup_starting_threads(MVMThreadContext *tc) {
+    /* Assumed to be the only thread accessing the list. */
     MVMThread *new_list = NULL, *this = tc->instance->starting_threads, *next;
     while (this) {
         next = this->body.next;
-        if (this->body.started) {
-            this->body.next = tc->instance->running_threads;
-            tc->instance->running_threads = this;
-        }
-        else {
-            MVM_gc_worklist_add(tc, worklist, this);
-            this->body.next = new_list;
-            new_list = this;
+        switch(this->body.stage) {
+            case MVM_thread_stage_starting:
+            case MVM_thread_stage_waiting:
+                /* push it to the new starting list */
+                this->body.next = new_list;
+                new_list = this;
+                break;
+            case MVM_thread_stage_started:
+            case MVM_thread_stage_exited:
+                /* push it to the running list */
+                /* if it's exited, the coordinator will destroy it */
+                this->body.next = tc->instance->running_threads;
+                tc->instance->running_threads = this;
+                break;
+            default:
+                MVM_panic(MVM_exitcode_threads, "Thread in unknown stage: %d\n", this->body.stage);
         }
         this = next;
     }

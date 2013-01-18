@@ -10,20 +10,22 @@ typedef enum {
     MVM_gc_stage_initializing = 2
 } MVM_gc_orchestation_stages;
 
-/* This structure tracks the orchestration of a given GC run. */
-typedef struct _MVMGCOrchestration {    
-    /* The number of threads that we expect to join in with GC. */
-    MVMuint32 expected_gc_threads;
-
+/* This structure tracks the orchestration of the GC runs. */
+typedef struct _MVMGCOrchestration {
     /* The number of threads that vote for starting GC. */
-    MVMuint32 start_votes;
+    AO_t start_votes_remaining;
     
-    /* The number of threads that vote for considering GC done. */
-    MVMuint32 finish_votes;
+    /* The number of threads that still need to vote for considering GC done. */
+    AO_t finish_votes_remaining;
     
     /* The number of threads that have yet to acknowledge the finish. */
-    MVMuint32 finish_ack_remaining;
+    AO_t finish_ack_remaining;
     
     /* Stage state flag. See MVM_gc_orchestation_stages. */
     MVMuint32 stage;
+    
+    /* threads stolen */
+    MVMThreadContext **stolen;
+    MVMuint32 stolen_size;
+    MVMuint32 stolen_count;
 } MVMGCOrchestration;

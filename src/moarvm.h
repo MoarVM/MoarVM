@@ -63,3 +63,11 @@ MVMInstance * MVM_vm_create_instance(void);
 void MVM_vm_run_file(MVMInstance *instance, char *filename);
 void MVM_vm_dump_file(MVMInstance *instance, char *filename);
 void MVM_vm_destroy_instance(MVMInstance *instance);
+
+/* returns original. Use only on AO_t-sized values (including pointers). */
+#define MVM_atomic_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))
+#define MVM_atomic_decr(addr) AO_fetch_and_sub1_full((volatile AO_t *)(addr))
+#define MVM_atomic_add(addr, add) AO_fetch_and_add_full((volatile AO_t *)(addr), (AO_t)(add))
+/* returns non-zero for success. Use for both AO_t numbers and pointers. */
+#define MVM_cas(addr, old, new) AO_compare_and_swap_full((volatile AO_t *)(addr), (AO_t)(old), (AO_t)(new))
+#define MVM_barrier() AO_nop_full()
