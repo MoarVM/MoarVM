@@ -174,8 +174,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              new_addr = item;
              *item_ptr = item->forwarder = new_addr;
         } else {
-            if ((char *)item < (char *)tc->nursery_fromspace || (char *)item >= (char *)tc->nursery_fromspace + MVM_NURSERY_SIZE)
-                MVM_panic(MVM_exitcode_gcnursery, "Bad pointer in the GC");
             /* We've got a live object in the nursery; this means some kind of
              * copying is going to happen. Work out the size. */
             if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))

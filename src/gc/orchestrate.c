@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEGUG 1
+#define GCORCH_DEGUG 0
 #define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEGUG) printf(msg, tc->thread_id, __VA_ARGS__)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
