@@ -48,15 +48,12 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
             && orch->stage != MVM_gc_stage_finished
             && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
         MVM_cas(&ts->tc->thread_obj->body.stage, MVM_thread_stage_starting, MVM_thread_stage_waiting);
-    //    printf("Thread %d - pausing until GC complete\n", ts->tc->thread_id);
         while (orch->stage != MVM_gc_stage_finished
                 && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
             apr_thread_yield();
         }
     }
     ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
-    
-    //GC_SYNC_POINT(ts->tc);
     
     /* Enter the interpreter, to run code. */
     MVM_interp_run(ts->tc, &thread_initial_invoke, ts);
@@ -70,8 +67,6 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     
     /* mark as exited */
     ts->tc->thread_obj->body.stage = MVM_thread_stage_exited;
-    
-    printf("thread %d exiting\n", ts->tc->thread_id);
     
     free(ts);
     

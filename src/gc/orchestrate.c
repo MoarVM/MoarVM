@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEGUG 1
+#define GCORCH_DEGUG 0
 #define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEGUG) printf(msg, tc->thread_id, __VA_ARGS__)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
@@ -70,8 +70,7 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc) {
         switch (t->body.stage) {
             case MVM_thread_stage_starting:
                 GCORCH_LOG(tc, "Thread %d : Detected starting thread %d\n", t->body.tc->thread_id);
-                /* ignore; it will detect the gc run and wait. */
-                break;
+                /* fall through */
             case MVM_thread_stage_waiting:
                 GCORCH_LOG(tc, "Thread %d : Detected starting thread %d waiting for interrupt\n", t->body.tc->thread_id);
                 /* fall through */
@@ -121,7 +120,7 @@ static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen, MVMuint32 *put_v
     }
 }
 
-/* Does work in a thread's in-tray, if any. Returns 0 if all work is done. */
+/* Checks whether our sent items have been completed. Returns 0 if all work is done. */
 static MVMuint32 process_sent_items(MVMThreadContext *tc, MVMuint32 *put_vote) {
     /* Is any of our work outstanding? If so, take away our finish vote.
      * If we successfully check all our work, add the finish vote back. */
