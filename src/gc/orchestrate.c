@@ -1,7 +1,11 @@
 #include "moarvm.h"
 
 #define GCORCH_DEBUG 0
-#define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number , # __VA_ARGS__)
+#ifdef _MSC_VER
+# define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
+#else
+# define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number , # __VA_ARGS__)
+#endif
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
  * list. */
