@@ -42,17 +42,12 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     /* Set the current frame in the thread to be the initial caller;
      * the ref count for this was incremented in the original thread. */
     ts->tc->cur_frame = ts->caller;
-    
     /* If we happen to be in a GC run right now, pause until it's done. */
-    if ((orch = ts->tc->instance->gc_orch)
+    while ((orch = ts->tc->instance->gc_orch)
             && orch->stage != MVM_gc_stage_finished
-            && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
-        MVM_cas(&ts->tc->thread_obj->body.stage, MVM_thread_stage_starting, MVM_thread_stage_waiting);
-        while (orch->stage != MVM_gc_stage_finished
-                && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
-            apr_thread_yield();
-        }
-    }
+            && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
+        apr_thread_yield();
+    
     ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
     
     /* Enter the interpreter, to run code. */
