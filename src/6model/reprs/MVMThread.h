@@ -3,7 +3,8 @@ typedef enum {
     MVM_thread_stage_starting = 0,
     MVM_thread_stage_waiting = 1,
     MVM_thread_stage_started = 2,
-    MVM_thread_stage_exited = 3
+    MVM_thread_stage_exited = 3,
+    MVM_thread_stage_destroyed = 4
 } MVMThreadStages;
 
 typedef struct _MVMThreadBody {

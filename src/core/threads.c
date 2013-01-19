@@ -48,19 +48,15 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
             && orch->stage != MVM_gc_stage_finished
             && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
         MVM_cas(&ts->tc->thread_obj->body.stage, MVM_thread_stage_starting, MVM_thread_stage_waiting);
-        printf("Thread %d - pausing until GC complete\n", ts->tc->thread_id);
-    }
-    while ((orch = ts->tc->instance->gc_orch)
-            && orch->stage != MVM_gc_stage_finished
-            && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
-        apr_thread_yield();
-    }
-    if (ts->tc->gc_status == MVMGCStatus_INTERRUPT) {
-        printf("Thread %d - caught an interrupt to join the GC run\n", ts->tc->thread_id);
+    //    printf("Thread %d - pausing until GC complete\n", ts->tc->thread_id);
+        while (orch->stage != MVM_gc_stage_finished
+                && ts->tc->gc_status != MVMGCStatus_INTERRUPT) {
+            apr_thread_yield();
+        }
     }
     ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
     
-    GC_SYNC_POINT(ts->tc);
+    //GC_SYNC_POINT(ts->tc);
     
     /* Enter the interpreter, to run code. */
     MVM_interp_run(ts->tc, &thread_initial_invoke, ts);
@@ -75,7 +71,9 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     /* mark as exited */
     ts->tc->thread_obj->body.stage = MVM_thread_stage_exited;
     
-    //printf("thread %d exiting\n", ts->tc->thread_id);
+    printf("thread %d exiting\n", ts->tc->thread_id);
+    
+    free(ts);
     
     /* Exit the thread, now it's completed. */
     apr_thread_exit(thread, APR_SUCCESS);
@@ -111,8 +109,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
             child->body.next = tc->instance->starting_threads;
         } while (apr_atomic_casptr(&tc->instance->starting_threads, child, child->body.next) != child->body.next);
         
-        child_tc->thread_id = MVM_atomic_incr(
-        &tc->instance->next_user_thread_id);
+        child_tc->thread_id = MVM_atomic_incr(&tc->instance->next_user_thread_id);
         
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was
@@ -160,12 +157,13 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     }
 }
 
-void MVM_thread_cleanup_starting_threads(MVMThreadContext *tc) {
+void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
     /* Assumed to be the only thread accessing the list. */
-    MVMThread *new_list = NULL, *this = tc->instance->starting_threads, *next;
+    MVMThread *new_list = NULL, *this = *head, *next;
+    *head = NULL;
     while (this) {
         next = this->body.next;
-        switch(this->body.stage) {
+        switch (this->body.stage) {
             case MVM_thread_stage_starting:
             case MVM_thread_stage_waiting:
                 /* push it to the new starting list */
@@ -179,10 +177,13 @@ void MVM_thread_cleanup_starting_threads(MVMThreadContext *tc) {
                 this->body.next = tc->instance->running_threads;
                 tc->instance->running_threads = this;
                 break;
+            case MVM_thread_stage_destroyed:
+                /* don't put in a list */
+                break;
             default:
                 MVM_panic(MVM_exitcode_threads, "Thread in unknown stage: %d\n", this->body.stage);
         }
         this = next;
     }
-    tc->instance->starting_threads = new_list;
+    if (new_list) *head = new_list;
 }

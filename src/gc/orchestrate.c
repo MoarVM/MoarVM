@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEGUG 0
+#define GCORCH_DEGUG 1
 #define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEGUG) printf(msg, tc->thread_id, __VA_ARGS__)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
@@ -83,6 +83,11 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc) {
             case MVM_thread_stage_exited:
                 GCORCH_LOG(tc, "Thread %d : Destroying thread %d\n", t->body.tc->thread_id);
                 MVM_tc_destroy(t->body.tc);
+                t->body.tc = NULL;
+                t->body.stage = MVM_thread_stage_destroyed;
+                break;
+            case MVM_thread_stage_destroyed:
+                /* will be cleaned up shortly */
                 break;
             default:
                 MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %d", t->body.stage);
@@ -267,6 +272,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 /* Called by a thread to indicate it is dying and needs reaped. */
 void MVM_gc_mark_thread_dying(MVMThreadContext *tc) {
     /* This may need more than one attempt. */
+    GCORCH_LOG(tc, "Thread %d : Marking self dying!\n");
     while (1) {
         /* Try to set it from running to dying - the common case. */
         if (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_DYING,
@@ -357,7 +363,8 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         gc_orch->finish_votes_remaining = num_threads - gc_orch->stolen_count + 2;
         
         /* cleanup the lists */
-        MVM_thread_cleanup_starting_threads(tc);
+        MVM_thread_cleanup_threads_list(tc, &tc->instance->starting_threads);
+        MVM_thread_cleanup_threads_list(tc, &tc->instance->running_threads);
         
         /* signal to the rest to start */
         MVM_atomic_decr(&gc_orch->start_votes_remaining);
