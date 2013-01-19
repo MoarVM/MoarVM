@@ -1,6 +1,8 @@
 /* The various "bootstrap" types, based straight off of some core
  * representations. They are used during the 6model bootstrap. */
 struct _MVMBootTypes {
+    MVMObject *BOOTInt;
+    MVMObject *BOOTNum;
     MVMObject *BOOTStr;
     MVMObject *BOOTArray;
     MVMObject *BOOTHash;

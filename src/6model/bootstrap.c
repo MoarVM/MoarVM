@@ -40,6 +40,18 @@ static void create_stub_BOOTStr(MVMThreadContext *tc) {
     st->WHAT = tc->instance->boot_types->BOOTStr;
 }
 
+/* Creates a stub BOOTInt (missing a meta-object). */
+static void create_stub_BOOTInt(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6int);
+    tc->instance->boot_types->BOOTInt = repr->type_object_for(tc, NULL);
+}
+
+/* Creates a stub BOOTNum (missing a meta-object). */
+static void create_stub_BOOTNum(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6num);
+    tc->instance->boot_types->BOOTNum = repr->type_object_for(tc, NULL);
+}
+
 /* Creates a stub BOOTArray (missing a meta-object). */
 static void create_stub_BOOTArray(MVMThreadContext *tc) {
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
@@ -536,7 +548,9 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
 
-    /* Create stub BOOTArray, BOOTHash, BOOTCCode and BOOTCode types. */
+    /* Create stub BOOTInt, BOOTNum, BOOTArray, BOOTHash, BOOTCCode and BOOTCode types. */
+    create_stub_BOOTInt(tc);
+    create_stub_BOOTNum(tc);
     create_stub_BOOTArray(tc);
     create_stub_BOOTHash(tc);
     create_stub_BOOTCCode(tc);
@@ -560,9 +574,13 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
     
-    /* Give BOOTStr, BOOTArray, BOOTHash, BOOTCCode and BOOTCode meta-objects. */
+    /* Give BOOTStr, BOOTInt, BOOTNum, BOOTArray, BOOTHash, BOOTCCode and BOOTCode meta-objects. */
     add_meta_object(tc, tc->instance->boot_types->BOOTStr, "BOOTStr");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStr);
+    add_meta_object(tc, tc->instance->boot_types->BOOTInt, "BOOTInt");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTInt);
+    add_meta_object(tc, tc->instance->boot_types->BOOTNum, "BOOTNum");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTNum);
     add_meta_object(tc, tc->instance->boot_types->BOOTArray, "BOOTArray");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTArray);
     add_meta_object(tc, tc->instance->boot_types->BOOTHash, "BOOTHash");
