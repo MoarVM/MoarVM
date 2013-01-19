@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
-#define GCORCH_DEGUG 0
-#define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEGUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number , # __VA_ARGS__)
+#define GCORCH_DEBUG 0
+#define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number , # __VA_ARGS__)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
  * list. */
@@ -33,7 +33,8 @@ static MVMuint32 signal_one_thread(MVMThreadContext *us, MVMThreadContext *to_si
         
         if (to_signal->gc_status != MVMGCStatus_NONE
                 && to_signal->gc_status != MVMGCStatus_UNABLE
-                && to_signal->gc_status != MVMGCStatus_DYING) {
+                && to_signal->gc_status != MVMGCStatus_DYING
+                && to_signal->gc_status != MVMGCStatus_INTERRUPT) {
             MVM_panic(3, "thread in strange state: %d\n", to_signal->gc_status);
         }
         
@@ -124,18 +125,22 @@ static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen, MVMuint32 *put_v
 static MVMuint32 process_sent_items(MVMThreadContext *tc, MVMuint32 *put_vote) {
     /* Is any of our work outstanding? If so, take away our finish vote.
      * If we successfully check all our work, add the finish vote back. */
-    MVMGCPassedWork *work = tc->gc_next_to_check, *last;
+    MVMGCPassedWork *work = tc->gc_next_to_check;
     MVMuint32 advanced = 0;
     if (work) {
+        /* if we have a submitted work item we haven't claimed a vote for, get a vote. */
         if (!*put_vote) {
             MVM_atomic_incr(&tc->instance->gc_orch->finish_votes_remaining);
             *put_vote = 1;
         }
-        /* if we have a submitted work item we haven't claimed a vote for, get a vote. */
         if (!work->upvoted) {
             work->upvoted = 1;
         }
-        while (work->completed && (advanced = 1) && (work = work->next_by_sender));
+        while (work->completed) {
+            advanced = 1;
+            work = work->next_by_sender;
+            if (!work) break;
+        }
         if (advanced) {
             tc->gc_next_to_check = work;
         }
@@ -144,6 +149,7 @@ static MVMuint32 process_sent_items(MVMThreadContext *tc, MVMuint32 *put_vote) {
             return 0;
         }
         else {
+            /* otherwise indicate that something we submitted isn't finished */
             work->upvoted = 1;
             return 1;
         }
@@ -179,6 +185,15 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, AO_t threshold, MVMuin
     GCORCH_LOG(tc, "Thread %d run %d : Discovered GC termination\n");
 }
 
+static void cleanup_sent_items(MVMThreadContext *tc) {
+    MVMGCPassedWork *work = tc->gc_sent_items, *next;
+    while (work) {
+        next = work->last_by_sender;
+    //    free(work);
+        work = next;
+    }
+}
+
 /* Cleans up after a GC run, resetting flags and so forth. */
 static void cleanup_all(MVMThreadContext *tc) {
     /* Reset GC status flags for any stolen threads. */
@@ -186,12 +201,14 @@ static void cleanup_all(MVMThreadContext *tc) {
     if (gc_orch->stolen_count) {
         MVMuint32 i = 0;
         for ( ; i < gc_orch->stolen_count; i++) {
+            cleanup_sent_items(gc_orch->stolen[i]);
             apr_atomic_cas32(&gc_orch->stolen[i]->gc_status, MVMGCStatus_UNABLE,
                 MVMGCStatus_STOLEN);
             apr_atomic_cas32(&gc_orch->stolen[i]->gc_status, MVMGCStatus_REAPED,
                 MVMGCStatus_REAPING);
         }
     }
+    cleanup_sent_items(tc);
     
     /* Reset status for all other threads. */
     {
@@ -426,6 +443,7 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     
     /* Wait for completion, doing any extra work that we need to. */
     finish_gc(tc, gen, 0, 0);
+    cleanup_sent_items(tc);
     
     /* Now we're all done, it's safe to finalize any objects that need it. */
     MVM_gc_collect_free_nursery_uncopied(tc, limit);
