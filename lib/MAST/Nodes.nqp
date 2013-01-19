@@ -37,12 +37,48 @@ class MAST::CompUnit is MAST::Node {
     # The set of frames that make up this compilation unit.
     has @!frames;
     
+    # The HLL name.
+    has str $!hll;
+    
+    # The frame for the main entry point, if any.
+    has $!main_frame;
+    
+    # The frame for the library-load entry point, if any.
+    has $!load_frame;
+    
+    # The frame containing the deserialization code, if any.
+    has $!deserialize_frame;
+    
     method add_frame($frame) {
         @!frames[+@!frames] := $frame;
     }
     
     method DUMP_lines(@lines, $indent) {
         nqp::push(@lines, $_.DUMP($indent)) for @!frames;
+    }
+    
+    method hll($hll?) {
+        nqp::defined($hll)
+            ?? $!hll := $hll
+            !! $!hll
+    }
+    
+    method main_frame($frame?) {
+        nqp::defined($frame)
+            ?? $!main_frame := $frame
+            !! $!main_frame
+    }
+    
+    method load_frame($frame?) {
+        nqp::defined($frame)
+            ?? $!load_frame := $frame
+            !! $!load_frame
+    }
+    
+    method deserialize_frame($frame?) {
+        nqp::defined($frame)
+            ?? $!deserialize_frame := $frame
+            !! $!deserialize_frame
     }
 }
 
