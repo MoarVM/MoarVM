@@ -88,6 +88,9 @@ what it contains.
     | Library load frame index + 1; 0 if no load frame        |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | Deserialization frame index + 1; 0 if none              |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
 ## Strings heap
 This segment contains a bunch of string data. Each string is laid out as:
