@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 #define GCORCH_DEGUG 0
-#define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEGUG) printf(msg, tc->thread_id, tc->instance->gc_seq_number, __VA_ARGS__)
+#define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEGUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number , # __VA_ARGS__)
 
 /* If we steal the job of doing GC for a thread, we add it to our stolen
  * list. */
@@ -152,7 +152,7 @@ static MVMuint32 process_sent_items(MVMThreadContext *tc, MVMuint32 *put_vote) {
 }
 
 /* Called by a thread when it thinks it is done with GC. It may get some more
- * work yet, though. Called by all threads except the co-ordinator. */
+ * work yet, though. */
 static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, AO_t threshold, MVMuint8 process_stolen) {
     MVMGCOrchestration *gc_orch = tc->instance->gc_orch;
     MVMuint32 put_vote = 1;
