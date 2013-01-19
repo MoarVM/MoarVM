@@ -82,6 +82,12 @@ what it contains.
     |    providing the name of the HLL this compilation unit  |
     |    was compiled from. May be the empty string.          |
     +---------------------------------------------------------+
+    | Main entry point frame index + 1; 0 if no main frame    |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Library load frame index + 1; 0 if no load frame        |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
 ## Strings heap
 This segment contains a bunch of string data. Each string is laid out as:
