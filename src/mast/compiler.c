@@ -193,6 +193,17 @@ unsigned short get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
     }
 }
 
+/* Locates the index of a frame. */
+unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame) {
+    int num_frames = ELEMS(vm, ws->cu->frames);
+    unsigned short i;
+    for (i = 0; i < num_frames; i++)
+        if (ATPOS(vm, ws->cu->frames, i) == frame)
+            return i;
+    cleanup_all(vm, ws);
+    DIE(vm, "MAST::Frame passed for code ref not found in compilation unit");
+}
+
 /* Takes a 6model object type and turns it into a local/lexical type flag. */
 unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
     MVMStorageSpec ss = REPR(type)->get_storage_spec(vm, STABLE(type));
@@ -337,25 +348,11 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             }
             case MVM_operand_coderef: {
                 if (ISTYPE(vm, operand, ws->types->Frame)) {
-                    /* Find the frame index in the compilation unit. (Can
-                     * probably be more efficient here later with a hash, if
-                     * this becomes bottleneck...) */
-                    int num_frames = ELEMS(vm, ws->cu->frames);
-                    int found      = 0;
-                    unsigned short i;
+                    /* Find the frame index in the compilation unit. */
                     ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
-                    for (i = 0; i < num_frames; i++) {
-                        if (ATPOS(vm, ws->cu->frames, i) == operand) {
-                            write_int16(ws->bytecode_seg, ws->bytecode_pos, i);
-                            ws->bytecode_pos += 2;
-                            found = 1;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        cleanup_all(vm, ws);
-                        DIE(vm, "MAST::Frame passed for code ref not found in compilation unit");
-                    }
+                    write_int16(ws->bytecode_seg, ws->bytecode_pos,
+                        get_frame_index(vm, ws, operand));
+                    ws->bytecode_pos += 2;
                 }
                 else {
                     cleanup_all(vm, ws);
