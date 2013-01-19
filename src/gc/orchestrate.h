@@ -2,7 +2,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc);
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc);
 void MVM_gc_mark_thread_blocked(MVMThreadContext *tc);
 void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc);
-void MVM_gc_mark_thread_dying(MVMThreadContext *tc);
 
 typedef enum {
     MVM_gc_stage_started = 0,

@@ -58,7 +58,7 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     
     /* Mark ourselves as dying, so that another thread will take care
      * of GC-ing our objects and cleaning up our thread context. */
-    MVM_gc_mark_thread_dying(ts->tc);
+    MVM_gc_mark_thread_blocked(ts->tc);
     
     /* mark as exited */
     ts->tc->thread_obj->body.stage = MVM_thread_stage_exited;

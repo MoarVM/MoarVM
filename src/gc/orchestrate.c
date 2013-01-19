@@ -37,7 +37,6 @@ static MVMuint32 signal_one_thread(MVMThreadContext *us, MVMThreadContext *to_si
         
         if (to_signal->gc_status != MVMGCStatus_NONE
                 && to_signal->gc_status != MVMGCStatus_UNABLE
-                && to_signal->gc_status != MVMGCStatus_DYING
                 && to_signal->gc_status != MVMGCStatus_INTERRUPT) {
             MVM_panic(3, "thread in strange state: %d\n", to_signal->gc_status);
         }
@@ -51,9 +50,7 @@ static MVMuint32 signal_one_thread(MVMThreadContext *us, MVMThreadContext *to_si
         
         /* Otherwise, it's blocked; try to set it to work stolen. */
         if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_STOLEN,
-                MVMGCStatus_UNABLE) == MVMGCStatus_UNABLE
-           || apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_REAPING,
-                MVMGCStatus_DYING) == MVMGCStatus_DYING) {
+                MVMGCStatus_UNABLE) == MVMGCStatus_UNABLE) {
             /* We stole the work; it's now sufficiently opted in to GC that
              * we can increment the count of threads that are opted in. */
             add_stolen(us, to_signal);
@@ -208,8 +205,6 @@ static void cleanup_all(MVMThreadContext *tc) {
             cleanup_sent_items(gc_orch->stolen[i]);
             apr_atomic_cas32(&gc_orch->stolen[i]->gc_status, MVMGCStatus_UNABLE,
                 MVMGCStatus_STOLEN);
-            apr_atomic_cas32(&gc_orch->stolen[i]->gc_status, MVMGCStatus_REAPED,
-                MVMGCStatus_REAPING);
         }
     }
     cleanup_sent_items(tc);
@@ -286,25 +281,6 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
         /* We can't, presumably because a GC run is going on. We should wait
          * for that to finish before we go on, but without chewing CPU. */
         apr_thread_yield();
-    }
-}
-
-/* Called by a thread to indicate it is dying and needs reaped. */
-void MVM_gc_mark_thread_dying(MVMThreadContext *tc) {
-    /* This may need more than one attempt. */
-    GCORCH_LOG(tc, "Thread %d run %d : Marking self dying!\n");
-    while (1) {
-        /* Try to set it from running to dying - the common case. */
-        if (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_DYING,
-                MVMGCStatus_NONE) == MVMGCStatus_NONE)
-            return;
-        
-        /* The only way this can fail is if another thread just decided we're to
-         * participate in a GC run. */
-        if (tc->gc_status == MVMGCStatus_INTERRUPT)
-            MVM_gc_enter_from_interrupt(tc);
-        else
-            MVM_panic(MVM_exitcode_gcorch, "Invalid GC status observed; aborting");
     }
 }
 
