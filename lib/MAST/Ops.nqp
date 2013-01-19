@@ -1984,6 +1984,36 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
+            ),
+            'bootint', nqp::hash(
+                'code', 77,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'bootnum', nqp::hash(
+                'code', 78,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'bootstr', nqp::hash(
+                'code', 79,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'bootarray', nqp::hash(
+                'code', 80,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'boothash', nqp::hash(
+                'code', 81,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [

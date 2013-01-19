@@ -271,6 +271,11 @@
 #define MVM_OP_null 74
 #define MVM_OP_clone 75
 #define MVM_OP_isnull_s 76
+#define MVM_OP_bootint 77
+#define MVM_OP_bootnum 78
+#define MVM_OP_bootstr 79
+#define MVM_OP_bootarray 80
+#define MVM_OP_boothash 81
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

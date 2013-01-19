@@ -1463,6 +1463,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_bootint:
+                        GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTInt;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_bootnum:
+                        GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTNum;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_bootstr:
+                        GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTStr;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_bootarray:
+                        GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTArray;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_boothash:
+                        GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTHash;
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

@@ -260,6 +260,11 @@ BANK 4 object
 0x4A    null        w(obj)
 0x4B    clone       w(obj) r(obj)
 0x4C    isnull_s    w(int64) r(str)
+0x4D    bootint     w(obj)
+0x4E    bootnum     w(obj)
+0x4F    bootstr     w(obj)
+0x50    bootarray   w(obj)
+0x51    boothash    w(obj)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)
