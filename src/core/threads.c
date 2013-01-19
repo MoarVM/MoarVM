@@ -106,7 +106,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         
         /* push to starting threads list */
         child->body.next = tc->instance->starting_threads;
-        tc->instance->starting_threads = child_obj;
+        tc->instance->starting_threads = (MVMThread *)child_obj;
         
         child_tc->thread_id = tc->instance->next_user_thread_id;
         tc->instance->next_user_thread_id++;
