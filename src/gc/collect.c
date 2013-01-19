@@ -83,8 +83,10 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         process_worklist(tc, worklist, &wtp, gen);
         
         /* Find roots in frames and process them. */
-        if (tc->cur_frame)
+        if (tc->cur_frame) {
             MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
+			process_worklist(tc, worklist, &wtp, gen);
+		}
         
         /* Process anything in the in-tray. */
         add_in_tray_to_worklist(tc, worklist);
