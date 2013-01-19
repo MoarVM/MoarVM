@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* Some constants. */
-#define HEADER_SIZE             80
+#define HEADER_SIZE             96
 #define MIN_BYTECODE_VERSION    1
 #define MAX_BYTECODE_VERSION    1
 #define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
