@@ -11,7 +11,7 @@
 #endif
 
 /* Some sizes. */
-#define HEADER_SIZE             80
+#define HEADER_SIZE             96
 #define BYTECODE_VERSION        1
 #define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
 
@@ -865,10 +865,18 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     unsigned int size    = 0;
     unsigned int pos     = 0;
     char         *output = NULL;
+    unsigned int  string_heap_size;
+    char         *string_heap;
+    unsigned int  hll_str_idx;
+    
+    /* Store HLL name string, if any. */
+    if (!STRING_IS_NULL(ws->cu->hll))
+        hll_str_idx = get_string_heap_index(vm, ws, ws->cu->hll);
+    else
+        hll_str_idx = get_string_heap_index(vm, ws, EMPTY_STRING(vm));
     
     /* Build string heap. */
-    unsigned int  string_heap_size;
-    char         *string_heap = form_string_heap(vm, ws, &string_heap_size);
+    string_heap = form_string_heap(vm, ws, &string_heap_size);
     
     /* Work out total size. */
     size += HEADER_SIZE;
@@ -920,6 +928,21 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     write_int32(output, 76, ws->annotation_pos);
     memcpy(output + pos, ws->annotation_seg, ws->annotation_pos);
     pos += ws->annotation_pos;
+    
+    /* Add HLL and special frame indexes. */
+    write_int32(output, 80, hll_str_idx);
+    if (PMC_IS_NULL(ws->cu->main_frame))
+        write_int32(output, 84, 0);
+    else
+        write_int32(output, 84, 1 + get_frame_index(vm, ws, ws->cu->main_frame));
+    if (PMC_IS_NULL(ws->cu->load_frame))
+        write_int32(output, 88, 0);
+    else
+        write_int32(output, 88, 1 + get_frame_index(vm, ws, ws->cu->load_frame));
+    if (PMC_IS_NULL(ws->cu->deserialize_frame))
+        write_int32(output, 92, 0);
+    else
+        write_int32(output, 92, 1 + get_frame_index(vm, ws, ws->cu->deserialize_frame));
     
     /* Sanity...should never fail. */
     if (pos != size)

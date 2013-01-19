@@ -5,6 +5,10 @@ typedef struct {
     PMC    *reprs;
     PMC    *scs;
     PMC    *frames;
+    STRING *hll;
+    PMC    *main_frame;
+    PMC    *load_frame;
+    PMC    *deserialize_frame;
 } MAST_CompUnit;
 
 /* MAST::Frame */
@@ -147,6 +151,7 @@ typedef STRING VMSTR;
 #define BINDKEY_I(vm, hash, k, v)   (VTABLE_set_integer_keyed_str(vm, hash, k, v))
 #define EXISTSKEY(vm, hash, k)      (VTABLE_exists_keyed_str(vm, hash, k))
 #define DELETEKEY(vm, hash, k)      (VTABLE_delete_keyed_str(vm, hash, k))
+#define EMPTY_STRING(vm)            (Parrot_str_new_constant(interp, ""))
 
 /* Copies of MVM operand read/write/literal flags. */
 #define MVM_operand_literal     0
