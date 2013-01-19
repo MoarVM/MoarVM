@@ -77,6 +77,11 @@ what it contains.
     | Length of the annotation segment                        |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | HLL Name                                                |
+    |    32-bit unsigned integer index into the string heap,  |
+    |    providing the name of the HLL this compilation unit  |
+    |    was compiled from. May be the empty string.          |
+    +---------------------------------------------------------+
 
 ## Strings heap
 This segment contains a bunch of string data. Each string is laid out as:
