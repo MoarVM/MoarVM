@@ -157,9 +157,6 @@ static MVMuint32 process_sent_items(MVMThreadContext *tc, MVMuint32 *put_vote) {
             MVM_atomic_incr(&tc->instance->gc_orch->finish_votes_remaining);
             *put_vote = 1;
         }
-        if (!work->upvoted) {
-            work->upvoted = 1;
-        }
         while (work->completed) {
             advanced = 1;
             work = work->next_by_sender;
@@ -193,12 +190,12 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, AO_t threshold, MVMuin
     while (gc_orch->finish_votes_remaining != threshold) {
         MVMuint32 failed = 0;
         process_in_tray(tc, gen, &put_vote);
-        failed = process_sent_items(tc, &put_vote) || failed;
+        failed = process_sent_items(tc, &put_vote) | failed;
         if (process_stolen && gc_orch->stolen_count) {
             MVMuint32 i = 0;
             for ( ; i < gc_orch->stolen_count; i++) {
                 process_in_tray(gc_orch->stolen[i], gen, &put_vote);
-                failed = process_sent_items(gc_orch->stolen[i], &put_vote) || failed;
+                failed = process_sent_items(gc_orch->stolen[i], &put_vote) | failed;
             }
         }
         if (!failed && put_vote) {
@@ -214,8 +211,9 @@ static void cleanup_sent_items(MVMThreadContext *tc) {
     MVMGCPassedWork *work, *next = tc->gc_sent_items;
     while (work = next) {
         next = work->last_by_sender;
-    //    free(work);
+        free(work);
     }
+    tc->gc_sent_items = NULL;
 }
 
 /* Cleans up after a GC run, resetting flags and so forth. */
@@ -386,6 +384,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             stolen_limits = malloc(n * sizeof(void *));
             for ( ; i < n; i++) {
                 stolen_limits[i] = gc_orch->stolen[i]->nursery_alloc;
+    GCORCH_LOG(tc, "Thread %d run %d : starting stolen collection for thread %d\n", gc_orch->stolen[i]->thread_id);
                 MVM_gc_collect(gc_orch->stolen[i], MVMGCWhatToDo_NoInstance, gen);
             }
         }
