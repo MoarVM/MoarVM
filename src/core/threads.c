@@ -43,16 +43,21 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
      * the ref count for this was incremented in the original thread. */
     ts->tc->cur_frame = ts->caller;
     
+    orch = ts->tc->instance->gc_orch;
     /* If we happen to be in a GC run right now, pause until it's done. */
-    if ((orch = ts->tc->instance->gc_orch)
-            && ((orch->start_votes_remaining || orch->finish_votes_remaining)
-            && ts->tc->gc_status != MVMGCStatus_INTERRUPT)) {
+    if (ts->tc->gc_status == MVMGCStatus_STOLEN || (orch
+            && ((orch->start_votes_remaining | orch->finish_votes_remaining)
+            && ts->tc->gc_status != MVMGCStatus_INTERRUPT))) {
         //printf("thread %d waiting for gc to finish\n", ts->tc->thread_id);
-        while ((orch->start_votes_remaining || orch->finish_votes_remaining)
-                && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
+        while (ts->tc->gc_status == MVMGCStatus_STOLEN
+                || (orch->start_votes_remaining | orch->finish_votes_remaining)
+                    && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
             apr_thread_yield();
     }
-    apr_atomic_cas32(&ts->tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_UNABLE);
+    if (ts->tc->gc_status == MVMGCStatus_INTERRUPT)
+        MVM_gc_enter_from_interrupt(ts->tc);
+    else
+        apr_atomic_cas32(&ts->tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_UNABLE);
     
     ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
     
