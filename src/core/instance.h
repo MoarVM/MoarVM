@@ -62,9 +62,12 @@ typedef struct _MVMInstance {
     /* The current GC run sequence number. May wrap around over time; that
      * is fine since only equality ever matters. */
     MVMuint32 gc_seq_number;
-    
-    /* GC orchestration strucutre. */
-    struct _MVMGCOrchestration *gc_orch;
+    /* The number of threads that vote for starting GC. */
+    AO_t gc_start;
+    /* The number of threads that still need to vote for considering GC done. */
+    AO_t gc_finish;
+    /* The number of threads that have yet to acknowledge the finish. */
+    AO_t gc_ack;
     
     /* MVMThreads launched since or weren't finished starting at the last GC. */
     struct _MVMThread *starting_threads;

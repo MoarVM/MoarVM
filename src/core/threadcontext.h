@@ -19,11 +19,7 @@ typedef enum {
      * run was triggered and the scanning work was stolen. A thread
      * that becomes unblocked upon seeing this will wait for the GC
      * run to be done. */
-    MVMGCStatus_STOLEN = 3,
-    
-    /* signal to the GC coordinator that we entered by allocator then
-     * by interrupt ourselves, so count us. */
-    MVMGCStatus_ENTERED = 4
+    MVMGCStatus_STOLEN = 3
 } MVMGCStatus;
 
 /* Are we allocating in the nursery, or direct into generation 2? (The
@@ -127,6 +123,10 @@ typedef struct _MVMThreadContext {
     /* The GC's thread-local "sent items" list, by next_by_sender. */
     struct _MVMGCPassedWork *gc_sent_items;
     struct _MVMGCPassedWork *gc_next_to_check;
+    /* threads stolen. */
+    struct _MVMStolenThread *gc_stolen;
+    MVMuint32                gc_stolen_size;
+    MVMuint32                gc_stolen_count;
     
     /* Pool table of chains of frames for each static frame. */
     struct _MVMFrame **frame_pool_table;

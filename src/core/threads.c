@@ -37,38 +37,23 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
 /* This callback handles starting execution of a thread. */
 static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
-    MVMGCOrchestration *orch;
     
     /* Set the current frame in the thread to be the initial caller;
      * the ref count for this was incremented in the original thread. */
     ts->tc->cur_frame = ts->caller;
     
-    orch = ts->tc->instance->gc_orch;
-    /* If we happen to be in a GC run right now, pause until it's done. */
-    if (ts->tc->gc_status == MVMGCStatus_STOLEN || (orch
-            && ((orch->start_votes_remaining | orch->finish_votes_remaining)
-            && ts->tc->gc_status != MVMGCStatus_INTERRUPT))) {
-        //printf("thread %d waiting for gc to finish\n", ts->tc->thread_id);
-        while (ts->tc->gc_status == MVMGCStatus_STOLEN
-                || (orch->start_votes_remaining | orch->finish_votes_remaining)
-                    && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
-            apr_thread_yield();
-    }
-    if (ts->tc->gc_status == MVMGCStatus_INTERRUPT)
-        MVM_gc_enter_from_interrupt(ts->tc);
-    else
-        apr_atomic_cas32(&ts->tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_UNABLE);
-    
+    /* wait for the GC to finish if it's not finished stealing us. */
+    MVM_gc_mark_thread_unblocked(ts->tc);
     ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
     
     /* Enter the interpreter, to run code. */
     MVM_interp_run(ts->tc, &thread_initial_invoke, ts);
     
+    /* mark as exited, so the GC will know to clear our stuff. */
+    ts->tc->thread_obj->body.stage = MVM_thread_stage_exited;
+    
     /* Now we're done, decrement the reference count of the caller. */
     MVM_frame_dec_ref(ts->tc, ts->caller);
-    
-    /* mark as exited, so the GC will  */
-    ts->tc->thread_obj->body.stage = MVM_thread_stage_exited;
     
     /* Mark ourselves as dying, so that another thread will take care
      * of GC-ing our objects and cleaning up our thread context. */
@@ -111,22 +96,13 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         
         /* Signal to the GC we have a childbirth in progress. The GC
          * will null it for us. */
-        child_tc->gc_status = MVMGCStatus_UNABLE;
-        MVM_barrier();
+        MVM_gc_mark_thread_blocked(child_tc);
         tc->thread_obj->body.new_child = child;
         
         /* push to starting threads list */
         do {
             child->body.next = tc->instance->starting_threads;
         } while (apr_atomic_casptr(&tc->instance->starting_threads, child, child->body.next) != child->body.next);
-        
-        /* not sure this is needed */
-        /*
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&child);
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&child_obj);
-        GC_SYNC_POINT(tc);
-        MVM_gc_root_temp_pop_n(tc, 2);
-        */
         
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was
@@ -147,6 +123,11 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         if (apr_return_status != APR_SUCCESS) {
             MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", apr_return_status);
         }
+        
+        /* need to run the GC to clear our new_child field in case we try
+         * try to launch another thread before the GC runs and before the
+         * thread starts. */
+        GC_SYNC_POINT(tc);
     }
     else {
         MVM_exception_throw_adhoc(tc,
