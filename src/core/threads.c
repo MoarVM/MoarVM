@@ -45,6 +45,7 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     /* wait for the GC to finish if it's not finished stealing us. */
     MVM_gc_mark_thread_unblocked(ts->tc);
     ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
+    MVM_gc_root_temp_pop(ts->tc); /* pop the ts->thread_obj addr */
     
     /* Enter the interpreter, to run code. */
     MVM_interp_run(ts->tc, &thread_initial_invoke, ts);
@@ -117,6 +118,10 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         if (apr_return_status != APR_SUCCESS) {
             MVM_panic(MVM_exitcode_compunit, "Could not create threadattr: errorcode %d", apr_return_status);
         }
+        
+        /* push this to the *child* tc's temp roots so it can pop it when it starts. */
+        MVM_gc_root_temp_push(child_tc, (MVMCollectable **)&ts->thread_obj);
+        
         apr_return_status = apr_thread_create(&child->body.apr_thread,
             thread_attr, &start_thread, ts, child->body.apr_pool);
         
@@ -143,7 +148,12 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
         apr_status_t thread_return_status, apr_return_status;
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&thread);
         MVM_gc_mark_thread_blocked(tc);
-        apr_return_status = apr_thread_join(&thread_return_status, thread->body.apr_thread);
+        if (((MVMThread *)thread_obj)->body.stage < MVM_thread_stage_exited) {
+            apr_return_status = apr_thread_join(&thread_return_status, thread->body.apr_thread);
+        }
+        else { /* the target already ended */
+            apr_return_status = APR_SUCCESS;
+        }
         MVM_gc_mark_thread_unblocked(tc);
         MVM_gc_root_temp_pop(tc);
         if (apr_return_status != APR_SUCCESS)

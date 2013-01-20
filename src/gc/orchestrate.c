@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEBUG 1
+#define GCORCH_DEBUG 0
 #ifdef _MSC_VER
 # define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
