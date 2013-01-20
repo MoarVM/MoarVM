@@ -19,7 +19,11 @@ typedef enum {
      * run was triggered and the scanning work was stolen. A thread
      * that becomes unblocked upon seeing this will wait for the GC
      * run to be done. */
-    MVMGCStatus_STOLEN = 3
+    MVMGCStatus_STOLEN = 3,
+    
+    /* signal to the GC coordinator that we entered by allocator then
+     * by interrupt ourselves, so count us. */
+    MVMGCStatus_ENTERED = 4
 } MVMGCStatus;
 
 /* Are we allocating in the nursery, or direct into generation 2? (The

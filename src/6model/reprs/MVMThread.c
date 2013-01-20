@@ -32,13 +32,16 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMThreadBody *body = (MVMThreadBody *)data;
     MVM_gc_worklist_add(tc, worklist, &body->invokee);
     MVM_gc_worklist_add(tc, worklist, &body->next);
-    if (body->new_child != (MVMThread *)1) /* special signal */
-        MVM_gc_worklist_add(tc, worklist, &body->new_child);
+    MVM_gc_worklist_add(tc, worklist, &body->new_child);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    /* XXX Cleanup the ThreadContext, etc. */
+    /* The ThreadContext has already been destroyed by the GC.
+     * apr_thread and apr_pool killed themselves when the thread exited. */
+    MVMThread *thread = (MVMThread *)obj;
+    thread->body.invokee = NULL;
+    thread->body.next = thread->body.new_child = NULL;
 }
 
 /* Gets the storage specification for this representation. */

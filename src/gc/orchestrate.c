@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEBUG 0
+#define GCORCH_DEBUG 1
 #ifdef _MSC_VER
 # define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -30,68 +30,69 @@ static void add_stolen(MVMThreadContext *us, MVMThreadContext *stolen) {
  * the run, but still counted. Returns the count of threads that should be
  * added to the finished countdown. */
 static MVMuint32 signal_one_thread(MVMThreadContext *us, MVMThreadContext *to_signal) {
-    MVMThread *child;
-    MVM_atomic_incr(&us->instance->gc_orch->start_votes_remaining);
+    MVMThreadContext *child;
+    MVMuint32 count = 0;
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
-    while (1) {
-        /* Try to set it from running to interrupted - the common case. */
-        if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_INTERRUPT,
-                MVMGCStatus_NONE) == MVMGCStatus_NONE) {
-            GCORCH_LOG(us, "Thread %d run %d : Signalled thread %d to interrupt\n", to_signal->thread_id);
+redo:
+    switch (to_signal->gc_status) {
+        case MVMGCStatus_NONE:
+            /* Try to set it from running to interrupted - the common case. */
+            if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_INTERRUPT,
+                    MVMGCStatus_NONE) == MVMGCStatus_NONE) {
+                GCORCH_LOG(us, "Thread %d run %d : Signalled thread %d to interrupt\n", to_signal->thread_id);
+                count++;
+                MVM_atomic_incr(&us->instance->gc_orch->start_votes_remaining);
+            }
+            else goto redo;
             break;
-        }
-        
-        /* If it's already set itself to interrupt, count it. */
-        if (to_signal->gc_status == MVMGCStatus_STOLEN) {
+        case MVMGCStatus_INTERRUPT:
+            GCORCH_LOG(us, "Thread %d run %d : thread %d already interrupted\n", to_signal->thread_id);
+            break;
+        case MVMGCStatus_UNABLE:
+            /* Otherwise, it's blocked; try to set it to work stolen. */
+            if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_STOLEN,
+                    MVMGCStatus_UNABLE) == MVMGCStatus_UNABLE) {
+                GCORCH_LOG(us, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
+                add_stolen(us, to_signal);
+            }
+            else goto redo;
+            break;
+        case MVMGCStatus_STOLEN:
             GCORCH_LOG(us, "Thread %d run %d : thread %d already stolen (it was a spawning child)\n", to_signal->thread_id);
-            MVM_atomic_decr(&us->instance->gc_orch->start_votes_remaining);
-            return 0;
-        }
-        
-        /* If it's already set itself to interrupt (due to entering 
-         * by allocate then falling through to enter by interrupt), count it. */
-        if (to_signal->gc_status == MVMGCStatus_INTERRUPT) {
-            GCORCH_LOG(us, "Thread %d run %d : thread %d interrupted itself\n", to_signal->thread_id);
             break;
-        }
-        
-        /* Otherwise, it's blocked; try to set it to work stolen. */
-        if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_STOLEN,
-                MVMGCStatus_UNABLE) == MVMGCStatus_UNABLE) {
-            /* We stole the work; it's now sufficiently opted in to GC that
-             * we can increment the count of threads that are opted in. */
-            add_stolen(us, to_signal);
-            GCORCH_LOG(us, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
-            to_signal->thread_obj->body.new_child = (MVMThread *)0;
-            MVM_atomic_decr(&us->instance->gc_orch->start_votes_remaining);
-            return 0;
-        }
+        case MVMGCStatus_ENTERED:
+            GCORCH_LOG(us, "Thread %d run %d : thread %d entered \n", to_signal->thread_id);
+            if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_INTERRUPT,
+                    MVMGCStatus_ENTERED) == MVMGCStatus_ENTERED) {
+                count++;
+                MVM_atomic_incr(&us->instance->gc_orch->start_votes_remaining);
+            }
+            else goto redo;
+            break;
+        default:
+            MVM_panic(33, "invalid status %d in GC orchestrate\n", to_signal->gc_status);
     }
+done:
     /* make sure to catch in-flight child */
-    if ((child = to_signal->thread_obj->body.new_child) && (MVMThread *)1 != child) {
+    if (to_signal->thread_obj->body.new_child) {
+        child = to_signal->thread_obj->body.new_child->body.tc;
         to_signal->thread_obj->body.new_child = NULL;
-        if (child->body.new_child == (MVMThread *)1) {
-            child->body.new_child = (MVMThread *)0;
-            if (apr_atomic_cas32(&child->body.tc->gc_status,
-                    MVMGCStatus_STOLEN, MVMGCStatus_UNABLE)
-                    == MVMGCStatus_UNABLE) {
-                GCORCH_LOG(us, "Thread %d run %d : Found a child thread %d; work stolen\n", to_signal->thread_id);
-                add_stolen(us, child->body.tc);
-            }
-            else {
-                GCORCH_LOG(us, "Thread %d run %d : Could not steal work from child thread %d\n", to_signal->thread_id);
-            }
-        }
+        if (child == us) return count;
+        to_signal = child;
+        goto redo;
     }
-    return 1;
+    return count;
 }
 static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t) {
     MVMInstance *ins = tc->instance;
     MVMuint32 i;
     MVMuint32 count = 0;
     MVMThread *next;
-    if (!t) return 0;
+    if (!t) {
+        GCORCH_LOG(tc, "Thread %d run %d : threads list was empty!\n");
+        return 0;
+    }
     do {
         next = t->body.next;
         switch (t->body.stage) {
@@ -99,6 +100,7 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t) {
             case MVM_thread_stage_waiting:
             case MVM_thread_stage_started:
                 if (t->body.tc != tc) {
+                    GCORCH_LOG(tc, "Thread %d run %d : sending thread %d\n", t->body.tc->thread_id);
                     count += signal_one_thread(tc, t->body.tc);
                 }
                 break;
@@ -114,6 +116,7 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t) {
             default:
                 MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %d", t->body.stage);
         }
+        GCORCH_LOG(tc, "Thread %d run %d : start_votes_remaining is now %d\n", tc->instance->gc_orch->start_votes_remaining);
     } while (t = next);
     return count;
 }
@@ -208,11 +211,10 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, AO_t threshold, MVMuin
 }
 
 static void cleanup_sent_items(MVMThreadContext *tc) {
-    MVMGCPassedWork *work = tc->gc_sent_items, *next;
-    while (work) {
+    MVMGCPassedWork *work, *next = tc->gc_sent_items;
+    while (work = next) {
         next = work->last_by_sender;
     //    free(work);
-        work = next;
     }
 }
 
@@ -234,18 +236,16 @@ static void cleanup_all(MVMThreadContext *tc) {
     {
         MVMThread *t = tc->instance->starting_threads;
         while (t) {
-            if (t->body.tc->gc_status == MVMGCStatus_INTERRUPT) {
-                apr_atomic_cas32(&t->body.tc->gc_status,
-                    MVMGCStatus_NONE, MVMGCStatus_INTERRUPT);
-            }
+            apr_atomic_cas32(&t->body.tc->gc_status,
+                MVMGCStatus_NONE, MVMGCStatus_INTERRUPT);
+            GCORCH_LOG(tc, "Thread %d run %d : fixed thread %d's status to %d\n", t->body.tc->thread_id, t->body.tc->gc_status);
             t = t->body.next;
         }
         t = tc->instance->running_threads;
         do {
-            if (t->body.tc->gc_status == MVMGCStatus_INTERRUPT) {
-                apr_atomic_cas32(&t->body.tc->gc_status,
-                    MVMGCStatus_NONE, MVMGCStatus_INTERRUPT);
-            }
+            apr_atomic_cas32(&t->body.tc->gc_status,
+                MVMGCStatus_NONE, MVMGCStatus_INTERRUPT);
+            GCORCH_LOG(tc, "Thread %d run %d : fixed thread %d's status to %d\n", t->body.tc->thread_id, t->body.tc->gc_status);
         } while (t = t->body.next);
     }
 }
@@ -262,7 +262,8 @@ static void coordinate_finishing_gc(MVMThreadContext *tc, MVMuint8 gen) {
     
     GCORCH_LOG(tc, "Thread %d run %d : Coordinator decided GC is terminated\n");
     cleanup_all(tc);
-    MVM_atomic_decr(&tc->instance->gc_orch->finish_votes_remaining);
+    GCORCH_LOG(tc, "Thread %d run %d : decremented finish_votes_remaining to %d\n",
+        MVM_atomic_decr(&tc->instance->gc_orch->finish_votes_remaining) - 1);
 }
 
 /* Called by a thread to indicate it is about to enter a blocking operation.
@@ -343,6 +344,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Signal other threads to do a GC run and count how many will finish. */
         num_threads = signal_all_but(tc, tc->instance->running_threads)
                     + signal_all_but(tc, tc->instance->starting_threads);
+    GCORCH_LOG(tc, "Thread %d run %d : num_threads was %d\n", num_threads);
         
         /* Wait for all other threads to indicate readiness to collect. */
         wait_for_all_threads(tc, tc->instance, NEVER_THIS_MANY);
@@ -351,17 +353,22 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
          * signalling to all other threads it's safe to start the run. */
         MVM_atomic_decr(&gc_orch->start_votes_remaining);
         
+    GCORCH_LOG(tc, "Thread %d run %d : finish_ack_remaining was %d\n", gc_orch->finish_ack_remaining);
         while (gc_orch->finish_ack_remaining)
             apr_thread_yield();
+    GCORCH_LOG(tc, "Thread %d run %d : finish_ack_remaining is now %d\n", gc_orch->finish_ack_remaining);
         
         if (gc_orch->finish_votes_remaining != 0)
             MVM_panic(33, "finish votes was %d\n", gc_orch->finish_votes_remaining);
         gc_orch->finish_votes_remaining = num_threads + 2;
+    GCORCH_LOG(tc, "Thread %d run %d : set finish_votes_remaining to %d\n", gc_orch->finish_votes_remaining);
         gc_orch->finish_ack_remaining = num_threads + 1;
         
         /* cleanup the lists */
         MVM_thread_cleanup_threads_list(tc, &tc->instance->starting_threads);
         MVM_thread_cleanup_threads_list(tc, &tc->instance->running_threads);
+        
+        MVM_barrier();
         
         /* signal to the rest to start */
         gc_orch->start_votes_remaining = 0;
@@ -403,7 +410,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
          * if we were interrupted to GC. */
-        tc->gc_status = MVMGCStatus_INTERRUPT;
+        apr_atomic_cas32(&tc->gc_status, MVMGCStatus_ENTERED, MVMGCStatus_NONE);
         MVM_gc_enter_from_interrupt(tc);
     }
 }
