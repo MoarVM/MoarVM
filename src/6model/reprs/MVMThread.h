@@ -23,6 +23,9 @@ typedef struct _MVMThreadBody {
     
     /* MVMThreadStages */
     AO_t stage;
+    
+    /* child currently spawning, so GC can steal it */
+    struct _MVMThread *new_child;
 } MVMThreadBody;
 typedef struct _MVMThread {
     MVMObject common;

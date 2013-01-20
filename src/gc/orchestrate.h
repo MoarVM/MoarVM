@@ -3,12 +3,6 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc);
 void MVM_gc_mark_thread_blocked(MVMThreadContext *tc);
 void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc);
 
-typedef enum {
-    MVM_gc_stage_started = 0,
-    MVM_gc_stage_finished = 1,
-    MVM_gc_stage_initializing = 2
-} MVM_gc_orchestation_stages;
-
 /* This structure tracks the orchestration of the GC runs. */
 typedef struct _MVMGCOrchestration {
     /* The number of threads that vote for starting GC. */
@@ -19,9 +13,6 @@ typedef struct _MVMGCOrchestration {
     
     /* The number of threads that have yet to acknowledge the finish. */
     AO_t finish_ack_remaining;
-    
-    /* Stage state flag. See MVM_gc_orchestation_stages. */
-    MVMuint32 stage;
     
     /* threads stolen */
     MVMThreadContext **stolen;

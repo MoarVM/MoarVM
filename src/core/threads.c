@@ -42,11 +42,13 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     /* Set the current frame in the thread to be the initial caller;
      * the ref count for this was incremented in the original thread. */
     ts->tc->cur_frame = ts->caller;
+    
     /* If we happen to be in a GC run right now, pause until it's done. */
-    while ((orch = ts->tc->instance->gc_orch)
-            && orch->stage != MVM_gc_stage_finished
-            && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
-        apr_thread_yield();
+    if (orch = ts->tc->instance->gc_orch) {
+        while ((orch->start_votes_remaining || orch->finish_votes_remaining)
+                && ts->tc->gc_status != MVMGCStatus_INTERRUPT)
+            apr_thread_yield();
+    }
     
     ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
     
@@ -94,12 +96,31 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
             MVM_panic(MVM_exitcode_threads, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
         }
         
+        /* Signal to the GC we have a childbirth in progress. The GC
+         * will null it for us. */
+        MVM_gc_mark_thread_blocked(child_tc);
+        tc->thread_obj->body.new_child = child;
+        /* marker that it's the child, so it's not double counted */
+        child->body.new_child = (MVMThread *)1;
+        
+        child_tc->thread_id = MVM_atomic_incr(&tc->instance->next_user_thread_id);
+        
         /* push to starting threads list */
         do {
             child->body.next = tc->instance->starting_threads;
         } while (apr_atomic_casptr(&tc->instance->starting_threads, child, child->body.next) != child->body.next);
         
-        child_tc->thread_id = MVM_atomic_incr(&tc->instance->next_user_thread_id);
+        /* to cover the case of a GC run initializing just before we set 
+         * our new_child ref, make sure to run the GC before starting
+         * the child. */
+        if (tc->instance->gc_orch && tc->instance->gc_orch->start_votes_remaining) {
+            MVM_gc_root_temp_push(tc, (MVMCollectable **)&child);
+            MVM_gc_root_temp_push(tc, (MVMCollectable **)&child_obj);
+            /* enter from allocator to set our own interrupt. */
+            MVM_gc_enter_from_allocator(tc);
+            MVM_gc_root_temp_pop_n(tc, 2);
+        }
+        MVM_gc_mark_thread_unblocked(child_tc);
         
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was

@@ -32,6 +32,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMThreadBody *body = (MVMThreadBody *)data;
     MVM_gc_worklist_add(tc, worklist, &body->invokee);
     MVM_gc_worklist_add(tc, worklist, &body->next);
+    if (body->new_child != (MVMThread *)1) /* special signal */
+        MVM_gc_worklist_add(tc, worklist, &body->new_child);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
