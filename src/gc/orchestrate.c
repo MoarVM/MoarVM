@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEBUG 1
+#define GCORCH_DEBUG 0
 #ifdef _MSC_VER
 # define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -31,7 +31,6 @@ static void add_stolen(MVMThreadContext *us, MVMThreadContext *stolen) {
  * added to the finished countdown. */
 static MVMuint32 signal_one_thread(MVMThreadContext *us, MVMThreadContext *to_signal) {
     MVMThread *child;
-    GCORCH_LOG(us, "Thread %d run %d : tosignal thread %d gc_status is %d\n", to_signal->thread_id, to_signal->gc_status);
     MVM_atomic_incr(&us->instance->gc_orch->start_votes_remaining);
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
@@ -97,11 +96,7 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t) {
         next = t->body.next;
         switch (t->body.stage) {
             case MVM_thread_stage_starting:
-                GCORCH_LOG(tc, "Thread %d run %d : Detected starting thread %d\n", t->body.tc->thread_id);
-                /* fall through */
             case MVM_thread_stage_waiting:
-                GCORCH_LOG(tc, "Thread %d run %d : Detected starting thread %d waiting for interrupt\n", t->body.tc->thread_id);
-                /* fall through */
             case MVM_thread_stage_started:
                 if (t->body.tc != tc) {
                     count += signal_one_thread(tc, t->body.tc);
