@@ -62,6 +62,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
         
         MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
+        process_worklist(tc, worklist, &wtp, gen);
 
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
