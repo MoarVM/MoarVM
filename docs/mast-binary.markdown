@@ -17,8 +17,8 @@ Each node is stored at a 16-bit boundary.
 
 
 ## Node Encoding
-An initial byte determines the type of node. What follows is then node
-dependent. Here's a summary.
+An initial byte determines the type of node; what follows is then node
+dependent.  Here's a summary of the node types:
 
     0   No node, ignore
     1   Statements node, with < 256 children
