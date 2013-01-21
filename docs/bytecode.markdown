@@ -260,18 +260,18 @@ Bank 0 is for control flow and primitive operations.
     0x0C    set         r(`1), r(`1)            copy one register value to another
     0x0D    extend_u8   w(int64), r(int8)       unsigned integer extension (8 to 64)
     0x0E    extend_u16  w(int64), r(int16)      unsigned integer extension (16 to 64)
-    0x0F    extend_u32  w(int64), r(int32)      unsigned integer extension (8 to 32)
+    0x0F    extend_u32  w(int64), r(int32)      unsigned integer extension (32 to 64)
     0x10    extend_i8   w(int64), r(int8)       signed integer extension (8 to 64)
     0x11    extend_i16  w(int64), r(int16)      signed integer extension (16 to 64)
     0x12    extend_i32  w(int64), r(int32)      signed integer extension (32 to 64)
-    0x13    trunc_u8    w(int8), r(int64)       unsigned integer truncation (8 to 64)
-    0x14    trunc_u16   w(int16), r(int64)      unsigned integer truncation (16 to 64)
-    0x15    trunc_u32   w(int32), r(int64)      unsigned integer truncation (8 to 32)
-    0x16    trunc_i8    w(int8), r(int64)       signed integer truncation (8 to 64)
-    0x17    trunc_i16   w(int16), r(int64)      signed integer truncation (16 to 64)
-    0x18    trunc_i32   w(int32), r(int64)      signed integer truncation (32 to 64)
-    0x19    extend_n32  w(num64), r(num32)      float extension
-    0x1A    trunc_n32   w(num32), r(num64)      float truncation
+    0x13    trunc_u8    w(int8), r(int64)       unsigned integer truncation (64 to 8)
+    0x14    trunc_u16   w(int16), r(int64)      unsigned integer truncation (64 to 16)
+    0x15    trunc_u32   w(int32), r(int64)      unsigned integer truncation (64 to 32)
+    0x16    trunc_i8    w(int8), r(int64)       signed integer truncation (64 to 8)
+    0x17    trunc_i16   w(int16), r(int64)      signed integer truncation (64 to 16)
+    0x18    trunc_i32   w(int32), r(int64)      signed integer truncation (64 to 32)
+    0x19    extend_n32  w(num64), r(num32)      float extension (32 to 64)
+    0x1A    trunc_n32   w(num32), r(num64)      float truncation (64 to 32)
     0x1B    get_lex     w(`1), rl(`l)           get lexical from this frame
     0x1C    bind_lex    wl(`1), r(`l)           bind lexical from this frame
     0x1D    get_lex_lo  w(`1), lo, rl(`l)       get lexical from outer frame
