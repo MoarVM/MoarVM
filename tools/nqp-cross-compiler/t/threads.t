@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(5);
+plan(6);
 
 sub make_thread_type($frame) {
     my @ins := $frame.instructions;
@@ -235,4 +235,71 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "Before new threads\nIn new thread\nIn new thread\nIn new thread\nIn new thread\nLived until after joins\n",
     "Multiple allocating threads work (threads + GC interaction)");
-    
+
+
+sub array_type($frame) {
+    my @ins := $frame.instructions;
+    my $r0 := local($frame, str);
+    my $r1 := local($frame, NQPMu);
+    my $r2 := local($frame, NQPMu);
+    op(@ins, 'const_s', $r0, sval('MVMArray'));
+    op(@ins, 'knowhow', $r1);
+    op(@ins, 'findmeth', $r2, $r1, sval('new_type'));
+    call(@ins, $r2, [$Arg::obj, $Arg::named +| $Arg::str], $r1, sval('repr'), $r0, :result($r1));
+    $r1
+}
+
+mast_frame_output_is(-> $frame, @ins, $cu {
+        sub thread_code() {
+            my $frame := MAST::Frame.new();
+            my $at := array_type($frame);
+            my @ins := $frame.instructions;
+            my $r0 := local($frame, int);
+            my $r1 := local($frame, NQPMu);
+            my $r2 := local($frame, str);
+            my $r3 := local($frame, NQPMu);
+            my $l0 := label('loop');
+            op(@ins, 'create', $r3, $at);
+            op(@ins, 'const_s', $r2, sval('In new thread'));
+            op(@ins, 'say_s', $r2);
+            op(@ins, 'const_i64', $r0, ival(10000000));
+            nqp::push(@ins, $l0);
+            op(@ins, 'create', $r1, $at);
+            op(@ins, 'push_o', $r3, $r1);
+            op(@ins, 'dec_i', $r0);
+            op(@ins, 'if_i', $r0, $l0);
+            op(@ins, 'return');
+            return $frame;
+        }
+        
+        my $type := make_thread_type($frame);
+        
+        my $thread_code := thread_code();
+        $cu.add_frame($thread_code);
+        
+        my $code    := local($frame, NQPMu);
+        my $thread1 := local($frame, NQPMu);
+        my $thread2 := local($frame, NQPMu);
+        my $thread3 := local($frame, NQPMu);
+        my $thread4 := local($frame, NQPMu);
+        my $str     := local($frame, str);
+        my $time    := local($frame, int);
+        
+        op(@ins, 'const_s', $str, sval('Before new threads'));
+        op(@ins, 'say_s', $str);
+        op(@ins, 'getcode', $code, $thread_code);
+        op(@ins, 'newthread', $thread1, $code, $type);
+        op(@ins, 'newthread', $thread2, $code, $type);
+        op(@ins, 'newthread', $thread3, $code, $type);
+        op(@ins, 'newthread', $thread4, $code, $type);
+        op(@ins, 'jointhread', $thread1);
+        op(@ins, 'jointhread', $thread2);
+        op(@ins, 'jointhread', $thread3);
+        op(@ins, 'jointhread', $thread4);
+        op(@ins, 'const_s', $str, sval('Lived until after joins'));
+        op(@ins, 'say_s', $str);
+        op(@ins, 'return');
+    },
+    "Before new threads\nIn new thread\nIn new thread\nIn new thread\nIn new thread\nLived until after joins\n",
+    "Multiple allocating threads work (large heap usage)");
+
