@@ -272,10 +272,10 @@ Bank 0 is for control flow and primitive operations.
     0x18    trunc_i32   w(int32), r(int64)      signed integer truncation (64 to 32)
     0x19    extend_n32  w(num64), r(num32)      float extension (32 to 64)
     0x1A    trunc_n32   w(num32), r(num64)      float truncation (64 to 32)
-    0x1B    get_lex     w(`1), rl(`l)           get lexical from this frame
-    0x1C    bind_lex    wl(`1), r(`l)           bind lexical from this frame
-    0x1D    get_lex_lo  w(`1), lo, rl(`l)       get lexical from outer frame
-    0x1E    bind_lex_lo wl(`1), lo, r(`l)       bind lexical from outer frame
+    0x1B    get_lex     w(`1), rl(`1)           get lexical from this frame
+    0x1C    bind_lex    wl(`1), r(`1)           bind lexical from this frame
+    0x1D    get_lex_lo  w(`1), lo, rl(`1)       get lexical from outer frame
+    0x1E    bind_lex_lo wl(`1), lo, r(`1)       bind lexical from outer frame
     0x1F    get_lex_ni  w(int64), str           get integer lexical by name
     0x20    get_lex_nn  w(num64), str           get number lexical by name
     0x21    get_lex_ns  w(str), str             get string lexical by name
