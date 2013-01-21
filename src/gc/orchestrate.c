@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEBUG 1
+#define GCORCH_DEBUG 0
 #ifdef _MSC_VER
 # define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -43,10 +43,9 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                     return 1;
                 }
                 break;
-            /* this case shouldn't occur */
             case MVMGCStatus_INTERRUPT:
 //                GCORCH_LOG(tc, "Thread %d run %d : thread %d already interrupted\n", to_signal->thread_id);
-                MVM_panic(MVM_exitcode_gcorch, "invalid GC status");
+                return 0;
             case MVMGCStatus_UNABLE:
                 /* Otherwise, it's blocked; try to set it to work stolen. */
                 if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_STOLEN,
@@ -198,9 +197,13 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
     if (tc->gc_stolen_count) {
         MVMuint32 i = 0;
         for ( ; i < tc->gc_stolen_count; i++) {
+            MVMuint32 res;
             cleanup_sent_items(tc->gc_stolen[i].tc);
-            apr_atomic_cas32(&tc->gc_stolen[i].tc->gc_status, MVMGCStatus_UNABLE,
+            res = apr_atomic_cas32(&tc->gc_stolen[i].tc->gc_status, MVMGCStatus_UNABLE,
                 MVMGCStatus_STOLEN);
+            if (res == MVMGCStatus_STOLEN) {
+                GCORCH_LOG(tc, "Thread %d run %d : unset stolen to unable on thread %d\n", tc->gc_stolen[i].tc->thread_id);
+            }
         }
     }
     apr_atomic_cas32(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT);
@@ -240,16 +243,23 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
     }
 }
 
+static void signal_child(MVMThreadContext *tc) {
+    MVMThread *child;
+    /* if we still have it, its state will be UNABLE, so steal it. */
+    if (child = tc->thread_obj->body.new_child) {
+        /* this will never return nonzero, because the child's status
+         * will always be UNABLE or STOLEN. */
+        signal_one_thread(tc, child->body.tc);
+        GCORCH_LOG(tc, "Thread %d run %d : stolen count is %d\n", tc->gc_stolen_count);
+        while (!MVM_cas(&tc->thread_obj->body.new_child,
+            tc->thread_obj->body.new_child, NULL));
+    }
+}
+
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint8   gen;
     void      *limit;
     MVMThread *child;
-    
-    /* if we still have it, its state will be UNABLE, so steal it. */
-    if (child = tc->thread_obj->body.new_child) {
-        signal_one_thread(tc, child->body.tc);
-        tc->thread_obj->body.new_child = NULL;
-    }
     
     /* Do GC work for this thread, or at least all we know about. */
     gen = tc->instance->gc_seq_number % MVM_GC_GEN2_RATIO == 0
@@ -315,6 +325,9 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         while (tc->instance->gc_ack)
             apr_thread_yield();
         
+        /* grab our child */
+        signal_child(tc);
+        
         while (tc->instance->gc_start != NEVER_THIS_MANY
                 || last_starter != tc->instance->starting_threads) {
             last_starter = tc->instance->starting_threads;
@@ -362,11 +375,14 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     void *limit;
     MVMuint8 gen;
     
+    tc->gc_stolen_count = 0;
+    
+    /* grab our child */
+    signal_child(tc);
+    
     /* Count us in to the GC run. */
 //    GCORCH_LOG(tc, "Thread %d run %d : Entered from interrupt\n");
     MVM_atomic_decr(&tc->instance->gc_start);
-    
-    tc->gc_stolen_count = 0;
     
     /* Wait for all threads to indicate readiness to collect. */
     wait_for_all_threads(tc, 0);
