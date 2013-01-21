@@ -16,7 +16,7 @@ The bootstrap is done something like this.
 * Create a type object BOOTHash, the VM's core hash type. It will have the
   MVMHash representation. Still no meta-objects.
 * Create a type object BOOTCCode, the VM's core code type for things implemented
-  inside them VM in C (typically, just a very small number of bootstrap things).
+  inside the VM in C (typically, just a very small number of bootstrap things).
   It will have the MVMCFunction representation. Still no...yeah, you got it. :-)
 * At this point, we finally have enough to bootstrap KnowHOW, the most primitive
   object type. This involves the KnowHOWREPR representation.

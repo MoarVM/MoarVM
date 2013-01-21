@@ -78,7 +78,7 @@ Will have to store the result of bar(42) in a register, then prepargs..call
 for foo(...) afterwards.
 
 # Parameter Handling
-While some langauges may have their own binding support driven by their own
+While some languages may have their own binding support driven by their own
 signature objects, the core instruction set provides a mechanism that should
 handle most needs.
 

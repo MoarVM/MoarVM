@@ -10,7 +10,7 @@ the first execution.
 ## Alignment
 Each node is stored at a 16-bit boundary.
 
-## Compliation Units
+## Compilation Units
 
 
 ## Frames
@@ -50,12 +50,12 @@ dependent. Here's a summary.
     254 Non-core op
     255 Reserved
 
-### No Node
+### No node
 This just causes this byte to be skipped over and the next one to be read. It
 could be used for padding.
 
 ### Statements nodes
-Immediately after the node, either one or three bytes specify give the number
+Immediately after the node, either one or three bytes specify the number
 of child nodes that we can expect to find that are owned by this node.
 
 ### Call node
