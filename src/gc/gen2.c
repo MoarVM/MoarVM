@@ -104,7 +104,7 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
 /* Frees all memory associated with the second generation. */
 void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
     /* Remove all pages. */
-    /* XXX TODO */
+    /* Usually the GC transfers all pages to another thread. */
     
     /* Free any allocated overflows. */
     /* XXX TODO */
@@ -115,4 +115,98 @@ void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
     free(al->overflows);
     al->overflows = NULL;
     free(al);
+}
+
+/* blindly move pages from one gen2 to another */
+void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
+    MVMGen2Allocator *gen2 = src->gen2, *dest_gen2 = dest->gen2;
+    MVMuint32 bin, obj_size, page;
+    char ***freelist_insert_pos;
+    
+    for (bin = 0; bin < MVM_GEN2_BINS; bin++) {
+        MVMuint32 orig_dest_num_pages = dest_gen2->size_classes[bin].num_pages;
+        char *cur_ptr, *end_ptr;
+        /* If we've nothing allocated in this size class, skip it. */
+        if (gen2->size_classes[bin].pages == NULL)
+            continue;
+        
+        if (dest_gen2->size_classes[bin].pages == NULL)
+            dest_gen2->size_classes[bin].free_list = NULL;
+        
+        /* Calculate object size for this bin. */
+        obj_size = (bin + 1) << MVM_GEN2_BIN_BITS;
+        
+        /* freelist_insert_pos is a pointer to a memory location that
+         * stores the address of the last traversed free list node (char **). */
+        /* Initialize freelist insertion position to free list head. */
+        freelist_insert_pos = &gen2->size_classes[bin].free_list;
+        
+        if (dest_gen2->size_classes[bin].pages == NULL) {
+            dest_gen2->size_classes[bin].pages
+                = malloc(sizeof(void *) * gen2->size_classes[bin].num_pages);
+            dest_gen2->size_classes[bin].num_pages = gen2->size_classes[bin].num_pages;
+        }
+        else {
+            dest_gen2->size_classes[bin].num_pages
+                += gen2->size_classes[bin].num_pages;
+            dest_gen2->size_classes[bin].pages
+                = realloc(dest_gen2->size_classes[bin].pages,
+                    sizeof(void *) * dest_gen2->size_classes[bin].num_pages);
+        }
+        
+        /* Visit each page in the source. */
+        for (page = 0; page < gen2->size_classes[bin].num_pages; page++) {
+            /* Visit all the objects, looking for dead ones and swap the
+             * owner for each of them. */
+            cur_ptr = gen2->size_classes[bin].pages[page];
+            end_ptr = page + 1 == gen2->size_classes[bin].num_pages
+                ? gen2->size_classes[bin].alloc_pos
+                : cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
+            while (cur_ptr < end_ptr) {
+                if (cur_ptr == (char *)*freelist_insert_pos) {
+//                    printf("found a free list slot in bin %d page %d: %d with value %d and start %d and limit %d\n",
+//                        bin, page, cur_ptr, *(void **)cur_ptr, gen2->size_classes[bin].pages[page],
+//                        dest_gen2->size_classes[bin].alloc_limit);
+                    freelist_insert_pos = (char ***)cur_ptr;
+                }
+                else { /* note: we don't have tests that exercise this path yet. */
+//                    printf("updating an owner from %d to %d\n", ((MVMCollectable *)cur_ptr)->owner, dest->thread_id);
+                    ((MVMCollectable *)cur_ptr)->owner = dest->thread_id;
+                }
+                
+                /* Move to the next object. */
+                cur_ptr += obj_size;
+            }
+            dest_gen2->size_classes[bin].pages[page + orig_dest_num_pages] = gen2->size_classes[bin].pages[page];
+        }
+        
+        /* chain the destination's freelist through any remaining unallocated area */
+        freelist_insert_pos = &dest_gen2->size_classes[bin].free_list;
+        cur_ptr = dest_gen2->size_classes[bin].alloc_pos;
+        end_ptr = dest_gen2->size_classes[bin].alloc_limit;
+        while (cur_ptr < end_ptr) {
+            *freelist_insert_pos = (char **)cur_ptr;
+            freelist_insert_pos = (char ***)cur_ptr;
+            cur_ptr += obj_size;
+        }
+        /* link to the new pages, if any */
+        *freelist_insert_pos = gen2->size_classes[bin].free_list;
+        
+        dest_gen2->size_classes[bin].alloc_pos = gen2->size_classes[bin].alloc_pos;
+        dest_gen2->size_classes[bin].alloc_limit = gen2->size_classes[bin].alloc_limit;
+        
+        free(gen2->size_classes[bin].pages);
+        gen2->size_classes[bin].pages = NULL;
+        gen2->size_classes[bin].num_pages = 0;
+    }
+    { /* copy the roots... */
+        MVMuint32 i, n = src->num_gen2roots;
+        for ( i = 0; i < n; i++) {
+            MVM_gc_root_gen2_add(dest, src->gen2roots[i]);
+        }
+        src->num_gen2roots = 0;
+        src->alloc_gen2roots = 0;
+        free(src->gen2roots);
+        src->gen2roots = NULL;
+    }
 }

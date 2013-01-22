@@ -4,7 +4,8 @@ typedef enum {
     MVM_thread_stage_waiting = 1,
     MVM_thread_stage_started = 2,
     MVM_thread_stage_exited = 3,
-    MVM_thread_stage_destroyed = 4
+    MVM_thread_stage_clearing_nursery = 4,
+    MVM_thread_stage_destroyed = 5
 } MVMThreadStages;
 
 typedef struct _MVMThreadBody {

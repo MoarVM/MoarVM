@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEBUG 0
+#define GCORCH_DEBUG 1
 #ifdef _MSC_VER
 # define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -81,23 +81,24 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t) {
             case MVM_thread_stage_waiting:
             case MVM_thread_stage_started:
                 if (t->body.tc != tc) {
-//                    GCORCH_LOG(tc, "Thread %d run %d : sending thread %d\n", t->body.tc->thread_id);
                     count += signal_one_thread(tc, t->body.tc);
                 }
                 break;
             case MVM_thread_stage_exited:
-                GCORCH_LOG(tc, "Thread %d run %d : Destroying thread %d\n", t->body.tc->thread_id);
-                MVM_tc_destroy(t->body.tc);
-                t->body.tc = NULL;
-                t->body.stage = MVM_thread_stage_destroyed;
+                GCORCH_LOG(tc, "Thread %d run %d : queueing to clear nursery of thread %d\n", t->body.tc->thread_id);
+                add_stolen(tc, t->body.tc);
+                break;
+            case MVM_thread_stage_clearing_nursery:
+                GCORCH_LOG(tc, "Thread %d run %d : queueing to destroy thread %d\n", t->body.tc->thread_id);
+                /* last GC run for this thread */
+                add_stolen(tc, t->body.tc);
                 break;
             case MVM_thread_stage_destroyed:
-                /* will be cleaned up shortly */
+                /* will be cleaned up (removed from the lists) shortly */
                 break;
             default:
                 MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %d", t->body.stage);
         }
-//        GCORCH_LOG(tc, "Thread %d run %d : gc_start is now %d\n", tc->instance->gc_start);
     } while (t = next);
     return count;
 }
@@ -170,8 +171,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
     MVMuint32 put_vote = 1;
     
     /* Loop until other threads have terminated, processing any extra work
-     * that we are given. The coordinator decrements its count last, which
-     * is how we know all is over. */
+     * that we are given. */
     while (tc->instance->gc_finish) {
         MVMuint32 failed = 0;
         process_in_tray(tc, gen, &put_vote);
@@ -194,15 +194,33 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
     cleanup_sent_items(tc);
     
     /* Reset GC status flags and cleanup sent items for any stolen threads. */
+    /* This is also where thread destruction happens, and it needs to happen
+     * before we acknowledge this GC run is finished. */
     if (tc->gc_stolen_count) {
         MVMuint32 i = 0;
         for ( ; i < tc->gc_stolen_count; i++) {
-            MVMuint32 res;
+            MVMThreadContext *other = tc->gc_stolen[i].tc;
+            MVMThread *thread_obj = other->thread_obj;
             cleanup_sent_items(tc->gc_stolen[i].tc);
-            res = apr_atomic_cas32(&tc->gc_stolen[i].tc->gc_status, MVMGCStatus_UNABLE,
-                MVMGCStatus_STOLEN);
-            if (res == MVMGCStatus_STOLEN) {
-                GCORCH_LOG(tc, "Thread %d run %d : unset stolen to unable on thread %d\n", tc->gc_stolen[i].tc->thread_id);
+            if (thread_obj->body.stage == MVM_thread_stage_clearing_nursery) {
+                GCORCH_LOG(tc, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
+                /* always free gen2 */
+                MVM_gc_collect_free_gen2_unmarked(other);
+                MVM_gc_gen2_transfer(other, tc);
+                GCORCH_LOG(tc, "Thread %d run %d : destroying thread %d\n", other->thread_id);
+                MVM_tc_destroy(other);
+                tc->gc_stolen[i].tc = thread_obj->body.tc = NULL;
+                thread_obj->body.stage = MVM_thread_stage_destroyed;
+//                GCORCH_LOG(tc, "Thread %d run %d : set thread %d destroyed stage to %d\n", other->thread_id, thread_obj->body.stage);
+            }
+            else {
+                if (thread_obj->body.stage == MVM_thread_stage_exited) {
+                    /* don't bother freeing gen2; we'll do it next time */
+                    thread_obj->body.stage = MVM_thread_stage_clearing_nursery;
+//                    GCORCH_LOG(tc, "Thread %d run %d : set thread %d clearing nursery stage to %d\n", other->thread_id, thread_obj->body.stage);
+                }
+                apr_atomic_cas32(&tc->gc_stolen[i].tc->gc_status, MVMGCStatus_UNABLE,
+                    MVMGCStatus_STOLEN);
             }
         }
     }
@@ -250,7 +268,7 @@ static void signal_child(MVMThreadContext *tc) {
         /* this will never return nonzero, because the child's status
          * will always be UNABLE or STOLEN. */
         signal_one_thread(tc, child->body.tc);
-        GCORCH_LOG(tc, "Thread %d run %d : stolen count is %d\n", tc->gc_stolen_count);
+//        GCORCH_LOG(tc, "Thread %d run %d : stolen count is %d\n", tc->gc_stolen_count);
         while (!MVM_cas(&tc->thread_obj->body.new_child,
             tc->thread_obj->body.new_child, NULL));
     }
@@ -273,10 +291,11 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     if (tc->gc_stolen_count) {
         MVMuint32 i = 0, n = tc->gc_stolen_count;
         for ( ; i < n; i++) {
-            tc->gc_stolen[i].limit = tc->gc_stolen[i].tc->nursery_alloc;
+            MVMThreadContext *other = tc->gc_stolen[i].tc;
+            tc->gc_stolen[i].limit = other->nursery_alloc;
             GCORCH_LOG(tc, "Thread %d run %d : starting stolen collection for thread %d\n",
-                tc->gc_stolen[i].tc->thread_id);
-            MVM_gc_collect(tc->gc_stolen[i].tc, MVMGCWhatToDo_NoInstance, gen);
+                other->thread_id);
+            MVM_gc_collect(other, MVMGCWhatToDo_NoInstance, gen);
         }
     }
     
@@ -291,9 +310,20 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     if (tc->gc_stolen_count) {
         MVMuint32 i = 0, n = tc->gc_stolen_count;
         for ( ; i < n; i++) {
-            MVM_gc_collect_free_nursery_uncopied(tc->gc_stolen[i].tc, tc->gc_stolen[i].limit);
-            if (gen == MVMGCGenerations_Both)
-                MVM_gc_collect_free_gen2_unmarked(tc->gc_stolen[i].tc);
+            MVMThreadContext *other = tc->gc_stolen[i].tc;
+            MVMThread *thread_obj;
+            
+            /* the thread might've been destroyed */
+            if (!other) continue;
+            
+            thread_obj = other->thread_obj;
+            
+            MVM_gc_collect_free_nursery_uncopied(other, tc->gc_stolen[i].limit);
+            
+            if (gen == MVMGCGenerations_Both) {
+                GCORCH_LOG(tc, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
+                MVM_gc_collect_free_gen2_unmarked(other);
+            }
         }
     }
 }
@@ -320,7 +350,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Ensure our stolen list is empty. */
         tc->gc_stolen_count = 0;
         
-//    GCORCH_LOG(tc, "Thread %d run %d : gc_ack was %d\n", tc->instance->gc_ack);
         /* need to wait for other threads to reset their gc_status. */
         while (tc->instance->gc_ack)
             apr_thread_yield();
@@ -334,7 +363,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             /* Signal other threads to do a GC run and count how many will finish. */
             num_threads += signal_all_but(tc, tc->instance->running_threads)
                         + signal_all_but(tc, last_starter);
-    //    GCORCH_LOG(tc, "Thread %d run %d : num_threads was %d\n", num_threads);
             
             /* Wait for all other threads to indicate readiness to collect. */
             while (tc->instance->gc_start > NEVER_THIS_MANY);
@@ -342,17 +370,14 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
          * to check and rerun the signaling. */
         }
         
-//    GCORCH_LOG(tc, "Thread %d run %d : gc_ack is now %d\n", tc->instance->gc_ack);
-        
         if (tc->instance->gc_finish != 0)
             MVM_panic(MVM_exitcode_gcorch, "finish votes was %d\n", tc->instance->gc_finish);
         tc->instance->gc_finish = num_threads + 1;
-//    GCORCH_LOG(tc, "Thread %d run %d : set gc_finish to %d\n", tc->instance->gc_finish);
         tc->instance->gc_ack = num_threads + 1;
         
         /* cleanup the lists */
-    //    MVM_thread_cleanup_threads_list(tc, &tc->instance->starting_threads);
-    //    MVM_thread_cleanup_threads_list(tc, &tc->instance->running_threads);
+        MVM_thread_cleanup_threads_list(tc, &tc->instance->starting_threads);
+        MVM_thread_cleanup_threads_list(tc, &tc->instance->running_threads);
         
         MVM_barrier();
         

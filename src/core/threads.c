@@ -167,7 +167,8 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
 }
 
 void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
-    /* Assumed to be the only thread accessing the list. */
+    /* Assumed to be the only thread accessing the list.
+     * must set next on every item. */
     MVMThread *new_list = NULL, *this = *head, *next;
     *head = NULL;
     while (this) {
@@ -181,6 +182,7 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
                 break;
             case MVM_thread_stage_started:
             case MVM_thread_stage_exited:
+            case MVM_thread_stage_clearing_nursery:
                 /* push it to the running list */
                 /* if it's exited, the coordinator will destroy it */
                 this->body.next = tc->instance->running_threads;
@@ -188,6 +190,7 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
                 break;
             case MVM_thread_stage_destroyed:
                 /* don't put in a list */
+                this->body.next = NULL;
                 break;
             default:
                 MVM_panic(MVM_exitcode_threads, "Thread in unknown stage: %d\n", this->body.stage);

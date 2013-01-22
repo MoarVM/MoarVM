@@ -68,3 +68,4 @@ typedef struct _MVMGen2Allocator {
 MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i);
 void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size);
 void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *allocator);
+void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest);

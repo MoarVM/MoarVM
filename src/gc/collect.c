@@ -495,8 +495,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                 /* If we just arrived at the head of the free list (we possibly
                  * traversed some memory before catching up to it), */
                 if (*freelist_insert_pos == (char **)cur_ptr) {
-                    /* Don't do anything; gen2->size_classes[bin].free_list
-                     * is correct, and so is freelist_insert_pos. */
+                    freelist_insert_pos = (char ***)cur_ptr;
                 }
                 
                 /* Is this already a free list slot? If so, it becomes the
@@ -543,7 +542,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     /* We either haven't yet caught up to the head of the free list,
                      * or we have passed it, or the list is empty and we will be the head. */
                     /* if we're the new head of the list or we have not yet caught up to the head. */
-                    if (*freelist_insert_pos == NULL || *freelist_insert_pos > (char **)cur_ptr)  {
+                    if (*freelist_insert_pos == NULL
+                            || *freelist_insert_pos > (char **)cur_ptr
+                            || *freelist_insert_pos < (char **)gen2->size_classes[bin].pages[page]) {
                         *((char **)cur_ptr) = (char *)*freelist_insert_pos;
                         *freelist_insert_pos = (char **)cur_ptr;
                     }
@@ -552,6 +553,8 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         *((char **)cur_ptr) = **freelist_insert_pos;
                         **freelist_insert_pos = cur_ptr;
                     }
+//                    printf("found a dead object in thread %d bin %d page %d at %d; gave it value %d\n",
+//                        tc->thread_id, bin, page, cur_ptr, *((char **)cur_ptr));
                     
                     /* Update the pointer to the insert position to point to us */
                     last_insert_pos = (char **)cur_ptr;
