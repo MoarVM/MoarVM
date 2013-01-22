@@ -5,7 +5,7 @@
 /* How often do we collect the second generation? This is specified as the
  * number of nursery runs that happen per full collection. For example, if
  * this is set to 10 then every tenth collection will involve the full heap. */
-#define MVM_GC_GEN2_RATIO 10
+#define MVM_GC_GEN2_RATIO 1
 
 /* What things should be processed in this GC run? */
 typedef enum {
