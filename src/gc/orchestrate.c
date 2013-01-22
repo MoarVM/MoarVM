@@ -192,8 +192,8 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
                 GCORCH_LOG(tc, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
                 /* always free gen2 */
                 MVM_gc_collect_free_gen2_unmarked(other);
-                GCORCH_LOG(tc, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
-                MVM_gc_gen2_transfer(other, tc);
+        //        GCORCH_LOG(tc, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
+        //        MVM_gc_gen2_transfer(other, tc);
                 GCORCH_LOG(tc, "Thread %d run %d : destroying thread %d\n", other->thread_id);
                 MVM_tc_destroy(other);
                 tc->gc_stolen[i].tc = thread_obj->body.tc = NULL;
