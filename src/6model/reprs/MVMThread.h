@@ -19,7 +19,7 @@ typedef struct _MVMThreadBody {
     apr_thread_t *apr_thread;
     apr_pool_t *apr_pool;
     
-    /* next in tc's starting_threads or running_threads list */
+    /* next in tc's threads list */
     struct _MVMThread *next;
     
     /* MVMThreadStages */

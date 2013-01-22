@@ -102,8 +102,8 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         
         /* push to starting threads list */
         do {
-            child->body.next = tc->instance->starting_threads;
-        } while (apr_atomic_casptr(&tc->instance->starting_threads, child, child->body.next) != child->body.next);
+            child->body.next = tc->instance->threads;
+        } while (apr_atomic_casptr(&tc->instance->threads, child, child->body.next) != child->body.next);
         
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was
@@ -176,17 +176,12 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
         switch (this->body.stage) {
             case MVM_thread_stage_starting:
             case MVM_thread_stage_waiting:
-                /* push it to the new starting list */
-                this->body.next = new_list;
-                new_list = this;
-                break;
             case MVM_thread_stage_started:
             case MVM_thread_stage_exited:
             case MVM_thread_stage_clearing_nursery:
-                /* push it to the running list */
-                /* if it's exited, the coordinator will destroy it */
-                this->body.next = tc->instance->running_threads;
-                tc->instance->running_threads = this;
+                /* push it to the new starting list */
+                this->body.next = new_list;
+                new_list = this;
                 break;
             case MVM_thread_stage_destroyed:
                 /* don't put in a list */
@@ -197,5 +192,5 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
         }
         this = next;
     }
-    if (new_list) *head = new_list;
+    *head = new_list;
 }

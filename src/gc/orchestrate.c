@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCORCH_DEBUG 1
+#define GCORCH_DEBUG 0
 #ifdef _MSC_VER
 # define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -201,12 +201,13 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
         for ( ; i < tc->gc_stolen_count; i++) {
             MVMThreadContext *other = tc->gc_stolen[i].tc;
             MVMThread *thread_obj = other->thread_obj;
-            cleanup_sent_items(tc->gc_stolen[i].tc);
+            cleanup_sent_items(other);
             if (thread_obj->body.stage == MVM_thread_stage_clearing_nursery) {
-                GCORCH_LOG(tc, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
+                GCORCH_LOG(tc, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
                 /* always free gen2 */
                 MVM_gc_collect_free_gen2_unmarked(other);
-                MVM_gc_gen2_transfer(other, tc);
+        //        GCORCH_LOG(tc, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
+        //        MVM_gc_gen2_transfer(other, tc);
                 GCORCH_LOG(tc, "Thread %d run %d : destroying thread %d\n", other->thread_id);
                 MVM_tc_destroy(other);
                 tc->gc_stolen[i].tc = thread_obj->body.tc = NULL;
@@ -339,7 +340,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     /* Try to start the GC run. */
     if (MVM_cas(&tc->instance->gc_start, 0, NEVER_THIS_MANY)) {
         MVMThread *last_starter = NULL;
-        MVMuint32 num_threads = 0;
+        MVMuint32 num_threads;
         
         /* We are the winner of the GC starting race. This gives us some
          * extra responsibilities as well as doing the usual things.
@@ -349,6 +350,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         
         /* Ensure our stolen list is empty. */
         tc->gc_stolen_count = 0;
+        tc->instance->gc_start = 1;
         
         /* need to wait for other threads to reset their gc_status. */
         while (tc->instance->gc_ack)
@@ -357,27 +359,18 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* grab our child */
         signal_child(tc);
         
-        while (tc->instance->gc_start != NEVER_THIS_MANY
-                || last_starter != tc->instance->starting_threads) {
-            last_starter = tc->instance->starting_threads;
-            /* Signal other threads to do a GC run and count how many will finish. */
-            num_threads += signal_all_but(tc, tc->instance->running_threads)
-                        + signal_all_but(tc, last_starter);
-            
-            /* Wait for all other threads to indicate readiness to collect. */
-            while (tc->instance->gc_start > NEVER_THIS_MANY);
-        /* at this point, there is a possibility more threads have launched, so we need
-         * to check and rerun the signaling. */
-        }
+        num_threads = signal_all_but(tc, tc->instance->threads) + 1;
+        
+        while (tc->instance->gc_start > 1);
         
         if (tc->instance->gc_finish != 0)
             MVM_panic(MVM_exitcode_gcorch, "finish votes was %d\n", tc->instance->gc_finish);
-        tc->instance->gc_finish = num_threads + 1;
-        tc->instance->gc_ack = num_threads + 1;
         
-        /* cleanup the lists */
-        MVM_thread_cleanup_threads_list(tc, &tc->instance->starting_threads);
-        MVM_thread_cleanup_threads_list(tc, &tc->instance->running_threads);
+        tc->instance->gc_finish = num_threads;
+        tc->instance->gc_ack = num_threads;
+        
+        /* cleanup the list */
+        MVM_thread_cleanup_threads_list(tc, &tc->instance->threads);
         
         MVM_barrier();
         
@@ -398,6 +391,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * try and do that, just enlist in the run. */
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     void *limit;
+    AO_t curr;
     MVMuint8 gen;
     
     tc->gc_stolen_count = 0;
@@ -405,9 +399,10 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     /* grab our child */
     signal_child(tc);
     
-    /* Count us in to the GC run. */
+    /* Count us in to the GC run. Wait for a vote to steal. */
 //    GCORCH_LOG(tc, "Thread %d run %d : Entered from interrupt\n");
-    MVM_atomic_decr(&tc->instance->gc_start);
+    while ((curr = tc->instance->gc_start) < 2 || 
+        !MVM_cas(&tc->instance->gc_start, curr, curr - 1));
     
     /* Wait for all threads to indicate readiness to collect. */
     wait_for_all_threads(tc, 0);

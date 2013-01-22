@@ -301,7 +301,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
         target_tc = tc->instance->main_thread;
     }
     else {
-        MVMThread *t = tc->instance->running_threads;
+        MVMThread *t = tc->instance->threads;
         do {
             if (t->body.tc->thread_id == target) {
                 target_tc = t->body.tc;

@@ -69,11 +69,8 @@ typedef struct _MVMInstance {
     /* The number of threads that have yet to acknowledge the finish. */
     AO_t gc_ack;
     
-    /* MVMThreads launched since or weren't finished starting at the last GC. */
-    struct _MVMThread *starting_threads;
-    
-    /* MVMThreads completed starting and/or exited. */
-    struct _MVMThread *running_threads;
+    /* MVMThreads completed starting, running, and/or exited. */
+    struct _MVMThread *threads;
     
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
