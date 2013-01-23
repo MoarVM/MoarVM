@@ -1,5 +1,12 @@
 #include "moarvm.h"
 
+#define GCCOLL_DEBUG 0
+#ifdef _MSC_VER
+# define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
+#else
+# define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number , # __VA_ARGS__)
+#endif
+
 /* Combines a piece of work that will be passed to another thread with the
  * ID of the target thread to pass it to. */
 typedef struct {
@@ -61,9 +68,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         tc->nursery_alloc       = tospace;
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
         
-        MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
-        process_worklist(tc, worklist, &wtp, gen);
-
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
         if (what_to_do != MVMGCWhatToDo_NoInstance) {
@@ -164,6 +168,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
+            GCCOLL_LOG(tc, "Thread %d run %d : sending a handle %x to object %x to thread %d\n", item_ptr, item, item->owner);
             pass_work_item(tc, wtp, item_ptr);
             continue;
         }
@@ -177,6 +182,10 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              new_addr = item;
              *item_ptr = item->forwarder = new_addr;
         } else {
+            if (GCCOLL_DEBUG && !STABLE(item)) {
+                GCCOLL_LOG(tc, "Thread %d run %d : found a zeroed handle %x to object %x to thread %d\n", item_ptr, item);
+                printf("%d", ((MVMCollectable *)1)->owner);
+            }
             /* We've got a live object in the nursery; this means some kind of
              * copying is going to happen. Work out the size. */
             if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
@@ -198,6 +207,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 
                 /* Copy the object to the second generation and mark it as
                  * living there. */
+                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %x of size %d to gen2 %x\n", item, size, new_addr);
                 memcpy(new_addr, item, size);
                 new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
@@ -212,6 +222,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                  * iteration. Allocate space in the nursery. */
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + size;
+                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %x of size %d to tospace %x\n", item, size, new_addr);
                 
                 /* Copy the object to tospace and mark it as seen in the
                  * nursery (so the next time around it will move to the
@@ -241,6 +252,10 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              * that will need updating. Note that we are passing the address
              * of the object *after* copying it since those are the addresses
              * we care about updating; the old chunk of memory is now dead! */
+            
+            if (GCCOLL_DEBUG && !STABLE(new_addr_obj))
+                MVM_panic(MVM_exitcode_gcnursery, "Found an outdated reference %x to address %x", item_ptr, item);
+            
             if (REPR(new_addr_obj)->gc_mark)
                 REPR(new_addr_obj)->gc_mark(tc, STABLE(new_addr_obj), OBJECT_BODY(new_addr_obj), worklist);
         }
@@ -430,6 +445,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             /* Object instance. If dead, call gc_free if needed. Scan is
              * incremented by object size. */
             MVMObject *obj = (MVMObject *)item;
+//            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %d in the nursery\n", item);
             if (dead && REPR(obj)->gc_free)
                 REPR(obj)->gc_free(tc, obj);
             scan = (char *)scan + STABLE(obj)->size;
@@ -517,6 +533,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     col->forwarder = NULL;
                 }
                 else {
+            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %x in the gen2\n", col);
                     /* No, it's dead. Do any cleanup. */
                     if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
                         /* Object instance; call gc_free if needed. */
