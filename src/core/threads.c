@@ -37,36 +37,38 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
 /* This callback handles starting execution of a thread. */
 static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
+    MVMThreadContext *tc = ts->tc;
     
     /* Set the current frame in the thread to be the initial caller;
      * the ref count for this was incremented in the original thread. */
-    ts->tc->cur_frame = ts->caller;
+    tc->cur_frame = ts->caller;
     
     /* wait for the GC to finish if it's not finished stealing us. */
-    MVM_gc_mark_thread_unblocked(ts->tc);
-    ts->tc->thread_obj->body.stage = MVM_thread_stage_started;
-    MVM_gc_root_temp_pop_n(ts->tc, 2); /* pop the ts->thread_obj addr */
+    MVM_gc_mark_thread_unblocked(tc);
+    tc->thread_obj->body.stage = MVM_thread_stage_started;
+    MVM_gc_root_temp_pop_n(tc, 2); /* pop the ts->thread_obj addr */
     
     /* Enter the interpreter, to run code. */
-    MVM_interp_run(ts->tc, &thread_initial_invoke, ts);
+    MVM_interp_run(tc, &thread_initial_invoke, ts);
     
     /* mark as exited, so the GC will know to clear our stuff. */
-    ts->tc->thread_obj->body.stage = MVM_thread_stage_exited;
+    tc->thread_obj->body.stage = MVM_thread_stage_exited;
     
     /* Now we're done, decrement the reference count of the caller. */
-    MVM_frame_dec_ref(ts->tc, ts->caller);
+    MVM_frame_dec_ref(tc, ts->caller);
     
     /* Mark ourselves as dying, so that another thread will take care
      * of GC-ing our objects and cleaning up our thread context. */
-    MVM_gc_mark_thread_blocked(ts->tc);
+    MVM_gc_mark_thread_blocked(tc);
     
     /* these are about to destroy themselves */
-    ts->tc->thread_obj->body.apr_thread = NULL;
-    ts->tc->thread_obj->body.apr_pool = NULL;
+    tc->thread_obj->body.apr_thread = NULL;
+    tc->thread_obj->body.apr_pool = NULL;
     free(ts);
     
     /* Exit the thread, now it's completed. */
     apr_thread_exit(thread, APR_SUCCESS);
+    
     return NULL;
 }
 
