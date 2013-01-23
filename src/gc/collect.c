@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCCOLL_DEBUG 0
+#define GCCOLL_DEBUG 1
 #ifdef _MSC_VER
 # define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -69,35 +69,42 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
         
         MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
+        GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from thread_obj\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
         
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
         if (what_to_do != MVMGCWhatToDo_NoInstance) {
             MVM_gc_root_add_permanents_to_worklist(tc, worklist);
+            GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from instance permanents\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
             MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
+            GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from instance roots\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
         }
 
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist);
+        GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
         
         /* Add things that are roots for the first generation because
         * they are pointed to by objects in the second generation and
         * process them (also per-thread). */
         MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
+        GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from gen2 \n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
         
         /* Find roots in frames and process them. */
         if (tc->cur_frame) {
             MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
+            GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from cur_frame \n", worklist->items);
 			process_worklist(tc, worklist, &wtp, gen);
 		}
         
         /* Process anything in the in-tray. */
         add_in_tray_to_worklist(tc, worklist);
+        GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
         
         /* At this point, we have probably done most of the work we will
@@ -108,6 +115,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     else {
         /* We just need to process anything in the in-tray. */
         add_in_tray_to_worklist(tc, worklist);
+        GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
     }
 
@@ -159,6 +167,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
          * forwarding address already. Just update this pointer to the
          * new address and we're done. */
         if (item->forwarder) {
+            if (GCCOLL_DEBUG && *item_ptr != item->forwarder)
+                GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from %x to forwarder %x\n", item_ptr, item, item->forwarder);
             *item_ptr = item->forwarder;
             continue;
         }
@@ -171,7 +181,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
-            GCCOLL_LOG(tc, "Thread %d run %d : sending a handle %x to object %x to thread %d\n", item_ptr, item, item->owner);
+//            GCCOLL_LOG(tc, "Thread %d run %d : sending a handle %x to object %x to thread %d\n", item_ptr, item, item->owner);
             pass_work_item(tc, wtp, item_ptr);
             continue;
         }
@@ -186,7 +196,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              *item_ptr = item->forwarder = new_addr;
         } else {
             if (GCCOLL_DEBUG && !STABLE(item)) {
-                GCCOLL_LOG(tc, "Thread %d run %d : found a zeroed handle %x to object %x to thread %d\n", item_ptr, item);
+                GCCOLL_LOG(tc, "Thread %d run %d : found a zeroed handle %x to object %x\n", item_ptr, item);
                 printf("%d", ((MVMCollectable *)1)->owner);
             }
             /* We've got a live object in the nursery; this means some kind of
@@ -236,6 +246,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             
             /* Store the forwarding pointer and update the original
              * reference. */
+            if (GCCOLL_DEBUG && new_addr != item) {
+                GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from referent %x to %x\n", item_ptr, item, new_addr);
+            }
             *item_ptr = item->forwarder = new_addr;
         }
 

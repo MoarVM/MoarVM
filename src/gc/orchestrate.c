@@ -379,6 +379,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
          * if we were interrupted to GC. */
+        GCORCH_LOG(tc, "Thread %d run %d : Lost coordinator election\n");
         MVM_gc_enter_from_interrupt(tc);
     }
 }
