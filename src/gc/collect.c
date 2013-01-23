@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCCOLL_DEBUG 1
+#define GCCOLL_DEBUG 0
 #ifdef _MSC_VER
 # define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
