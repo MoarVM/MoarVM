@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCCOLL_DEBUG 0
+#define GCCOLL_DEBUG 1
 #ifdef _MSC_VER
 # define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -67,6 +67,9 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         /* Reset nursery allocation pointers to the new tospace. */
         tc->nursery_alloc       = tospace;
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
+        
+        MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
+        process_worklist(tc, worklist, &wtp, gen);
         
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */

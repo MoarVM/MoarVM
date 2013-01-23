@@ -54,7 +54,6 @@ MVMInstance * MVM_vm_create_instance(void) {
                 instance->main_thread, STABLE(instance->boot_types->BOOTThread));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
-    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->main_thread->thread_obj);
     
     return instance;
 }

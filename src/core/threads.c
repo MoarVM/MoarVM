@@ -96,11 +96,6 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
             MVM_panic(MVM_exitcode_threads, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
         }
         
-        /* Signal to the GC we have a childbirth in progress. The GC
-         * will null it for us. */
-        MVM_gc_mark_thread_blocked(child_tc);
-        tc->thread_obj->body.new_child = child;
-        
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was
          * started, and there's no promises that the thread won't start before
@@ -111,9 +106,13 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         ts->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
         ts->thread_obj = child_obj;
         
-        /* push this to the *child* tc's perm roots. */
-        MVM_gc_root_add_permanent(child_tc, (MVMCollectable **)&ts->thread_obj);
-        MVM_gc_root_add_permanent(child_tc, (MVMCollectable **)&child_tc->thread_obj);
+        /* push this to the *child* tc's temp roots. */
+        MVM_gc_root_temp_push(child_tc, (MVMCollectable **)&ts->thread_obj);
+        
+        /* Signal to the GC we have a childbirth in progress. The GC
+         * will null it for us. */
+        MVM_gc_mark_thread_blocked(child_tc);
+        tc->thread_obj->body.new_child = child;
         
         /* push to starting threads list */
         do {
