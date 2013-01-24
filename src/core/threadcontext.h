@@ -123,10 +123,10 @@ typedef struct _MVMThreadContext {
     /* The GC's thread-local "sent items" list, by next_by_sender. */
     struct _MVMGCPassedWork *gc_sent_items;
     struct _MVMGCPassedWork *gc_next_to_check;
-    /* threads stolen. */
-    struct _MVMStolenThread *gc_stolen;
-    MVMuint32                gc_stolen_size;
-    MVMuint32                gc_stolen_count;
+    /* threads to process this gc run. */
+    struct _MVMWorkThread   *gc_work;
+    MVMuint32                gc_work_size;
+    MVMuint32                gc_work_count;
     
     /* Pool table of chains of frames for each static frame. */
     struct _MVMFrame **frame_pool_table;

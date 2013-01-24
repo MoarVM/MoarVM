@@ -50,9 +50,9 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
     
-    /* Free the stolen container */
-    if (tc->gc_stolen)
-        free(tc->gc_stolen);
+    /* Free the threads work container */
+    if (tc->gc_work)
+        free(tc->gc_work);
     
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));
