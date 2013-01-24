@@ -164,13 +164,13 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
                 : cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
             while (cur_ptr < end_ptr) {
                 if (cur_ptr == (char *)*freelist_insert_pos) {
-//                    printf("found a free list slot in bin %d page %d: %d with value %d and start %d and limit %d\n",
-//                        bin, page, cur_ptr, *(void **)cur_ptr, gen2->size_classes[bin].pages[page],
-//                        dest_gen2->size_classes[bin].alloc_limit);
+/*                    printf("found a free list slot in bin %d page %d: %d with value %d and start %d and limit %d\n",
+                        bin, page, cur_ptr, *(void **)cur_ptr, gen2->size_classes[bin].pages[page],
+                        dest_gen2->size_classes[bin].alloc_limit);*/
                     freelist_insert_pos = (char ***)cur_ptr;
                 }
                 else { /* note: we don't have tests that exercise this path yet. */
-//                    printf("updating an owner from %d to %d\n", ((MVMCollectable *)cur_ptr)->owner, dest->thread_id);
+/*                    printf("updating an owner from %d to %d\n", ((MVMCollectable *)cur_ptr)->owner, dest->thread_id);*/
                     ((MVMCollectable *)cur_ptr)->owner = dest->thread_id;
                 }
                 

@@ -485,7 +485,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             /* Object instance. If dead, call gc_free if needed. Scan is
              * incremented by object size. */
             MVMObject *obj = (MVMObject *)item;
-//            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %d in the nursery\n", item);
+/*            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %d in the nursery\n", item);*/
             if (dead && REPR(obj)->gc_free)
                 REPR(obj)->gc_free(tc, obj);
             scan = (char *)scan + STABLE(obj)->size;
@@ -610,8 +610,6 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         *((char **)cur_ptr) = **freelist_insert_pos;
                         **freelist_insert_pos = cur_ptr;
                     }
-//                    printf("found a dead object in thread %d bin %d page %d at %d; gave it value %d\n",
-//                        tc->thread_id, bin, page, cur_ptr, *((char **)cur_ptr));
                     
                     /* Update the pointer to the insert position to point to us */
                     last_insert_pos = (char **)cur_ptr;
