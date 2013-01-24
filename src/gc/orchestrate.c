@@ -98,6 +98,8 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
                 MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %d", t->body.stage);
         }
     } while (next && (t = next));
+    if (tail)
+        MVM_ASSIGN_REF(tc, t, t->body.next, tail);
     t->body.next = tail;
     return count;
 }

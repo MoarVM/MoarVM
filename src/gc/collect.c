@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define GCCOLL_DEBUG 1
+#define GCCOLL_DEBUG 0
 #ifdef _MSC_VER
 # define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
 #else
@@ -160,15 +160,19 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's in the second generation and we're only doing a nursery,
          * collection, we have nothing to do. */
         item_gen2 = item->flags & MVM_CF_SECOND_GEN;
-        if (item_gen2 && gen == MVMGCGenerations_Nursery)
-            continue;
+    //    if (item_gen2 && gen == MVMGCGenerations_Nursery)
+    //        continue;
         
         /* If the item was already seen and copied, then it will have a
          * forwarding address already. Just update this pointer to the
          * new address and we're done. */
         if (item->forwarder) {
-            if (GCCOLL_DEBUG && *item_ptr != item->forwarder)
-                GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from %x to forwarder %x\n", item_ptr, item, item->forwarder);
+            if (GCCOLL_DEBUG) {
+                if (*item_ptr != item->forwarder)
+                    GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from %x to forwarder %x\n", item_ptr, item, item->forwarder);
+                else
+                    GCCOLL_LOG(tc, "Thread %d run %d : already visited handle %x to forwarder %x\n", item_ptr, item->forwarder);
+            }
             *item_ptr = item->forwarder;
             continue;
         }
@@ -181,7 +185,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
-//            GCCOLL_LOG(tc, "Thread %d run %d : sending a handle %x to object %x to thread %d\n", item_ptr, item, item->owner);
+            GCCOLL_LOG(tc, "Thread %d run %d : sending a handle %x to object %x to thread %d\n", item_ptr, item, item->owner);
             pass_work_item(tc, wtp, item_ptr);
             continue;
         }
@@ -192,8 +196,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* It's in the second generation. We'll just mark it, which is
              * done by setting the forwarding pointer to the object itself,
              * since we don't do moving. */
-             new_addr = item;
-             *item_ptr = item->forwarder = new_addr;
+            new_addr = item;
+            if (GCCOLL_DEBUG && new_addr != item) {
+                GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from referent %x to %x\n", item_ptr, item, new_addr);
+            }
+            *item_ptr = item->forwarder = new_addr;
         } else {
             if (GCCOLL_DEBUG && !STABLE(item)) {
                 GCCOLL_LOG(tc, "Thread %d run %d : found a zeroed handle %x to object %x\n", item_ptr, item);

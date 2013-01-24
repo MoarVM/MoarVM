@@ -87,6 +87,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         /* Create a new thread context and set it up. */
         MVMThreadContext *child_tc = MVM_tc_create(tc->instance);
         child->body.tc = child_tc;
+        MVM_ASSIGN_REF(tc, child, child->body.invokee, invokee);
         child->body.invokee = invokee;
         child_tc->thread_obj = child;
         child_tc->thread_id = MVM_atomic_incr(&tc->instance->next_user_thread_id);
@@ -112,11 +113,14 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         /* Signal to the GC we have a childbirth in progress. The GC
          * will null it for us. */
         MVM_gc_mark_thread_blocked(child_tc);
+        MVM_ASSIGN_REF(tc, tc->thread_obj, tc->thread_obj->body.new_child, child);
         tc->thread_obj->body.new_child = child;
         
         /* push to starting threads list */
         do {
-            child->body.next = tc->instance->threads;
+            MVMThread *curr = tc->instance->threads;
+            MVM_ASSIGN_REF(tc, child, child->body.next, curr);
+            child->body.next = curr;
         } while (apr_atomic_casptr(&tc->instance->threads, child, child->body.next) != child->body.next);
         
         apr_return_status = apr_threadattr_create(&thread_attr, child->body.apr_pool);
