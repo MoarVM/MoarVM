@@ -140,9 +140,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMGen2Allocator  *gen2;
     MVMCollectable   **item_ptr;
     MVMCollectable    *new_addr;
-    MVMuint32          size;
+    MVMuint32          size, gen2count;
     MVMuint16          i;
-    MVMGCWorklist     *main_list = NULL;
     
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
@@ -198,8 +197,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              * done by setting the forwarding pointer to the object itself,
              * since we don't do moving. */
             new_addr = item;
-            if (GCCOLL_DEBUG && new_addr != item) {
-                GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from referent %x to %x\n", item_ptr, item, new_addr);
+            if (GCCOLL_DEBUG) {
+                if (new_addr != item)
+                    GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from referent %x to %x\n", item_ptr, item, new_addr);
+                else
+                    GCCOLL_LOG(tc, "Thread %d run %d : handle %x was already %x\n", item_ptr, new_addr);
             }
             *item_ptr = item->forwarder = new_addr;
         } else {
@@ -263,15 +265,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* Add the serialization context address to the worklist. */
         MVM_gc_worklist_add(tc, worklist, &new_addr->sc);
         
-        if (new_addr->flags & MVM_CF_SECOND_GEN) {
-            if (!tc->temp_gen2_roots) {
-                tc->temp_gen2_roots = MVM_gc_worklist_create(tc);
-            }
-            
-            main_list = worklist;
-            /* swap out the worklist for the temporary one */
-            worklist = tc->temp_gen2_roots;
-        }
+        gen2count = worklist->items;
         
         /* Otherwise, we need to do the copy. What sort of thing are we
          * going to copy? */
@@ -339,14 +333,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         
         if (new_addr->flags & MVM_CF_SECOND_GEN) {
             MVMCollectable **j;
+            MVMuint32 max = worklist->items, k;
             
-            while (j = MVM_gc_worklist_get(tc, worklist)) {
+            for (k = gen2count; k < max; k++) {
+                j = worklist->list[k];
                 if (*j) {
                     MVM_WB(tc, new_addr, *j, *j);
                 }
-                MVM_gc_worklist_add(tc, main_list, j);
             }
-            worklist = main_list;
         }
     }
 }

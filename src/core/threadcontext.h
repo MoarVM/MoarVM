@@ -117,7 +117,6 @@ typedef struct _MVMThreadContext {
     MVMuint32             num_gen2roots;
     MVMuint32             alloc_gen2roots;
     MVMCollectable     ***gen2roots;
-    struct _MVMGCWorklist*temp_gen2_roots;
     
     /* The GC's cross-thread in-tray of processing work. */
     struct _MVMGCPassedWork *gc_in_tray;
