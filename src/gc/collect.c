@@ -160,8 +160,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's in the second generation and we're only doing a nursery,
          * collection, we have nothing to do. */
         item_gen2 = item->flags & MVM_CF_SECOND_GEN;
-    //    if (item_gen2 && gen == MVMGCGenerations_Nursery)
-    //        continue;
+        if (item_gen2 && gen == MVMGCGenerations_Nursery)
+            continue;
         
         /* If the item was already seen and copied, then it will have a
          * forwarding address already. Just update this pointer to the
