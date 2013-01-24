@@ -63,6 +63,8 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     /* these are about to destroy themselves */
     tc->thread_obj->body.apr_thread = NULL;
     tc->thread_obj->body.apr_pool = NULL;
+    /* hopefully pop the ts->thread_obj temp */
+    MVM_gc_root_temp_pop(tc);
     free(ts);
     
     /* Exit the thread, now it's completed. */
