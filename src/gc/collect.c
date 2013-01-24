@@ -142,6 +142,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMCollectable    *new_addr;
     MVMuint32          size;
     MVMuint16          i;
+    MVMGCWorklist     *main_list = NULL;
     
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
@@ -151,7 +152,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* Dereference the object we're considering. */
         MVMCollectable *item = *item_ptr;
         MVMuint8 item_gen2;
-
+        
         /* If the item is NULL, that's fine - it's just a null reference and
          * thus we've no object to consider. */
         if (item == NULL)
@@ -262,6 +263,16 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* Add the serialization context address to the worklist. */
         MVM_gc_worklist_add(tc, worklist, &new_addr->sc);
         
+        if (new_addr->flags & MVM_CF_SECOND_GEN) {
+            if (!tc->temp_gen2_roots) {
+                tc->temp_gen2_roots = MVM_gc_worklist_create(tc);
+            }
+            
+            main_list = worklist;
+            /* swap out the worklist for the temporary one */
+            worklist = tc->temp_gen2_roots;
+        }
+        
         /* Otherwise, we need to do the copy. What sort of thing are we
          * going to copy? */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
@@ -324,6 +335,18 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         }
         else {
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC marking");
+        }
+        
+        if (new_addr->flags & MVM_CF_SECOND_GEN) {
+            MVMCollectable **j;
+            
+            while (j = MVM_gc_worklist_get(tc, worklist)) {
+                if (*j) {
+                    MVM_WB(tc, new_addr, *j, *j);
+                }
+                MVM_gc_worklist_add(tc, main_list, j);
+            }
+            worklist = main_list;
         }
     }
 }
