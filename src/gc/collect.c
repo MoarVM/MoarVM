@@ -548,22 +548,10 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
             while (cur_ptr < end_ptr) {
                 MVMCollectable *col = (MVMCollectable *)cur_ptr;
                 
-                /* If we just arrived at the head of the free list (we possibly
-                 * traversed some memory before catching up to it), */
-                if (*freelist_insert_pos == (char **)cur_ptr) {
-                    freelist_insert_pos = (char ***)cur_ptr;
-                }
-                
                 /* Is this already a free list slot? If so, it becomes the
                  * new free list insert position. */
-                /* if the list is non-empty && the "next" link from the last
-                 * free node (the one pointed to by *freelist_insert_pos)
-                 * equals us, it means the head of the list has already been
-                 * traversed (we are past the head), so we just need to update
-                 * freelist_insert_pos to point to us. */
-                else if (*freelist_insert_pos && **freelist_insert_pos == cur_ptr) {
-                    last_insert_pos = (char **)cur_ptr;
-                    freelist_insert_pos = &last_insert_pos;
+                if (*freelist_insert_pos == (char **)cur_ptr) {
+                    freelist_insert_pos = (char ***)cur_ptr;
                 }
                 
                 /* Otherwise, it must be a collectable of some kind. Is it
@@ -596,24 +584,11 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     }
                     
                     /* Chain in to the free list. */
-                    /* We either haven't yet caught up to the head of the free list,
-                     * or we have passed it, or the list is empty and we will be the head. */
-                    /* if we're the new head of the list or we have not yet caught up to the head. */
-                    if (*freelist_insert_pos == NULL
-                            || *freelist_insert_pos > (char **)cur_ptr
-                            || *freelist_insert_pos < (char **)gen2->size_classes[bin].pages[page]) {
-                        *((char **)cur_ptr) = (char *)*freelist_insert_pos;
-                        *freelist_insert_pos = (char **)cur_ptr;
-                    }
-                    /* The insert position is behind us. */
-                    else {
-                        *((char **)cur_ptr) = **freelist_insert_pos;
-                        **freelist_insert_pos = cur_ptr;
-                    }
+                    *((char **)cur_ptr) = (char *)*freelist_insert_pos;
+                    *freelist_insert_pos = (char **)cur_ptr;
                     
                     /* Update the pointer to the insert position to point to us */
-                    last_insert_pos = (char **)cur_ptr;
-                    freelist_insert_pos = &last_insert_pos;
+                    freelist_insert_pos = (char ***)cur_ptr;
                 }
                 
                 /* Move to the next object. */

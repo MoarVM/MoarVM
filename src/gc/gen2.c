@@ -163,7 +163,10 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
                 ? gen2->size_classes[bin].alloc_pos
                 : cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
             while (cur_ptr < end_ptr) {
-                if (cur_ptr == (char *)*freelist_insert_pos) {
+                if (cur_ptr == (char *)freelist_insert_pos) {
+                    /* skip */
+                }
+                else if (cur_ptr == (char *)*freelist_insert_pos) {
 /*                    printf("found a free list slot in bin %d page %d: %d with value %d and start %d and limit %d\n",
                         bin, page, cur_ptr, *(void **)cur_ptr, gen2->size_classes[bin].pages[page],
                         dest_gen2->size_classes[bin].alloc_limit);*/
@@ -180,9 +183,13 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
             dest_gen2->size_classes[bin].pages[page + orig_dest_num_pages] = gen2->size_classes[bin].pages[page];
         }
         
-        /* chain the destination's freelist through any remaining unallocated area */
         freelist_insert_pos = &dest_gen2->size_classes[bin].free_list;
-        cur_ptr = dest_gen2->size_classes[bin].alloc_pos;
+        while (*freelist_insert_pos) {
+            freelist_insert_pos = (char ***)*freelist_insert_pos;
+        }
+        /* chain the destination's freelist through any remaining unallocated area */
+        cur_ptr = (char *)freelist_insert_pos > dest_gen2->size_classes[bin].alloc_pos
+            ? (char *)freelist_insert_pos : dest_gen2->size_classes[bin].alloc_pos;
         end_ptr = dest_gen2->size_classes[bin].alloc_limit;
         while (cur_ptr < end_ptr) {
             *freelist_insert_pos = (char **)cur_ptr;
