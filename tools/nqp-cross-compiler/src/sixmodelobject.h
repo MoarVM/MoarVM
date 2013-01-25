@@ -64,7 +64,7 @@ typedef struct {
 #define TYPE_CHECK_NEEDS_ACCEPTS       2
 #define TYPE_CHECK_CACHE_FLAG_MASK     3
 
-/* This flag is set if we consider the method cache authoritative. */
+/* This flag is set if we consider the method cche authoritative. */
 #define METHOD_CACHE_AUTHORITATIVE     4
 
 /* S-Tables (short for Shared Table) contains the commonalities shared between
@@ -257,6 +257,11 @@ struct SixModel_REPROps {
      * representation instance if needed. */
     PMC * (*type_object_for) (PARROT_INTERP, PMC *HOW);
 
+    /* Composes the representation, passing any composition info. This
+     * is the way a meta-object provides configuration to a REPR, which
+     * it may then use to do layout, etc. */
+    void (*compose) (PARROT_INTERP, STable *st, PMC *repr_info);
+
     /* Allocates a new, but uninitialized object, based on the
      * specified s-table. */
     PMC * (*allocate) (PARROT_INTERP, STable *st);
@@ -378,7 +383,9 @@ PMC * create_stable(PARROT_INTERP, REPROps *REPR, PMC *HOW);
 PMC * decontainerize(PARROT_INTERP, PMC *var);
 
 /* Dynamic representation registration. */
-typedef INTVAL (* rf) (PARROT_INTERP, STRING *name, REPROps * (*reg) (PARROT_INTERP, void *, void *));
+typedef PMC * (*wrap_object_t)(PARROT_INTERP, void *obj);
+typedef PMC * (*create_stable_t)(PARROT_INTERP, REPROps *REPR, PMC *HOW);
+typedef INTVAL (* rf) (PARROT_INTERP, STRING *name, REPROps * (*reg) (PARROT_INTERP, wrap_object_t, create_stable_t));
 #define REGISTER_DYNAMIC_REPR(interp, name, reg_func) \
     ((rf) \
         VTABLE_get_pointer(interp, \
