@@ -4,8 +4,7 @@
  * its REPR gc_free routine. */
 
 #include "moarvm.h"
-static void run_gc(MVMThreadContext *tc);
- 
+
 /* Allocate the specified amount of memory from the nursery. Will
  * trigger a GC run if there is not enough. */
 void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
