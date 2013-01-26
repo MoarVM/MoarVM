@@ -237,7 +237,6 @@ class QAST::MASTCompiler {
         my %*MAST_FRAMES := nqp::hash();
         
         my $*QASTCOMPILER := self;
-        say(get_name($qast));
         self.as_mast($qast);
         
         $*MAST_COMPUNIT
@@ -792,6 +791,10 @@ class QAST::MASTCompiler {
     
     multi method as_mast(QAST::Regex $node) {
         QAST::MASTRegexCompiler.new().as_mast($node)
+    }
+    
+    multi method as_mast($unknown) {
+        nqp::die("Unknown QAST node type " ~ $unknown.HOW.name($unknown));
     }
     
     my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
