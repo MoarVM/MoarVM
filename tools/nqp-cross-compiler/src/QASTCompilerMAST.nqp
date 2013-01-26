@@ -798,6 +798,10 @@ class QAST::MASTCompiler {
     method type_to_register_kind($type) {
         @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
     }
+    
+    method operations() {
+        QAST::MASTOperations
+    }
 }
 
 sub push_op(@dest, $op, *@args) {
