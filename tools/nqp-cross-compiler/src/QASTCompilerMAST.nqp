@@ -1,6 +1,9 @@
 use QASTOperationsMAST;
 use QASTRegexCompilerMAST;
 
+# Disable compilatin of deserialization stuff while still in development.
+my $ENABLE_SC_COMP := 0;
+
 my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
 my $MVM_reg_int8            := 1;
 my $MVM_reg_int16           := 2;
@@ -297,6 +300,77 @@ class QAST::MASTCompiler {
     
     my @return_types := [ NQPMu, int, int, int, int, num, num, str, NQPMu ];
     
+    multi method as_mast(QAST::CompUnit $cu, :$want) {
+        # Set HLL.
+        my $*HLL := '';
+        if $cu.hll {
+            $*HLL := $cu.hll;
+            $*MAST_COMPUNIT.hll($*HLL);
+        }
+        
+        # Should have a single child which is the outer block; compile it.
+        if +@($cu) != 1 || !nqp::istype($cu[0], QAST::Block) {
+            nqp::die("QAST::CompUnit should have one child that is a QAST::Block");
+        }
+        self.as_mast($cu[0]);
+        
+        # If we are in compilation mode, or have pre-deserialization or
+        # post-deserialization tasks, handle those. Overall, the process
+        # is to desugar this into simpler QAST nodes, then compile those.
+        my $comp_mode := $cu.compilation_mode;
+        my @pre_des   := $cu.pre_deserialize;
+        my @post_des  := $cu.post_deserialize;
+        if $ENABLE_SC_COMP && ($comp_mode || @pre_des || @post_des) {
+            # Create a block into which we'll install all of the other
+            # pieces.
+            my $block := QAST::Block.new( :blocktype('raw') );
+            
+            # Add pre-deserialization tasks, each as a QAST::Stmt.
+            for @pre_des {
+                $block.push(QAST::Stmt.new($_));
+            }
+            
+            # If we need to do deserialization, emit code for that.
+            if $comp_mode {
+                $block.push(self.deserialization_code($cu.sc(), $cu.code_ref_blocks(),
+                    $cu.repo_conflict_resolver()));
+            }
+            
+            # Add post-deserialization tasks.
+            for @post_des {
+                $block.push(QAST::Stmt.new($_));
+            }
+            
+            # Compile to MAST and register this block as the deserialization
+            # handler.
+            self.as_mast($block);
+            $*MAST_COMPUNIT.deserialize_frame(%*MAST_FRAMES{$block.cuid});
+        }
+        
+        # Compile and include load-time logic, if any.
+        if nqp::defined($cu.load) {
+            my $load_block := QAST::Block.new(
+                :blocktype('raw'),
+                $cu.load,
+                QAST::Op.new( :op('null') )
+            );
+            self.as_mast($load_block);
+            $*MAST_COMPUNIT.load_frame(%*MAST_FRAMES{$load_block.cuid});
+        }
+        
+        # Compile and include main-time logic, if any, and then add a Java
+        # main that will lead to its invocation.
+        if nqp::defined($cu.main) {
+            my $main_block := QAST::Block.new(
+                :blocktype('raw'),
+                $cu.main,
+                QAST::Op.new( :op('null') )
+            );
+            self.as_mast($main_block);
+            $*MAST_COMPUNIT.main_frame(%*MAST_FRAMES{$main_block.cuid});
+        }
+    }
+    
     multi method as_mast(QAST::Block $node) {
         my $outer_frame := try $*MAST_FRAME;
         
@@ -451,7 +525,10 @@ class QAST::MASTCompiler {
                     :returns(@return_types[$block.return_kind]),
                     QAST::BVal.new( :value($node) ) ) );
         }
-        if $node.blocktype && $node.blocktype ne 'declaration' {
+        elsif $node.blocktype eq 'raw' {
+            return self.as_mast(QAST::Op.new( :op('null') ));
+        }
+        elsif $node.blocktype && $node.blocktype ne 'declaration' {
             nqp::die("Unhandled blocktype $node.blocktype");
         }
         # note: we're now in the outer $*BLOCK/etc. contexts
