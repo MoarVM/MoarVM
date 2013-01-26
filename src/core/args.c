@@ -162,7 +162,7 @@ MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ct
  * executing code does not have a MVMFrame of its own. */
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
-    if (target && tc->cur_frame != tc->thread_entry_frame) {
+    if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
@@ -176,7 +176,7 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
 }
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
-    if (target && tc->cur_frame != tc->thread_entry_frame) {
+    if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
@@ -190,7 +190,7 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
 }
 void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
-    if (target && tc->cur_frame != tc->thread_entry_frame) {
+    if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
@@ -204,7 +204,7 @@ void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 f
 }
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
-    if (target && tc->cur_frame != tc->thread_entry_frame) {
+    if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
@@ -218,7 +218,7 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
 }
 void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
-    if (target && tc->cur_frame != tc->thread_entry_frame) {
+    if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
                 break;
