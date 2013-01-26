@@ -221,13 +221,6 @@ class QAST::MASTCompiler {
         }
     }
     
-    sub get_name($thing) {
-        my $name;
-        try $name := $thing.HOW.name($thing);
-        $name := pir::typeof__SP($thing) unless $name;
-        $name
-    }
-    
     our $serno := 0;
     method unique($prefix = '') { $prefix ~ $serno++ }
     
