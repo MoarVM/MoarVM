@@ -86,7 +86,8 @@ sub detect {
 
 sub can_run {
     my $try = shift;
-    return `$try 2>&1` ne '';
+    my $out = `$try 2>&1`;
+    return defined $out && $out ne '';
 }
 
 'Leffe';
