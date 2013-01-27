@@ -74,7 +74,7 @@ sub detect {
             $config{'cc'}           = 'gcc';
             $config{'copt'}         = '-O3';
             $config{'cdebug'}       = '-g';
-            $config{'cinstrument'}  = '-fsanitize=address';
+            $config{'cinstrument'}  = '';
             $config{'cmiscflags'}   = '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wno-format-security';
             $config{'couto'}        = '-o ';
             $config{'link'}         = 'gcc';
