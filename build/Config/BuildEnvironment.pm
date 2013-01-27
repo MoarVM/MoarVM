@@ -75,7 +75,7 @@ sub detect {
             $config{'cat'}          = 'cat';
         }
         else {
-            return (excuse => 'So far, we only support building with gcc on Linux.');
+            return (excuse => 'So far, we only support building with clang or gcc on Linux.');
         }
         
         return %config;
