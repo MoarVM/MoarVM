@@ -19,11 +19,17 @@ sub detect {
             
             # Set configuration flags.
             $config{'cc'}           = 'cl';
-            $config{'cflags'}       = '/nologo /Zi -DWIN32';
+            $config{'copt'}         = '';
+            $config{'cdebug'}       = '';
+            $config{'cinstrument'}  = '';
+            $config{'cmiscflags'}   = '/nologo /Zi -DWIN32';
             $config{'couto'}        = '-Fo';
             $config{'link'}         = 'link';
             $config{'louto'}        = '-out:';
-            $config{'ldflags'}      = '/nologo /debug /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib';
+            $config{'lopt'}         = '';
+            $config{'ldebug'}       = '';
+            $config{'linstrument'}  = '';
+            $config{'lmiscflags'}   = '/nologo /debug /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib';
             $config{'llibs'}        = '';
             $config{'make'}         = 'nmake';
             $config{'exe'}          = '.exe';
@@ -44,11 +50,17 @@ sub detect {
         
         if (can_run('clang')) {
             $config{'cc'}           = 'clang';
-            $config{'cflags'}       = '-g -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls';
+            $config{'copt'}         = '';
+            $config{'cdebug'}       = '-g';
+            $config{'cinstrument'}  = '-fsanitize=address';
+            $config{'cmiscflags'}   = '-fno-omit-frame-pointer -fno-optimize-sibling-calls';
             $config{'couto'}        = '-o ';
             $config{'link'}         = 'clang';
             $config{'louto'}        = '-o ';
-            $config{'ldflags'}      = '-L 3rdparty/apr/.libs -g -fsanitize=address';
+            $config{'lopt'}         = '';
+            $config{'ldebug'}       = '-g';
+            $config{'linstrument'}  = '-fsanitize=address';
+            $config{'lmiscflags'}   = '-L 3rdparty/apr/.libs';
             $config{'llibs'}        = '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm';
             $config{'make'}         = 'make';
             $config{'exe'}          = '';
@@ -60,11 +72,17 @@ sub detect {
         }
         elsif (can_run('gcc')) {
             $config{'cc'}           = 'gcc';
-            $config{'cflags'}       = ' -D_REENTRANT -D_LARGEFILE64_SOURCE -Wno-format-security -g';
+            $config{'copt'}         = '-O3';
+            $config{'cdebug'}       = '-g';
+            $config{'cinstrument'}  = '-fsanitize=address';
+            $config{'cmiscflags'}   = '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wno-format-security';
             $config{'couto'}        = '-o ';
             $config{'link'}         = 'gcc';
             $config{'louto'}        = '-o ';
-            $config{'ldflags'}      = '-L 3rdparty/apr/.libs -g';
+            $config{'lopt'}         = '-O3';
+            $config{'ldebug'}       = '-g';
+            $config{'linstrument'}  = '';
+            $config{'lmiscflags'}   = '-L 3rdparty/apr/.libs';
             $config{'llibs'}        = '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm';
             $config{'make'}         = 'make';
             $config{'exe'}          = '';
@@ -77,6 +95,9 @@ sub detect {
         else {
             return (excuse => 'So far, we only support building with clang or gcc on Linux.');
         }
+
+        $config{cflags}  = join ' ' => @config{qw( cmiscflags cinstrument cdebug copt )};
+        $config{ldflags} = join ' ' => @config{qw( lmiscflags linstrument ldebug lopt )};
         
         return %config;
     }
