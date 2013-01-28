@@ -70,7 +70,7 @@ sub detect {
         }
         elsif (can_run('gcc')) {
             $config{'cc'}           = 'gcc';
-            $config{'copt'}         = '-O3';
+            $config{'copt'}         = '';
             $config{'cdebug'}       = '-g';
             $config{'cinstrument'}  = '';
             $config{'cmiscflags'}   = '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses';
