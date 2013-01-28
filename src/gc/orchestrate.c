@@ -146,7 +146,7 @@ static MVMuint32 process_sent_items(MVMThreadContext *tc, MVMuint32 *put_vote) {
 
 static void cleanup_sent_items(MVMThreadContext *tc) {
     MVMGCPassedWork *work, *next = tc->gc_sent_items;
-    while (work = next) {
+    while ((work = next)) {
         next = work->last_by_sender;
         free(work);
     }
@@ -243,9 +243,9 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 }
 
 static void signal_child(MVMThreadContext *tc) {
-    MVMThread *child;
+    MVMThread *child = tc->thread_obj->body.new_child;
     /* if we still have it, its state will be UNABLE, so steal it. */
-    if (child = tc->thread_obj->body.new_child) {
+    if (child) {
         /* this will never return nonzero, because the child's status
          * will always be UNABLE or STOLEN. */
         signal_one_thread(tc, child->body.tc);

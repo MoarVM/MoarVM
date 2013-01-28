@@ -161,7 +161,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         did_something = 0;
         
         /* Handle any frames in the work list. */
-        while (cur_frame = (MVMFrame *)MVM_gc_worklist_get(tc, frame_worklist)) {
+        while ((cur_frame = (MVMFrame *)MVM_gc_worklist_get(tc, frame_worklist))) {
             /* If we already saw the frame this run, skip it. */
             MVMuint32 orig_seq = cur_frame->gc_seq_number;
             if (orig_seq == cur_seq_number)
@@ -192,7 +192,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         }
         
         /* Handle any static frames in the work list. */
-        while (cur_static_frame = (MVMStaticFrame *)MVM_gc_worklist_get(tc, static_frame_worklist)) {
+        while ((cur_static_frame = (MVMStaticFrame *)MVM_gc_worklist_get(tc, static_frame_worklist))) {
             /* If we already saw the static frame this run, skip it. */
             MVMuint32 orig_seq = cur_static_frame->gc_seq_number;
             if (orig_seq == cur_seq_number)
@@ -214,7 +214,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         }
         
         /* Handle any compilation units in the work list. */
-        while (cur_compunit = (MVMCompUnit *)MVM_gc_worklist_get(tc, compunit_worklist)) {
+        while ((cur_compunit = (MVMCompUnit *)MVM_gc_worklist_get(tc, compunit_worklist))) {
             MVMuint32 i;
             
             /* If we already saw the compunit this run, skip it. */

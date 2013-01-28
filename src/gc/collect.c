@@ -147,7 +147,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
      * old generation. */
     gen2 = tc->gen2;
     
-    while (item_ptr = MVM_gc_worklist_get(tc, worklist)) {
+    while ((item_ptr = MVM_gc_worklist_get(tc, worklist))) {
         /* Dereference the object we're considering. */
         MVMCollectable *item = *item_ptr;
         MVMuint8 item_gen2;
@@ -168,10 +168,12 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
          * new address and we're done. */
         if (item->forwarder) {
             if (GCCOLL_DEBUG) {
-                if (*item_ptr != item->forwarder)
+                if (*item_ptr != item->forwarder) {
                     GCCOLL_LOG(tc, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->forwarder);
-                else
+                }
+                else {
                     GCCOLL_LOG(tc, "Thread %d run %d : already visited handle %p to forwarder %p\n", item_ptr, item->forwarder);
+                }
             }
             *item_ptr = item->forwarder;
             continue;
@@ -198,10 +200,12 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              * since we don't do moving. */
             new_addr = item;
             if (GCCOLL_DEBUG) {
-                if (new_addr != item)
+                if (new_addr != item) {
                     GCCOLL_LOG(tc, "Thread %d run %d : updating handle %p from referent %p to %p\n", item_ptr, item, new_addr);
-                else
+                }
+                else {
                     GCCOLL_LOG(tc, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
+                }
             }
             *item_ptr = item->forwarder = new_addr;
         } else {
@@ -362,7 +366,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
                 target_tc = t->body.tc;
                 break;
             }
-        } while (t = t->body.next);
+        } while ((t = t->body.next));
         if (!target_tc)
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID in GC work pass");
     }

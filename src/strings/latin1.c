@@ -169,7 +169,7 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     result = malloc(length + 1);
     for (i = 0; i < length; i++) {
         MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
-        if (codepoint >= 0 && codepoint < 128 || codepoint >=152 && codepoint < 256) {
+        if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256)) {
             result[i] = (MVMuint8)codepoint;
         }
         else if (codepoint > 8364 || codepoint < 0) {

@@ -38,13 +38,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->flags  = src_body->flags;
     switch(src_body->flags & MVM_STRING_TYPE_MASK) {
         case MVM_STRING_TYPE_INT32:
-            if (dest_body->graphs = src_body->graphs) {
+            if ((dest_body->graphs = src_body->graphs)) {
                 dest_body->int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
                 memcpy(dest_body->int32s, src_body->int32s, sizeof(MVMCodepoint32) * src_body->graphs);
             }
             break;
         case MVM_STRING_TYPE_UINT8:
-            if (dest_body->graphs = src_body->graphs) {
+            if ((dest_body->graphs = src_body->graphs)) {
                 dest_body->uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
                 memcpy(dest_body->uint8s, src_body->uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
             }
