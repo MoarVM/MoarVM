@@ -75,7 +75,7 @@ sub detect {
             $config{'copt'}         = '-O3';
             $config{'cdebug'}       = '-g';
             $config{'cinstrument'}  = '';
-            $config{'cmiscflags'}   = '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wno-format-security';
+            $config{'cmiscflags'}   = '-D_REENTRANT -D_LARGEFILE64_SOURCE';
             $config{'couto'}        = '-o ';
             $config{'link'}         = 'gcc';
             $config{'louto'}        = '-o ';
