@@ -169,9 +169,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         if (item->forwarder) {
             if (GCCOLL_DEBUG) {
                 if (*item_ptr != item->forwarder)
-                    GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from %x to forwarder %x\n", item_ptr, item, item->forwarder);
+                    GCCOLL_LOG(tc, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->forwarder);
                 else
-                    GCCOLL_LOG(tc, "Thread %d run %d : already visited handle %x to forwarder %x\n", item_ptr, item->forwarder);
+                    GCCOLL_LOG(tc, "Thread %d run %d : already visited handle %p to forwarder %p\n", item_ptr, item->forwarder);
             }
             *item_ptr = item->forwarder;
             continue;
@@ -185,7 +185,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
-            GCCOLL_LOG(tc, "Thread %d run %d : sending a handle %x to object %x to thread %d\n", item_ptr, item, item->owner);
+            GCCOLL_LOG(tc, "Thread %d run %d : sending a handle %p to object %p to thread %d\n", item_ptr, item, item->owner);
             pass_work_item(tc, wtp, item_ptr);
             continue;
         }
@@ -199,14 +199,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             new_addr = item;
             if (GCCOLL_DEBUG) {
                 if (new_addr != item)
-                    GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from referent %x to %x\n", item_ptr, item, new_addr);
+                    GCCOLL_LOG(tc, "Thread %d run %d : updating handle %p from referent %p to %p\n", item_ptr, item, new_addr);
                 else
-                    GCCOLL_LOG(tc, "Thread %d run %d : handle %x was already %x\n", item_ptr, new_addr);
+                    GCCOLL_LOG(tc, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
             }
             *item_ptr = item->forwarder = new_addr;
         } else {
             if (GCCOLL_DEBUG && !STABLE(item)) {
-                GCCOLL_LOG(tc, "Thread %d run %d : found a zeroed handle %x to object %x\n", item_ptr, item);
+                GCCOLL_LOG(tc, "Thread %d run %d : found a zeroed handle %p to object %p\n", item_ptr, item);
                 printf("%d", ((MVMCollectable *)1)->owner);
             }
             /* We've got a live object in the nursery; this means some kind of
@@ -230,7 +230,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 
                 /* Copy the object to the second generation and mark it as
                  * living there. */
-                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %x of size %d to gen2 %x\n", item, size, new_addr);
+                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n", item, size, new_addr);
                 memcpy(new_addr, item, size);
                 new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
@@ -245,7 +245,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                  * iteration. Allocate space in the nursery. */
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + size;
-                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %x of size %d to tospace %x\n", item, size, new_addr);
+                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %p of size %d to tospace %p\n", item, size, new_addr);
                 
                 /* Copy the object to tospace and mark it as seen in the
                  * nursery (so the next time around it will move to the
@@ -257,7 +257,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* Store the forwarding pointer and update the original
              * reference. */
             if (GCCOLL_DEBUG && new_addr != item) {
-                GCCOLL_LOG(tc, "Thread %d run %d : updating handle %x from referent %x to %x\n", item_ptr, item, new_addr);
+                GCCOLL_LOG(tc, "Thread %d run %d : updating handle %p from referent %p to %p\n", item_ptr, item, new_addr);
             }
             *item_ptr = item->forwarder = new_addr;
         }
@@ -282,7 +282,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              * we care about updating; the old chunk of memory is now dead! */
             
             if (GCCOLL_DEBUG && !STABLE(new_addr_obj))
-                MVM_panic(MVM_exitcode_gcnursery, "Found an outdated reference %x to address %x", item_ptr, item);
+                MVM_panic(MVM_exitcode_gcnursery, "Found an outdated reference %p to address %p", item_ptr, item);
             
             if (REPR(new_addr_obj)->gc_mark)
                 REPR(new_addr_obj)->gc_mark(tc, STABLE(new_addr_obj), OBJECT_BODY(new_addr_obj), worklist);
@@ -561,7 +561,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     col->forwarder = NULL;
                 }
                 else {
-            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %x in the gen2\n", col);
+            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %p in the gen2\n", col);
                     /* No, it's dead. Do any cleanup. */
                     if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
                         /* Object instance; call gc_free if needed. */
