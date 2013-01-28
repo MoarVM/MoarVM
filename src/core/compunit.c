@@ -44,5 +44,8 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     /* Process the input. */
     MVM_bytecode_unpack(tc, cu);
     
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&cu->hll_name);
+    cu->hll_config = MVM_hll_get_config_for(tc, cu->hll_name);
+    
     return cu;
 }

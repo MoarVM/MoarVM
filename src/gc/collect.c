@@ -352,6 +352,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 /* Adds a chunk of work to another thread's in-tray. */
 static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, MVMGCPassedWork *work) {
     MVMint32 j;
+    MVMGCPassedWork * volatile *target_tray;
     
     /* Locate the thread to pass the work to. */
     MVMThreadContext *target_tc = NULL;
@@ -384,7 +385,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
     
     /* Pass the work, chaining any other in-tray entries for the thread
      * after us. */
-    MVMGCPassedWork * volatile *target_tray = &target_tc->gc_in_tray;
+    target_tray = &target_tc->gc_in_tray;
     while (1) {
         MVMGCPassedWork *orig = *target_tray;
         work->next = orig;

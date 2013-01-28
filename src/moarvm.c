@@ -44,6 +44,13 @@ MVMInstance * MVM_vm_create_instance(void) {
             apr_strerror(apr_init_stat, error, 256));
         exit(1);
 	}
+    
+    if ((apr_init_stat = apr_thread_mutex_create(&instance->mutex_hllconfigs, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) {
+        char error[256];
+        fprintf(stderr, "MoarVM: Initialization of hll configs mutex failed\n    %s\n",
+            apr_strerror(apr_init_stat, error, 256));
+        exit(1);
+	}
 
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);

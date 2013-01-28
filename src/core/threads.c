@@ -85,6 +85,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
     MVM_gc_root_temp_pop(tc);
     if (REPR(child_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *child = (MVMThread *)child_obj;
+        MVMThread * volatile *threads;
         
         /* Create a new thread context and set it up. */
         MVMThreadContext *child_tc = MVM_tc_create(tc->instance);
@@ -117,7 +118,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         MVM_ASSIGN_REF(tc, tc->thread_obj, tc->thread_obj->body.new_child, child);
         
         /* push to starting threads list */
-        MVMThread * volatile *threads = &tc->instance->threads;
+        threads = &tc->instance->threads;
         do {
             MVMThread *curr = *threads;
             MVM_ASSIGN_REF(tc, child, child->body.next, curr);

@@ -82,6 +82,10 @@ typedef struct _MVMInstance {
     /* cached parsed command line args */
     MVMObject      *clargs;
     
+    /* Hash of HLLConfig objects. */
+    struct _MVMHLLConfig *hll_configs;
+    apr_thread_mutex_t   *mutex_hllconfigs;
+    
     /* Atomically-incremented counter of newly invoked frames,
        so each can obtain an index into each threadcontext's pool table */
     MVMuint32 num_frame_pools;

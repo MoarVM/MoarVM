@@ -25,8 +25,12 @@ typedef struct _MVMCompUnit {
     struct _MVMString **strings;
     MVMuint32           num_strings;
     
-    /* GC run sequence number that we last saw this frame during. */
+    /* GC run sequence number during which we last saw this frame. */
     MVMuint32 gc_seq_number;
+    
+    /* HLL configuration for this compilation unit. */
+    struct _MVMHLLConfig *hll_config;
+    struct _MVMString    *hll_name;
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);

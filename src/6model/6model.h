@@ -473,9 +473,9 @@ typedef struct _MVMREPROps {
 } MVMREPROps;
 
 /* Various handy macros for getting at important stuff. */
-#define STABLE(o)        (((MVMObject *)o)->st)
-#define REPR(o)          (STABLE(o)->REPR)
-#define OBJECT_BODY(o)   (&(((struct _MVMObjectStooge *)o)->data))
+#define STABLE(o)        (((MVMObject *)(o))->st)
+#define REPR(o)          (STABLE((o))->REPR)
+#define OBJECT_BODY(o)   (&(((struct _MVMObjectStooge *)(o))->data))
 
 /* Macros for getting/setting type-objectness. */
 #define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))

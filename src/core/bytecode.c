@@ -31,6 +31,10 @@ typedef struct {
     /* The annotations segment */
     MVMuint8  *annotation_seg;
     MVMuint32  annotation_size;
+    
+    /* HLL name string index */
+    MVMuint32  hll_str_idx;
+    
 } ReaderState;
 
 /* copies memory dependent on endianness */
@@ -174,6 +178,9 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     }
     rs->annotation_seg  = cu->data_start + offset;
     rs->annotation_size = size;
+    
+    /* Locate HLL name */
+    rs->hll_str_idx = read_int32(cu->data_start, 80);
     
     return rs;
 }
@@ -431,6 +438,8 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu->max_callsite_size = 0;
     cu->callsites = deserialize_callsites(tc, cu, rs);
     cu->num_callsites = rs->expected_callsites;
+    
+    cu->hll_name = cu->strings[rs->hll_str_idx];
     
     /* Clean up reader state. */
     cleanup_all(tc, rs);
