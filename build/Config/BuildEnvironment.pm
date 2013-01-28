@@ -42,8 +42,6 @@ sub detect {
         else {
             return (excuse => 'So far, we only support building with the Microsoft toolchain on Windows.');
         }
-        
-        return %config;
     }
     elsif ($^O =~ /linux/) {
         $config{'os'} = 'Linux';
@@ -95,14 +93,15 @@ sub detect {
         else {
             return (excuse => 'So far, we only support building with clang or gcc on Linux.');
         }
-
-        $config{cflags}  = join ' ' => @config{qw( cmiscflags cinstrument cdebug copt )};
-        $config{ldflags} = join ' ' => @config{qw( lmiscflags linstrument ldebug lopt )};
-        
-        return %config;
     }
-    
-    return (excuse => 'No recognized operating system or compiler found.'."  found: $^O");
+    else {
+        return (excuse => 'No recognized operating system or compiler found.'."  found: $^O");
+    }
+
+    $config{cflags}  = join ' ' => @config{qw( cmiscflags cinstrument cdebug copt )};
+    $config{ldflags} = join ' ' => @config{qw( lmiscflags linstrument ldebug lopt )};
+
+    return %config;
 }
 
 sub can_run {
