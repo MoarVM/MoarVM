@@ -117,10 +117,11 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         MVM_ASSIGN_REF(tc, tc->thread_obj, tc->thread_obj->body.new_child, child);
         
         /* push to starting threads list */
+        MVMThread * volatile *threads = &tc->instance->threads;
         do {
-            MVMThread *curr = tc->instance->threads;
+            MVMThread *curr = *threads;
             MVM_ASSIGN_REF(tc, child, child->body.next, curr);
-        } while (apr_atomic_casptr(&tc->instance->threads, child, child->body.next) != child->body.next);
+        } while (apr_atomic_casptr((volatile void**)threads, child, child->body.next) != child->body.next);
         
         apr_return_status = apr_threadattr_create(&thread_attr, child->body.apr_pool);
         if (apr_return_status != APR_SUCCESS) {

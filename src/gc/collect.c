@@ -380,10 +380,11 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
     
     /* Pass the work, chaining any other in-tray entries for the thread
      * after us. */
+    MVMGCPassedWork * volatile *target_tray = &target_tc->gc_in_tray;
     while (1) {
-        MVMGCPassedWork *orig = target_tc->gc_in_tray;
+        MVMGCPassedWork *orig = *target_tray;
         work->next = orig;
-        if (apr_atomic_casptr(&target_tc->gc_in_tray, work, orig) == orig)
+        if (apr_atomic_casptr((volatile void **)target_tray, work, orig) == orig)
             return;
     }
 }
@@ -441,17 +442,18 @@ static void pass_leftover_work(MVMThreadContext *tc, WorkToPass *wtp) {
 
 /* Takes work in a thread's in-tray, if any, and adds it to the worklist. */
 static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMGCPassedWork * volatile *in_tray = &tc->gc_in_tray;
     MVMGCPassedWork *head;
     
     /* Get work to process. */
     while (1) {
         /* See if there's anything in the in-tray; if not, we're done. */
-        head = tc->gc_in_tray;
+        head = *in_tray;
         if (head == NULL)
             return;
 
         /* Otherwise, try to take it. */
-        if (apr_atomic_casptr(&tc->gc_in_tray, NULL, head) == head)
+        if (apr_atomic_casptr((volatile void **)in_tray, NULL, head) == head)
             break;
     }
 
