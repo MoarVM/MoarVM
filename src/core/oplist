@@ -265,6 +265,7 @@ BANK 4 object
 0x4F    bootstr     w(obj)
 0x50    bootarray   w(obj)
 0x51    boothash    w(obj)
+0x52    sethllconf  r(str) r(obj)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)

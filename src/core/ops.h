@@ -276,6 +276,7 @@
 #define MVM_OP_bootstr 79
 #define MVM_OP_bootarray 80
 #define MVM_OP_boothash 81
+#define MVM_OP_sethllconf 82
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
