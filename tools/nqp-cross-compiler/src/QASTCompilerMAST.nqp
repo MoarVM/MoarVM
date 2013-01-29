@@ -14,6 +14,15 @@ my $MVM_reg_num64           := 6;
 my $MVM_reg_str             := 7;
 my $MVM_reg_obj             := 8;
 
+# Mapping of QAST::Want type identifiers to return types.
+my %WANTMAP := nqp::hash(
+    'v', $MVM_reg_void,
+    'I', $MVM_reg_int64, 'i', $MVM_reg_int64,
+    'N', $MVM_reg_num64, 'n', $MVM_reg_num64,
+    'S', $MVM_reg_str, 's', $MVM_reg_str,
+    'P', $MVM_reg_obj, 'p', $MVM_reg_obj
+);
+
 class QAST::MASTCompiler {
     # This uses a very simple scheme. Write registers are assumed
     # to be write-once, read-once.  Therefore, if a QAST control
@@ -238,7 +247,25 @@ class QAST::MASTCompiler {
         $*MAST_COMPUNIT
     }
     
-    proto method as_mast($qast) { * }
+    method coerce($res, $desired) {
+        nqp::die("coerce NYI");
+    }
+    
+    proto method as_mast($qast, :$want) {
+        my $*WANT;
+        if nqp::defined($want) {
+            $*WANT := %WANTMAP{$want} // $want;
+            if nqp::istype($qast, QAST::Want) {
+                self.coerce(self.as_mast($qast, :want($*WANT)))
+            }
+            else {
+                self.coerce({*}, $*WANT)
+            }
+        }
+        else {
+            {*}
+        }
+    }
     
     my @return_opnames := [
         'return',
@@ -364,7 +391,7 @@ class QAST::MASTCompiler {
         }
     }
     
-    multi method as_mast(QAST::Block $node) {
+    multi method as_mast(QAST::Block $node, :$want) {
         my $outer_frame := try $*MAST_FRAME;
         
         # Create an empty frame and add it to the compilation unit.
@@ -534,14 +561,14 @@ class QAST::MASTCompiler {
         }
     }
     
-    multi method as_mast(QAST::Stmts $node) {
+    multi method as_mast(QAST::Stmts $node, :$want) {
         my $resultchild := $node.resultchild;
         nqp::die("resultchild out of range")
             if (nqp::defined($resultchild) && $resultchild >= +@($node));
         self.compile_all_the_stmts(@($node), $resultchild)
     }
     
-    multi method as_mast(QAST::Stmt $node) {
+    multi method as_mast(QAST::Stmt $node, :$want) {
         my $resultchild := $node.resultchild;
         my %stmt_temps := nqp::clone(%*STMTTEMPS); # guaranteed to be initialized
         my $result;
@@ -592,11 +619,11 @@ class QAST::MASTCompiler {
         }
     }
     
-    multi method as_mast(QAST::Op $node) {
+    multi method as_mast(QAST::Op $node, :$want) {
         QAST::MASTOperations.compile_op(self, '', $node)
     }
     
-    multi method as_mast(QAST::VM $vm) {
+    multi method as_mast(QAST::VM $vm, :$want) {
         if $vm.supports('moarop') {
             QAST::MASTOperations.compile_mastop(self, $vm.alternative('moarop'), $vm.list)
         }
@@ -616,7 +643,7 @@ class QAST::MASTCompiler {
         'getlex_no'
     ];
     
-    multi method as_mast(QAST::Var $node) {
+    multi method as_mast(QAST::Var $node, :$want) {
         my $scope := $node.scope;
         my $decl  := $node.decl;
         
@@ -784,17 +811,17 @@ class QAST::MASTCompiler {
         MAST::InstructionList.new(@ins, $res_reg, $res_kind)
     }
     
-    multi method as_mast(MAST::InstructionList $ilist) {
+    multi method as_mast(MAST::InstructionList $ilist, :$want) {
         $ilist
     }
     
-    multi method as_mast(MAST::Node $node) {
+    multi method as_mast(MAST::Node $node, :$want) {
         MAST::InstructionList.new([$node], MAST::VOID, $MVM_reg_void)
     }
     
-    method as_mast_clear_bindval($node) {
+    method as_mast_clear_bindval($node, :$want) {
         my $*BINDVAL := 0;
-        self.as_mast($node)
+        nqp::defined($want) ?? self.as_mast($node, :$want) !! self.as_mast($node)
     }
     
     proto method as_mast_constant($qast) { * }
@@ -812,7 +839,7 @@ class QAST::MASTCompiler {
         nqp::die("expected QAST constant; didn't get one");
     }
     
-    multi method as_mast(QAST::IVal $iv) {
+    multi method as_mast(QAST::IVal $iv, :$want) {
         my $reg := $*REGALLOC.fresh_i();
         MAST::InstructionList.new(
             [MAST::Op.new(
@@ -824,7 +851,7 @@ class QAST::MASTCompiler {
             $MVM_reg_int64)
     }
     
-    multi method as_mast(QAST::NVal $nv) {
+    multi method as_mast(QAST::NVal $nv, :$want) {
         my $reg := $*REGALLOC.fresh_n();
         MAST::InstructionList.new(
             [MAST::Op.new(
@@ -836,7 +863,7 @@ class QAST::MASTCompiler {
             $MVM_reg_num64)
     }
     
-    multi method as_mast(QAST::SVal $sv) {
+    multi method as_mast(QAST::SVal $sv, :$want) {
         my $reg := $*REGALLOC.fresh_s();
         MAST::InstructionList.new(
             [MAST::Op.new(
@@ -848,7 +875,7 @@ class QAST::MASTCompiler {
             $MVM_reg_str)
     }
 
-    multi method as_mast(QAST::BVal $bv) {
+    multi method as_mast(QAST::BVal $bv, :$want) {
         
         my $block := $bv.value;
         my $cuid  := $block.cuid();
@@ -867,7 +894,7 @@ class QAST::MASTCompiler {
             $MVM_reg_obj)
     }
     
-    multi method as_mast(QAST::Annotated $node) {
+    multi method as_mast(QAST::Annotated $node, :$want) {
         my $ilist := self.compile_all_the_stmts($node.instructions, -1);
         MAST::InstructionList.new([
             MAST::Annotated.new(:file($node.file), :line($node.line),
@@ -875,11 +902,11 @@ class QAST::MASTCompiler {
             $ilist.result_reg, $ilist.result_kind)
     }
     
-    multi method as_mast(QAST::Regex $node) {
+    multi method as_mast(QAST::Regex $node, :$want) {
         QAST::MASTRegexCompiler.new().as_mast($node)
     }
     
-    multi method as_mast($unknown) {
+    multi method as_mast($unknown, :$want) {
         nqp::die("Unknown QAST node type " ~ $unknown.HOW.name($unknown));
     }
     

@@ -1,6 +1,17 @@
 use MASTCompiler;
 use QASTCompilerMAST;
 
+# register kinds (for :want)
+my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
+my $MVM_reg_int8            := 1;
+my $MVM_reg_int16           := 2;
+my $MVM_reg_int32           := 3;
+my $MVM_reg_int64           := 4;
+my $MVM_reg_num32           := 5;
+my $MVM_reg_num64           := 6;
+my $MVM_reg_str             := 7;
+my $MVM_reg_obj             := 8;
+
 sub MAIN(*@ARGS) {
     my $nqpcomp := pir::compreg__Ps('nqp');
     
@@ -109,11 +120,11 @@ $ops.add_hll_op('nqp', 'postdec', -> $qastcomp, $op {
 });
 
 $ops.add_hll_op('nqp', 'numify', -> $qastcomp, $op {
-    nqp::die("nqp numify op NYI");
+    $qastcomp.as_mast($op[0], :want($MVM_reg_num64))
 });
 
 $ops.add_hll_op('nqp', 'stringify', -> $qastcomp, $op {
-    nqp::die("nqp stringify op NYI");
+    $qastcomp.as_mast($op[0], :want($MVM_reg_str))
 });
 
 $ops.add_hll_op('nqp', 'falsey', -> $qastcomp, $op {
