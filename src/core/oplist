@@ -125,8 +125,8 @@ BANK 0 primitives
 0x7B    takeclosure w(obj) r(obj)
 0x7C    jumplist    int64 r(int64)
 0x7D    caller      w(obj) r(int64)
-0x7E    getctxl     w(obj) r(str)
-0x7F    bindctxl    r(str) r(obj)
+0x7E    getctxl     w(obj) str
+0x7F    bindctxl    str r(obj)
 
 BANK 1 dev
 0x00    say_i       r(int64)

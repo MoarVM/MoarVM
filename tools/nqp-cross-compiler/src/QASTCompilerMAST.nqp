@@ -725,6 +725,21 @@ class QAST::MASTCompiler {
                     $res_reg, MAST::SVal.new( :value($name) ));
             }
         }
+        elsif $scope eq 'contextual' {
+            if $*BINDVAL {
+                my $valmast := self.as_mast_clear_bindval($*BINDVAL);
+                check_kinds($valmast.result_kind, $MVM_reg_obj);
+                $res_reg := $valmast.result_reg;
+                push_ilist(@ins, $valmast);
+                push_op(@ins, 'bindctxl', MAST::SVal.new( :value($name)), $res_reg);
+                # do NOT release your own result register.  ergh.
+                #$*REGALLOC.release_register($res_reg, $valmast.result_kind);
+            }
+            else {
+                $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+                push_op(@ins, 'getctxl', $res_reg, MAST::SVal.new( :value($name)));
+            }
+        }
         elsif $scope eq 'attribute' {
             # Ensure we have object and class handle.
             my @args := $node.list();
