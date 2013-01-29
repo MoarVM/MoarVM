@@ -713,6 +713,32 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_bindctxl: {
+                        MVMuint16 type;
+                        MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, cu->strings[GET_UI16(cur_op, 0)], &type);
+                        MVMObject *result = GET_REG(cur_op, 2).o;
+                        switch (type) {
+                            case MVM_reg_int64:
+                                lex_reg->i64 = REPR(result)->box_funcs->get_int(tc,
+                                    STABLE(result), result, OBJECT_BODY(result));
+                                break;
+                            case MVM_reg_num64:
+                                lex_reg->n64 = REPR(result)->box_funcs->get_num(tc,
+                                    STABLE(result), result, OBJECT_BODY(result));
+                                break;
+                            case MVM_reg_str:
+                                lex_reg->s = REPR(result)->box_funcs->get_str(tc,
+                                    STABLE(result), result, OBJECT_BODY(result));
+                                break;
+                            case MVM_reg_obj:
+                                lex_reg->o = result;
+                                break;
+                            default:
+                                MVM_exception_throw_adhoc(tc, "invalid register type in bindctxl");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
