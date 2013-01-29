@@ -674,6 +674,45 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_getctxl: {
+                        MVMuint16 type;
+                        MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, cu->strings[GET_UI16(cur_op, 2)], &type);
+                        MVMObject *result = NULL, *result_type = NULL;
+                        switch (type) {
+                            case MVM_reg_int64:
+                                result_type = cu->hll_config->int_box_type;
+                                if (!result_type)
+                                    MVM_exception_throw_adhoc(tc, "missing int box type");
+                                result = REPR(result_type)->allocate(tc, STABLE(result_type));
+                                REPR(result)->box_funcs->set_int(tc, STABLE(result), result,
+                                    OBJECT_BODY(result), lex_reg->i64);
+                                break;
+                            case MVM_reg_num64:
+                                result_type = cu->hll_config->num_box_type;
+                                if (!result_type)
+                                    MVM_exception_throw_adhoc(tc, "missing num box type");
+                                result = REPR(result_type)->allocate(tc, STABLE(result_type));
+                                REPR(result)->box_funcs->set_num(tc, STABLE(result), result,
+                                    OBJECT_BODY(result), lex_reg->n64);
+                                break;
+                            case MVM_reg_str:
+                                result_type = cu->hll_config->str_box_type;
+                                if (!result_type)
+                                    MVM_exception_throw_adhoc(tc, "missing str box type");
+                                result = REPR(result_type)->allocate(tc, STABLE(result_type));
+                                REPR(result)->box_funcs->set_str(tc, STABLE(result), result,
+                                    OBJECT_BODY(result), lex_reg->s);
+                                break;
+                            case MVM_reg_obj:
+                                result = lex_reg->o;
+                                break;
+                            default:
+                                MVM_exception_throw_adhoc(tc, "invalid register type in getctxl");
+                        }
+                        GET_REG(cur_op, 0).o = result;
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
