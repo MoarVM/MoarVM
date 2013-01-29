@@ -765,16 +765,16 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_getctxl,
-        "getctxl",
+        MVM_OP_getdynlex,
+        "getdynlex",
         2,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_bindctxl,
-        "bindctxl",
+        MVM_OP_binddynlex,
+        "binddynlex",
         2,
-        { MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
 };
 static MVMOpInfo MVM_op_info_dev[] = {

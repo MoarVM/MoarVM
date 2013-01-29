@@ -674,9 +674,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_getctxl: {
+                    case MVM_OP_getdynlex: {
                         MVMuint16 type;
-                        MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, cu->strings[GET_UI16(cur_op, 2)], &type);
+                        MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, GET_REG(cur_op, 2).s, &type);
                         MVMObject *result = NULL, *result_type = NULL;
                         switch (type) {
                             case MVM_reg_int64:
@@ -713,9 +713,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_bindctxl: {
+                    case MVM_OP_binddynlex: {
                         MVMuint16 type;
-                        MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, cu->strings[GET_UI16(cur_op, 0)], &type);
+                        MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, GET_REG(cur_op, 0).s, &type);
                         MVMObject *result = GET_REG(cur_op, 2).o;
                         switch (type) {
                             case MVM_reg_int64:

@@ -982,17 +982,17 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
-            'getctxl', nqp::hash(
+            'getdynlex', nqp::hash(
                 'code', 126,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_str
+                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
-            'bindctxl', nqp::hash(
+            'binddynlex', nqp::hash(
                 'code', 127,
                 'operands', [
-                    $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             )

@@ -136,8 +136,8 @@
 #define MVM_OP_takeclosure 123
 #define MVM_OP_jumplist 124
 #define MVM_OP_caller 125
-#define MVM_OP_getctxl 126
-#define MVM_OP_bindctxl 127
+#define MVM_OP_getdynlex 126
+#define MVM_OP_binddynlex 127
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0

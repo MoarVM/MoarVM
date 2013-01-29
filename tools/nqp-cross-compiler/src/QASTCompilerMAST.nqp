@@ -753,19 +753,22 @@ class QAST::MASTCompiler {
             }
         }
         elsif $scope eq 'contextual' {
+            my $name_const := const_s($name);
             if $*BINDVAL {
                 my $valmast := self.as_mast_clear_bindval($*BINDVAL);
                 check_kinds($valmast.result_kind, $MVM_reg_obj);
                 $res_reg := $valmast.result_reg;
                 push_ilist(@ins, $valmast);
-                push_op(@ins, 'bindctxl', MAST::SVal.new( :value($name)), $res_reg);
+                push_ilist(@ins, $name_const);
+                push_op(@ins, 'binddynlex', $name_const.result_reg, $res_reg);
                 # do NOT release your own result register.  ergh.
                 #$*REGALLOC.release_register($res_reg, $valmast.result_kind);
             }
             else {
                 $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
-                push_op(@ins, 'getctxl', $res_reg, MAST::SVal.new( :value($name)));
+                push_op(@ins, 'getdynlex', $res_reg, $name_const.result_reg);
             }
+            $*REGALLOC.release_register($name_const.result_reg, $MVM_reg_str);
             $res_kind := $MVM_reg_obj;
         }
         elsif $scope eq 'attribute' {
@@ -863,16 +866,20 @@ class QAST::MASTCompiler {
             $MVM_reg_num64)
     }
     
-    multi method as_mast(QAST::SVal $sv, :$want) {
+    sub const_s($val) {
         my $reg := $*REGALLOC.fresh_s();
         MAST::InstructionList.new(
             [MAST::Op.new(
                 :bank('primitives'), :op('const_s'),
                 $reg,
-                MAST::SVal.new( :value($sv.value) )
+                MAST::SVal.new( :value($val) )
             )],
             $reg,
             $MVM_reg_str)
+    }
+    
+    multi method as_mast(QAST::SVal $sv, :$want) {
+        const_s($sv.value)
     }
 
     multi method as_mast(QAST::BVal $bv, :$want) {
