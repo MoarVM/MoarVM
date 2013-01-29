@@ -317,7 +317,8 @@ for <if unless> -> $op_name {
         # XXX coerce one to match the other? how to choose which one?
         if ($operands == 3 && @comp_ops[1].result_kind != @comp_ops[2].result_kind
          || $operands == 2 && @comp_ops[0].result_kind != @comp_ops[1].result_kind) {
-            nqp::die("For now, operation '$op_name' needs both branches to result in the same kind");
+            nqp::die("For now, operation '$op_name' needs both branches to result in the same kind. "
+            ~"Got kinds "~@comp_ops[0].result_kind~" "~@comp_ops[1].result_kind~" "~(@comp_ops[2] ?? @comp_ops[2].result_kind !! 'none'));
         }
         my $res_kind := @comp_ops[1].result_kind;
         my $is_void := $res_kind == $MVM_reg_void;
@@ -765,6 +766,10 @@ QAST::MASTOperations.add_core_moarop_mapping('sinh_n', 'sinh_n');
 QAST::MASTOperations.add_core_moarop_mapping('cosh_n', 'cosh_n');
 QAST::MASTOperations.add_core_moarop_mapping('tanh_n', 'tanh_n');
 QAST::MASTOperations.add_core_moarop_mapping('sech_n', 'sech_n');
+
+
+QAST::MASTOperations.add_core_moarop_mapping('isnull', 'isnull');
+QAST::MASTOperations.add_core_moarop_mapping('can', 'can');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
