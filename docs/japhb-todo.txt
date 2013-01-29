@@ -1,0 +1,46 @@
+* Build improvements
+  + Add options to configure for --debug, --optimize, --instrument
+    - Change BuildEnvironment.pm to pay attention to them properly
+    - MSVC flag definitions courtesy of diakopter++:
+      . /Zi is the msvc debug flag
+      . LDFLAGS /LTCG   CFLAGS /GL /0x  for optimized/nodebug
+      . /PROFILE is for msvc instrumentation
+  + Add a make realclean to cross compiler Makefile to nuke debug files
+* WIP: gcc warnings cleanup
+  + DONE: Previously turned off default warnings
+  + DONE: Remaining default warnings
+    - DONE: passing non-volatile arg to volatile param
+      . src/core/threads.c
+      . src/gc/collect.c
+  + WIP: -Wall
+    - DONE: -Wparentheses 
+    - -Wpointer-sign
+      . A lot of this is in correct handling of encoded string buffers;
+        use MVMuint8* for this
+    - -Wreturn-type
+      . All are in src/6model/reprs.c, because of exception-throwing stubs; may
+        have to explicitly ignore this using the second (granular) method of:
+        http://dbp-consulting.com/tutorials/SuppressingGCCWarnings.html
+    - -Wimplicit-function-declaration
+      . Header fixes?
+    - -Wunused-but-set-variable
+    - -Wunused-function
+    - -Wunused-variable
+  + -Wall -Wextra
+  + -Wall -Wextra -pedantic
+  + Turn on -Werror -pedantic-error
+* Compare interpreter performance v. SSVM:
+  + Original SSVM version:
+    - my $a = 100_000_000; my $b = 3; my $c = 6; while ($a--) { $c += $b }; say $c;
+    - MoarVM is 1.96x -> 4.16x slower at tight loop raw opt dispatch,
+      depending on gcc opt settings (-O3 -> no opt)
+    - compare with and without 'inc' and other SSVM tricks
+  + jnthn++'s 2013-01-28 version:
+    - nqp -e "sub foo() { }; my $i := 0; while $i++ < 100000000 { foo() }; say($i)"
+* Review type checking of MoarVM bytecode validator
+* Document ops
+  + Write oplist / docs merging program
+    - =op copies oplist info into doc
+    - multiple ops can (e.g. type variants) can have one description
+    - checks for undocumented ops or no-longer-supported ops
+  + Document, document, document ....
