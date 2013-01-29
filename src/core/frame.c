@@ -246,6 +246,7 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
  * type is incorrect */
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
+    MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalHashEntry *lexical_names = cur_frame->static_info->lexical_names;
         if (lexical_names) {
@@ -253,7 +254,6 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
              * to avoid semi-predicate issue. */
             MVMLexicalHashEntry *entry;
             
-            MVM_string_flatten(tc, name);
             MVM_HASH_GET(tc, lexical_names, name, entry)
             
             if (entry) {
@@ -275,12 +275,12 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
  * specified type. An error is thrown if it does not exist. */
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type) {
     MVMFrame *cur_frame = tc->cur_frame;
+    MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalHashEntry *lexical_names = cur_frame->static_info->lexical_names;
         if (lexical_names) {
             MVMLexicalHashEntry *entry;
             
-            MVM_string_flatten(tc, name);
             MVM_HASH_GET(tc, lexical_names, name, entry)
             
             if (entry) {
