@@ -739,6 +739,7 @@ class QAST::MASTCompiler {
                 $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
                 push_op(@ins, 'getctxl', $res_reg, MAST::SVal.new( :value($name)));
             }
+            $res_kind := $MVM_reg_obj;
         }
         elsif $scope eq 'attribute' {
             # Ensure we have object and class handle.
