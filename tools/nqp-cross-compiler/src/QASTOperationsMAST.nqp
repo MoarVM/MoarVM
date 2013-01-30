@@ -379,6 +379,9 @@ for <if unless> -> $op_name {
             push_op(@ins, 'set', $res_reg, $coercion.result_reg);
             $res_kind := $coercion.result_kind;
         }
+        elsif !$is_void {
+            push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
+        }
         $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
         
         # Handle else branch (coercion of condition result if 2-arg).
