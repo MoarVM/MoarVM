@@ -26,7 +26,7 @@ class QAST::MASTRegexCompiler {
         $*QASTCOMPILER.unique($str)
     }
     
-    method as_mast($node) {
+    method as_mast($node, :$want) {
         # Prefix for the regexes code pieces.
         my $prefix := $*QASTCOMPILER.unique('rx') ~ '_';
         my $*RXPREFIX := $prefix;

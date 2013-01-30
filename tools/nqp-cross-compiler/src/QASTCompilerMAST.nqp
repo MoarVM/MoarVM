@@ -248,7 +248,78 @@ class QAST::MASTCompiler {
     }
     
     method coerce($res, $desired) {
-        nqp::die("coerce NYI");
+        my $got := $res.result_kind;
+        if $got != $desired {
+            $res.append(self.coercion($res, $desired));
+        }
+        $res
+    }
+    
+    # Expects that the value in need of coercing has already been
+    # obtained. Produces instructions to coerce it.
+    method coercion($res, $desired) {
+        my $il := nqp::list();
+        my $got := $res.result_kind;
+        my $reg := $res.result_reg;
+        if $got == $desired {
+            # Nothing to do.
+        }
+        elsif $desired == $MVM_reg_void {
+            $reg := MAST::VOID;
+            $got := $MVM_reg_void;
+        }
+        elsif $desired == $MVM_reg_obj {
+            my $hll := '';
+            try $hll := $*HLL;
+            return QAST::OperationsJAST.box(self, $hll, $got, $reg);
+        }
+        elsif $got == $MVM_reg_obj {
+            my $hll := '';
+            try $hll := $*HLL;
+            return QAST::OperationsJAST.unbox(self, $hll, $desired, $reg);
+        }
+        else {
+            my $res_reg := $*REGALLOC.fresh_register($desired);
+        if $desired == $MVM_reg_int64 {
+            if $got == $MVM_reg_num64 {
+                push_op($il, 'n2i', $res_reg, $reg);
+            }
+            elsif $got == $MVM_reg_str {
+                push_op($il, 'coerce_s2i', $res_reg, $reg);
+            }
+            else {
+                nqp::die("Unknown coercion case for int");
+            }
+        }
+        elsif $desired == $MVM_reg_num64 {
+            if $got == $MVM_reg_int64 {
+                push_op($il, 'i2n', $res_reg, $reg);
+            }
+            elsif $got == $MVM_reg_str {
+                push_op($il, 'coerce_s2n', $res_reg, $reg);
+            }
+            else {
+                nqp::die("Unknown coercion case for num");
+            }
+        }
+        elsif $desired == $MVM_reg_str {
+            if $got == $MVM_reg_int64 {
+                push_op($il, 'coerce_i2s', $res_reg, $reg);
+            }
+            elsif $got == $MVM_reg_num64 {
+                push_op($il, 'coerce_n2s', $res_reg, $reg);
+            }
+            else {
+                nqp::die("Unknown coercion case for str");
+            }
+        }
+        else {
+            nqp::die("Coercion from type '$got' to '$desired' NYI");
+        }
+            $*REGALLOC.release_register($reg, $got);
+            $reg := $res_reg;
+        }
+        MAST::InstructionList.new($il, $reg, $desired)
     }
     
     proto method as_mast($qast, :$want) {
@@ -256,7 +327,7 @@ class QAST::MASTCompiler {
         if nqp::defined($want) {
             $*WANT := %WANTMAP{$want} // $want;
             if nqp::istype($qast, QAST::Want) {
-                self.coerce(self.as_mast($qast, :want($*WANT)))
+                self.coerce(self.as_mast(want($qast, $*WANT)), $*WANT)
             }
             else {
                 self.coerce({*}, $*WANT)
@@ -498,10 +569,10 @@ class QAST::MASTCompiler {
                     
                     # generate default initialization code. Could also be
                     # wrapped in another QAST::Block.
-                    my $default_mast := self.as_mast($var.default);
+                    my $default_mast := self.as_mast($var.default, :want($param_kind));
                     
-                    nqp::die("default initialization result type doesn't match the param type")
-                        unless $default_mast.result_kind == $param_kind;
+                #    nqp::die("default initialization result type doesn't match the param type")
+                #        unless $default_mast.result_kind == $param_kind;
                     
                     # emit param grabbing op
                     push_op(@pre, $opname, $valreg, $val, $endlbl);
@@ -543,7 +614,7 @@ class QAST::MASTCompiler {
             return self.as_mast(
                 QAST::Op.new( :op('call'),
                     :returns(@return_types[$block.return_kind]),
-                    QAST::BVal.new( :value($node) ) ) );
+                    QAST::BVal.new( :value($node) ) ), :want($block.return_kind) );
         }
         elsif $node.blocktype eq 'raw' {
             return self.as_mast(QAST::Op.new( :op('null') ));
@@ -590,7 +661,7 @@ class QAST::MASTCompiler {
     
     # This takes any node that is a statement list of some kind and compiles
     # all of the statements within it.
-    method compile_all_the_stmts(@stmts, $resultchild?) {
+    method compile_all_the_stmts(@stmts, $resultchild?, :$want) {
         my @all_ins;
         my $last_stmt;
         my $result_stmt;
@@ -601,7 +672,14 @@ class QAST::MASTCompiler {
             
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
-            $last_stmt := self.as_mast($_);
+            if $result_count == $resultchild || $resultchild == -1
+                    && $result_count == $last_stmt_num 
+                    && nqp::defined($want) {
+                $last_stmt := self.as_mast($_, :want($want));
+            }
+            else {
+                $last_stmt := self.as_mast($_);
+            }
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
             if $result_count == $resultchild || $resultchild == -1 && $result_count == $last_stmt_num {
                 $result_stmt := $last_stmt;
@@ -691,8 +769,8 @@ class QAST::MASTCompiler {
             if $*BLOCK.local($name) -> $local {
                 $res_kind := $*BLOCK.local_kind($name);
                 if $*BINDVAL {
-                    my $valmast := self.as_mast_clear_bindval($*BINDVAL);
-                    check_kinds($valmast.result_kind, $res_kind);
+                    my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($res_kind));
+                #    check_kinds($valmast.result_kind, $res_kind);
                     push_ilist(@ins, $valmast);
                     push_op(@ins, 'set', $local, $valmast.result_reg);
                     $*REGALLOC.release_register($valmast.result_reg, $res_kind);
@@ -718,8 +796,8 @@ class QAST::MASTCompiler {
                     $lex := $*BLOCK.register_lexical($node, $lex.index, $outer, $res_kind);
                 }
                 if $*BINDVAL {
-                    my $valmast := self.as_mast_clear_bindval($*BINDVAL);
-                    check_kinds($valmast.result_kind, $res_kind);
+                    my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($res_kind));
+                #    check_kinds($valmast.result_kind, $res_kind);
                     $res_reg := $valmast.result_reg;
                     push_ilist(@ins, $valmast);
                     push_op(@ins, 'bindlex', $lex, $res_reg);
@@ -755,8 +833,8 @@ class QAST::MASTCompiler {
         elsif $scope eq 'contextual' {
             my $name_const := const_s($name);
             if $*BINDVAL {
-                my $valmast := self.as_mast_clear_bindval($*BINDVAL);
-                check_kinds($valmast.result_kind, $MVM_reg_obj);
+                my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($MVM_reg_obj));
+            #    check_kinds($valmast.result_kind, $MVM_reg_obj);
                 $res_reg := $valmast.result_reg;
                 push_ilist(@ins, $valmast);
                 push_ilist(@ins, $name_const);
@@ -779,15 +857,15 @@ class QAST::MASTCompiler {
             }
             
             # Compile object and handle.
-            my $obj := self.as_mast_clear_bindval(@args[0]);
-            my $han := self.as_mast_clear_bindval(@args[1]);
+            my $obj := self.as_mast_clear_bindval(@args[0], :want($MVM_reg_obj));
+            my $han := self.as_mast_clear_bindval(@args[1], :want($MVM_reg_obj));
             push_ilist(@ins, $obj);
             push_ilist(@ins, $han);
             
             # Go by whether it's a bind or lookup.
             my $kind := self.type_to_register_kind($node.returns);
             if $*BINDVAL {
-                my $valmast := self.as_mast_clear_bindval($*BINDVAL);
+                my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($kind));
                 
                 push_ilist(@ins, $valmast);
                 push_op(@ins, 'bind' ~ @attr_opnames[$kind], $obj.result_reg,
@@ -910,7 +988,9 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::Regex $node, :$want) {
-        QAST::MASTRegexCompiler.new().as_mast($node)
+        nqp::defined($want)
+            ?? QAST::MASTRegexCompiler.new().as_mast($node, :want($want))
+            !! QAST::MASTRegexCompiler.new().as_mast($node)
     }
     
     multi method as_mast($unknown, :$want) {

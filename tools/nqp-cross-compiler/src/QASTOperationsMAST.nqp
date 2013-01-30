@@ -60,6 +60,12 @@ class MAST::InstructionList {
     method result_kind()  { $!result_kind }
     method filename()     { $!filename }
     method lineno()       { $!lineno }
+    
+    method append(MAST::InstructionList $other) {
+        push_ilist(@!instructions, $other.instructions);
+        $!result_reg := $other.result_reg;
+        $!result_kind := $other.result_kind;
+    }
 }
 
 # Marker object for void.
@@ -74,8 +80,9 @@ class QAST::MASTOperations {
     # Hash of hash of code.
     my %hll_ops;
     
-    ## Cached pirop compilers.
-    #my %cached_pirops;
+    # Mapping of how to box/unbox by HLL.
+    my %hll_box;
+    my %hll_unbox;
     
     # Compiles an operation to MAST.
     method compile_op($qastcomp, $hll, $op) {
@@ -290,6 +297,34 @@ class QAST::MASTOperations {
             $self.compile_mastop($qastcomp, $moarop, @op_args,
                 :returnarg($ret), :opname($op_name))
         }
+    }
+    
+    # Adds a HLL box handler.
+    method add_hll_box($hll, $type, $handler) {
+        unless $type == $MVM_reg_int64 || $type == $MVM_reg_num64 || $type == $MVM_reg_str {
+            nqp::die("Unknown box type '$type'");
+        }
+        %hll_box{$hll} := {} unless nqp::existskey(%hll_box, $hll);
+        %hll_box{$hll}{$type} := $handler;
+    }
+
+    # Adds a HLL unbox handler.
+    method add_hll_unbox($hll, $type, $handler) {
+        unless $type == $MVM_reg_int64 || $type == $MVM_reg_num64 || $type == $MVM_reg_str {
+            nqp::die("Unknown unbox type '$type'");
+        }
+        %hll_unbox{$hll} := {} unless nqp::existskey(%hll_unbox, $hll);
+        %hll_unbox{$hll}{$type} := $handler;
+    }
+
+    # Generates instructions to box the result in reg.
+    method box($qastcomp, $hll, $type, $reg) {
+        (%hll_box{$hll}{$type} // %hll_box{''}{$type})($qastcomp, $reg)
+    }
+
+    # Generates instructions to unbox the result in reg.
+    method unbox($qastcomp, $hll, $type, $reg) {
+        (%hll_unbox{$hll}{$type} // %hll_unbox{''}{$type})($qastcomp, $reg)
     }
 }
 
