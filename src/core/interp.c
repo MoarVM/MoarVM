@@ -749,6 +749,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_smrt_strify:
                         MVM_exception_throw_adhoc(tc, "smart unbox/coercion op NYI");
                         break;
+                    case MVM_OP_param_sp:
+                        GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, &tc->cur_frame->params, GET_UI16(cur_op, 2));
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_param_sn:
+                        GET_REG(cur_op, 0).o = MVM_args_slurpy_named(tc, &tc->cur_frame->params);
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));

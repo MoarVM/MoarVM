@@ -144,6 +144,8 @@
 #define MVM_OP_coerce_sn 131
 #define MVM_OP_smrt_numify 132
 #define MVM_OP_smrt_strify 133
+#define MVM_OP_param_sp 134
+#define MVM_OP_param_sn 135
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0

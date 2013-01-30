@@ -133,6 +133,8 @@ BANK 0 primitives
 0x83    coerce_sn   w(num) r(str)
 0x84    smrt_numify w(num) r(obj)
 0x85    smrt_strify w(str) r(obj)
+0x86    param_sp    w(obj) int16
+0x87    param_sn    w(obj)
 
 BANK 1 dev
 0x00    say_i       r(int64)

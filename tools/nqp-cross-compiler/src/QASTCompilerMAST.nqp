@@ -524,14 +524,47 @@ class QAST::MASTCompiler {
             
             # build up the frame prologue
             my @pre := nqp::list();
-            my $min_args := 0;
-            my $max_args := 0;
             my $param_index := 0;
+            
+            # Analyze parameters to get count of required/optional and make sure
+            # all is in order.
+            my int $pos_required := 0;
+            my int $pos_optional := 0;
+            my int $pos_slurpy   := 0;
+            for $block.params {
+                if $_.named {
+                    # Don't count.
+                }
+                elsif $_.slurpy {
+                    if $pos_slurpy {
+                        nqp::die("Only one slurpy positional allowed");
+                    }
+                    $pos_slurpy := 1;
+                }
+                elsif $_.default {
+                    if $pos_slurpy {
+                        nqp::die("Optional positionals must come before all slurpy positionals");
+                    }
+                    $pos_optional++;
+                }
+                else {
+                    if $pos_optional {
+                        nqp::die("Required positionals must come before all optional positionals");
+                    }
+                    if $pos_slurpy {
+                        nqp::die("Required positionals must come before all slurpy positionals");
+                    }
+                    $pos_required++;
+                }
+            }
+            
+            # check the arity 
+            push_op(@pre, 'checkarity',
+                MAST::IVal.new( :size(16), :value($pos_required)),
+                MAST::IVal.new( :size(16), :value($pos_slurpy ?? -1 !! $pos_required + $pos_optional)));
             
             # build up instructions to bind the params
             for $block.params -> $var {
-                
-                $max_args++ unless $var.named;
                 
                 my $scope := $var.scope;
                 nqp::die("Param scope must be 'local' or 'lexical'")
@@ -546,11 +579,18 @@ class QAST::MASTCompiler {
                 # what will be put in the value register
                 my $val;
                 
-                if $var.named {
+                if $_.slurpy {
+                    if $_.named {
+                        $opname := "namedslurpy";
+                    }
+                    else {
+                        $opname := "posslurpy";
+                    }
+                }
+                elsif $var.named {
                     $val := MAST::SVal.new( :value($var.named) );
                 }
                 else { # positional
-                    $min_args++ unless $var.default;
                     $val := MAST::IVal.new( :size(16), :value($param_index));
                 }
                 
@@ -585,6 +625,14 @@ class QAST::MASTCompiler {
                     # end label to skip initialization code
                     nqp::push(@pre, $endlbl);
                 }
+                elsif $_.slurpy {
+                    if $_.named {
+                        push_op(@pre, $opname, $valreg);
+                    }
+                    else {
+                        push_op(@pre, $opname, $valreg, MAST::IVal.new( :value($pos_required + $pos_optional) ));
+                    }
+                }
                 else {
                      # emit param grabbing op
                     push_op(@pre, $opname, $valreg, $val);
@@ -597,14 +645,6 @@ class QAST::MASTCompiler {
                 $param_index++;
             }
             
-            nqp::splice($frame.instructions, @pre, 0, 0);
-            @pre := nqp::list();
-            
-            # XXX make $max_args MAX_UINT16 if there's a slurpy
-            # check the arity 
-            push_op(@pre, 'checkarity',
-                MAST::IVal.new( :size(16), :value($min_args)),
-                MAST::IVal.new( :size(16), :value($max_args)));
             nqp::splice($frame.instructions, @pre, 0, 0);
         }
         

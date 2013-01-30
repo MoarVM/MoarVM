@@ -21,7 +21,9 @@ typedef enum {
     MVM_CALLSITE_ARG_NAMED = 32,
     
     /* Argument is flattened. What this means is up to the target. */
-    MVM_CALLSITE_ARG_FLAT = 64
+    MVM_CALLSITE_ARG_FLAT = 64,
+    
+    MVM_CALLSITE_ARG_MASK = 127
 } MVMCallsiteFlags;
 
 /* A callsite entry is just one of the above flags. */
@@ -83,6 +85,7 @@ union _MVMRegister * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContex
 union _MVMRegister * MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
 union _MVMRegister * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
 union _MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
+MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos);
 
 /* Argument access by name. */
 union _MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
@@ -90,6 +93,7 @@ union _MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcCont
 union _MVMRegister * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 union _MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 union _MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
+MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Result setting. */
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless);

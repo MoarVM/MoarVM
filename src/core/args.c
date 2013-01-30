@@ -99,7 +99,7 @@ MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx,
 /* Get named arguments. */
 static struct MVMArgInfo find_named_arg(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name) {
     struct MVMArgInfo result;
-    MVMuint32 flag_pos, arg_pos;    
+    MVMuint32 flag_pos, arg_pos;
     result.arg = NULL;
     
     for (flag_pos = arg_pos = ctx->callsite->num_pos; arg_pos < ctx->callsite->arg_count; flag_pos++, arg_pos += 2) {
@@ -234,4 +234,113 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
     if (target && target->return_type != MVM_RETURN_VOID && tc->cur_frame != tc->thread_entry_frame)
         MVM_exception_throw_adhoc(tc, "Void return not allowed to context requiring a return value");
+}
+
+MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos) {
+    MVMObject *type = (*(tc->interp_cu))->hll_config->slurpy_array_type, *result = NULL, *box = NULL;
+    struct MVMArgInfo arg_info;
+    MVMRegister reg;
+    
+    if (!type || IS_CONCRETE(type)) {
+        MVM_exception_throw_adhoc(tc, "Missing hll slurpy array type");
+    }
+    
+    result = REPR(type)->allocate(tc, STABLE(type));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+    if (REPR(result)->initialize)
+        REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+    
+    arg_info = find_pos_arg(ctx, pos++);
+    while (arg_info.arg) {
+        /* XXX theoretically needs to handle native arrays I guess */
+        switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
+            case MVM_CALLSITE_ARG_OBJ: {
+                REPR(result)->pos_funcs->push(tc, STABLE(result), result,
+                    OBJECT_BODY(result), *arg_info.arg, MVM_reg_obj);
+                break;
+            }
+            case MVM_CALLSITE_ARG_INT:
+            case MVM_CALLSITE_ARG_UINT: {
+                type = (*(tc->interp_cu))->hll_config->int_box_type;
+                if (!type || IS_CONCRETE(type)) {
+                    MVM_exception_throw_adhoc(tc, "Missing hll int box type");
+                }
+                box = REPR(type)->allocate(tc, STABLE(type));
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_int(tc, STABLE(box), box,
+                    OBJECT_BODY(box),
+                    (arg_info.flags & MVM_CALLSITE_ARG_MASK == MVM_CALLSITE_ARG_INT
+                        ? arg_info.arg->i64 : arg_info.arg->ui64));
+                reg.o = box;
+                REPR(result)->pos_funcs->push(tc, STABLE(result), result,
+                    OBJECT_BODY(result), reg, MVM_reg_obj);
+                break;
+            }
+            case MVM_CALLSITE_ARG_NUM: {
+                type = (*(tc->interp_cu))->hll_config->num_box_type;
+                if (!type || IS_CONCRETE(type)) {
+                    MVM_exception_throw_adhoc(tc, "Missing hll num box type");
+                }
+                box = REPR(type)->allocate(tc, STABLE(type));
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_num(tc, STABLE(box), box,
+                    OBJECT_BODY(box), arg_info.arg->n64);
+                reg.o = box;
+                REPR(result)->pos_funcs->push(tc, STABLE(result), result,
+                    OBJECT_BODY(result), reg, MVM_reg_obj);
+                break;
+            }
+            case MVM_CALLSITE_ARG_STR: {
+                type = (*(tc->interp_cu))->hll_config->str_box_type;
+                if (!type || IS_CONCRETE(type)) {
+                    MVM_exception_throw_adhoc(tc, "Missing hll str box type");
+                }
+                box = REPR(type)->allocate(tc, STABLE(type));
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_str(tc, STABLE(box), box,
+                    OBJECT_BODY(box), arg_info.arg->s);
+                reg.o = box;
+                REPR(result)->pos_funcs->push(tc, STABLE(result), result,
+                    OBJECT_BODY(result), reg, MVM_reg_obj);
+                break;
+            }
+            case MVM_CALLSITE_ARG_NAMED: {
+                break;
+            }
+            case MVM_CALLSITE_ARG_FLAT: {
+                MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_positional");
+                break;
+            }
+        }
+        
+        arg_info = find_pos_arg(ctx, pos++);
+        if (pos == 1) break; /* overflow?! */
+    }
+    
+    MVM_gc_root_temp_pop_n(tc, 2);
+    
+    return result;
+}
+
+MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    MVMObject *type = (*(tc->interp_cu))->hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
+    struct MVMArgInfo arg_info;
+    
+    if (!type || IS_CONCRETE(type)) {
+        MVM_exception_throw_adhoc(tc, "Missing hll slurpy hash type");
+    }
+    
+    result = REPR(type)->allocate(tc, STABLE(type));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+    if (REPR(result)->initialize)
+        REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+    
+    MVM_gc_root_temp_pop_n(tc, 2);
+    
+    return result;
 }
