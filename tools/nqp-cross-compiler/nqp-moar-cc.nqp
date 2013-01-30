@@ -130,3 +130,60 @@ $ops.add_hll_op('nqp', 'stringify', -> $qastcomp, $op {
 $ops.add_hll_op('nqp', 'falsey', -> $qastcomp, $op {
     nqp::die("nqp falsey op NYI");
 });
+
+# NQP object unbox.
+QAST::MASTOperations.add_hll_unbox('nqp', $MVM_reg_int64, -> $qastcomp, $reg {
+    my $il := nqp::list();
+    my $a := $*REGALLOC.fresh_register($MVM_reg_num64);
+    my $b := $*REGALLOC.fresh_register($MVM_reg_int64);
+    push_op($il, 'smrt_numify', $a, $reg);
+    push_op($il, 'coerce_ni', $b, $a);
+    $*REGALLOC.release_register($a, $MVM_reg_num64);
+    $*REGALLOC.release_register($reg, $MVM_reg_obj);
+    MAST::InstructionList.new($il, $b, $MVM_reg_int64)
+});
+
+QAST::MASTOperations.add_hll_unbox('nqp', $MVM_reg_num64, -> $qastcomp, $reg {
+    my $il := nqp::list();
+    my $res_reg := $*REGALLOC.fresh_register($MVM_reg_num64);
+    push_op($il, 'smrt_numify', $res_reg, $reg);
+    $*REGALLOC.release_register($reg, $MVM_reg_obj);
+    MAST::InstructionList.new($il, $res_reg, $MVM_reg_num64)
+});
+
+QAST::MASTOperations.add_hll_unbox('nqp', $MVM_reg_str, -> $qastcomp, $reg {
+    my $il := nqp::list();
+    my $res_reg := $*REGALLOC.fresh_register($MVM_reg_str);
+    push_op($il, 'smrt_strify', $res_reg, $reg);
+    $*REGALLOC.release_register($reg, $MVM_reg_obj);
+    MAST::InstructionList.new($il, $res_reg, $MVM_reg_str)
+});
+
+sub boxer($kind, $type_op, $op) {
+    -> $qastcomp, $reg {
+        my $il := nqp::list();
+        my $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+        push_op($il, $type_op, $res_reg);
+        push_op($il, $op, $res_reg, $reg, $res_reg);
+        $*REGALLOC.release_register($reg, $kind);
+        MAST::InstructionList.new($il, $res_reg, $MVM_reg_obj)
+    }
+}
+
+QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_int64, boxer($MVM_reg_int64, 'hllboxtyp_i', 'box_i'));
+QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_num64, boxer($MVM_reg_num64, 'hllboxtyp_n', 'box_n'));
+QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_str, boxer($MVM_reg_str, 'hllboxtyp_s', 'box_s'));
+
+sub push_op(@dest, $op, *@args) {
+    # Resolve the op.
+    my $bank;
+    for MAST::Ops.WHO {
+        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
+    }
+    nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
+    
+    nqp::push(@dest, MAST::Op.new(
+        :bank(nqp::substr($bank, 1)), :op($op),
+        |@args
+    ));
+}

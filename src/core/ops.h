@@ -138,6 +138,12 @@
 #define MVM_OP_caller 125
 #define MVM_OP_getdynlex 126
 #define MVM_OP_binddynlex 127
+#define MVM_OP_coerce_is 128
+#define MVM_OP_coerce_ns 129
+#define MVM_OP_coerce_si 130
+#define MVM_OP_coerce_sn 131
+#define MVM_OP_smrt_numify 132
+#define MVM_OP_smrt_strify 133
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -279,6 +285,9 @@
 #define MVM_OP_bootarray 80
 #define MVM_OP_boothash 81
 #define MVM_OP_sethllconf 82
+#define MVM_OP_hllboxtyp_i 83
+#define MVM_OP_hllboxtyp_n 84
+#define MVM_OP_hllboxtyp_s 85
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

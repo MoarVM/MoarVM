@@ -349,14 +349,8 @@ for <if unless> -> $op_name {
             nqp::die("operation '$op_name' condition cannot be void");
         }
         
-        # XXX coerce one to match the other? how to choose which one?
-        if ($operands == 3 && @comp_ops[1].result_kind != @comp_ops[2].result_kind
-         || $operands == 2 && @comp_ops[0].result_kind != @comp_ops[1].result_kind) {
-            nqp::die("For now, operation '$op_name' needs both branches to result in the same kind. "
-            ~"Got kinds "~@comp_ops[0].result_kind~" "~@comp_ops[1].result_kind~" "~(@comp_ops[2] ?? @comp_ops[2].result_kind !! 'none'));
-        }
         my $res_kind := @comp_ops[1].result_kind;
-        my $is_void := $res_kind == $MVM_reg_void;
+        my $is_void := $res_kind == $MVM_reg_void || (nqp::defined($*WANT) && $*WANT == $MVM_reg_void);
         my $res_reg  := $is_void ?? MAST::VOID !! $*REGALLOC.fresh_register($res_kind);
         
         my @ins;
@@ -373,27 +367,43 @@ for <if unless> -> $op_name {
             @comp_ops[0].result_reg,
             ($operands == 3 ?? $else_lbl !! $end_lbl)
         );
-        $*REGALLOC.release_register(@comp_ops[0].result_reg, @comp_ops[0].result_kind);
         
         # Emit the then, stash the result
         push_ilist(@ins, @comp_ops[1]);
-        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg) unless $is_void;
+        if (!$is_void && @comp_ops[1].result_kind != $res_kind) {
+            my $coercion := $qastcomp.coercion(@comp_ops[1],
+                (nqp::defined($*WANT) ?? $*WANT !! $MVM_reg_obj));
+            push_ilist(@ins, $coercion);
+            $*REGALLOC.release_register($res_reg, $res_kind);
+            $res_reg := $*REGALLOC.fresh_register($coercion.result_kind);
+            push_op(@ins, 'set', $res_reg, $coercion.result_reg);
+            $res_kind := $coercion.result_kind;
+        }
         $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
         
-        # Handle else branch if needed.
+        # Handle else branch (coercion of condition result if 2-arg).
+        push_op(@ins, 'goto', $end_lbl);
+        nqp::push(@ins, $else_lbl);
         if $operands == 3 {
-            push_op(@ins, 'goto', $end_lbl);
-            nqp::push(@ins, $else_lbl);
-            # XXX see coercion note above
             push_ilist(@ins, @comp_ops[2]);
             push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg) unless $is_void;
             $*REGALLOC.release_register(@comp_ops[2].result_reg, @comp_ops[2].result_kind);
+            if !$is_void && @comp_ops[2].result_kind != $res_kind {
+                my $coercion := $qastcomp.coercion(@comp_ops[2], $res_kind);
+                push_ilist(@ins, $coercion);
+                push_op(@ins, 'set', $res_reg, $coercion.result_reg);
+            }
         }
-        
+        else {
+            if !$is_void && @comp_ops[0].result_kind != $res_kind {
+                my $coercion := $qastcomp.coercion(@comp_ops[0], $res_kind);
+                push_ilist(@ins, $coercion);
+                push_op(@ins, 'set', $res_reg, $coercion.result_reg);
+            }
+        }
+        $*REGALLOC.release_register(@comp_ops[0].result_reg, @comp_ops[0].result_kind);
         nqp::push(@ins, $end_lbl);
         
-        # Build instruction list
-        # XXX see coercion note above for result type
         MAST::InstructionList.new(@ins, $res_reg, $res_kind)
     });
 }
@@ -804,6 +814,7 @@ QAST::MASTOperations.add_core_moarop_mapping('sech_n', 'sech_n');
 
 
 QAST::MASTOperations.add_core_moarop_mapping('isnull', 'isnull');
+QAST::MASTOperations.add_core_moarop_mapping('null', 'null');
 QAST::MASTOperations.add_core_moarop_mapping('can', 'can');
 
 sub resolve_condition_op($kind, $negated) {

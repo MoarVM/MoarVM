@@ -271,21 +271,21 @@ class QAST::MASTCompiler {
         elsif $desired == $MVM_reg_obj {
             my $hll := '';
             try $hll := $*HLL;
-            return QAST::OperationsJAST.box(self, $hll, $got, $reg);
+            return QAST::MASTOperations.box(self, $hll, $got, $reg);
         }
         elsif $got == $MVM_reg_obj {
             my $hll := '';
             try $hll := $*HLL;
-            return QAST::OperationsJAST.unbox(self, $hll, $desired, $reg);
+            return QAST::MASTOperations.unbox(self, $hll, $desired, $reg);
         }
         else {
             my $res_reg := $*REGALLOC.fresh_register($desired);
         if $desired == $MVM_reg_int64 {
             if $got == $MVM_reg_num64 {
-                push_op($il, 'n2i', $res_reg, $reg);
+                push_op($il, 'coerce_ni', $res_reg, $reg);
             }
             elsif $got == $MVM_reg_str {
-                push_op($il, 'coerce_s2i', $res_reg, $reg);
+                push_op($il, 'coerce_si', $res_reg, $reg);
             }
             else {
                 nqp::die("Unknown coercion case for int");
@@ -293,10 +293,10 @@ class QAST::MASTCompiler {
         }
         elsif $desired == $MVM_reg_num64 {
             if $got == $MVM_reg_int64 {
-                push_op($il, 'i2n', $res_reg, $reg);
+                push_op($il, 'coerce_in', $res_reg, $reg);
             }
             elsif $got == $MVM_reg_str {
-                push_op($il, 'coerce_s2n', $res_reg, $reg);
+                push_op($il, 'coerce_sn', $res_reg, $reg);
             }
             else {
                 nqp::die("Unknown coercion case for num");
@@ -304,10 +304,10 @@ class QAST::MASTCompiler {
         }
         elsif $desired == $MVM_reg_str {
             if $got == $MVM_reg_int64 {
-                push_op($il, 'coerce_i2s', $res_reg, $reg);
+                push_op($il, 'coerce_is', $res_reg, $reg);
             }
             elsif $got == $MVM_reg_num64 {
-                push_op($il, 'coerce_n2s', $res_reg, $reg);
+                push_op($il, 'coerce_ns', $res_reg, $reg);
             }
             else {
                 nqp::die("Unknown coercion case for str");
@@ -442,8 +442,7 @@ class QAST::MASTCompiler {
         if nqp::defined($cu.load) {
             my $load_block := QAST::Block.new(
                 :blocktype('raw'),
-                $cu.load,
-                QAST::Op.new( :op('null') )
+                $cu.load
             );
             self.as_mast($load_block);
             $*MAST_COMPUNIT.load_frame(%*MAST_FRAMES{$load_block.cuid});
@@ -454,8 +453,7 @@ class QAST::MASTCompiler {
         if nqp::defined($cu.main) {
             my $main_block := QAST::Block.new(
                 :blocktype('raw'),
-                $cu.main,
-                QAST::Op.new( :op('null') )
+                $cu.main
             );
             self.as_mast($main_block);
             $*MAST_COMPUNIT.main_frame(%*MAST_FRAMES{$main_block.cuid});
@@ -503,9 +501,9 @@ class QAST::MASTCompiler {
             my $*BLOCK := $block;
             my $*MAST_FRAME := $frame;
             
-            if !nqp::defined($outer) || !($outer ~~ BlockInfo) {
-                nqp::splice($frame.instructions, NQPCursorQAST.new().build_types(), 0, 0);
-            }
+        #    if !nqp::defined($outer) || !($outer ~~ BlockInfo) {
+        #        nqp::splice($frame.instructions, NQPCursorQAST.new().build_types(), 0, 0);
+        #    }
             
             $ins := self.compile_all_the_stmts(@($node));
             
@@ -617,7 +615,7 @@ class QAST::MASTCompiler {
                     QAST::BVal.new( :value($node) ) ), :want($block.return_kind) );
         }
         elsif $node.blocktype eq 'raw' {
-            return self.as_mast(QAST::Op.new( :op('null') ));
+            return MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void);
         }
         elsif $node.blocktype && $node.blocktype ne 'declaration' {
             nqp::die("Unhandled blocktype $node.blocktype");

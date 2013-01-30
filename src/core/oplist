@@ -127,6 +127,12 @@ BANK 0 primitives
 0x7D    caller      w(obj) r(int64)
 0x7E    getdynlex   w(obj) r(str)
 0x7F    binddynlex  r(str) r(obj)
+0x80    coerce_is   w(str) r(int)
+0x81    coerce_ns   w(str) r(num)
+0x82    coerce_si   w(int) r(str)
+0x83    coerce_sn   w(num) r(str)
+0x84    smrt_numify w(num) r(obj)
+0x85    smrt_strify w(str) r(obj)
 
 BANK 1 dev
 0x00    say_i       r(int64)
@@ -268,6 +274,9 @@ BANK 4 object
 0x50    bootarray   w(obj)
 0x51    boothash    w(obj)
 0x52    sethllconf  r(str) r(obj)
+0x53    hllboxtyp_i w(obj)
+0x54    hllboxtyp_n w(obj)
+0x55    hllboxtyp_s w(obj)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)

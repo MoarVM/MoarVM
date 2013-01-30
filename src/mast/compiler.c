@@ -479,7 +479,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         unsigned char op   = (unsigned char)o->op;
         info = MVM_op_get_op(bank, op);
         if (!info)
-            DIE(vm, "Invalid op bank specified in instruction");
+            DIE(vm, "Invalid op bank %d specified in instruction %d", bank, op);
         ws->current_op_info = info;
         ws->current_operand_idx = 0;
         

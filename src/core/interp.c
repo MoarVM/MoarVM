@@ -739,6 +739,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_coerce_is:
+                    case MVM_OP_coerce_ns:
+                    case MVM_OP_coerce_si:
+                    case MVM_OP_coerce_sn:
+                        MVM_exception_throw_adhoc(tc, "coercion op NYI");
+                        break;
+                    case MVM_OP_smrt_numify:
+                    case MVM_OP_smrt_strify:
+                        MVM_exception_throw_adhoc(tc, "smart unbox/coercion op NYI");
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
@@ -1551,6 +1561,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_sethllconf:
                         MVM_hll_set_config(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).o);
                         cur_op += 4;
+                        break;
+                    case MVM_OP_hllboxtyp_i:
+                        GET_REG(cur_op, 0).o = cu->hll_config->int_box_type;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_hllboxtyp_n:
+                        GET_REG(cur_op, 0).o = cu->hll_config->num_box_type;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_hllboxtyp_s:
+                        GET_REG(cur_op, 0).o = cu->hll_config->str_box_type;
+                        cur_op += 2;
                         break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",

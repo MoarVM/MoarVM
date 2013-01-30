@@ -776,6 +776,42 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         2,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_coerce_is,
+        "coerce_is",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_coerce_ns,
+        "coerce_ns",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_coerce_si,
+        "coerce_si",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_coerce_sn,
+        "coerce_sn",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_smrt_numify,
+        "smrt_numify",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_smrt_strify,
+        "smrt_strify",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_dev[] = {
     {
@@ -1582,6 +1618,24 @@ static MVMOpInfo MVM_op_info_object[] = {
         2,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_hllboxtyp_i,
+        "hllboxtyp_i",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_hllboxtyp_n,
+        "hllboxtyp_n",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_hllboxtyp_s,
+        "hllboxtyp_s",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_io[] = {
     {
@@ -2037,11 +2091,11 @@ static MVMOpInfo *MVM_op_info[] = {
 static unsigned char MVM_op_banks = 7;
 
 static unsigned char MVM_opcounts_by_bank[] = {
-    126,
+    134,
     5,
     32,
     13,
-    82,
+    86,
     45,
     28,
 };
