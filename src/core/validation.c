@@ -27,6 +27,9 @@ static void throw_past_end(MVMThreadContext *tc, MVMuint8 *labels) {
                 "Bytecode validation error: truncated stream");
 }
 
+/* TODO: validate args of prepargs, getcode, and any cu->strings index (28 currently).
+ * Also disallow anything that can branch from running between a prepargs and invoke.
+ * Also any cur_frame->args indexes. */
 
 /* Validate that a static frame's bytecode is executable by the interpreter */
 void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
