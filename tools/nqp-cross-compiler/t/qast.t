@@ -462,6 +462,7 @@ my $block19 := QAST::Block.new(
     QAST::Var.new( :name('b'), :scope('local'), :decl('param'), :returns(int) ),
     QAST::Var.new( :name('c'), :scope('local'), :decl('param'), :returns(int) ),
     QAST::Var.new( :name('d'), :scope('local'), :decl('param'), :returns(str) ),
+    QAST::Var.new( :name('e'), :named('foofoo'), :scope('local'), :decl('param'), :returns(int) ),
     QAST::VM.new( :moarop('say_i'),
         QAST::Var.new( :name('a'), :scope('local') ) ),
     QAST::VM.new( :moarop('say_i'),
@@ -470,6 +471,8 @@ my $block19 := QAST::Block.new(
         QAST::Var.new( :name('c'), :scope('local') ) ),
     QAST::VM.new( :moarop('say_s'),
         QAST::Var.new( :name('d'), :scope('local') ) ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('e'), :scope('local') ) ),
     QAST::IVal.new( :value(0) )
 );
 qast_output_is(QAST::Block.new(
@@ -481,8 +484,8 @@ qast_output_is(QAST::Block.new(
         QAST::BVal.new( :value($block19) ),
         QAST::IVal.new( :value(777) ),
         QAST::IVal.new( :value(888) ),
+        QAST::Var.new( :named("foofoo"), :scope("local") ),
         QAST::IVal.new( :value(999) ),
-        QAST::SVal.new( :value("hi") ),
-        QAST::Var.new( :named("foofoo"), :scope("local") )
+        QAST::SVal.new( :value("hi") )
     )
-), "777\n888\n999\nhi\n", 'four positional required local args and params and an extraneous named work');
+), "777\n888\n999\nhi\n3333\n", 'named args are properly placed at the end by the qast compiler');

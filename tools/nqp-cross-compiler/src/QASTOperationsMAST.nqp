@@ -576,6 +576,16 @@ sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
     nqp::push(@arg_flags, $result_typeflag);
 }
 
+sub arrange_args(@in) {
+    my @named := ();
+    my @posit := ();
+    for @in {
+        nqp::push(((nqp::can($_, 'named') && $_.named) ?? @named !! @posit), $_);
+    }
+    for @named { nqp::push(@posit, $_) }
+    @posit
+}
+
 QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     # Work out what callee is.
     my $callee;
@@ -590,6 +600,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     else {
         nqp::die("No name for call and empty children list");
     }
+    @args := arrange_args(@args);
     
     nqp::die("callee expression must be an object")
         unless $callee.result_kind == $MVM_reg_obj;
@@ -659,6 +670,7 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     else {
         nqp::die("Method call must either supply a name or have a child node that evaluates to the name");
     }
+    @args := arrange_args(@args);
     
     nqp::die("invocant expression must be an object")
         unless $invocant.result_kind == $MVM_reg_obj;
