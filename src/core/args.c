@@ -58,13 +58,6 @@ static const char * get_arg_type_name(MVMThreadContext *tc, MVMuint8 type) {
     MVM_exception_throw_adhoc(tc, "invalid arg type");
 }
 
-static const char * get_arg_type(MVMuint8 type) {
-    if (type & MVM_CALLSITE_ARG_NAMED)  return "named";
-    if (type & MVM_CALLSITE_ARG_FLAT)  return "flat";
-    return "positional";
-}
-
-
 /* Checks that the passed arguments fall within the expected arity. */
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos = ctx->num_pos;
@@ -286,6 +279,11 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
     
     arg_info = find_pos_arg(ctx, pos++);
     while (arg_info.arg) {
+        
+        if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
+            MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
+        }
+        
         /* XXX theoretically needs to handle native arrays I guess */
         switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
@@ -348,6 +346,8 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_positional");
                 break;
             }
+            default:
+                MVM_exception_throw_adhoc(tc, "unreachable");
         }
         
         arg_info = find_pos_arg(ctx, pos++);
@@ -362,6 +362,8 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMObject *type = (*(tc->interp_cu))->hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
     struct MVMArgInfo arg_info;
+    MVMuint32 flag_pos, arg_pos;
+    arg_info.arg = NULL;
     
     if (!type || IS_CONCRETE(type)) {
         MVM_exception_throw_adhoc(tc, "Missing hll slurpy hash type");
@@ -372,6 +374,79 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     if (REPR(result)->initialize)
         REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+    
+    for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
+        MVMString *key;
+        
+        if (ctx->named_used[flag_pos - ctx->num_pos]) continue;
+        
+        key = ctx->args[arg_pos].s;
+        
+        if (!key || !IS_CONCRETE(key)) {
+            MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
+        }
+        arg_info.arg = &ctx->args[arg_pos + 1];
+        arg_info.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos];
+        
+        if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
+            MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
+        }
+        
+        switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
+            case MVM_CALLSITE_ARG_OBJ: {
+                REPR(result)->ass_funcs->bind_key_boxed(tc, STABLE(result),
+                    result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg->o);
+                break;
+            }
+            case MVM_CALLSITE_ARG_INT:
+            case MVM_CALLSITE_ARG_UINT: {
+                type = (*(tc->interp_cu))->hll_config->int_box_type;
+                if (!type || IS_CONCRETE(type)) {
+                    MVM_exception_throw_adhoc(tc, "Missing hll int box type");
+                }
+                box = REPR(type)->allocate(tc, STABLE(type));
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_int(tc, STABLE(box), box,
+                    OBJECT_BODY(box),
+                    (arg_info.flags & MVM_CALLSITE_ARG_MASK == MVM_CALLSITE_ARG_INT
+                        ? arg_info.arg->i64 : arg_info.arg->ui64));
+                REPR(result)->ass_funcs->bind_key_boxed(tc, STABLE(result),
+                    result, OBJECT_BODY(result), (MVMObject *)key, box);
+                break;
+            }
+            case MVM_CALLSITE_ARG_NUM: {
+                type = (*(tc->interp_cu))->hll_config->num_box_type;
+                if (!type || IS_CONCRETE(type)) {
+                    MVM_exception_throw_adhoc(tc, "Missing hll num box type");
+                }
+                box = REPR(type)->allocate(tc, STABLE(type));
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_num(tc, STABLE(box), box,
+                    OBJECT_BODY(box), arg_info.arg->n64);
+                REPR(result)->ass_funcs->bind_key_boxed(tc, STABLE(result),
+                    result, OBJECT_BODY(result), (MVMObject *)key, box);
+                break;
+            }
+            case MVM_CALLSITE_ARG_STR: {
+                type = (*(tc->interp_cu))->hll_config->str_box_type;
+                if (!type || IS_CONCRETE(type)) {
+                    MVM_exception_throw_adhoc(tc, "Missing hll str box type");
+                }
+                box = REPR(type)->allocate(tc, STABLE(type));
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_str(tc, STABLE(box), box,
+                    OBJECT_BODY(box), arg_info.arg->s);
+                REPR(result)->ass_funcs->bind_key_boxed(tc, STABLE(result),
+                    result, OBJECT_BODY(result), (MVMObject *)key, box);
+                break;
+            }
+            default:
+                MVM_exception_throw_adhoc(tc, "unreachable");
+        }
+    }
     
     MVM_gc_root_temp_pop_n(tc, 2);
     

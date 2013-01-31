@@ -1,4 +1,5 @@
 /* Callsite argument flags. */
+#define MVM_CALLSITE_ARG_MASK 31
 typedef enum {
     /* Argument is an object. */
     MVM_CALLSITE_ARG_OBJ = 1,
@@ -21,9 +22,7 @@ typedef enum {
     MVM_CALLSITE_ARG_NAMED = 32,
     
     /* Argument is flattened. What this means is up to the target. */
-    MVM_CALLSITE_ARG_FLAT = 64,
-    
-    MVM_CALLSITE_ARG_MASK = 127
+    MVM_CALLSITE_ARG_FLAT = 64
 } MVMCallsiteFlags;
 
 /* A callsite entry is just one of the above flags. */
