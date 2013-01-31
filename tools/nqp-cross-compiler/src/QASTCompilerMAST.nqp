@@ -579,8 +579,8 @@ class QAST::MASTCompiler {
                 # what will be put in the value register
                 my $val;
                 
-                if $_.slurpy {
-                    if $_.named {
+                if $var.slurpy {
+                    if $var.named {
                         $opname := "namedslurpy";
                     }
                     else {
@@ -625,8 +625,8 @@ class QAST::MASTCompiler {
                     # end label to skip initialization code
                     nqp::push(@pre, $endlbl);
                 }
-                elsif $_.slurpy {
-                    if $_.named {
+                elsif $var.slurpy {
+                    if $var.named {
                         push_op(@pre, $opname, $valreg);
                     }
                     else {
