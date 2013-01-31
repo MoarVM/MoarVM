@@ -292,19 +292,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_arg_i:
-                        (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args)[GET_UI16(cur_op, 0)].i64 = GET_REG(cur_op, 2).i64;
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].i64 = GET_REG(cur_op, 2).i64;
                         cur_op += 4;
                         break;
                     case MVM_OP_arg_n:
-                        (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args)[GET_UI16(cur_op, 0)].n64 = GET_REG(cur_op, 2).n64;
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].n64 = GET_REG(cur_op, 2).n64;
                         cur_op += 4;
                         break;
                     case MVM_OP_arg_s:
-                        (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args)[GET_UI16(cur_op, 0)].s = GET_REG(cur_op, 2).s;
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].s = GET_REG(cur_op, 2).s;
                         cur_op += 4;
                         break;
                     case MVM_OP_arg_o:
-                        (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args)[GET_UI16(cur_op, 0)].o = GET_REG(cur_op, 2).o;
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].o = GET_REG(cur_op, 2).o;
                         cur_op += 4;
                         break;
                     case MVM_OP_invoke_v:
@@ -314,7 +314,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             tc->cur_frame->return_type = MVM_RETURN_VOID;
                             cur_op += 2;
                             tc->cur_frame->return_address = cur_op;
-                            STABLE(code)->invoke(tc, code, cur_callsite, (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args));
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_i:
@@ -324,7 +324,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             tc->cur_frame->return_type = MVM_RETURN_INT;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            STABLE(code)->invoke(tc, code, cur_callsite, (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args));
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_n:
@@ -334,7 +334,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             tc->cur_frame->return_type = MVM_RETURN_NUM;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            STABLE(code)->invoke(tc, code, cur_callsite, (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args));
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_s:
@@ -344,7 +344,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             tc->cur_frame->return_type = MVM_RETURN_STR;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            STABLE(code)->invoke(tc, code, cur_callsite, (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args));
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_invoke_o:
@@ -354,7 +354,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             tc->cur_frame->return_type = MVM_RETURN_OBJ;
                             cur_op += 4;
                             tc->cur_frame->return_address = cur_op;
-                            STABLE(code)->invoke(tc, code, cur_callsite, (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args));
+                            STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
                         }
                         break;
                     case MVM_OP_add_n:
@@ -426,15 +426,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     case MVM_OP_argconst_i:
-                        (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args)[GET_UI16(cur_op, 0)].i64 = GET_I64(cur_op, 2);
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].i64 = GET_I64(cur_op, 2);
                         cur_op += 10;
                         break;
                     case MVM_OP_argconst_n:
-                        (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args)[GET_UI16(cur_op, 0)].n64 = GET_N64(cur_op, 2);
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].n64 = GET_N64(cur_op, 2);
                         cur_op += 10;
                         break;
                     case MVM_OP_argconst_s:
-                        (tc->cur_frame->params.args ? tc->cur_frame->params.args : tc->cur_frame->args)[GET_UI16(cur_op, 0)].s = cu->strings[GET_UI16(cur_op, 2)];
+                        tc->cur_frame->args[GET_UI16(cur_op, 0)].s = cu->strings[GET_UI16(cur_op, 2)];
                         cur_op += 4;
                         break;
                     case MVM_OP_checkarity:
