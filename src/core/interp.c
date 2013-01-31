@@ -310,6 +310,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_v:
                         {
                             MVMObject *code = GET_REG(cur_op, 0).o;
+                            if (!code) {
+                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
+                            }
                             tc->cur_frame->return_value = NULL;
                             tc->cur_frame->return_type = MVM_RETURN_VOID;
                             cur_op += 2;
@@ -320,6 +323,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_i:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
+                            if (!code) {
+                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
+                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_INT;
                             cur_op += 4;
@@ -330,6 +336,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_n:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
+                            if (!code) {
+                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
+                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_NUM;
                             cur_op += 4;
@@ -340,6 +349,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_s:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
+                            if (!code) {
+                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
+                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_STR;
                             cur_op += 4;
@@ -350,6 +362,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_o:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
+                            if (!code) {
+                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
+                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_OBJ;
                             cur_op += 4;
