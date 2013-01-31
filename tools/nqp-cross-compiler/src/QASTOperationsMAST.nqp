@@ -622,8 +622,8 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     for @arg_regs -> $reg {
         if $reg ~~ MAST::Local {
             $*REGALLOC.release_register($reg, @arg_kinds[$arg_num]);
-            $arg_num++;
         }
+        $arg_num++;
     }
     
     # Figure out result register type
@@ -717,8 +717,8 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     for @arg_regs -> $reg {
         if $reg ~~ MAST::Local {
             $*REGALLOC.release_register($reg, @arg_kinds[$arg_num]);
-            $arg_num++;
         }
+        $arg_num++;
     }
     
     # Figure out expected result register type

@@ -1,7 +1,7 @@
 #!nqp
 use MASTTesting;
 
-plan(31);
+plan(32);
 
 qast_output_is(QAST::Block.new(
     QAST::VM.new( moarop => 'say_i',
@@ -456,3 +456,33 @@ qast_output_is(QAST::Block.new(
         )
     )
 ), "howdy\n1\n", "moarop mapper closure generator");
+
+my $block19 := QAST::Block.new(
+    QAST::Var.new( :name('a'), :scope('local'), :decl('param'), :returns(int) ),
+    QAST::Var.new( :name('b'), :scope('local'), :decl('param'), :returns(int) ),
+    QAST::Var.new( :name('c'), :scope('local'), :decl('param'), :returns(int) ),
+    QAST::Var.new( :name('d'), :scope('local'), :decl('param'), :returns(str) ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('a'), :scope('local') ) ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('b'), :scope('local') ) ),
+    QAST::VM.new( :moarop('say_i'),
+        QAST::Var.new( :name('c'), :scope('local') ) ),
+    QAST::VM.new( :moarop('say_s'),
+        QAST::Var.new( :name('d'), :scope('local') ) ),
+    QAST::IVal.new( :value(0) )
+);
+qast_output_is(QAST::Block.new(
+    $block19,
+    QAST::Op.new( :op('bind'), :returns(int),
+        QAST::Var.new( :named("foofoo"), :decl("var"), :returns(int), :scope("local") ),
+        QAST::IVal.new( :value(3333) )),
+    QAST::Op.new( :op('call'), :returns(int),
+        QAST::BVal.new( :value($block19) ),
+        QAST::IVal.new( :value(777) ),
+        QAST::IVal.new( :value(888) ),
+        QAST::IVal.new( :value(999) ),
+        QAST::SVal.new( :value("hi") ),
+        QAST::Var.new( :named("foofoo"), :scope("local") )
+    )
+), "777\n888\n999\nhi\n", 'four positional required local args and params and an extraneous named work');
