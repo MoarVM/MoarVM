@@ -12,16 +12,41 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
     ctx->callsite = callsite;
     /* initial counts and values; can be altered by flatteners */
     ctx->args     = args;
-    ctx->named_used_size = (callsite->arg_count - callsite->num_pos) / 2;
-    ctx->named_used = ctx->named_used_size ? calloc(sizeof(MVMuint8), ctx->named_used_size) : NULL;
+    if (ctx->named_used && ctx->named_used_size >= (callsite->arg_count - callsite->num_pos) / 2) { /* reuse the old one */
+        memset(ctx->named_used, 0, ctx->named_used_size);
+    }
+    else {
+        if (ctx->named_used) {
+            free(ctx->named_used);
+            ctx->named_used = NULL;
+        }
+        ctx->named_used_size = (callsite->arg_count - callsite->num_pos) / 2;
+        ctx->named_used = ctx->named_used_size ? calloc(sizeof(MVMuint8), ctx->named_used_size) : NULL;
+    }
     ctx->num_pos  = callsite->num_pos;
     ctx->arg_count = callsite->arg_count;
     ctx->arg_flags = NULL; /* will be populated by flattener if needed */
 }
 
+/* Clean up an arguments processing context for cache. */
+void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    /* Really, just if ctx->arg_flags, which indicates a flattening occurred. */
+    if (ctx->args && ctx->arg_flags) {
+        free(ctx->args);
+        ctx->args = NULL;
+        free(ctx->arg_flags);
+        ctx->arg_flags = NULL;
+    }
+}
+
 /* Clean up an arguments processing context. */
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    /* Currently nothing to do. */
+    MVM_args_proc_cleanup_for_cache(tc, ctx);
+    if (ctx->named_used) {
+        free(ctx->named_used);
+        ctx->named_used = NULL;
+        ctx->named_used_size = 0;
+    }
 }
 
 static const char * get_arg_type_name(MVMThreadContext *tc, MVMuint8 type) {

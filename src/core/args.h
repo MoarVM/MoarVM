@@ -46,6 +46,8 @@ typedef struct _MVMCallsite {
 } MVMCallsite;
 
 /* Argument processing context. */
+/* adding these additional fields to MVMFrame adds only 12 bytes
+ * (arg_flags, arg_count, and num_pos). */
 typedef struct _MVMArgProcContext {
     /* The callsite we're processing. */
     MVMCallsite *callsite;
@@ -56,18 +58,18 @@ typedef struct _MVMArgProcContext {
     /* The arguments. */
     union _MVMRegister *args;
     
+    /* Bytemap of indexes of used nameds, so the 
+     * named slurpy knows which ones not to grab.
+     * XXX cache and free this at the proper times. */
+    MVMuint8 *named_used;
+    MVMuint16 named_used_size;
+    
     /* The total argument count (including 2 for each
      * named arg). */
     MVMuint16 arg_count;
     
     /* Number of positionals. */
     MVMuint16 num_pos;
-    
-    /* Bytemap of indexes of used nameds, so the 
-     * named slurpy knows which ones not to grab.
-     * XXX cache and free this at the proper times. */
-    MVMuint8 *named_used;
-    MVMuint16 named_used_size;
 } MVMArgProcContext;
 
 /* Expected return type flags. */
@@ -93,6 +95,7 @@ typedef enum {
 
 /* Argument processing context handling. */
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, union _MVMRegister *args);
+void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);
 

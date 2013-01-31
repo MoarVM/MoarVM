@@ -93,6 +93,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (node == NULL) {
         fresh = 1;
         frame = malloc(sizeof(MVMFrame));
+        frame->params.named_used = NULL;
         
         /* Copy thread context into the frame. */
         frame->tc = tc;
@@ -193,7 +194,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller;
     if (returner->work) {
-        MVM_args_proc_cleanup(tc, &returner->params);
+        MVM_args_proc_cleanup_for_cache(tc, &returner->params);
         
         /* Don't release ->work in case we want the frame to be cached */
         /* free(returner->work);

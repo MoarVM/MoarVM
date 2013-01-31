@@ -90,7 +90,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVMREPROps  *repr_to_use;
     
     /* Get arguments. */
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     repr_arg = MVM_args_get_named_str(tc, &arg_ctx, str_repr, MVM_ARG_OPTIONAL);
@@ -139,7 +139,7 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     MVMString *name;
     
     /* Get arguments. */
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
@@ -163,7 +163,7 @@ static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegist
     MVMObject *self, *type_obj, *attr, *attributes;
     
     /* Get arguments. */
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
@@ -191,7 +191,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVMint64   num_attrs, i;
     
     /* Get arguments. */
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
@@ -286,7 +286,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
 /* Introspects the attributes. For now just hand back real list. */
 static void attributes(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *attributes;
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
@@ -300,7 +300,7 @@ static void attributes(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
 /* Introspects the methods. */
 static void methods(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *method_table;
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
@@ -315,7 +315,7 @@ static void methods(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
 static void name(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj;
     MVMString *name;
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED)->o;
@@ -427,7 +427,7 @@ static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVMREPROps  *repr;
     
     /* Process arguments. */
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     name_arg = MVM_args_get_named_str(tc, &arg_ctx, str_name, MVM_ARG_REQUIRED);
@@ -457,7 +457,7 @@ static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
 /* Composes the attribute; actually, nothing to do really. */
 static void attr_compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self;
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
@@ -468,7 +468,7 @@ static void attr_compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegiste
 static void attr_name(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self;
     MVMString *name;
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
@@ -479,7 +479,7 @@ static void attr_name(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *
 /* Introspects the attribute's type. */
 static void attr_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type;
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
@@ -491,7 +491,7 @@ static void attr_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *
 static void attr_box_target(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self;
     MVMint64   box_target;
-    MVMArgProcContext arg_ctx;
+    MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
