@@ -8,9 +8,15 @@ struct MVMArgInfo {
 
 /* Initialize arguments processing context. */
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
-    /* Stash callsite and argument count. */
+    /* Stash callsite and argument counts/pointers. */
     ctx->callsite = callsite;
+    /* initial counts and values; can be altered by flatteners */
     ctx->args     = args;
+    ctx->named_used_size = (callsite->arg_count - callsite->num_pos) / 2;
+    ctx->named_used = ctx->named_used_size ? calloc(sizeof(MVMuint8), ctx->named_used_size) : NULL;
+    ctx->num_pos  = callsite->num_pos;
+    ctx->arg_count = callsite->arg_count;
+    ctx->arg_flags = NULL; /* will be populated by flattener if needed */
 }
 
 /* Clean up an arguments processing context. */
@@ -36,7 +42,7 @@ static const char * get_arg_type(MVMuint8 type) {
 
 /* Checks that the passed arguments fall within the expected arity. */
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
-    MVMuint16 num_pos = ctx->callsite->num_pos;
+    MVMuint16 num_pos = ctx->num_pos;
     if (num_pos < min)
         MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed %u, got %u", min, num_pos);
     if (num_pos > max)
@@ -46,9 +52,9 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 /* Get positional arguments. */
 static struct MVMArgInfo find_pos_arg(MVMArgProcContext *ctx, MVMuint32 pos) {
     struct MVMArgInfo result;
-    if (pos < ctx->callsite->num_pos) {
+    if (pos < ctx->num_pos) {
         result.arg = &ctx->args[pos];
-        result.flags = ctx->callsite->arg_flags[pos];
+        result.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[pos];
     }
     else {
         result.arg = NULL;
@@ -102,10 +108,12 @@ static struct MVMArgInfo find_named_arg(MVMThreadContext *tc, MVMArgProcContext 
     MVMuint32 flag_pos, arg_pos;
     result.arg = NULL;
     
-    for (flag_pos = arg_pos = ctx->callsite->num_pos; arg_pos < ctx->callsite->arg_count; flag_pos++, arg_pos += 2) {
+    for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
         if (MVM_string_equal(tc, ctx->args[arg_pos].s, name)) {
             result.arg = &ctx->args[arg_pos + 1];
-            result.flags = ctx->callsite->arg_flags[flag_pos];
+            result.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos];
+            /* Mark this named taken so a slurpy won't get it. */
+            ctx->named_used[(arg_pos - ctx->num_pos)/2] = 1;
             break;
         }
     }

@@ -37,11 +37,12 @@ typedef struct _MVMCallsite {
     /* The set of flags. */
     MVMCallsiteEntry *arg_flags;
     
-    /* The total argument count. */
+    /* The total argument count (including 2 for each
+     * named arg). */
     MVMuint16 arg_count;
     
-    /* Number of positionals (-1 indicates slurpy creating unknownness). */
-    MVMint16 num_pos;
+    /* Number of positionals. */
+    MVMuint16 num_pos;
 } MVMCallsite;
 
 /* Argument processing context. */
@@ -49,8 +50,24 @@ typedef struct _MVMArgProcContext {
     /* The callsite we're processing. */
     MVMCallsite *callsite;
     
+    /* The set of flags. */
+    MVMCallsiteEntry *arg_flags;
+    
     /* The arguments. */
     union _MVMRegister *args;
+    
+    /* The total argument count (including 2 for each
+     * named arg). */
+    MVMuint16 arg_count;
+    
+    /* Number of positionals. */
+    MVMuint16 num_pos;
+    
+    /* Bytemap of indexes of used nameds, so the 
+     * named slurpy knows which ones not to grab.
+     * XXX cache and free this at the proper times. */
+    MVMuint8 *named_used;
+    MVMuint16 named_used_size;
 } MVMArgProcContext;
 
 /* Expected return type flags. */
