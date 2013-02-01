@@ -273,7 +273,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 }
 
 /* Looks up the address of the lexical with the specified name and the
- * specified type. An error is thrown if it does not exist. */
+ * specified type. Returns null if it does not exist. */
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVM_string_flatten(tc, name);
@@ -291,6 +291,5 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         }
         cur_frame = cur_frame->caller;
     }
-    MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
-        MVM_string_utf8_encode_C_string(tc, name));
+    return NULL;
 }

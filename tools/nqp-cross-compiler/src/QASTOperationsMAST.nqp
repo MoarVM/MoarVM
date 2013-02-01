@@ -359,7 +359,9 @@ for <if unless> -> $op_name {
         # Evaluate the condition first; store result if needed.
         push_ilist(@ins, @comp_ops[0]);
         if $operands == 2 && !$is_void {
-            push_op(@ins, 'set', $res_reg, @comp_ops[0].result_reg);
+            my $il := MAST::InstructionList.new(@ins, @comp_ops[0].result_reg, @comp_ops[0].result_kind);
+            $qastcomp.coerce($il, $res_kind);
+            push_op(@ins, 'set', $res_reg, $il.result_reg);
         }
         
         # Emit the jump.

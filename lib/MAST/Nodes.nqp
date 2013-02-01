@@ -202,7 +202,8 @@ class MAST::Frame is MAST::Node {
                 !! "<none>"
             ));
             nqp::push(@lines, "$indent Instructions:");
-            nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!instructions;
+            $x := 0;
+            nqp::push(@lines, $x++~': '~$_.DUMP($indent ~ '  ')) for @!instructions;
         }
     }
 }

@@ -398,6 +398,7 @@ class QAST::MASTCompiler {
             $*HLL := $cu.hll;
             $*MAST_COMPUNIT.hll($*HLL);
         }
+#        say($cu.dump);
         
         # Should have a single child which is the outer block; compile it.
         if +@($cu) != 1 || !nqp::istype($cu[0], QAST::Block) {
@@ -707,7 +708,6 @@ class QAST::MASTCompiler {
         $resultchild := $resultchild // -1;
         my $last_stmt_num := +@stmts - 1;
         for @stmts {
-            
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
             if $result_count == $resultchild || $resultchild == -1
@@ -742,8 +742,8 @@ class QAST::MASTCompiler {
     multi method as_mast(QAST::VM $node, :$want) {
         if $node.supports('moar') {
             return nqp::defined($want)
-                ?? self.as_mast($node.alternative('moarop'), :$want)
-                !! self.as_mast($node.alternative('moarop'));
+                ?? self.as_mast($node.alternative('moar'), :$want)
+                !! self.as_mast($node.alternative('moar'));
         }
         elsif $node.supports('moarop') {
             return nqp::defined($want)
@@ -888,6 +888,7 @@ class QAST::MASTCompiler {
                 #$*REGALLOC.release_register($res_reg, $valmast.result_kind);
             }
             else {
+                push_ilist(@ins, $name_const);
                 $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
                 push_op(@ins, 'getdynlex', $res_reg, $name_const.result_reg);
             }
@@ -1039,9 +1040,9 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast($unknown, :$want) {
-        my $name;
-        try $name := $unknown.HOW.name($unknown);
-        $name := pir::typeof__SP($unknown) unless $name;
+        my $name := 'null';
+        try $name := nqp::isnull($unknown) || nqp::isnull($unknown.HOW) ?? nqp::die('fail') !! $unknown.HOW.name($unknown);
+        $name := pir::typeof__SP($unknown) unless nqp::isnull($unknown) || $name ne 'null';
         nqp::die("Unknown QAST node type $name");
     }
     

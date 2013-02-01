@@ -50,6 +50,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     MVMOpInfo *op_info;
     MVMuint32 operand_size;
     MVMuint16 operand_target;
+    MVMuint32 instruction = 0;
     MVMuint32 i;
     unsigned char op_rw;
     unsigned char op_type;
@@ -182,7 +183,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if ((static_frame->local_types[GET_REG(cur_op, 0)] << 3) != operand_type_var) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
-                                "Bytecode validation error: inconsistent operand types to op with a type variable");
+                                "Bytecode validation error: inconsistent operand types %d and %d to op '%s' with a type variable, at instruction %d",
+                                    static_frame->local_types[GET_REG(cur_op, 0)], operand_type_var >> 3, op_info->name, instruction);
                         }
                     }
                     else {
@@ -240,6 +242,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
             }
             cur_op += operand_size;
         }
+        instruction++;
     }
     if (num_jumplist_labels) {
         cleanup_all(tc, labels);

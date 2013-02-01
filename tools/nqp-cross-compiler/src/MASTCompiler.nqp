@@ -3,6 +3,7 @@ use MASTOps;
 
 class MAST::Compiler {
     method compile($node, $target_file) {
+#        say($node.DUMP);
         pir::mvm_compiler_setup__vPPPPPPPPPPP(
             MAST::CompUnit,
             MAST::Frame,

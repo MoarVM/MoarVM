@@ -693,6 +693,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMuint16 type;
                         MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, GET_REG(cur_op, 2).s, &type);
                         MVMObject *result = NULL, *result_type = NULL;
+                        if (lex_reg)
                         switch (type) {
                             case MVM_reg_int64:
                                 result_type = cu->hll_config->int_box_type;
@@ -732,6 +733,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMuint16 type;
                         MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, GET_REG(cur_op, 0).s, &type);
                         MVMObject *result = GET_REG(cur_op, 2).o;
+                        if (!lex_reg) {
+                            MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
+                                MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 0).s));
+                        }
                         switch (type) {
                             case MVM_reg_int64:
                                 lex_reg->i64 = REPR(result)->box_funcs->get_int(tc,
