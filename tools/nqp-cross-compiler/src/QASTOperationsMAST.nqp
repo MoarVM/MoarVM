@@ -62,7 +62,7 @@ class MAST::InstructionList {
     method lineno()       { $!lineno }
     
     method append(MAST::InstructionList $other) {
-        push_ilist(@!instructions, $other.instructions);
+        push_ilist(@!instructions, $other);
         $!result_reg := $other.result_reg;
         $!result_kind := $other.result_kind;
     }
@@ -101,13 +101,11 @@ class QAST::MASTOperations {
     my @kind_names := ['VOID','int8','int16','int32','int','num32','num','str','obj'];
     my @kind_types := [0,1,1,1,1,2,2,3,4];
     
-    # XXX This needs the coercion machinery
-    # that is (not yet fully) implemented in the PIR version of QAST::Compiler,
-    # and so on.
     method compile_mastop($qastcomp, $op, @args, :$returnarg = -1, :$opname = 'none') {
         # Resolve the op.
-        my $bank;
+        my $bank := 0;
         for MAST::Ops.WHO {
+            next if ~$_ eq '$allops';
             $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
         }
         nqp::die("Unable to resolve MAST op '$op'") unless $bank;
@@ -181,8 +179,10 @@ class QAST::MASTOperations {
                 }
             } # allow nums and ints to be bigger than their destination width
             elsif (@kind_types[$arg_kind] != @kind_types[$operand_kind/8]) {
+                $arg.append($qastcomp.coerce($arg, $operand_kind/8));
+                $arg_kind := $operand_kind/8;
                 # the arg typecode left shifted 3 must match the operand typecode
-                nqp::die("arg type {@kind_names[$arg_kind]} does not match operand type {@kind_names[$operand_kind/8]} to op '$op'");
+            #    nqp::die("arg type {@kind_names[$arg_kind]} does not match operand type {@kind_names[$operand_kind/8]} to op '$op'");
             }
             
             # if this is the write register, get the result reg and type from it
@@ -416,8 +416,8 @@ for <while until> -> $op_name {
     QAST::MASTOperations.add_core_op($op_name, -> $qastcomp, $op {
         # Check operand count.
         my $operands := +$op.list;
-        nqp::die("Operation '$op_name' needs 2 operands")
-            if $operands != 2;
+        nqp::die("Operation '$op_name' needs 2 or 3 operands; got $operands")
+            if $operands != 2 && $operands != 3;
         
         # Create labels.
         my $while_id    := $qastcomp.unique($op_name);
@@ -457,6 +457,10 @@ for <while until> -> $op_name {
         push_ilist(@ins, @comp_ops[1]);
         push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
         $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
+        
+        if $operands == 3 {
+            push_ilist(@ins, @comp_ops[2]);
+        }
         
         # Emit the iteration jump.
         push_op(@ins, 'goto', $loop_lbl);
@@ -591,7 +595,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     my $callee;
     my @args := $op.list;
     if $op.name {
-        nqp::die("NYI");
+        nqp::die("named calls NYI");
         # $callee := $qastcomp.post_new('Ops', :result($qastcomp.escape($op.name)));
     }
     elsif +@args {
@@ -850,6 +854,7 @@ sub push_op(@dest, $op, *@args) {
     # Resolve the op.
     my $bank;
     for MAST::Ops.WHO {
+        next if ~$_ eq '$allops';
         $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
     }
     nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);

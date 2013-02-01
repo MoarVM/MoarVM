@@ -581,10 +581,10 @@ class QAST::MASTCompiler {
                 
                 if $var.slurpy {
                     if $var.named {
-                        $opname := "namedslurpy";
+                        $opname := "param_sn";
                     }
                     else {
-                        $opname := "posslurpy";
+                        $opname := "param_sp";
                     }
                 }
                 elsif $var.named {
@@ -634,7 +634,7 @@ class QAST::MASTCompiler {
                     }
                 }
                 else {
-                     # emit param grabbing op
+                    # emit param grabbing op
                     push_op(@pre, $opname, $valreg, $val);
                 }
                 
@@ -736,15 +736,22 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast(QAST::Op $node, :$want) {
-        QAST::MASTOperations.compile_op(self, '', $node)
+        QAST::MASTOperations.compile_op(self, $*HLL, $node)
     }
     
-    multi method as_mast(QAST::VM $vm, :$want) {
-        if $vm.supports('moarop') {
-            QAST::MASTOperations.compile_mastop(self, $vm.alternative('moarop'), $vm.list)
+    multi method as_mast(QAST::VM $node, :$want) {
+        if $node.supports('moar') {
+            return nqp::defined($want)
+                ?? self.as_mast($node.alternative('moarop'), :$want)
+                !! self.as_mast($node.alternative('moarop'));
+        }
+        elsif $node.supports('moarop') {
+            return nqp::defined($want)
+                ?? QAST::MASTOperations.compile_mastop(self, $node.alternative('moarop'), $node.list, :$want)
+                !! QAST::MASTOperations.compile_mastop(self, $node.alternative('moarop'), $node.list);
         }
         else {
-            nqp::die("To compile on the MoarVM backend, QAST::VM must have an alternative 'moarop'");
+            nqp::die("To compile on the MoarVM backend, QAST::VM must have an alternative 'moar' or 'moarop'");
         }
     }
     
@@ -1032,7 +1039,10 @@ class QAST::MASTCompiler {
     }
     
     multi method as_mast($unknown, :$want) {
-        nqp::die("Unknown QAST node type " ~ $unknown.HOW.name($unknown));
+        my $name;
+        try $name := $unknown.HOW.name($unknown);
+        $name := pir::typeof__SP($unknown) unless $name;
+        nqp::die("Unknown QAST node type $name");
     }
     
     my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
@@ -1049,6 +1059,7 @@ sub push_op(@dest, $op, *@args) {
     # Resolve the op.
     my $bank;
     for MAST::Ops.WHO {
+        next if ~$_ eq '$allops';
         $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
     }
     nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
