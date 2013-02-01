@@ -1062,6 +1062,7 @@ sub push_op(@dest, $op, *@args) {
         next if ~$_ eq '$allops';
         $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
     }
+    $op := $op.name if nqp::istype($op, QAST::Op);
     nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
     
     nqp::push(@dest, MAST::Op.new(
