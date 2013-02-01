@@ -31,11 +31,15 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
 /* Clean up an arguments processing context for cache. */
 void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* Really, just if ctx->arg_flags, which indicates a flattening occurred. */
-    if (ctx->args && ctx->arg_flags) {
-        free(ctx->args);
-        ctx->args = NULL;
-        free(ctx->arg_flags);
-        ctx->arg_flags = NULL;
+    if (ctx->callsite->has_flattening) {
+        if (ctx->args) {
+            free(ctx->args);
+            ctx->args = NULL;
+        }
+        if (ctx->arg_flags) {
+            free(ctx->arg_flags);
+            ctx->arg_flags = NULL;
+        }
     }
 }
 
@@ -58,6 +62,8 @@ static const char * get_arg_type_name(MVMThreadContext *tc, MVMuint8 type) {
     MVM_exception_throw_adhoc(tc, "invalid arg type");
 }
 
+static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
+
 /* Checks that the passed arguments fall within the expected arity. */
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos = ctx->num_pos;
@@ -65,6 +71,8 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
         MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed %u, got %u", min, num_pos);
     if (num_pos > max)
         MVM_exception_throw_adhoc(tc, "Too many positional arguments; max %u, got %u", max, num_pos);
+    
+    flatten_args(tc, ctx);
 }
 
 /* Get positional arguments. */
@@ -451,4 +459,78 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     MVM_gc_root_temp_pop_n(tc, 2);
     
     return result;
+}
+
+static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    struct MVMArgInfo arg_info;
+    MVMuint16 flag_pos = 0, arg_pos = 0, new_arg_pos = 0,
+        new_arg_flags_size = ctx->arg_count > 0x7FFF ? ctx->arg_count : ctx->arg_count * 2,
+        new_args_size = new_arg_flags_size, i, new_flag_pos = 0, new_num_pos = 0;
+    MVMCallsiteEntry *new_arg_flags;
+    MVMRegister *new_args;
+    
+    if (!ctx->callsite->has_flattening) return;
+    
+    new_arg_flags = malloc(new_arg_flags_size);
+    new_args = malloc(new_args_size);
+    
+    /* first flatten any positionals */
+    for ( ; arg_pos < ctx->num_pos; arg_pos++) {
+        MVMuint32 found = 0;
+        
+        arg_info.arg = &ctx->args[arg_pos];
+        arg_info.flags = ctx->callsite->arg_flags[arg_pos];
+        
+        /* skip it if it's not flattening or is null. The bytecode loader
+         * verifies it's a MVM_CALLSITE_ARG_OBJ. */
+        if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg->o) {
+            MVMObject *list = arg_info.arg->o;
+            
+            MVMint64 count = REPR(list)->pos_funcs->elems(tc, STABLE(list),
+                list, OBJECT_BODY(list));
+            if ((MVMint64)new_arg_pos + count > 0xFFFF) {
+                MVM_exception_throw_adhoc(tc, "Too many arguments in flattening array.");
+            }
+            found = (MVMuint32)count;
+            
+            for (i = 0; i < found; i++) {
+                if (new_arg_pos == new_args_size) {
+                    new_args = realloc(new_args, (new_args_size *= 2));
+                }
+                if (new_flag_pos == new_arg_flags_size) {
+                    new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2));
+                }
+                
+                REPR(list)->pos_funcs->at_pos(tc, STABLE(list), list,
+                    OBJECT_BODY(list), i, new_args + new_arg_pos++, MVM_reg_obj);
+                new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
+            }
+        }
+        else {
+            if (new_arg_pos == new_args_size) {
+                new_args = realloc(new_args, (new_args_size *= 2));
+            }
+            if (new_flag_pos == new_arg_flags_size) {
+                new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2));
+            }
+            
+            (new_args + new_arg_pos++)->o = arg_info.arg->o;
+            new_arg_flags[new_flag_pos++] = arg_info.flags;
+            found = 1;
+        }
+        
+        new_arg_pos += found;
+    }
+    new_num_pos = arg_pos;
+    
+    /* then flatten any nameds */
+    for ( flag_pos = arg_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
+        
+        
+    }
+    
+    ctx->args = new_args;
+    ctx->arg_count = new_arg_pos;
+    ctx->num_pos = new_num_pos;
+    ctx->arg_flags = new_arg_flags;
 }

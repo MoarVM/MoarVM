@@ -250,6 +250,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
 static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
     MVMuint16  i, count;
     MVMuint16 *type_map;
+    MVMuint8  *flag_map;
     
     /* Scan locals. */
     if (frame->work && frame->tc) {
@@ -257,7 +258,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
         count    = frame->static_info->num_locals;
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
-                MVM_gc_worklist_add(tc, worklist, &frame->work[i]);
+                MVM_gc_worklist_add(tc, worklist, &frame->work[i].o);
     }
     
     /* Scan lexicals. */
@@ -266,6 +267,17 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
         count    = frame->static_info->num_lexicals;
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
-                MVM_gc_worklist_add(tc, worklist, &frame->env[i]);
+                MVM_gc_worklist_add(tc, worklist, &frame->env[i].o);
+    }
+    
+    /* Scan arguments in case there was a flattening. Don't need to if
+     * there wasn't a flattening because orig args is a subset of locals. */
+    if (frame->params.args && frame->params.callsite->has_flattening) {
+        MVMArgProcContext *ctx = &frame->params;
+        flag_map = ctx->arg_flags;
+        count = ctx->arg_count;
+        for (i = 0; i < count; i++)
+            if (flag_map[i] & MVM_CALLSITE_ARG_STR || flag_map[i] & MVM_CALLSITE_ARG_OBJ)
+                MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
     }
 }

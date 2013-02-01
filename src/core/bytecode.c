@@ -345,6 +345,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     /* Load callsites. */
     pos = rs->callsite_seg;
     for (i = 0; i < rs->expected_callsites; i++) {
+        MVMuint8 has_flattening = 0;
         positionals = 0;
         nameds = 0;
         
@@ -371,7 +372,10 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         /* Validate that all positionals come before all nameds. */
         for (j = 0; j < elems; j++) {
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
-                MVM_exception_throw_adhoc(tc, "Flattening NYI");
+                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
+                    MVM_exception_throw_adhoc(tc, "Flattened args must be objects");
+                }
+                has_flattening = 1;
             }
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
                 nameds += 2;
@@ -383,6 +387,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         }
         callsites[i]->num_pos   = positionals;
         callsites[i]->arg_count = positionals + nameds;
+        callsites[i]->has_flattening = has_flattening;
         
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */

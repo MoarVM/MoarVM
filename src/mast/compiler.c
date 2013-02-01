@@ -556,8 +556,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 arg_pos++;
             }
             else if (flag & MVM_CALLSITE_ARG_FLAT) {
-                cleanup_all(vm, ws);
-                DIE(vm, "Flattening args NYI");
+                /* don't need to do anything special */
             }
             
             /* Now go by flag type. */

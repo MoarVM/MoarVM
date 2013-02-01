@@ -42,6 +42,9 @@ typedef struct _MVMCallsite {
     
     /* Number of positionals. */
     MVMuint16 num_pos;
+    
+    /* whether it has a flattening arg. */
+    MVMuint8 has_flattening;
 } MVMCallsite;
 
 /* Argument processing context. */
