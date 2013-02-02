@@ -9,8 +9,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_n', $r0);
         op(@ins, 'return');
     },
-    "233.232000\n",
-    "float constant loading");
+    "233.232\n",
+    "float constant loading", approx => 1);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
@@ -22,8 +22,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_n', $r2);
         op(@ins, 'return');
     },
-    "9959070.012260\n",
-    "float addition");
+    "9959070.01226\n",
+    "float addition", approx => 1);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);
@@ -35,8 +35,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_n', $r2);
         op(@ins, 'return');
     },
-    "3506465568.000780\n",
-    "float subtraction");
+    "3506465568.00078\n",
+    "float subtraction", approx => 1);
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, num);

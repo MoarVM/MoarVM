@@ -793,10 +793,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         printf("%lld\n", GET_REG(cur_op, 0).i64); /* lld seems to work on msvc and gcc */
                         cur_op += 2;
                         break;
-                    case MVM_OP_say_n:
-                        printf("%f\n", GET_REG(cur_op, 0).n64);
+                    case MVM_OP_say_n: {
+                        char buf[16];
+                        int i;
+                        sprintf(buf, "%-15f", GET_REG(cur_op, 0).n64);
+                        i = strlen(buf);
+                        while (i > 1 && (buf[--i] == '0' || buf[i] == '.' || buf[i] == ' '))
+                            buf[i] = '\0';
+                        printf("%s\n", buf);
                         cur_op += 2;
                         break;
+                    }
                     case MVM_OP_say_s:
                         MVM_string_say(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;

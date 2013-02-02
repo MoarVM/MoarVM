@@ -111,7 +111,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
-    "34.121300\n",
+    "34.1213\n",
     "call returning num");
 
 sub callee_ret_s() {

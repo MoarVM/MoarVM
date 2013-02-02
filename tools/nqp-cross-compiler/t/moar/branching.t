@@ -104,5 +104,5 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         
         op(@ins, 'return');
     },
-    "0.000000\n1.000000\n0.000000\n1.000000\n0.000000\n0.000000\n",
+    "0\n1\n0\n1\n0\n0\n",
     "conditional on zero and non-zero float branching");
