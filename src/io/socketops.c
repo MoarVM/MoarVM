@@ -249,7 +249,7 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
         MVM_exception_throw_apr_error(tc, rv, "receive string from socket failed: ");
     }
     
-    result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read, handle->body.encoding_type);
+    result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
     
     free(buf);
     
@@ -273,7 +273,7 @@ MVMString * MVM_socket_hostname(MVMThreadContext *tc) {
         MVM_exception_throw_apr_error(tc, rv, "hostname failed: ");
     }
     
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, hostname, strlen(hostname));
+    result = MVM_string_utf8_decode(tc, tc->instance->VMString, hostname, strlen(hostname));
     
     apr_pool_destroy(tmp_pool);
     free(hostname);

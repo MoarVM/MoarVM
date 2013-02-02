@@ -8,7 +8,7 @@ MVMObject * MVM_file_get_anon_oshandle_type(MVMThreadContext *tc) {
     if (!anon_oshandle_type) {
         /* fake up an anonymous type using MVMOSHandle REPR */
         anon_oshandle_type = MVM_repr_get_by_name(tc, MVM_string_ascii_decode_nt(tc,
-                tc->instance->boot_types->BOOTStr, "MVMOSHandle"))->type_object_for(tc,
+                tc->instance->VMString, "MVMOSHandle"))->type_object_for(tc,
                 REPR(tc->instance->KnowHOW)->allocate(tc, STABLE(tc->instance->KnowHOW)));
     }
     return anon_oshandle_type;
@@ -246,7 +246,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
         MVM_exception_throw_apr_error(tc, rv, "read from filehandle failed: ");
     }
                                                /* XXX should this take a type object? */
-    result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, buf, bytes_read, handle->body.encoding_type);
+    result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
     
     free(buf);
     

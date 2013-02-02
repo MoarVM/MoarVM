@@ -62,7 +62,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 i, j, k, q;
     char *o = calloc(sizeof(char) * s, 1);
     char ***frame_lexicals = malloc(sizeof(char **) * cu->num_frames);
-    MVMString *name = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, "", 0);
+    MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
     
     a("\nMoarVM dump of binary compilation unit:\n\n");
     

@@ -16,9 +16,9 @@ static MVMString *str_P6opaque   = NULL;
 static MVMString *str_type       = NULL;
 static MVMString *str_box_target = NULL;
 
-/* Creates a stub BOOTStr. Note we didn't initialize the
+/* Creates a stub VMString. Note we didn't initialize the
  * representation yet, so have to do this somewhat pokily. */
-static void create_stub_BOOTStr(MVMThreadContext *tc) {
+static void create_stub_VMString(MVMThreadContext *tc) {
     /* Need to create the REPR function table "in advance"; the
      * MVMString REPR specially knows not to duplicately create
      * this. */
@@ -33,11 +33,11 @@ static void create_stub_BOOTStr(MVMThreadContext *tc) {
     st->size = sizeof(MVMString);
     
     /* We can now go for the type object. */
-    tc->instance->boot_types->BOOTStr = MVM_gc_allocate_type_object(tc, st);
+    tc->instance->VMString = MVM_gc_allocate_type_object(tc, st);
     
     /* Set the WHAT in the STable we just made to point to the type
      * object (this is completely normal). */
-    st->WHAT = tc->instance->boot_types->BOOTStr;
+    st->WHAT = tc->instance->VMString;
 }
 
 /* Creates a stub BOOTInt (missing a meta-object). */
@@ -50,6 +50,12 @@ static void create_stub_BOOTInt(MVMThreadContext *tc) {
 static void create_stub_BOOTNum(MVMThreadContext *tc) {
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6num);
     tc->instance->boot_types->BOOTNum = repr->type_object_for(tc, NULL);
+}
+
+/* Creates a stub BOOTStr (missing a meta-object). */
+static void create_stub_BOOTStr(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6str);
+    tc->instance->boot_types->BOOTStr = repr->type_object_for(tc, NULL);
 }
 
 /* Creates a stub BOOTArray (missing a meta-object). */
@@ -333,7 +339,7 @@ static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow
     
     /* Create string for name. */
     name_str = (MVMObject *)MVM_string_ascii_decode_nt(tc,
-        tc->instance->boot_types->BOOTStr, name);
+        tc->instance->VMString, name);
     
     /* Allocate a BOOTCCode and put pointer in. */
     BOOTCCode = tc->instance->boot_types->BOOTCCode;
@@ -348,7 +354,7 @@ static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow
 
 /* Bootstraps the KnowHOW type. */
 static void bootstrap_KnowHOW(MVMThreadContext *tc) {
-    MVMObject *BOOTStr   = tc->instance->boot_types->BOOTStr;
+    MVMObject *VMString  = tc->instance->VMString;
     MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
     MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
     
@@ -380,7 +386,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     add_knowhow_how_method(tc, knowhow_how, "name", name);
     
     /* Set name KnowHOW for the KnowHOW's HOW. */
-    knowhow_how->body.name = MVM_string_ascii_decode_nt(tc, BOOTStr, "KnowHOW");
+    knowhow_how->body.name = MVM_string_ascii_decode_nt(tc, VMString, "KnowHOW");
 
     /* Set this built up HOW as the KnowHOW's HOW. */
     STABLE(knowhow)->HOW = (MVMObject *)knowhow_how;
@@ -416,7 +422,7 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
     MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->HOW, meta_obj);
     
     /* Set name. */
-    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, name);
+    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
     MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
 }
 
@@ -519,7 +525,7 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
     add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "box_target", attr_box_target);
     
     /* Set name. */
-    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "KnowHOWAttribute");
+    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWAttribute");
     MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
     
     /* Create a new type object with the correct REPR. */
@@ -540,17 +546,18 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
  
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
-    /* First, we have to get the BOOTStr type to exist; this has to
+    /* First, we have to get the VMString type to exist; this has to
      * come even before REPR registry setup because it relies on
      * being able to create strings. */
-    create_stub_BOOTStr(tc);
+    create_stub_VMString(tc);
 
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
 
-    /* Create stub BOOTInt, BOOTNum, BOOTArray, BOOTHash, BOOTCCode and BOOTCode types. */
+    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode and BOOTCode types. */
     create_stub_BOOTInt(tc);
     create_stub_BOOTNum(tc);
+    create_stub_BOOTStr(tc);
     create_stub_BOOTArray(tc);
     create_stub_BOOTHash(tc);
     create_stub_BOOTCCode(tc);
@@ -558,29 +565,32 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_BOOTThread(tc);
 
     /* Set up some strings. */
-    str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "repr");
+    str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "repr");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_repr);
-    str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "name");
+    str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "name");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_name);
-    str_anon     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "<anon>");
+    str_anon     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "<anon>");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_anon);
-    str_P6opaque = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6opaque");
+    str_P6opaque = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6opaque");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_P6opaque);
-    str_type     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "type");
+    str_type     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
-    str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "box_target");
+    str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "box_target");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
     
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
     
-    /* Give BOOTStr, BOOTInt, BOOTNum, BOOTArray, BOOTHash, BOOTCCode and BOOTCode meta-objects. */
-    add_meta_object(tc, tc->instance->boot_types->BOOTStr, "BOOTStr");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStr);
+    /* Give VMString, BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode
+     * and BOOTCode meta-objects. */
+    add_meta_object(tc, tc->instance->VMString, "VMString");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->VMString);
     add_meta_object(tc, tc->instance->boot_types->BOOTInt, "BOOTInt");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTInt);
     add_meta_object(tc, tc->instance->boot_types->BOOTNum, "BOOTNum");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTNum);
+    add_meta_object(tc, tc->instance->boot_types->BOOTStr, "BOOTStr");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStr);
     add_meta_object(tc, tc->instance->boot_types->BOOTArray, "BOOTArray");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTArray);
     add_meta_object(tc, tc->instance->boot_types->BOOTHash, "BOOTHash");

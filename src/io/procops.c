@@ -24,7 +24,7 @@ MVMString * MVM_proc_getenv(MVMThreadContext *tc, MVMString *var) {
     }
     
     /* TODO find out the define for the magic value 2 (env var not found) */
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, rv == 2 ? "" : value, rv == 2 ? 0 : strlen(value));
+    result = MVM_string_utf8_decode(tc, tc->instance->VMString, rv == 2 ? "" : value, rv == 2 ? 0 : strlen(value));
     
     free(varstring);
     apr_pool_destroy(tmp_pool);
@@ -120,7 +120,7 @@ MVMString * MVM_proc_gidtoname(MVMThreadContext *tc, MVMint64 groupid) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to get group name from gid: ");
     }
     
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, namestring, strlen(namestring));
+    result = MVM_string_utf8_decode(tc, tc->instance->VMString, namestring, strlen(namestring));
     
     apr_pool_destroy(tmp_pool);
     
@@ -170,7 +170,7 @@ MVMString * MVM_proc_uidtoname(MVMThreadContext *tc, MVMint64 userid) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to get user name from uid: ");
     }
     
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, namestring, strlen(namestring));
+    result = MVM_string_utf8_decode(tc, tc->instance->VMString, namestring, strlen(namestring));
     
     apr_pool_destroy(tmp_pool);
     
@@ -248,7 +248,7 @@ MVMString * MVM_proc_gethomedir(MVMThreadContext *tc) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to get homedir: ");
     }
     
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, dirname, strlen(dirname));
+    result = MVM_string_utf8_decode(tc, tc->instance->VMString, dirname, strlen(dirname));
     
     apr_pool_destroy(tmp_pool);
     
@@ -269,7 +269,7 @@ MVMString * MVM_proc_getencoding(MVMThreadContext *tc) {
     
     encoding = (char *)apr_os_locale_encoding(tmp_pool);
     
-    result = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, encoding, strlen(encoding));
+    result = MVM_string_utf8_decode(tc, tc->instance->VMString, encoding, strlen(encoding));
     
     apr_pool_destroy(tmp_pool);
     
@@ -319,7 +319,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         for (count = 0; count < instance->num_clargs; count++) {
             char *raw = instance->raw_clargs[count];
             MVMString *string = MVM_string_utf8_decode(tc,
-                tc->instance->boot_types->BOOTStr,
+                tc->instance->VMString,
                 instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
             MVM_repr_push_o(tc, clargs, (MVMObject *)string);
         }

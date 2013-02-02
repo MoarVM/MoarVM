@@ -207,49 +207,49 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {    
     /* Add all core representations. (If order changed, update reprs.h IDs.) */
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMString"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMString"),
         MVMString_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMArray"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMArray"),
         MVMArray_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMHash"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMHash"),
         MVMHash_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMCFunction"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMCFunction"),
         MVMCFunction_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "KnowHOWREPR"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWREPR"),
         MVMKnowHOWREPR_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6opaque"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6opaque"),
         MVMP6opaque_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMCode"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMCode"),
         MVMCode_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMOSHandle"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMOSHandle"),
         MVMOSHandle_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6int"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6int"),
         P6int_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6num"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6num"),
         P6num_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "Uninstantiable"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Uninstantiable"),
         Uninstantiable_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "HashAttrStore"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "HashAttrStore"),
         HashAttrStore_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "KnowHOWAttributeREPR"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWAttributeREPR"),
         MVMKnowHOWAttributeREPR_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "P6str"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6str"),
         P6str_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "MVMThread"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMThread"),
         MVMThread_initialize(tc));
 }
 

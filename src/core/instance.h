@@ -38,6 +38,10 @@ typedef struct _MVMInstance {
      * on a KnowHOW. */
     MVMObject *KnowHOWAttribute;
     
+    /* The VM's native string type, using MVMString. Note that this is a
+     * native string, not an object boxing one. */
+    MVMObject *VMString;
+    
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
     

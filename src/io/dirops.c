@@ -114,10 +114,10 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     /* TODO investigate magic number 720018 */
     if (rv == APR_ENOENT || rv == 720018) { /* no more entries in the directory */
         /* XXX TODO: reference some process global empty string instead of creating one */
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, "", 0, handle->body.encoding_type);
+        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
     }
     else {
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->boot_types->BOOTStr, (char *)finfo->name, strlen(finfo->name), handle->body.encoding_type);
+        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, (char *)finfo->name, strlen(finfo->name), handle->body.encoding_type);
     }
     
     free(finfo);

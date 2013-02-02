@@ -44,7 +44,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
 }
 
 #define check_config_key(tc, hash, name, member, config) do { \
-    MVMObject *key = (MVMObject *)MVM_string_utf8_decode((tc), (tc)->instance->boot_types->BOOTStr, (name), strlen((name))); \
+    MVMObject *key = (MVMObject *)MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
     MVMObject *val = REPR((hash))->ass_funcs->at_key_boxed((tc), STABLE((hash)), (hash), OBJECT_BODY((hash)), key); \
     if (val) { \
         (config)->member = val; \

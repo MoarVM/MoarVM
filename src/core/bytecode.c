@@ -223,7 +223,7 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
         /* Ensure we can read in the string of this size, and decode
          * it if so. */
         ensure_can_read(tc, cu, rs, pos, ss);
-        strings[i] = MVM_string_utf8_decode(tc, tc->instance->boot_types->BOOTStr, pos, ss);
+        strings[i] = MVM_string_utf8_decode(tc, tc->instance->VMString, pos, ss);
         pos += ss;
         
         /* Add alignment. */

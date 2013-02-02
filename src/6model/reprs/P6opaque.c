@@ -680,11 +680,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 /* Initializes the representation. */
 MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
-    str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "name");
+    str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "name");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_name);
-    str_type     = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "type");
+    str_type     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
-    str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, "box_target");
+    str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "box_target");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
     
     /* Allocate and populate the representation function table. */
