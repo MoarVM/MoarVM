@@ -83,6 +83,10 @@ sub qast_output_is($qast, $expected, $desc, :$timeit, :$approx) is export {
     mast_output_is(QAST::MASTCompiler.to_mast($qast), $expected, $desc, timeit => $timeit, approx => $approx);
 }
 
+sub qast_test($qast_builder, *@pos, *%named) is export {
+    qast_output_is($qast_builder(), |@pos, |%named)
+}
+
 sub op(@ins, $op, *@args) is export {
     my $bank;
     for MAST::Ops.WHO {
