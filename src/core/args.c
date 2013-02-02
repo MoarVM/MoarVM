@@ -517,7 +517,6 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         
         new_arg_pos += found;
     }
-    new_num_pos = arg_pos;
     
     /* then flatten any nameds */
     for ( flag_pos = arg_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
