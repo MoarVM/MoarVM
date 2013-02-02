@@ -118,7 +118,7 @@ NQPCursorQAST.pbc: src/NQPCursorQAST.nqp
 ## testing
 
 test: all
-	prove -e nqp t
+	prove -e nqp t/moar t/qast
 
 bench: all
 	prove -e nqp -v bench
