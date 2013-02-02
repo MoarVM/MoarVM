@@ -756,10 +756,10 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     MAST::InstructionList.new(@ins, $res_reg, $res_kind)
 });
 
+# say
 my @say_opnames := [
     'say','say_i','say_i','say_i','say_i','say_n','say_n','say_s','say_o'
 ];
-
 QAST::MASTOperations.add_core_moarop_mapping('say', 'n/a',
 :mapper(-> $operations, $moarop, $ret {
     -> $qastcomp, $op_name, @op_args {
@@ -767,11 +767,8 @@ QAST::MASTOperations.add_core_moarop_mapping('say', 'n/a',
         
         my $arg := $qastcomp.as_mast(@op_args[0]);
         nqp::splice(@ins, $arg.instructions, 0, 0);
-        $*REGALLOC.release_register($arg.result_reg, $arg.result_kind);
         push_op(@ins, @say_opnames[$arg.result_kind], $arg.result_reg);
-        my $one := $qastcomp.as_mast(QAST::IVal.new(:value(1)));
-        nqp::splice(@ins, $one.instructions, +@ins, 0);
-        MAST::InstructionList.new(@ins, $one.result_reg, $one.result_kind)
+        MAST::InstructionList.new(@ins, $arg.result_reg, $arg.result_kind)
     }
 }));
 
