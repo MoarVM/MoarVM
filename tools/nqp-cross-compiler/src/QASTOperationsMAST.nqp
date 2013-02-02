@@ -598,8 +598,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     my $callee;
     my @args := $op.list;
     if $op.name {
-        nqp::die("named calls NYI");
-        # $callee := $qastcomp.post_new('Ops', :result($qastcomp.escape($op.name)));
+        $callee := $qastcomp.as_mast(QAST::Var.new( :name($op.name), :scope('lexical') ));
     }
     elsif +@args {
         $callee := $qastcomp.as_mast(@args.shift());
@@ -799,6 +798,21 @@ QAST::MASTOperations.add_core_moarop_mapping('pow_n', 'pow_n');
 QAST::MASTOperations.add_core_moarop_mapping('neg_i', 'neg_i');
 #QAST::MASTOperations.add_core_moarop_mapping('neg_I', 'nqp_bigint_neg', 'PPP');
 QAST::MASTOperations.add_core_moarop_mapping('neg_n', 'neg_i');
+
+QAST::MASTOperations.add_core_moarop_mapping('iseq_i', 'eq_i');
+QAST::MASTOperations.add_core_moarop_mapping('isne_i', 'ne_i');
+QAST::MASTOperations.add_core_moarop_mapping('islt_i', 'lt_i');
+QAST::MASTOperations.add_core_moarop_mapping('isle_i', 'le_i');
+QAST::MASTOperations.add_core_moarop_mapping('isgt_i', 'gt_i');
+QAST::MASTOperations.add_core_moarop_mapping('isge_i', 'ge_i');
+QAST::MASTOperations.add_core_moarop_mapping('iseq_n', 'eq_n');
+QAST::MASTOperations.add_core_moarop_mapping('isne_n', 'ne_n');
+QAST::MASTOperations.add_core_moarop_mapping('islt_n', 'lt_n');
+QAST::MASTOperations.add_core_moarop_mapping('isle_n', 'le_n');
+QAST::MASTOperations.add_core_moarop_mapping('isgt_n', 'gt_n');
+QAST::MASTOperations.add_core_moarop_mapping('isge_n', 'ge_n');
+
+
 #QAST::MASTOperations.add_core_moarop_mapping('abs_i', 'abs', 'Ii');
 #QAST::MASTOperations.add_core_moarop_mapping('abs_I', 'nqp_bigint_abs', 'PPP');
 #QAST::MASTOperations.add_core_moarop_mapping('abs_n', 'abs', 'Nn');
