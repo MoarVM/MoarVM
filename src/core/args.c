@@ -217,6 +217,18 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
             case MVM_RETURN_INT:
                 target->return_value->i64 = result;
                 break;
+            case MVM_RETURN_OBJ: {
+                MVMObject *box, *box_type;
+                box_type = target->static_info->cu->hll_config->int_box_type;
+                box = REPR(box_type)->allocate(tc, STABLE(box_type));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_int(tc, STABLE(box), box, OBJECT_BODY(box), result);
+                MVM_gc_root_temp_pop(tc);
+                target->return_value->o = box;
+                break;
+            }
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
         }
@@ -245,6 +257,18 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
             case MVM_RETURN_NUM:
                 target->return_value->n64 = result;
                 break;
+            case MVM_RETURN_OBJ: {
+                MVMObject *box, *box_type;
+                box_type = target->static_info->cu->hll_config->num_box_type;
+                box = REPR(box_type)->allocate(tc, STABLE(box_type));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_num(tc, STABLE(box), box, OBJECT_BODY(box), result);
+                MVM_gc_root_temp_pop(tc);
+                target->return_value->o = box;
+                break;
+            }
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from num NYI; expects type %u", target->return_type);
         }
@@ -259,6 +283,19 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
             case MVM_RETURN_STR:
                 target->return_value->s = result;
                 break;
+            case MVM_RETURN_OBJ: {
+                MVMObject *box, *box_type;
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+                box_type = target->static_info->cu->hll_config->str_box_type;
+                box = REPR(box_type)->allocate(tc, STABLE(box_type));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
+                if (REPR(box)->initialize)
+                    REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                REPR(box)->box_funcs->set_str(tc, STABLE(box), box, OBJECT_BODY(box), result);
+                MVM_gc_root_temp_pop_n(tc, 2);
+                target->return_value->o = box;
+                break;
+            }
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from str NYI; expects type %u", target->return_type);
         }
