@@ -392,7 +392,7 @@ for <if unless> -> $op_name {
         nqp::push(@ins, $else_lbl);
         if $operands == 3 {
             push_ilist(@ins, @comp_ops[2]);
-            push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg) unless $is_void;
+        #    push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg) unless $is_void;
             $*REGALLOC.release_register(@comp_ops[2].result_reg, @comp_ops[2].result_kind);
             if !$is_void && @comp_ops[2].result_kind != $res_kind {
                 my $coercion := $qastcomp.coercion(@comp_ops[2], $res_kind);
