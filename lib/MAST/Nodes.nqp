@@ -358,9 +358,8 @@ class MAST::Lexical is MAST::Node {
 module Arg {
     our $obj   := 1;
     our $int   := 2;
-    our $uint  := 4;
-    our $num   := 8;
-    our $str   := 16;
+    our $num   := 4;
+    our $str   := 8;
     our $named := 32;
     our $flat  := 64;
 }
@@ -417,7 +416,6 @@ class MAST::Call is MAST::Node {
             }
             $str := $str ~ " obj" if $flag +& $Arg::obj;
             $str := $str ~ " int" if $flag +& $Arg::int;
-            $str := $str ~ " uint" if $flag +& $Arg::uint;
             $str := $str ~ " num" if $flag +& $Arg::num;
             $str := $str ~ " str" if $flag +& $Arg::str;
             nqp::push(@lines, $str);

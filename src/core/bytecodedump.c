@@ -83,7 +83,6 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             else a(" positional");
             if (csitee & MVM_CALLSITE_ARG_OBJ) a(" obj");
             else if (csitee & MVM_CALLSITE_ARG_INT) a(" int");
-            else if (csitee & MVM_CALLSITE_ARG_UINT) a(" uint");
             else if (csitee & MVM_CALLSITE_ARG_NUM) a(" num");
             else if (csitee & MVM_CALLSITE_ARG_STR) a(" str");
             if (csitee & MVM_CALLSITE_ARG_FLAT) a(" flat");

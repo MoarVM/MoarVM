@@ -7,14 +7,11 @@ typedef enum {
     /* Argument is a native integer, signed. */
     MVM_CALLSITE_ARG_INT = 2,
     
-    /* Argument is a native integer, unsigned. */
-    MVM_CALLSITE_ARG_UINT = 4,
-    
     /* Argument is a native floating point number. */
-    MVM_CALLSITE_ARG_NUM = 8,
+    MVM_CALLSITE_ARG_NUM = 4,
     
     /* Argument is a native NFG string (MVMString REPR). */
-    MVM_CALLSITE_ARG_STR = 16,
+    MVM_CALLSITE_ARG_STR = 8,
     
     /* Argument is named; in this case, there are two entries in
      * the argument list, the first a MVMString naming the arg and
@@ -85,14 +82,11 @@ typedef enum {
     /* Argument is a native integer, signed. */
     MVM_RETURN_INT = 2,
     
-    /* Argument is a native integer, unsigned. */
-    MVM_RETURN_UINT = 4,
-    
     /* Argument is a native floating point number. */
-    MVM_RETURN_NUM = 8,
+    MVM_RETURN_NUM = 4,
     
     /* Argument is a native NFG string (MVMString REPR). */
-    MVM_RETURN_STR = 16,
+    MVM_RETURN_STR = 8,
 } MVMReturnType;
 
 /* Argument processing context handling. */
@@ -104,7 +98,6 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 /* Argument access by position. */
 union _MVMRegister * MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
 union _MVMRegister * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
-union _MVMRegister * MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
 union _MVMRegister * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
 union _MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);
 MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos);
@@ -112,7 +105,6 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
 /* Argument access by name. */
 union _MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 union _MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
-union _MVMRegister * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 union _MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 union _MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx);
@@ -120,7 +112,6 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx);
 /* Result setting. */
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless);
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless);
-void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless);
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless);
 void MVM_args_set_result_str(MVMThreadContext *tc, struct _MVMString *result, MVMint32 frameless);
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless);

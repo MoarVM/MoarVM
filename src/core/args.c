@@ -56,7 +56,6 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 static const char * get_arg_type_name(MVMThreadContext *tc, MVMuint8 type) {
     if (type & MVM_CALLSITE_ARG_OBJ)  return "object";
     if (type & MVM_CALLSITE_ARG_INT)  return "integer";
-    if (type & MVM_CALLSITE_ARG_UINT) return "unsigned integer";
     if (type & MVM_CALLSITE_ARG_NUM)  return "number";
     if (type & MVM_CALLSITE_ARG_STR)  return "string";
     MVM_exception_throw_adhoc(tc, "invalid arg type");
@@ -101,14 +100,6 @@ MVMRegister * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx,
         MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed at least %u", pos + 1);
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_INT))
         MVM_exception_throw_adhoc(tc, "Expected integer, got %s", get_arg_type_name(tc, result.flags));
-    return result.arg;
-}
-MVMRegister * MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
-    struct MVMArgInfo result = find_pos_arg(ctx, pos);
-    if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed at least %u", pos + 1);
-    if (result.arg && !(result.flags & MVM_CALLSITE_ARG_UINT))
-        MVM_exception_throw_adhoc(tc, "Expected unsigned integer, got %s", get_arg_type_name(tc, result.flags));
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
@@ -161,15 +152,6 @@ MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ct
         MVM_exception_throw_adhoc(tc, "Required named integer argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
     if (result.arg && !(result.flags & MVM_CALLSITE_ARG_INT))
         MVM_exception_throw_adhoc(tc, "Expected integer for named argument %s, got %s",
-            MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags));
-    return result.arg;
-}
-MVMRegister * MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    struct MVMArgInfo result = find_named_arg(tc, ctx, name);
-    if (result.arg == NULL && required)
-        MVM_exception_throw_adhoc(tc, "Required named unsigned integer argument missing: %s", MVM_string_utf8_encode_C_string(tc, name));
-    if (result.arg && !(result.flags & MVM_CALLSITE_ARG_UINT))
-        MVM_exception_throw_adhoc(tc, "Expected unsigned integer for named argument %s, got %s",
             MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags));
     return result.arg;
 }
@@ -231,20 +213,6 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
             }
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
-        }
-    }
-}
-void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless) {
-    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
-    if (target) {
-        switch (target->return_type) {
-            case MVM_RETURN_VOID:
-                break;
-            case MVM_RETURN_UINT:
-                target->return_value->ui64 = result;
-                break;
-            default:
-                MVM_exception_throw_adhoc(tc, "Result return coercion from uint NYI; expects type %u", target->return_type);
         }
     }
 }
@@ -336,8 +304,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                     OBJECT_BODY(result), *arg_info.arg, MVM_reg_obj);
                 break;
             }
-            case MVM_CALLSITE_ARG_INT:
-            case MVM_CALLSITE_ARG_UINT: {
+            case MVM_CALLSITE_ARG_INT:{
                 type = (*(tc->interp_cu))->hll_config->int_box_type;
                 if (!type || IS_CONCRETE(type)) {
                     MVM_exception_throw_adhoc(tc, "Missing hll int box type");
@@ -443,8 +410,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
                     result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg->o);
                 break;
             }
-            case MVM_CALLSITE_ARG_INT:
-            case MVM_CALLSITE_ARG_UINT: {
+            case MVM_CALLSITE_ARG_INT: {
                 type = (*(tc->interp_cu))->hll_config->int_box_type;
                 if (!type || IS_CONCRETE(type)) {
                     MVM_exception_throw_adhoc(tc, "Missing hll int box type");

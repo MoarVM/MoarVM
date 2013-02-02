@@ -206,14 +206,11 @@ typedef enum {
     /* Argument is a native integer, signed. */
     MVM_CALLSITE_ARG_INT = 2,
     
-    /* Argument is a native integer, unsigned. */
-    MVM_CALLSITE_ARG_UINT = 4,
-    
     /* Argument is a native floating point number. */
-    MVM_CALLSITE_ARG_NUM = 8,
+    MVM_CALLSITE_ARG_NUM = 4,
     
     /* Argument is a native NFG string (MVMString REPR). */
-    MVM_CALLSITE_ARG_STR = 16,
+    MVM_CALLSITE_ARG_STR = 8,
     
     /* Argument is named; in this case, there are two entries in
      * the argument list, the first a MVMString naming the arg and
