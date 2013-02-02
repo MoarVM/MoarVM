@@ -101,7 +101,7 @@ class QAST::MASTOperations {
     my @kind_names := ['VOID','int8','int16','int32','int','num32','num','str','obj'];
     my @kind_types := [0,1,1,1,1,2,2,3,4];
     
-    method compile_mastop($qastcomp, $op, @args, :$returnarg = -1, :$opname = 'none') {
+    method compile_mastop($qastcomp, $op, @args, :$returnarg = -1, :$opname = 'none', :$want) {
         # Resolve the op.
         my $bank := 0;
         for MAST::Ops.WHO {

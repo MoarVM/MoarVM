@@ -276,6 +276,9 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
  * specified type. Returns null if it does not exist. */
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type) {
     MVMFrame *cur_frame = tc->cur_frame;
+    if (!name) {
+        MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
+    }
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalHashEntry *lexical_names = cur_frame->static_info->lexical_names;
