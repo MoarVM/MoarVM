@@ -301,6 +301,12 @@ MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
     return (MVMint64)apr_time_now();
 }
 
+/* gets the system time since the epoch in seconds.
+ * APR says the unix version returns GMT. */
+MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
+    return (MVMnum64)apr_time_now() / 1000000;
+}
+
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
     if (!instance->clargs) {

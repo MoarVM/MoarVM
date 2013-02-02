@@ -852,6 +852,9 @@ QAST::MASTOperations.add_core_moarop_mapping('sech_n', 'sech_n');
 QAST::MASTOperations.add_core_moarop_mapping('isnull', 'isnull');
 QAST::MASTOperations.add_core_moarop_mapping('null', 'null');
 QAST::MASTOperations.add_core_moarop_mapping('can', 'can');
+QAST::MASTOperations.add_core_moarop_mapping('time_i', 'time_i');
+QAST::MASTOperations.add_core_moarop_mapping('time_n', 'time_n');
+QAST::MASTOperations.add_core_moarop_mapping('concat', 'concat_s');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??

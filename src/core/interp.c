@@ -1853,6 +1853,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_thread_join(tc, GET_REG(cur_op, 0).o);
                         cur_op += 2;
                         break;
+                    case MVM_OP_time_n:
+                        GET_REG(cur_op, 0).n64 = MVM_proc_time_n(tc);
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

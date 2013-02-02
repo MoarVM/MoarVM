@@ -356,3 +356,4 @@ BANK 6 processthread
 0x19    clargs      w(obj)
 0x1A    newthread   w(obj) r(obj) r(obj)
 0x1B    jointhread  r(obj)
+0x1C    time_n      w(num64)

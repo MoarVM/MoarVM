@@ -2088,6 +2088,12 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_time_n,
+        "time_n",
+        1,
+        { MVM_operand_write_reg | MVM_operand_num64 }
+    },
 };
 
 static MVMOpInfo *MVM_op_info[] = {
@@ -2109,7 +2115,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     13,
     86,
     45,
-    28,
+    29,
 };
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {
