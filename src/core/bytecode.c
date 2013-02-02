@@ -35,6 +35,11 @@ typedef struct {
     /* HLL name string index */
     MVMuint32  hll_str_idx;
     
+    /* Special frame indexes */
+    MVMuint32  main_frame;
+    MVMuint32  load_frame;
+    MVMuint32  deserialize_frame;
+    
 } ReaderState;
 
 /* copies memory dependent on endianness */
@@ -181,6 +186,15 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     
     /* Locate HLL name */
     rs->hll_str_idx = read_int32(cu->data_start, 80);
+    
+    rs->main_frame = read_int32(cu->data_start, 84);
+    rs->load_frame = read_int32(cu->data_start, 88);
+    rs->deserialize_frame = read_int32(cu->data_start, 92);
+    if (rs->main_frame >= rs->expected_frames
+            || rs->load_frame >= rs->expected_frames
+            || rs->deserialize_frame >= rs->expected_frames) {
+        MVM_exception_throw_adhoc(tc, "Special frame index out of bounds");
+    }
     
     return rs;
 }
@@ -435,6 +449,10 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu->num_callsites = rs->expected_callsites;
     
     cu->hll_name = cu->strings[rs->hll_str_idx];
+    
+    cu->main_frame = cu->frames[rs->main_frame];
+    cu->load_frame = cu->frames[rs->load_frame];
+    cu->deserialize_frame = cu->frames[rs->deserialize_frame];
     
     /* Clean up reader state. */
     cleanup_all(tc, rs);

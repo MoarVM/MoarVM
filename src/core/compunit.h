@@ -15,6 +15,9 @@ typedef struct _MVMCompUnit {
     MVMStaticFrame **frames;
     MVMObject      **coderefs;
     MVMuint32        num_frames;
+    MVMStaticFrame  *main_frame;
+    MVMStaticFrame  *load_frame;
+    MVMStaticFrame  *deserialize_frame;
     
     /* The callsites in the compilation unit. */
     MVMCallsite **callsites;
@@ -31,6 +34,7 @@ typedef struct _MVMCompUnit {
     /* HLL configuration for this compilation unit. */
     struct _MVMHLLConfig *hll_config;
     struct _MVMString    *hll_name;
+    
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);
