@@ -185,6 +185,15 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
             case MVM_RETURN_OBJ:
                 target->return_value->o = result;
                 break;
+            case MVM_RETURN_INT:
+                target->return_value->i64 = MVM_repr_get_int(tc, result);
+                break;
+            case MVM_RETURN_NUM:
+                target->return_value->n64 = MVM_repr_get_num(tc, result);
+                break;
+            case MVM_RETURN_STR:
+                target->return_value->s = MVM_repr_get_str(tc, result);
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from obj NYI; expects type %u", target->return_type);
         }
@@ -198,6 +207,9 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
                 break;
             case MVM_RETURN_INT:
                 target->return_value->i64 = result;
+                break;
+            case MVM_RETURN_NUM:
+                target->return_value->n64 = (MVMnum64)result;
                 break;
             case MVM_RETURN_OBJ: {
                 MVMObject *box, *box_type;
@@ -224,6 +236,9 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
                 break;
             case MVM_RETURN_NUM:
                 target->return_value->n64 = result;
+                break;
+            case MVM_RETURN_INT:
+                target->return_value->i64 = (MVMint64)result;
                 break;
             case MVM_RETURN_OBJ: {
                 MVMObject *box, *box_type;

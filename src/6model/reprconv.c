@@ -1,7 +1,8 @@
 #include "moarvm.h"
 
-/* Representation function convenience accessors. Make code that needs to make
- * calls where performance isn't terribly important more convenient to write. */
+/* Representation function convenience accessors. Could potentially be made into
+ * macros in the future, but hopefully the compiler is smart enough to inline
+ * them anyway. */
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
@@ -57,4 +58,16 @@ void MVM_repr_push_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *pushee) {
     value.o = pushee;
     REPR(obj)->pos_funcs->push(tc, STABLE(obj), obj, OBJECT_BODY(obj),
         value, MVM_reg_obj);
+}
+
+MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj) {
+    return REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
+MVMnum64 MVM_repr_get_num(MVMThreadContext *tc, MVMObject *obj) {
+    return REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
+MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj) {
+    return REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
