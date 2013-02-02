@@ -455,7 +455,7 @@ qast_output_is(QAST::Block.new(
             QAST::SVal.new( :value("howdy") )
         )
     )
-), "howdy\n1\n", "moarop mapper closure generator");
+), "howdy\nhowdy\n", "moarop mapper closure generator");
 
 my $block19 := QAST::Block.new(
     QAST::Var.new( :name('a'), :scope('local'), :decl('param'), :returns(int) ),
