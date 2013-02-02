@@ -294,7 +294,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
     while (arg_info.arg) {
         
         if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
-            MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
+            MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_positional");
         }
         
         /* XXX theoretically needs to handle native arrays I guess */
@@ -351,15 +351,8 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                     OBJECT_BODY(result), reg, MVM_reg_obj);
                 break;
             }
-            case MVM_CALLSITE_ARG_NAMED: {
-                break;
-            }
-            case MVM_CALLSITE_ARG_FLAT: {
-                MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_positional");
-                break;
-            }
             default:
-                MVM_exception_throw_adhoc(tc, "unreachable");
+                MVM_exception_throw_adhoc(tc, "arg flag is empty in slurpy positional");
         }
         
         arg_info = find_pos_arg(ctx, pos++);
@@ -455,7 +448,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
                 break;
             }
             default:
-                MVM_exception_throw_adhoc(tc, "unreachable");
+                MVM_exception_throw_adhoc(tc, "arg flag is empty in slurpy named");
         }
     }
     
