@@ -187,12 +187,14 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate HLL name */
     rs->hll_str_idx = read_int32(cu->data_start, 80);
     
+    /* Locate special frame indexes. Note, they are 0 for none, and the
+     * index + 1 if there is one. */
     rs->main_frame = read_int32(cu->data_start, 84);
     rs->load_frame = read_int32(cu->data_start, 88);
     rs->deserialize_frame = read_int32(cu->data_start, 92);
-    if (rs->main_frame >= rs->expected_frames
-            || rs->load_frame >= rs->expected_frames
-            || rs->deserialize_frame >= rs->expected_frames) {
+    if (rs->main_frame > rs->expected_frames
+            || rs->load_frame > rs->expected_frames
+            || rs->deserialize_frame > rs->expected_frames) {
         MVM_exception_throw_adhoc(tc, "Special frame index out of bounds");
     }
     
@@ -450,9 +452,12 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     
     cu->hll_name = cu->strings[rs->hll_str_idx];
     
-    cu->main_frame = cu->frames[rs->main_frame];
-    cu->load_frame = cu->frames[rs->load_frame];
-    cu->deserialize_frame = cu->frames[rs->deserialize_frame];
+    if (rs->main_frame)
+        cu->main_frame = cu->frames[rs->main_frame - 1];
+    if (rs->load_frame)
+        cu->load_frame = cu->frames[rs->load_frame - 1];
+    if (rs->deserialize_frame)
+        cu->deserialize_frame = cu->frames[rs->deserialize_frame - 1];
     
     /* Clean up reader state. */
     cleanup_all(tc, rs);
