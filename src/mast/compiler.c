@@ -539,6 +539,10 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         write_int16(ws->bytecode_seg, ws->bytecode_pos, callsite_id);
         ws->bytecode_pos += 2;
         
+        /* for errors */
+        ws->current_op_info = MVM_op_get_op(MVM_OP_BANK_primitives, MVM_OP_prepargs);
+        ws->current_operand_idx = 0;
+        
         /* Set up args. */
         num_flags = (unsigned short)ELEMS(vm, c->flags);
         num_args = (unsigned short)ELEMS(vm, c->args);

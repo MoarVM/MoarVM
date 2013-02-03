@@ -398,7 +398,7 @@ class QAST::MASTCompiler {
             $*HLL := $cu.hll;
             $*MAST_COMPUNIT.hll($*HLL);
         }
-#        say($cu.dump);
+        if (pir::new__Ps('Env')<MVMCCDEBUG>) { say($cu.dump); }
         
         # Should have a single child which is the outer block; compile it.
         if +@($cu) != 1 || !nqp::istype($cu[0], QAST::Block) {

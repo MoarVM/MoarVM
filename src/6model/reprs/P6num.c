@@ -27,11 +27,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVM_exception_throw_adhoc(tc,
-        "P6int representation cannot box a native int");
+        "P6num representation cannot box a native int");
 }
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "P6int representation cannot unbox to a native int");
+        "P6num representation cannot unbox to a native int");
 }
 static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
     ((P6numBody *)data)->value = value;
@@ -41,15 +41,15 @@ static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVM_exception_throw_adhoc(tc,
-        "P6int representation cannot box a native string");
+        "P6num representation cannot box a native string");
 }
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "P6int representation cannot unbox to a native string");
+        "P6num representation cannot unbox to a native string");
 }
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     MVM_exception_throw_adhoc(tc,
-        "P6int representation cannot unbox to other types");
+        "P6num representation cannot unbox to other types");
 }
 
 /* Gets the storage specification for this representation. */

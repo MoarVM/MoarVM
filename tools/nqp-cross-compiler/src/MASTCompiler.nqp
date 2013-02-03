@@ -3,7 +3,7 @@ use MASTOps;
 
 class MAST::Compiler {
     method compile($node, $target_file) {
-#        say($node.DUMP);
+        if (pir::new__Ps('Env')<MVMCCDEBUG>) { say($node.DUMP); }
         pir::mvm_compiler_setup__vPPPPPPPPPPP(
             MAST::CompUnit,
             MAST::Frame,
@@ -17,5 +17,8 @@ class MAST::Compiler {
             MAST::Call,
             MAST::Annotated);
         pir::mvm_compile__vPs($node, $target_file);
+        if (pir::new__Ps('Env')<MVMCCDEBUG>) {
+            pir::spawnw__Is("moarvm --dump $target_file > $target_file.mvmdump");
+        }
     }
 }

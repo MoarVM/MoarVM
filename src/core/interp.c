@@ -699,16 +699,57 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_coerce_is:
-                    case MVM_OP_coerce_ns:
+                    case MVM_OP_coerce_is: {
+                        char buffer[25];
+                        sprintf(buffer, "%lld", GET_REG(cur_op, 2).i64);
+                        GET_REG(cur_op, 0).s = MVM_string_ascii_decode(tc, cu->hll_config->str_box_type, buffer, strlen(buffer));
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_coerce_ns: {
+                        char buf[16];
+                        int i;
+                        sprintf(buf, "%-15f", GET_REG(cur_op, 2).n64);
+                        i = strlen(buf);
+                        while (i > 1 && (buf[--i] == '0' || buf[i] == '.' || buf[i] == ' '))
+                            buf[i] = '\0';
+                        GET_REG(cur_op, 0).s = MVM_string_ascii_decode(tc, cu->hll_config->str_box_type, buf, strlen(buf));
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_coerce_si:
                     case MVM_OP_coerce_sn:
                         MVM_exception_throw_adhoc(tc, "coercion op NYI");
                         break;
-                    case MVM_OP_smrt_numify:
-                    case MVM_OP_smrt_strify:
-                        MVM_exception_throw_adhoc(tc, "smart unbox/coercion op NYI");
+                    case MVM_OP_smrt_numify: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMnum64 result;
+                        if (!obj || !IS_CONCRETE(obj))
+                            result = 0.0;
+                        else {
+                            MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+                            if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+                                result = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                            else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+                                result = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                            else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+                                MVM_exception_throw_adhoc(tc, "s2n NYI");
+                            else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
+                                result = (MVMnum64)REPR(obj)->pos_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                            else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
+                                result = (MVMnum64)REPR(obj)->ass_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                            else
+                                MVM_exception_throw_adhoc(tc, "cannot numify this");
+                        }
+                        GET_REG(cur_op, 0).n64 = result;
+                        cur_op += 4;
                         break;
+                    }
+                    case MVM_OP_smrt_strify: {
+                        GET_REG(cur_op, 0).s = MVM_repr_smart_stringify(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_param_sp:
                         GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, &tc->cur_frame->params, GET_UI16(cur_op, 2));
                         cur_op += 4;
@@ -754,6 +795,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_anonoshtype:
                         GET_REG(cur_op, 0).o = MVM_file_get_anon_oshandle_type(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_say_o:
+                        MVM_string_say(tc, MVM_repr_smart_stringify(tc, GET_REG(cur_op, 0).o));
                         cur_op += 2;
                         break;
                     default: {

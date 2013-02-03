@@ -11,3 +11,5 @@ void MVM_repr_push_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *pushee);
 MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj);
 MVMnum64 MVM_repr_get_num(MVMThreadContext *tc, MVMObject *obj);
 MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj);
+
+MVMString * MVM_repr_smart_stringify(MVMThreadContext *tc, MVMObject *obj);

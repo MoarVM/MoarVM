@@ -180,7 +180,7 @@ class QAST::MASTOperations {
                 }
             } # allow nums and ints to be bigger than their destination width
             elsif (@kind_types[$arg_kind] != @kind_types[$operand_kind/8]) {
-                $arg.append($qastcomp.coerce($arg, $operand_kind/8));
+                $qastcomp.coerce($arg, $operand_kind/8);
                 $arg_kind := $operand_kind/8;
                 # the arg typecode left shifted 3 must match the operand typecode
             #    nqp::die("arg type {@kind_names[$arg_kind]} does not match operand type {@kind_names[$operand_kind/8]} to op '$op'");
@@ -392,13 +392,17 @@ for <if unless> -> $op_name {
         nqp::push(@ins, $else_lbl);
         if $operands == 3 {
             push_ilist(@ins, @comp_ops[2]);
-        #    push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg) unless $is_void;
-            $*REGALLOC.release_register(@comp_ops[2].result_reg, @comp_ops[2].result_kind);
-            if !$is_void && @comp_ops[2].result_kind != $res_kind {
-                my $coercion := $qastcomp.coercion(@comp_ops[2], $res_kind);
-                push_ilist(@ins, $coercion);
-                push_op(@ins, 'set', $res_reg, $coercion.result_reg);
+            if !$is_void {
+                if @comp_ops[2].result_kind != $res_kind {
+                    my $coercion := $qastcomp.coercion(@comp_ops[2], $res_kind);
+                    push_ilist(@ins, $coercion);
+                    push_op(@ins, 'set', $res_reg, $coercion.result_reg);
+                }
+                else {
+                    push_op(@ins, 'set', $res_reg, @comp_ops[2].result_reg);
+                }
             }
+            $*REGALLOC.release_register(@comp_ops[2].result_reg, @comp_ops[2].result_kind);
         }
         else {
             if !$is_void && @comp_ops[0].result_kind != $res_kind {
@@ -546,7 +550,7 @@ my @kind_to_args := [0,
 ];
 
 # Calling.
-sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
+sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds, $desired_kind?) {
     
     # generate the code for the arg expression
     my $arg_mast := $qastcomp.as_mast($arg);
@@ -556,6 +560,12 @@ sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
     
     nqp::die("arg code did not result in a MAST::Local")
         unless $arg_mast.result_reg && $arg_mast.result_reg ~~ MAST::Local;
+    
+    nqp::say($arg_mast.result_kind ~" ?= $desired_kind");
+    if nqp::defined($desired_kind) && $arg_mast.result_kind != $desired_kind {
+        $arg_mast.append($qastcomp.coercion($arg_mast, $desired_kind));
+    }
+    nqp::say($arg_mast.result_kind ~" ?= $desired_kind");
     
     nqp::push(@arg_kinds, $arg_mast.result_kind);
     
@@ -628,7 +638,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     
     # Process arguments.
     for @args {
-        handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
+        handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds, $MVM_reg_obj);
     }
     
     # Release the callee's result register
@@ -852,6 +862,7 @@ QAST::MASTOperations.add_core_moarop_mapping('can', 'can');
 QAST::MASTOperations.add_core_moarop_mapping('time_i', 'time_i');
 QAST::MASTOperations.add_core_moarop_mapping('time_n', 'time_n');
 QAST::MASTOperations.add_core_moarop_mapping('concat', 'concat_s');
+QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
