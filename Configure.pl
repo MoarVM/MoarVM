@@ -1,16 +1,34 @@
 #!perl
+
+use 5.010;
 use strict;
 use warnings;
+use Getopt::Long;
+use Pod::Usage;
+
 use lib 'build';
 use Config::BuildEnvironment;
 use Config::APR;
 use Config::LAO;
 use Config::Generate;
 
+
+my %opts;
+GetOptions(\%opts, 'help|?', 'debug!', 'optimize!', 'instrument!');
+pod2usage(1) if $opts{help};
+
 print "Welcome to MoarVM!\n\n";
 
+print dots("Checking master build settings ...");
+$opts{instrument} //= 0;
+$opts{optimize}   //= 0 + !$opts{debug};
+$opts{debug}      //= 0 + !$opts{optimize};
+print " OK\n    (debug: " . _yn($opts{debug})
+    . ", optimize: "      . _yn($opts{optimize})
+    . ", instrument: "    . _yn($opts{instrument}) . ")\n";
+
 print dots("Trying to figure out how to build on your system ...");
-my %config = Config::BuildEnvironment::detect();
+my %config = Config::BuildEnvironment::detect(\%opts);
 if (!$config{'excuse'}) {
     print " OK\n    (OS: $config{'os'}, Compiler: $config{'cc'}, Linker: $config{'link'})\n";
 }
@@ -45,6 +63,10 @@ sub dots {
     return $message . '.' x ($length - length $message);
 }
 
+sub _yn {
+    return $_[0] ? 'YES' : 'no';
+}
+
 sub check_excuse {
     if (!$config{'excuse'}) {
         print " OK\n";
@@ -54,3 +76,39 @@ sub check_excuse {
         die "    $config{'excuse'}\n";
     }
 }
+
+__END__
+
+=head1 SYNOPSIS
+
+    ./Configure.pl [-?|--help]
+    ./Configure.pl [--debug] [--optimize] [--instrument]
+
+=head1 OPTIONS
+
+=over 4
+
+Except for C<-?|--help>, any option can be explicitly turned off by
+preceding it with C<no->, as in C<--no-optimize>.
+
+=item -?|--help
+
+Show this help information.
+
+=item --debug
+
+Turn on debugging flags during compile and link.  If C<--optimize> is not
+explicitly set, turning this on defaults optimization off; otherwise this
+defaults to the opposite of C<--optimize>.
+
+=item --optimize
+
+Turn on optimization flags during compile and link.  If C<--debug> is not
+explicitly set, optimize defaults to on, and debugging defaults to off.
+
+=item --instrument
+
+Turn on extra instrumentation flags during compile and link; for example,
+turns on Address Sanitizer when compiling with F<clang>.  Defaults to off.
+
+=back
