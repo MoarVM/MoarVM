@@ -296,3 +296,83 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     }
     return NULL;
 }
+
+MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
+    MVMuint16 type;
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type);
+    MVMObject *result = NULL, *result_type = NULL;
+    if (lex_reg) {
+        switch (type) {
+            case MVM_reg_int64:
+                result_type = (*tc->interp_cu)->hll_config->int_box_type;
+                if (!result_type)
+                    MVM_exception_throw_adhoc(tc, "missing int box type");
+                result = REPR(result_type)->allocate(tc, STABLE(result_type));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+                if (REPR(result)->initialize)
+                    REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+                REPR(result)->box_funcs->set_int(tc, STABLE(result), result,
+                    OBJECT_BODY(result), lex_reg->i64);
+                MVM_gc_root_temp_pop(tc);
+                break;
+            case MVM_reg_num64:
+                result_type = (*tc->interp_cu)->hll_config->num_box_type;
+                if (!result_type)
+                    MVM_exception_throw_adhoc(tc, "missing num box type");
+                result = REPR(result_type)->allocate(tc, STABLE(result_type));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+                if (REPR(result)->initialize)
+                    REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+                REPR(result)->box_funcs->set_num(tc, STABLE(result), result,
+                    OBJECT_BODY(result), lex_reg->n64);
+                MVM_gc_root_temp_pop(tc);
+                break;
+            case MVM_reg_str:
+                result_type = (*tc->interp_cu)->hll_config->str_box_type;
+                if (!result_type)
+                    MVM_exception_throw_adhoc(tc, "missing str box type");
+                result = REPR(result_type)->allocate(tc, STABLE(result_type));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+                if (REPR(result)->initialize)
+                    REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+                REPR(result)->box_funcs->set_str(tc, STABLE(result), result,
+                    OBJECT_BODY(result), lex_reg->s);
+                MVM_gc_root_temp_pop(tc);
+                break;
+            case MVM_reg_obj:
+                result = lex_reg->o;
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex");
+        }
+    }
+    return result;
+}
+
+void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value) {
+    MVMuint16 type;
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type);
+    if (!lex_reg) {
+        MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
+            MVM_string_utf8_encode_C_string(tc, name));
+    }
+    switch (type) {
+        case MVM_reg_int64:
+            lex_reg->i64 = REPR(value)->box_funcs->get_int(tc,
+                STABLE(value), value, OBJECT_BODY(value));
+            break;
+        case MVM_reg_num64:
+            lex_reg->n64 = REPR(value)->box_funcs->get_num(tc,
+                STABLE(value), value, OBJECT_BODY(value));
+            break;
+        case MVM_reg_str:
+            lex_reg->s = REPR(value)->box_funcs->get_str(tc,
+                STABLE(value), value, OBJECT_BODY(value));
+            break;
+        case MVM_reg_obj:
+            lex_reg->o = value;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "invalid register type in binddynlex");
+    }
+}

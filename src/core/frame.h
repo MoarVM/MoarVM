@@ -120,3 +120,5 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 type);
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 *type);
+MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, struct _MVMString *name);
+void MVM_frame_binddynlex(MVMThreadContext *tc, struct _MVMString *name, MVMObject *value);
