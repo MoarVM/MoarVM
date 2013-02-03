@@ -801,6 +801,7 @@ QAST::MASTOperations.add_core_moarop_mapping('pow_n', 'pow_n');
 QAST::MASTOperations.add_core_moarop_mapping('neg_i', 'neg_i');
 #QAST::MASTOperations.add_core_moarop_mapping('neg_I', 'nqp_bigint_neg', 'PPP');
 QAST::MASTOperations.add_core_moarop_mapping('neg_n', 'neg_i');
+QAST::MASTOperations.add_core_moarop_mapping('abs_i', 'abs_i');
 
 QAST::MASTOperations.add_core_moarop_mapping('iseq_i', 'eq_i');
 QAST::MASTOperations.add_core_moarop_mapping('isne_i', 'ne_i');
@@ -850,6 +851,8 @@ QAST::MASTOperations.add_core_moarop_mapping('sinh_n', 'sinh_n');
 QAST::MASTOperations.add_core_moarop_mapping('cosh_n', 'cosh_n');
 QAST::MASTOperations.add_core_moarop_mapping('tanh_n', 'tanh_n');
 QAST::MASTOperations.add_core_moarop_mapping('sech_n', 'sech_n');
+QAST::MASTOperations.add_core_moarop_mapping('sqrt_n', 'sqrt_n');
+QAST::MASTOperations.add_core_moarop_mapping('gcd_i', 'gcd_i');
 
 
 QAST::MASTOperations.add_core_moarop_mapping('isnull', 'isnull');

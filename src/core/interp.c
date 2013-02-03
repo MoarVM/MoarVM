@@ -267,6 +267,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).i64 = -GET_REG(cur_op, 2).i64;
                         cur_op += 4;
                         break;
+                    case MVM_OP_abs_i: {
+                        MVMint64 v = GET_REG(cur_op, 2).i64, mask = v >> 63;
+                        GET_REG(cur_op, 0).i64 = (v + mask) ^ mask;
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_inc_i:
                         GET_REG(cur_op, 0).i64++;
                         cur_op += 2;
@@ -1006,6 +1012,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = 1.0 / cosh(GET_REG(cur_op, 2).n64);
                         cur_op += 4;
                         break;
+                    case MVM_OP_sqrt_n:
+                        GET_REG(cur_op, 0).n64 = sqrt(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_gcd_i: {
+                        MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 2).i64, c;
+                        while ( a != 0 ) {
+                            c = a; a = b%a; b = c;
+                        }
+                        GET_REG(cur_op, 0).i64 = b;
+                        cur_op += 6;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_math, *(cur_op-1));

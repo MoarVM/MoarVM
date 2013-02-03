@@ -203,6 +203,8 @@
 #define MVM_OP_cosh_n 10
 #define MVM_OP_tanh_n 11
 #define MVM_OP_sech_n 12
+#define MVM_OP_sqrt_n 13
+#define MVM_OP_gcd_i 14
 
 /* Op name defines for bank object. */
 #define MVM_OP_knowhow 0

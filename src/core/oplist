@@ -192,6 +192,8 @@ BANK 3 math
 0x0A    cosh_n      w(num64) r(num64)
 0x0B    tanh_n      w(num64) r(num64)
 0x0C    sech_n      w(num64) r(num64)
+0x0D    sqrt_n      w(num64) r(num64)
+0x0E    gcd_i       w(int64) r(int64) r(int64)
 
 BANK 4 object
 0x00    knowhow     w(obj)
