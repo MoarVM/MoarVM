@@ -28,6 +28,7 @@ else {
 
 my $env := pir::new__Ps('Env');
 my $DEBUG := $env<MVMDEBUG>;
+my $*COERCE_ARGS_OBJ := 0;
 
 sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx) is export {
     # Create frame
