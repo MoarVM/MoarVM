@@ -778,6 +778,33 @@ QAST::MASTOperations.add_core_moarop_mapping('say', 'n/a',
     }
 }));
 
+QAST::MASTOperations.add_core_op('ifnull', -> $qastcomp, $op {
+    if +$op.list != 2 {
+        nqp::die("The 'ifnull' op expects two children");
+    }
+    
+    # Compile the expression.
+    my $res_reg := $*REGALLOC.fresh_o();
+    my $expr := $qastcomp.as_mast($op[0], :want($MVM_reg_obj));
+    
+    # Emit null check.
+    my $lbl := MAST::Label.new($qastcomp.unique('ifnull'));
+    push_op($expr.instructions, 'set', $res_reg, $expr.result_reg);
+    push_op($expr.instructions, 'ifnonnull', $expr.result_reg, $lbl);
+    
+    # Emit "then" part.
+    my $then := $qastcomp.as_mast($op[1], :want($MVM_reg_obj));
+    $*REGALLOC.release_register($expr.result_reg, $MVM_reg_obj);
+    $expr.append($then);
+    push_op($expr.instructions, 'set', $res_reg, $then.result_reg);
+    nqp::push($expr.instructions, $lbl);
+    $*REGALLOC.release_register($then.result_reg, $MVM_reg_obj);
+    my $newer := MAST::InstructionList.new(nqp::list(), $res_reg, $MVM_reg_obj);
+    $expr.append($newer);
+    
+    $expr
+});
+
 # arithmetic opcodes
 QAST::MASTOperations.add_core_moarop_mapping('add_i', 'add_i');
 #QAST::MASTOperations.add_core_moarop_mapping('add_I', 'nqp_bigint_add');
@@ -868,17 +895,20 @@ QAST::MASTOperations.add_core_moarop_mapping('time_n', 'time_n');
 QAST::MASTOperations.add_core_moarop_mapping('concat', 'concat_s');
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 QAST::MASTOperations.add_core_moarop_mapping('elems', 'elems');
+QAST::MASTOperations.add_core_moarop_mapping('unbox_i', 'unbox_i');
+QAST::MASTOperations.add_core_moarop_mapping('unbox_n', 'unbox_n');
+QAST::MASTOperations.add_core_moarop_mapping('unbox_s', 'unbox_s');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
         $kind == $MVM_reg_int64 ?? 'unless_i' !!
         $kind == $MVM_reg_num64 ?? 'unless_n' !!
-        $kind == $MVM_reg_str   ?? 'unless_s' !!
+        $kind == $MVM_reg_str   ?? 'unless_s0' !!
         $kind == $MVM_reg_obj   ?? 'unless_o' !!
         nqp::die("unhandled kind $kind")
      !! $kind == $MVM_reg_int64 ?? 'if_i' !!
         $kind == $MVM_reg_num64 ?? 'if_n' !!
-        $kind == $MVM_reg_str   ?? 'if_s' !!
+        $kind == $MVM_reg_str   ?? 'if_s0' !!
         $kind == $MVM_reg_obj   ?? 'if_o' !!
         nqp::die("unhandled kind $kind")
 }

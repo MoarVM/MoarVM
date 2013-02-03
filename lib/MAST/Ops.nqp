@@ -1050,6 +1050,13 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
+            ),
+            'ifnonnull', nqp::hash(
+                'code', 136,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_ins
+                ]
             )
         ],
         [

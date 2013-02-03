@@ -105,8 +105,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_if_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || NUM_GRAPHS(str) != 1
-                            || MVM_string_get_codepoint_at_nocheck(tc, str, 0) != 48) /* zero char */
+                        if (!str || NUM_GRAPHS(str) == 0 || NUM_GRAPHS(str) == 1
+                            && MVM_string_get_codepoint_at_nocheck(tc, str, 0) != 48) /* zero char */
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
@@ -115,8 +115,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_unless_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || NUM_GRAPHS(str) != 1
-                            || MVM_string_get_codepoint_at_nocheck(tc, str, 0) != 48) /* zero char */
+                        if (!str || NUM_GRAPHS(str) == 0 || NUM_GRAPHS(str) == 1
+                            && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48) /* zero char */
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
@@ -763,6 +763,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_param_sn:
                         GET_REG(cur_op, 0).o = MVM_args_slurpy_named(tc, &tc->cur_frame->params);
                         cur_op += 2;
+                        break;
+                    case MVM_OP_ifnonnull:
+                        if (GET_REG(cur_op, 0).o != NULL)
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        else
+                            cur_op += 6;
+                        GC_SYNC_POINT(tc);
                         break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",

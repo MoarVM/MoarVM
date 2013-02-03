@@ -135,6 +135,7 @@ BANK 0 primitives
 0x85    smrt_strify w(str) r(obj)
 0x86    param_sp    w(obj) int16
 0x87    param_sn    w(obj)
+0x88    ifnonnull   r(obj) ins
 
 BANK 1 dev
 0x00    say_i       r(int64)
