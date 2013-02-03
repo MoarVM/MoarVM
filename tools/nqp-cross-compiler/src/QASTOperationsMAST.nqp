@@ -852,6 +852,12 @@ QAST::MASTOperations.add_core_moarop_mapping('cosh_n', 'cosh_n');
 QAST::MASTOperations.add_core_moarop_mapping('tanh_n', 'tanh_n');
 QAST::MASTOperations.add_core_moarop_mapping('sech_n', 'sech_n');
 QAST::MASTOperations.add_core_moarop_mapping('sqrt_n', 'sqrt_n');
+QAST::MASTOperations.add_core_moarop_mapping('bitor_i', 'bor_i');
+QAST::MASTOperations.add_core_moarop_mapping('bitxor_i', 'bxor_i');
+QAST::MASTOperations.add_core_moarop_mapping('bitand_i', 'band_i');
+QAST::MASTOperations.add_core_moarop_mapping('bitshiftl_i', 'blshift_i');
+QAST::MASTOperations.add_core_moarop_mapping('bitshiftr_i', 'brshift_i');
+QAST::MASTOperations.add_core_moarop_mapping('bitneg_i', 'bnot_i');
 
 
 QAST::MASTOperations.add_core_moarop_mapping('isnull', 'isnull');
