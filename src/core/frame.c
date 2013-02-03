@@ -227,16 +227,16 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
  * captures a closure over the current scope. */
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *closure;
+    MVMStaticFrame *sf;
     
-    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+    if (!code || REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
             "Can only perform takeclosure on object with representation MVMCode");
 
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&code);
+    sf = ((MVMCode *)code)->body.sf;
     closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
-    MVM_gc_root_temp_pop(tc);
     
-    closure->body.sf    = ((MVMCode *)code)->body.sf;
+    closure->body.sf    = sf;
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
     
     return (MVMObject *)closure;
