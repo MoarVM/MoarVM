@@ -1017,11 +1017,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_gcd_i: {
-                        MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 2).i64, c;
-                        while ( a != 0 ) {
-                            c = a; a = b%a; b = c;
+                        MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 4).i64, c;
+                        while ( b != 0 ) {
+                            c = a % b; a = b; b = c;
                         }
-                        GET_REG(cur_op, 0).i64 = b;
+                        GET_REG(cur_op, 0).i64 = a;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_lcm_i: {
+                        MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 4).i64, c, a_ = a, b_ = b;
+                        while ( b != 0 ) {
+                            c = a % b; a = b; b = c;
+                        }
+                        c = a;
+                        GET_REG(cur_op, 0).i64 = a_ / c * b_;
                         cur_op += 6;
                         break;
                     }
