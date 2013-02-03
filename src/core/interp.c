@@ -1623,6 +1623,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = cu->hll_config->str_box_type;
                         cur_op += 2;
                         break;
+                    case MVM_OP_elems: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = (MVMint64)(REPR(obj)->ass_funcs->elems ? REPR(obj)->ass_funcs->elems : REPR(obj)->pos_funcs->elems)(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

@@ -294,6 +294,7 @@
 #define MVM_OP_hllboxtyp_i 83
 #define MVM_OP_hllboxtyp_n 84
 #define MVM_OP_hllboxtyp_s 85
+#define MVM_OP_elems 86
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

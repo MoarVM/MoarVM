@@ -861,6 +861,7 @@ QAST::MASTOperations.add_core_moarop_mapping('time_i', 'time_i');
 QAST::MASTOperations.add_core_moarop_mapping('time_n', 'time_n');
 QAST::MASTOperations.add_core_moarop_mapping('concat', 'concat_s');
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
+QAST::MASTOperations.add_core_moarop_mapping('elems', 'elems');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??

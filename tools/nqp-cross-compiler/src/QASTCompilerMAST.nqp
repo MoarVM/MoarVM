@@ -868,11 +868,9 @@ class QAST::MASTCompiler {
                     # could be used, since the bindlex always occurs at the very top,
                     # so turn around and release the temp register already preallocated.
                     $*REGALLOC.release_register($res_reg, $res_kind);
-                    # because of the above, enforce that non-binding lexical parameter declarations are void.
-                    # binding parameter declarations are silly, but theoretically they are valid,
-                    # since they have a register they are assigning *from*
-                    $res_reg := MAST::VOID;
-                    $res_kind := $MVM_reg_void;
+                    # get another one in case someone is using it...
+                    $res_reg := $*REGALLOC.fresh_register($res_kind);
+                    push_op(@ins, 'getlex', $res_reg, $lex);
                 }
             }
             else {
