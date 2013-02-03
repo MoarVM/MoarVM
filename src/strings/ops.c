@@ -297,6 +297,48 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
     return result;
 }
 
+/* Returns the location of one string in another or -1  */
+MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
+    MVMint64 result = -1;
+    size_t index;
+    MVMStringIndex hgraphs = NUM_GRAPHS(haystack), ngraphs = NUM_GRAPHS(needle);
+    
+    if (!IS_CONCRETE((MVMObject *)haystack)) {
+        MVM_exception_throw_adhoc(tc, "index needs a concrete search target");
+    }
+    
+    if (!IS_CONCRETE((MVMObject *)needle)) {
+        MVM_exception_throw_adhoc(tc, "index needs a concrete search term");
+    }
+    
+    if (!ngraphs && !hgraphs)
+        return 0; /* the empty strings are equal and start at zero */
+    
+    if (!hgraphs)
+        return -1;
+    
+    if (start == -1)
+        start = hgraphs - ngraphs;
+    
+    if (start < 0 || start >= hgraphs)
+        /* maybe return -1 instead? */
+        MVM_exception_throw_adhoc(tc, "index start offset out of range");
+    
+    if (ngraphs > hgraphs || ngraphs < 1)
+        return -1;
+    
+    index = start;
+    
+    /* brute force for now. horrible, yes. halp. */
+    do {
+        if (MVM_string_substrings_equal_nocheck(tc, needle, 0, ngraphs, haystack, index)) {
+            result = (MVMint64)index;
+            break;
+        }
+    } while (index-- > 0);
+    return result;
+}
+
 /* Returns a substring of the given string */
 MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 start, MVMint64 length) {
     MVMString *result;

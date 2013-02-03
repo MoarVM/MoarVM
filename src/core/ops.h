@@ -147,6 +147,8 @@
 #define MVM_OP_param_sp 134
 #define MVM_OP_param_sn 135
 #define MVM_OP_ifnonnull 136
+#define MVM_OP_cmp_i 137
+#define MVM_OP_cmp_n 138
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -189,6 +191,11 @@
 #define MVM_OP_hasunipropc 29
 #define MVM_OP_concatr_s 30
 #define MVM_OP_splice_s 31
+#define MVM_OP_chars 32
+#define MVM_OP_chr 33
+#define MVM_OP_ordfirst 34
+#define MVM_OP_ordat 35
+#define MVM_OP_rindexfrom 36
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

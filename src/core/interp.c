@@ -771,6 +771,33 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             cur_op += 6;
                         GC_SYNC_POINT(tc);
                         break;
+                    case MVM_OP_cmp_i: {
+                        MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 4).i64, c;
+                        if (a < b) {
+                            c = -1;
+                        } else if (a > b) {
+                            c = 1;
+                        } else {
+                            c = 0;
+                        }
+                        GET_REG(cur_op, 0).i64 = c;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_cmp_n: {
+                        MVMnum64 a = GET_REG(cur_op, 2).n64, b = GET_REG(cur_op, 4).n64;
+                        MVMint64 c;
+                        if (a < b) {
+                            c = -1;
+                        } else if (a > b) {
+                            c = 1;
+                        } else {
+                            c = 0;
+                        }
+                        GET_REG(cur_op, 0).i64 = c;
+                        cur_op += 6;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
@@ -953,6 +980,49 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, (MVMint64)GET_UI16(cur_op, 6),
                             (MVMint64)GET_UI16(cur_op, 8));
                         cur_op += 10;
+                        break;
+                    case MVM_OP_chars:
+                        GET_REG(cur_op, 0).i64 = NUM_GRAPHS(GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_chr: {
+                        MVMint64 ord = GET_REG(cur_op, 2).i64;
+                        MVMString *s;
+                        if (ord < 0)
+                            MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
+                        s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
+                        s->body.flags = MVM_STRING_TYPE_INT32;
+                        s->body.int32s = malloc(sizeof(MVMCodepoint32));
+                        s->body.int32s[0] = (MVMCodepoint32)ord;
+                        s->body.graphs = 1;
+                        s->body.codes = 1;
+                        GET_REG(cur_op, 0).s = s;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_ordfirst: {
+                        MVMString *s = GET_REG(cur_op, 2).s;
+                        if (!s || NUM_GRAPHS(s) == 0) {
+                            MVM_exception_throw_adhoc(tc, "ord string is null or blank");
+                        }
+                        GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc, s, 0);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_ordat: {
+                        MVMString *s = GET_REG(cur_op, 2).s;
+                        if (!s || NUM_GRAPHS(s) == 0) {
+                            MVM_exception_throw_adhoc(tc, "ord string is null or blank");
+                        }
+                        GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc, s, GET_REG(cur_op, 4).i64);
+                        /* XXX what to do with synthetics?  return them? */
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_rindexfrom:
+                        GET_REG(cur_op, 0).i64 = MVM_string_index_from_end(tc,
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
                         break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",

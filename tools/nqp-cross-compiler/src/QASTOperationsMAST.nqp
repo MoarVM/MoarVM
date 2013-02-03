@@ -805,6 +805,33 @@ QAST::MASTOperations.add_core_op('ifnull', -> $qastcomp, $op {
     $expr
 });
 
+QAST::MASTOperations.add_core_op('substr', -> $qastcomp, $op {
+    my @operands := $op.list;
+    if +@operands == 2 { nqp::push(@operands, QAST::IVal.new( :value(-1) )) }
+    $qastcomp.as_mast(QAST::Op.new( :op('substr_s'), |@operands ));
+});
+
+QAST::MASTOperations.add_core_op('ord',  -> $qastcomp, $op {
+    my @operands := $op.list;
+    $qastcomp.as_mast(+@operands == 1
+        ?? QAST::Op.new( :op('ordfirst'), |@operands )
+        !! QAST::Op.new( :op('ordat'), |@operands ));
+});
+
+QAST::MASTOperations.add_core_op('index',  -> $qastcomp, $op {
+    my @operands := $op.list;
+    $qastcomp.as_mast(+@operands == 2
+        ?? QAST::Op.new( :op('index_s'), |@operands, QAST::IVal.new( :value(0)) )
+        !! QAST::Op.new( :op('index_s'), |@operands ));
+});
+
+QAST::MASTOperations.add_core_op('rindex',  -> $qastcomp, $op {
+    my @operands := $op.list;
+    $qastcomp.as_mast(+@operands == 2
+        ?? QAST::Op.new( :op('rindexfrom'), |@operands, QAST::IVal.new( :value(-1) ) )
+        !! QAST::Op.new( :op('rindexfrom'), |@operands ));
+});
+
 # arithmetic opcodes
 QAST::MASTOperations.add_core_moarop_mapping('add_i', 'add_i');
 #QAST::MASTOperations.add_core_moarop_mapping('add_I', 'nqp_bigint_add');
@@ -842,6 +869,8 @@ QAST::MASTOperations.add_core_moarop_mapping('islt_n', 'lt_n');
 QAST::MASTOperations.add_core_moarop_mapping('isle_n', 'le_n');
 QAST::MASTOperations.add_core_moarop_mapping('isgt_n', 'gt_n');
 QAST::MASTOperations.add_core_moarop_mapping('isge_n', 'ge_n');
+QAST::MASTOperations.add_core_moarop_mapping('cmp_i', 'cmp_i');
+QAST::MASTOperations.add_core_moarop_mapping('cmp_n', 'cmp_n');
 
 
 #QAST::MASTOperations.add_core_moarop_mapping('abs_i', 'abs', 'Ii');
@@ -898,6 +927,19 @@ QAST::MASTOperations.add_core_moarop_mapping('elems', 'elems');
 QAST::MASTOperations.add_core_moarop_mapping('unbox_i', 'unbox_i');
 QAST::MASTOperations.add_core_moarop_mapping('unbox_n', 'unbox_n');
 QAST::MASTOperations.add_core_moarop_mapping('unbox_s', 'unbox_s');
+QAST::MASTOperations.add_core_moarop_mapping('chars', 'chars');
+QAST::MASTOperations.add_core_moarop_mapping('uc', 'uc');
+QAST::MASTOperations.add_core_moarop_mapping('lc', 'lc');
+QAST::MASTOperations.add_core_moarop_mapping('tc', 'tc');
+QAST::MASTOperations.add_core_moarop_mapping('x', 'repeat_s');
+QAST::MASTOperations.add_core_moarop_mapping('chr', 'chr');
+QAST::MASTOperations.add_core_moarop_mapping('iseq_s', 'eq_s');
+QAST::MASTOperations.add_core_moarop_mapping('isne_s', 'ne_s');
+QAST::MASTOperations.add_core_moarop_mapping('substr_s', 'substr_s');
+QAST::MASTOperations.add_core_moarop_mapping('ordfirst', 'ordfirst');
+QAST::MASTOperations.add_core_moarop_mapping('ordat', 'ordat');
+QAST::MASTOperations.add_core_moarop_mapping('index_s', 'index_s');
+QAST::MASTOperations.add_core_moarop_mapping('rindexfrom', 'rindexfrom');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??

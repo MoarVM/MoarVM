@@ -127,15 +127,17 @@ BANK 0 primitives
 0x7D    caller      w(obj) r(int64)
 0x7E    getdynlex   w(obj) r(str)
 0x7F    binddynlex  r(str) r(obj)
-0x80    coerce_is   w(str) r(int)
+0x80    coerce_is   w(str) r(int64)
 0x81    coerce_ns   w(str) r(num)
-0x82    coerce_si   w(int) r(str)
+0x82    coerce_si   w(int64) r(str)
 0x83    coerce_sn   w(num) r(str)
 0x84    smrt_numify w(num) r(obj)
 0x85    smrt_strify w(str) r(obj)
 0x86    param_sp    w(obj) int16
 0x87    param_sn    w(obj)
 0x88    ifnonnull   r(obj) ins
+0x89    cmp_i       w(int64) r(int64) r(int64)
+0x89    cmp_n       w(int64) r(num64) r(num64)
 
 BANK 1 dev
 0x00    say_i       r(int64)
@@ -178,6 +180,11 @@ BANK 2 string
 0x1D    hasunipropc w(int64) r(str) r(int64) int16 int16
 0x1E    concatr_s   w(str) r(str) r(int64) r(int64) r(str) r(int64) r(int64)
 0x1F    splice_s    w(str) r(str) r(int64) r(int64) r(str) r(int64) r(int64)
+0x20    chars       w(int64) r(str)
+0x21    chr         w(str) r(int64)
+0x22    ordfirst    w(int64) r(str)
+0x23    ordat       w(int64) r(str) r(int64)
+0x24    rindexfrom  w(int64) r(str) r(str) r(int64)
 
 BANK 3 math
 0x00    sin_n       w(num64) r(num64)

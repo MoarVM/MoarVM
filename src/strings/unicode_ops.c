@@ -21,7 +21,12 @@ MVMCodepoint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint32 
     MVMint32 changes_index = MVM_unicode_get_property_value(tc,
         codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
     
-    return changes_index ? case_changes[changes_index][case_] : codepoint;
+    if (changes_index) {
+        MVMCodepoint32 result = case_changes[changes_index][case_];
+        if (result == 0) return codepoint;
+        return result;
+    }
+    return codepoint;
 }
 
 /* XXX make all the statics members of the global MVM instance instead? */
