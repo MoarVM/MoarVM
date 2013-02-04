@@ -35,8 +35,6 @@ sub MAIN(*@ARGS) {
         }
     });
     
-    my $*COERCE_ARGS_OBJ := 1;
-    
     $nqpcomp.command_line(@ARGS, :precomp(1), :encoding('utf8'), :transcode('ascii iso-8859-1'));
 }
 

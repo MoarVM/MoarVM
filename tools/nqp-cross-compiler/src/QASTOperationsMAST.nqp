@@ -556,10 +556,10 @@ my @kind_to_args := [0,
 ];
 
 # Calling.
-sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds, :$want) {
+sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
     
     # generate the code for the arg expression
-    my $arg_mast := nqp::defined($want) ?? $qastcomp.as_mast($arg, :$want) !! $qastcomp.as_mast($arg);
+    my $arg_mast := $qastcomp.as_mast($arg);
     
     nqp::die("arg expression cannot be void")
         if $arg_mast.result_kind == $MVM_reg_void;
@@ -634,10 +634,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
     
     # Process arguments.
     for @args {
-        $*COERCE_ARGS_OBJ
-            ?? handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds, :want($MVM_reg_obj))
-            !! 
-            handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
+        handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
     }
     
     # Release the callee's result register
@@ -707,10 +704,7 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
     
     # Process arguments.
     for @args {
-        $*COERCE_ARGS_OBJ
-            ?? handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds, :want($MVM_reg_obj))
-            !! 
-            handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
+        handle_arg($_, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds);
     }
     
     # generate and emit findmethod code
