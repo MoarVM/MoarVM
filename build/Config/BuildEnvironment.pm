@@ -20,9 +20,9 @@ sub detect {
             # Set configuration flags.
             $config{'cc'}           = 'cl';
             $config{'copt'}         = '';
-            $config{'cdebug'}       = '';
+            $config{'cdebug'}       = '/Zi';
             $config{'cinstrument'}  = '';
-            $config{'cmiscflags'}   = '/nologo /Zi -DWIN32';
+            $config{'cmiscflags'}   = '/nologo -DWIN32';
             $config{'couto'}        = '-Fo';
             $config{'link'}         = 'link';
             $config{'louto'}        = '-out:';
