@@ -768,11 +768,11 @@ class QAST::MASTCompiler {
         nqp::die("register types $a and $b don't match") unless $a == $b;
     }
     
-    my @getlex_n_opnames := [
-        'getlex_ni',
-        'getlex_nn',
-        'getlex_ns',
-        'getlex_no'
+    my @lex_n_opnames := [
+        'lex_ni',
+        'lex_nn',
+        'lex_ns',
+        'lex_no'
     ];
     
     multi method as_mast(QAST::Var $node, :$want) {
@@ -874,12 +874,21 @@ class QAST::MASTCompiler {
                 }
             }
             else {
-                nqp::die("Missing lexical $name at least needs to know what type it should be")
-                    unless $node.returns;
-                $res_kind := self.type_to_register_kind($node.returns);
-                $res_reg := $*REGALLOC.fresh_register($res_kind);
-                push_op(@ins, @getlex_n_opnames[@kind_to_op_slot[$res_kind]],
-                    $res_reg, MAST::SVal.new( :value($name) ));
+                if $*BINDVAL {
+                    my $valmast := $node.returns
+                        ?? self.as_mast_clear_bindval($*BINDVAL, :want(self.type_to_register_kind($node.returns)))
+                        !! self.as_mast_clear_bindval($*BINDVAL);
+                    $res_reg := $valmast.result_reg;
+                    push_ilist(@ins, $valmast);
+                    push_op(@ins, "bind"~@lex_n_opnames[@kind_to_op_slot[$res_kind]], MAST::SVal.new( :value($name) ), $res_reg);
+                    $res_kind := $valmast.result_kind;
+                }
+                else {
+                    $res_kind := $node.returns ?? self.type_to_register_kind($node.returns) !!  $MVM_reg_obj;
+                    $res_reg := $*REGALLOC.fresh_register($res_kind);
+                    push_op(@ins, "get"~@lex_n_opnames[@kind_to_op_slot[$res_kind]],
+                        $res_reg, MAST::SVal.new( :value($name) ));
+                }
             }
         }
         elsif $scope eq 'contextual' {

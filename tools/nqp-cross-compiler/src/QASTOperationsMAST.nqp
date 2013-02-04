@@ -1069,6 +1069,7 @@ QAST::MASTOperations.add_core_moarop_mapping('ishash', 'ishash');
 QAST::MASTOperations.add_core_moarop_mapping('iterator', 'iter');
 QAST::MASTOperations.add_core_moarop_mapping('iterkey_s', 'iterkey_s');
 QAST::MASTOperations.add_core_moarop_mapping('iterval', 'iterval');
+QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
 # defined - overridden by HLL, but by default same as .DEFINITE.
 QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 
