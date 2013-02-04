@@ -83,7 +83,7 @@ MVMString * MVM_repr_smart_stringify(MVMThreadContext *tc, MVMObject *obj) {
             return REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
             char buffer[25];
-            sprintf(buffer, "%d", REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+            sprintf(buffer, "%lld", REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
             return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, strlen(buffer));
         }
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
