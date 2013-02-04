@@ -1130,26 +1130,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_findmeth:
                         GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
                             GET_REG(cur_op, 2).o,
-                            cu->strings[GET_UI16(cur_op, 4)], 0);
+                            cu->strings[GET_UI16(cur_op, 4)]);
                         cur_op += 6;
                         break;
                     case MVM_OP_findmeth_s:
                         GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
                             GET_REG(cur_op, 2).o,
-                            GET_REG(cur_op, 4).s, 0);
+                            GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;
                     case MVM_OP_can: {
-                        GET_REG(cur_op, 0).i64 = MVM_6model_find_method(tc,
+                        GET_REG(cur_op, 0).i64 = MVM_6model_can_method(tc,
                             GET_REG(cur_op, 2).o,
-                            cu->strings[GET_UI16(cur_op, 4)], 1) ? 1 : 0;
+                            cu->strings[GET_UI16(cur_op, 4)]) ? 1 : 0;
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_can_s: {
-                        GET_REG(cur_op, 0).i64 = MVM_6model_find_method(tc,
+                        GET_REG(cur_op, 0).i64 = MVM_6model_can_method(tc,
                             GET_REG(cur_op, 2).o,
-                            GET_REG(cur_op, 4).s, 1) ? 1 : 0;
+                            GET_REG(cur_op, 4).s) ? 1 : 0;
                         cur_op += 6;
                         break;
                     }
