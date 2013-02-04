@@ -1719,8 +1719,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_elems: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).i64 = (MVMint64)(REPR(obj)->ID == MVM_REPR_ID_MVMHash || REPR(obj)->ID == MVM_REPR_ID_HashAttrStore
-                            ? REPR(obj)->ass_funcs->elems : REPR(obj)->pos_funcs->elems)(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                        MVMuint64 (*elems_func) (MVMThreadContext *, MVMSTable *, MVMObject *, void *)
+                            = REPR(obj)->ID == MVM_REPR_ID_MVMHash || REPR(obj)->ID == MVM_REPR_ID_HashAttrStore
+                              ? REPR(obj)->ass_funcs->elems : REPR(obj)->pos_funcs->elems;
+                        GET_REG(cur_op, 0).i64 = (MVMint64)(*elems_func)(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                         cur_op += 4;
                         break;
                     }
