@@ -8,6 +8,7 @@
 #define MVM_OP_BANK_object 4
 #define MVM_OP_BANK_io 5
 #define MVM_OP_BANK_processthread 6
+#define MVM_OP_BANK_serialization 7
 
 /* Op name defines for bank primitives. */
 #define MVM_OP_no_op 0
@@ -149,6 +150,7 @@
 #define MVM_OP_ifnonnull 136
 #define MVM_OP_cmp_i 137
 #define MVM_OP_cmp_n 138
+#define MVM_OP_not_i 139
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -310,6 +312,31 @@
 #define MVM_OP_iter 91
 #define MVM_OP_iterkey_s 92
 #define MVM_OP_iterval 93
+#define MVM_OP_getcodename 94
+#define MVM_OP_composetype 95
+#define MVM_OP_setmethcache 96
+#define MVM_OP_setmethcacheauth 97
+#define MVM_OP_settypecache 98
+#define MVM_OP_setinvokespec 99
+#define MVM_OP_isinvokable 100
+#define MVM_OP_iscont 101
+#define MVM_OP_decont 102
+#define MVM_OP_setboolspec 103
+#define MVM_OP_istrue 104
+#define MVM_OP_isfalse 105
+#define MVM_OP_istrue_s 106
+#define MVM_OP_isfalse_s 107
+#define MVM_OP_getcodeobj 108
+#define MVM_OP_setcodeobj 109
+#define MVM_OP_setcodename 110
+#define MVM_OP_forceouterctx 111
+#define MVM_OP_getcomp 112
+#define MVM_OP_bindcomp 113
+#define MVM_OP_getcurhllsym 114
+#define MVM_OP_bindcurhllsym 115
+#define MVM_OP_getwho 116
+#define MVM_OP_setwho 117
+#define MVM_OP_rebless 118
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
@@ -388,5 +415,25 @@
 #define MVM_OP_newthread 26
 #define MVM_OP_jointhread 27
 #define MVM_OP_time_n 28
+#define MVM_OP_die 29
+#define MVM_OP_exit 30
+#define MVM_OP_die_s 31
+#define MVM_OP_loadbytecode 32
+
+/* Op name defines for bank serialization. */
+#define MVM_OP_sha1 0
+#define MVM_OP_createsc 1
+#define MVM_OP_scsetobj 2
+#define MVM_OP_scsetcode 3
+#define MVM_OP_scgetobj 4
+#define MVM_OP_scgethandle 5
+#define MVM_OP_scgetobjidx 6
+#define MVM_OP_scsetdesc 7
+#define MVM_OP_scobjcount 8
+#define MVM_OP_setobjsc 9
+#define MVM_OP_getobjsc 10
+#define MVM_OP_serialize 11
+#define MVM_OP_deserialize 12
+#define MVM_OP_wval 13
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);
