@@ -4,11 +4,11 @@ use warnings;
 
 sub detect {
     my %config;
-    
+
     if ($^O =~ /MSWin32/) {
         # Windows.
         $config{'os'} = 'Windows';
-        
+
         # We support the Microsoft toolchain.
         if (can_run('cl /nologo /?')) {
             # Ensure we have the other bits.
@@ -16,7 +16,7 @@ sub detect {
                 unless can_run('link /nologo /?');
             return (excuse => 'It appears you have the MS C compiler, but no nmake!')
                 unless can_run('nmake /nologo /?');
-            
+
             # Set configuration flags.
             $config{'cc'}           = 'cl';
             $config{'copt'}         = '';
@@ -45,7 +45,7 @@ sub detect {
     }
     elsif ($^O =~ /linux/) {
         $config{'os'} = 'Linux';
-        
+
         if (can_run('clang')) {
             $config{'cc'}           = 'clang';
             $config{'copt'}         = '';
