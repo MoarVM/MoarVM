@@ -1131,15 +1131,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_findmeth:
                         GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
                             GET_REG(cur_op, 2).o,
-                            cu->strings[GET_UI16(cur_op, 4)]);
+                            cu->strings[GET_UI16(cur_op, 4)], 0);
                         cur_op += 6;
                         break;
                     case MVM_OP_findmeth_s:
                         GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
                             GET_REG(cur_op, 2).o,
-                            GET_REG(cur_op, 4).s);
+                            GET_REG(cur_op, 4).s, 0);
                         cur_op += 6;
                         break;
+                    case MVM_OP_can: {
+                        GET_REG(cur_op, 0).i64 = MVM_6model_find_method(tc,
+                            GET_REG(cur_op, 2).o,
+                            cu->strings[GET_UI16(cur_op, 4)], 1) ? 1 : 0;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_can_s: {
+                        GET_REG(cur_op, 0).i64 = MVM_6model_find_method(tc,
+                            GET_REG(cur_op, 2).o,
+                            GET_REG(cur_op, 4).s, 1) ? 1 : 0;
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_create: {
                         /* Ordering here matters. We write the object into the
                          * register before calling initialize. This is because
@@ -1664,6 +1678,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_isnull_s:
+                        GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s ? 0 : 1;
+                        cur_op += 4;
+                        break;
                     case MVM_OP_bootint:
                         GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTInt;
                         cur_op += 2;
@@ -1702,8 +1720,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_elems: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).i64 = (MVMint64)(REPR(obj)->ass_funcs->elems ? REPR(obj)->ass_funcs->elems : REPR(obj)->pos_funcs->elems)(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                        GET_REG(cur_op, 0).i64 = (MVMint64)(REPR(obj)->ID == MVM_REPR_ID_MVMHash || REPR(obj)->ID == MVM_REPR_ID_HashAttrStore
+                            ? REPR(obj)->ass_funcs->elems : REPR(obj)->pos_funcs->elems)(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                         cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_null_s:
+                        GET_REG(cur_op, 0).s = NULL;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_newtype: {
+                        MVMObject *type_obj, *how = GET_REG(cur_op, 2).o;
+                        MVMString *repr_name = GET_REG(cur_op, 4).s;
+                        MVMREPROps *repr = MVM_repr_get_by_name(tc, repr_name);
+                        GET_REG(cur_op, 0).o = repr->type_object_for(tc, how);
+                        cur_op += 6;
                         break;
                     }
                     default: {

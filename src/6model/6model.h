@@ -481,5 +481,5 @@ typedef struct _MVMREPROps {
 #define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))
 
 /* Some functions related to 6model core functionality. */
-MVMObject * MVM_6model_find_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
+MVMObject * MVM_6model_find_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name, MVMuint8 return_not_found);
 void MVM_6model_invoke_default(struct _MVMThreadContext *tc, MVMObject *invokee, struct _MVMCallsite *callsite, union _MVMRegister *args);

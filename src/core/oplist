@@ -292,6 +292,8 @@ BANK 4 object
 0x54    hllboxtyp_n w(obj)
 0x55    hllboxtyp_s w(obj)
 0x56    elems       w(int64) r(obj)
+0x57    null_s      w(str)
+0x58    newtype     w(obj) r(obj) r(str)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)
