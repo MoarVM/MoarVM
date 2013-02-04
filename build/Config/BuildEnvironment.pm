@@ -27,9 +27,9 @@ sub detect {
             $config{'link'}         = 'link';
             $config{'louto'}        = '-out:';
             $config{'lopt'}         = '';
-            $config{'ldebug'}       = '';
+            $config{'ldebug'}       = '/debug';
             $config{'linstrument'}  = '';
-            $config{'lmiscflags'}   = '/nologo /debug /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib';
+            $config{'lmiscflags'}   = '/nologo /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib';
             $config{'llibs'}        = '';
             $config{'make'}         = 'nmake';
             $config{'exe'}          = '.exe';
