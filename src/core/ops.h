@@ -305,6 +305,8 @@
 #define MVM_OP_elems 86
 #define MVM_OP_null_s 87
 #define MVM_OP_newtype 88
+#define MVM_OP_islist 89
+#define MVM_OP_ishash 90
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

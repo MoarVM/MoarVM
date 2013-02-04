@@ -294,6 +294,8 @@ BANK 4 object
 0x56    elems       w(int64) r(obj)
 0x57    null_s      w(str)
 0x58    newtype     w(obj) r(obj) r(str)
+0x59    islist      w(int64) r(obj)
+0x5A    ishash      w(int64) r(obj)
 
 BANK 5 io
 0x00    copy_f      r(str) r(str)
