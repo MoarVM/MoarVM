@@ -42,6 +42,9 @@ typedef struct _MVMInstance {
      * native string, not an object boxing one. */
     MVMObject *VMString;
     
+    /* The VM's native iterator type, using MVMIter. */
+    MVMObject *VMIter;
+    
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
     

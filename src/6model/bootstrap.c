@@ -88,6 +88,12 @@ static void create_stub_BOOTThread(MVMThreadContext *tc) {
     tc->instance->boot_types->BOOTThread = repr->type_object_for(tc, NULL);
 }
 
+/* Creates a stub MVMIter (missing a meta-object). */
+static void create_stub_VMIter(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMIter);
+    tc->instance->VMIter = repr->type_object_for(tc, NULL);
+}
+
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
 static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject   *self, *HOW, *type_object, *BOOTHash, *stash;
@@ -563,6 +569,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_BOOTCCode(tc);
     create_stub_BOOTCode(tc);
     create_stub_BOOTThread(tc);
+    create_stub_VMIter(tc);
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "repr");
@@ -601,6 +608,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTCode);
     add_meta_object(tc, tc->instance->boot_types->BOOTThread, "BOOTThread");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTThread);
+    add_meta_object(tc, tc->instance->VMIter, "VMIter");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->VMIter);
     
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);
