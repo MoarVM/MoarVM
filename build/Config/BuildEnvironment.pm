@@ -52,13 +52,12 @@ sub detect {
                 llibs       => '',
 
                 # Optional settings
-                # XXXX: Fill in missing flags for MS toolchain
-                copt        => $opts->{optimize}   ? '/Ox /GL': '',
-                cdebug      => $opts->{debug}      ? '/Zi'    : '',
-                cinstrument => $opts->{instrument} ? ''       : '',
-                lopt        => $opts->{optimize}   ? '/LTCG'  : '',
-                ldebug      => $opts->{debug}      ? '/debug' : '',
-                linstrument => $opts->{instrument} ? '/Profile': '',
+                copt        => $opts->{optimize}   ? '/Ox /GL'  : '',
+                cdebug      => $opts->{debug}      ? '/Zi'      : '',
+                cinstrument => $opts->{instrument} ? ''         : '',
+                lopt        => $opts->{optimize}   ? '/LTCG'    : '',
+                ldebug      => $opts->{debug}      ? '/debug'   : '',
+                linstrument => $opts->{instrument} ? '/Profile' : '',
             );
         }
         else {
