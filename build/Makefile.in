@@ -42,7 +42,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/P6opaque$(O) src/6model/reprs/MVMCode$(O) \
             src/6model/reprs/MVMOSHandle$(O) src/6model/reprs/P6int$(O) src/6model/reprs/P6num$(O) \
             src/6model/reprs/Uninstantiable$(O) src/6model/reprs/HashAttrStore$(O) \
-            src/6model/reprs/MVMThread$(O) \
+            src/6model/reprs/MVMThread$(O) src/6model/reprs/MVMIter$(O) \
             src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
             src/strings/latin1$(O) src/strings/utf16$(O) src/moarvm$(O)
@@ -59,7 +59,8 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h src/6model/reprs/P6str.h \
             src/6model/reprs/MVMOSHandle.h src/6model/reprs/P6int.h src/6model/reprs/P6num.h \
             src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h \
-            src/6model/reprs/MVMThread.h src/6model/sc.h src/strings/unicode_gen.h \
+            src/6model/reprs/MVMThread.h src/6model/reprs/MVMIter.h \
+            src/6model/sc.h src/strings/unicode_gen.h \
             src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h \
             src/strings/latin1.h src/strings/utf16.h 3rdparty/uthash.h src/gen/config.h
 
@@ -161,6 +162,8 @@ src/6model/reprs/KnowHOWAttributeREPR$(O): src/6model/reprs/KnowHOWAttributeREPR
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/KnowHOWAttributeREPR$(O) src/6model/reprs/KnowHOWAttributeREPR.c
 src/6model/reprs/MVMThread$(O): src/6model/reprs/MVMThread.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMThread$(O) src/6model/reprs/MVMThread.c
+src/6model/reprs/MVMIter$(O): src/6model/reprs/MVMIter.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMIter$(O) src/6model/reprs/MVMIter.c
 src/6model/6model$(O): src/6model/6model.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/6model$(O) src/6model/6model.c
 src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)
