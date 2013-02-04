@@ -772,29 +772,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GC_SYNC_POINT(tc);
                         break;
                     case MVM_OP_cmp_i: {
-                        MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 4).i64, c;
-                        if (a < b) {
-                            c = -1;
-                        } else if (a > b) {
-                            c = 1;
-                        } else {
-                            c = 0;
-                        }
-                        GET_REG(cur_op, 0).i64 = c;
+                        MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 4).i64;
+                        GET_REG(cur_op, 0).i64 = (a > b) - (a < b);
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_cmp_n: {
                         MVMnum64 a = GET_REG(cur_op, 2).n64, b = GET_REG(cur_op, 4).n64;
-                        MVMint64 c;
-                        if (a < b) {
-                            c = -1;
-                        } else if (a > b) {
-                            c = 1;
-                        } else {
-                            c = 0;
-                        }
-                        GET_REG(cur_op, 0).i64 = c;
+                        GET_REG(cur_op, 0).i64 = (a > b) - (a < b);
                         cur_op += 6;
                         break;
                     }
