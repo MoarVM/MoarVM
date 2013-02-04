@@ -123,6 +123,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GC_SYNC_POINT(tc);
                         break;
                     }
+                    case MVM_OP_if_o:
+                    case MVM_OP_unless_o:
+                        MVM_exception_throw_adhoc(tc, "if/unless_o NYI");
+                    case MVM_OP_extend_u8:
+                    case MVM_OP_extend_u16:
+                    case MVM_OP_extend_u32:
+                    case MVM_OP_extend_i8:
+                    case MVM_OP_extend_i16:
+                    case MVM_OP_extend_i32:
+                    case MVM_OP_trunc_u8:
+                    case MVM_OP_trunc_u16:
+                    case MVM_OP_trunc_u32:
+                    case MVM_OP_trunc_i8:
+                    case MVM_OP_trunc_i16:
+                    case MVM_OP_trunc_i32:
+                    case MVM_OP_extend_n32:
+                    case MVM_OP_trunc_n32:
+                        MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
                     case MVM_OP_set:
                         GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
                         cur_op += 4;
@@ -189,6 +207,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             MVM_reg_obj)->o = GET_REG(cur_op, 2).o;
                         cur_op += 4;
                         break;
+                    case MVM_OP_getlex_ng:
+                    case MVM_OP_bindlex_ng:
+                        MVM_exception_throw_adhoc(tc, "get/bindlex_ng NYI");
                     case MVM_OP_return_i:
                         MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
                             MVM_RETURN_CALLER_FRAME);
@@ -223,10 +244,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             break;
                         else
                             return;
+                    case MVM_OP_const_i8:
+                    case MVM_OP_const_i16:
+                    case MVM_OP_const_i32:
+                        MVM_exception_throw_adhoc(tc, "const_iX NYI");
                     case MVM_OP_const_i64:
                         GET_REG(cur_op, 0).i64 = GET_I64(cur_op, 2);
                         cur_op += 10;
                         break;
+                    case MVM_OP_const_n32:
+                        MVM_exception_throw_adhoc(tc, "const_n32 NYI");
                     case MVM_OP_const_n64:
                         GET_REG(cur_op, 0).n64 = GET_N64(cur_op, 2);
                         cur_op += 10;
@@ -316,9 +343,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_v:
                         {
                             MVMObject *code = GET_REG(cur_op, 0).o;
-                            if (!code) {
-                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
-                            }
                             tc->cur_frame->return_value = NULL;
                             tc->cur_frame->return_type = MVM_RETURN_VOID;
                             cur_op += 2;
@@ -329,9 +353,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_i:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
-                            if (!code) {
-                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
-                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_INT;
                             cur_op += 4;
@@ -342,9 +363,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_n:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
-                            if (!code) {
-                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
-                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_NUM;
                             cur_op += 4;
@@ -355,9 +373,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_s:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
-                            if (!code) {
-                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
-                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_STR;
                             cur_op += 4;
@@ -368,9 +383,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_invoke_o:
                         {
                             MVMObject *code = GET_REG(cur_op, 2).o;
-                            if (!code) {
-                                MVM_exception_throw_adhoc(tc, "Can't invoke a null object");
-                            }
                             tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                             tc->cur_frame->return_type = MVM_RETURN_OBJ;
                             cur_op += 4;
@@ -398,6 +410,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = -GET_REG(cur_op, 2).n64;
                         cur_op += 4;
                         break;
+                    case MVM_OP_abs_n:
+                        MVM_exception_throw_adhoc(tc, "abs_n NYI");
                     case MVM_OP_eq_i:
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 == GET_REG(cur_op, 4).i64;
                         cur_op += 6;
