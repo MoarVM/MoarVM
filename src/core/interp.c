@@ -1730,6 +1730,65 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).i64 = REPR(GET_REG(cur_op, 2).o)->ID == MVM_REPR_ID_MVMHash ? 1 : 0;
                         cur_op += 4;
                         break;
+                    case MVM_OP_iter: {
+                        MVMObject *target = GET_REG(cur_op, 2).o, *iterator;
+                        MVMIterBody *body;
+                        if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
+                            iterator = REPR(tc->instance->VMIter)->allocate(tc, STABLE(tc->instance->VMIter));
+                            body = &((MVMIter *)iterator)->body;
+                            body->mode = MVM_ITER_MODE_ARRAY;
+                            body->array_state.index = -1;
+                            body->target = target;
+                        }
+                        else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+                            iterator = REPR(tc->instance->VMIter)->allocate(tc, STABLE(tc->instance->VMIter));
+                            body = &((MVMIter *)iterator)->body;
+                            body->mode = MVM_ITER_MODE_HASH;
+                            body->hash_state.next = ((MVMHash *)target)->body.hash_head;
+                            body->target = target;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+                        }
+                        GET_REG(cur_op, 0).o = iterator;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_iterkey_s: {
+                        MVMIter *iterator = (MVMIter *)GET_REG(cur_op, 2).o;
+                        if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter
+                                || iterator->body.mode != MVM_ITER_MODE_HASH)
+                            MVM_exception_throw_adhoc(tc, "This is not a hash iterator");
+                        if (!iterator->body.hash_state.curr)
+                            MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
+                        GET_REG(cur_op, 0).o = iterator->body.hash_state.curr->key;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_iterval: {
+                        MVMIter *iterator = (MVMIter *)GET_REG(cur_op, 2).o;
+                        MVMIterBody *body;
+                        MVMObject *target;
+                        if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter)
+                            MVM_exception_throw_adhoc(tc, "This is not an iterator");
+                        if (iterator->body.mode == MVM_ITER_MODE_ARRAY) {
+                            body = &iterator->body;
+                            if (body->array_state.index == -1)
+                                MVM_exception_throw_adhoc(tc, "You have not yet advanced in the hash iterator");
+                            target = body->target;
+                            REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &GET_REG(cur_op, 0), 0);
+                        }
+                        else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
+                            if (!iterator->body.hash_state.curr)
+                            MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
+                            GET_REG(cur_op, 0).o = iterator->body.hash_state.curr->value;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

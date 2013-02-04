@@ -1,10 +1,27 @@
-/* Representation used by VM-level arrays. Adopted from QRPA work by
- * Patrick Michaud. */
+/* Representation used by VM-level iterators. */
+
+#define MVM_ITER_MODE_ARRAY 0
+#define MVM_ITER_MODE_HASH 1
+
 typedef struct _MVMIterBody {
-    MVMuint64   elems;        /* number of elements */
-    MVMuint64   start;        /* slot index of first element */
-    MVMuint64   ssize;        /* size of slots array */
-    MVMObject **slots;        /* array of PMC slots */
+    
+    /* whether hash or array */
+    MVMuint32 mode;
+    
+    /* array or hash being iterated */
+    MVMObject *target;
+    
+    /* next hash item to give or next array index */
+    union {
+        struct {
+            MVMHashEntry *next;
+            MVMHashEntry *curr;
+        } hash_state;
+        struct {
+            MVMint64 index;
+            MVMint64 limit;
+        } array_state;
+    };
 } MVMIterBody;
 typedef struct _MVMIter {
     MVMObject common;

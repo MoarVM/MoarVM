@@ -1072,6 +1072,9 @@ QAST::MASTOperations.add_core_moarop_mapping('deletekey', 'deletekey');
 QAST::MASTOperations.add_core_moarop_mapping('elemskeyed', 'elemskeyed');
 QAST::MASTOperations.add_core_moarop_mapping('islist', 'islist');
 QAST::MASTOperations.add_core_moarop_mapping('ishash', 'ishash');
+QAST::MASTOperations.add_core_moarop_mapping('iterator', 'iter');
+QAST::MASTOperations.add_core_moarop_mapping('iterkey_s', 'iterkey_s');
+QAST::MASTOperations.add_core_moarop_mapping('iterval', 'iterval');
 # defined - overridden by HLL, but by default same as .DEFINITE.
 QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 

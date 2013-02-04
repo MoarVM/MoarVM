@@ -57,34 +57,58 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
 static MVMint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
 static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 count) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
 static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
 static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
+    MVMObject *target = body->target;
+    switch (body->mode) {
+        case MVM_ITER_MODE_ARRAY:
+            body->array_state.index++;
+            if (body->array_state.index >= body->array_state.limit)
+                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, 0);
+            return;
+        case MVM_ITER_MODE_HASH:
+            if (!body->hash_state.curr->hash_handle.next)
+                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            body->hash_state.curr = body->hash_state.curr->hash_handle.next;
+            value->o = root;
+            return;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown iteration mode");
+    }
 }
 
 /* This whole splice optimization can be optimized for the case we have two
