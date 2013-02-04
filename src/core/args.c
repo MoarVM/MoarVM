@@ -329,7 +329,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                     REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
                 REPR(box)->box_funcs->set_int(tc, STABLE(box), box,
                     OBJECT_BODY(box),
-                    (arg_info.flags & MVM_CALLSITE_ARG_MASK == MVM_CALLSITE_ARG_INT
+                    ((arg_info.flags & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_INT
                         ? arg_info.arg->i64 : arg_info.arg->ui64));
                 reg.o = box;
                 REPR(result)->pos_funcs->push(tc, STABLE(result), result,
@@ -428,7 +428,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
                     REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
                 REPR(box)->box_funcs->set_int(tc, STABLE(box), box,
                     OBJECT_BODY(box),
-                    (arg_info.flags & MVM_CALLSITE_ARG_MASK == MVM_CALLSITE_ARG_INT
+                    ((arg_info.flags & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_INT
                         ? arg_info.arg->i64 : arg_info.arg->ui64));
                 REPR(result)->ass_funcs->bind_key_boxed(tc, STABLE(result),
                     result, OBJECT_BODY(result), (MVMObject *)key, box);
