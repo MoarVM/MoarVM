@@ -1793,7 +1793,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (iterator->body.mode == MVM_ITER_MODE_ARRAY) {
                             body = &iterator->body;
                             if (body->array_state.index == -1)
-                                MVM_exception_throw_adhoc(tc, "You have not yet advanced in the hash iterator");
+                                MVM_exception_throw_adhoc(tc, "You have not yet advanced in the array iterator");
                             target = body->target;
                             REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &GET_REG(cur_op, 0), 0);
                         }
