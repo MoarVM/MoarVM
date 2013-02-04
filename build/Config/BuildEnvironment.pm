@@ -3,13 +3,25 @@ use strict;
 use warnings;
 
 sub detect {
+    my $opts = shift;
     my %config;
 
     if ($^O =~ /MSWin32/) {
-        # Windows.
-        $config{'os'} = 'Windows';
+        # Defaults for Windows
+        %config = (
+            # Misc
+            os   => 'Windows',
 
-        # We support the Microsoft toolchain.
+            # Filename conventions
+            exe  => '.exe',
+            o    => '.obj',
+
+            # Command names
+            rm   => 'del',
+            cat  => 'type',
+        );
+
+        # We support the Microsoft toolchain only on Windows right now.
         if (can_run('cl /nologo /?')) {
             # Ensure we have the other bits.
             return (excuse => 'It appears you have the MS C compiler, but no link!')
@@ -17,78 +29,114 @@ sub detect {
             return (excuse => 'It appears you have the MS C compiler, but no nmake!')
                 unless can_run('nmake /nologo /?');
 
-            # Set configuration flags.
-            $config{'cc'}           = 'cl';
-            $config{'copt'}         = '';
-            $config{'cdebug'}       = '/Zi';
-            $config{'cinstrument'}  = '';
-            $config{'cmiscflags'}   = '/nologo -DWIN32';
-            $config{'couto'}        = '-Fo';
-            $config{'link'}         = 'link';
-            $config{'louto'}        = '-out:';
-            $config{'lopt'}         = '';
-            $config{'ldebug'}       = '/debug';
-            $config{'linstrument'}  = '';
-            $config{'lmiscflags'}   = '/nologo /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib';
-            $config{'llibs'}        = '';
-            $config{'make'}         = 'nmake';
-            $config{'exe'}          = '.exe';
-            $config{'o'}            = '.obj';
-            $config{'rm'}           = 'del';
-            $config{'noreturn'}     = '__declspec(noreturn)';
-            $config{'noreturngcc'}  = '';
-            $config{'cat'}          = 'TYPE';
+            # Config settings for MS toolchain
+            %config = (
+                # Defaults
+                %config,
+
+                # Command names
+                cc          => 'cl',
+                link        => 'link',
+                make        => 'nmake',
+
+                # Compiler attribute declaration differences
+                noreturn    => '__declspec(noreturn)',
+                noreturngcc => '',
+
+                # Required flags
+                couto       => '-Fo',
+                louto       => '-out:',
+                cmiscflags  => '/nologo -DWIN32',
+                lmiscflags  => '/nologo /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib',
+                # XXXX: Why are libraries stuffed into lmiscflags above?
+                llibs       => '',
+
+                # Optional settings
+                # XXXX: Fill in missing flags for MS toolchain
+                copt        => $opts->{optimize}   ? ''       : '',
+                cdebug      => $opts->{debug}      ? '/Zi'    : '',
+                cinstrument => $opts->{instrument} ? ''       : '',
+                lopt        => $opts->{optimize}   ? ''       : '',
+                ldebug      => $opts->{debug}      ? '/debug' : '',
+                linstrument => $opts->{instrument} ? ''       : '',
+            );
         }
         else {
             return (excuse => 'So far, we only support building with the Microsoft toolchain on Windows.');
         }
     }
     elsif ($^O =~ /linux/) {
-        $config{'os'} = 'Linux';
+        # Defaults for Linux
+        %config = (
+            # Misc
+            os          => 'Linux',
+
+            # Filename conventions
+            exe         => '',
+            o           => '.o',
+
+            # Command names
+            rm          => 'rm -f',
+            cat         => 'cat',
+            make        => 'make',
+
+            # Compiler attribute declaration differences
+            noreturn    => '',
+            noreturngcc => '__attribute__((noreturn))',
+
+            # Required flags
+            couto       => '-o ',
+            louto       => '-o ',
+        );
 
         if (can_run('clang')) {
-            $config{'cc'}           = 'clang';
-            $config{'copt'}         = '';
-            $config{'cdebug'}       = '-g';
-            $config{'cinstrument'}  = '-fsanitize=address';
-            $config{'cmiscflags'}   = '-fno-omit-frame-pointer -fno-optimize-sibling-calls';
-            $config{'couto'}        = '-o ';
-            $config{'link'}         = 'clang';
-            $config{'louto'}        = '-o ';
-            $config{'lopt'}         = '';
-            $config{'ldebug'}       = '-g';
-            $config{'linstrument'}  = '-fsanitize=address';
-            $config{'lmiscflags'}   = '-L 3rdparty/apr/.libs';
-            $config{'llibs'}        = '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm';
-            $config{'make'}         = 'make';
-            $config{'exe'}          = '';
-            $config{'o'}            = '.o';
-            $config{'rm'}           = 'rm -f';
-            $config{'noreturn'}     = '';
-            $config{'noreturngcc'}  = '__attribute__((noreturn))';
-            $config{'cat'}          = 'cat';
+            # Config settings for Clang toolchain
+            %config = (
+                # Defaults
+                %config,
+
+                # Command names
+                cc          => 'clang',
+                link        => 'clang',
+
+                # Required flags
+                cmiscflags  => '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
+                lmiscflags  => '-L 3rdparty/apr/.libs',
+                llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
+
+                # Optional settings
+                copt        => $opts->{optimize}   ? '-O3'                : '',
+                cdebug      => $opts->{debug}      ? '-g'                 : '',
+                cinstrument => $opts->{instrument} ? '-fsanitize=address' : '',
+                lopt        => $opts->{optimize}   ? '-O3'                : '',
+                ldebug      => $opts->{debug}      ? '-g'                 : '',
+                linstrument => $opts->{instrument} ? '-fsanitize=address' : '',
+            );
         }
         elsif (can_run('gcc')) {
-            $config{'cc'}           = 'gcc';
-            $config{'copt'}         = '';
-            $config{'cdebug'}       = '-g';
-            $config{'cinstrument'}  = '';
-            $config{'cmiscflags'}   = '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses';
-            $config{'couto'}        = '-o ';
-            $config{'link'}         = 'gcc';
-            $config{'louto'}        = '-o ';
-            $config{'lopt'}         = '-O3';
-            $config{'ldebug'}       = '-g';
-            $config{'linstrument'}  = '';
-            $config{'lmiscflags'}   = '-L 3rdparty/apr/.libs';
-            $config{'llibs'}        = '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm';
-            $config{'make'}         = 'make';
-            $config{'exe'}          = '';
-            $config{'o'}            = '.o';
-            $config{'rm'}           = 'rm -f';
-            $config{'noreturn'}     = '';
-            $config{'noreturngcc'}  = '__attribute__((noreturn))';
-            $config{'cat'}          = 'cat';
+            # Config settings for GCC toolchain
+            %config = (
+                # Defaults
+                %config,
+
+                # Command names
+                cc          => 'gcc',
+                link        => 'gcc',
+
+                # Required flags
+                cmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses',
+                lmiscflags  => '-L 3rdparty/apr/.libs',
+                llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
+
+                # Optional settings
+                # XXXX: What instrumentation is available for GCC?
+                copt        => $opts->{optimize}   ? '-O3'                : '',
+                cdebug      => $opts->{debug}      ? '-g'                 : '',
+                cinstrument => $opts->{instrument} ? ''                   : '',
+                lopt        => $opts->{optimize}   ? '-O3'                : '',
+                ldebug      => $opts->{debug}      ? '-g'                 : '',
+                linstrument => $opts->{instrument} ? ''                   : '',
+            );
         }
         else {
             return (excuse => 'So far, we only support building with clang or gcc on Linux.');
