@@ -123,7 +123,7 @@ sub detect {
                 link        => 'gcc',
 
                 # Required flags
-                cmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses',
+                cmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses -Wreturn-type',
                 lmiscflags  => '-L 3rdparty/apr/.libs',
                 llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
 
