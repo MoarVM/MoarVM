@@ -1735,13 +1735,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMIterBody *body;
                         if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
                             iterator = REPR(tc->instance->VMIter)->allocate(tc, STABLE(tc->instance->VMIter));
+                            target = GET_REG(cur_op, 2).o;
                             body = &((MVMIter *)iterator)->body;
                             body->mode = MVM_ITER_MODE_ARRAY;
                             body->array_state.index = -1;
+                            body->array_state.limit = REPR(target)->pos_funcs->elems(tc, STABLE(target), target, OBJECT_BODY(target));
                             body->target = target;
                         }
                         else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
                             iterator = REPR(tc->instance->VMIter)->allocate(tc, STABLE(tc->instance->VMIter));
+                            target = GET_REG(cur_op, 2).o;
                             body = &((MVMIter *)iterator)->body;
                             body->mode = MVM_ITER_MODE_HASH;
                             body->hash_state.next = ((MVMHash *)target)->body.hash_head;

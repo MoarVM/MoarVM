@@ -101,9 +101,18 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, 0);
             return;
         case MVM_ITER_MODE_HASH:
-            if (!body->hash_state.curr->hash_handle.next)
-                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            body->hash_state.curr = body->hash_state.curr->hash_handle.next;
+            if (!body->hash_state.curr) {
+                if (body->hash_state.next) {
+                    body->hash_state.curr = body->hash_state.next;
+                    body->hash_state.next = body->hash_state.next->hash_handle.next;
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+                }
+            }
+            else {
+                body->hash_state.curr = body->hash_state.curr->hash_handle.next;
+            }
             value->o = root;
             return;
         default:
