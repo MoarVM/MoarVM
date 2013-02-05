@@ -85,19 +85,98 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     } \
 } while (0)
 
-#define args_get_pos(tc, ctx, pos, required, type_flag, expected, throw) do { \
-    find_pos_arg(ctx, pos, result); \
-    if (result.arg == NULL && required) \
-        MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed at least %u", pos + 1); \
-    if (throw && result.arg && !(result.flags & type_flag)) \
-        MVM_exception_throw_adhoc(tc, "Expected " expected " for positional argument, got %s", get_arg_type_name(tc, result.flags)); \
-} while (0);
+#define autounbox(tc, type_flag, expected) do { \
+    if (result.arg && !(result.flags & type_flag)) { \
+        if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
+            MVMObject *obj = result.arg->o; \
+            MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
+            switch (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
+                case MVM_STORAGE_SPEC_CAN_BOX_INT: \
+                    result.arg->i64 = MVM_repr_get_int(tc, obj); \
+                    result.flags = MVM_CALLSITE_ARG_INT; \
+                    break; \
+                case MVM_STORAGE_SPEC_CAN_BOX_NUM: \
+                    result.arg->n64 = MVM_repr_get_num(tc, obj); \
+                    result.flags = MVM_CALLSITE_ARG_NUM; \
+                    break; \
+                case MVM_STORAGE_SPEC_CAN_BOX_STR: \
+                    result.arg->s = MVM_repr_get_str(tc, obj); \
+                    result.flags = MVM_CALLSITE_ARG_STR; \
+                    break; \
+                default: \
+                    MVM_exception_throw_adhoc(tc, "Failed to unbox object to " expected); \
+            } \
+        } \
+        if (!(result.flags & type_flag)) { \
+            switch (type_flag) { \
+                case MVM_CALLSITE_ARG_OBJ: \
+                    MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                case MVM_CALLSITE_ARG_INT: \
+                    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+                        case MVM_CALLSITE_ARG_OBJ: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                        case MVM_CALLSITE_ARG_INT: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                        case MVM_CALLSITE_ARG_NUM: \
+                            result.arg->i64 = (MVMint64)result.arg->n64; \
+                            break; \
+                        case MVM_CALLSITE_ARG_STR: \
+                            MVM_exception_throw_adhoc(tc, "coerce string to int NYI"); \
+                        default: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                    } \
+                    result.flags = MVM_CALLSITE_ARG_INT; \
+                    break; \
+                case MVM_CALLSITE_ARG_NUM: \
+                    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+                        case MVM_CALLSITE_ARG_OBJ: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                        case MVM_CALLSITE_ARG_INT: \
+                            result.arg->n64 = (MVMnum64)result.arg->i64; \
+                            break; \
+                        case MVM_CALLSITE_ARG_NUM: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                        case MVM_CALLSITE_ARG_STR: \
+                            MVM_exception_throw_adhoc(tc, "coerce string to num NYI"); \
+                        default: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                    } \
+                    result.flags = MVM_CALLSITE_ARG_NUM; \
+                    break; \
+                case MVM_CALLSITE_ARG_STR: \
+                    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+                        case MVM_CALLSITE_ARG_OBJ: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                        case MVM_CALLSITE_ARG_INT: \
+                            MVM_exception_throw_adhoc(tc, "coerce int to string NYI"); \
+                        case MVM_CALLSITE_ARG_NUM: \
+                            MVM_exception_throw_adhoc(tc, "coerce num to string NYI"); \
+                        case MVM_CALLSITE_ARG_STR: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                        default: \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                    } \
+                    result.flags = MVM_CALLSITE_ARG_STR; \
+                    break; \
+                default: \
+                    MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+            } \
+        } \
+    } \
+} while (0)
 
-#define autobox(tc, target, result, box_type_obj, set_func, is_object, dest) do { \
+#define args_get_pos(tc, ctx, pos, required) do { \
+    find_pos_arg(ctx, pos, result); \
+    if (result.arg == NULL && required) { \
+        MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed at least %u", pos + 1); \
+    } \
+} while (0)
+
+#define autobox(tc, target, result, box_type_obj, is_object, set_func, dest) do { \
     MVMObject *box, *box_type; \
-    if (is_object) MVM_gc_root_temp_push(tc, (MVMCollectable **)&result); \
     box_type = target->static_info->cu->hll_config->box_type_obj; \
     box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
+    if (is_object) MVM_gc_root_temp_push(tc, (MVMCollectable **)&result); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
     if (REPR(box)->initialize) \
         REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
@@ -107,39 +186,46 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     dest = box; \
 } while (0)
 
+#define autobox_switch(tc, result) do { \
+    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+        case MVM_CALLSITE_ARG_OBJ: \
+            break; \
+        case MVM_CALLSITE_ARG_INT: \
+            autobox(tc, tc->cur_frame, result.arg->i64, int_box_type, 0, set_int, result.arg->o); \
+            break; \
+        case MVM_CALLSITE_ARG_NUM: \
+            autobox(tc, tc->cur_frame, result.arg->n64, num_box_type, 0, set_num, result.arg->o); \
+            break; \
+        case MVM_CALLSITE_ARG_STR: \
+            autobox(tc, tc->cur_frame, result.arg->s, str_box_type, 1, set_str, result.arg->o); \
+            break; \
+        default: \
+            MVM_exception_throw_adhoc(tc, "invalid type flag"); \
+    } \
+} while (0)
+
 MVMRegister * MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required, MVM_CALLSITE_ARG_OBJ, "object", 0);
-    switch (result.flags & MVM_CALLSITE_ARG_MASK) {
-        case MVM_CALLSITE_ARG_OBJ:
-            break;
-        case MVM_CALLSITE_ARG_INT:
-            autobox(tc, tc->cur_frame, result.arg->i64, int_box_type, set_int, 0, result.arg->o);
-            break;
-        case MVM_CALLSITE_ARG_NUM:
-            autobox(tc, tc->cur_frame, result.arg->n64, num_box_type, set_num, 0, result.arg->o);
-            break;
-        case MVM_CALLSITE_ARG_STR:
-            autobox(tc, tc->cur_frame, result.arg->s, str_box_type, set_str, 0, result.arg->o);
-            break;
-        default:
-            MVM_exception_throw_adhoc(tc, "invalid type flag");
-    }
+    args_get_pos(tc, ctx, pos, required);
+    autobox_switch(tc, result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required, MVM_CALLSITE_ARG_INT, "integer", 1);
+    args_get_pos(tc, ctx, pos, required);
+    autounbox(tc, MVM_CALLSITE_ARG_INT, "integer");
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required, MVM_CALLSITE_ARG_NUM, "number", 1);
+    args_get_pos(tc, ctx, pos, required);
+    autounbox(tc, MVM_CALLSITE_ARG_NUM, "number");
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required, MVM_CALLSITE_ARG_STR, "string", 1);
+    args_get_pos(tc, ctx, pos, required);
+    autounbox(tc, MVM_CALLSITE_ARG_STR, "string");
     return result.arg;
 }
 
@@ -162,8 +248,8 @@ static struct MVMArgInfo find_named_arg(MVMThreadContext *tc, MVMArgProcContext 
     return result;
 }
 
-#define args_get_named(tc, ctx, name, required, type_flag, expected) do { \
-    struct MVMArgInfo result; \
+#define args_get_named(tc, ctx, name, required) do { \
+     \
     MVMuint32 flag_pos, arg_pos; \
     result.arg = NULL; \
      \
@@ -177,23 +263,32 @@ static struct MVMArgInfo find_named_arg(MVMThreadContext *tc, MVMArgProcContext 
     } \
     if (result.arg == NULL && required) \
         MVM_exception_throw_adhoc(tc, "Required named string argument missing: %s", MVM_string_utf8_encode_C_string(tc, name)); \
-    if (result.arg && !(result.flags & type_flag)) \
-        MVM_exception_throw_adhoc(tc, "Expected " expected " for named argument %s, got %s", \
-            MVM_string_utf8_encode_C_string(tc, name), get_arg_type_name(tc, result.flags)); \
-    return result.arg; \
+     \
 } while (0)
 
 MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    args_get_named(tc, ctx, name, required, MVM_CALLSITE_ARG_OBJ, "object");
+    struct MVMArgInfo result;
+    args_get_named(tc, ctx, name, required);
+    autobox_switch(tc, result);
+    return result.arg;
 }
 MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    args_get_named(tc, ctx, name, required, MVM_CALLSITE_ARG_INT, "integer");
+    struct MVMArgInfo result;
+    args_get_named(tc, ctx, name, required);
+    autounbox(tc, MVM_CALLSITE_ARG_INT, "integer");
+    return result.arg;
 }
 MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    args_get_named(tc, ctx, name, required, MVM_CALLSITE_ARG_NUM, "number");
+    struct MVMArgInfo result;
+    args_get_named(tc, ctx, name, required);
+    autounbox(tc, MVM_CALLSITE_ARG_NUM, "number");
+    return result.arg;
 }
 MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    args_get_named(tc, ctx, name, required, MVM_CALLSITE_ARG_STR, "string");
+    struct MVMArgInfo result;
+    args_get_named(tc, ctx, name, required);
+    autounbox(tc, MVM_CALLSITE_ARG_STR, "string");
+    return result.arg;
 }
 
 /* Result setting. The frameless flag indicates that the currently
@@ -235,7 +330,7 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
                 target->return_value->n64 = (MVMnum64)result;
                 break;
             case MVM_RETURN_OBJ: {
-                autobox(tc, target, result, int_box_type, set_int, 0, target->return_value->o);
+                autobox(tc, target, result, int_box_type, 0, set_int, target->return_value->o);
                 break;
             }
             default:
@@ -256,7 +351,7 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
                 target->return_value->i64 = (MVMint64)result;
                 break;
             case MVM_RETURN_OBJ: {
-                autobox(tc, target, result, num_box_type, set_num, 0, target->return_value->o);
+                autobox(tc, target, result, num_box_type, 0, set_num, target->return_value->o);
                 break;
             }
             default:
@@ -274,7 +369,7 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
                 target->return_value->s = result;
                 break;
             case MVM_RETURN_OBJ: {
-                autobox(tc, target, result, str_box_type, set_str, 1, target->return_value->o);
+                autobox(tc, target, result, str_box_type, 1, set_str, target->return_value->o);
                 break;
             }
             default:

@@ -75,6 +75,7 @@ typedef struct _MVMStorageSpec {
 #define MVM_STORAGE_SPEC_CAN_BOX_INT    1
 #define MVM_STORAGE_SPEC_CAN_BOX_NUM    2
 #define MVM_STORAGE_SPEC_CAN_BOX_STR    4
+#define MVM_STORAGE_SPEC_CAN_BOX_MASK   7
 
 /* Flags that may be set on any collectable. */
 typedef enum {
