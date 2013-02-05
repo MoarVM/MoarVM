@@ -776,6 +776,38 @@ class QAST::MASTCompiler {
     ];
     
     multi method as_mast(QAST::Var $node, :$want) {
+        self.compile_var($node)
+    }
+    
+    multi method as_mast(QAST::VarWithFallback $node, :$want) {
+        my $var_res := self.compile_var($node);
+        if $*BINDVAL || $var_res.result_kind != $MVM_reg_obj {
+            $var_res
+        }
+        else {
+            my $il := nqp::list();
+            push_ilist($il, $var_res);
+            
+            my $fallback_if_nonnull := MAST::Label.new(:name($node.unique('fallback_if_nonnull')));
+            my $fallback_end := MAST::Label.new(:name($node.unique('fallback_end')));
+            my $res_reg := $*REGALLOC.fresh_o();
+            push_op($il, 'ifnonnull', $var_res.result_reg, $fallback_if_nonnull);
+            
+            my $fallback_res := self.as_mast($node.fallback, :want($MVM_reg_obj));
+            push_ilist($il, $fallback_res);
+            push_op($il, 'set', $res_reg, $fallback_res.result_reg);
+            push_op($il, 'goto', $fallback_end);
+            nqp::push($il, $fallback_if_nonnull);
+            push_op($il, 'set', $res_reg, $var_res.result_reg);
+            nqp::push($il, $fallback_end);
+            $*REGALLOC.release_register($var_res.result_reg, $MVM_reg_obj);
+            $*REGALLOC.release_register($fallback_res.result_reg, $MVM_reg_obj);
+            
+            MAST::InstructionList.new($il, $res_reg, $MVM_reg_obj)
+        }
+    }
+    
+    method compile_var($node, :$want) {
         my $scope := $node.scope;
         my $decl  := $node.decl;
         
