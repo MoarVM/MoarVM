@@ -727,7 +727,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_coerce_ns: {
-                        char buf[16];
+                        char buf[20];
                         int i;
                         sprintf(buf, "%-15f", GET_REG(cur_op, 2).n64);
                         i = strlen(buf);
@@ -814,7 +814,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_say_n: {
-                        char buf[16];
+                        char buf[20];
                         int i;
                         sprintf(buf, "%-15f", GET_REG(cur_op, 0).n64);
                         i = strlen(buf);
