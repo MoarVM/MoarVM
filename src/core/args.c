@@ -13,7 +13,7 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
     /* initial counts and values; can be altered by flatteners */
     ctx->args     = args;
     if (ctx->named_used && ctx->named_used_size >= (callsite->arg_count - callsite->num_pos) / 2) { /* reuse the old one */
-        memset(ctx->named_used, 0, ctx->named_used_size);
+        memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
     }
     else {
         if (ctx->named_used) {
@@ -65,19 +65,21 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
-    MVMuint16 num_pos = ctx->num_pos;
+    MVMuint16 num_pos;
+    
+    flatten_args(tc, ctx);
+    
+    num_pos = ctx->num_pos;
     if (num_pos < min)
         MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed %u, got %u", min, num_pos);
     if (num_pos > max)
         MVM_exception_throw_adhoc(tc, "Too many positional arguments; max %u, got %u", max, num_pos);
-    
-    flatten_args(tc, ctx);
 }
 
 /* Get positional arguments. */
 #define find_pos_arg(ctx, pos, result) do { \
     if (pos < ctx->num_pos) { \
-        result.arg = &ctx->args[pos];  \
+        result.arg = &ctx->args[pos]; \
         result.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[pos]; \
     } \
     else { \
@@ -85,11 +87,13 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     } \
 } while (0)
 
-#define autounbox(tc, type_flag, expected) do { \
+#define autounbox(tc, type_flag, expected, result) do { \
     if (result.arg && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
-            MVMObject *obj = result.arg->o; \
-            MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
+            MVMObject *obj; \
+            MVMStorageSpec ss; \
+            obj = result.arg->o; \
+            ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
             switch (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
                     result.arg->i64 = MVM_repr_get_int(tc, obj); \
@@ -110,62 +114,62 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
         if (!(result.flags & type_flag)) { \
             switch (type_flag) { \
                 case MVM_CALLSITE_ARG_OBJ: \
-                    MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                    MVM_exception_throw_adhoc(tc, "unreachable unbox 0"); \
                 case MVM_CALLSITE_ARG_INT: \
                     switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
                         case MVM_CALLSITE_ARG_OBJ: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 1"); \
                         case MVM_CALLSITE_ARG_INT: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 2"); \
                         case MVM_CALLSITE_ARG_NUM: \
                             result.arg->i64 = (MVMint64)result.arg->n64; \
                             break; \
                         case MVM_CALLSITE_ARG_STR: \
                             MVM_exception_throw_adhoc(tc, "coerce string to int NYI"); \
                         default: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 3"); \
                     } \
                     result.flags = MVM_CALLSITE_ARG_INT; \
                     break; \
                 case MVM_CALLSITE_ARG_NUM: \
                     switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
                         case MVM_CALLSITE_ARG_OBJ: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 4"); \
                         case MVM_CALLSITE_ARG_INT: \
                             result.arg->n64 = (MVMnum64)result.arg->i64; \
                             break; \
                         case MVM_CALLSITE_ARG_NUM: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 5"); \
                         case MVM_CALLSITE_ARG_STR: \
                             MVM_exception_throw_adhoc(tc, "coerce string to num NYI"); \
                         default: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 6"); \
                     } \
                     result.flags = MVM_CALLSITE_ARG_NUM; \
                     break; \
                 case MVM_CALLSITE_ARG_STR: \
                     switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
                         case MVM_CALLSITE_ARG_OBJ: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 7"); \
                         case MVM_CALLSITE_ARG_INT: \
                             MVM_exception_throw_adhoc(tc, "coerce int to string NYI"); \
                         case MVM_CALLSITE_ARG_NUM: \
                             MVM_exception_throw_adhoc(tc, "coerce num to string NYI"); \
                         case MVM_CALLSITE_ARG_STR: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 8"); \
                         default: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 9"); \
                     } \
                     result.flags = MVM_CALLSITE_ARG_STR; \
                     break; \
                 default: \
-                    MVM_exception_throw_adhoc(tc, "unreachable unbox"); \
+                    MVM_exception_throw_adhoc(tc, "unreachable unbox 10"); \
             } \
         } \
     } \
 } while (0)
 
-#define args_get_pos(tc, ctx, pos, required) do { \
+#define args_get_pos(tc, ctx, pos, required, result) do { \
     find_pos_arg(ctx, pos, result); \
     if (result.arg == NULL && required) { \
         MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed at least %u", pos + 1); \
@@ -206,26 +210,26 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 
 MVMRegister * MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required);
+    args_get_pos(tc, ctx, pos, required, result);
     autobox_switch(tc, result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required);
-    autounbox(tc, MVM_CALLSITE_ARG_INT, "integer");
+    args_get_pos(tc, ctx, pos, required, result);
+    autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required);
-    autounbox(tc, MVM_CALLSITE_ARG_NUM, "number");
+    args_get_pos(tc, ctx, pos, required, result);
+    autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_pos(tc, ctx, pos, required);
-    autounbox(tc, MVM_CALLSITE_ARG_STR, "string");
+    args_get_pos(tc, ctx, pos, required, result);
+    autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
     return result.arg;
 }
 
@@ -275,19 +279,19 @@ MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ct
 MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result;
     args_get_named(tc, ctx, name, required);
-    autounbox(tc, MVM_CALLSITE_ARG_INT, "integer");
+    autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result;
     args_get_named(tc, ctx, name, required);
-    autounbox(tc, MVM_CALLSITE_ARG_NUM, "number");
+    autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result;
     args_get_named(tc, ctx, name, required);
-    autounbox(tc, MVM_CALLSITE_ARG_STR, "string");
+    autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
     return result.arg;
 }
 
@@ -525,12 +529,11 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     
     if (!ctx->callsite->has_flattening) return;
     
-    new_arg_flags = malloc(new_arg_flags_size);
-    new_args = malloc(new_args_size);
+    new_arg_flags = malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
+    new_args = malloc(new_args_size * sizeof(MVMRegister));
     
     /* first flatten any positionals */
     for ( ; arg_pos < ctx->num_pos; arg_pos++) {
-        MVMuint32 found = 0;
         
         arg_info.arg = &ctx->args[arg_pos];
         arg_info.flags = ctx->callsite->arg_flags[arg_pos];
@@ -545,14 +548,13 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
                 MVM_exception_throw_adhoc(tc, "Too many arguments in flattening array.");
             }
-            found = (MVMuint32)count;
             
-            for (i = 0; i < found; i++) {
+            for (i = 0; i < count; i++) {
                 if (new_arg_pos == new_args_size) {
-                    new_args = realloc(new_args, (new_args_size *= 2));
+                    new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
                 }
                 if (new_flag_pos == new_arg_flags_size) {
-                    new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2));
+                    new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
                 
                 REPR(list)->pos_funcs->at_pos(tc, STABLE(list), list,
@@ -562,19 +564,17 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         }
         else {
             if (new_arg_pos == new_args_size) {
-                new_args = realloc(new_args, (new_args_size *= 2));
+                new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
             }
             if (new_flag_pos == new_arg_flags_size) {
-                new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2));
+                new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
             }
             
             (new_args + new_arg_pos++)->o = arg_info.arg->o;
             new_arg_flags[new_flag_pos++] = arg_info.flags;
-            found = 1;
         }
-        
-        new_arg_pos += found;
     }
+    new_num_pos = new_arg_pos;
     
     /* then flatten any nameds */
     for ( flag_pos = arg_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
