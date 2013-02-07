@@ -20,9 +20,9 @@ pod2usage(1) if $opts{help};
 print "Welcome to MoarVM!\n\n";
 
 print dots("Checking master build settings ...");
-$opts{instrument} //= 0;
-$opts{optimize}   //= 0 + !$opts{debug};
 $opts{debug}      //= 0 + !$opts{optimize};
+$opts{optimize}   //= 0 + !$opts{debug};
+$opts{instrument} //= 0;
 print " OK\n    (debug: " . _yn($opts{debug})
     . ", optimize: "      . _yn($opts{optimize})
     . ", instrument: "    . _yn($opts{instrument}) . ")\n";
@@ -98,13 +98,13 @@ Show this help information.
 =item --debug
 
 Turn on debugging flags during compile and link.  If C<--optimize> is not
-explicitly set, turning this on defaults optimization off; otherwise this
-defaults to the opposite of C<--optimize>.
+explicitly set, debug defaults to on, and optimize defaults to off.
 
 =item --optimize
 
 Turn on optimization flags during compile and link.  If C<--debug> is not
-explicitly set, optimize defaults to on, and debugging defaults to off.
+explicitly set, turning this on defaults debugging off; otherwise this
+defaults to the opposite of C<--debug>.
 
 =item --instrument
 
