@@ -7,6 +7,7 @@ static MVMREPROps *this_repr;
 static MVMString *str_name       = NULL;
 static MVMString *str_type       = NULL;
 static MVMString *str_box_target = NULL;
+static MVMString *str_attribute  = NULL;
 
 /* Helpers for reading/writing values. */
 static MVMint64 get_int_at_offset(void *data, MVMint64 offset) {
@@ -483,15 +484,22 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 }
 
 /* Compose the representation. */
-static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-    MVMint64 mro_pos, mro_count, num_parents, total_attrs, num_attrs,
-             cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
-             cur_init_slot, cur_mark_slot, cur_cleanup_slot,
-             unboxed_type, bits, i;
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
+    MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
+               cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
+               cur_init_slot, cur_mark_slot, cur_cleanup_slot,
+               unboxed_type, bits, i;
+    MVMObject *info;
 
     /* Allocate the representation data. */
     MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
     memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
+    
+    /* Find attribute information. */
+    info = REPR(info_hash)->ass_funcs->at_key_boxed(tc, STABLE(info_hash), info_hash,
+        OBJECT_BODY(info_hash), (MVMObject *)str_attribute);
+    if (info == NULL)
+        MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute protocol in compose");
     
     /* In this first pass, we'll over the MRO entries, looking for if
      * there is any multiple inheritance and counting the number of
@@ -686,6 +694,8 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
     str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "box_target");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
+    str_attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_attribute);
     
     /* Allocate and populate the representation function table. */
     this_repr = malloc(sizeof(MVMREPROps));

@@ -15,6 +15,7 @@ static MVMString *str_anon       = NULL;
 static MVMString *str_P6opaque   = NULL;
 static MVMString *str_type       = NULL;
 static MVMString *str_box_target = NULL;
+static MVMString *str_attribute  = NULL;
 
 /* Creates a stub VMString. Note we didn't initialize the
  * representation yet, so have to do this somewhat pokily. */
@@ -199,7 +200,7 @@ static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegist
 /* Composes the meta-object. */
 static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *method_table, *attributes, *BOOTArray, *BOOTHash,
-              *repr_info, *type_info, *attr_info_list, *parent_info;
+              *repr_info_hash, *repr_info, *type_info, *attr_info_list, *parent_info;
     MVMint64   num_attrs, i;
     
     /* Get arguments. */
@@ -285,11 +286,18 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
         OBJECT_BODY(parent_info));
     MVM_repr_push_o(tc, type_info, parent_info);
     
+    /* Finally, this all goes in a hash under the key 'attribute'. */
+    repr_info_hash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info_hash);
+    REPR(repr_info_hash)->initialize(tc, STABLE(repr_info_hash), repr_info_hash, OBJECT_BODY(repr_info_hash));
+    REPR(repr_info_hash)->ass_funcs->bind_key_boxed(tc, STABLE(repr_info_hash),
+            repr_info_hash, OBJECT_BODY(repr_info_hash), (MVMObject *)str_attribute, repr_info);
+
     /* Compose the representation using it. */
-    REPR(type_obj)->compose(tc, STABLE(type_obj), repr_info);
+    REPR(type_obj)->compose(tc, STABLE(type_obj), repr_info_hash);
     
     /* Clear temporary roots. */
-    MVM_gc_root_temp_pop_n(tc, 9);
+    MVM_gc_root_temp_pop_n(tc, 10);
     
     /* Return type object. */
     MVM_args_set_result_obj(tc, type_obj, MVM_RETURN_CURRENT_FRAME);
@@ -584,6 +592,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
     str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "box_target");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
+    str_attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_attribute);
     
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
