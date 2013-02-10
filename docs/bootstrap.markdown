@@ -5,11 +5,11 @@ pretty much the first thing that the VM does after startup.
 ## Bootstrap Procedure
 The bootstrap is done something like this.
 
-* Create a type object that will become BOOTStr, the VM's core string type.
+* Create a type object that will become VMString, the VM's core string type.
   It will have no meta-object yet, and the STable will not be filled out. It
   will use the MVMString representation.
 * Populate the representations table and name to ID hash. This includes setting
-  up all of the representation function tables. We needed the BOOTStr first, as
+  up all of the representation function tables. We needed the VMString first, as
   representation function tables contain the representation name in string form.
 * Create a type object BOOTArray, the VM's core array type. It will have the
   MVMObjectArray representation. Again, there's no meta-object just yet.

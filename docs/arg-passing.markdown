@@ -4,9 +4,11 @@ Every invocation in MoarVM consists of two pieces:
 * A static Callsite descriptor (MVMCallsite), which incorporates the
   number of arguments along with a set of flags about what is being
   passed.
-* An array of MVMArg, which is a union type. This contains the actual
-  arguments being passed. It's the static descriptor that indicates how
-  it can be read.
+* A contignuous group of MVMRegister, which is a union type. This contains
+  the actual arguments being passed. The static descriptor that indicates how
+  to process the registers. As they are registers, they really are just a
+  chunk of the register space in the caller, thus anything that wants the
+  args for a longer period of time must work to keep them.
 
 ## Memory management
 Callsite descriptors are kept at a compilation unit level, and thus their

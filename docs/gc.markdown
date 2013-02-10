@@ -5,7 +5,6 @@ Garbage collection in MoarVM can be characterized as:
 * Generational (two generations, the young one being know as the nursery)
 * Parallel (multiple threads may participate in GC)
 * Semi-space copying (only in the young generation)
-* Mark-compact (only in the old generation)
 * Stop the world (all threads are paused while collection takes place)
 * Precise (we always know what is a pointer and what is not)
 
@@ -13,19 +12,17 @@ Finalization calls to free non-garbage-collectable resources happen asynchronous
 with mutator execution.
 
 ## Thread Locality
-Every thread has its own semi-space nursery. This is so it can do bump-pointer
-allocation without the need for synchronization during execution, and also as
-most objects will be thread-local. This doesn't mean objects in the nursery
-cannot be accessed by other threads or have their only living reference known
-just by an object in another thread's nursery.
-
-The older generation is a shared space. It is organized into pages which will
-each hold objects of a certain size.
+Every thread has its own semi-space nursery and generation 2 size-separated
+area. This is so it can do bump-pointer allocation and promotion to gen-2
+without the need for synchronization during execution, and also as most
+objects will be thread-local. This doesn't mean objects cannot be accessed
+by other threads or have their only living reference known just by an object
+in another thread's memory space.
 
 ## How Objects Support Collection
 Each object has space for flags, some of which are used for GC-related purposes.
 Additionally, objects all have space for a forwarding pointer, which is used
-by the GC as it goes about copying or compaction.
+by the GC as it goes about copying.
 
 ## How Collection Is Started
 For collection to begin, all threads must be paused. The thread that wishes to
@@ -59,15 +56,8 @@ Processing the worklist involves:
 * Finally, update any pointers we discovered that point to the now-moved objects
 
 ## Full Collections
-A full collection is triggered if the nursery promotion into the old generation
-brings avilable space within a given threshold and it's been long enough since the
-last full collection.
-
-XXX Describe compaction.
-
-If compaction fully clears a page, it is returned to the page buffer. In cases
-where the page buffer has an excess of pages, it may choose to return memory to
-the OS.
+Every N GC runs will be a full collection, and generation 2 will be collected as
+well as generation 1.
 
 ## Write Barrier
 All writes into an object in the second generation from an object in the nursery
