@@ -80,6 +80,12 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                 a(" named");
                 j++;
             }
+            else if (csitee & MVM_CALLSITE_ARG_FLAT_NAMED) {
+                a(" flatnamed");
+            }
+            else if (csitee & MVM_CALLSITE_ARG_FLAT) {
+                a(" flat");
+            }
             else a(" positional");
             if (csitee & MVM_CALLSITE_ARG_OBJ) a(" obj");
             else if (csitee & MVM_CALLSITE_ARG_INT) a(" int");

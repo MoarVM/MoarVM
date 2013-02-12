@@ -521,7 +521,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         
         /* skip it if it's not flattening or is null. The bytecode loader
          * verifies it's a MVM_CALLSITE_ARG_OBJ. */
-        if ((arg_info.flags & (MVM_CALLSITE_ARG_FLAT | MVM_CALLSITE_ARG_FLAT_NAMED)) && arg_info.arg->o) {
+        if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg->o) {
             MVMObject *list = arg_info.arg->o;
             MVMint64 count;
             
@@ -544,7 +544,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                 new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
             }
         }
-        else {
+        else if (!(arg_info.flags & MVM_CALLSITE_ARG_FLAT_NAMED)) {
             if (new_arg_pos == new_args_size) {
                 new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
             }

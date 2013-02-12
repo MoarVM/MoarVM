@@ -598,7 +598,7 @@ sub arrange_args(@in) {
     my @named := ();
     my @posit := ();
     for @in {
-        nqp::push(((nqp::can($_, 'named') && $_.named) ?? @named !! @posit), $_);
+        nqp::push(((nqp::can($_, 'named') && $_.named && (!nqp::can($_, 'flat') || !$_.flat)) ?? @named !! @posit), $_);
     }
     for @named { nqp::push(@posit, $_) }
     @posit

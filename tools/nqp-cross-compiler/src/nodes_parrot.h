@@ -218,7 +218,10 @@ typedef enum {
     MVM_CALLSITE_ARG_NAMED = 32,
     
     /* Argument is flattened. What this means is up to the target. */
-    MVM_CALLSITE_ARG_FLAT = 64
+    MVM_CALLSITE_ARG_FLAT = 64,
+    
+    /* Argument is flattened and named. */
+    MVM_CALLSITE_ARG_FLAT_NAMED = 128
 } MVMCallsiteFlags;
 
 /* Type mappings. */
