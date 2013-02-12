@@ -105,7 +105,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_if_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (MVM_coerce_istrue_s(tc, str))
+                        if (!MVM_coerce_istrue_s(tc, str))
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
@@ -114,7 +114,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_unless_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (MVM_coerce_istrue_s(tc, str))
+                        if (!MVM_coerce_istrue_s(tc, str))
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
@@ -122,8 +122,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_if_o:
+                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o))
+                            cur_op += 6;
+                        else
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        GC_SYNC_POINT(tc);
+                        break;
                     case MVM_OP_unless_o:
-                        MVM_exception_throw_adhoc(tc, "if/unless_o NYI");
+                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o))
+                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
+                        else
+                            cur_op += 6;
+                        GC_SYNC_POINT(tc);
+                        break;
                     case MVM_OP_extend_u8:
                     case MVM_OP_extend_u16:
                     case MVM_OP_extend_u32:
@@ -1748,7 +1759,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *target = GET_REG(cur_op, 2).o, *iterator;
                         MVMIterBody *body;
                         if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
-                            iterator = REPR(tc->instance->VMIter)->allocate(tc, STABLE(tc->instance->VMIter));
+                            iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
                             target = GET_REG(cur_op, 2).o;
                             body = &((MVMIter *)iterator)->body;
                             body->mode = MVM_ITER_MODE_ARRAY;
@@ -1757,7 +1768,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             body->target = target;
                         }
                         else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
-                            iterator = REPR(tc->instance->VMIter)->allocate(tc, STABLE(tc->instance->VMIter));
+                            iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
                             target = GET_REG(cur_op, 2).o;
                             body = &((MVMIter *)iterator)->body;
                             body->mode = MVM_ITER_MODE_HASH;

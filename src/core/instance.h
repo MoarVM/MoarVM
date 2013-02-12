@@ -9,6 +9,7 @@ struct _MVMBootTypes {
     MVMObject *BOOTCCode;
     MVMObject *BOOTCode;
     MVMObject *BOOTThread;
+    MVMObject *BOOTIter;
 };
 
 typedef struct _MVMREPRHashEntry {
@@ -41,9 +42,6 @@ typedef struct _MVMInstance {
     /* The VM's native string type, using MVMString. Note that this is a
      * native string, not an object boxing one. */
     MVMObject *VMString;
-    
-    /* The VM's native iterator type, using MVMIter. */
-    MVMObject *VMIter;
     
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
