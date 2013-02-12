@@ -105,8 +105,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_if_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || NUM_GRAPHS(str) == 0 || ( NUM_GRAPHS(str) == 1
-                            && MVM_string_get_codepoint_at_nocheck(tc, str, 0) != 48 )) /* zero char */
+                        if (MVM_coerce_istrue_s(tc, str))
                             cur_op += 6;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
@@ -115,8 +114,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_unless_s0: {
                         MVMString *str = GET_REG(cur_op, 0).s;
-                        if (!str || NUM_GRAPHS(str) == 0 || ( NUM_GRAPHS(str) == 1
-                            && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48 )) /* zero char */
+                        if (MVM_coerce_istrue_s(tc, str))
                             cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         else
                             cur_op += 6;
@@ -1808,6 +1806,56 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    /*
+                    getcodename     
+                    composetype     
+                    setmethcache    
+                    setmethcacheauth
+                    settypecache    
+                    setinvokespec   
+                    isinvokable     
+                    iscont          
+                    decont          */
+                    case MVM_OP_setboolspec: {
+                        MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
+                        bs->mode = (MVMuint32)GET_REG(cur_op, 4).i64;
+                        bs->method = GET_REG(cur_op, 6).o;
+                        GET_REG(cur_op, 2).o->st->boolification_spec = bs;
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_istrue:
+                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_isfalse:
+                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o) ? 0 : 1;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_istrue_s:
+                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_isfalse_s:
+                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s) ? 0 : 1;
+                        cur_op += 4;
+                        break;
+                    /*
+                    getcodeobj      
+                    setcodeobj      
+                    setcodename     
+                    forceouterctx   
+                    getcomp         
+                    bindcomp        
+                    getcurhllsym    
+                    bindcurhllsym   
+                    getwho          
+                    setwho          
+                    rebless         
+                    */
+                    
+                    
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

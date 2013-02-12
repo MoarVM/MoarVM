@@ -884,19 +884,6 @@ QAST::MASTOperations.add_core_op('hash', -> $qastcomp, $op {
     $hash
 });
 
-# fake just so the tests don't crash
-QAST::MASTOperations.add_core_op('istrue',  -> $qastcomp, $op {
-    $qastcomp.as_mast(QAST::IVal.new( :value(1) ) );
-});
-
-QAST::MASTOperations.add_core_op('isfalse',  -> $qastcomp, $op {
-    $qastcomp.as_mast(QAST::IVal.new( :value(1) ) );
-});
-
-QAST::MASTOperations.add_core_op('setboolspec',  -> $qastcomp, $op {
-    $qastcomp.as_mast(QAST::IVal.new( :value(1) ) );
-});
-
 # arithmetic opcodes
 QAST::MASTOperations.add_core_moarop_mapping('add_i', 'add_i');
 #QAST::MASTOperations.add_core_moarop_mapping('add_I', 'nqp_bigint_add');
@@ -1077,6 +1064,9 @@ QAST::MASTOperations.add_core_moarop_mapping('iterval', 'iterval');
 QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
 # defined - overridden by HLL, but by default same as .DEFINITE.
 QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
+QAST::MASTOperations.add_core_moarop_mapping('istrue', 'istrue');
+QAST::MASTOperations.add_core_moarop_mapping('isfalse', 'isfalse');
+QAST::MASTOperations.add_core_moarop_mapping('setboolspec', 'setboolspec');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
