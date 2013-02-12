@@ -575,9 +575,14 @@ sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
     # build up the typeflag
     my $result_typeflag := @kind_to_args[$arg_mast.result_kind];
     if $arg.flat {
-        $result_typeflag := $result_typeflag +| $Arg::flat;
+        if $arg.named {
+            $result_typeflag := $result_typeflag +| $Arg::flatnamed;
+        }
+        else {
+            $result_typeflag := $result_typeflag +| $Arg::flat;
+        }
     }
-    if $arg.named -> $name {
+    elsif $arg.named -> $name {
         # add in the extra arg for the name
         nqp::push(@arg_regs, MAST::SVal.new( value => $name ));
         

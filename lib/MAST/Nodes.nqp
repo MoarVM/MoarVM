@@ -362,6 +362,7 @@ module Arg {
     our $str   := 8;
     our $named := 32;
     our $flat  := 64;
+    our $flatnamed := 128;
 }
 
 # A call. A register holding the thing to call should be specified, along
@@ -410,6 +411,9 @@ class MAST::Call is MAST::Node {
             }
             elsif $flag +& $Arg::flat {
                 $str := $str ~ " flat";
+            }
+            elsif $flag +& $Arg::flatnamed {
+                $str := $str ~ " flat/named";
             }
             else {
                 $str := $str ~ " positional" ;

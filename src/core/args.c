@@ -6,13 +6,8 @@ struct MVMArgInfo {
     MVMCallsiteEntry  flags;
 };
 
-/* Initialize arguments processing context. */
-void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
-    /* Stash callsite and argument counts/pointers. */
-    ctx->callsite = callsite;
-    /* initial counts and values; can be altered by flatteners */
-    ctx->args     = args;
-    if (ctx->named_used && ctx->named_used_size >= (callsite->arg_count - callsite->num_pos) / 2) { /* reuse the old one */
+static init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
+    if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */
         memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
     }
     else {
@@ -20,9 +15,18 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
             free(ctx->named_used);
             ctx->named_used = NULL;
         }
-        ctx->named_used_size = (callsite->arg_count - callsite->num_pos) / 2;
+        ctx->named_used_size = num;
         ctx->named_used = ctx->named_used_size ? calloc(sizeof(MVMuint8), ctx->named_used_size) : NULL;
     }
+}
+
+/* Initialize arguments processing context. */
+void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
+    /* Stash callsite and argument counts/pointers. */
+    ctx->callsite = callsite;
+    /* initial counts and values; can be altered by flatteners */
+    init_named_used(tc, ctx, (callsite->arg_count - callsite->num_pos) / 2);
+    ctx->args     = args;
     ctx->num_pos  = callsite->num_pos;
     ctx->arg_count = callsite->arg_count;
     ctx->arg_flags = NULL; /* will be populated by flattener if needed */
@@ -135,6 +139,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
                         case MVM_CALLSITE_ARG_STR: \
                             MVM_exception_throw_adhoc(tc, "coerce string to num NYI"); \
                         default: \
+                            printf("%d", ((MVMArray *)NULL)->body.elems); \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 6"); \
                     } \
                     result.flags = MVM_CALLSITE_ARG_NUM; \
@@ -225,7 +230,7 @@ MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx,
     return result.arg;
 }
 
-#define args_get_named(tc, ctx, name, required) do { \
+#define args_get_named(tc, ctx, name, required, _type) do { \
      \
     MVMuint32 flag_pos, arg_pos; \
     result.arg = NULL; \
@@ -242,31 +247,31 @@ MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx,
         } \
     } \
     if (result.arg == NULL && required) \
-        MVM_exception_throw_adhoc(tc, "Required named string argument missing: %s", MVM_string_utf8_encode_C_string(tc, name)); \
+        MVM_exception_throw_adhoc(tc, "Required named " _type " argument missing: %s", MVM_string_utf8_encode_C_string(tc, name)); \
      \
 } while (0)
 
 MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_named(tc, ctx, name, required);
+    args_get_named(tc, ctx, name, required, "object");
     autobox_switch(tc, result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_named(tc, ctx, name, required);
+    args_get_named(tc, ctx, name, required, "integer");
     autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_named(tc, ctx, name, required);
+    args_get_named(tc, ctx, name, required, "number");
     autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
     return result.arg;
 }
 MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     struct MVMArgInfo result;
-    args_get_named(tc, ctx, name, required);
+    args_get_named(tc, ctx, name, required, "string");
     autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
     return result.arg;
 }
@@ -516,16 +521,9 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         
         /* skip it if it's not flattening or is null. The bytecode loader
          * verifies it's a MVM_CALLSITE_ARG_OBJ. */
-        if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg->o) {
+        if ((arg_info.flags & (MVM_CALLSITE_ARG_FLAT | MVM_CALLSITE_ARG_FLAT_NAMED)) && arg_info.arg->o) {
             MVMObject *list = arg_info.arg->o;
             MVMint64 count;
-            
-            if (REPR(list)->ID != MVM_REPR_ID_MVMArray) {
-                if (REPR(list)->ID != MVM_REPR_ID_MVMHash) {
-                    MVM_exception_throw_adhoc(tc, "Unhandled REPR in flattening object.");
-                }
-                continue; /* it must be a flattening hash; handle it later */
-            }
             
             count = REPR(list)->pos_funcs->elems(tc, STABLE(list),
                 list, OBJECT_BODY(list));
@@ -563,11 +561,6 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* then append any nameds from the original */
     for ( flag_pos = arg_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
         
-        key_info.arg = ctx->args + arg_pos;
-        key_info.flags = ctx->callsite->arg_flags[arg_pos];
-        val_info.arg = ctx->args + arg_pos + 1;
-        val_info.flags = ctx->callsite->arg_flags[arg_pos + 1];
-        
         if (new_arg_pos == new_args_size) {
             new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
         }
@@ -575,9 +568,9 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
         }
         
-        (new_args + new_arg_pos++)->s = key_info.arg->s;
-        (new_args + new_arg_pos++)->o = val_info.arg->o;
-        new_arg_flags[new_flag_pos++] = (val_info.flags & ~MVM_CALLSITE_ARG_NAMED) | MVM_CALLSITE_ARG_FLAT;
+        (new_args + new_arg_pos++)->s = (ctx->args + arg_pos)->s;
+        (new_args + new_arg_pos++)->o = (ctx->args + arg_pos + 1)->o;
+        new_arg_flags[new_flag_pos++] = ctx->callsite->arg_flags[flag_pos];
     }
     
     /* now flatten any flattening hashes */
@@ -586,7 +579,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         arg_info.arg = ctx->args + arg_pos;
         arg_info.flags = ctx->callsite->arg_flags[arg_pos];
         
-        if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg->o && REPR(arg_info.arg->o)->ID == MVM_REPR_ID_MVMHash) {
+        if (!(arg_info.flags & MVM_CALLSITE_ARG_FLAT_NAMED))
+            continue;
+        
+        if (arg_info.arg->o && REPR(arg_info.arg->o)->ID == MVM_REPR_ID_MVMHash) {
             MVMHashBody *body = &((MVMHash *)arg_info.arg->o)->body;
             MVMHashEntry *current, *tmp;
             
@@ -601,11 +597,15 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                 
                 (new_args + new_arg_pos++)->s = (MVMString *)current->key;
                 (new_args + new_arg_pos++)->o = current->value;
-                new_arg_flags[new_flag_pos++] = (val_info.flags & ~MVM_CALLSITE_ARG_NAMED) | MVM_CALLSITE_ARG_FLAT;
+                new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
             }
+        }
+        else if (arg_info.arg->o) {
+            MVM_exception_throw_adhoc(tc, "flattening of other hash reprs NYI.");
         }
     }
     
+    init_named_used(tc, ctx, (new_arg_pos - new_num_pos) / 2);
     ctx->args = new_args;
     ctx->arg_count = new_arg_pos;
     ctx->num_pos = new_num_pos;

@@ -387,13 +387,17 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         /* Count positional arguments. */
         /* Validate that all positionals come before all nameds. */
         for (j = 0; j < elems; j++) {
-            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
+            if (callsites[i]->arg_flags[j] & (MVM_CALLSITE_ARG_FLAT | MVM_CALLSITE_ARG_FLAT_NAMED)) {
                 if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
                     MVM_exception_throw_adhoc(tc, "Flattened args must be objects");
                 }
+                if (nameds) {
+                    MVM_exception_throw_adhoc(tc, "All positional args must appear first");
+                }
                 has_flattening = 1;
+                positionals++;
             }
-            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
+            else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
                 nameds += 2;
             }
             else if (nameds) { /* positional appearing after a named one */
