@@ -391,6 +391,8 @@ class QAST::MASTCompiler {
     
     my @return_types := [ NQPMu, int, int, int, int, num, num, str, NQPMu ];
     
+    method register_kind_to_type($kind) { @return_types[$kind] }
+    
     multi method as_mast(QAST::CompUnit $cu, :$want) {
         # Set HLL.
         my $*HLL := '';
@@ -727,11 +729,11 @@ class QAST::MASTCompiler {
             }
             $result_count++;
         }
-        if $result_stmt {
+        if $result_stmt && $result_stmt.result_kind != $MVM_reg_void {
             MAST::InstructionList.new(@all_ins, $result_stmt.result_reg, $result_stmt.result_kind);
         }
         else {
-            MAST::InstructionList.new(@all_ins, MAST::VOID, $MVM_reg_void);
+            MAST::InstructionList.new(@all_ins, $*REGALLOC.fresh_o(), $MVM_reg_obj);
         }
     }
     

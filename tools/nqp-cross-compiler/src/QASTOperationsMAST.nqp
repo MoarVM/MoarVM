@@ -574,7 +574,7 @@ sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
     
     # build up the typeflag
     my $result_typeflag := @kind_to_args[$arg_mast.result_kind];
-    if $arg.flat {
+    if nqp::can($arg, 'flat') && $arg.flat {
         if $arg.named {
             $result_typeflag := $result_typeflag +| $Arg::flatnamed;
         }
@@ -582,7 +582,7 @@ sub handle_arg($arg, $qastcomp, @ins, @arg_regs, @arg_flags, @arg_kinds) {
             $result_typeflag := $result_typeflag +| $Arg::flat;
         }
     }
-    elsif $arg.named -> $name {
+    elsif nqp::can($arg, 'named') && $arg.named -> $name {
         # add in the extra arg for the name
         nqp::push(@arg_regs, MAST::SVal.new( value => $name ));
         
@@ -882,6 +882,128 @@ QAST::MASTOperations.add_core_op('hash', -> $qastcomp, $op {
         $hash.append($newer);
     }
     $hash
+});
+
+QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
+    my $handler := 1;
+    my @operands;
+    for $op.list {
+        if $_.named eq 'nohandler' { $handler := 0; }
+        else { @operands.push($_) }
+    }
+    
+    if +@operands != 2 {
+        nqp::die("Operation 'for' needs 2 operands");
+    }
+    unless nqp::istype(@operands[1], QAST::Block) {
+        nqp::die("Operation 'for' expects a block as its second operand");
+    }
+    if @operands[1].blocktype eq 'immediate' {
+        @operands[1].blocktype('declaration');
+    }
+    
+    # Create result temporary if we'll need one.
+    my $res := $*WANT == $MVM_reg_void ?? 0 !! $*REGALLOC.fresh_o();
+    
+    # Evaluate the thing we'll iterate over, get the iterator and
+    # store it in a temporary.
+    my $il := ();
+    my $list_il := $qastcomp.as_mast(@operands[0]);
+    push_ilist($il, $list_il);
+    if $res {
+        if $*WANT != $list_il.result_kind {
+            nqp::die("iterator kind didn't match wanted kind");
+        }
+        push_op($il, 'set', $res, $list_il.result_reg);
+    }
+    my $iter_tmp := $*REGALLOC.fresh_o();
+    push_op($il, 'iter', $iter_tmp, $list_il.result_reg);
+    
+    # Do similar for the block.
+    my $block_res := $qastcomp.as_mast(@operands[1], :want($MVM_reg_obj));
+    push_ilist($il, $block_res);
+    
+    # Some labels we'll need.
+    my $for_id := $qastcomp.unique('for');
+    my $lbl_next := MAST::Label.new( :name($for_id ~ 'next') );
+    my $lbl_redo := MAST::Label.new( :name($for_id ~ 'redo') );
+    my $lbl_done := MAST::Label.new( :name($for_id ~ 'done') );
+    
+    # Emit loop test.
+    my $loop_il := ();
+    nqp::push($loop_il, $lbl_next);
+    push_op($loop_il, 'unless_o', $iter_tmp, $lbl_done);
+    $loop_il := MAST::InstructionList.new($loop_il, MAST::VOID, $MVM_reg_void);
+    
+    # Fetch values into temporaries (on the stack ain't enough in case
+    # of redo).
+    my $val_il := ();
+    my @val_temps;
+    my @arg_flags;
+    my $arity := @operands[1].arity || 1;
+    while $arity > 0 {
+        my $tmp := $*REGALLOC.fresh_o();
+        push_op($val_il, 'shift_o', $tmp, $iter_tmp);
+        nqp::push(@val_temps, $tmp);
+        nqp::push(@arg_flags, $Arg::obj);
+        $arity := $arity - 1;
+    }
+    nqp::push($val_il, $lbl_redo);
+    $val_il := MAST::InstructionList.new($val_il, MAST::VOID, $MVM_reg_void);
+    
+    # Now do block invocation.
+    
+    my $inv_il := $res
+        ?? MAST::Call.new(
+            :target($block_res.result_reg),
+            :flags(@arg_flags),
+            |@val_temps,
+            :result($res)
+        )
+        !! MAST::Call.new(
+            :target($block_res.result_reg),
+            :flags(@arg_flags),
+            |@val_temps
+        );
+    $inv_il := MAST::InstructionList.new([$inv_il], MAST::VOID, $MVM_reg_void);
+    
+#    # Wrap block invocation in redo handler if needed.
+#    if $handler {
+#        my $catch := JAST::InstructionList.new();
+#        $catch.append(JAST::Instruction.new( :op('pop') ));
+#        $catch.append(JAST::Instruction.new( :op('goto'), $lbl_redo ));
+#        $inv_il := JAST::TryCatch.new( :try($inv_il), :$catch, :type($TYPE_EX_REDO) );
+#    }
+    push_ilist($val_il.instructions, $inv_il);
+    
+#    # Wrap value fetching and call in "next" handler if needed.
+#    if $handler {
+#        $val_il := JAST::TryCatch.new(
+#            :try($val_il),
+#            :catch(JAST::Instruction.new( :op('pop') )),
+#            :type($TYPE_EX_NEXT)
+#        );
+#    }
+    push_ilist($loop_il.instructions, $val_il);
+    push_op($loop_il.instructions, 'goto', $lbl_next );
+    
+#    # Emit postlude, wrapping in last handler if needed.
+#    if $handler {
+#        my $catch := JAST::InstructionList.new();
+#        $catch.append(JAST::Instruction.new( :op('pop') ));
+#        $catch.append(JAST::Instruction.new( :op('goto'), $lbl_done ));
+#        $loop_il := JAST::TryCatch.new( :try($loop_il), :$catch, :type($TYPE_EX_LAST) );
+#    }
+    push_ilist($il, $loop_il);
+    nqp::push($il, $lbl_done);
+    
+    # Result, as needed.
+    my $result := $res ?? MAST::InstructionList.new($il, $res, $*WANT) !! MAST::InstructionList.new($il, MAST::VOID, $MVM_reg_void);
+    $*REGALLOC.release_register($list_il.result_reg, $list_il.result_kind);
+    $*REGALLOC.release_register($block_res.result_reg, $block_res.result_kind);
+    for @val_temps { $*REGALLOC.release_register($_, $MVM_reg_obj) }
+    $*REGALLOC.release_register($inv_il.result_reg, $inv_il.result_kind);
+    $result
 });
 
 # arithmetic opcodes
