@@ -139,7 +139,6 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
                         case MVM_CALLSITE_ARG_STR: \
                             MVM_exception_throw_adhoc(tc, "coerce string to num NYI"); \
                         default: \
-                            printf("%d", ((MVMArray *)NULL)->body.elems); \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 6"); \
                     } \
                     result.flags = MVM_CALLSITE_ARG_NUM; \
