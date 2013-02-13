@@ -5,7 +5,7 @@
  * them anyway. */
 
 MVMObject * MVM_repr_allocate(MVMThreadContext *tc, MVMObject *type) {
-    REPR(type)->allocate(tc, STABLE(type));
+    return REPR(type)->allocate(tc, STABLE(type));
 }
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
