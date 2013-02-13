@@ -2252,7 +2252,7 @@ class MAST::Ops {
             'iterkey_s', nqp::hash(
                 'code', 92,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_write_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
@@ -2449,6 +2449,14 @@ class MAST::Ops {
                 'code', 118,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'istype', nqp::hash(
+                'code', 119,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]

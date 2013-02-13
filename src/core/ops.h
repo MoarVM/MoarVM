@@ -337,6 +337,7 @@
 #define MVM_OP_getwho 116
 #define MVM_OP_setwho 117
 #define MVM_OP_rebless 118
+#define MVM_OP_istype 119
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

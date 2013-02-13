@@ -1756,77 +1756,100 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_iter: {
-                        MVMObject *target = GET_REG(cur_op, 2).o, *iterator;
-                        MVMIterBody *body;
-                        if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
-                            iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
-                            target = GET_REG(cur_op, 2).o;
-                            body = &((MVMIter *)iterator)->body;
-                            body->mode = MVM_ITER_MODE_ARRAY;
-                            body->array_state.index = -1;
-                            body->array_state.limit = REPR(target)->pos_funcs->elems(tc, STABLE(target), target, OBJECT_BODY(target));
-                            body->target = target;
-                        }
-                        else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
-                            iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
-                            target = GET_REG(cur_op, 2).o;
-                            body = &((MVMIter *)iterator)->body;
-                            body->mode = MVM_ITER_MODE_HASH;
-                            body->hash_state.next = ((MVMHash *)target)->body.hash_head;
-                            body->target = target;
-                        }
-                        else {
-                            MVM_exception_throw_adhoc(tc, "Cannot iterate this");
-                        }
-                        GET_REG(cur_op, 0).o = iterator;
+                        GET_REG(cur_op, 0).o = MVM_iter(tc, &GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_iterkey_s: {
-                        MVMIter *iterator = (MVMIter *)GET_REG(cur_op, 2).o;
-                        if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter
-                                || iterator->body.mode != MVM_ITER_MODE_HASH)
-                            MVM_exception_throw_adhoc(tc, "This is not a hash iterator");
-                        if (!iterator->body.hash_state.curr)
-                            MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-                        GET_REG(cur_op, 0).o = iterator->body.hash_state.curr->key;
+                        GET_REG(cur_op, 0).s = MVM_iterkey_s(tc, (MVMIter *)GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_iterval: {
-                        MVMIter *iterator = (MVMIter *)GET_REG(cur_op, 2).o;
-                        MVMIterBody *body;
-                        MVMObject *target;
-                        if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter)
-                            MVM_exception_throw_adhoc(tc, "This is not an iterator");
-                        if (iterator->body.mode == MVM_ITER_MODE_ARRAY) {
-                            body = &iterator->body;
-                            if (body->array_state.index == -1)
-                                MVM_exception_throw_adhoc(tc, "You have not yet advanced in the array iterator");
-                            target = body->target;
-                            REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &GET_REG(cur_op, 0), 0);
+                        GET_REG(cur_op, 0).o = MVM_iterval(tc, (MVMIter *)GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_getcodename: {
+                        MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).s = c->body.sf->name;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_composetype: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        REPR(obj)->compose(tc, STABLE(obj), GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_setmethcache: {
+                        MVMObject *cache = REPR(tc->instance->boot_types->BOOTHash)->allocate(tc, STABLE(tc->instance->boot_types->BOOTHash));
+                        MVMObject *iter = MVM_iter(tc, &GET_REG(cur_op, 2).o);
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        while (MVM_coerce_istrue(tc, iter)) {
+                            MVMRegister result;
+                            MVMObject *cur;
+                            REPR(iter)->pos_funcs->shift(tc, STABLE(iter), iter,
+                                OBJECT_BODY(iter), &result, MVM_reg_obj);
+                            cur = result.o;
+                            REPR(cache)->ass_funcs->bind_key_boxed(tc, STABLE(cache), cache,
+                                OBJECT_BODY(cache), (MVMObject *)MVM_iterkey_s(tc, (MVMIter *)iter),
+                                MVM_iterval(tc, (MVMIter *)iter));
                         }
-                        else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
-                            if (!iterator->body.hash_state.curr)
-                            MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-                            GET_REG(cur_op, 0).o = iterator->body.hash_state.curr->value;
+                        STABLE(obj)->method_cache = cache;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_setmethcacheauth: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMint64 new_flags = STABLE(obj)->mode_flags & (~MVM_METHOD_CACHE_AUTHORITATIVE);
+                        MVMint64 flag = GET_REG(cur_op, 4).i64;
+                        if (flag != 0)
+                            new_flags |= MVM_METHOD_CACHE_AUTHORITATIVE;
+                        STABLE(obj)->mode_flags = new_flags;
+                        GET_REG(cur_op, 0).o = obj;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_settypecache: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMObject *types = GET_REG(cur_op, 4).o;
+                        MVMint64 i, elems = REPR(types)->pos_funcs->elems(tc, STABLE(types), types, OBJECT_BODY(types));
+                        MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
+                        for (i = 0; i < elems; i++) {
+                            cache[i] = MVM_repr_at_pos_o(tc, types, i);
+                        }
+                        /* technically this free isn't thread safe */
+                        if (STABLE(obj)->type_check_cache)
+                            free(STABLE(obj)->type_check_cache);
+                        STABLE(obj)->type_check_cache = cache;
+                        STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
+                        GET_REG(cur_op, 0).o = obj;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_setinvokespec: {
+                        MVM_exception_throw_adhoc(tc, "setinvokespec NYI");
+                    }
+                    case MVM_OP_isinvokable: {
+                        MVM_exception_throw_adhoc(tc, "isinvokable NYI");
+                    }
+                    case MVM_OP_iscont: {
+                        GET_REG(cur_op, 0).i64 = STABLE(GET_REG(cur_op, 2).o)->container_spec == NULL ? 0 : 1;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_decont: {
+                        if (STABLE(GET_REG(cur_op, 2).o)->container_spec != NULL) {
+                            MVM_exception_throw_adhoc(tc, "Decontainerization NYI");
                         }
                         else {
-                            MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+                            GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                         }
                         cur_op += 4;
                         break;
                     }
-                    /*
-                    getcodename     
-                    composetype     
-                    setmethcache    
-                    setmethcacheauth
-                    settypecache    
-                    setinvokespec   
-                    isinvokable     
-                    iscont          
-                    decont          */
                     case MVM_OP_setboolspec: {
                         MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
                         bs->mode = (MVMuint32)GET_REG(cur_op, 4).i64;
@@ -1852,11 +1875,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s) ? 0 : 1;
                         cur_op += 4;
                         break;
+                    case MVM_OP_getcodeobj:
+                    case MVM_OP_setcodeobj:
+                        MVM_exception_throw_adhoc(tc, "oops, these shouldn't have been spec'd");
+                    case MVM_OP_setcodename: {
+                        MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
+                        c->body.sf->name = GET_REG(cur_op, 4).s;
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_forceouterctx: {
+                        
+                    }
                     /*
-                    getcodeobj      
-                    setcodeobj      
-                    setcodename     
-                    forceouterctx   
                     getcomp         
                     bindcomp        
                     getcurhllsym    
@@ -1865,8 +1897,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     setwho          
                     rebless         
                     */
-                    
-                    
+                    case MVM_OP_istype: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
+                        MVMint64 i, result = 0, elems = STABLE(obj)->type_check_cache_length;
+                        MVMObject **cache = STABLE(obj)->type_check_cache;
+                        if (cache)
+                            for (i = 0; i < elems; i++) {
+                                if (cache[i] == type) {
+                                    result = 1;
+                                    break;
+                                }
+                            }
+                        GET_REG(cur_op, 0).i64 = result;
+                        cur_op += 6;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

@@ -1766,7 +1766,7 @@ static MVMOpInfo MVM_op_info_object[] = {
         MVM_OP_iterkey_s,
         "iterkey_s",
         2,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_iterval,
@@ -1923,6 +1923,12 @@ static MVMOpInfo MVM_op_info_object[] = {
         "rebless",
         3,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_istype,
+        "istype",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
 };
 static MVMOpInfo MVM_op_info_io[] = {
@@ -2500,7 +2506,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     6,
     37,
     16,
-    119,
+    120,
     45,
     33,
     14,

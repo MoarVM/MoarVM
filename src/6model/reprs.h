@@ -15,6 +15,7 @@
 #include "6model/reprs/P6str.h"
 #include "6model/reprs/MVMThread.h"
 #include "6model/reprs/MVMIter.h"
+#include "6model/reprs/MVMContext.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -40,3 +41,4 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_P6str                   13
 #define MVM_REPR_ID_MVMThread               14
 #define MVM_REPR_ID_MVMIter                 15
+#define MVM_REPR_ID_MVMContext              16

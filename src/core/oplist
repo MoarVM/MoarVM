@@ -298,7 +298,7 @@ BANK 4 object
 0x59    islist              w(int64) r(obj)
 0x5A    ishash              w(int64) r(obj)
 0x5B    iter                w(obj) r(obj)
-0x5C    iterkey_s           w(obj) r(obj)
+0x5C    iterkey_s           w(str) r(obj)
 0x5D    iterval             w(obj) r(obj)
 0x5E    getcodename         w(str) r(obj)
 0x5F    composetype         w(obj) r(obj) r(obj)
@@ -325,6 +325,7 @@ BANK 4 object
 0x74    getwho              w(obj) r(obj)
 0x75    setwho              w(obj) r(obj) r(obj)
 0x76    rebless             w(obj) r(obj) r(obj)
+0x77    istype              w(int64) r(obj) r(obj)
 
 BANK 5 io
 0x00    copy_f              r(str) r(str)

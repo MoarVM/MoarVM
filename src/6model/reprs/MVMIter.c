@@ -166,3 +166,64 @@ MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     this_repr->compose = compose;
     return this_repr;
 }
+
+MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr) {
+    MVMObject *target = *target_addr, *iterator;
+    MVMIterBody *body;
+    if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
+        iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
+        /* must re-grab target from the register in case the GC ran */
+        target = *target_addr;
+        body = &((MVMIter *)iterator)->body;
+        body->mode = MVM_ITER_MODE_ARRAY;
+        body->array_state.index = -1;
+        body->array_state.limit = REPR(target)->pos_funcs->elems(tc, STABLE(target), target, OBJECT_BODY(target));
+        body->target = target;
+    }
+    else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+        iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
+        /* must re-grab target from the register in case the GC ran */
+        target = *target_addr;
+        body = &((MVMIter *)iterator)->body;
+        body->mode = MVM_ITER_MODE_HASH;
+        body->hash_state.next = ((MVMHash *)target)->body.hash_head;
+        body->target = target;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+    }
+    return iterator;
+}
+
+MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
+    if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter
+            || iterator->body.mode != MVM_ITER_MODE_HASH)
+        MVM_exception_throw_adhoc(tc, "This is not a hash iterator");
+    if (!iterator->body.hash_state.curr)
+        MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
+    return (MVMString *)iterator->body.hash_state.curr->key;
+}
+
+MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
+    MVMIterBody *body;
+    MVMObject *target;
+    MVMRegister result;
+    if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter)
+        MVM_exception_throw_adhoc(tc, "This is not an iterator");
+    if (iterator->body.mode == MVM_ITER_MODE_ARRAY) {
+        body = &iterator->body;
+        if (body->array_state.index == -1)
+            MVM_exception_throw_adhoc(tc, "You have not yet advanced in the array iterator");
+        target = body->target;
+        REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, 0);
+    }
+    else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
+        if (!iterator->body.hash_state.curr)
+        MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
+        result.o = iterator->body.hash_state.curr->value;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+    }
+    return result.o;
+}
