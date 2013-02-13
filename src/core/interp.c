@@ -1886,7 +1886,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_forceouterctx: {
-                        
+                        MVMObject *obj = GET_REG(cur_op, 0).o, *ctx = GET_REG(cur_op, 2).o;
+                        MVMFrame *orig;
+                        if (REPR(obj)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(obj)) {
+                            MVM_exception_throw_adhoc(tc, "forceouterctx needs a code ref");
+                        }
+                        if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx)) {
+                            MVM_exception_throw_adhoc(tc, "forceouterctx needs a context");
+                        }
+                        orig = ((MVMCode *)obj)->body.outer;
+                        ((MVMCode *)obj)->body.outer = ((MVMContext *)ctx)->body.context;
+                        if (orig != ((MVMContext *)ctx)->body.context) {
+                            MVM_frame_inc_ref(tc, ((MVMContext *)ctx)->body.context);
+                            if (orig) {
+                                MVM_frame_dec_ref(tc, orig);
+                            }
+                        }
+                        cur_op += 4;
+                        break;
                     }
                     /*
                     getcomp         
