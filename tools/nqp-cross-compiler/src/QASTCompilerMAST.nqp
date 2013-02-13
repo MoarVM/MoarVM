@@ -981,6 +981,16 @@ class QAST::MASTCompiler {
             $*REGALLOC.release_register($obj.result_reg, $MVM_reg_obj);
             $*REGALLOC.release_register($han.result_reg, $MVM_reg_obj);
         }
+        elsif $scope eq 'positional' {
+            return self.as_mast_clear_bindval($*BINDVAL
+                ?? QAST::Op.new( :op('positional_bind'), |$node.list, $*BINDVAL)
+                !! QAST::Op.new( :op('positional_get'), |$node.list));
+        }
+        elsif $scope eq 'associative' {
+            return self.as_mast_clear_bindval($*BINDVAL
+                ?? QAST::Op.new( :op('associative_bind'), |$node.list, $*BINDVAL)
+                !! QAST::Op.new( :op('associative_get'), |$node.list));
+        }
         else {
             nqp::die("QAST::Var with scope '$scope' NYI");
         }

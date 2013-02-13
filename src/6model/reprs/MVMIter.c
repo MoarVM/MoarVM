@@ -112,6 +112,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             }
             else {
                 body->hash_state.curr = body->hash_state.curr->hash_handle.next;
+                body->hash_state.next = body->hash_state.curr->hash_handle.next;
             }
             value->o = root;
             return;

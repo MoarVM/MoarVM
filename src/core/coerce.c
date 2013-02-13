@@ -44,7 +44,7 @@ MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj) {
                     result = iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
                     break;
                 case MVM_ITER_MODE_HASH:
-                    result = iter->body.hash_state.curr != NULL || iter->body.hash_state.next != NULL ? 1 : 0;
+                    result = iter->body.hash_state.next != NULL ? 1 : 0;
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Invalid iteration mode used");

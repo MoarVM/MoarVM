@@ -1189,6 +1189,10 @@ QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 QAST::MASTOperations.add_core_moarop_mapping('istrue', 'istrue');
 QAST::MASTOperations.add_core_moarop_mapping('isfalse', 'isfalse');
 QAST::MASTOperations.add_core_moarop_mapping('setboolspec', 'setboolspec');
+QAST::MASTOperations.add_core_moarop_mapping('positional_get', 'atpos_o');
+QAST::MASTOperations.add_core_moarop_mapping('positional_bind', 'bindpos_o');
+QAST::MASTOperations.add_core_moarop_mapping('associative_get', 'atkey_o');
+QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
