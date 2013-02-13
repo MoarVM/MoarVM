@@ -42,3 +42,5 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMThread               14
 #define MVM_REPR_ID_MVMIter                 15
 #define MVM_REPR_ID_MVMContext              16
+
+void default_change_type(MVMThreadContext *tc, MVMObject *object, MVMObject *new_type);

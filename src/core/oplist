@@ -321,7 +321,7 @@ BANK 4 object
 0x70    getcomp             w(obj) r(str)
 0x71    bindcomp            w(obj) r(str) r(obj)
 0x72    getcurhllsym        w(obj) r(str)
-0x73    bindcurhllsym       w(obj) r(str)
+0x73    bindcurhllsym       w(obj) r(str) r(obj)
 0x74    getwho              w(obj) r(obj)
 0x75    setwho              w(obj) r(obj) r(obj)
 0x76    rebless             w(obj) r(obj) r(obj)

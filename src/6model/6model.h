@@ -427,7 +427,7 @@ typedef struct _MVMREPROps {
      * the S-Table pointer as needed; while in theory this could be factored
      * out, the representation probably knows more about timing issues and
      * thread safety requirements. */
-    void (*change_type) (struct _MVMThreadContext *tc, MVMObject *Object, MVMObject *NewType);
+    void (*change_type) (struct _MVMThreadContext *tc, MVMObject *object, MVMObject *new_type);
     
     /* Object serialization. Writes the object's body out using the passed
      * serialization writer. */

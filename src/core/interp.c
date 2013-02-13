@@ -1905,15 +1905,96 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    /*
-                    getcomp         
-                    bindcomp        
-                    getcurhllsym    
-                    bindcurhllsym   
-                    getwho          
-                    setwho          
-                    rebless         
-                    */
+                    case MVM_OP_getcomp: {
+                        MVMObject *obj = tc->instance->compiler_registry;
+                        if (apr_thread_mutex_lock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to lock compiler registry");
+                        }
+                        GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s);
+                        if (apr_thread_mutex_unlock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to unlock compiler registry");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_bindcomp: {
+                        MVMObject *obj = tc->instance->compiler_registry;
+                        if (apr_thread_mutex_lock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to lock compiler registry");
+                        }
+                        REPR(obj)->ass_funcs->bind_key_boxed(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                        if (apr_thread_mutex_unlock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to unlock compiler registry");
+                        }
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 4).o;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_getcurhllsym: {
+                        MVMObject *syms = tc->instance->hll_syms, *hash;
+                        MVMString *hll_name = tc->cur_frame->static_info->cu->hll_name;
+                        if (apr_thread_mutex_lock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to lock hll syms");
+                        }
+                        hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                        if (!hash) {
+                            hash = MVM_repr_allocate(tc, tc->instance->boot_types->BOOTHash);
+                            /* must re-get syms in case it moved */
+                            syms = tc->instance->hll_syms;
+                            hll_name = tc->cur_frame->static_info->cu->hll_name;
+                            MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                            GET_REG(cur_op, 0).o = NULL;
+                        }
+                        else {
+                            GET_REG(cur_op, 0).o = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 2).s);
+                        }
+                        if (apr_thread_mutex_unlock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to unlock hll syms");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_bindcurhllsym: {
+                        MVMObject *syms = tc->instance->hll_syms, *hash;
+                        MVMString *hll_name = tc->cur_frame->static_info->cu->hll_name;
+                        if (apr_thread_mutex_lock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to lock hll syms");
+                        }
+                        hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                        if (!hash) {
+                            hash = MVM_repr_allocate(tc, tc->instance->boot_types->BOOTHash);
+                            /* must re-get syms in case it moved */
+                            syms = tc->instance->hll_syms;
+                            hll_name = tc->cur_frame->static_info->cu->hll_name;
+                            MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                        }
+                        MVM_repr_bind_key_boxed(tc, hash, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 4).o;
+                        if (apr_thread_mutex_unlock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to unlock hll syms");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_getwho:
+                        GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHO;
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_setwho:
+                        STABLE(GET_REG(cur_op, 2).o)->WHO = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_rebless:
+                        if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
+                            MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
+                        }
+                        REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                        cur_op += 6;
+                        break;
                     case MVM_OP_istype: {
                         MVMObject *obj = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
                         MVMint64 i, result = 0, elems = STABLE(obj)->type_check_cache_length;

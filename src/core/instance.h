@@ -94,4 +94,12 @@ typedef struct _MVMInstance {
     /* Atomically-incremented counter of newly invoked frames,
        so each can obtain an index into each threadcontext's pool table */
     MVMuint32 num_frame_pools;
+    
+    /* Hash of compiler objects keyed by name */
+    MVMObject          *compiler_registry;
+    apr_thread_mutex_t *mutex_compiler_registry;
+    
+    /* Hash of hashes of symbol tables per hll. */
+    MVMObject          *hll_syms;
+    apr_thread_mutex_t *mutex_hll_syms;
 } MVMInstance;

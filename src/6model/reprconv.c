@@ -4,6 +4,10 @@
  * macros in the future, but hopefully the compiler is smart enough to inline
  * them anyway. */
 
+MVMObject * MVM_repr_allocate(MVMThreadContext *tc, MVMObject *type) {
+    REPR(type)->allocate(tc, STABLE(type));
+}
+
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
     REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
@@ -60,6 +64,34 @@ void MVM_repr_push_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *pushee) {
         value, MVM_reg_obj);
 }
 
+MVMObject * MVM_repr_at_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    return REPR(obj)->ass_funcs->at_key_boxed(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), (MVMObject *)key);
+}
+
+void MVM_repr_bind_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val) {
+    REPR(obj)->ass_funcs->bind_key_boxed(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), (MVMObject *)key, val);
+}
+
+MVMint64 MVM_repr_exists_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    return REPR(obj)->ass_funcs->exists_key(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), (MVMObject *)key);
+}
+
+void MVM_repr_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    REPR(obj)->ass_funcs->delete_key(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), (MVMObject *)key);
+}
+
+MVMuint64 MVM_repr_ass_elems(MVMThreadContext *tc, MVMObject *obj) {
+    return REPR(obj)->ass_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
+MVMuint64 MVM_repr_pos_elems(MVMThreadContext *tc, MVMObject *obj) {
+    return REPR(obj)->pos_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
 MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj) {
     return REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
@@ -70,6 +102,18 @@ MVMnum64 MVM_repr_get_num(MVMThreadContext *tc, MVMObject *obj) {
 
 MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj) {
     return REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
+void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMint64 val) {
+    REPR(obj)->box_funcs->set_int(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
+}
+
+void MVM_repr_set_num(MVMThreadContext *tc, MVMObject *obj, MVMnum64 val) {
+    REPR(obj)->box_funcs->set_num(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
+}
+
+void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val) {
+    REPR(obj)->box_funcs->set_str(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
 }
 
 MVMString * MVM_repr_smart_stringify(MVMThreadContext *tc, MVMObject *obj) {

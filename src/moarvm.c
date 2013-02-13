@@ -1,5 +1,14 @@
 #include "moarvm.h"
 
+#define init_mutex(loc, name) do { \
+    if ((apr_init_stat = apr_thread_mutex_create(&loc, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) { \
+        char error[256]; \
+        fprintf(stderr, "MoarVM: Initialization of " name " mutex failed\n    %s\n", \
+            apr_strerror(apr_init_stat, error, 256)); \
+        exit(1); \
+	} \
+} while (0)
+
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
@@ -38,20 +47,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->num_permroots   = 0;
     instance->alloc_permroots = 16;
     instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
-    if ((apr_init_stat = apr_thread_mutex_create(&instance->mutex_permroots, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) {
-        char error[256];
-        fprintf(stderr, "MoarVM: Initialization of permanent roots mutex failed\n    %s\n",
-            apr_strerror(apr_init_stat, error, 256));
-        exit(1);
-	}
+    init_mutex(instance->mutex_permroots, "permanent roots");
     
     /* Set up HLL config mutex. */
-    if ((apr_init_stat = apr_thread_mutex_create(&instance->mutex_hllconfigs, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) {
-        char error[256];
-        fprintf(stderr, "MoarVM: Initialization of hll configs mutex failed\n    %s\n",
-            apr_strerror(apr_init_stat, error, 256));
-        exit(1);
-	}
+    init_mutex(instance->mutex_hllconfigs, "hll configs");
 
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
@@ -64,6 +63,20 @@ MVMInstance * MVM_vm_create_instance(void) {
                 instance->main_thread, STABLE(instance->boot_types->BOOTThread));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
+    
+    /* Create compiler registry */
+    instance->compiler_registry = MVM_repr_allocate(instance->main_thread, instance->boot_types->BOOTHash);
+    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->compiler_registry);
+    
+    /* Set up compiler registr mutex. */
+    init_mutex(instance->mutex_compiler_registry, "compiler registry");
+    
+    /* Create hll symbol tables */
+    instance->hll_syms = MVM_repr_allocate(instance->main_thread, instance->boot_types->BOOTHash);
+    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->hll_syms);
+    
+    /* Set up hll symbol tables mutex. */
+    init_mutex(instance->mutex_hll_syms, "hll syms");
     
     return instance;
 }
