@@ -1940,7 +1940,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
-                            hash = MVM_repr_allocate(tc, tc->instance->boot_types->BOOTHash);
+                            hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
                             /* must re-get syms in case it moved */
                             syms = tc->instance->hll_syms;
                             hll_name = tc->cur_frame->static_info->cu->hll_name;
@@ -1964,7 +1964,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
-                            hash = MVM_repr_allocate(tc, tc->instance->boot_types->BOOTHash);
+                            hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
                             /* must re-get syms in case it moved */
                             syms = tc->instance->hll_syms;
                             hll_name = tc->cur_frame->static_info->cu->hll_name;
@@ -2008,6 +2008,70 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             }
                         GET_REG(cur_op, 0).i64 = result;
                         cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_ctx: {
+                        MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+                        ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, tc->cur_frame);
+                        GET_REG(cur_op, 0).o = (MVMObject *)ctx;
+                        cur_op += 2;
+                        break;
+                    }
+                    case MVM_OP_ctxouter: {
+                        MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx;
+                        MVMFrame *frame;
+                        if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                            MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
+                        }
+                        if ((frame = ((MVMContext *)this_ctx)->body.context->outer)) {
+                            ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+                            ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                            GET_REG(cur_op, 0).o = (MVMObject *)ctx;
+                        }
+                        else {
+                            GET_REG(cur_op, 0).o = NULL;
+                        }
+                        cur_op += 2;
+                        break;
+                    }
+                    case MVM_OP_ctxcaller: {
+                        MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
+                        MVMFrame *frame;
+                        if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                            MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
+                        }
+                        if ((frame = ((MVMContext *)this_ctx)->body.context->caller)) {
+                            ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+                            ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                        }
+                        GET_REG(cur_op, 0).o = (MVMObject *)ctx;
+                        cur_op += 2;
+                        break;
+                    }
+                    case MVM_OP_ctxlexpad: {
+                        MVMObject *this_ctx = GET_REG(cur_op, 2).o;
+                        if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                            MVM_exception_throw_adhoc(tc, "ctxlexpad needs an MVMContext");
+                        }
+                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_curcode: {
+                        MVMObject *code = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCode);
+                        ((MVMCode *)code)->body.sf = tc->cur_frame->static_info;
+                        GET_REG(cur_op, 0).o = code;
+                        cur_op += 2;
+                        break;
+                    }
+                    case MVM_OP_callercode: {
+                        MVMObject *code = NULL;;
+                        if (tc->cur_frame->caller) {
+                            code = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCode);
+                            ((MVMCode *)code)->body.sf = tc->cur_frame->caller->static_info;
+                        }
+                        GET_REG(cur_op, 0).o = code;
+                        cur_op += 2;
                         break;
                     }
                     default: {

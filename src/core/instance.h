@@ -10,6 +10,7 @@ struct _MVMBootTypes {
     MVMObject *BOOTCode;
     MVMObject *BOOTThread;
     MVMObject *BOOTIter;
+    MVMObject *BOOTContext;
 };
 
 typedef struct _MVMREPRHashEntry {

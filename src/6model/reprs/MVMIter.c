@@ -171,7 +171,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr) {
     MVMObject *target = *target_addr, *iterator;
     MVMIterBody *body;
     if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
-        iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
+        iterator = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
         /* must re-grab target from the register in case the GC ran */
         target = *target_addr;
         body = &((MVMIter *)iterator)->body;
@@ -181,7 +181,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr) {
         body->target = target;
     }
     else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
-        iterator = REPR(tc->instance->boot_types->BOOTIter)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIter));
+        iterator = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
         /* must re-grab target from the register in case the GC ran */
         target = *target_addr;
         body = &((MVMIter *)iterator)->body;

@@ -338,6 +338,12 @@
 #define MVM_OP_setwho 117
 #define MVM_OP_rebless 118
 #define MVM_OP_istype 119
+#define MVM_OP_ctx 120
+#define MVM_OP_ctxouter 121
+#define MVM_OP_ctxcaller 122
+#define MVM_OP_ctxlexpad 123
+#define MVM_OP_curcode 124
+#define MVM_OP_callercode 125
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

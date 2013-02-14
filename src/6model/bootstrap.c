@@ -101,6 +101,12 @@ static void create_stub_BOOTIter(MVMThreadContext *tc) {
     type->st->boolification_spec = bs;
 }
 
+/* Creates a stub BOOTThread (missing a meta-object). */
+static void create_stub_BOOTContext(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMContext);
+    tc->instance->boot_types->BOOTContext = repr->type_object_for(tc, NULL);
+}
+
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
 static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject   *self, *HOW, *type_object, *BOOTHash, *stash;
@@ -574,7 +580,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
 
-    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode, BOOTCode, BOOTThread, and BOOTIter types. */
+    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode, BOOTCode, BOOTThread, BOOTIter, and BOOTContext types. */
     create_stub_BOOTInt(tc);
     create_stub_BOOTNum(tc);
     create_stub_BOOTStr(tc);
@@ -584,6 +590,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_BOOTCode(tc);
     create_stub_BOOTThread(tc);
     create_stub_BOOTIter(tc);
+    create_stub_BOOTContext(tc);
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "repr");
@@ -626,6 +633,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTThread);
     add_meta_object(tc, tc->instance->boot_types->BOOTIter, "BOOTIter");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTIter);
+    add_meta_object(tc, tc->instance->boot_types->BOOTContext, "BOOTContext");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTContext);
     
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);

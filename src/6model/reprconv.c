@@ -4,8 +4,11 @@
  * macros in the future, but hopefully the compiler is smart enough to inline
  * them anyway. */
 
-MVMObject * MVM_repr_allocate(MVMThreadContext *tc, MVMObject *type) {
-    return REPR(type)->allocate(tc, STABLE(type));
+MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
+    MVMObject *obj = REPR(type)->allocate(tc, STABLE(type));
+    if (REPR(obj)->initialize)
+        REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    return obj;
 }
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {

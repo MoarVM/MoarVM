@@ -326,6 +326,12 @@ BANK 4 object
 0x75    setwho              w(obj) r(obj) r(obj)
 0x76    rebless             w(obj) r(obj) r(obj)
 0x77    istype              w(int64) r(obj) r(obj)
+0x78    ctx                 w(obj)
+0x79    ctxouter            w(obj) r(obj)
+0x7A    ctxcaller           w(obj) r(obj)
+0x7B    ctxlexpad           w(obj) r(obj)
+0x7C    curcode             w(obj)
+0x7D    callercode          w(obj)
 
 BANK 5 io
 0x00    copy_f              r(str) r(str)
