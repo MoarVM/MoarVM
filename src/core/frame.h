@@ -111,6 +111,30 @@ typedef struct _MVMFrame {
     MVMuint32 gc_seq_number;
 } MVMFrame;
 
+/* How do we invoke this thing? Specifies either an attribute to look at for
+ * an invokable thing, or alternatively a method to call. */
+typedef struct _MVMInvocationSpec {
+    /**
+     * Class handle where we find the attribute to invoke.
+     */
+    struct _MVMObject *class_handle;
+    
+    /**
+     * Attribute name where we find the attribute to invoke.
+     */
+    struct _MVMString *attr_name;
+    
+    /**
+     * Attribute lookup hint used in gradual typing.
+     */
+    MVMint64 hint;
+    
+    /**
+     * Thing that handles invocation.
+     */
+    struct _MVMObject *invocation_handler;
+} MVMInvocationSpec;
+
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref);
@@ -122,3 +146,25 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, struct _MVMSt
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 *type);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, struct _MVMString *name);
 void MVM_frame_binddynlex(MVMThreadContext *tc, struct _MVMString *name, MVMObject *value);
+
+#define MVM_frame_find_invokee(tc, code) do { \
+    if (STABLE(code)->invoke == MVM_6model_invoke_default) { \
+        MVMInvocationSpec *is = STABLE(code)->invocation_spec; \
+        if (!is) { \
+            MVM_exception_throw_adhoc(tc, "Cannot invoke this object"); \
+        } \
+        if (is->class_handle) { \
+            MVMRegister dest; \
+            MVM_gc_root_temp_push(tc, (MVMCollectable **)&code); \
+            REPR(code)->attr_funcs->get_attribute(tc, \
+                STABLE(code), code, OBJECT_BODY(code), \
+                is->class_handle, is->attr_name, \
+                is->hint, &dest, MVM_reg_obj); \
+            MVM_gc_root_temp_pop(tc); \
+            code = dest.o; \
+        } \
+        else { \
+            code = is->invocation_handler; \
+        } \
+    } \
+} while (0)
