@@ -7,43 +7,43 @@
 # to do correct code generation or to detect illegal use of types in
 # contexts with certain requirements.
 my knowhow Archetypes {
-#    # Can this serve as a nominal type? Implies memoizability
-#    # amongst other things.
-#    has $!nominal;
-#    
-#    # If it's not nominal, does it know how to provide a nominal
-#    # type part of itself?
-#    has $!nominalizable;
-#    
-#    # Can this be inherited from?
-#    has $!inheritable;
-#    
-#    # If it's not inheritable, does it know how to produce something
-#    # that is?
-#    has $!inheritalizable;
-#    
-#    # Can this be composed (either with flattening composition, or used
-#    # as a mixin)?
-#    has $!composable;
-#    
-#    # If it's not composable, does it know how to produce something
-#    # that is?
-#    has $!composalizable;
-#    
-#    # Is it generic, in the sense of "we don't know what type this is
-#    # yet"? Note that a parametric type would not be generic - even if
-#    # it has missing parts, it defines a type. A type variable is generic,
-#    # however. This tends to cause various kinds of late (or at least
-#    # delayed) reification. In some contexts, an unresolved generic is
-#    # fatal.
-#    has $!generic;
-#    
-#    # Is it a parametric type - that is, it has missing bits that need
-#    # to be filled out before it can be used? Unlike generic, something
-#    # that is parametric does define a type - though we may need the gaps
-#    # filled it before it's useful in some way.
-#    has $!parametric;
-#    
+    # Can this serve as a nominal type? Implies memoizability
+    # amongst other things.
+    has $!nominal;
+    
+    # If it's not nominal, does it know how to provide a nominal
+    # type part of itself?
+    has $!nominalizable;
+    
+    # Can this be inherited from?
+    has $!inheritable;
+    
+    # If it's not inheritable, does it know how to produce something
+    # that is?
+    has $!inheritalizable;
+    
+    # Can this be composed (either with flattening composition, or used
+    # as a mixin)?
+    has $!composable;
+    
+    # If it's not composable, does it know how to produce something
+    # that is?
+    has $!composalizable;
+    
+    # Is it generic, in the sense of "we don't know what type this is
+    # yet"? Note that a parametric type would not be generic - even if
+    # it has missing parts, it defines a type. A type variable is generic,
+    # however. This tends to cause various kinds of late (or at least
+    # delayed) reification. In some contexts, an unresolved generic is
+    # fatal.
+    has $!generic;
+    
+    # Is it a parametric type - that is, it has missing bits that need
+    # to be filled out before it can be used? Unlike generic, something
+    # that is parametric does define a type - though we may need the gaps
+    # filled it before it's useful in some way.
+    has $!parametric;
+    
 #    method new(:$nominal, :$inheritable, :$composable, :$parametric) {
 #        my $arch := nqp::create(self);
 #        $arch.BUILD(:nominal($nominal), :inheritable($inheritable),
@@ -163,31 +163,31 @@ knowhow RoleToRoleApplier {
 # This implements a concrete, parameterized instance of a role that
 # can be composed into a class or mixed into an object.
 knowhow NQPConcreteRoleHOW {
-#    ##
-#    ## Attributes
-#    ##
-#
-#    # Name of the concrete role.
-#    has $!name;
-#
-#    # What parametric role it was instantiated from.
-#    has $!instance_of;
-#
-#    # Attributes and methods.
-#    has %!attributes;
-#    has %!methods;
-#    has @!multi_methods_to_incorporate;
-#    has @!collisions;
-#
-#    # Other roles that this one does.
-#    has @!roles;
-#
-#    # All composed in roles.
-#    has @!role_typecheck_list;
-#
-#    # Have we been composed?
-#    has $!composed;
-#
+    ##
+    ## Attributes
+    ##
+
+    # Name of the concrete role.
+    has $!name;
+
+    # What parametric role it was instantiated from.
+    has $!instance_of;
+
+    # Attributes and methods.
+    has %!attributes;
+    has %!methods;
+    has @!multi_methods_to_incorporate;
+    has @!collisions;
+
+    # Other roles that this one does.
+    has @!roles;
+
+    # All composed in roles.
+    has @!role_typecheck_list;
+
+    # Have we been composed?
+    has $!composed;
+
 #    my $archetypes := Archetypes.new( :nominal(1), :composable(1) );
 #    method archetypes() {
 #        $archetypes
@@ -397,9 +397,9 @@ knowhow RoleToClassApplier {
 # From src\how\NQPCurriedRoleHOW.pm
 
 knowhow NQPCurriedRoleHOW {
-#    has $!curried_role;
-#    has @!pos_args;
-#    
+    has $!curried_role;
+    has @!pos_args;
+    
 #    my $archetypes := Archetypes.new( :nominal(1), :composable(1), :parametric(1) );
 #    method archetypes() {
 #        $archetypes
@@ -440,29 +440,29 @@ knowhow NQPCurriedRoleHOW {
 # into a class or mix into an object). It also contains the logic to
 # reify it into an actual role.
 knowhow NQPParametricRoleHOW {
-#    ##
-#    ## Attributes
-#    ##
-#
-#    # Name of the parametric role.
-#    has $!name;
-#
-#    # Attributes and methods.
-#    has %!attributes;
-#    has %!methods;
-#    has @!multi_methods_to_incorporate;
-#
-#    # Other roles that this one does.
-#    has @!roles;
-#
-#    # Have we been composed?
-#    has $!composed;
-#
-#    # The body block of the role. (If we were to support multiple role
-#    # variants with the same name, this would be a multi. However, we
-#    # don't do that in NQP.)
-#    has $!body_block;
-#
+    ##
+    ## Attributes
+    ##
+
+    # Name of the parametric role.
+    has $!name;
+
+    # Attributes and methods.
+    has %!attributes;
+    has %!methods;
+    has @!multi_methods_to_incorporate;
+
+    # Other roles that this one does.
+    has @!roles;
+
+    # Have we been composed?
+    has $!composed;
+
+    # The body block of the role. (If we were to support multiple role
+    # variants with the same name, this would be a multi. However, we
+    # don't do that in NQP.)
+    has $!body_block;
+
 #    my $archetypes := Archetypes.new( :nominal(1), :composable(1), :parametric(1) );
 #    method archetypes() {
 #        $archetypes
@@ -636,50 +636,50 @@ knowhow NQPParametricRoleHOW {
 # role composition, inheritance (single and multiple) and introspection.
 
 knowhow NQPClassHOW {
-#    ##
-#    ## Attributes
-#    ##
-#
-#    # Name of the class.
-#    has $!name;
-#
-#    # Attributes, methods, parents and roles directly added.
-#    has %!attributes;
-#    has %!methods;
-#    has @!method_order;
-#    has @!multi_methods_to_incorporate;
-#    has @!parents;
-#    has @!roles;
-#    has $!default_parent;
-#
-#    # Vtable and mapping of method names to slots.
-#    has @!vtable;
-#    has %!method-vtable-slots;
-#
-#    # Have we been composed?
-#    has $!composed;
-#
-#    # Cached MRO (list of the type objects).
-#    has @!mro;
-#
-#    # Full list of roles that we do.
-#    has @!done;
-#    
-#    # Cached values, which are thrown away if the class changes.
-#    has %!caches;
-#
-#    # Parrot-specific vtable mapping hash. Maps vtable name to method.
-##    has %!parrot_vtable_mapping;
-##	has %!parrot_vtable_handler_mapping;
-#    
-#    # Call tracing.
-#    has $!trace;
-#    has $!trace_depth;
-#    
-#    # Build plan.
-#    has @!BUILDALLPLAN;
-#    has @!BUILDPLAN;
-#    
+    ##
+    ## Attributes
+    ##
+
+    # Name of the class.
+    has $!name;
+
+    # Attributes, methods, parents and roles directly added.
+    has %!attributes;
+    has %!methods;
+    has @!method_order;
+    has @!multi_methods_to_incorporate;
+    has @!parents;
+    has @!roles;
+    has $!default_parent;
+
+    # Vtable and mapping of method names to slots.
+    has @!vtable;
+    has %!method-vtable-slots;
+
+    # Have we been composed?
+    has $!composed;
+
+    # Cached MRO (list of the type objects).
+    has @!mro;
+
+    # Full list of roles that we do.
+    has @!done;
+    
+    # Cached values, which are thrown away if the class changes.
+    has %!caches;
+
+    # Parrot-specific vtable mapping hash. Maps vtable name to method.
+#    has %!parrot_vtable_mapping;
+#	has %!parrot_vtable_handler_mapping;
+    
+    # Call tracing.
+    has $!trace;
+    has $!trace_depth;
+    
+    # Build plan.
+    has @!BUILDALLPLAN;
+    has @!BUILDPLAN;
+    
 #    my $archetypes := Archetypes.new( :nominal(1), :inheritable(1) );
 #    method archetypes() {
 #        $archetypes
@@ -1412,9 +1412,9 @@ knowhow NQPClassHOW {
 # From src\how\NQPNativeHOW.pm
 
 knowhow NQPNativeHOW {
-#    has $!name;
-#    has $!composed;
-#
+    has $!name;
+    has $!composed;
+
 #    my $archetypes := Archetypes.new( :nominal(1) );
 #    method archetypes() {
 #        $archetypes
@@ -1462,15 +1462,15 @@ knowhow NQPNativeHOW {
 # From src\how\NQPAttribute.pm
 
 knowhow NQPAttribute {
-#    has $!name;
-#    has $!type;
-#    has $!has_type;
-#    has $!box_target;
-#    has $!default;
-#    has $!has_default;
-#    has $!positional_delegate;
-#    has $!associative_delegate;
-#
+    has $!name;
+    has $!type;
+    has $!has_type;
+    has $!box_target;
+    has $!default;
+    has $!has_default;
+    has $!positional_delegate;
+    has $!associative_delegate;
+
 #    method new(:$name!, :$box_target, *%extra) {
 #        my $attr := nqp::create(self);
 #        $attr.BUILD(:name($name), |%extra, :box_target($box_target),
@@ -1535,9 +1535,9 @@ knowhow NQPAttribute {
 # From src\how\NQPModuleHOW.pm
 
 knowhow NQPModuleHOW {
-#    has $!name;
-#    has $!composed;
-#    
+    has $!name;
+    has $!composed;
+    
 #    my $archetypes := Archetypes.new( );
 #    method archetypes() {
 #        $archetypes
