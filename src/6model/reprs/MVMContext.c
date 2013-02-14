@@ -53,6 +53,74 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 
+static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMContext representation does not support native type storage");
+}
+
+#define at_key(tc, st, root, data, _type, member, name) do { \
+    MVMContextBody *body = (MVMContextBody *)data; \
+    MVMFrame *frame = body->context; \
+    MVMObject *result = NULL; \
+    MVMLexicalHashEntry *lexical_names = frame->static_info->lexical_names, *entry; \
+    if (!lexical_names) { \
+       MVM_exception_throw_adhoc(tc, \
+            "Lexical with name '%s' does not exist in this frame", \
+                MVM_string_utf8_encode_C_string(tc, name)); \
+    } \
+    MVM_HASH_GET(tc, lexical_names, name, entry) \
+     \
+    if (!entry) { \
+       MVM_exception_throw_adhoc(tc, \
+            "Lexical with name '%s' does not exist in this frame", \
+                MVM_string_utf8_encode_C_string(tc, name)); \
+    } \
+    if (frame->static_info->lexical_types[entry->value] != _type) { \
+       MVM_exception_throw_adhoc(tc, \
+            "Lexical with name '%s' has a different type in this frame", \
+                MVM_string_utf8_encode_C_string(tc, name)); \
+    } \
+    return frame->env[entry->value].member; \
+} while (0)
+
+static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVMString *name = (MVMString *)key;
+    at_key(tc, st, root, data, MVM_reg_obj, o, name);
+}
+
+static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMContext representation does not support native type storage");
+}
+
+static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMContext representation does not yet support bind key boxed");
+}
+
+static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMContext representation does not support elems");
+}
+
+static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMContext representation does not support exists key");
+}
+
+static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+    MVM_exception_throw_adhoc(tc,
+        "MVMContext representation does not support delete key");
+}
+
+static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    MVMStorageSpec spec;
+    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec.can_box         = 0;
+    return spec;
+}
+
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     /* XXX in the end we'll support inlining of this... */
@@ -80,6 +148,15 @@ MVMREPROps * MVMContext_initialize(MVMThreadContext *tc) {
     this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
+    this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
+    this_repr->ass_funcs->at_key_ref = at_key_ref;
+    this_repr->ass_funcs->at_key_boxed = at_key_boxed;
+    this_repr->ass_funcs->bind_key_ref = bind_key_ref;
+    this_repr->ass_funcs->bind_key_boxed = bind_key_boxed;
+    this_repr->ass_funcs->elems = elems;
+    this_repr->ass_funcs->exists_key = exists_key;
+    this_repr->ass_funcs->delete_key = delete_key;
+    this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
     this_repr->compose = compose;
     return this_repr;
 }
