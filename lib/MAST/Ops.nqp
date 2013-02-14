@@ -3053,7 +3053,7 @@ class MAST::Ops {
             'die_s', nqp::hash(
                 'code', 31,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_str
+                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'loadbytecode', nqp::hash(

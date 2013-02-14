@@ -780,7 +780,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_smrt_strify: {
-                        GET_REG(cur_op, 0).s = MVM_repr_smart_stringify(tc, GET_REG(cur_op, 2).o);
+                        GET_REG(cur_op, 0).s = MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
                     }
@@ -851,7 +851,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_say_o:
-                        MVM_string_say(tc, MVM_repr_smart_stringify(tc, GET_REG(cur_op, 0).o));
+                        MVM_string_say(tc, MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 0).o));
                         cur_op += 2;
                         break;
                     default: {
@@ -2261,7 +2261,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
-                                MVM_OP_BANK_object, *(cur_op-1));
+                                MVM_OP_BANK_io, *(cur_op-1));
                     }
                     break;
                 }
@@ -2348,9 +2348,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = MVM_proc_time_n(tc);
                         cur_op += 2;
                         break;
+                    case MVM_OP_die: {
+                        MVMString *message = MVM_coerce_o_s(tc, GET_REG(cur_op, 2).o);
+                        MVM_exception_throw_adhoc(tc, "Died: %s", MVM_string_utf8_encode_C_string(tc, message));
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_exit: {
+                        exit(GET_REG(cur_op, 2).i64);
+                    }
+                    case MVM_OP_die_s: {
+                        MVM_exception_throw_adhoc(tc, "Died: %s", MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s));
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
-                                MVM_OP_BANK_object, *(cur_op-1));
+                                MVM_OP_BANK_processthread, *(cur_op-1));
                     }
                     break;
                 }

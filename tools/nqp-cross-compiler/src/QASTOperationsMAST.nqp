@@ -1218,6 +1218,8 @@ QAST::MASTOperations.add_core_moarop_mapping('ctxcaller', 'ctxcaller');
 QAST::MASTOperations.add_core_moarop_mapping('ctxlexpad', 'ctxlexpad');
 QAST::MASTOperations.add_core_moarop_mapping('curcode', 'curcode');
 QAST::MASTOperations.add_core_moarop_mapping('callercode', 'callercode');
+QAST::MASTOperations.add_core_moarop_mapping('die', 'die');
+QAST::MASTOperations.add_core_moarop_mapping('die_s', 'die_s');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??

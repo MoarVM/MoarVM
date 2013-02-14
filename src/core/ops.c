@@ -2428,7 +2428,7 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         MVM_OP_die_s,
         "die_s",
         1,
-        { MVM_operand_write_reg | MVM_operand_str }
+        { MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_loadbytecode,
