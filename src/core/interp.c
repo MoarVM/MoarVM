@@ -1835,7 +1835,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_setinvokespec: {
-                        MVM_exception_throw_adhoc(tc, "setinvokespec NYI");
+                        MVMObject *obj = GET_REG(cur_op, 2).o, *ch = GET_REG(cur_op, 4).o,
+                            *invocation_handler = GET_REG(cur_op, 8).o;
+                        MVMString *name = GET_REG(cur_op, 6).s;
+                        MVMInvocationSpec *is = malloc(sizeof(MVMInvocationSpec));
+                        is->class_handle = ch;
+                        is->attr_name = name;
+                        is->hint = MVM_NO_HINT;
+                        is->invocation_handler = invocation_handler;
+                        /* XXX not thread safe, but this should occur on non-shared objects anyway... */
+                        if (STABLE(obj)->invocation_spec)
+                            free(STABLE(obj)->invocation_spec);
+                        STABLE(obj)->invocation_spec = is;
+                        GET_REG(cur_op, 0).o = obj;
+                        cur_op += 10;
+                        break;
                     }
                     case MVM_OP_isinvokable: {
                         MVM_exception_throw_adhoc(tc, "isinvokable NYI");

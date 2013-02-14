@@ -1193,6 +1193,31 @@ QAST::MASTOperations.add_core_moarop_mapping('positional_get', 'atpos_o');
 QAST::MASTOperations.add_core_moarop_mapping('positional_bind', 'bindpos_o');
 QAST::MASTOperations.add_core_moarop_mapping('associative_get', 'atkey_o');
 QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o');
+QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');
+QAST::MASTOperations.add_core_moarop_mapping('composetype', 'composetype');
+QAST::MASTOperations.add_core_moarop_mapping('setmethcache', 'setmethcache');
+QAST::MASTOperations.add_core_moarop_mapping('setmethcacheauth', 'setmethcacheauth');
+QAST::MASTOperations.add_core_moarop_mapping('settypecache', 'settypecache');
+QAST::MASTOperations.add_core_moarop_mapping('setinvokespec', 'setinvokespec');
+QAST::MASTOperations.add_core_moarop_mapping('isinvokable', 'isinvokable');
+QAST::MASTOperations.add_core_moarop_mapping('iscont', 'iscont');
+QAST::MASTOperations.add_core_moarop_mapping('decont', 'decont');
+QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename');
+QAST::MASTOperations.add_core_moarop_mapping('forceouterctx', 'forceouterctx');
+QAST::MASTOperations.add_core_moarop_mapping('istype', 'istype');
+QAST::MASTOperations.add_core_moarop_mapping('getcomp', 'getcomp');
+QAST::MASTOperations.add_core_moarop_mapping('bindcomp', 'bindcomp');
+QAST::MASTOperations.add_core_moarop_mapping('getcurhllsym', 'getcurhllsym');
+QAST::MASTOperations.add_core_moarop_mapping('bindcurhllsym', 'bindcurhllsym');
+QAST::MASTOperations.add_core_moarop_mapping('getwho', 'getwho');
+QAST::MASTOperations.add_core_moarop_mapping('setwho', 'setwho');
+QAST::MASTOperations.add_core_moarop_mapping('rebless', 'rebless');
+QAST::MASTOperations.add_core_moarop_mapping('ctx', 'ctx');
+QAST::MASTOperations.add_core_moarop_mapping('ctxouter', 'ctxouter');
+QAST::MASTOperations.add_core_moarop_mapping('ctxcaller', 'ctxcaller');
+QAST::MASTOperations.add_core_moarop_mapping('ctxlexpad', 'ctxlexpad');
+QAST::MASTOperations.add_core_moarop_mapping('curcode', 'curcode');
+QAST::MASTOperations.add_core_moarop_mapping('callercode', 'callercode');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
