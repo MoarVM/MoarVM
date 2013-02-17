@@ -18,25 +18,25 @@ Handlers are associated with (static) frames. A handler consists of:
 * The start of the protected region (an offset from the frame's bytecode start)
 * The end of the protected region (an offset from the frame's bytecode start)
 * An exception category filter:
-** 1 = Catch Exception
-** 2 = Control Exception
-** 4 = Next
-** 8 = Redo
-** 16 = Last
-** 32 = Return
-** 64 = Unwind (triggers if we unwind out of it due to an exception being
+    * 1 = Catch Exception
+    * 2 = Control Exception
+    * 4 = Next
+    * 8 = Redo
+    * 16 = Last
+    * 32 = Return
+    * 64 = Unwind (triggers if we unwind out of it due to an exception being
    thrown; normal block exits to not cause this)
 * A handler action
-** 0 = Unwind any required frames, then goto the specified address. It is
-   not possible to get any exception object or do any kind of rethrow.
-** 1 = Unwind any required frames, then goto the specified address. An
-   exception object is available. This kind of handler leaves a handler
-   record active on the stack, which the handler should remove by doing
-   a rethrow or making the exception handled.
-** 2 = Unwind any required frames, then invoke the specified block. Once
-   the block returns, the handler is over.
-** 3 = Invoke the specified block, and unwind unless it chooses to resume.
-   Once the block returns, the handler is over.
+    * 0 = Unwind any required frames, then goto the specified address. It is
+      not possible to get any exception object or do any kind of rethrow.
+    * 1 = Unwind any required frames, then goto the specified address. An
+      exception object is available. This kind of handler leaves a handler
+      record active on the stack, which the handler should remove by doing
+      a rethrow or making the exception handled.
+    * 2 = Unwind any required frames, then invoke the specified block. Once
+      the block returns, the handler is over.
+    * 3 = Invoke the specified block, and unwind unless it chooses to resume.
+      Once the block returns, the handler is over.
 * In the case of a goto address handler, the offset of the handler
 * In the case of a block handler, the register in the frame that holds the
   block to invoke. The block should take no parameters.
