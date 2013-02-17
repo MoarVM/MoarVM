@@ -448,3 +448,55 @@ class MAST::Annotated is MAST::Node {
         nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!instructions;
     }
 }
+
+# Handler constants.
+module HandlerAction {
+    our $unwind_and_goto      := 0;
+    our $unwind_and_goto_obj  := 1;
+    our $unwind_and_invoke    := 2;
+    our $invoke_and_we'll_see := 3;
+}
+
+# A region with a handler.
+class MAST::HandlerScope is MAST::Node {
+    has @!instructions;
+    has int $!category_mask;
+    has int $!action;
+    has $!goto_label;
+    has $!block_local;
+    
+    method new(:@instructions!, :$category_mask!, :$action!, :$goto, :$block) {
+        my $obj := nqp::create(self);
+        nqp::bindattr($obj, MAST::HandlerScope, '@!instructions', @instructions);
+        nqp::bindattr_i($obj, MAST::HandlerScope, '$!category_mask', $category_mask);
+        nqp::bindattr_i($obj, MAST::HandlerScope, '$!action', $action);
+        if $action == $HandlerAction::unwind_and_goto || $action == $HandlerAction::unwind_and_goto_obj {
+            if nqp::istype($goto, MAST::Label) {
+                nqp::bindattr($obj, MAST::HandlerScope, '$!goto_label', $goto);
+            }
+            else {
+                nqp::die("Handler action unwind-and-goto needs a MAST::Label to go to");
+            }
+        }
+        elsif $action == $HandlerAction::unwind_and_invoke {
+            if nqp::istype($block, MAST::Local) {
+                nqp::bindattr($obj, MAST::HandlerScope, '$!block_local', $block);
+            }
+            else {
+                nqp::die("Handler action unwind-and-invoke needs a MAST::Local to invoke");
+            }
+        }
+        elsif $action == $HandlerAction::invoke_and_we'll_see {
+            if nqp::istype($block, MAST::Local) {
+                nqp::bindattr($obj, MAST::HandlerScope, '$!block_local', $block);
+            }
+            else {
+                nqp::die("Handler action invoke-and-we'll-see needs a MAST::Local to invoke");
+            }
+        }
+        else {
+            nqp::die("Unknown handler action");
+        }
+        $obj
+    }
+}
