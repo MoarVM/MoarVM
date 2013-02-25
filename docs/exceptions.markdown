@@ -25,7 +25,7 @@ Handlers are associated with (static) frames. A handler consists of:
     * 16 = Last
     * 32 = Return
     * 64 = Unwind (triggers if we unwind out of it due to an exception being
-   thrown; normal block exits to not cause this)
+      thrown; normal block exits do not cause this)
 * A handler action
     * 0 = Unwind any required frames, then goto the specified address. It is
       not possible to get any exception object or do any kind of rethrow.
@@ -33,9 +33,7 @@ Handlers are associated with (static) frames. A handler consists of:
       exception object is available. This kind of handler leaves a handler
       record active on the stack, which the handler should remove by doing
       a rethrow or making the exception handled.
-    * 2 = Unwind any required frames, then invoke the specified block. Once
-      the block returns, the handler is over.
-    * 3 = Invoke the specified block, and unwind unless it chooses to resume.
+    * 2 = Invoke the specified block, and unwind unless it chooses to resume.
       Once the block returns, the handler is over.
 * In the case of a goto address handler, the offset of the handler
 * In the case of a block handler, the register in the frame that holds the
@@ -107,9 +105,9 @@ There are various instructions for throwing a new exception object.
 There are also instructions for throwing a particular category of exception
 without first creating an exception object.
 
-    throwcatdyn w(obj)
-    throwcatlex w(obj)
-    throwcatlexotic w(obj)
+    throwcatdyn w(obj) r(int)
+    throwcatlex w(obj) r(int)
+    throwcatlexotic w(obj) r(int)
 
 These will only produce an exception object for handlers that need it. The
 object that is produced will have a null message and payload, so only its
