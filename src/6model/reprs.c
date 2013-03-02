@@ -61,11 +61,11 @@ static void default_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *roo
     die_no_pos(tc, st->REPR->name);
 }
 GCC_DIAG_OFF(return-type)
-static MVMint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static MVMuint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     die_no_pos(tc, st->REPR->name);
 }
 GCC_DIAG_ON(return-type)
-static void default_set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 count) {
+static void default_set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
 static void default_push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
@@ -85,7 +85,7 @@ static MVMStorageSpec default_get_elem_storage_spec(MVMThreadContext *tc, MVMSTa
     die_no_pos(tc, st->REPR->name);
 }
 GCC_DIAG_ON(return-type)
-static void default_splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMint64 elems) {
+static void default_splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
     die_no_pos(tc, st->REPR->name);
 }
 MVM_NO_RETURN

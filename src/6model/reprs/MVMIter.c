@@ -65,12 +65,12 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
-static MVMint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMIterBody *body = (MVMIterBody *)data;
     MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
 
-static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 count) {
+static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     MVMIterBody *body = (MVMIterBody *)data;
     MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
 }
@@ -123,7 +123,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 
 /* This whole splice optimization can be optimized for the case we have two
  * MVMIter representation objects. */
-static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMint64 count) {
+static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
     MVMIterBody *body = (MVMIterBody *)data;
 }
 

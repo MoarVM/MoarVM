@@ -317,13 +317,13 @@ typedef struct _MVMREPROps_Positional {
         union _MVMRegister value, MVMuint16 kind);
 
     /* Gets the number of elements. */
-    MVMint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
+    MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data);
 
     /* Sets the element count of the array, expanding or shrinking
      * it as needed. */
     void (*set_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 size);
+        MVMObject *root, void *data, MVMuint64 size);
 
     /* Pushes the specified value onto the array. */
     void (*push) (struct _MVMThreadContext *tc, MVMSTable *st,
@@ -347,7 +347,7 @@ typedef struct _MVMREPROps_Positional {
      * API. */
     void (*splice) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *target_array,
-        MVMint64 offset, MVMint64 elems);
+        MVMint64 offset, MVMuint64 elems);
     
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
