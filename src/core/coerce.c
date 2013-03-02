@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
-    return str == NULL || !IS_CONCRETE(str) || NUM_GRAPHS(str) == 0 || NUM_GRAPHS(str) == 1 && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48 ? 0 : 1;
+    return str == NULL || !IS_CONCRETE(str) || NUM_GRAPHS(str) == 0 || (NUM_GRAPHS(str) == 1 && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48) ? 0 : 1;
 }
 
 MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj) {

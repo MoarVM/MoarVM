@@ -6,7 +6,7 @@ struct MVMArgInfo {
     MVMCallsiteEntry  flags;
 };
 
-static init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
+static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */
         memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
     }
