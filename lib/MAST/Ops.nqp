@@ -334,17 +334,14 @@ class MAST::Ops {
                 'code', 37,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_str,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj
+                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'bindlex_ng', nqp::hash(
                 'code', 38,
                 'operands', [
-                    $MVM_operand_str,
-                    $MVM_operand_write_reg +| $MVM_operand_obj
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
             'return_i', nqp::hash(
@@ -2476,27 +2473,27 @@ class MAST::Ops {
                 ]
             ),
             'ctxcaller', nqp::hash(
-                'code', 121,
-                'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj
-                ]
-            ),
-            'ctxlexpad', nqp::hash(
                 'code', 122,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
-            'curcode', nqp::hash(
+            'ctxlexpad', nqp::hash(
                 'code', 123,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'curcode', nqp::hash(
+                'code', 124,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
             'callercode', nqp::hash(
-                'code', 124,
+                'code', 125,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
@@ -3172,8 +3169,16 @@ class MAST::Ops {
                 'code', 13,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_str,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_int16,
+                    $MVM_operand_int16
+                ]
+            ),
+            'wval_wide', nqp::hash(
+                'code', 14,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_int16,
+                    $MVM_operand_int64
                 ]
             )
         ]

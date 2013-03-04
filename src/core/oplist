@@ -429,4 +429,5 @@ BANK 7 serialization
 0x0A    getobjsc            w(obj) r(obj) r(obj)
 0x0B    serialize           w(str) r(obj) r(obj)
 0x0C    deserialize         w(str) r(str) r(obj) r(obj) r(obj) r(obj)
-0x0D    wval                w(obj) r(str) r(int64)
+0x0D    wval                w(obj) int16 int16
+0x0E    wval_wide           w(obj) int16 int64
