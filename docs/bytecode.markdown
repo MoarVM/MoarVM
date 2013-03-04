@@ -31,13 +31,6 @@ what it contains.
     | Number of entries in the SC dependencies table          |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
-    | Offset (from start of file) of the referenced objects   |
-    | table                                                   |
-    |    32-bit unsigned integer                              |
-    +---------------------------------------------------------+
-    | Number of entries in the referenced objects table       |
-    |    32-bit unsigned integer                              |
-    +---------------------------------------------------------+
     | Offset (from start of file) of the frames data segment  |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
@@ -105,29 +98,22 @@ This segment contains a bunch of string data. Each string is laid out as:
 
 ## SC Dependencies Table
 This table describes the SCs that the bytecode in this file references
-objects from. The index in this table will be used in the referenced
-objects table; this table just contains information on how to locate the
-SCs.
+objects from. The wval opcode specifies an index in this table and and
+index in the SC itself. When the bytecode file is first loaded, we look
+in the known SCs table and resolve all that we can. Then, the deserialize
+code for the compilation unit is run. Whenever the SC creation opcode is
+used, we search all known compilation units to see if they have any
+unresolved SCs, and fill in any gaps that correspond to the newly created
+SC. By the time the deserialize phase for a compilation unit is over, we
+expect that all SCs have been resolved. Thus, the lifetime of an SC is
+equal to the lifetimes of all the compilation units that reference it,
+since their code depends on it. Note that the primary way an SC is rooted
+is through a compilation unit, and that these roots are established as
+soon as it is created, and before it's returned to userspace (which could
+allocate more) are the way we make sure it isn't collected too early.
 
     +---------------------------------------------------------+
     | Index into the string heap of the SC unique ID          |
-    |    32-bit unsigned integer                              |
-    +---------------------------------------------------------+
-
-## Referenced Objects Table
-This table describes the objects from serialization contexts that are
-referenced throughout the bytecode in the compilation unit specified by
-this chunk. These will all be dereferenced at the point of loading the
-bytecode, so every referenced object will just be a pointer + offset
-away. The index in this table is used in the bytecode stream to refer
-to the object.
-
-    +---------------------------------------------------------+
-    | Index into the SC dependencies table, stating which SC  |
-    | the object comes from                                   |
-    |    32-bit unsigned integer                              |
-    +---------------------------------------------------------+
-    | Index of the object in the referenced SC                |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
 
