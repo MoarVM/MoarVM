@@ -28,6 +28,15 @@ typedef struct _MVMCompUnit {
     struct _MVMString **strings;
     MVMuint32           num_strings;
     
+    /* The resolved serialization contexts. */
+    struct _MVMSerializationContext *scs;
+    
+    /* String heap indexes of contexts that are yet to be resolved. A
+     * string heap index is 32-bit; we use a signed 64-bit here so -1
+     * can be used to indicate "resolved". NULL for this array means
+     * there are no SCs to resolve. */
+    MVMint64 *scs_to_resolve;
+    
     /* GC run sequence number during which we last saw this frame. */
     MVMuint32 gc_seq_number;
     
