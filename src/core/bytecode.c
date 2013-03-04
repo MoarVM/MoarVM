@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* Some constants. */
-#define HEADER_SIZE             96
+#define HEADER_SIZE             88
 #define MIN_BYTECODE_VERSION    1
 #define MAX_BYTECODE_VERSION    1
 #define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
@@ -138,35 +138,35 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->version = version;
     
     /* Locate frames segment. */
-    offset = read_int32(cu->data_start, 28);
+    offset = read_int32(cu->data_start, 20);
     if (offset > cu->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
     }
     rs->frame_seg       = cu->data_start + offset;
-    rs->expected_frames = read_int32(cu->data_start, 32);
+    rs->expected_frames = read_int32(cu->data_start, 24);
     
     /* Locate callsites segment. */
-    offset = read_int32(cu->data_start, 36);
+    offset = read_int32(cu->data_start, 28);
     if (offset > cu->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
     }
     rs->callsite_seg       = cu->data_start + offset;
-    rs->expected_callsites = read_int32(cu->data_start, 40);
+    rs->expected_callsites = read_int32(cu->data_start, 32);
     
     /* Locate strings segment. */
-    offset = read_int32(cu->data_start, 48);
+    offset = read_int32(cu->data_start, 40);
     if (offset > cu->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
     }
     rs->string_seg       = cu->data_start + offset;
-    rs->expected_strings = read_int32(cu->data_start, 52);
+    rs->expected_strings = read_int32(cu->data_start, 44);
     
     /* Locate bytecode segment. */
-    offset = read_int32(cu->data_start, 64);
-    size = read_int32(cu->data_start, 68);
+    offset = read_int32(cu->data_start, 56);
+    size = read_int32(cu->data_start, 60);
     if (offset > cu->data_size || offset + size > cu->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
@@ -175,8 +175,8 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->bytecode_size = size;
     
     /* Locate annotations segment. */
-    offset = read_int32(cu->data_start, 72);
-    size = read_int32(cu->data_start, 76);
+    offset = read_int32(cu->data_start, 64);
+    size = read_int32(cu->data_start, 68);
     if (offset > cu->data_size || offset + size > cu->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
@@ -185,13 +185,13 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->annotation_size = size;
     
     /* Locate HLL name */
-    rs->hll_str_idx = read_int32(cu->data_start, 80);
+    rs->hll_str_idx = read_int32(cu->data_start, 72);
     
     /* Locate special frame indexes. Note, they are 0 for none, and the
      * index + 1 if there is one. */
-    rs->main_frame = read_int32(cu->data_start, 84);
-    rs->load_frame = read_int32(cu->data_start, 88);
-    rs->deserialize_frame = read_int32(cu->data_start, 92);
+    rs->main_frame = read_int32(cu->data_start, 76);
+    rs->load_frame = read_int32(cu->data_start, 80);
+    rs->deserialize_frame = read_int32(cu->data_start, 84);
     if (rs->main_frame > rs->expected_frames
             || rs->load_frame > rs->expected_frames
             || rs->deserialize_frame > rs->expected_frames) {
