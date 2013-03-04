@@ -63,6 +63,11 @@ sub detect {
         else {
             return (excuse => 'So far, we only support building with the Microsoft toolchain on Windows.');
         }
+        
+        # On 32-bit, define AO_ASSUME_WINDOWS98.
+        if (`cl 2>&1` =~ /80x86/) {
+            $config{'cmiscflags'} .= ' -DAO_ASSUME_WINDOWS98';
+        }
     }
     elsif ($^O =~ /linux/) {
         # Defaults for Linux
