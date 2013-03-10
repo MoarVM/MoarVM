@@ -26,14 +26,6 @@ class MAST::Node {
 # input to the AST to bytecode convertor should always be one of
 # these.
 class MAST::CompUnit is MAST::Node {
-    # Array of REPR types we depend on, with the ID of each
-    # one being the array index.
-    has @!REPRs;
-    
-    # Array of serialization contexts we depend on, with the ID
-    # of each one being the array index.
-    has @!SCs;
-    
     # The set of frames that make up this compilation unit.
     has @!frames;
     
@@ -48,6 +40,12 @@ class MAST::CompUnit is MAST::Node {
     
     # The frame containing the deserialization code, if any.
     has $!deserialize_frame;
+    
+    # SC handles that we depend on.
+    has @!sc_handles;
+    
+    # Mapping of SC handle names to indexes, for faster lookup.
+    has %!sc_lookup;
     
     method add_frame($frame) {
         @!frames[+@!frames] := $frame;
@@ -79,6 +77,19 @@ class MAST::CompUnit is MAST::Node {
         nqp::defined($frame)
             ?? $!deserialize_frame := $frame
             !! $!deserialize_frame
+    }
+    
+    method sc_idx($sc) {
+        my $handle := nqp::scgethandle($sc);
+        if nqp::existskey(%!sc_lookup, $handle) {
+            nqp::atkey(%!sc_lookup, $handle)
+        }
+        else {
+            my $id := nqp::elems(@!sc_handles);
+            nqp::push(@!sc_handles, $handle);
+            nqp::bindkey(%!sc_lookup, $handle, $id);
+            $id
+        }
     }
 }
 

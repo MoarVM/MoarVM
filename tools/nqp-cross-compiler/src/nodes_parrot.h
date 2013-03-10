@@ -2,13 +2,12 @@
 typedef struct {
     PMC    *st;
     PMC    *sc;
-    PMC    *reprs;
-    PMC    *scs;
     PMC    *frames;
     STRING *hll;
     PMC    *main_frame;
     PMC    *load_frame;
     PMC    *deserialize_frame;
+    PMC    *sc_handles;
 } MAST_CompUnit;
 
 /* MAST::Frame */
