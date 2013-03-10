@@ -2371,6 +2371,28 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             break;
             
+            /* Serialization context related operations. */
+            case MVM_OP_BANK_serialization: {
+                switch (*(cur_op++)) {
+                    case MVM_OP_wval: {
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_wval_wide: {
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 12;
+                        break;
+                    }
+                    default: {
+                        MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
+                                MVM_OP_BANK_serialization, *(cur_op-1));
+                    }
+                    break;
+                }
+            }
+            break;
+            
             /* Dispatch to bank function. */
             default:
             {
