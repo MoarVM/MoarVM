@@ -28,14 +28,16 @@ typedef struct _MVMCompUnit {
     struct _MVMString **strings;
     MVMuint32           num_strings;
     
-    /* The resolved serialization contexts. */
-    struct _MVMSerializationContext *scs;
+    /* Array of the resolved serialization contexts, and how many we
+     * have. A null in the list indicates not yet resolved */
+    struct _MVMSerializationContext **scs;
+    MVMuint32                         num_scs;
     
-    /* String heap indexes of contexts that are yet to be resolved. A
-     * string heap index is 32-bit; we use a signed 64-bit here so -1
-     * can be used to indicate "resolved". NULL for this array means
-     * there are no SCs to resolve. */
-    MVMint64 *scs_to_resolve;
+    /* List of serialization contexts in need of resolution. This is an
+     * array of string handles; its length is determined by num_scs above.
+     * once an SC has been resolved, the entry on this list is NULLed. If
+     * all are resolved, this pointer itself becomes NULL. */
+    struct _MVMString **scs_to_resolve;
     
     /* GC run sequence number during which we last saw this frame. */
     MVMuint32 gc_seq_number;
@@ -43,7 +45,6 @@ typedef struct _MVMCompUnit {
     /* HLL configuration for this compilation unit. */
     struct _MVMHLLConfig *hll_config;
     struct _MVMString    *hll_name;
-    
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);

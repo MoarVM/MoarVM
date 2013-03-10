@@ -15,6 +15,10 @@ typedef struct {
     MVMuint8  *string_seg;
     MVMuint32  expected_strings;
     
+    /* The SC dependencies segment. */
+    MVMuint8  *sc_seg;
+    MVMuint32  expected_scs;
+    
     /* The frame segment. */
     MVMuint8  *frame_seg;
     MVMuint32  expected_frames;
@@ -137,6 +141,15 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = malloc(sizeof(ReaderState));
     rs->version = version;
     
+    /* Locate SC dependencies segment. */
+    offset = read_int32(cu->data_start, 12);
+    if (offset > cu->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Serialization contexts segment starts after end of stream");
+    }
+    rs->sc_seg       = cu->data_start + offset;
+    rs->expected_scs = read_int32(cu->data_start, 16);
+    
     /* Locate frames segment. */
     offset = read_int32(cu->data_start, 20);
     if (offset > cu->data_size) {
@@ -231,6 +244,34 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
     }
     
     return strings;
+}
+
+/* Loads the SC dependencies list. */
+static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMuint32 i, sh_idx;
+    MVMuint8  *pos;
+    
+    /* Allocate SC lists in compilation unit. */
+    cu->scs = malloc(rs->expected_scs * sizeof(MVMSerializationContext *));
+    cu->scs_to_resolve = malloc(rs->expected_scs * sizeof(MVMString *));
+    cu->num_scs = rs->expected_scs;
+    
+    /* Resolve all the things. */
+    pos = rs->sc_seg;
+    for (i = 0; i < rs->expected_scs; i++) {
+        /* Grab string heap index. */
+        ensure_can_read(tc, cu, rs, pos, 4);
+        sh_idx = read_int32(pos, 0);
+        pos += 4;
+        
+        /* Resolve to string and store. */
+        if (sh_idx >= cu->num_strings) {
+            cleanup_all(tc, rs);
+            MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
+        }
+        cu->scs_to_resolve[i] = cu->strings[sh_idx];
+        cu->scs[i] = NULL;
+    }
 }
 
 /* Loads the static frame information (what locals we have, bytecode offset,
@@ -443,6 +484,9 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Load the strings heap. */
     cu->strings = deserialize_strings(tc, cu, rs);
     cu->num_strings = rs->expected_strings;
+    
+    /* Load SC dependencies. */
+    deserialize_sc_deps(tc, cu, rs);
 
     /* Load the static frame info and give each one a code reference. */
     cu->frames = deserialize_frames(tc, cu, rs);
@@ -454,8 +498,11 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu->callsites = deserialize_callsites(tc, cu, rs);
     cu->num_callsites = rs->expected_callsites;
     
+    /* Resolve HLL name. */
     cu->hll_name = cu->strings[rs->hll_str_idx];
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&cu->hll_name);
     
+    /* Resolve special frames. */
     if (rs->main_frame)
         cu->main_frame = cu->frames[rs->main_frame - 1];
     if (rs->load_frame)
