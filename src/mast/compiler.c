@@ -14,6 +14,7 @@
 #define HEADER_SIZE             88
 #define BYTECODE_VERSION        1
 #define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
+#define SC_DEP_SIZE             4
 
 typedef struct {
     /* callsite ID */
@@ -67,6 +68,10 @@ typedef struct {
     MASTNode *strings;
     MASTNode *seen_strings;
     
+    /* The SC dependencies segment; we know the size up front. */
+    char         *scdep_seg;
+    unsigned int  scdep_bytes;
+    
     /* The frame segment. */
     char         *frame_seg;
     unsigned int  frame_pos;
@@ -90,10 +95,13 @@ typedef struct {
     
     /* Current instruction info */
     MVMOpInfo    *current_op_info;
+
     /* Zero-based index of current frame */
     unsigned int  current_frame_idx;
+
     /* Zero-based index of MAST instructions */
     unsigned int  current_ins_idx;
+
     /* Zero-based index of current operand */
     unsigned int  current_operand_idx;
     
@@ -171,6 +179,8 @@ void cleanup_frame(VM, FrameState *fs) {
 void cleanup_all(VM, WriterState *ws) {
     if (ws->cur_frame)
         cleanup_frame(vm, ws->cur_frame);
+    if (ws->scdep_seg)
+        free(ws->scdep_seg);
     if (ws->frame_seg)
         free(ws->frame_seg);
     if (ws->bytecode_seg)
@@ -884,6 +894,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     /* Work out total size. */
     size += HEADER_SIZE;
     size += string_heap_size;
+    size += ws->scdep_bytes;
     size += ws->frame_pos;
     size += ws->callsite_pos;
     size += ws->bytecode_pos;
@@ -897,6 +908,12 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     memcpy(output, "MOARVM\r\n", 8);
     write_int32(output, 8, BYTECODE_VERSION);
     pos += HEADER_SIZE;
+    
+    /* Add SC dependencies section and its header entries. */
+    write_int32(output, 12, pos);
+    write_int32(output, 16, ELEMS(vm, ws->cu->sc_handles));
+    memcpy(output + pos, ws->scdep_seg, ws->scdep_bytes);
+    pos += ws->scdep_bytes;
     
     /* Add frames section and its header entries. */
     write_int32(output, 20, pos);
@@ -960,7 +977,7 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     MAST_CompUnit  *cu;
     WriterState    *ws;
     char           *bytecode;
-    unsigned short  i, num_frames;
+    unsigned short  i, num_depscs, num_frames;
     unsigned int    bytecode_size;
     
     /* Ensure we have a compilation unit. */
@@ -974,6 +991,8 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->strings          = NEWLIST_S(vm);
     ws->seen_strings     = NEWHASH(vm);
     ws->cur_frame        = NULL;
+    ws->scdep_bytes      = ELEMS(vm, cu->sc_handles) * SC_DEP_SIZE;
+    ws->scdep_seg        = ws->scdep_bytes ? (char *)malloc(ws->scdep_bytes) : NULL;
     ws->frame_pos        = 0;
     ws->frame_alloc      = 4096;
     ws->frame_seg        = (char *)malloc(ws->frame_alloc);
@@ -990,6 +1009,13 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
     ws->cu               = cu;
     ws->current_frame_idx= 0;
+    
+    /* Store each of the dependent SCs. */
+    num_depscs = ELEMS(vm, ws->cu->sc_handles);
+    for (i = 0; i < num_depscs; i++)
+        write_int32(ws->scdep_seg, i * SC_DEP_SIZE,
+            get_string_heap_index(vm, ws,
+                ATPOS_S(vm, ws->cu->sc_handles, i)));
     
     /* Visit and compile each of the frames. */
     num_frames = (unsigned short)ELEMS(vm, cu->frames);
