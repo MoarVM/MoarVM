@@ -44,28 +44,28 @@ my knowhow Archetypes {
     # filled it before it's useful in some way.
     has $!parametric;
     
-#    method new(:$nominal, :$inheritable, :$composable, :$parametric) {
-#        my $arch := nqp::create(self);
-#        $arch.BUILD(:nominal($nominal), :inheritable($inheritable),
-#            :composable($composable), :parametric($parametric));
-#        $arch
-#    }
-#    
-#    method BUILD(:$nominal, :$inheritable, :$composable, :$parametric) {
-#        $!nominal := $nominal;
-#        $!inheritable := $inheritable;
-#        $!composable := $composable;
-#        $!parametric := $parametric;
-#    }
-#    
-#    method nominal() { nqp::ifnull($!nominal, 0) }
-#    method nominalizable() { nqp::ifnull($!nominalizable, 0) }
-#    method inheritable() { nqp::ifnull($!inheritable, 0) }
-#    method inheritalizable() { nqp::ifnull($!inheritalizable, 0) }
-#    method composable() { nqp::ifnull($!composable, 0) }
-#    method composalizable() { nqp::ifnull($!composalizable, 0) }
-#    method generic() { nqp::ifnull($!generic, 0) }
-#    method parametric() { nqp::ifnull($!parametric, 0) }
+    method new(:$nominal, :$inheritable, :$composable, :$parametric) {
+        my $arch := nqp::create(self);
+        $arch.BUILD(:nominal($nominal), :inheritable($inheritable),
+            :composable($composable), :parametric($parametric));
+        $arch
+    }
+    
+    method BUILD(:$nominal, :$inheritable, :$composable, :$parametric) {
+        $!nominal := $nominal;
+        $!inheritable := $inheritable;
+        $!composable := $composable;
+        $!parametric := $parametric;
+    }
+    
+    method nominal() { nqp::ifnull($!nominal, 0) }
+    method nominalizable() { nqp::ifnull($!nominalizable, 0) }
+    method inheritable() { nqp::ifnull($!inheritable, 0) }
+    method inheritalizable() { nqp::ifnull($!inheritalizable, 0) }
+    method composable() { nqp::ifnull($!composable, 0) }
+    method composalizable() { nqp::ifnull($!composalizable, 0) }
+    method generic() { nqp::ifnull($!generic, 0) }
+    method parametric() { nqp::ifnull($!parametric, 0) }
 }
 # From src\how\RoleToRoleApplier.pm
 
@@ -192,146 +192,146 @@ knowhow NQPConcreteRoleHOW {
 #    method archetypes() {
 #        $archetypes
 #    }
-#
-#    ##
-#    ## Declarative
-#    ##
-#
-#    # Creates a new instance of this meta-class.
-#    method new(:$name!, :$instance_of!) {
-#        my $obj := nqp::create(self);
-#        $obj.BUILD(:name($name), :instance_of($instance_of));
-#        $obj
-#    }
-#
-#    method BUILD(:$name!, :$instance_of!) {
-#        $!name := $name;
-#        $!instance_of := $instance_of;
-#        %!attributes := nqp::hash();
-#        %!methods := nqp::hash();
-#        @!multi_methods_to_incorporate := nqp::list();
-#        @!collisions := nqp::list();
-#        @!roles := nqp::list();
-#        @!role_typecheck_list := nqp::list();
-#        $!composed := 0;
-#    }
-#
-#    # Create a new meta-object instance, and then a new type object
-#    # to go with it, and return that.
-#    method new_type(:$name = '<anon>', :$instance_of!) {
-#        my $metarole := self.new(:name($name), :instance_of($instance_of));
-#        nqp::newtype($metarole, 'Uninstantiable');
-#    }
-#
-#    method add_method($obj, $name, $code_obj) {
-#        if nqp::existskey(%!methods, $name) {
-#            nqp::die("This role already has a method named " ~ $name);
-#        }
-#        %!methods{$name} := $code_obj;
-#    }
-#
-#    method add_multi_method($obj, $name, $code_obj) {
-#        my %todo;
-#        %todo<name> := $name;
-#        %todo<code> := $code_obj;
-#        nqp::push(@!multi_methods_to_incorporate, %todo);
-#        $code_obj;
-#    }
-#
-#    method add_attribute($obj, $meta_attr) {
-#        my $name := $meta_attr.name;
-#        if nqp::existskey(%!attributes, $name) {
-#            nqp::die("This role already has an attribute named " ~ $name);
-#        }
-#        %!attributes{$name} := $meta_attr;
-#    }
-#
-#    method add_parent($obj, $parent) {
-#        nqp::die("A role cannot inherit from a class in NQP")
-#    }
-#
-#    method add_role($obj, $role) {
-#        nqp::push(@!roles, $role);
-#    }
-#
-#    method add_collision($obj, $colliding_name) {
-#        nqp::push(@!collisions, $colliding_name);
-#    }
-#
-#    # Compose the role. Beyond this point, no changes are allowed.
-#    method compose($obj) {
-#        # Incorporate roles. They're already instantiated. We need to
-#        # add to done list their instantiation source.
-#        if @!roles {
-#            for @!roles {
-#                nqp::push(@!role_typecheck_list, $_);
-#                nqp::push(@!role_typecheck_list, $_.HOW.instance_of($_));
-#            }
-#            RoleToRoleApplier.apply($obj, @!roles);
-#        }
-#
-#        # Mark composed.
-#        $!composed := 1;
-#        nqp::settypecache($obj, [$obj.WHAT]);
-#        nqp::setmethcache($obj, {});
-#        nqp::setmethcacheauth($obj, 1);
-#        $obj
-#    }
-#
-#
-#    ##
-#    ## Introspecty
-#    ##
-#
-#    method methods($obj, :$local) {
-#        my @meths;
-#        for %!methods {
-#            nqp::push(@meths, nqp::iterval($_));
-#        }
-#        @meths
-#    }
-#
-#    method method_table($obj) {
-#        %!methods
-#    }
-#
-#    method collisions($obj) {
-#        @!collisions
-#    }
-#
-#    method name($obj) {
-#        $!name
-#    }
-#
-#    method attributes($obj, :$local) {
-#        my @attrs;
-#        for %!attributes {
-#            nqp::push(@attrs, nqp::iterval($_));
-#        }
-#        @attrs
-#    }
-#
-#    method roles($obj) {
-#        @!roles
-#    }
-#    
-#    method role_typecheck_list($obj) {
-#        @!role_typecheck_list
-#    }
-#
-#    method instance_of($obj) {
-#        $!instance_of
-#    }
+
+    ##
+    ## Declarative
+    ##
+
+    # Creates a new instance of this meta-class.
+    method new(:$name!, :$instance_of!) {
+        my $obj := nqp::create(self);
+        $obj.BUILD(:name($name), :instance_of($instance_of));
+        $obj
+    }
+
+    method BUILD(:$name!, :$instance_of!) {
+        $!name := $name;
+        $!instance_of := $instance_of;
+        %!attributes := nqp::hash();
+        %!methods := nqp::hash();
+        @!multi_methods_to_incorporate := nqp::list();
+        @!collisions := nqp::list();
+        @!roles := nqp::list();
+        @!role_typecheck_list := nqp::list();
+        $!composed := 0;
+    }
+
+    # Create a new meta-object instance, and then a new type object
+    # to go with it, and return that.
+    method new_type(:$name = '<anon>', :$instance_of!) {
+        my $metarole := self.new(:name($name), :instance_of($instance_of));
+        nqp::newtype($metarole, 'Uninstantiable');
+    }
+
+    method add_method($obj, $name, $code_obj) {
+        if nqp::existskey(%!methods, $name) {
+            nqp::die("This role already has a method named " ~ $name);
+        }
+        %!methods{$name} := $code_obj;
+    }
+
+    method add_multi_method($obj, $name, $code_obj) {
+        my %todo;
+        %todo<name> := $name;
+        %todo<code> := $code_obj;
+        nqp::push(@!multi_methods_to_incorporate, %todo);
+        $code_obj;
+    }
+
+    method add_attribute($obj, $meta_attr) {
+        my $name := $meta_attr.name;
+        if nqp::existskey(%!attributes, $name) {
+            nqp::die("This role already has an attribute named " ~ $name);
+        }
+        %!attributes{$name} := $meta_attr;
+    }
+
+    method add_parent($obj, $parent) {
+        nqp::die("A role cannot inherit from a class in NQP")
+    }
+
+    method add_role($obj, $role) {
+        nqp::push(@!roles, $role);
+    }
+
+    method add_collision($obj, $colliding_name) {
+        nqp::push(@!collisions, $colliding_name);
+    }
+
+    # Compose the role. Beyond this point, no changes are allowed.
+    method compose($obj) {
+        # Incorporate roles. They're already instantiated. We need to
+        # add to done list their instantiation source.
+        if @!roles {
+            for @!roles {
+                nqp::push(@!role_typecheck_list, $_);
+                nqp::push(@!role_typecheck_list, $_.HOW.instance_of($_));
+            }
+            RoleToRoleApplier.apply($obj, @!roles);
+        }
+
+        # Mark composed.
+        $!composed := 1;
+        nqp::settypecache($obj, [$obj.WHAT]);
+        nqp::setmethcache($obj, {});
+        nqp::setmethcacheauth($obj, 1);
+        $obj
+    }
+
+
+    ##
+    ## Introspecty
+    ##
+
+    method methods($obj, :$local) {
+        my @meths;
+        for %!methods {
+            nqp::push(@meths, nqp::iterval($_));
+        }
+        @meths
+    }
+
+    method method_table($obj) {
+        %!methods
+    }
+
+    method collisions($obj) {
+        @!collisions
+    }
+
+    method name($obj) {
+        $!name
+    }
+
+    method attributes($obj, :$local) {
+        my @attrs;
+        for %!attributes {
+            nqp::push(@attrs, nqp::iterval($_));
+        }
+        @attrs
+    }
+
+    method roles($obj) {
+        @!roles
+    }
+    
+    method role_typecheck_list($obj) {
+        @!role_typecheck_list
+    }
+
+    method instance_of($obj) {
+        $!instance_of
+    }
 }
 # From src\how\RoleToClassApplier.pm
 
 knowhow RoleToClassApplier {
 
-#    sub has_method($target, $name, $local) {
-#        my %mt := $target.HOW.method_table($target);
-#        nqp::existskey(%mt, $name);
-#    }
-#
+    sub has_method($target, $name, $local) {
+        my %mt := $target.HOW.method_table($target);
+        nqp::existskey(%mt, $name);
+    }
+
 #    sub has_attribute($target, $name) {
 #        my @attributes := $target.HOW.attributes($target, :local(1));
 #        for @attributes {
@@ -339,60 +339,60 @@ knowhow RoleToClassApplier {
 #        }
 #        return 0;
 #    }
-#
-#    method apply($target, @roles) {
-#        # If we have many things to compose, then get them into a single helper
-#        # role first.
-#        my $to_compose;
-#        my $to_compose_meta;
-#        if nqp::elems(@roles) == 1 {
-#            $to_compose := @roles[0];
-#            $to_compose_meta := $to_compose.HOW;
-#        }
-#        else {
-#            $to_compose := NQPConcreteRoleHOW.new_type(:instance_of(NQPMu));
-#            $to_compose_meta := $to_compose.HOW;
-#            for @roles {
-#                $to_compose_meta.add_role($to_compose, $_);
-#            }
-#            $to_compose := $to_compose_meta.compose($to_compose);
-#        }
-#
-#        # Collisions?
-#        my @collisions := $to_compose_meta.collisions($to_compose);
-#        for @collisions {
-#            my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
-#            unless has_method($target, $name, 1) {
-#                nqp::die("Method '$name' collides and a resolution must be provided by the class '" ~
-#                    $target.HOW.name($target) ~ "'");
-#            }
-#        }
-#
-#        # Compose in any methods.
-#        my @methods := $to_compose_meta.methods($to_compose);
-#        for @methods {
-#            my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
-#            unless has_method($target, $name, 0) {
-#                $target.HOW.add_method($target, $name, $_);
-#            }
-#        }
-#
-#        # Compose in any role attributes.
-#        my @attributes := $to_compose_meta.attributes($to_compose);
-#        for @attributes {
-#            if has_attribute($target, $_.name) {
-#                nqp::die("Attribute '" ~ $_.name ~ "' already exists in the class '" ~
-#                    $target.HOW.name($target) ~  "', but a role also wishes to compose it");
-#            }
-#            $target.HOW.add_attribute($target, $_);
-#        }
-#
-#        # The full list of done roles is just the list of the one role we have
-#        # composed in.
-#        # XXX TODO
-#        my @done;
-#        @done[0] := $to_compose;
-#    }
+
+    method apply($target, @roles) {
+        # If we have many things to compose, then get them into a single helper
+        # role first.
+        my $to_compose;
+        my $to_compose_meta;
+        if nqp::elems(@roles) == 1 {
+            $to_compose := @roles[0];
+            $to_compose_meta := $to_compose.HOW;
+        }
+        else {
+            $to_compose := NQPConcreteRoleHOW.new_type(:instance_of(NQPMu));
+            $to_compose_meta := $to_compose.HOW;
+            for @roles {
+                $to_compose_meta.add_role($to_compose, $_);
+            }
+            $to_compose := $to_compose_meta.compose($to_compose);
+        }
+
+        # Collisions?
+        my @collisions := $to_compose_meta.collisions($to_compose);
+        for @collisions {
+            my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
+            unless has_method($target, $name, 1) {
+                nqp::die("Method '$name' collides and a resolution must be provided by the class '" ~
+                    $target.HOW.name($target) ~ "'");
+            }
+        }
+
+        # Compose in any methods.
+        my @methods := $to_compose_meta.methods($to_compose);
+        for @methods {
+            my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
+            unless has_method($target, $name, 0) {
+                $target.HOW.add_method($target, $name, $_);
+            }
+        }
+
+        # Compose in any role attributes.
+        my @attributes := $to_compose_meta.attributes($to_compose);
+        for @attributes {
+            if has_attribute($target, $_.name) {
+                nqp::die("Attribute '" ~ $_.name ~ "' already exists in the class '" ~
+                    $target.HOW.name($target) ~  "', but a role also wishes to compose it");
+            }
+            $target.HOW.add_attribute($target, $_);
+        }
+
+        # The full list of done roles is just the list of the one role we have
+        # composed in.
+        # XXX TODO
+        my @done;
+        @done[0] := $to_compose;
+    }
 }
 # From src\how\NQPCurriedRoleHOW.pm
 
@@ -405,33 +405,33 @@ knowhow NQPCurriedRoleHOW {
 #        $archetypes
 #    }
 #    
-#    method new(:$curried_role!, :@pos_args!) {
-#        my $obj := nqp::create(self);
-#        $obj.BUILD(:$curried_role, :@pos_args);
-#        $obj
-#    }
-#
-#    method BUILD(:$curried_role!, :@pos_args!) {
-#        $!curried_role := $curried_role;
-#        @!pos_args := @pos_args;
-#    }
-#    
-#    method new_type($curried_role!, *@pos_args) {
-#        my $meta := self.new(:curried_role($curried_role), :pos_args(@pos_args));
-#        nqp::newtype($meta, 'Uninstantiable');
-#    }
-#    
-#    method specialize($obj, $class_arg) {
-#        $!curried_role.HOW.specialize($!curried_role, $class_arg, |@!pos_args);
-#    }
-#    
-#    method name($obj) {
-#        $!curried_role.HOW.name($!curried_role)
-#    }
-#    
-#    method curried_role($obj) {
-#        $!curried_role
-#    }
+    method new(:$curried_role!, :@pos_args!) {
+        my $obj := nqp::create(self);
+        $obj.BUILD(:$curried_role, :@pos_args);
+        $obj
+    }
+
+    method BUILD(:$curried_role!, :@pos_args!) {
+        $!curried_role := $curried_role;
+        @!pos_args := @pos_args;
+    }
+    
+    method new_type($curried_role!, *@pos_args) {
+        my $meta := self.new(:curried_role($curried_role), :pos_args(@pos_args));
+        nqp::newtype($meta, 'Uninstantiable');
+    }
+    
+    method specialize($obj, $class_arg) {
+        $!curried_role.HOW.specialize($!curried_role, $class_arg, |@!pos_args);
+    }
+    
+    method name($obj) {
+        $!curried_role.HOW.name($!curried_role)
+    }
+    
+    method curried_role($obj) {
+        $!curried_role
+    }
 }
 # From src\how\NQPParametricRoleHOW.pm
 
@@ -467,93 +467,93 @@ knowhow NQPParametricRoleHOW {
 #    method archetypes() {
 #        $archetypes
 #    }
-#
-#    ##
-#    ## Declarative
-#    ##
-#
-#    # Creates a new instance of this meta-class.
-#    method new(:$name!) {
-#        my $obj := nqp::create(self);
-#        $obj.BUILD(:name($name));
-#        $obj
-#    }
-#
-#    method BUILD(:$name!) {
-#        $!name := $name;
-#        %!attributes := nqp::hash();
-#        %!methods := nqp::hash();
-#        @!multi_methods_to_incorporate := nqp::list();
-#        @!roles := nqp::list();
-#        $!composed := 0;
-#    }
-#
-#    # Create a new meta-class instance, and then a new type object
-#    # to go with it, and return that.
-#    method new_type(:$name = '<anon>') {
-#        my $metarole := self.new(:name($name));
-#        nqp::setwho(nqp::newtype($metarole, 'Uninstantiable'), {});
-#    }
-#    
-#    method set_body_block($obj, $body_block) {
-#        $!body_block := $body_block;
-#    }
-#
-#    method add_method($obj, $name, $code_obj) {
-#        if nqp::existskey(%!methods, $name) {
-#            nqp::die("This role already has a method named " ~ $name);
-#        }
-#        %!methods{$name} := $code_obj;
-#    }
-#
-#    method add_multi_method($obj, $name, $code_obj) {
-#        my %todo;
-#        %todo<name> := $name;
-#        %todo<code> := $code_obj;
-#        nqp::push(@!multi_methods_to_incorporate, %todo);
-#        $code_obj;
-#    }
-#
-#    method add_attribute($obj, $meta_attr) {
-#        my $name := $meta_attr.name;
-#        if nqp::existskey(%!attributes, $name) {
-#            nqp::die("This role already has an attribute named " ~ $name);
-#        }
-#        %!attributes{$name} := $meta_attr;
-#    }
-#
-#    method add_parent($obj, $parent) {
-#        nqp::die("A role cannot inherit from a class")
-#    }
-#
-#    method add_role($obj, $role) {
-#        nqp::push(@!roles, $role);
-#    }
-#
-#    # Compose the role. Beyond this point, no changes are allowed.
-#    method compose($obj) {
-#        $!composed := 1;
-#        nqp::settypecache($obj, [$obj.WHAT]);
-#        nqp::setmethcache($obj, {});
-#        nqp::setmethcacheauth($obj, 1);
-#        $obj
-#    }
-#
-#
-#    ##
-#    ## Parametricity
-#    ##
-#
-#    # Method to indicate that this type is parametric.
-#    method parametric($obj) {
-#        1
-#    }
-#    
-#    # Curries this parametric role with arguments.
-#    method curry($obj, *@args) {
-#        NQPCurriedRoleHOW.new_type($obj, |@args)
-#    }
-#
+
+    ##
+    ## Declarative
+    ##
+
+    # Creates a new instance of this meta-class.
+    method new(:$name!) {
+        my $obj := nqp::create(self);
+        $obj.BUILD(:name($name));
+        $obj
+    }
+
+    method BUILD(:$name!) {
+        $!name := $name;
+        %!attributes := nqp::hash();
+        %!methods := nqp::hash();
+        @!multi_methods_to_incorporate := nqp::list();
+        @!roles := nqp::list();
+        $!composed := 0;
+    }
+
+    # Create a new meta-class instance, and then a new type object
+    # to go with it, and return that.
+    method new_type(:$name = '<anon>') {
+        my $metarole := self.new(:name($name));
+        nqp::setwho(nqp::newtype($metarole, 'Uninstantiable'), {});
+    }
+    
+    method set_body_block($obj, $body_block) {
+        $!body_block := $body_block;
+    }
+
+    method add_method($obj, $name, $code_obj) {
+        if nqp::existskey(%!methods, $name) {
+            nqp::die("This role already has a method named " ~ $name);
+        }
+        %!methods{$name} := $code_obj;
+    }
+
+    method add_multi_method($obj, $name, $code_obj) {
+        my %todo;
+        %todo<name> := $name;
+        %todo<code> := $code_obj;
+        nqp::push(@!multi_methods_to_incorporate, %todo);
+        $code_obj;
+    }
+
+    method add_attribute($obj, $meta_attr) {
+        my $name := $meta_attr.name;
+        if nqp::existskey(%!attributes, $name) {
+            nqp::die("This role already has an attribute named " ~ $name);
+        }
+        %!attributes{$name} := $meta_attr;
+    }
+
+    method add_parent($obj, $parent) {
+        nqp::die("A role cannot inherit from a class")
+    }
+
+    method add_role($obj, $role) {
+        nqp::push(@!roles, $role);
+    }
+
+    # Compose the role. Beyond this point, no changes are allowed.
+    method compose($obj) {
+        $!composed := 1;
+        nqp::settypecache($obj, [$obj.WHAT]);
+        nqp::setmethcache($obj, {});
+        nqp::setmethcacheauth($obj, 1);
+        $obj
+    }
+
+
+    ##
+    ## Parametricity
+    ##
+
+    # Method to indicate that this type is parametric.
+    method parametric($obj) {
+        1
+    }
+    
+    # Curries this parametric role with arguments.
+    method curry($obj, *@args) {
+        NQPCurriedRoleHOW.new_type($obj, |@args)
+    }
+
 #    # This specializes the role for the given class and builds a concrete
 #    # role.
 #    method specialize($obj, $class_arg, *@args) {
@@ -596,38 +596,38 @@ knowhow NQPParametricRoleHOW {
 #        $irole.HOW.compose($irole);
 #        return $irole;
 #    }
-#
-#    ##
-#    ## Introspecty
-#    ##
-#
-#    method methods($obj, :$local) {
-#        my @meths;
-#        for %!methods {
-#            nqp::push(@meths, nqp::iterval($_));
-#        }
-#        @meths
-#    }
-#
-#    method method_table($obj) {
-#        %!methods
-#    }
-#
-#    method name($obj) {
-#        $!name
-#    }
-#
-#    method attributes($obj, :$local) {
-#        my @attrs;
-#        for %!attributes {
-#            nqp::push(@attrs, nqp::iterval($_));
-#        }
-#        @attrs
-#    }
-#
-#    method roles($obj) {
-#        @!roles
-#    }
+
+    ##
+    ## Introspecty
+    ##
+
+    method methods($obj, :$local) {
+        my @meths;
+        for %!methods {
+            nqp::push(@meths, nqp::iterval($_));
+        }
+        @meths
+    }
+
+    method method_table($obj) {
+        %!methods
+    }
+
+    method name($obj) {
+        $!name
+    }
+
+    method attributes($obj, :$local) {
+        my @attrs;
+        for %!attributes {
+            nqp::push(@attrs, nqp::iterval($_));
+        }
+        @attrs
+    }
+
+    method roles($obj) {
+        @!roles
+    }
 }
 # From src\how\NQPClassHOW.pm
 
@@ -684,245 +684,245 @@ knowhow NQPClassHOW {
 #    method archetypes() {
 #        $archetypes
 #    }
-#
-#    ##
-#    ## Declarative.
-#    ##
-#
-#    # Creates a new instance of this meta-class.
-#    method new(:$name = '<anon>') {
-#        my $obj := nqp::create(self);
-#        $obj.BUILD(:name($name));
-#        $obj
-#    }
-#
-#    method BUILD(:$name = '<anon>') {
-#        $!name := $name;
-#        %!attributes := nqp::hash();
-#        %!methods := nqp::hash();
-#        @!method_order := nqp::list();
-#        @!multi_methods_to_incorporate := nqp::list();
-#        @!parents := nqp::list();
-#        @!roles := nqp::list();
-#        @!vtable := nqp::list();
-#        %!method-vtable-slots := nqp::hash();
-#        @!mro := nqp::list();
-#        @!done := nqp::list();
-##        %!parrot_vtable_mapping := nqp::hash();
-##        %!parrot_vtable_handler_mapping := nqp::hash();
-#        @!BUILDALLPLAN := nqp::list();
-#        @!BUILDPLAN := nqp::list();
-#        $!trace := 0;
-#        $!trace_depth := 0;
-#        $!composed := 0;
-#    }
-#
-#    # Create a new meta-class instance, and then a new type object
-#    # to go with it, and return that.
-#    method new_type(:$name = '<anon>', :$repr = 'P6opaque') {
-#        my $metaclass := self.new(:name($name));
-#        nqp::setwho(nqp::newtype($metaclass, $repr), {});
-#    }
-#
-#    method add_method($obj, $name, $code_obj) {
-#        if nqp::existskey(%!methods, $name) {
-#            nqp::die("This class already has a method named " ~ $name);
-#        }
+
+    ##
+    ## Declarative.
+    ##
+
+    # Creates a new instance of this meta-class.
+    method new(:$name = '<anon>') {
+        my $obj := nqp::create(self);
+        $obj.BUILD(:name($name));
+        $obj
+    }
+
+    method BUILD(:$name = '<anon>') {
+        $!name := $name;
+        %!attributes := nqp::hash();
+        %!methods := nqp::hash();
+        @!method_order := nqp::list();
+        @!multi_methods_to_incorporate := nqp::list();
+        @!parents := nqp::list();
+        @!roles := nqp::list();
+        @!vtable := nqp::list();
+        %!method-vtable-slots := nqp::hash();
+        @!mro := nqp::list();
+        @!done := nqp::list();
+#        %!parrot_vtable_mapping := nqp::hash();
+#        %!parrot_vtable_handler_mapping := nqp::hash();
+        @!BUILDALLPLAN := nqp::list();
+        @!BUILDPLAN := nqp::list();
+        $!trace := 0;
+        $!trace_depth := 0;
+        $!composed := 0;
+    }
+
+    # Create a new meta-class instance, and then a new type object
+    # to go with it, and return that.
+    method new_type(:$name = '<anon>', :$repr = 'P6opaque') {
+        my $metaclass := self.new(:name($name));
+        nqp::setwho(nqp::newtype($metaclass, $repr), {});
+    }
+
+    method add_method($obj, $name, $code_obj) {
+        if nqp::existskey(%!methods, $name) {
+            nqp::die("This class already has a method named " ~ $name);
+        }
 #        if nqp::isnull($code_obj) || !nqp::defined($code_obj) {
 #            nqp::die("Cannot add a null method '$name' to class '$!name'");
 #        }
-#        nqp::setmethcacheauth($obj, 0);
+        nqp::setmethcacheauth($obj, 0);
 #        %!caches{nqp::where(self)} := {} unless nqp::isnull(%!caches);
 #        nqp::push(@!method_order, %!methods{$name} := $code_obj);
+    }
+
+    method add_multi_method($obj, $name, $code_obj) {
+        # We can't incorporate these right away as we don't know all
+        # parents yet, maybe, which influences whether we even can
+        # have multis, need to generate a proto or worreva. So just
+        # queue them up in a todo list and we handle it at class
+        # composition time.
+        my %todo;
+        %todo<name> := $name;
+        %todo<code> := $code_obj;
+        nqp::push(@!multi_methods_to_incorporate, %todo);
+        nqp::setmethcacheauth($obj, 0);
+        $code_obj;
+    }
+
+    method add_attribute($obj, $meta_attr) {
+        my $name := $meta_attr.name;
+        if nqp::existskey(%!attributes, $name) {
+            nqp::die("This class already has an attribute named " ~ $name);
+        }
+        %!attributes{$name} := $meta_attr;
+    }
+
+    method add_parent($obj, $parent) {
+        if $!composed {
+            nqp::die("NQPClassHOW does not support adding parents after being composed.");
+        }
+        if $obj =:= $parent {
+            nqp::die("Class '$!name' cannot inherit from itself.");
+        }
+        for @!parents {
+            if $_ =:= $parent {
+                nqp::die("Already have " ~ $parent ~ " as a parent class.");
+            }
+        }
+        nqp::push(@!parents, $parent);
+    }
+    
+    method set_default_parent($obj, $parent) {
+        $!default_parent := $parent;
+    }
+    
+    # Changes the object's parent. Conditions: it has exactly one parent, and that
+    # parent has no attributes, and nor does the new one.
+    method reparent($obj, $new_parent) {
+        if nqp::elems(@!parents) != 1 {
+            nqp::die("Can only re-parent a class with exactly one parent");
+        }
+        for @!parents[0].HOW.mro(@!parents[0]) {
+            if nqp::elems($_.HOW.attributes($_, :local)) {
+                nqp::die("Can only re-parent a class whose parent has no attributes");
+            }
+        }
+        for $new_parent.HOW.mro($new_parent) {
+            if nqp::elems($_.HOW.attributes($_, :local)) {
+                nqp::die("Can only re-parent to a class with no attributes");
+            }
+        }
+        @!parents[0] := $new_parent;
+        @!mro := compute_c3_mro($obj);
+        self.publish_type_cache($obj);
+        self.publish_method_cache($obj);
+        self.publish_boolification_spec($obj);
+#        self.publish_parrot_vtable_mapping($obj);
+#		self.publish_parrot_vtablee_handler_mapping($obj);
+        1;
+    }
+
+    method add_role($obj, $role) {
+        for @!roles {
+            if $_ =:= $role {
+                nqp::die("The role " ~ $role ~ " has already been added.");
+            }
+        }
+        nqp::push(@!roles, $role);
+    }
+
+#    method add_parrot_vtable_mapping($obj, $name, $meth) {
+#        if nqp::defined(%!parrot_vtable_mapping{$name}) {
+#            nqp::die("Class '" ~ $!name ~
+#                "' already has a Parrot v-table override for '" ~
+#                $name ~ "'");
+#        }
+#        %!parrot_vtable_mapping{$name} := $meth;
 #    }
 #
-#    method add_multi_method($obj, $name, $code_obj) {
-#        # We can't incorporate these right away as we don't know all
-#        # parents yet, maybe, which influences whether we even can
-#        # have multis, need to generate a proto or worreva. So just
-#        # queue them up in a todo list and we handle it at class
-#        # composition time.
-#        my %todo;
-#        %todo<name> := $name;
-#        %todo<code> := $code_obj;
-#        nqp::push(@!multi_methods_to_incorporate, %todo);
-#        nqp::setmethcacheauth($obj, 0);
-#        $code_obj;
+#    method add_parrot_vtable_handler_mapping($obj, $name, $att_name) {
+#        if nqp::defined(%!parrot_vtable_handler_mapping{$name}) {
+#            nqp::die("Class '" ~ $!name ~
+#                "' already has a Parrot v-table handler for '" ~
+#                $name ~ "'");
+#        }
+#        %!parrot_vtable_handler_mapping{$name} := [ $obj, $att_name ];
 #    }
-#
-#    method add_attribute($obj, $meta_attr) {
-#        my $name := $meta_attr.name;
-#        if nqp::existskey(%!attributes, $name) {
-#            nqp::die("This class already has an attribute named " ~ $name);
-#        }
-#        %!attributes{$name} := $meta_attr;
-#    }
-#
-#    method add_parent($obj, $parent) {
-#        if $!composed {
-#            nqp::die("NQPClassHOW does not support adding parents after being composed.");
-#        }
-#        if $obj =:= $parent {
-#            nqp::die("Class '$!name' cannot inherit from itself.");
-#        }
-#        for @!parents {
-#            if $_ =:= $parent {
-#                nqp::die("Already have " ~ $parent ~ " as a parent class.");
-#            }
-#        }
-#        nqp::push(@!parents, $parent);
-#    }
-#    
-#    method set_default_parent($obj, $parent) {
-#        $!default_parent := $parent;
-#    }
-#    
-#    # Changes the object's parent. Conditions: it has exactly one parent, and that
-#    # parent has no attributes, and nor does the new one.
-#    method reparent($obj, $new_parent) {
-#        if nqp::elems(@!parents) != 1 {
-#            nqp::die("Can only re-parent a class with exactly one parent");
-#        }
-#        for @!parents[0].HOW.mro(@!parents[0]) {
-#            if nqp::elems($_.HOW.attributes($_, :local)) {
-#                nqp::die("Can only re-parent a class whose parent has no attributes");
-#            }
-#        }
-#        for $new_parent.HOW.mro($new_parent) {
-#            if nqp::elems($_.HOW.attributes($_, :local)) {
-#                nqp::die("Can only re-parent to a class with no attributes");
-#            }
-#        }
-#        @!parents[0] := $new_parent;
-#        @!mro := compute_c3_mro($obj);
-#        self.publish_type_cache($obj);
-#        self.publish_method_cache($obj);
-#        self.publish_boolification_spec($obj);
-##        self.publish_parrot_vtable_mapping($obj);
-##		self.publish_parrot_vtablee_handler_mapping($obj);
-#        1;
-#    }
-#
-#    method add_role($obj, $role) {
-#        for @!roles {
-#            if $_ =:= $role {
-#                nqp::die("The role " ~ $role ~ " has already been added.");
-#            }
-#        }
-#        nqp::push(@!roles, $role);
-#    }
-#
-##    method add_parrot_vtable_mapping($obj, $name, $meth) {
-##        if nqp::defined(%!parrot_vtable_mapping{$name}) {
-##            nqp::die("Class '" ~ $!name ~
-##                "' already has a Parrot v-table override for '" ~
-##                $name ~ "'");
-##        }
-##        %!parrot_vtable_mapping{$name} := $meth;
-##    }
-##
-##    method add_parrot_vtable_handler_mapping($obj, $name, $att_name) {
-##        if nqp::defined(%!parrot_vtable_handler_mapping{$name}) {
-##            nqp::die("Class '" ~ $!name ~
-##                "' already has a Parrot v-table handler for '" ~
-##                $name ~ "'");
-##        }
-##        %!parrot_vtable_handler_mapping{$name} := [ $obj, $att_name ];
-##    }
-#
-#    method compose($obj) {
-#        # Incorporate roles. First, specialize them with the type object
-#        # for this type (so their $?CLASS is correct). Then delegate to
-#        # the composer.
-#        if @!roles {
-#            my @specialized_roles;
-#            for @!roles {
-#                my $ins := $_.HOW.specialize($_, $obj);
-#                nqp::push(@specialized_roles, $ins);
-#                nqp::push(@!done, $_);
-#                nqp::push(@!done, $ins);
-#            }
-#            RoleToClassApplier.apply($obj, @specialized_roles);
-#        }
-#
-#        # If we have no parents and we're not called NQPMu then add the
-#        # default parent.
-#        if nqp::elems(@!parents) == 0 && $!name ne 'NQPMu' {
-#            self.add_parent($obj, $!default_parent)
-#        }
-#
-#        # Compute the MRO.
-#        @!mro := compute_c3_mro($obj);
-#
-#        # Incorporate any new multi candidates (needs MRO built).
-#        self.incorporate_multi_candidates($obj);
-#
-#        # Compose attributes.
-#        for self.attributes($obj, :local<0> ) { $_.compose($obj) }
-#
-#        # Publish type and method caches and boolification spec.
-#        self.publish_type_cache($obj);
-#        self.publish_method_cache($obj);
-#        self.publish_boolification_spec($obj);
-#
-#        # Install Parrot v-table mapping.
-##        self.publish_parrot_vtable_mapping($obj);
-##		self.publish_parrot_vtablee_handler_mapping($obj);
-#        
-#        # Create BUILDPLAN.
-#        self.create_BUILDPLAN($obj);
-#        
-#        # Compose the representation.
-#        unless $!composed {
-#            self.compose_repr($obj);
-#        }
-#        
-#        # Mark as composed.
-#        $!composed := 1;
-#
-#        $obj
-#    }
-#    
-#    method compose_repr($obj) {
-#        # Use any attribute information to produce attribute protocol
-#        # data. The protocol consists of an array...
-#        my @repr_info;
-#        
-#        # ...which contains an array per MRO entry...
-#        for @!mro -> $type_obj {
-#            my @type_info;
-#            nqp::push(@repr_info, @type_info);
-#
-#            # ...which in turn contains the current type in the MRO...
-#            nqp::push(@type_info, $type_obj);
-#        
-#            # ...then an array of hashes per attribute...
-#            my @attrs;
-#            nqp::push(@type_info, @attrs);
-#            for $type_obj.HOW.attributes($type_obj, :local) -> $attr {
-#                my %attr_info;
-#                %attr_info<name> := $attr.name;
-#                %attr_info<type> := $attr.type;
-#                if $attr.box_target {
-#                    # Merely having the key serves as a "yes".
-#                    %attr_info<box_target> := 1;
-#                }
-#                if nqp::can($attr, 'auto_viv_container') {
-#                    %attr_info<auto_viv_container> := $attr.auto_viv_container;
-#                }
-#                nqp::push(@attrs, %attr_info);
-#            }
-#        
-#            # ...followed by a list of immediate parents.
-#            nqp::push(@type_info, $type_obj.HOW.parents($type_obj, :local));
-#        }
-#        
-#        # Compose the representation using it.
-#        my $info := nqp::hash();
-#        $info<attribute> := @repr_info;
-#        nqp::composetype($obj, $info)
-#    }
-#
+
+    method compose($obj) {
+        # Incorporate roles. First, specialize them with the type object
+        # for this type (so their $?CLASS is correct). Then delegate to
+        # the composer.
+        if @!roles {
+            my @specialized_roles;
+            for @!roles {
+                my $ins := $_.HOW.specialize($_, $obj);
+                nqp::push(@specialized_roles, $ins);
+                nqp::push(@!done, $_);
+                nqp::push(@!done, $ins);
+            }
+            RoleToClassApplier.apply($obj, @specialized_roles);
+        }
+
+        # If we have no parents and we're not called NQPMu then add the
+        # default parent.
+        if nqp::elems(@!parents) == 0 && $!name ne 'NQPMu' {
+            self.add_parent($obj, $!default_parent)
+        }
+
+        # Compute the MRO.
+        @!mro := compute_c3_mro($obj);
+
+        # Incorporate any new multi candidates (needs MRO built).
+        self.incorporate_multi_candidates($obj);
+
+        # Compose attributes.
+        for self.attributes($obj, :local<0> ) { $_.compose($obj) }
+
+        # Publish type and method caches and boolification spec.
+        self.publish_type_cache($obj);
+        self.publish_method_cache($obj);
+        self.publish_boolification_spec($obj);
+
+        # Install Parrot v-table mapping.
+#        self.publish_parrot_vtable_mapping($obj);
+#		self.publish_parrot_vtablee_handler_mapping($obj);
+        
+        # Create BUILDPLAN.
+        self.create_BUILDPLAN($obj);
+        
+        # Compose the representation.
+        unless $!composed {
+            self.compose_repr($obj);
+        }
+        
+        # Mark as composed.
+        $!composed := 1;
+
+        $obj
+    }
+    
+    method compose_repr($obj) {
+        # Use any attribute information to produce attribute protocol
+        # data. The protocol consists of an array...
+        my @repr_info;
+        
+        # ...which contains an array per MRO entry...
+        for @!mro -> $type_obj {
+            my @type_info;
+            nqp::push(@repr_info, @type_info);
+
+            # ...which in turn contains the current type in the MRO...
+            nqp::push(@type_info, $type_obj);
+        
+            # ...then an array of hashes per attribute...
+            my @attrs;
+            nqp::push(@type_info, @attrs);
+            for $type_obj.HOW.attributes($type_obj, :local) -> $attr {
+                my %attr_info;
+                %attr_info<name> := $attr.name;
+                %attr_info<type> := $attr.type;
+                if $attr.box_target {
+                    # Merely having the key serves as a "yes".
+                    %attr_info<box_target> := 1;
+                }
+                if nqp::can($attr, 'auto_viv_container') {
+                    %attr_info<auto_viv_container> := $attr.auto_viv_container;
+                }
+                nqp::push(@attrs, %attr_info);
+            }
+        
+            # ...followed by a list of immediate parents.
+            nqp::push(@type_info, $type_obj.HOW.parents($type_obj, :local));
+        }
+        
+        # Compose the representation using it.
+        my $info := nqp::hash();
+        $info<attribute> := @repr_info;
+        nqp::composetype($obj, $info)
+    }
+
 #    method incorporate_multi_candidates($obj) {
 #        my $num_todo := nqp::elems(@!multi_methods_to_incorporate);
 #        my $i := 0;
@@ -1067,86 +1067,86 @@ knowhow NQPClassHOW {
 #        nqp::unshift(@result, $accepted);
 #        return @result;
 #    }
-#
-#    method publish_type_cache($obj) {
-#        my @tc;
-#        for @!mro { nqp::push(@tc, $_); }
-#        for @!done { nqp::push(@tc, $_); }
-#        nqp::settypecache($obj, @tc)
-#    }
-#    
-#    sub reverse(@in) {
-#        my @out;
-#        for @in { nqp::unshift(@out, $_) }
-#        @out
-#    }
-#
-#    method publish_method_cache($obj) {
-#        # Walk MRO and add methods to cache, unless another method
-#        # lower in the class hierarchy "shadowed" it.
-#        my %cache;
-#        my @mro_reversed := reverse(@!mro);
-#        for @mro_reversed {
-#            for $_.HOW.method_table($_) {
-#                %cache{nqp::iterkey_s($_)} := nqp::iterval($_);
+
+    method publish_type_cache($obj) {
+        my @tc;
+        for @!mro { nqp::push(@tc, $_); }
+        for @!done { nqp::push(@tc, $_); }
+        nqp::settypecache($obj, @tc)
+    }
+    
+    sub reverse(@in) {
+        my @out;
+        for @in { nqp::unshift(@out, $_) }
+        @out
+    }
+
+    method publish_method_cache($obj) {
+        # Walk MRO and add methods to cache, unless another method
+        # lower in the class hierarchy "shadowed" it.
+        my %cache;
+        my @mro_reversed := reverse(@!mro);
+        for @mro_reversed {
+            for $_.HOW.method_table($_) {
+                %cache{nqp::iterkey_s($_)} := nqp::iterval($_);
+            }
+        }
+        nqp::setmethcache($obj, %cache);
+        nqp::setmethcacheauth($obj, 1);
+    }
+
+    method publish_boolification_spec($obj) {
+        my $bool_meth := self.find_method($obj, 'Bool');
+        if nqp::defined($bool_meth) {
+            nqp::setboolspec($obj, 0, $bool_meth)
+        }
+        else {
+            nqp::setboolspec($obj, 5, nqp::null())
+        }
+    }
+
+#    method publish_parrot_vtable_mapping($obj) {
+#        my %mapping;
+#        my %seen_handlers;
+#        for @!mro {
+#            for $_.HOW.parrot_vtable_handler_mappings($_, :local(1)) {
+#                %seen_handlers{$_.key} := 1;
+#            }
+#            for $_.HOW.parrot_vtable_mappings($_, :local(1)) {
+#                unless nqp::existskey(%mapping, $_.key)
+#                        || nqp::existskey(%seen_handlers, $_.key) {
+#                    %mapping{$_.key} := $_.value;
+#                }
 #            }
 #        }
-#        nqp::setmethcache($obj, %cache);
-#        nqp::setmethcacheauth($obj, 1);
-#    }
-#
-#    method publish_boolification_spec($obj) {
-#        my $bool_meth := self.find_method($obj, 'Bool');
-#        if nqp::defined($bool_meth) {
-#            nqp::setboolspec($obj, 0, $bool_meth)
-#        }
-#        else {
-#            nqp::setboolspec($obj, 5, nqp::null())
+#        if +%mapping {
+#            pir::stable_publish_vtable_mapping__0PP($obj, %mapping);
 #        }
 #    }
 #
-##    method publish_parrot_vtable_mapping($obj) {
-##        my %mapping;
-##        my %seen_handlers;
-##        for @!mro {
-##            for $_.HOW.parrot_vtable_handler_mappings($_, :local(1)) {
-##                %seen_handlers{$_.key} := 1;
-##            }
-##            for $_.HOW.parrot_vtable_mappings($_, :local(1)) {
-##                unless nqp::existskey(%mapping, $_.key)
-##                        || nqp::existskey(%seen_handlers, $_.key) {
-##                    %mapping{$_.key} := $_.value;
-##                }
-##            }
-##        }
-##        if +%mapping {
-##            pir::stable_publish_vtable_mapping__0PP($obj, %mapping);
-##        }
-##    }
-##
-##    method publish_parrot_vtablee_handler_mapping($obj) {
-##        my %mapping;
-##        my @mro_reversed := reverse(@!mro);
-##        for @mro_reversed {
-##            for $_.HOW.parrot_vtable_handler_mappings($_, :local(1)) {
-##                %mapping{$_.key} := $_.value;
-##            }
-##        }
-##        if +%mapping {
-##            pir::stable_publish_vtable_handler_mapping__0PP($obj, %mapping);
-##        }
-##    }
-#    
-#    # Creates the plan for building up the object. This works
-#    # out what we'll need to do up front, so we can just zip
-#    # through the "todo list" each time we need to make an object.
-#    # The plan is an array of arrays. The first element of each
-#    # nested array is an "op" representing the task to perform:
-#    #   0 code = call specified BUILD method
-#    #   1 class name attr_name = try to find initialization value
-#    #   2 class name attr_name = try to find initialization value, or set nqp::list()
-#    #   3 class name attr_name = try to find initialization value, or set nqp::hash()
-#    #   4 class attr_name code = call default value closure if needed
+#    method publish_parrot_vtablee_handler_mapping($obj) {
+#        my %mapping;
+#        my @mro_reversed := reverse(@!mro);
+#        for @mro_reversed {
+#            for $_.HOW.parrot_vtable_handler_mappings($_, :local(1)) {
+#                %mapping{$_.key} := $_.value;
+#            }
+#        }
+#        if +%mapping {
+#            pir::stable_publish_vtable_handler_mapping__0PP($obj, %mapping);
+#        }
+#    }
+    
+    # Creates the plan for building up the object. This works
+    # out what we'll need to do up front, so we can just zip
+    # through the "todo list" each time we need to make an object.
+    # The plan is an array of arrays. The first element of each
+    # nested array is an "op" representing the task to perform:
+    #   0 code = call specified BUILD method
+    #   1 class name attr_name = try to find initialization value
+    #   2 class name attr_name = try to find initialization value, or set nqp::list()
+    #   3 class name attr_name = try to find initialization value, or set nqp::hash()
+    #   4 class attr_name code = call default value closure if needed
 #    method create_BUILDPLAN($obj) {
 #        # First, we'll create the build plan for just this class.
 #        my @plan;
@@ -1198,91 +1198,91 @@ knowhow NQPClassHOW {
 #        }
 #        @!BUILDALLPLAN := @all_plan;
 #    }
-#    
-#    method BUILDPLAN($obj) {
-#        @!BUILDPLAN
+    
+    method BUILDPLAN($obj) {
+        @!BUILDPLAN
+    }
+    
+    method BUILDALLPLAN($obj) {
+        @!BUILDALLPLAN
+    }
+
+    ##
+    ## Introspecty
+    ##
+
+    method parents($obj, :$local = 0) {
+        $local ?? @!parents !! @!mro
+    }
+    
+    method mro($obj) {
+        @!mro
+    }
+
+    method roles($obj, :$local!) {
+        @!roles
+    }
+
+    method methods($obj, :$local = 0) {
+        if $local {
+            @!method_order
+        }
+        else {
+            my @meths;
+            for @!mro {
+                for $_.HOW.methods($_, :local) {
+                    nqp::push(@meths, $_)
+                }
+            }
+            @meths
+        }
+    }
+
+    method method_table($obj) {
+        %!methods
+    }
+
+    method name($obj) {
+        $!name
+    }
+
+    method traced($obj) {
+        $!trace
+    }
+
+    method trace_depth($obj) {
+        $!trace_depth
+    }
+
+    method attributes($obj, :$local = 0) {
+        my @attrs;
+        if $local {
+            for %!attributes {
+                nqp::push(@attrs, nqp::iterval($_));
+            }
+        }
+        else {
+            for @!mro {
+                for $_.HOW.attributes($_, :local) {
+                    nqp::push(@attrs, $_);
+                }
+            }
+        }
+        @attrs
+    }
+
+#    method parrot_vtable_mappings($obj, :$local!) {
+#        %!parrot_vtable_mapping
 #    }
-#    
-#    method BUILDALLPLAN($obj) {
-#        @!BUILDALLPLAN
+#
+#    method parrot_vtable_handler_mappings($obj, :$local!) {
+#        %!parrot_vtable_handler_mapping
 #    }
-#
-#    ##
-#    ## Introspecty
-#    ##
-#
-#    method parents($obj, :$local = 0) {
-#        $local ?? @!parents !! @!mro
-#    }
-#    
-#    method mro($obj) {
-#        @!mro
-#    }
-#
-#    method roles($obj, :$local!) {
-#        @!roles
-#    }
-#
-#    method methods($obj, :$local = 0) {
-#        if $local {
-#            @!method_order
-#        }
-#        else {
-#            my @meths;
-#            for @!mro {
-#                for $_.HOW.methods($_, :local) {
-#                    nqp::push(@meths, $_)
-#                }
-#            }
-#            @meths
-#        }
-#    }
-#
-#    method method_table($obj) {
-#        %!methods
-#    }
-#
-#    method name($obj) {
-#        $!name
-#    }
-#
-#    method traced($obj) {
-#        $!trace
-#    }
-#
-#    method trace_depth($obj) {
-#        $!trace_depth
-#    }
-#
-#    method attributes($obj, :$local = 0) {
-#        my @attrs;
-#        if $local {
-#            for %!attributes {
-#                nqp::push(@attrs, nqp::iterval($_));
-#            }
-#        }
-#        else {
-#            for @!mro {
-#                for $_.HOW.attributes($_, :local) {
-#                    nqp::push(@attrs, $_);
-#                }
-#            }
-#        }
-#        @attrs
-#    }
-#
-##    method parrot_vtable_mappings($obj, :$local!) {
-##        %!parrot_vtable_mapping
-##    }
-##
-##    method parrot_vtable_handler_mappings($obj, :$local!) {
-##        %!parrot_vtable_handler_mapping
-##    }
-#
-#    ##
-#    ## Checky
-#    ##
-#
+
+    ##
+    ## Checky
+    ##
+
 #    method isa($obj, $check) {
 #        my $check-class := $check.WHAT;
 #        my $i := nqp::elems(@!mro);
@@ -1338,18 +1338,18 @@ knowhow NQPClassHOW {
 #        }
 #        nqp::null()
 #    }
-#
-#    ##
-#    ## Cache-related
-#    ##
-#    method cache($obj, $key, $value_generator) {
-#        %!caches := nqp::hash() unless nqp::ishash(%!caches);
+
+    ##
+    ## Cache-related
+    ##
+    method cache($obj, $key, $value_generator) {
+        %!caches := nqp::hash() unless nqp::ishash(%!caches);
 #        nqp::existskey(%!caches, $key) ??
 #            %!caches{$key} !!
 #            (%!caches{$key} := $value_generator())
-#    }
-#    
-#    
+    }
+    
+    
 #    ##
 #    ## Mix-ins
 #    ## 
@@ -1395,19 +1395,19 @@ knowhow NQPClassHOW {
 #            nqp::rebless($obj, $new_type) !!
 #            $new_type
 #    }
-#    
-#    ##
-#    ## Tracing
-#    ##
-#    method trace-on($obj, $depth?) {
-#        $!trace := 1;
+    
+    ##
+    ## Tracing
+    ##
+    method trace-on($obj, $depth?) {
+        $!trace := 1;
 #        $!trace_depth := $depth // 0;
-#        nqp::setmethcacheauth($obj, 0);
-#        nqp::setmethcache($obj, nqp::hash());
-#    }
-#    method trace-off($obj) {
-#        $!trace := 0;
-#    }
+        nqp::setmethcacheauth($obj, 0);
+        nqp::setmethcache($obj, nqp::hash());
+    }
+    method trace-off($obj) {
+        $!trace := 0;
+    }
 }
 # From src\how\NQPNativeHOW.pm
 
@@ -1419,45 +1419,45 @@ knowhow NQPNativeHOW {
 #    method archetypes() {
 #        $archetypes
 #    }
-#    
-#    method new(:$name) {
-#        my $obj := nqp::create(self);
-#        $obj.BUILD(:name($name));
-#        $obj
-#    }
-#
-#    method BUILD(:$name) {
-#        $!name := $name;
-#        $!composed := 0;
-#    }
-#
-#    # Create a new meta-class instance, and then a new type object
-#    # to go with it, and return that.
-#    # XXX Should check that this is an inlineable REPR.
-#    method new_type(:$name = '<anon>', :$repr!) {
-#        my $metaclass := self.new(:name($name));
-#        nqp::setwho(nqp::newtype($metaclass, $repr), {});
-#    }
-#
-#    method add_method($obj, $name, $code_obj) {
-#        nqp::die("Native types may not have methods (must be boxed to call method)");
-#    }
-#
-#    method add_multi_method($obj, $name, $code_obj) {
-#        nqp::die("Native types may not have methods (must be boxed to call method)");
-#    }
-#
-#    method add_attribute($obj, $meta_attr) {
-#        nqp::die("Native types may not have attributes");
-#    }
-#
-#    method compose($obj) {
-#        $!composed := 1;
-#    }
-#
-#    method name($obj) {
-#        $!name
-#    }
+    
+    method new(:$name) {
+        my $obj := nqp::create(self);
+        $obj.BUILD(:name($name));
+        $obj
+    }
+
+    method BUILD(:$name) {
+        $!name := $name;
+        $!composed := 0;
+    }
+
+    # Create a new meta-class instance, and then a new type object
+    # to go with it, and return that.
+    # XXX Should check that this is an inlineable REPR.
+    method new_type(:$name = '<anon>', :$repr!) {
+        my $metaclass := self.new(:name($name));
+        nqp::setwho(nqp::newtype($metaclass, $repr), {});
+    }
+
+    method add_method($obj, $name, $code_obj) {
+        nqp::die("Native types may not have methods (must be boxed to call method)");
+    }
+
+    method add_multi_method($obj, $name, $code_obj) {
+        nqp::die("Native types may not have methods (must be boxed to call method)");
+    }
+
+    method add_attribute($obj, $meta_attr) {
+        nqp::die("Native types may not have attributes");
+    }
+
+    method compose($obj) {
+        $!composed := 1;
+    }
+
+    method name($obj) {
+        $!name
+    }
 }
 # From src\how\NQPAttribute.pm
 
@@ -1471,55 +1471,55 @@ knowhow NQPAttribute {
     has $!positional_delegate;
     has $!associative_delegate;
 
-#    method new(:$name!, :$box_target, *%extra) {
-#        my $attr := nqp::create(self);
-#        $attr.BUILD(:name($name), |%extra, :box_target($box_target),
-#            :has_type(nqp::existskey(%extra, 'type')),
-#            :has_default(nqp::existskey(%extra, 'default')));
-#        $attr
-#    }
-#
-#    method BUILD(:$name, :$type, :$has_type, :$box_target, :$default, :$has_default) {
-#        $!name := $name;
-#        $!type := $type;
-#        $!has_type := $has_type;
-#        $!box_target := $box_target;
-#        $!default := $default;
-#        $!has_default := $has_default;
-#    }
-#
-#    method name() {
-#        $!name
-#    }
-#
-#    method type() {
-#        $!has_type ?? $!type !! nqp::null()
-#    }
-#    
-#    method has_accessor() {
-#        0
-#    }
-#    
-#    method build_closure() {
-#        0
-#    }
-#
+    method new(:$name!, :$box_target, *%extra) {
+        my $attr := nqp::create(self);
+        $attr.BUILD(:name($name), |%extra, :box_target($box_target),
+            :has_type(nqp::existskey(%extra, 'type')),
+            :has_default(nqp::existskey(%extra, 'default')));
+        $attr
+    }
+
+    method BUILD(:$name, :$type, :$has_type, :$box_target, :$default, :$has_default) {
+        $!name := $name;
+        $!type := $type;
+        $!has_type := $has_type;
+        $!box_target := $box_target;
+        $!default := $default;
+        $!has_default := $has_default;
+    }
+
+    method name() {
+        $!name
+    }
+
+    method type() {
+        $!has_type ?? $!type !! nqp::null()
+    }
+    
+    method has_accessor() {
+        0
+    }
+    
+    method build_closure() {
+        0
+    }
+
 #    method box_target() {
 #        !nqp::isnull($!box_target) && $!box_target ?? 1 !! 0
 #    }
-#    
-#    method auto_viv_container() {
-#        $!has_default ?? $!default !! nqp::null()
-#    }
-#    
-#    method set_positional_delegate($value) {
-#        $!positional_delegate := $value;
-#    }
-#    
-#    method set_associative_delegate($value) {
-#        $!associative_delegate := $value;
-#    }
-#    
+    
+    method auto_viv_container() {
+        $!has_default ?? $!default !! nqp::null()
+    }
+    
+    method set_positional_delegate($value) {
+        $!positional_delegate := $value;
+    }
+    
+    method set_associative_delegate($value) {
+        $!associative_delegate := $value;
+    }
+    
 #    method positional_delegate() {
 #        !nqp::isnull($!positional_delegate) && $!positional_delegate ?? 1 !! 0
 #    }
@@ -1527,10 +1527,10 @@ knowhow NQPAttribute {
 #    method associative_delegate() {
 #        !nqp::isnull($!associative_delegate) && $!associative_delegate ?? 1 !! 0
 #    }
-#
-#    method compose($obj) {
-#        $obj
-#    }
+
+    method compose($obj) {
+        $obj
+    }
 }
 # From src\how\NQPModuleHOW.pm
 
@@ -1542,50 +1542,50 @@ knowhow NQPModuleHOW {
 #    method archetypes() {
 #        $archetypes
 #    }
-#
-#    method new(:$name) {
-#        my $obj := nqp::create(self);
-#        $obj.BUILD(:name($name));
-#        $obj
-#    }
-#
-#    method BUILD(:$name) {
-#        $!name := $name;
-#        $!composed := 0;
-#    }
-#
-#    # Create a new meta-class instance, and then a new type object
-#    # to go with it, and return that.
-#    method new_type(:$name = '<anon>') {
-#        my $metaclass := self.new(:name($name));
-#        nqp::setwho(nqp::newtype($metaclass, 'Uninstantiable'), {});
-#    }
-#
-#    method add_method($obj, $name, $code_obj) {
-#        nqp::die("Modules may not have methods");
-#    }
-#
-#    method add_multi_method($obj, $name, $code_obj) {
-#        nqp::die("Modules may not have methods");
-#    }
-#
-#    method add_attribute($obj, $meta_attr) {
-#        nqp::die("Modules may not have attributes");
-#    }
-#
-#    method compose($obj) {
-#        nqp::setmethcache($obj, my %empty);
-#        nqp::setmethcacheauth($obj, 1);
-#        $!composed := 1;
-#    }
-#    
-#    method find_method($obj, $name, *%opts) {
-#        nqp::null()
-#    }
-#
-#    method name($obj) {
-#        $!name
-#    }
+
+    method new(:$name) {
+        my $obj := nqp::create(self);
+        $obj.BUILD(:name($name));
+        $obj
+    }
+
+    method BUILD(:$name) {
+        $!name := $name;
+        $!composed := 0;
+    }
+
+    # Create a new meta-class instance, and then a new type object
+    # to go with it, and return that.
+    method new_type(:$name = '<anon>') {
+        my $metaclass := self.new(:name($name));
+        nqp::setwho(nqp::newtype($metaclass, 'Uninstantiable'), {});
+    }
+
+    method add_method($obj, $name, $code_obj) {
+        nqp::die("Modules may not have methods");
+    }
+
+    method add_multi_method($obj, $name, $code_obj) {
+        nqp::die("Modules may not have methods");
+    }
+
+    method add_attribute($obj, $meta_attr) {
+        nqp::die("Modules may not have attributes");
+    }
+
+    method compose($obj) {
+        nqp::setmethcache($obj, my %empty);
+        nqp::setmethcacheauth($obj, 1);
+        $!composed := 1;
+    }
+    
+    method find_method($obj, $name, *%opts) {
+        nqp::null()
+    }
+
+    method name($obj) {
+        $!name
+    }
 }
 # From src\how\EXPORTHOW.pm
 
@@ -1602,4 +1602,5 @@ my knowhow EXPORTHOW {
 #    ($?PACKAGE.WHO)<native>       := NQPNativeHOW;
 }
 
+nqp::say('survived');
 # vim: set ft=perl6 nomodifiable :
