@@ -12,17 +12,53 @@ my $MVM_reg_num64           := 6;
 my $MVM_reg_str             := 7;
 my $MVM_reg_obj             := 8;
 
-sub MAIN(*@ARGS) {
-    my $nqpcomp := pir::compreg__Ps('nqp');
+# Backend class for MoarVM cross-compiler.
+class HLL::Backend::MoarVM {
+    method apply_transcodings($s, $transcode) {
+        $s
+    }
     
-    $nqpcomp.stages(< start parse past mast mbc moar >);
-    $nqpcomp.HOW.add_method($nqpcomp, 'mast', method ($qast, *%adverbs) {
+    method config() {
+        nqp::hash()
+    }
+    
+    method force_gc() {
+        nqp::die("Cannot force GC on MoarVM backend yet");
+    }
+    
+    method name() {
+        'moar'
+    }
+
+    method nqpevent($spec?) {
+        # Doesn't do anything just yet
+    }
+    
+    method run_profiled($what) {
+        nqp::die("No profiling support on MoarVM");
+    }
+    
+    method run_traced($level, $what) {
+        nqp::die("No tracing support on MoarVM");
+    }
+    
+    method version_string() {
+        "MoarVM"
+    }
+    
+    method stages() {
+        'mast mbc moar'
+    }
+    
+    method mast($qast, *%adverbs) {
         QAST::MASTCompiler.to_mast($qast);
-    });
-    $nqpcomp.HOW.add_method($nqpcomp, 'mbc', method ($mast, *%adverbs) {
+    }
+    
+    method mbc($mast, *%adverbs) {
         MAST::Compiler.compile($mast, 'temp.moarvm');
-    });
-    $nqpcomp.HOW.add_method($nqpcomp, 'moar', method ($class, *%adverbs) {
+    }
+    
+    method moar($class, *%adverbs) {
         -> {
             pir::spawnw__Is("del /? >temp.output 2>&1");
             my $out := slurp('temp.output');
@@ -33,9 +69,34 @@ sub MAIN(*@ARGS) {
                 pir::spawnw__Is("..\\..\\moarvm temp.moarvm");
             }
         }
-    });
+    }
     
-    $nqpcomp.command_line(@ARGS, :precomp(1), :encoding('utf8'), :transcode('ascii iso-8859-1'));
+    method is_precomp_stage($stage) {
+        # Currently, everything is pre-comp since we're a cross-compiler.
+        1
+    }
+    
+    method is_textual_stage($stage) {
+        0
+    }
+    
+    method is_compunit($cuish) {
+        !pir::isa__IPs($cuish, 'String')
+    }
+}
+
+sub MAIN(*@ARGS) {
+    # Get original compiler, then re-register it as a cross compiler.
+    my $nqpcomp-orig := nqp::getcomp('nqp');
+    my $nqpcomp-cc   := nqp::clone($nqpcomp-orig);
+    $nqpcomp-cc.language('nqp-cc');
+    
+    # Set backend and run.
+    $nqpcomp-cc.backend(HLL::Backend::MoarVM);
+    $nqpcomp-cc.command_line(@ARGS, :stable-sc(1),
+        # XXX Uncomment below when we're ready.
+        # :setting('NQPCOREMoar'), :custom-regex-lib('QRegexMoar'),
+        :encoding('utf8'), :transcode('ascii iso-8859-1'));
 }
 
 # Set up various NQP-specific ops.
