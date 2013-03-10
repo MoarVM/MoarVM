@@ -2,8 +2,8 @@
  * It contains the declarative objects for the compilation unit, and
  * they are serialized if code is pre-compiled. */
 typedef struct _MVMSerializationContext {
-    /* Commonalities that all collectable entities have. */
-    MVMCollectable header;
+    /* Commonalities that all objects entities have. */
+    MVMObject header;
     
     /* The handle of this SC. */
     struct _MVMString *handle;

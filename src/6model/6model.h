@@ -86,25 +86,22 @@ typedef enum {
     /* Is an STable. */
     MVM_CF_STABLE = 2,
     
-    /* Is a serialization context. */
-    MVM_CF_SC = 4,
-    
     /* Has already been seen once in GC nursery. */
-    MVM_CF_NURSERY_SEEN = 8,
+    MVM_CF_NURSERY_SEEN = 4,
 
     /* Has been promoted to the old generation. */
-    MVM_CF_SECOND_GEN = 16,
+    MVM_CF_SECOND_GEN = 8,
     
     /* Is shared - that is, more than one thread knows about it. */
-    MVM_CF_SHARED = 32
+    MVM_CF_SHARED = 16
 } MVMCollectableFlags;
 
-/* Things that every GC-collectable entity has. These fall into three
+/* Things that every GC-collectable entity has. These fall into two
  * categories:
  *   * MVMObject - objects. Almost everything is one of these.
  *   * MVMSTable - shared tables; one per (HOW, REPR) pairing.
- *   * MVMSerializationContext - serialization contexts; one per comp unit.
- * Only the first can vary in size.
+ * Only the first can vary in size, and even then only if it's not a
+ * type object.
  */
 typedef struct _MVMCollectable {
     /* Identifier of the thread that currently owns the object, if any. If the

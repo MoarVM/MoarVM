@@ -215,14 +215,12 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
             /* We've got a live object in the nursery; this means some kind of
              * copying is going to happen. Work out the size. */
-            if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC)))
+            if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE)))
                 size = ((MVMObject *)item)->st->size;
             else if (item->flags & MVM_CF_TYPE_OBJECT)
                 size = sizeof(MVMObject);
             else if (item->flags & MVM_CF_STABLE)
                 size = sizeof(MVMSTable);
-            else if (item->flags & MVM_CF_SC)
-                MVM_panic(MVM_exitcode_gcnursery, "Can't handle serialization contexts in the GC yet");
             else
                 MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC sizing");
             
@@ -273,7 +271,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         
         /* Otherwise, we need to do the copy. What sort of thing are we
          * going to copy? */
-        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
+        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
             /* Need to view it as an object in here. */
             MVMObject *new_addr_obj = (MVMObject *)new_addr;
             
@@ -317,19 +315,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* If it needs to have its REPR data marked, do that. */
             if (new_addr_st->REPR->gc_mark_repr_data)
                 new_addr_st->REPR->gc_mark_repr_data(tc, new_addr_st, worklist);
-        }
-        else if (item->flags & MVM_CF_SC) {
-            /* Add all references in the SC to the work list. */
-            MVMSerializationContext *new_addr_sc = (MVMSerializationContext *)new_addr;
-            MVMint64 i;
-            
-            MVM_gc_worklist_add(tc, worklist, &new_addr_sc->handle);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_sc->description);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_objects);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_codes);
-
-            for (i = 0; i < new_addr_sc->num_stables; i++)
-                MVM_gc_worklist_add(tc, worklist, &new_addr_sc->root_stables[i]);
         }
         else {
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC marking");
@@ -488,7 +473,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
         MVMuint8 dead = item->forwarder == NULL;
 
         /* Now go by collectable type. */
-        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
+        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
             /* Object instance. If dead, call gc_free if needed. Scan is
              * incremented by object size. */
             MVMObject *obj = (MVMObject *)item;
@@ -512,9 +497,6 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
                 MVM_panic(MVM_exitcode_gcnursery, "Can't free STables in the GC yet");
             }
             scan = (char *)scan + sizeof(MVMSTable);
-        }
-        else if (item->flags & MVM_CF_SC) {
-            MVM_panic(MVM_exitcode_gcnursery, "Can't free serialization contexts in the GC yet");
         }
         else {
             printf("item flags: %d\n", item->flags);
@@ -568,9 +550,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     col->forwarder = NULL;
                 }
                 else {
-            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %p in the gen2\n", col);
+                    GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %p in the gen2\n", col);
                     /* No, it's dead. Do any cleanup. */
-                    if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_SC))) {
+                    if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
                         /* Object instance; call gc_free if needed. */
                         MVMObject *obj = (MVMObject *)col;
                         if (REPR(obj)->gc_free)
@@ -581,9 +563,6 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     }
                     else if (col->flags & MVM_CF_STABLE) {
                         MVM_panic(MVM_exitcode_gcnursery, "Can't free STables in gen2 GC yet");
-                    }
-                    else if (col->flags & MVM_CF_SC) {
-                        MVM_panic(MVM_exitcode_gcnursery, "Can't free serialization contexts in gen2 GC yet");
                     }
                     else {
                         printf("item flags: %d\n", col->flags);
