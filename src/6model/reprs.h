@@ -16,6 +16,7 @@
 #include "6model/reprs/MVMThread.h"
 #include "6model/reprs/MVMIter.h"
 #include "6model/reprs/MVMContext.h"
+#include "6model/reprs/SCRef.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
