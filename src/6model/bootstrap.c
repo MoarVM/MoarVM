@@ -264,7 +264,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVM_repr_push_o(tc, type_info, attr_info_list);
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
-    num_attrs = REPR(attributes)->pos_funcs->elems(tc, STABLE(attributes),
+    num_attrs = REPR(attributes)->elems(tc, STABLE(attributes),
         attributes, OBJECT_BODY(attributes));
     for (i = 0; i < num_attrs; i++) {
         MVMObject *attr_info = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));

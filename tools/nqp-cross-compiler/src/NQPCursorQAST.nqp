@@ -550,7 +550,7 @@ class NQPCursorQAST {
 #                ival(0) ),
 #            vm('push_i',
 #                local('$bstack'),
-#                vm('elemspos',
+#                vm('elems',
 #                    local('$1cstack') ) ),
             local('$cstack') )
     }

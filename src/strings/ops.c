@@ -760,7 +760,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     result = (MVMString *)(REPR(separator)->allocate(tc, STABLE(separator)));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
     
-    elems = REPR(input)->pos_funcs->elems(tc, STABLE(input),
+    elems = REPR(input)->elems(tc, STABLE(input),
         input, OBJECT_BODY(input));
     
     sgraphs = NUM_GRAPHS(separator);

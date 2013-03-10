@@ -2,6 +2,13 @@
 #include "gcc_diag.h"
 
 /* Default REPR function handlers. */
+GCC_DIAG_OFF(return-type)
+static MVMuint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVM_exception_throw_adhoc(tc,
+        "This representation (%s) does not support elems",
+        MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+}
+GCC_DIAG_ON(return-type)
 MVM_NO_RETURN
 static void die_no_attrs(MVMThreadContext *tc, MVMString *repr_name) {
     MVM_exception_throw_adhoc(tc,
@@ -60,11 +67,6 @@ static void default_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 static void default_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
-GCC_DIAG_OFF(return-type)
-static MVMuint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    die_no_pos(tc, st->REPR->name);
-}
-GCC_DIAG_ON(return-type)
 static void default_set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
@@ -108,9 +110,6 @@ void default_bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     die_no_ass(tc, st->REPR->name);
 }
 GCC_DIAG_OFF(return-type)
-MVMuint64 default_elems_ass(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    die_no_ass(tc, st->REPR->name);
-}
 MVMuint64 default_exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     die_no_ass(tc, st->REPR->name);
 }
@@ -150,7 +149,6 @@ static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
     repr->pos_funcs->at_pos = default_at_pos;
     repr->pos_funcs->bind_pos = default_bind_pos;
-    repr->pos_funcs->elems = default_elems;
     repr->pos_funcs->set_elems = default_set_elems;
     repr->pos_funcs->push = default_push;
     repr->pos_funcs->pop = default_pop;
@@ -167,7 +165,6 @@ static void add_default_ass_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->ass_funcs->at_key_boxed = default_at_key_boxed;
     repr->ass_funcs->bind_key_ref = default_bind_key_ref;
     repr->ass_funcs->bind_key_boxed = default_bind_key_boxed;
-    repr->ass_funcs->elems = default_elems_ass;
     repr->ass_funcs->exists_key = default_exists_key;
     repr->ass_funcs->delete_key = default_delete_key;
     repr->ass_funcs->get_value_storage_spec = default_get_value_storage_spec;
@@ -205,6 +202,8 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
     
     /* Add default "not implemented" function table implementations. */
+    if (!repr->elems)
+        repr->elems = default_elems;
     if (!repr->attr_funcs)
         add_default_attr_funcs(tc, repr);
     if (!repr->box_funcs)

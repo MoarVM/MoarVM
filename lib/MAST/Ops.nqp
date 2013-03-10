@@ -1684,11 +1684,10 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
-            'elemskeyed', nqp::hash(
+            '__INVALID_0__', nqp::hash(
                 'code', 18,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_int64,
-                    $MVM_operand_read_reg +| $MVM_operand_obj
+                    
                 ]
             ),
             'eqaddr', nqp::hash(
@@ -1898,11 +1897,10 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
-            'elemspos', nqp::hash(
+            '__INVALID_1__', nqp::hash(
                 'code', 47,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_int64,
-                    $MVM_operand_read_reg +| $MVM_operand_obj
+                    
                 ]
             ),
             'setelemspos', nqp::hash(

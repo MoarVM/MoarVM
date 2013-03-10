@@ -224,7 +224,7 @@ BANK 4 object
 0x0F    bindkey_o           r(obj) r(str) r(obj)
 0x10    existskey           w(int64) r(obj) r(str)
 0x11    deletekey           r(obj) r(str)
-0x12    elemskeyed          w(int64) r(obj)
+0x12    __INVALID_0__
 0x13    eqaddr              w(int64) r(obj) r(obj)
 0x14    reprname            w(str) r(obj)
 0x15    isconcrete          w(int64) r(obj)
@@ -253,7 +253,7 @@ BANK 4 object
 0x2C    unshift_s           r(obj) r(str)
 0x2D    unshift_o           r(obj) r(obj)
 0x2E    splice              r(obj) r(obj) r(int64) r(int64)
-0x2F    elemspos            w(int64) r(obj)
+0x2F    __INVALID_1__
 0x30    setelemspos         r(obj) r(int64)
 0x31    box_i               w(obj) r(int64) r(obj)
 0x32    box_n               w(obj) r(num64) r(obj)

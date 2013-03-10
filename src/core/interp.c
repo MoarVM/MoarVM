@@ -769,9 +769,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
                                 MVM_exception_throw_adhoc(tc, "s2n NYI");
                             else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
-                                result = (MVMnum64)REPR(obj)->pos_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                                result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                             else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
-                                result = (MVMnum64)REPR(obj)->ass_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                                result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                             else
                                 MVM_exception_throw_adhoc(tc, "cannot numify this");
                         }
@@ -1241,13 +1241,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_elemskeyed: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).i64 = REPR(obj)->ass_funcs->elems(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj));
-                        cur_op += 4;
-                        break;
-                    }
                     case MVM_OP_eqaddr:
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).o == GET_REG(cur_op, 4).o ? 1 : 0;
                         cur_op += 6;
@@ -1442,13 +1435,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             OBJECT_BODY(obj), GET_REG(cur_op, 2).o,
                             GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
                         cur_op += 8;
-                        break;
-                    }
-                    case MVM_OP_elemspos: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).i64 = REPR(obj)->pos_funcs->elems(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj));
-                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_setelemspos: {
@@ -1733,10 +1719,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_elems: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMuint64 (*elems_func) (MVMThreadContext *, MVMSTable *, MVMObject *, void *)
-                            = REPR(obj)->ID == MVM_REPR_ID_MVMHash || REPR(obj)->ID == MVM_REPR_ID_HashAttrStore
-                              ? REPR(obj)->ass_funcs->elems : REPR(obj)->pos_funcs->elems;
-                        GET_REG(cur_op, 0).i64 = (MVMint64)(*elems_func)(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                        GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                         cur_op += 4;
                         break;
                     }
@@ -1820,7 +1803,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_settypecache: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         MVMObject *types = GET_REG(cur_op, 4).o;
-                        MVMint64 i, elems = REPR(types)->pos_funcs->elems(tc, STABLE(types), types, OBJECT_BODY(types));
+                        MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
                         MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
                         for (i = 0; i < elems; i++) {
                             cache[i] = MVM_repr_at_pos_o(tc, types, i);

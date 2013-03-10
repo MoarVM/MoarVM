@@ -133,13 +133,13 @@ class QAST::MASTRegexCompiler {
             $faillabel,
             op('isnull', $i0, $bstack),
             op('if_i', $i0, $donelabel),
-            op('elemspos', $i0, $bstack),
+            op('elems', $i0, $bstack),
             op('gt_i', $i0, $i0, $zero),
             op('unless_i', $i0, $donelabel),
             op('pop_i', $i19, $bstack),
             op('isnull', $i0, $cstack),
             op('if_i', $i0, $cstacklabel),
-            op('elemspos', $i0, $cstack),
+            op('elems', $i0, $cstack),
             op('gt_i', $i0, $i0, $zero),
             op('unless_i', $i0, $cstacklabel),
             op('dec_i', $i19),
@@ -157,13 +157,13 @@ class QAST::MASTRegexCompiler {
             # backtrack the cursor stack
             op('isnull', $i0, $cstack),
             op('if_i', $i0, $jumplabel),
-            op('elemspos', $i18, $bstack),
+            op('elems', $i18, $bstack),
             op('le_i', $i0, $i18, $zero),
             op('if_i', $i0, $cutlabel),
             op('dec_i', $i18),
             op('atpos_i', $i18, $bstack, $i18),
             $cutlabel,
-            op('setelemspos', $cstack, $i18),
+            op('setelems', $cstack, $i18),
             $jumplabel,
             op('jumplist', ival(+@*RXJUMPS), $i19)
         ]);
@@ -644,7 +644,7 @@ class QAST::MASTRegexCompiler {
                     op('push_i', $bstack, $backlabel_index), # magic here
                     op('push_i', $bstack, %*REG<zero>),
                     op('push_i', $bstack, %*REG<pos>),
-                    op('elemspos', $i11, %*REG<cstack>),
+                    op('elems', $i11, %*REG<cstack>),
                     op('push_i', $bstack, $i11)
                 ]);
             }
@@ -671,7 +671,7 @@ class QAST::MASTRegexCompiler {
         my $haselemsendlabel := label($prefix ~ '_haselemsend');
         merge_ins(@ins, [
             op('const_i64', $mark, ival($label_index)),
-            op('elemspos', $elems, $bstack),
+            op('elems', $elems, $bstack),
             op('gt_i', $caps, $elems, %*REG<zero>),
             op('if_i', $caps, $haselemslabel),
             op('set', $caps, %*REG<zero>),
@@ -700,7 +700,7 @@ class QAST::MASTRegexCompiler {
         my $backupendlabel := label($prefix ~ '_backupend');
         merge_ins(@ins, [
             op('const_i64', $mark, ival($label_index)),
-            op('elemspos', $ptr, $bstack),
+            op('elems', $ptr, $bstack),
             $haselemsendlabel,
             op('lt_i', $i0, $ptr, %*REG<zero>),
             op('if_i', $i0, $backupendlabel),
@@ -734,7 +734,7 @@ class QAST::MASTRegexCompiler {
         my $makemarklabel := label($prefix ~ '_makemark');
         merge_ins(@ins, [
             op('const_i64', $mark, ival($label_index)),
-            op('elemspos', $ptr, $bstack),
+            op('elems', $ptr, $bstack),
             op('gt_i', $caps, $ptr, %*REG<zero>),
             op('if_i', $caps, $haselemslabel),
             op('set', $caps, %*REG<zero>),

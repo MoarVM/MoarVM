@@ -88,11 +88,11 @@ void MVM_repr_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
 }
 
 MVMuint64 MVM_repr_ass_elems(MVMThreadContext *tc, MVMObject *obj) {
-    return REPR(obj)->ass_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
 MVMuint64 MVM_repr_pos_elems(MVMThreadContext *tc, MVMObject *obj) {
-    return REPR(obj)->pos_funcs->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
 MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj) {

@@ -316,10 +316,6 @@ typedef struct _MVMREPROps_Positional {
         MVMObject *root, void *data, MVMint64 index,
         union _MVMRegister value, MVMuint16 kind);
 
-    /* Gets the number of elements. */
-    MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data);
-
     /* Sets the element count of the array, expanding or shrinking
      * it as needed. */
     void (*set_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
@@ -373,10 +369,6 @@ typedef struct _MVMREPROps_Associative {
     void (*bind_key_boxed) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *key, MVMObject *value);
 
-    /* Gets the number of elements. */
-    MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data);
-
     /* Returns a true value of the key exists, and a false one if not. */
     MVMuint64 (*exists_key) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *key);
@@ -422,6 +414,10 @@ typedef struct _MVMREPROps {
 
     /* Associative indexing REPR function table. */
     MVMREPROps_Associative *ass_funcs;
+    
+    /* Gets the number of elements, for any aggregate types. */
+    MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
     
     /* Gets the storage specification for this representation. */
     MVMStorageSpec (*get_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);

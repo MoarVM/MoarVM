@@ -20,7 +20,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, NQPMu);
         my $r1 := local($frame, int);
         op(@ins, 'create', $r0, $ht);
-        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },
@@ -35,7 +35,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'create', $r0, $ht);
         op(@ins, 'const_s', $r2, sval('foo'));
         op(@ins, 'bindkey_o', $r0, $r2, $r0);
-        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },
@@ -54,7 +54,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'bindkey_o', $r0, $r2, $r0);
         op(@ins, 'const_s', $r2, sval('foo'));
         op(@ins, 'bindkey_o', $r0, $r2, $r0);
-        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },
@@ -88,10 +88,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'create', $r0, $ht);
         op(@ins, 'const_s', $r2, sval('foo'));
         op(@ins, 'bindkey_o', $r0, $r2, $r0);
-        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'deletekey', $r0, $r2);
-        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },
@@ -142,12 +142,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'bindkey_s', $r0, $r2, $r3);
         op(@ins, 'atkey_s', $r5, $r0, $r2);
         op(@ins, 'say_s', $r5);
-        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'bindkey_s', $r0, $r2, $r4);
         op(@ins, 'atkey_s', $r5, $r0, $r2);
         op(@ins, 'say_s', $r5);
-        op(@ins, 'elemskeyed', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },

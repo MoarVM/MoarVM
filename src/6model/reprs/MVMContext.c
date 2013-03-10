@@ -153,10 +153,10 @@ MVMREPROps * MVMContext_initialize(MVMThreadContext *tc) {
     this_repr->ass_funcs->at_key_boxed = at_key_boxed;
     this_repr->ass_funcs->bind_key_ref = bind_key_ref;
     this_repr->ass_funcs->bind_key_boxed = bind_key_boxed;
-    this_repr->ass_funcs->elems = elems;
     this_repr->ass_funcs->exists_key = exists_key;
     this_repr->ass_funcs->delete_key = delete_key;
     this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
     this_repr->compose = compose;
+    this_repr->elems = elems;
     return this_repr;
 }

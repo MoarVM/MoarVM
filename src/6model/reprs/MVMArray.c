@@ -238,7 +238,7 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMArrayBody *body = (MVMArrayBody *)data;
 
     MVMint64 elems0 = body->elems;
-    MVMint64 elems1 = REPR(from)->pos_funcs->elems(tc, STABLE(from), from, OBJECT_BODY(from));
+    MVMint64 elems1 = REPR(from)->elems(tc, STABLE(from), from, OBJECT_BODY(from));
     MVMint64 start;
     MVMint64 tail;
     MVMObject **slots = NULL;
@@ -348,7 +348,6 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
     this_repr->pos_funcs->at_pos = at_pos;
     this_repr->pos_funcs->bind_pos = bind_pos;
-    this_repr->pos_funcs->elems = elems;
     this_repr->pos_funcs->set_elems = set_elems;
     this_repr->pos_funcs->push = push;
     this_repr->pos_funcs->pop = pop;
@@ -357,5 +356,6 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->splice = splice;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
     this_repr->compose = compose;
+    this_repr->elems = elems;
     return this_repr;
 }

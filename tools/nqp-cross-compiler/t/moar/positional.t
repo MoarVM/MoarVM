@@ -20,7 +20,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, NQPMu);
         my $r1 := local($frame, int);
         op(@ins, 'create', $r0, $at);
-        op(@ins, 'elemspos', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },
@@ -35,11 +35,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'create', $r0, $at);
         op(@ins, 'const_i64', $r2, ival(0));
         op(@ins, 'bindpos_o', $r0, $r2, $r0);
-        op(@ins, 'elemspos', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'const_i64', $r2, ival(1));
         op(@ins, 'bindpos_o', $r0, $r2, $r0);
-        op(@ins, 'elemspos', $r1, $r0);
+        op(@ins, 'elems', $r1, $r0);
         op(@ins, 'say_i', $r1);
         op(@ins, 'return');
     },
@@ -91,7 +91,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'create', $r4, $at);
         op(@ins, 'push_o', $r0, $r3);
         op(@ins, 'push_o', $r0, $r4);
-        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'elems', $r2, $r0);
         op(@ins, 'say_i', $r2);
         op(@ins, 'const_i64', $r2, ival(0));
         op(@ins, 'atpos_o', $r5, $r0, $r2);
@@ -123,7 +123,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'create', $r4, $at);
         op(@ins, 'unshift_o', $r0, $r3);
         op(@ins, 'unshift_o', $r0, $r4);
-        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'elems', $r2, $r0);
         op(@ins, 'say_i', $r2);
         op(@ins, 'const_i64', $r2, ival(0));
         op(@ins, 'atpos_o', $r5, $r0, $r2);
@@ -167,7 +167,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_i', $r1);
         op(@ins, 'eqaddr', $r1, $r5, $r4);
         op(@ins, 'say_i', $r1);
-        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'elems', $r2, $r0);
         op(@ins, 'say_i', $r2);
         op(@ins, 'return');
     },
@@ -199,7 +199,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say_i', $r1);
         op(@ins, 'eqaddr', $r1, $r5, $r4);
         op(@ins, 'say_i', $r1);
-        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'elems', $r2, $r0);
         op(@ins, 'say_i', $r2);
         op(@ins, 'return');
     },
@@ -219,11 +219,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'create', $r4, $at);
         op(@ins, 'push_o', $r0, $r3);
         op(@ins, 'push_o', $r0, $r4);
-        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'elems', $r2, $r0);
         op(@ins, 'say_i', $r2);
         op(@ins, 'const_i64', $r2, ival(0));
         op(@ins, 'setelemspos', $r0, $r2);
-        op(@ins, 'elemspos', $r2, $r0);
+        op(@ins, 'elems', $r2, $r0);
         op(@ins, 'say_i', $r2);
         op(@ins, 'return');
     },
@@ -263,7 +263,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'splice', $a1, $a2, $offset, $count);
         
         # Emit elements.
-        op(@ins, 'elemspos', $i, $a1);
+        op(@ins, 'elems', $i, $a1);
         op(@ins, 'say_i', $i);
         
         # Check they are the expected values.

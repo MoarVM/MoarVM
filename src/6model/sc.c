@@ -15,7 +15,7 @@ MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *s
     MVMObject *roots;
     MVMint64   i, count;
     roots = sc->root_objects;
-    count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     for (i = 0; i < count; i++) {
         MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
         if (test == obj)
@@ -40,7 +40,7 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *roots;
     MVMint64   i, count;
     roots = sc->root_codes;
-    count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     for (i = 0; i < count; i++) {
         MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
         if (test == obj)
@@ -53,7 +53,7 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
 /* Given an SC and an index, fetch the object stored there. */
 MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject *roots = sc->root_objects;
-    MVMint64   count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     if (idx < count)
         return MVM_repr_at_pos_o(tc, roots, idx);
     else
@@ -73,7 +73,7 @@ MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc,
 /* Given an SC and an index, fetch the code ref stored there. */
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject *roots = sc->root_codes;
-    MVMint64   count = REPR(roots)->pos_funcs->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     if (idx < count)
         return MVM_repr_at_pos_o(tc, roots, idx);
     else

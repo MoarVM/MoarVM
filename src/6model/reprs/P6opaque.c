@@ -504,7 +504,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     /* In this first pass, we'll over the MRO entries, looking for if
      * there is any multiple inheritance and counting the number of
      * attributes. */
-    mro_count   = REPR(info)->pos_funcs->elems(tc, STABLE(info), info, OBJECT_BODY(info));
+    mro_count   = REPR(info)->elems(tc, STABLE(info), info, OBJECT_BODY(info));
     mro_pos     = mro_count;
     num_attrs   = 0;
     total_attrs = 0;
@@ -518,13 +518,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         
         /* If there's more than one parent, set the multiple inheritance
          * flag (this means we have non-linear layout). */
-        num_parents = REPR(parent_list)->pos_funcs->elems(tc, STABLE(parent_list),
+        num_parents = REPR(parent_list)->elems(tc, STABLE(parent_list),
             parent_list, OBJECT_BODY(parent_list));
         if (num_parents > 1)
             repr_data->mi = 1;
         
         /* Add attribute count to the running total. */
-        total_attrs += REPR(attr_list)->pos_funcs->elems(tc, STABLE(attr_list),
+        total_attrs += REPR(attr_list)->elems(tc, STABLE(attr_list),
             attr_list, OBJECT_BODY(attr_list));
     }
     
@@ -566,7 +566,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         
         /* Set up name map entry. */
         P6opaqueNameMap *name_map = &repr_data->name_to_index_mapping[cur_type];
-        num_attrs = REPR(attr_list)->pos_funcs->elems(tc, STABLE(attr_list),
+        num_attrs = REPR(attr_list)->elems(tc, STABLE(attr_list),
             attr_list, OBJECT_BODY(attr_list));
         name_map->class_key = type_obj;
         name_map->num_attrs = num_attrs;

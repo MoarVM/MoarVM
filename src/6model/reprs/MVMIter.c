@@ -155,7 +155,6 @@ MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
     this_repr->pos_funcs->at_pos = at_pos;
     this_repr->pos_funcs->bind_pos = bind_pos;
-    this_repr->pos_funcs->elems = elems;
     this_repr->pos_funcs->set_elems = set_elems;
     this_repr->pos_funcs->push = push;
     this_repr->pos_funcs->pop = pop;
@@ -164,6 +163,7 @@ MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->splice = splice;
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
     this_repr->compose = compose;
+    this_repr->elems = elems;
     return this_repr;
 }
 
@@ -177,7 +177,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr) {
         body = &((MVMIter *)iterator)->body;
         body->mode = MVM_ITER_MODE_ARRAY;
         body->array_state.index = -1;
-        body->array_state.limit = REPR(target)->pos_funcs->elems(tc, STABLE(target), target, OBJECT_BODY(target));
+        body->array_state.limit = REPR(target)->elems(tc, STABLE(target), target, OBJECT_BODY(target));
         body->target = target;
     }
     else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {

@@ -1319,10 +1319,9 @@ static MVMOpInfo MVM_op_info_object[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_elemskeyed,
-        "elemskeyed",
-        2,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+        MVM_OP___INVALID_0__,
+        "__INVALID_0__",
+        0,
     },
     {
         MVM_OP_eqaddr,
@@ -1493,10 +1492,9 @@ static MVMOpInfo MVM_op_info_object[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_elemspos,
-        "elemspos",
-        2,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+        MVM_OP___INVALID_1__,
+        "__INVALID_1__",
+        0,
     },
     {
         MVM_OP_setelemspos,

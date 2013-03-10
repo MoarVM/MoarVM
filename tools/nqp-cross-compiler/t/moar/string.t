@@ -433,7 +433,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $input_str, $arr_type, $separator);
     
     my $elems := local($frame, int);
-    op(@ins, 'elemspos', $elems, $arr);
+    op(@ins, 'elems', $elems, $arr);
     op(@ins, 'say_i', $elems);
     
     my $item := local($frame, str);
@@ -468,7 +468,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $input_str, $arr_type, $separator);
     
     my $elems := local($frame, int);
-    op(@ins, 'elemspos', $elems, $arr);
+    op(@ins, 'elems', $elems, $arr);
     op(@ins, 'say_i', $elems);
     
     my $item := local($frame, str);
@@ -503,7 +503,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $input_str, $arr_type, $separator);
     
     my $elems := local($frame, int);
-    op(@ins, 'elemspos', $elems, $arr);
+    op(@ins, 'elems', $elems, $arr);
     op(@ins, 'say_i', $elems);
     
     op(@ins, 'return');

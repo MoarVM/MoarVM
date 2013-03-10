@@ -524,7 +524,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             MVMObject *list = arg_info.arg->o;
             MVMint64 count;
             
-            count = REPR(list)->pos_funcs->elems(tc, STABLE(list),
+            count = REPR(list)->elems(tc, STABLE(list),
                 list, OBJECT_BODY(list));
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
                 MVM_exception_throw_adhoc(tc, "Too many arguments in flattening array.");
