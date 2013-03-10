@@ -2358,13 +2358,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             case MVM_OP_BANK_serialization: {
                 switch (*(cur_op++)) {
                     case MVM_OP_wval: {
-                        GET_REG(cur_op, 0).o = NULL;
-                        cur_op += 6;
+                        MVMint16 dep = GET_I16(cur_op, 2);
+                        MVMint16 idx = GET_I16(cur_op, 4);
+                        if (dep >= 0 && dep < cu->num_scs) {
+                            if (cu->scs[dep] == NULL)
+                                MVM_exception_throw_adhoc(tc,
+                                    "SC not yet resolved; lookup failed");
+                            GET_REG(cur_op, 0).o = MVM_sc_get_object(tc,
+                                cu->scs[dep], idx);
+                            cur_op += 6;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc,
+                                "Invalid SC index in bytecode stream");
+                        }
                         break;
                     }
                     case MVM_OP_wval_wide: {
-                        GET_REG(cur_op, 0).o = NULL;
-                        cur_op += 12;
+                        MVMint16 dep = GET_I16(cur_op, 2);
+                        MVMint64 idx = GET_I64(cur_op, 4);
+                        if (dep >= 0 && dep < cu->num_scs) {
+                            if (cu->scs[dep] == NULL)
+                                MVM_exception_throw_adhoc(tc,
+                                    "SC not yet resolved; lookup failed");
+                            GET_REG(cur_op, 0).o = MVM_sc_get_object(tc,
+                                cu->scs[dep], idx);
+                            cur_op += 12;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc,
+                                "Invalid SC index in bytecode stream");
+                        }
                         break;
                     }
                     default: {
