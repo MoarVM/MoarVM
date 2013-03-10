@@ -1067,7 +1067,6 @@ class QAST::MASTCompiler {
     }
 
     multi method as_mast(QAST::BVal $bv, :$want) {
-        
         my $block := $bv.value;
         my $cuid  := $block.cuid();
         my $frame := %*MAST_FRAMES{$cuid};
@@ -1080,6 +1079,24 @@ class QAST::MASTCompiler {
                 :bank('primitives'), :op('getcode'),
                 $reg,
                 $frame
+            )],
+            $reg,
+            $MVM_reg_obj)
+    }
+    
+    multi method as_mast(QAST::WVal $node, :$want) {
+        my $val    := $node.value;
+        my $sc     := nqp::getobjsc($val);
+        my $idx    := nqp::scgetobjidx($sc, $val);
+        my $sc_idx := $*MAST_COMPUNIT.sc_idx($sc);
+        my $reg    := $*REGALLOC.fresh_o();
+        my $op     := $idx < 32768 ?? 'wval' !! 'wval_wide';
+        MAST::InstructionList.new(
+            [MAST::Op.new(
+                :bank('serialization'), :op($op),
+                $reg,
+                MAST::IVal.new( :value($sc_idx) ),
+                MAST::IVal.new( :value($idx) )
             )],
             $reg,
             $MVM_reg_obj)
