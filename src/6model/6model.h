@@ -223,7 +223,7 @@ typedef struct _MVMSTable {
      * be taken as a "not a container" indication. */
     MVMContainerSpec *container_spec;
     
-    /**
+    /*
      * If this is invokable, then this contains information needed to
      * figure out how to invoke it. If not, it'll be null.
      */
