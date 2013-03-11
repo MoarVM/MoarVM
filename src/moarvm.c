@@ -77,6 +77,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     
     /* Set up hll symbol tables mutex. */
     init_mutex(instance->mutex_hll_syms, "hll syms");
+
+    /* Set up weak reference hash mutex. */
+    init_mutex(instance->mutex_sc_weakhash, "sc weakhash");
     
     return instance;
 }

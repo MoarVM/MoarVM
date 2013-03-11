@@ -24,8 +24,12 @@ typedef struct _MVMSerializationContextBody {
 } MVMSerializationContextBody;
  
 typedef struct _MVMSerializationContext {
+    /* Normal header and body. */
     MVMObject common;
     MVMSerializationContextBody body;
+    
+    /* Inline handle to the SCs hash (in MVMInstance). */
+    UT_hash_handle hash_handle;
 } MVMSerializationContext;
 
 /* Function for REPR setup. */

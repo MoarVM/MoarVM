@@ -93,7 +93,7 @@ typedef struct _MVMInstance {
     apr_thread_mutex_t   *mutex_hllconfigs;
     
     /* Atomically-incremented counter of newly invoked frames,
-       so each can obtain an index into each threadcontext's pool table */
+     * so each can obtain an index into each threadcontext's pool table */
     MVMuint32 num_frame_pools;
     
     /* Hash of compiler objects keyed by name */
@@ -103,4 +103,9 @@ typedef struct _MVMInstance {
     /* Hash of hashes of symbol tables per hll. */
     MVMObject          *hll_syms;
     apr_thread_mutex_t *mutex_hll_syms;
+    
+    /* Hash of all known serialization contexts. Not marked for GC; an SC
+     * removes it from this when it gets GC'd. */
+    struct _MVMSerializationContext *sc_weakhash;
+    apr_thread_mutex_t              *mutex_sc_weakhash;
 } MVMInstance;
