@@ -44,6 +44,10 @@ typedef struct _MVMInstance {
      * native string, not an object boxing one. */
     MVMObject *VMString;
     
+    /* Serialization context type (known as SCRef, but it's actually the
+     * serialization context itself). */
+    MVMObject *SCRef;
+    
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
     

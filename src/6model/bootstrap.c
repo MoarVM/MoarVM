@@ -101,10 +101,16 @@ static void create_stub_BOOTIter(MVMThreadContext *tc) {
     type->st->boolification_spec = bs;
 }
 
-/* Creates a stub BOOTThread (missing a meta-object). */
+/* Creates a stub BOOTContext (missing a meta-object). */
 static void create_stub_BOOTContext(MVMThreadContext *tc) {
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMContext);
     tc->instance->boot_types->BOOTContext = repr->type_object_for(tc, NULL);
+}
+
+/* Creates a stub SCRef (missing a meta-object). */
+static void create_stub_SCRef(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_SCRef);
+    tc->instance->SCRef = repr->type_object_for(tc, NULL);
 }
 
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
@@ -580,7 +586,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
 
-    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode, BOOTCode, BOOTThread, BOOTIter, and BOOTContext types. */
+    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
+     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, and SCRef types. */
     create_stub_BOOTInt(tc);
     create_stub_BOOTNum(tc);
     create_stub_BOOTStr(tc);
@@ -591,6 +598,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_BOOTThread(tc);
     create_stub_BOOTIter(tc);
     create_stub_BOOTContext(tc);
+    create_stub_SCRef(tc);
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "repr");
@@ -611,8 +619,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
     
-    /* Give VMString, BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode
-     * and BOOTCode meta-objects. */
+    /* Give stub types meta-objects. */
     add_meta_object(tc, tc->instance->VMString, "VMString");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->VMString);
     add_meta_object(tc, tc->instance->boot_types->BOOTInt, "BOOTInt");
@@ -635,6 +642,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTIter);
     add_meta_object(tc, tc->instance->boot_types->BOOTContext, "BOOTContext");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTContext);
+    add_meta_object(tc, tc->instance->SCRef, "SCRef");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->SCRef);
     
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);
