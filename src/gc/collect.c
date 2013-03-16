@@ -327,7 +327,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             for (k = gen2count; k < max; k++) {
                 j = worklist->list[k];
                 if (*j) {
-                    MVM_WB(tc, new_addr, *j, *j);
+                    MVM_WB_REF(tc, new_addr, *j, *j);
                 }
             }
         }

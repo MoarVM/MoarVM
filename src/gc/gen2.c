@@ -209,7 +209,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
     { /* copy the roots... */
         MVMuint32 i, n = src->num_gen2roots;
         for ( i = 0; i < n; i++) {
-            MVM_gc_root_gen2_add(dest, src->gen2roots[i]);
+            MVM_gc_root_gen2_ref_add(dest, src->gen2roots[i]);
         }
         src->num_gen2roots = 0;
         src->alloc_gen2roots = 0;

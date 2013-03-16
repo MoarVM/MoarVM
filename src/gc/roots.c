@@ -90,8 +90,9 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         MVM_gc_worklist_add(tc, worklist, temproots[i]);
 }
 
-/* Pushes a root onto the inter-generational roots list. */
-void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
+/* Pushes a root onto the inter-generational roots list. The memory address
+ * must stay valid for the duration of the enclosing object's lifetime.  */
+void MVM_gc_root_gen2_ref_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Ensure the root is not null. */
     if (obj_ref == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as an inter-generational root");
@@ -106,6 +107,12 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Add this one to the list. */
     tc->gen2roots[tc->num_gen2roots] = obj_ref;
     tc->num_gen2roots++;
+}
+
+/* Pushes an aggregate that is in generation 2, but now references a nursery
+ * object, into the gen2 aggregates root set. */
+void MVM_gc_root_gen2_agg_add(MVMThreadContext *tc, MVMCollectable *aggregate) {
+    /* XXX TODO. */
 }
 
 /* Adds the set of thread-local inter-generational roots to a GC worklist. */
