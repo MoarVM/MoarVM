@@ -1,5 +1,27 @@
 #include "moarvm.h"
 
+/* Creates a new serialization context with the specified handle. If any
+ * compilation units are waiting for an SC with this handle, removes it from
+ * their to-resolve list after installing itself in the appropriate slot. */
+MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
+    MVMObject *sc;
+    
+    /* Allocate. */
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&handle);
+    sc = REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&sc);
+    REPR(sc)->initialize(tc, STABLE(sc), sc, OBJECT_BODY(sc));
+    
+    /* Set handle. */
+    MVM_ASSIGN_REF(tc, sc, ((MVMSerializationContext *)sc)->body.handle, handle);
+    
+    /* TODO: Visit compilation units that need this, resolve. */
+    
+    MVM_gc_root_temp_pop_n(tc, 2);
+    
+    return sc;
+}
+
 /* Given an SC, returns its unique handle. */
 MVMString * MVM_sc_get_handle(MVMThreadContext *tc, MVMSerializationContext *sc) {
     return sc->body.handle;
