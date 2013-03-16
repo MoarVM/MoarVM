@@ -463,6 +463,75 @@ class QAST::MASTCompiler {
         }
     }
     
+    method deserialization_code($sc, @code_ref_blocks, $repo_conf_res) {
+        # Serialize it.
+        my $sh := nqp::list_s();
+        my $serialized := nqp::serialize($sc, $sh);
+        
+        # Now it's serialized, pop this SC off the compiling SC stack.
+        nqp::popcompsc();
+        
+        # String heap QAST.
+        my $sh_ast := QAST::Op.new( :op('list_s') );
+        my $sh_elems := nqp::elems($sh);
+        my $i := 0;
+        while $i < $sh_elems {
+            $sh_ast.push(nqp::isnull_s($sh[$i])
+                ?? QAST::Op.new( :op('null_s') )
+                !! QAST::SVal.new( :value($sh[$i]) ));
+            $i := $i + 1;
+        }
+        
+        # Code references.
+        my $cr_past := QAST::Op.new( :op('list_b'), |@code_ref_blocks );
+        
+        # Handle repossession conflict resolution code, if any.
+        if $repo_conf_res {
+            $repo_conf_res.push(QAST::Var.new( :name('conflicts'), :scope('local') ));
+        }
+        else {
+            $repo_conf_res := QAST::Op.new(
+                :op('die_s'),
+                QAST::SVal.new( :value('Repossession conflicts occurred during deserialization') )
+            );
+        }
+        
+        # Overall deserialization QAST.
+        QAST::Stmts.new(
+            QAST::Op.new(
+                :op('bind'),
+                QAST::Var.new( :name('cur_sc'), :scope('local'), :decl('var') ),
+                QAST::Op.new( :op('createsc'), QAST::SVal.new( :value($sc.handle()) ) )
+            ),
+            QAST::Op.new(
+                :op('scsetdesc'),
+                QAST::Var.new( :name('cur_sc'), :scope('local') ),
+                QAST::SVal.new( :value($sc.description) )
+            ),
+            QAST::Op.new(
+                :op('bind'),
+                QAST::Var.new( :name('conflicts'), :scope('local'), :decl('var') ),
+                QAST::Op.new( :op('list') )
+            ),
+            QAST::Op.new(
+                :op('deserialize'),
+                QAST::SVal.new( :value($serialized) ),
+                QAST::Var.new( :name('cur_sc'), :scope('local') ),
+                $sh_ast,
+                QAST::Block.new( :blocktype('immediate'), $cr_past ),
+                QAST::Var.new( :name('conflicts'), :scope('local') )
+            ),
+            QAST::Op.new(
+                :op('if'),
+                QAST::Op.new(
+                    :op('elems'),
+                    QAST::Var.new( :name('conflicts'), :scope('local') )
+                ),
+                $repo_conf_res
+            )
+        )
+    }
+    
     multi method as_mast(QAST::Block $node, :$want) {
         my $outer_frame := try $*MAST_FRAME;
         
