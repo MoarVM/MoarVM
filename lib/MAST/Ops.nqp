@@ -2495,6 +2495,24 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
+            ),
+            'bootintarray', nqp::hash(
+                'code', 126,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'bootnumarray', nqp::hash(
+                'code', 127,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'bootstrarray', nqp::hash(
+                'code', 128,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [

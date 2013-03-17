@@ -1964,6 +1964,24 @@ static MVMOpInfo MVM_op_info_object[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_bootintarray,
+        "bootintarray",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_bootnumarray,
+        "bootnumarray",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_bootstrarray,
+        "bootstrarray",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_io[] = {
     {
@@ -2546,7 +2564,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     6,
     37,
     16,
-    126,
+    129,
     45,
     33,
     15,

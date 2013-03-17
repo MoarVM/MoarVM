@@ -11,6 +11,9 @@ struct _MVMBootTypes {
     MVMObject *BOOTThread;
     MVMObject *BOOTIter;
     MVMObject *BOOTContext;
+    MVMObject *BOOTIntArray;
+    MVMObject *BOOTNumArray;
+    MVMObject *BOOTStrArray;
 };
 
 typedef struct _MVMREPRHashEntry {

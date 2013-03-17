@@ -344,6 +344,9 @@
 #define MVM_OP_ctxlexpad 123
 #define MVM_OP_curcode 124
 #define MVM_OP_callercode 125
+#define MVM_OP_bootintarray 126
+#define MVM_OP_bootnumarray 127
+#define MVM_OP_bootstrarray 128
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
