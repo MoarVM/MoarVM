@@ -16,6 +16,7 @@ static MVMString *str_P6opaque   = NULL;
 static MVMString *str_type       = NULL;
 static MVMString *str_box_target = NULL;
 static MVMString *str_attribute  = NULL;
+static MVMString *str_array      = NULL;
 
 /* Creates a stub VMString. Note we didn't initialize the
  * representation yet, so have to do this somewhat pokily. */
@@ -575,6 +576,29 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
     /* Pop anchored object. */
     MVM_gc_root_temp_pop(tc);
 }
+
+/* Bootstraps a typed array. */
+static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject *type) {
+    MVMObject  *repr_info;
+    MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
+    MVMObject  *array = repr->type_object_for(tc, NULL);
+    MVMROOT(tc, array, {
+        /* Give it a meta-object. */
+        add_meta_object(tc, array, name);
+        
+        /* Now need to compose it with the specified type. */
+        repr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+        MVMROOT(tc, repr_info, {
+            MVMObject *arr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+            MVMROOT(tc, arr_info, {
+                MVM_repr_bind_key_boxed(tc, repr_info, str_array, arr_info);
+                MVM_repr_bind_key_boxed(tc, arr_info, str_type, type);
+                REPR(array)->compose(tc, STABLE(array), repr_info);
+            });
+        });
+    });
+    return array;
+}
  
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
@@ -615,6 +639,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
     str_attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_attribute);
+    str_array = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "array");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_array);
     
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
@@ -647,4 +673,15 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);
+    
+    /* Bootstrap typed arrays. */
+    tc->instance->boot_types->BOOTIntArray = boot_typed_array(tc, "BOOTIntArray",
+        tc->instance->boot_types->BOOTInt);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTIntArray);
+    tc->instance->boot_types->BOOTNumArray = boot_typed_array(tc, "BOOTNumArray",
+        tc->instance->boot_types->BOOTNum);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTNumArray);
+    tc->instance->boot_types->BOOTStrArray = boot_typed_array(tc, "BOOTStrArray",
+        tc->instance->boot_types->BOOTStr);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStrArray);
 }
