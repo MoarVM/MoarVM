@@ -6,8 +6,10 @@
 
 MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
     MVMObject *obj = REPR(type)->allocate(tc, STABLE(type));
-    if (REPR(obj)->initialize)
-        REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    MVMROOT(tc, obj, {
+        if (REPR(obj)->initialize)
+            REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    });
     return obj;
 }
 
