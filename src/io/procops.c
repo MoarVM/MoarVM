@@ -310,20 +310,19 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
     if (!instance->clargs) {
-        MVMObject *clargs = REPR(tc->instance->boot_types->BOOTArray)->allocate(
-            tc, STABLE(tc->instance->boot_types->BOOTArray));
-        MVMint64 count;
-        
+        MVMObject *clargs = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStrArray);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&clargs);
-        
-        for (count = 0; count < instance->num_clargs; count++) {
-            char *raw = instance->raw_clargs[count];
-            MVMString *string = MVM_string_utf8_decode(tc,
-                tc->instance->VMString,
-                instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
-            MVM_repr_push_o(tc, clargs, (MVMObject *)string);
-        }
-        instance->clargs = clargs;
+        MVMROOT(tc, clargs, {
+            MVMint64 count;
+            for (count = 0; count < instance->num_clargs; count++) {
+                char *raw = instance->raw_clargs[count];
+                MVMString *string = MVM_string_utf8_decode(tc,
+                    tc->instance->VMString,
+                    instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
+                MVM_repr_push_s(tc, clargs, string);
+            }
+            instance->clargs = clargs;
+        });
     }
     return instance->clargs;
 }
