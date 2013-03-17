@@ -3140,7 +3140,6 @@ class MAST::Ops {
                 'code', 10,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),

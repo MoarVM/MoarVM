@@ -426,7 +426,7 @@ BANK 7 serialization
 0x07    scsetdesc           w(str) r(obj) r(str)
 0x08    scobjcount          w(int64) r(obj)
 0x09    setobjsc            w(obj) r(obj) r(obj)
-0x0A    getobjsc            w(obj) r(obj) r(obj)
+0x0A    getobjsc            w(obj) r(obj)
 0x0B    serialize           w(str) r(obj) r(obj)
 0x0C    deserialize         w(str) r(str) r(obj) r(obj) r(obj) r(obj)
 0x0D    wval                w(obj) int16 int16
