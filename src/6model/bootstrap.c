@@ -443,20 +443,19 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
 /* Takes a stub object that existed before we had bootstrapped things and
  * gives it a meta-object. */
 static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *name) {
-    MVMObject *knowhow_how, *meta_obj;
+    MVMObject *meta_obj;
     MVMString *name_str;
     
     /* Create meta-object. */
-    knowhow_how = STABLE(tc->instance->KnowHOW)->HOW;
-    meta_obj    = REPR(knowhow_how)->allocate(tc, STABLE(knowhow_how));
-    REPR(meta_obj)->initialize(tc, STABLE(meta_obj), meta_obj, OBJECT_BODY(meta_obj));
-    
-    /* Put it in place. */
-    MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->HOW, meta_obj);
-    
-    /* Set name. */
-    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
-    MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
+    meta_obj = MVM_repr_alloc_init(tc, STABLE(tc->instance->KnowHOW)->HOW);
+    MVMROOT(tc, meta_obj, {
+        /* Put it in place. */
+        MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->HOW, meta_obj);
+        
+        /* Set name. */
+        name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
+        MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
+    });
 }
 
 /* Creates a new attribute meta-object. */
@@ -545,36 +544,31 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
     MVMREPROps     *repr;
     
     /* Create meta-object. */
-    knowhow_how = STABLE(tc->instance->KnowHOW)->HOW;
-    meta_obj    = REPR(knowhow_how)->allocate(tc, STABLE(knowhow_how));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&meta_obj);
-    REPR(meta_obj)->initialize(tc, STABLE(meta_obj), meta_obj, OBJECT_BODY(meta_obj));
-    
-    /* Add methods. */
-    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "new", attr_new);
-    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "compose", attr_compose);
-    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "name", attr_name);
-    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "type", attr_type);
-    add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "box_target", attr_box_target);
-    
-    /* Set name. */
-    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWAttribute");
-    MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
-    
-    /* Create a new type object with the correct REPR. */
-    repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWAttributeREPR);
-    type_obj = repr->type_object_for(tc, meta_obj);
-    
-    /* Set up method dispatch cache. */
-    STABLE(type_obj)->method_cache = ((MVMKnowHOWREPR *)meta_obj)->body.methods;
-    STABLE(type_obj)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
-    
-    /* Stash the created type object. */
-    tc->instance->KnowHOWAttribute = (MVMObject *)type_obj;
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->KnowHOWAttribute);
-    
-    /* Pop anchored object. */
-    MVM_gc_root_temp_pop(tc);
+    meta_obj = MVM_repr_alloc_init(tc, STABLE(tc->instance->KnowHOW)->HOW);
+    MVMROOT(tc, meta_obj, {
+        /* Add methods. */
+        add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "new", attr_new);
+        add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "compose", attr_compose);
+        add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "name", attr_name);
+        add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "type", attr_type);
+        add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "box_target", attr_box_target);
+        
+        /* Set name. */
+        name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWAttribute");
+        MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
+        
+        /* Create a new type object with the correct REPR. */
+        repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWAttributeREPR);
+        type_obj = repr->type_object_for(tc, meta_obj);
+        
+        /* Set up method dispatch cache. */
+        STABLE(type_obj)->method_cache = ((MVMKnowHOWREPR *)meta_obj)->body.methods;
+        STABLE(type_obj)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
+        
+        /* Stash the created type object. */
+        tc->instance->KnowHOWAttribute = (MVMObject *)type_obj;
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->KnowHOWAttribute);
+    });
 }
 
 /* Bootstraps a typed array. */
