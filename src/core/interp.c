@@ -2362,6 +2362,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
+                    case MVM_OP_setobjsc: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMObject *sc  = GET_REG(cur_op, 4).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to setobjsc");
+                        MVM_ASSIGN_REF(tc, obj, obj->header.sc,
+                            (MVMSerializationContext *)sc);
+                        GET_REG(cur_op, 0).o = obj;
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_getobjsc:
+                        GET_REG(cur_op, 0).o = (MVMObject *)GET_REG(cur_op, 2).o->header.sc;
+                        cur_op += 4;
+                        break;
                     case MVM_OP_wval: {
                         MVMint16 dep = GET_I16(cur_op, 2);
                         MVMint16 idx = GET_I16(cur_op, 4);
