@@ -52,15 +52,7 @@ typedef struct {
  * on it. */
 typedef struct _MVMSerializationReader {
     /* Serialization root data. */
-    SerializationRoot root;
-    
-    /* The stables, objects code refs and contexts lists we're deserializing
-     * things into. */
-    /* TODO: Should we do it like this? Maybe C arrays... */
-    MVMObject *stables_list;
-    MVMObject *objects_list;
-    MVMObject *codes_list;
-    MVMObject *contexts_list;
+    MVMSerializationRoot root;
     
     /* The object repossession conflicts list. */
     MVMObject *repo_conflicts_list;
@@ -101,12 +93,12 @@ typedef struct _MVMSerializationReader {
  * on it. */
 typedef struct _MVMSerializationWriter {
     /* Serialization root data. */
-    SerializationRoot root;
+    MVMSerializationRoot root;
     
     /* Much more todo here... */
 } MVMSerializationWriter;
 
 /* Core serialize and deserialize functions. */
-void MVM_serialization_deserialize(MVMThreadContext *tc, MVMObject *sc,
+void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *string_heap, MVMObject *codes_static, MVMObject *repo_conflicts,
     MVMString *data);

@@ -2410,7 +2410,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                             MVM_exception_throw_adhoc(tc,
                                 "Must provide an SCRef operand to deserialize");
-                        MVM_serialization_deserialize(tc, sc, sh, cr, conf, blob);
+                        MVM_serialization_deserialize(tc, (MVMSerializationContext *)sc,
+                            sh, cr, conf, blob);
                         GET_REG(cur_op, 0).s = blob;
                         cur_op += 12;
                         break;
