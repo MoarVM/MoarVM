@@ -99,13 +99,19 @@ static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
 
 /* Loads bytecode from the specified file name and runs it. */
 void MVM_vm_run_file(MVMInstance *instance, char *filename) {
+    MVMStaticFrame *start_frame;
+    
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
     
+    /* Run deserialization frame, if there is one. */
+    if (cu->deserialize_frame)
+        MVM_interp_run(tc, &toplevel_initial_invoke, cu->deserialize_frame);
+    
     /* Run the frame marked main, or if there is none then fall back to the
      * first frame. */
-    MVMStaticFrame *start_frame = cu->main_frame ? cu->main_frame : cu->frames[0];
+    start_frame = cu->main_frame ? cu->main_frame : cu->frames[0];
     MVM_interp_run(tc, &toplevel_initial_invoke, start_frame);
 }
 
