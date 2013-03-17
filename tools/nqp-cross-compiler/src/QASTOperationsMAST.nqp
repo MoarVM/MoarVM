@@ -425,6 +425,30 @@ QAST::MASTOperations.add_core_op('list_s', -> $qastcomp, $op {
     }
     $arr
 });
+QAST::MASTOperations.add_core_op('list_b', -> $qastcomp, $op {
+    # Just desugar to create the empty list.
+    my $arr := $qastcomp.as_mast(QAST::Op.new(
+        :op('create'),
+        QAST::Op.new( :op('bootarray') )
+    ));
+    if +$op.list {
+        my $arr_reg := $arr.result_reg;
+        # Push things to the list.
+        for $op.list {
+            nqp::die("list_b must have a list of blocks")
+                unless nqp::istype($_, QAST::Block);
+            my $cuid  := $_.cuid();
+            my $frame := %*MAST_FRAMES{$cuid};
+            my $item_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+            push_op($arr.instructions, 'getcode', $item_reg, $frame);
+            push_op($arr.instructions, 'push_o', $arr_reg, $item_reg);
+            $*REGALLOC.release_register($item_reg, $MVM_reg_obj);
+        }
+        my $newer := MAST::InstructionList.new(nqp::list(), $arr_reg, $MVM_reg_obj);
+        $arr.append($newer);
+    }
+    $arr
+});
 QAST::MASTOperations.add_core_op('qlist', -> $qastcomp, $op {
     $qastcomp.as_mast(QAST::Op.new( :op('list'), |@($op) ))
 });
