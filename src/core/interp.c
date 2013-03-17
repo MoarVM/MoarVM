@@ -2401,6 +2401,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = (MVMObject *)GET_REG(cur_op, 2).o->header.sc;
                         cur_op += 4;
                         break;
+                    case MVM_OP_deserialize: {
+                        MVMString *blob = GET_REG(cur_op, 2).s;
+                        MVMObject *sc   = GET_REG(cur_op, 4).o;
+                        MVMObject *sh   = GET_REG(cur_op, 6).o;
+                        MVMObject *cr   = GET_REG(cur_op, 8).o;
+                        MVMObject *conf = GET_REG(cur_op, 10).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to deserialize");
+                        MVM_serialization_deserialize(tc, sc, sh, cr, conf, blob);
+                        GET_REG(cur_op, 0).s = blob;
+                        cur_op += 12;
+                        break;
+                    }
                     case MVM_OP_wval: {
                         MVMint16 dep = GET_I16(cur_op, 2);
                         MVMint16 idx = GET_I16(cur_op, 4);

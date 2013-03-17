@@ -45,7 +45,8 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/Uninstantiable$(O) src/6model/reprs/HashAttrStore$(O) \
             src/6model/reprs/MVMThread$(O) src/6model/reprs/MVMIter$(O) \
             src/6model/reprs/MVMContext$(O) src/6model/reprs/SCRef$(O) \
-            src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) src/strings/ascii$(O) \
+            src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) \
+            src/6model/serialization$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
             src/strings/latin1$(O) src/strings/utf16$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
@@ -55,7 +56,8 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/core/bytecodedump.h src/core/threads.h src/core/hll.h src/core/coerce.h \
             src/io/fileops.h src/io/socketops.h src/io/dirops.h src/io/procops.h src/gc/orchestrate.h \
             src/gc/allocation.h src/gc/worklist.h src/gc/collect.h src/gc/roots.h src/gc/gen2.h \
-            src/gc/wb.h src/6model/reprs.h src/6model/reprconv.h src/6model/bootstrap.h src/6model/reprs/MVMString.h \
+            src/gc/wb.h src/6model/reprs.h src/6model/reprconv.h src/6model/bootstrap.h \
+            src/6model/serialization.h src/6model/reprs/MVMString.h \
             src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
             src/6model/reprs/KnowHOWREPR.h src/6model/reprs/KnowHOWAttributeREPR.h \
             src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h src/6model/reprs/P6str.h \
@@ -178,6 +180,8 @@ src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/bootstrap$(O) src/6model/bootstrap.c
 src/6model/sc$(O): src/6model/sc.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/sc$(O) src/6model/sc.c
+src/6model/serialization$(O): src/6model/serialization.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/serialization$(O) src/6model/serialization.c
 src/strings/ascii$(O): src/strings/ascii.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/ascii$(O) src/strings/ascii.c
 src/strings/utf8$(O): src/strings/utf8.c $(HEADERS)
