@@ -219,6 +219,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         return 1;
     }
     else {
+        tc->cur_frame = NULL;
         return 0;
     }
 }
