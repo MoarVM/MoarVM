@@ -96,7 +96,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             body->array_state.index++;
             if (body->array_state.index >= body->array_state.limit)
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, 0);
+            REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
             return;
         case MVM_ITER_MODE_HASH:
             if (!body->hash_state.curr) {
