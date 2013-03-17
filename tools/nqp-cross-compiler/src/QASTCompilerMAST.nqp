@@ -2,7 +2,7 @@ use QASTOperationsMAST;
 use QASTRegexCompilerMAST;
 
 # Disable compilatin of deserialization stuff while still in development.
-my $ENABLE_SC_COMP := 0;
+my $ENABLE_SC_COMP := 1;
 
 my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
 my $MVM_reg_int8            := 1;
@@ -431,9 +431,9 @@ class QAST::MASTCompiler {
             }
             
             # Add post-deserialization tasks.
-            for @post_des {
-                $block.push(QAST::Stmt.new($_));
-            }
+            #for @post_des {
+            #    $block.push(QAST::Stmt.new($_));
+            #}
             
             # Compile to MAST and register this block as the deserialization
             # handler.
