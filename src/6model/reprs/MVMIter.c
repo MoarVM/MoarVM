@@ -10,13 +10,11 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMObject *obj;
     
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
-    
-    obj = MVM_gc_allocate_type_object(tc, st);
-    st->WHAT = obj;
-    st->size = sizeof(MVMIter);
-    
-    MVM_gc_root_temp_pop(tc);
+    MVMROOT(tc, st, {
+        obj = MVM_gc_allocate_type_object(tc, st);
+        st->WHAT = obj;
+        st->size = sizeof(MVMIter);
+    });
     
     return st->WHAT;
 }

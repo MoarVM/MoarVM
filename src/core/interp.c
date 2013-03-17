@@ -1447,39 +1447,39 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_box_i: {
                         MVMObject *type = GET_REG(cur_op, 4).o;
                         MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
-                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
-                        if (REPR(box)->initialize)
-                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                        REPR(box)->box_funcs->set_int(tc, STABLE(box), box,
-                            OBJECT_BODY(box), GET_REG(cur_op, 2).i64);
-                        MVM_gc_root_temp_pop(tc);
-                        GET_REG(cur_op, 0).o = box;
+                        MVMROOT(tc, box, {
+                            if (REPR(box)->initialize)
+                                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                            REPR(box)->box_funcs->set_int(tc, STABLE(box), box,
+                                OBJECT_BODY(box), GET_REG(cur_op, 2).i64);
+                            GET_REG(cur_op, 0).o = box;
+                        });
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_box_n: {
                         MVMObject *type = GET_REG(cur_op, 4).o;
                         MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
-                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
-                        if (REPR(box)->initialize)
-                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                        REPR(box)->box_funcs->set_num(tc, STABLE(box), box,
-                            OBJECT_BODY(box), GET_REG(cur_op, 2).n64);
-                        MVM_gc_root_temp_pop(tc);
-                        GET_REG(cur_op, 0).o = box;
+                        MVMROOT(tc, box, {
+                            if (REPR(box)->initialize)
+                                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                            REPR(box)->box_funcs->set_num(tc, STABLE(box), box,
+                                OBJECT_BODY(box), GET_REG(cur_op, 2).n64);
+                            GET_REG(cur_op, 0).o = box;
+                        });
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_box_s: {
                         MVMObject *type = GET_REG(cur_op, 4).o;
                         MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
-                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
-                        if (REPR(box)->initialize)
-                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                        REPR(box)->box_funcs->set_str(tc, STABLE(box), box,
-                            OBJECT_BODY(box), GET_REG(cur_op, 2).s);
-                        MVM_gc_root_temp_pop(tc);
-                        GET_REG(cur_op, 0).o = box;
+                        MVMROOT(tc, box, {
+                            if (REPR(box)->initialize)
+                                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                            REPR(box)->box_funcs->set_str(tc, STABLE(box), box,
+                                OBJECT_BODY(box), GET_REG(cur_op, 2).s);
+                            GET_REG(cur_op, 0).o = box;
+                        });
                         cur_op += 6;
                         break;
                     }
@@ -1666,14 +1666,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_clone: {
-                        MVMObject *cloned, *value = GET_REG(cur_op, 2).o;
-                        
-                        MVM_gc_root_temp_push(tc, (MVMCollectable **)&value);
-                        cloned = REPR(value)->allocate(tc, STABLE(value));
-                        REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                        MVM_gc_root_temp_pop(tc);
-                        
-                        GET_REG(cur_op, 0).o = cloned;
+                        MVMObject *value = GET_REG(cur_op, 2).o;
+                        MVMROOT(tc, value, {
+                            MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
+                            REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                            GET_REG(cur_op, 0).o = cloned;
+                        });
                         cur_op += 4;
                         break;
                     }

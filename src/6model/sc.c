@@ -7,17 +7,17 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     MVMObject *sc;
     
     /* Allocate. */
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&handle);
-    sc = REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&sc);
-    REPR(sc)->initialize(tc, STABLE(sc), sc, OBJECT_BODY(sc));
+    MVMROOT(tc, handle, {
+        sc = REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
+        MVMROOT(tc, sc, {
+            REPR(sc)->initialize(tc, STABLE(sc), sc, OBJECT_BODY(sc));
+
+            /* Set handle. */
+            MVM_ASSIGN_REF(tc, sc, ((MVMSerializationContext *)sc)->body.handle, handle);
     
-    /* Set handle. */
-    MVM_ASSIGN_REF(tc, sc, ((MVMSerializationContext *)sc)->body.handle, handle);
-    
-    /* TODO: Visit compilation units that need this, resolve. */
-    
-    MVM_gc_root_temp_pop_n(tc, 2);
+            /* TODO: Visit compilation units that need this, resolve. */
+        });
+    });
     
     return sc;
 }
