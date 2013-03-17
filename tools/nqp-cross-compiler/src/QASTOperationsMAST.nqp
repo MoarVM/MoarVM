@@ -362,6 +362,69 @@ QAST::MASTOperations.add_core_op('list', -> $qastcomp, $op {
     }
     $arr
 });
+QAST::MASTOperations.add_core_op('list_i', -> $qastcomp, $op {
+    # Just desugar to create the empty list.
+    my $arr := $qastcomp.as_mast(QAST::Op.new(
+        :op('create'),
+        QAST::Op.new( :op('bootintarray') )
+    ));
+    if +$op.list {
+        my $arr_reg := $arr.result_reg;
+        # Push things to the list.
+        for $op.list {
+            my $item := $qastcomp.as_mast($_, :want($MVM_reg_int64));
+            my $item_reg := $item.result_reg;
+            $arr.append($item);
+            push_op($arr.instructions, 'push_i', $arr_reg, $item_reg);
+            $*REGALLOC.release_register($item_reg, $MVM_reg_int64);
+        }
+        my $newer := MAST::InstructionList.new(nqp::list(), $arr_reg, $MVM_reg_obj);
+        $arr.append($newer);
+    }
+    $arr
+});
+QAST::MASTOperations.add_core_op('list_n', -> $qastcomp, $op {
+    # Just desugar to create the empty list.
+    my $arr := $qastcomp.as_mast(QAST::Op.new(
+        :op('create'),
+        QAST::Op.new( :op('bootnumarray') )
+    ));
+    if +$op.list {
+        my $arr_reg := $arr.result_reg;
+        # Push things to the list.
+        for $op.list {
+            my $item := $qastcomp.as_mast($_, :want($MVM_reg_num64));
+            my $item_reg := $item.result_reg;
+            $arr.append($item);
+            push_op($arr.instructions, 'push_n', $arr_reg, $item_reg);
+            $*REGALLOC.release_register($item_reg, $MVM_reg_num64);
+        }
+        my $newer := MAST::InstructionList.new(nqp::list(), $arr_reg, $MVM_reg_obj);
+        $arr.append($newer);
+    }
+    $arr
+});
+QAST::MASTOperations.add_core_op('list_s', -> $qastcomp, $op {
+    # Just desugar to create the empty list.
+    my $arr := $qastcomp.as_mast(QAST::Op.new(
+        :op('create'),
+        QAST::Op.new( :op('bootstrarray') )
+    ));
+    if +$op.list {
+        my $arr_reg := $arr.result_reg;
+        # Push things to the list.
+        for $op.list {
+            my $item := $qastcomp.as_mast($_, :want($MVM_reg_str));
+            my $item_reg := $item.result_reg;
+            $arr.append($item);
+            push_op($arr.instructions, 'push_s', $arr_reg, $item_reg);
+            $*REGALLOC.release_register($item_reg, $MVM_reg_str);
+        }
+        my $newer := MAST::InstructionList.new(nqp::list(), $arr_reg, $MVM_reg_obj);
+        $arr.append($newer);
+    }
+    $arr
+});
 QAST::MASTOperations.add_core_op('qlist', -> $qastcomp, $op {
     $qastcomp.as_mast(QAST::Op.new( :op('list'), |@($op) ))
 });
