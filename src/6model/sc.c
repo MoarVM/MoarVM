@@ -83,6 +83,13 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
             "No object at index %d", idx);
 }
 
+/* Given an SC, an index, and an object, store the object at that index. */
+void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
+    MVMObject *roots = sc->body.root_objects;
+    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    MVM_repr_bind_pos_o(tc, roots, idx, obj);
+}
+
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     if (idx > 0 && idx < sc->body.num_stables)
@@ -90,6 +97,31 @@ MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc,
     else
         MVM_exception_throw_adhoc(tc,
             "No STable at index %d", idx);
+}
+
+/* Given an SC, an index, and an STable, store the STable at the index. */
+void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMSTable *st) {
+    if (idx < 0)
+        MVM_exception_throw_adhoc(tc,
+            "Invalid (negative) STable index", idx);
+    if (idx < sc->body.num_stables) {
+        /* Just updating an existing one. */
+        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body.root_stables[idx], st);
+    }
+    else if (idx == sc->body.num_stables) {
+        /* Setting the next one. */
+        if (idx == sc->body.alloc_stables) {
+            sc->body.alloc_stables += 16;
+            sc->body.root_stables = realloc(sc->body.root_stables,
+                sc->body.alloc_stables * sizeof(MVMSTable *));
+        }
+        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body.root_stables[idx], st);
+        sc->body.num_stables++;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Gaps in STable root set not allowed");
+    }
 }
 
 /* Given an SC and an index, fetch the code ref stored there. */
@@ -101,4 +133,11 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
     else
         MVM_exception_throw_adhoc(tc,
             "No code ref at index %d", idx);
+}
+
+/* Given an SC, an index and a code ref, store it and the index. */
+void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *code) {
+    MVMObject *roots = sc->body.root_codes;
+    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    MVM_repr_bind_pos_o(tc, roots, idx, code);
 }
