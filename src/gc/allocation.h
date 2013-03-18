@@ -8,4 +8,4 @@ void MVM_gc_allocate_gen2_default_clear(MVMThreadContext *tc);
 
 #define MVM_gc_allocate(tc, size) (tc->allocate_in == MVMAllocate_Nursery ? \
     MVM_gc_allocate_nursery(tc, size) : \
-    MVM_gc_gen2_allocate(tc->gen2, size))
+    MVM_gc_gen2_allocate_zeroed(tc->gen2, size))

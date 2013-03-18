@@ -101,6 +101,15 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
     return result;
 }
 
+/* Allocates space using the second generation allocator and returns
+ * a pointer to the allocated space. Promises the memory will be
+ * zeroed. */
+void * MVM_gc_gen2_allocate_zeroed(MVMGen2Allocator *al, MVMuint32 size) {
+    void *a = MVM_gc_gen2_allocate(al, size);
+    memset(a, 0, size);
+    return a;
+}
+
 /* Frees all memory associated with the second generation. */
 void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
     /* Remove all pages. */
