@@ -593,6 +593,35 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
     });
     return array;
 }
+
+/* Sets up the core serialization context. */
+static void setup_core_sc(MVMThreadContext *tc) {
+    MVMString *handle;
+    MVMSerializationContext *sc;
+    
+    handle = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "__6MODEL_CORE__");
+    sc = (MVMSerializationContext *)MVM_sc_create(tc, handle);
+    
+    MVMROOT(tc, sc, {
+        /* KnowHOW */
+        MVM_sc_set_object(tc, sc, 0, tc->instance->KnowHOW);
+        MVM_sc_set_obj_sc(tc, tc->instance->KnowHOW, sc);
+        MVM_sc_set_stable(tc, sc, 0, STABLE(tc->instance->KnowHOW));
+        MVM_sc_set_stable_sc(tc, STABLE(tc->instance->KnowHOW), sc);
+        
+        /* KnowHOW.HOW */
+        MVM_sc_set_object(tc, sc, 1, STABLE(tc->instance->KnowHOW)->HOW);
+        MVM_sc_set_obj_sc(tc, STABLE(tc->instance->KnowHOW)->HOW, sc);
+        MVM_sc_set_stable(tc, sc, 1, STABLE(STABLE(tc->instance->KnowHOW)->HOW));
+        MVM_sc_set_stable_sc(tc, STABLE(STABLE(tc->instance->KnowHOW)->HOW), sc);
+        
+        /* KnowHOWAttribute */
+        MVM_sc_set_object(tc, sc, 2, tc->instance->KnowHOWAttribute);
+        MVM_sc_set_obj_sc(tc, tc->instance->KnowHOWAttribute, sc);
+        MVM_sc_set_stable(tc, sc, 2, STABLE(tc->instance->KnowHOWAttribute));
+        MVM_sc_set_stable_sc(tc, STABLE(tc->instance->KnowHOWAttribute), sc);
+    });
+}
  
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
@@ -678,4 +707,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     tc->instance->boot_types->BOOTStrArray = boot_typed_array(tc, "BOOTStrArray",
         tc->instance->boot_types->BOOTStr);
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTStrArray);
+    
+    /* Get initial __6MODEL_CORE__ serialization context set up. */
+    setup_core_sc(tc);
 }
