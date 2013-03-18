@@ -200,6 +200,7 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
     if (reader->data)
         free(reader->data);
     free(reader);
+    MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
     MVM_exception_throw_adhoc(tc, messageFormat, args);
     va_end(args);
@@ -355,6 +356,13 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->root.sc          = sc;
     reader->root.string_heap = string_heap;
     
+    /* During deserialization, we allocate directly in generation 2. This
+     * is because these objects are almost certainly going to be long lived,
+     * but also because if we know that we won't end up moving the objects
+     * we are working on during a deserialization run, it's a bunch easier
+     * to have those partially constructed objects floating around. */
+    MVM_gc_allocate_gen2_default_set(tc);
+    
     /* Read header and disect the data into its parts. */
     check_and_disect_input(tc, reader, data);
     
@@ -365,4 +373,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     if (reader->data)
         free(reader->data);
     free(reader);
+    
+    /* Restore normal GC allocation. */
+    MVM_gc_allocate_gen2_default_clear(tc);
 }
