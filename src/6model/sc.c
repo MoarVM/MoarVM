@@ -141,3 +141,13 @@ void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64
     MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
     MVM_repr_bind_pos_o(tc, roots, idx, code);
 }
+
+/* Sets an object's SC. */
+void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
+    MVM_ASSIGN_REF(tc, obj, obj->header.sc, sc);
+}
+
+/* Sets an STable's SC. */
+void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc) {
+    MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+}
