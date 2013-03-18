@@ -594,7 +594,8 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
     return array;
 }
 
-/* Sets up the core serialization context. */
+/* Sets up the core serialization context. It is marked as the SC of various
+ * rooted objects, which means in turn it will never be collected. */
 static void setup_core_sc(MVMThreadContext *tc) {
     MVMString *handle;
     MVMSerializationContext *sc;
