@@ -15,12 +15,18 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
+    MVMSerializationContext *sc;
+    MVMObject *obj;
+    obj = MVM_gc_allocate_object(tc, st);
+    sc = (MVMSerializationContext *)obj;
+    sc->body = malloc(sizeof(MVMSerializationContextBody));
+    memset(sc->body, 0, sizeof(MVMSerializationContextBody));
+    return obj;
 }
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMSerializationContextBody *sc = (MVMSerializationContextBody *)data;
+    MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
     MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
     MVMObject *root_objects, *root_codes;
     
@@ -45,7 +51,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMSerializationContextBody *sc = (MVMSerializationContextBody *)data;
+    MVMSerializationContextBody *sc = ((MVMSerializationContextBody **)data)[0];
     MVMuint64 i;
     
     MVM_gc_worklist_add(tc, worklist, &sc->handle);
@@ -60,17 +66,18 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSerializationContext *sc = (MVMSerializationContext *)obj;
-    
-    /* Free manually managed STable list memory. */
-    if (sc->body.root_stables)
-        free(sc->body.root_stables);
 
     /* Remove from weakref lookup hash (which doesn't count as a root). */
     if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
         MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
-    HASH_DELETE(hash_handle, tc->instance->sc_weakhash, sc);
+    HASH_DELETE(hash_handle, tc->instance->sc_weakhash, sc->body);
     if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
         MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
+    
+    /* Free manually managed STable list memory and body. */
+    if (sc->body->root_stables)
+        free(sc->body->root_stables);
+    free(sc->body);
 }
 
 /* Gets the storage specification for this representation. */

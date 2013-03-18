@@ -21,15 +21,18 @@ typedef struct _MVMSerializationContextBody {
     MVMObject *root_codes;
     
     /* XXX Repossession info. */
-} MVMSerializationContextBody;
- 
-typedef struct _MVMSerializationContext {
-    /* Normal header and body. */
-    MVMObject common;
-    MVMSerializationContextBody body;
     
     /* Inline handle to the SCs hash (in MVMInstance). */
     UT_hash_handle hash_handle;
+} MVMSerializationContextBody;
+ 
+typedef struct _MVMSerializationContext {
+    /* Normal header. */
+    MVMObject common;
+    
+    /* Body is a level of indirection away to ease memory management of the
+     * weak hash. */
+    MVMSerializationContextBody *body;
 } MVMSerializationContext;
 
 /* Function for REPR setup. */

@@ -113,6 +113,6 @@ typedef struct _MVMInstance {
     
     /* Hash of all known serialization contexts. Not marked for GC; an SC
      * removes it from this when it gets GC'd. */
-    struct _MVMSerializationContext *sc_weakhash;
-    apr_thread_mutex_t              *mutex_sc_weakhash;
+    struct _MVMSerializationContextBody *sc_weakhash;
+    apr_thread_mutex_t                  *mutex_sc_weakhash;
 } MVMInstance;

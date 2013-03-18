@@ -2379,7 +2379,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             MVM_exception_throw_adhoc(tc,
                                 "Must provide an SCRef operand to scsetdesc");
                         MVM_ASSIGN_REF(tc, sc,
-                            ((MVMSerializationContext *)sc)->body.description,
+                            ((MVMSerializationContext *)sc)->body->description,
                             desc);
                         GET_REG(cur_op, 0).s = desc;
                         cur_op += 6;
