@@ -41,6 +41,34 @@ MVMObject * MVM_repr_at_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx
     return value.o;
 }
 
+void MVM_repr_bind_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMint64 value) {
+    MVMRegister val;
+    val.i64 = value;
+    REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        idx, val, MVM_reg_int64);
+}
+
+void MVM_repr_bind_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMnum64 value) {
+    MVMRegister val;
+    val.n64 = value;
+    REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        idx, val, MVM_reg_num64);
+}
+
+void MVM_repr_bind_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMString *value) {
+    MVMRegister val;
+    val.s = value;
+    REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        idx, val, MVM_reg_str);
+}
+
+void MVM_repr_bind_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMObject *value) {
+    MVMRegister val;
+    val.o = value;
+    REPR(obj)->pos_funcs->bind_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        idx, val, MVM_reg_obj);
+}
+
 void MVM_repr_push_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 pushee) {
     MVMRegister value;
     value.i64 = pushee;
