@@ -284,6 +284,31 @@ static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *re
     return MVM_sc_get_object(tc, locate_sc(tc, reader, sc_id), idx);
 }
 
+/* Forward-declare read_ref_func. */
+MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader);
+
+/* Reads in an hash with string keys and variant references. */
+static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+    MVMint32 elems, i;
+
+    /* Read the element count. */
+    assert_can_read(tc, reader, 4);
+    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+
+    /* Read in the elements. */
+    for (i = 0; i < elems; i++) {
+        MVMString *key = read_str_func(tc, reader);
+        MVM_repr_bind_key_boxed(tc, result, key, read_ref_func(tc, reader));
+    }
+    
+    /* Set the SC. */
+    MVM_sc_set_obj_sc(tc, result, reader->root.sc);
+
+    return result;
+}
+
 /* Reading function for references. */
 MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result;
@@ -302,6 +327,8 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             return read_obj_ref(tc, reader);
         case REFVAR_VM_NULL:
             return NULL;
+        case REFVAR_VM_HASH_STR_VAR:
+            return read_hash_str_var(tc, reader);
         default:
             fail_deserialize(tc, reader,
                 "Serialization Error: Unimplemented case of read_ref");
