@@ -502,6 +502,29 @@ static void set_stable_sizes(MVMThreadContext *tc, MVMSerializationReader *reade
     }
 }
 
+/* Stubs all the objects we need to deserialize, setting their REPR and type
+ * object flag. */
+static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMuint32  num_objs = reader->root.num_objects;
+    MVMuint32  i;
+    for (i = 0; i < num_objs; i++) {
+        /* Calculate location of object's table row. */
+        char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
+        
+        /* Resolve the STable. */
+        MVMSTable *st = lookup_stable(tc, reader,
+            read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
+            read_int32(obj_table_row, 4));  /* The index in that SC */
+
+        /* Allocate and store stub object, flagging it as a type object if
+         * needed. */
+        MVMObject *obj = st->REPR->allocate(tc, st);
+        if ((read_int32(obj_table_row, 12) & 1) != 1)
+            obj->header.flags |= MVM_CF_TYPE_OBJECT;
+        MVM_sc_set_object(tc, reader->root.sc, i, obj);
+    }
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
@@ -540,8 +563,11 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     stub_stables(tc, reader);
     set_stable_sizes(tc, reader);
     
+    /* Stub allocate all objects. */
+    stub_objects(tc, reader);
+    
     /* TODO: The rest... */
-    printf("WARNING: Deserialization NYI; just stubbed STables\n");
+    printf("WARNING: Deserialization NYI; just stubbed\n");
     
     /* Clear up afterwards. */
     if (reader->data)
