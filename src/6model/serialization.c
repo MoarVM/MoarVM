@@ -472,6 +472,9 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
         /* Allocate and store stub STable. */
         MVMSTable *st = MVM_gc_allocate_stable(tc, repr, NULL);
         MVM_sc_set_stable(tc, reader->root.sc, i, st);
+        
+        /* Set the STable's SC. */
+        MVM_sc_set_stable_sc(tc, st, reader->root.sc);
     }
 }
 
@@ -522,6 +525,9 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
         if ((read_int32(obj_table_row, 12) & 1) != 1)
             obj->header.flags |= MVM_CF_TYPE_OBJECT;
         MVM_sc_set_object(tc, reader->root.sc, i, obj);
+        
+        /* Set the object's SC. */
+        MVM_sc_set_obj_sc(tc, obj, reader->root.sc);
     }
 }
 
