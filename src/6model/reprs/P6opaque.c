@@ -74,7 +74,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
         st->WHAT = obj;
-        st->size = sizeof(MVMP6opaque); /* Is updated later. */
+        st->size = 0; /* Is updated later. */
     });
     
     return st->WHAT;
@@ -82,7 +82,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    if (st->REPR_data)
+    if (st->size)
         return MVM_gc_allocate_object(tc, st);
     else
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before allocating");
@@ -671,7 +671,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     }
     
     /* Add allocated amount for body to have total object size. */
-    st->size += cur_alloc_addr;
+    st->size = sizeof(MVMP6opaque) + cur_alloc_addr;
     
     /* Add sentinels/counts. */
     repr_data->gc_obj_mark_offsets_count = cur_obj_attr;
