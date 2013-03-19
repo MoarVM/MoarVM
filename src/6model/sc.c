@@ -100,7 +100,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    if (idx > 0 && idx < sc->body->num_stables)
+    if (idx >= 0 && idx < sc->body->num_stables)
         return sc->body->root_stables[idx];
     else
         MVM_exception_throw_adhoc(tc,
