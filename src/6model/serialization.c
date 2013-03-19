@@ -216,6 +216,74 @@ static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationR
             "Attempt to read past end of string heap (index %d)", idx);
 }
 
+/* Locates a serialization context; 0 is the current one, otherwise see the
+ * dependencies table. */
+static MVMSerializationContext * locate_sc(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 sc_id) {
+    MVMSerializationContext *sc;
+    if (sc_id == 0)
+        sc = reader->root.sc;
+    else if (sc_id > 0 && sc_id - 1 < reader->root.num_dependencies)
+        sc = reader->root.dependent_scs[sc_id - 1];
+    else
+        fail_deserialize(tc, reader,
+            "Invalid dependencies table index encountered (index %d)", sc_id);
+    return sc;
+}
+
+/* Looks up an STable. */
+static MVMSTable * lookup_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 sc_id, MVMint32 idx) {
+    return MVM_sc_get_stable(tc, locate_sc(tc, reader, sc_id), idx);
+}
+
+/* Ensure that we aren't going to read off the end of the buffer. */
+static void assert_can_read(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 amount) {
+    char *read_end = *(reader->cur_read_buffer) + *(reader->cur_read_offset) + amount;
+    if (read_end > *(reader->cur_read_end))
+        fail_deserialize(tc, reader,
+            "Read past end of serialization data buffer");
+}
+
+/* Reading function for native integers. */
+static MVMint64 read_int_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint64 result;
+    assert_can_read(tc, reader, 8);
+    result = read_int64(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 8;
+    return result;
+}
+
+/* Reading function for native numbers. */
+static MVMnum64 read_num_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMnum64 result;
+    assert_can_read(tc, reader, 8);
+    result = read_double(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 8;
+    return result;
+}
+
+/* Reading function for native strings. */
+static MVMString * read_str_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMString *result;
+    assert_can_read(tc, reader, 4);
+    result = read_string_from_heap(tc, reader,
+        read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset)));
+    *(reader->cur_read_offset) += 4;
+    return result;
+}
+
+/* Reads in and resolves an object references. */
+static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint32 sc_id, idx;
+
+    assert_can_read(tc, reader, 8);
+    sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+    idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+    
+    return MVM_sc_get_object(tc, locate_sc(tc, reader, sc_id), idx);
+}
+
 /* Checks the header looks sane and all of the places it points to make sense.
  * Also disects the input string into the tables and data segments and populates
  * the reader data structure more fully. */
