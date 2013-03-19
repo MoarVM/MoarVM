@@ -17,8 +17,10 @@
  * the thing we're writing. */
 #define MVM_ASSIGN_REF(tc, update_root, update_addr, referenced) \
     { \
-        MVM_WB_REF(tc, update_root, update_addr, referenced); \
-        update_addr = referenced; \
+        void **_u = &(update_addr);\
+        void *_r = referenced;\
+        MVM_WB_REF(tc, update_root, *_u, _r); \
+        *_u = _r; \
     }
 
 /* The write barrier macro for updating a reference held by some kind of aggregate
@@ -40,8 +42,9 @@
  * update_addr places no role in the write barrier. */
 #define MVM_ASSIGN_AGG(tc, update_root, update_addr, referenced) \
     { \
-        MVM_WB_AGG(tc, update_root, referenced); \
-        update_addr = referenced; \
+        void *_r = referenced;\
+        MVM_WB_AGG(tc, update_root, _r); \
+        update_addr = _r; \
     }
 
 /* Functions for if the write barriers are hit. */
