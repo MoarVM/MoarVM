@@ -555,12 +555,65 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
     }
 }
 
+/* Deserializes a single STable, along with its REPR data. */
+static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMSTable *st) {
+    /* Calculate location of STable's table row. */
+    char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
+    
+    /* Set STable read position, and set current read buffer to the correct thing. */
+    reader->stables_data_offset = read_int32(st_table_row, 4);
+    reader->cur_read_buffer     = &(reader->root.stables_data);
+    reader->cur_read_offset     = &(reader->stables_data_offset);
+    reader->cur_read_end        = &(reader->stables_data_end);
+    
+    /* Read the HOW, WHAT and WHO. */
+    MVM_ASSIGN_REF(tc, st, st->HOW, read_obj_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, st, st->WHAT, read_obj_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, st, st->WHO, read_ref_func(tc, reader));
+    
+    /* Method cache and v-table. */
+    MVM_ASSIGN_REF(tc, st, st->method_cache, read_ref_func(tc, reader));
+    st->vtable_length = read_int_func(tc, reader);
+    if (st->vtable_length > 0)
+        st->vtable = (MVMObject **)malloc(st->vtable_length * sizeof(MVMObject *));
+    for (i = 0; i < st->vtable_length; i++)
+        MVM_ASSIGN_REF(tc, st, st->vtable[i], read_ref_func(tc, reader));
+    
+    /* Type check cache. */
+    st->type_check_cache_length = read_int_func(tc, reader);
+    if (st->type_check_cache_length > 0) {
+        st->type_check_cache = (MVMObject **)malloc(st->type_check_cache_length * sizeof(MVMObject *));
+        for (i = 0; i < st->type_check_cache_length; i++)
+            MVM_ASSIGN_REF(tc, st, st->type_check_cache[i], read_ref_func(tc, reader));
+    }
+    
+    /* Mode flags. */
+    st->mode_flags = read_int_func(tc, reader);
+    
+    /* Boolification spec. */
+    if (read_int_func(tc, reader)) {
+        st->boolification_spec = (MVMBoolificationSpec *)malloc(sizeof(MVMBoolificationSpec));
+        st->boolification_spec->mode = read_int_func(tc, reader);
+        MVM_ASSIGN_REF(tc, st, st->boolification_spec->method, read_ref_func(tc, reader));
+    }
+
+    /* Container spec. */
+    if (read_int_func(tc, reader)) {
+        fail_deserialize(tc, reader, "Container spec deserialization NYI");
+    }
+
+    /* If the REPR has a function to deserialize representation data, call it. */
+    if (st->REPR->deserialize_repr_data)
+        st->REPR->deserialize_repr_data(tc, st, reader);
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
 void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext *sc,
         MVMObject *string_heap, MVMObject *codes_static, 
         MVMObject *repo_conflicts, MVMString *data) {
+    MVMint32 i;
     
     /* Allocate and set up reader. */
     MVMSerializationReader *reader = malloc(sizeof(MVMSerializationReader));
@@ -595,6 +648,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     
     /* Stub allocate all objects. */
     stub_objects(tc, reader);
+    
+    /* Fully deserialize STables, along with their representation data. */
+    for (i = 0; i < reader->root.num_stables; i++)
+        deserialize_stable(tc, reader, i, MVM_sc_get_stable(tc, sc, i));
     
     /* TODO: The rest... */
     printf("WARNING: Deserialization NYI; just stubbed\n");
