@@ -22,6 +22,9 @@ typedef struct _MVMSerializationContextBody {
     
     /* XXX Repossession info. */
     
+    /* Backlink to the (memory-managed) SC itself. */
+    struct _MVMSerializationContext *sc;
+    
     /* Inline handle to the SCs hash (in MVMInstance). */
     UT_hash_handle hash_handle;
 } MVMSerializationContextBody;

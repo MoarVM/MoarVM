@@ -353,6 +353,29 @@ static void check_and_disect_input(MVMThreadContext *tc,
     reader->contexts_data_end = reader->root.repos_table;
 }
 
+/* Goes through the dependencies table and resolves the dependencies that it
+ * contains to SerializationContexts. */
+static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    char      *table_pos = reader->root.dependencies_table;
+    MVMuint32  num_deps  = reader->root.num_dependencies;
+    MVMuint32  i;
+    reader->root.dependent_scs = malloc(MAX(num_deps, 1) * sizeof(MVMSerializationContext *));
+    for (i = 0; i < num_deps; i++) {
+        MVMString *handle = read_string_from_heap(tc, reader, read_int32(table_pos, 0));
+        MVMSerializationContext *sc;
+        sc = MVM_sc_find_by_handle(tc, handle);
+        if (sc == NULL) {
+            MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
+            printf(MVM_string_ascii_encode(tc, handle, NULL));
+            fail_deserialize(tc, reader,
+                "Missing or wrong version of dependency '%s'",
+                MVM_string_ascii_encode(tc, desc, NULL));
+        }
+        reader->root.dependent_scs[i] = sc;
+        table_pos += 8;
+    }
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
@@ -375,6 +398,9 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     
     /* Read header and disect the data into its parts. */
     check_and_disect_input(tc, reader, data);
+    
+    /* Resolve the SCs in the dependencies table. */
+    resolve_dependencies(tc, reader);
     
     /* TODO: The rest... */
     printf("WARNING: Deserialization NYI, but disection done\n");

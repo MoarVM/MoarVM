@@ -18,6 +18,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             /* Add to weak lookup hash. */
             if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
                 MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
+            MVM_string_flatten(tc, handle);
             MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, ((MVMSerializationContext *)sc)->body);
             if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
                 MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
@@ -157,4 +158,16 @@ void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationCon
 /* Sets an STable's SC. */
 void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc) {
     MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+}
+
+/* Resolves an SC handle using the SC weakhash. */
+MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
+    MVMSerializationContextBody *scb;
+    MVM_string_flatten(tc, handle);
+    if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
+        MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
+    MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
+    if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
+        MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
+    return scb ? scb->sc : NULL;
 }

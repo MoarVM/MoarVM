@@ -21,6 +21,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     sc = (MVMSerializationContext *)obj;
     sc->body = malloc(sizeof(MVMSerializationContextBody));
     memset(sc->body, 0, sizeof(MVMSerializationContextBody));
+    sc->body->sc = sc;
     return obj;
 }
 
@@ -61,6 +62,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     
     for (i = 0; i < sc->num_stables; i++)
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
+
+    /* Maintain backlink (yes, this is ugly). */
+    sc->sc = (MVMSerializationContext *)((char *)data - sizeof(MVMObject));
 }
 
 /* Called by the VM in order to free memory associated with this object. */
