@@ -80,6 +80,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMKnowHOWREPR);
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMKnowHOWREPR_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. Note
@@ -95,6 +100,7 @@ MVMREPROps * MVMKnowHOWREPR_initialize(MVMThreadContext *tc) {
         this_repr->get_storage_spec = get_storage_spec;
         this_repr->gc_mark = gc_mark;
         this_repr->compose = compose;
+    this_repr->deserialize_stable_size = deserialize_stable_size;
     }
     return this_repr;
 }

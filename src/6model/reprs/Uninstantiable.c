@@ -48,6 +48,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(Uninstantiable);
+}
+
 /* Initializes the representation. */
 MVMREPROps * Uninstantiable_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
@@ -59,5 +64,6 @@ MVMREPROps * Uninstantiable_initialize(MVMThreadContext *tc) {
     this_repr->gc_free = gc_free;
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->compose = compose;
+    this_repr->deserialize_stable_size = deserialize_stable_size;
     return this_repr;
 }

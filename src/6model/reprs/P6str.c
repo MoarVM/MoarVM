@@ -71,6 +71,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &((P6strBody *)data)->value);
 }
 
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(P6str);
+}
+
 /* Initializes the representation. */
 MVMREPROps * P6str_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
@@ -89,5 +94,6 @@ MVMREPROps * P6str_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
     this_repr->compose = compose;
     this_repr->gc_mark = gc_mark;
+    this_repr->deserialize_stable_size = deserialize_stable_size;
     return this_repr;
 }

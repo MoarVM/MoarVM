@@ -59,9 +59,9 @@ typedef struct _MVMSerializationReader {
     
     /* Current offsets for the data chunks (also correspond to the amount of
      * data written in to them). */
-    MVMuint32 stables_data_offset;
-    MVMuint32 objects_data_offset;
-    MVMuint32 contexts_data_offset;
+    MVMint32 stables_data_offset;
+    MVMint32 objects_data_offset;
+    MVMint32 contexts_data_offset;
     
     /* Limits up to where we can read stables, objects and contexts data. */
     char *stables_data_end;
@@ -76,11 +76,11 @@ typedef struct _MVMSerializationReader {
     char     **cur_read_end;
     
     /* Various reading functions. */
-    MVMint64    (*read_int) (MVMThreadContext *tc, struct MVMSerializationReader *reader);
-    MVMnum64    (*read_num) (MVMThreadContext *tc, struct MVMSerializationReader *reader);
-    MVMString * (*read_str) (MVMThreadContext *tc, struct MVMSerializationReader *reader);
-    MVMObject * (*read_ref) (MVMThreadContext *tc, struct MVMSerializationReader *reader);
-    MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, struct MVMSerializationReader *reader);
+    MVMint64    (*read_int) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMnum64    (*read_num) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMString * (*read_str) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMObject * (*read_ref) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
     
     /* The object we're currently deserializing. */
     MVMObject *cur_object;

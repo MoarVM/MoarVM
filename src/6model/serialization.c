@@ -4,13 +4,13 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 3
-#define MIN_VERSION     3
+#define CURRENT_VERSION 4
+#define MIN_VERSION     4
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 4 * 16
 #define DEP_TABLE_ENTRY_SIZE        8
-#define STABLES_TABLE_ENTRY_SIZE    8
+#define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    16
 #define CLOSURES_TABLE_ENTRY_SIZE   24
 #define CONTEXTS_TABLE_ENTRY_SIZE   16
@@ -284,6 +284,19 @@ static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *re
     return MVM_sc_get_object(tc, locate_sc(tc, reader, sc_id), idx);
 }
 
+/* Reading function for STable references. */
+static MVMSTable * read_stable_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint32 sc_id, idx;
+    
+    assert_can_read(tc, reader, 8);
+    sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+    idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+    
+    return lookup_stable(tc, reader, sc_id, idx);
+}
+
 /* Checks the header looks sane and all of the places it points to make sense.
  * Also disects the input string into the tables and data segments and populates
  * the reader data structure more fully. */
@@ -434,13 +447,58 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
         sc = MVM_sc_find_by_handle(tc, handle);
         if (sc == NULL) {
             MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
-            printf(MVM_string_ascii_encode(tc, handle, NULL));
             fail_deserialize(tc, reader,
                 "Missing or wrong version of dependency '%s'",
                 MVM_string_ascii_encode(tc, desc, NULL));
         }
         reader->root.dependent_scs[i] = sc;
         table_pos += 8;
+    }
+}
+
+/* Allocates STables that we need to deserialize, associating each one
+ * with its REPR. */
+static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMuint32  num_sts  = reader->root.num_stables;
+    MVMuint32  i;
+    for (i = 0; i < num_sts; i++) {
+        /* Calculate location of STable's table row. */
+        char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
+        
+        /* Read in and look up representation. */
+        MVMREPROps *repr = MVM_repr_get_by_name(tc,
+            read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
+        
+        /* Allocate and store stub STable. */
+        MVMSTable *st = MVM_gc_allocate_stable(tc, repr, NULL);
+        MVM_sc_set_stable(tc, reader->root.sc, i, st);
+    }
+}
+
+/* Goes through all STables and gets them to calculate their sizes, setting
+ * the STable size field. */
+static void set_stable_sizes(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMuint32  num_sts  = reader->root.num_stables;
+    MVMuint32  i;
+    for (i = 0; i < num_sts; i++) {
+        /* Grab STable. */
+        MVMSTable *st = MVM_sc_get_stable(tc, reader->root.sc, i);
+        
+        /* Set STable read position, and set current read buffer to the
+         * location of the REPR data. */
+        char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
+        reader->stables_data_offset = read_int32(st_table_row, 8);
+        
+        reader->cur_read_buffer     = &(reader->root.stables_data);
+        reader->cur_read_offset     = &(reader->stables_data_offset);
+        reader->cur_read_end        = &(reader->stables_data_end);
+        
+        if (st->REPR->deserialize_stable_size)
+            st->REPR->deserialize_stable_size(tc, st, reader);
+        else
+            fail_deserialize(tc, reader, "Missing deserialize_stable_size");
+        if (st->size == 0)
+            fail_deserialize(tc, reader, "STable with size zero after deserialization");
     }
 }
 
@@ -457,6 +515,13 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->root.sc          = sc;
     reader->root.string_heap = string_heap;
     
+    /* Put reader functions in place. */
+    reader->read_int        = read_int_func;
+    reader->read_num        = read_num_func;
+    reader->read_str        = read_str_func;
+    /*reader->read_ref        = read_ref_func;*/
+    reader->read_stable_ref = read_stable_ref_func;
+    
     /* During deserialization, we allocate directly in generation 2. This
      * is because these objects are almost certainly going to be long lived,
      * but also because if we know that we won't end up moving the objects
@@ -470,8 +535,13 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Resolve the SCs in the dependencies table. */
     resolve_dependencies(tc, reader);
     
+    /* Stub allocate all STables, and then have the appropriate REPRs do
+     * the required size calculations. */
+    stub_stables(tc, reader);
+    set_stable_sizes(tc, reader);
+    
     /* TODO: The rest... */
-    printf("WARNING: Deserialization NYI, but disection done\n");
+    printf("WARNING: Deserialization NYI; just stubbed STables\n");
     
     /* Clear up afterwards. */
     if (reader->data)

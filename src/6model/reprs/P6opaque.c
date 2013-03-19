@@ -683,6 +683,31 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     st->REPR_data = repr_data;
 }
 
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    /* To calculate size, we need number of attributes and to know about
+     * anything flattend in. */
+    MVMint64  num_attributes = reader->read_int(tc, reader);
+    MVMuint32 cur_offset = 0;
+    MVMint64  i;
+    for (i = 0; i < num_attributes; i++) {
+        if (reader->read_int(tc, reader)) {
+            MVMSTable *st = reader->read_stable_ref(tc, reader);
+            MVMStorageSpec ss = st->REPR->get_storage_spec(tc, st);
+            if (ss.inlineable)
+                /* TODO: Review if/when we get sub-byte things. */
+                cur_offset += ss.bits / 8;
+            else
+                cur_offset += sizeof(MVMObject *);
+        }
+        else {
+            cur_offset += sizeof(MVMObject *);
+        }
+    }
+
+    st->size = sizeof(MVMP6opaque) + cur_offset;
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
@@ -722,5 +747,6 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->set_str = set_str;
     this_repr->box_funcs->get_str = get_str;
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
+    this_repr->deserialize_stable_size = deserialize_stable_size;
     return this_repr;
 }

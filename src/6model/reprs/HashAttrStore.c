@@ -150,6 +150,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(HashAttrStore);
+}
+
 /* Initializes the representation. */
 MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -168,5 +173,6 @@ MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc) {
     this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;
     this_repr->attr_funcs->hint_for = hint_for;
     this_repr->compose = compose;
+    this_repr->deserialize_stable_size = deserialize_stable_size;
     return this_repr;
 }

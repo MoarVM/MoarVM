@@ -444,6 +444,9 @@ typedef struct _MVMREPROps {
      * attaches it to the supplied STable. */
     void (*deserialize_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationReader *reader);
     
+    /* Deserialization of STable size. */
+    void (*deserialize_stable_size) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationReader *reader);
+    
     /* MoarVM-specific REPR API addition used to mark an object. This involves
      * adding all pointers it contains to the worklist. */
     void (*gc_mark) (struct _MVMThreadContext *tc, MVMSTable *st, void *data, struct _MVMGCWorklist *worklist);

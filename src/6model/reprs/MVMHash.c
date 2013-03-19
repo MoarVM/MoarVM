@@ -174,6 +174,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* XXX key and value types will be communicated here */
 }
 
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMHash);
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -196,5 +201,6 @@ MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
     this_repr->compose = compose;
     this_repr->elems = elems;
+    this_repr->deserialize_stable_size = deserialize_stable_size;
     return this_repr;
 }
