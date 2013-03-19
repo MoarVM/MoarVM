@@ -150,6 +150,11 @@ void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64
     MVM_repr_bind_pos_o(tc, roots, idx, code);
 }
 
+/* Sets the full list of code refs. */
+void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *code_list) {
+    MVM_ASSIGN_REF(tc, sc, sc->body->root_codes, code_list);
+}
+
 /* Sets an object's SC. */
 void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
     MVM_ASSIGN_REF(tc, obj, obj->header.sc, sc);

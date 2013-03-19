@@ -309,6 +309,19 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
     return result;
 }
 
+/* Reads in a code reference. */
+static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint32 sc_id, idx;
+
+    assert_can_read(tc, reader, 8);
+    sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+    idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+
+    return MVM_sc_get_code(tc, locate_sc(tc, reader, sc_id), idx);
+}
+
 /* Reading function for references. */
 MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result;
@@ -329,6 +342,9 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             return NULL;
         case REFVAR_VM_HASH_STR_VAR:
             return read_hash_str_var(tc, reader);
+        case REFVAR_STATIC_CODEREF:
+        /*case REFVAR_CLONED_CODEREF:*/
+            return read_code_ref(tc, reader);
         default:
             fail_deserialize(tc, reader,
                 "Serialization Error: Unimplemented case of read_ref");
@@ -652,8 +668,12 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->read_int        = read_int_func;
     reader->read_num        = read_num_func;
     reader->read_str        = read_str_func;
-    /*reader->read_ref        = read_ref_func;*/
+    reader->read_ref        = read_ref_func;
     reader->read_stable_ref = read_stable_ref_func;
+    
+    /* Put code root list into SC. We'll end up mutating it, but that's
+     * probably fine. */
+    MVM_sc_set_code_list(tc, sc, codes_static);
     
     /* During deserialization, we allocate directly in generation 2. This
      * is because these objects are almost certainly going to be long lived,
