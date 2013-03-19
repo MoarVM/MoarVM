@@ -284,6 +284,30 @@ static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *re
     return MVM_sc_get_object(tc, locate_sc(tc, reader, sc_id), idx);
 }
 
+/* Reading function for references. */
+MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMObject *result;
+    
+    /* Read the discriminator. */
+    short discrim;
+    assert_can_read(tc, reader, 2);
+    discrim = read_int16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 2;
+    
+    /* Decide what to do based on it. */
+    switch (discrim) {
+        case REFVAR_NULL:
+            return NULL;
+        case REFVAR_OBJECT:
+            return read_obj_ref(tc, reader);
+        case REFVAR_VM_NULL:
+            return NULL;
+        default:
+            fail_deserialize(tc, reader,
+                "Serialization Error: Unimplemented case of read_ref");
+    }
+}
+
 /* Reading function for STable references. */
 static MVMSTable * read_stable_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 sc_id, idx;
