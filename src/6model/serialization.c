@@ -194,8 +194,9 @@ static MVMnum64 read_double(char *buffer, size_t offset) {
 }
 
 /* If deserialization should fail, cleans up before throwing an exception. */
+MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader, 
-        const char *messageFormat, ...) {
+        const char *messageFormat, ...) MVM_NO_RETURN_GCC {
     va_list args;
     if (reader->data)
         free(reader->data);
@@ -204,6 +205,15 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
     va_start(args, messageFormat);
     MVM_exception_throw_adhoc(tc, messageFormat, args);
     va_end(args);
+}
+
+/* Reads the item from the string heap at the specified index. */
+static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 idx) {
+    if (idx < MVM_repr_pos_elems(tc, reader->root.string_heap))
+        return MVM_repr_at_pos_s(tc, reader->root.string_heap, idx);
+    else
+        fail_deserialize(tc, reader,
+            "Attempt to read past end of string heap (index %d)", idx);
 }
 
 /* Checks the header looks sane and all of the places it points to make sense.
