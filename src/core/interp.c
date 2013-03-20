@@ -2355,6 +2355,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_loadbytecode: {
+                        /* This op will end up returning into the runloop to run
+                         * deserialization and load code, so make sure we're done
+                         * processing this op really. */
+                        MVMString *filename = GET_REG(cur_op, 2).s;
+                        GET_REG(cur_op, 0).s = filename;
+                        cur_op += 4;
+                        
+                        /* Set up return (really continuation after load) address
+                         * and enter bytecode loading process. */
+                        tc->cur_frame->return_address = cur_op;
+                        MVM_load_bytecode(tc, filename);
+                        break;
+                    }
                     default: {
                         MVM_panic(13, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_processthread, *(cur_op-1));

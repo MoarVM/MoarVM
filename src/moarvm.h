@@ -37,6 +37,7 @@
 #include "core/ops.h"
 #include "core/threads.h"
 #include "core/hll.h"
+#include "core/loadbytecode.h"
 #include "core/coerce.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
