@@ -189,17 +189,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
  * and zero if there is nowhere to return to (which would signal the exit
  * of the interpreter). */
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
-    /* Clear up the work area, which is not needed beyond the return.
-     * (The lexical environment is left in place, though). */
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller;
+    
+    /* Clear up argument processing leftovers, if any. */
     if (returner->work) {
         MVM_args_proc_cleanup_for_cache(tc, &returner->params);
-        
-        /* Don't release ->work in case we want the frame to be cached */
-        /* free(returner->work);
-        returner->work = NULL; */
     }
+    
     /* signal to the GC to ignore ->work */
     returner->tc = NULL;
 
