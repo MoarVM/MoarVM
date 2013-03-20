@@ -55,7 +55,12 @@ class HLL::Backend::MoarVM {
     }
     
     method mbc($mast, *%adverbs) {
-        MAST::Compiler.compile($mast, 'temp.moarvm');
+        my $output := %adverbs<output> || 'temp.moarvm';
+        MAST::Compiler.compile($mast, $output);
+        # XXX Following is a hack.
+        if %adverbs<target> eq 'mbc' {
+            nqp::exit(0);
+        }
     }
     
     method moar($class, *%adverbs) {
