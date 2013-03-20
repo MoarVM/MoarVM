@@ -209,7 +209,7 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
 
 /* Reads the item from the string heap at the specified index. */
 static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 idx) {
-    if (idx < MVM_repr_pos_elems(tc, reader->root.string_heap))
+    if (idx < MVM_repr_elems(tc, reader->root.string_heap))
         return MVM_repr_at_pos_s(tc, reader->root.string_heap, idx);
     else
         fail_deserialize(tc, reader,

@@ -19,8 +19,8 @@ MVMObject * MVM_repr_at_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMStrin
 void MVM_repr_bind_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val);
 MVMint64 MVM_repr_exists_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 void MVM_repr_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
-MVMuint64 MVM_repr_ass_elems(MVMThreadContext *tc, MVMObject *obj);
-MVMuint64 MVM_repr_pos_elems(MVMThreadContext *tc, MVMObject *obj);
+
+MVMuint64 MVM_repr_elems(MVMThreadContext *tc, MVMObject *obj);
 
 MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj);
 MVMnum64 MVM_repr_get_num(MVMThreadContext *tc, MVMObject *obj);
