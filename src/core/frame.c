@@ -100,6 +100,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         
         /* Set static frame. */
         frame->static_info = static_frame;
+        
+        /* Ensure special return pointer is null. */
+        frame->special_return = NULL;
     }
     else {
         tc->frame_pool_table[pool_index] = node->outer;
@@ -213,6 +216,14 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->cu;
         MVM_frame_dec_ref(tc, caller);
+        
+        /* Handle any special return hooks. */
+        if (caller->special_return) {
+            MVMSpecialReturn sr = caller->special_return;
+            caller->special_return = NULL;
+            sr(tc, caller->special_return_data);
+        }
+        
         return 1;
     }
     else {

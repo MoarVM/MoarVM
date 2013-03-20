@@ -62,6 +62,12 @@ typedef struct _MVMStaticFrame {
     MVMuint8 *annotations;
 } MVMStaticFrame;
 
+/* Function pointer type of special return handler. These are used to allow
+ * return to be intercepted in some way, for things that need to do multiple
+ * calls into the runloop in some C-managed process. Essentially, instead of
+ * nested runloops, you just re-work the C code in question into CPS. */
+ typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
+
 /* This represents an active call frame. */
 typedef struct _MVMFrame {
     /* The thread that is executing, or executed, this frame. */
@@ -106,6 +112,13 @@ typedef struct _MVMFrame {
     
     /* The type of return value that is expected. */
     MVMReturnType return_type;
+    
+    /* If we want to invoke a special handler upon a return to this
+     * frame, this function pointer is set. */
+    MVMSpecialReturn special_return;
+    
+    /* Data slot for the special return handler function. */
+    void *special_return_data;
     
     /* GC run sequence number that we last saw this frame during. */
     MVMuint32 gc_seq_number;
