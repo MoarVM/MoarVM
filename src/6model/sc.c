@@ -4,7 +4,8 @@
  * compilation units are waiting for an SC with this handle, removes it from
  * their to-resolve list after installing itself in the appropriate slot. */
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
-    MVMObject *sc;
+    MVMObject   *sc;
+    MVMCompUnit *cur_cu;
     
     /* Allocate. */
     MVMROOT(tc, handle, {
@@ -23,7 +24,22 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
                 MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
 
-            /* TODO: Visit compilation units that need this, resolve. */
+            /* Visit compilation units that need this SC and resolve it. */
+            cur_cu = tc->instance->head_compunit;
+            while (cur_cu) {
+                if (cur_cu->scs_to_resolve) {
+                    MVMuint32 i;
+                    for (i = 0; i < cur_cu->num_scs; i++) {
+                        MVMString *res = cur_cu->scs_to_resolve[i];
+                        if (res && MVM_string_equal(tc, res, handle)) {
+                            cur_cu->scs[i] = (MVMSerializationContext *)sc;
+                            cur_cu->scs_to_resolve[i] = NULL;
+                            break;
+                        }
+                    }
+                }
+                cur_cu = cur_cu->next_compunit;
+            }
         });
     });
     
