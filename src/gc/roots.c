@@ -241,6 +241,14 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             for (i = 0; i < cur_compunit->num_strings; i++)
                 MVM_gc_worklist_add(tc, worklist, &cur_compunit->strings[i]);
             
+            /* Add serialization contexts to the worklist. */
+            for (i = 0; i < cur_compunit->num_scs; i++) {
+                if (cur_compunit->scs[i])
+                    MVM_gc_worklist_add(tc, worklist, &cur_compunit->scs[i]);
+                if (cur_compunit->scs_to_resolve[i])
+                    MVM_gc_worklist_add(tc, worklist, &cur_compunit->scs_to_resolve[i]);
+            }
+            
             /* Mark that we did some work (and thus possibly have more work
              * to do later). */
             did_something = 1;
