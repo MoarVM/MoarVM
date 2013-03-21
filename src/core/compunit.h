@@ -45,6 +45,10 @@ typedef struct _MVMCompUnit {
     /* HLL configuration for this compilation unit. */
     struct _MVMHLLConfig *hll_config;
     struct _MVMString    *hll_name;
+    
+    /* Pointer to next compilation unit in linked list of them (head is in
+     * MVMInstance). */
+    struct _MVMCompUnit *next_compunit;
 } MVMCompUnit;
 
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);

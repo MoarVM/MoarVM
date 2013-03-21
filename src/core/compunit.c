@@ -47,5 +47,10 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     /* Resolve HLL config. */
     cu->hll_config = MVM_hll_get_config_for(tc, cu->hll_name);
     
+    /* Add the compilation unit to the head of the unit linked lists. */
+    do {
+        cu->next_compunit = tc->instance->head_compunit;
+    } while (!MVM_cas(&tc->instance->head_compunit, cu->next_compunit, cu));
+    
     return cu;
 }

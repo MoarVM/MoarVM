@@ -85,6 +85,9 @@ typedef struct _MVMInstance {
     /* MVMThreads completed starting, running, and/or exited. */
     struct _MVMThread *threads;
     
+    /* Linked list of compilation units that we have loaded. */
+    struct _MVMCompUnit *head_compunit;
+    
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
     
