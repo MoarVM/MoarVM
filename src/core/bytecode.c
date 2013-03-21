@@ -259,18 +259,39 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     /* Resolve all the things. */
     pos = rs->sc_seg;
     for (i = 0; i < rs->expected_scs; i++) {
+        MVMSerializationContextBody *scb;
+        MVMString *handle;
+        
         /* Grab string heap index. */
         ensure_can_read(tc, cu, rs, pos, 4);
         sh_idx = read_int32(pos, 0);
         pos += 4;
         
-        /* Resolve to string and store. */
+        /* Resolve to string. */
         if (sh_idx >= cu->num_strings) {
             cleanup_all(tc, rs);
             MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
         }
-        cu->scs_to_resolve[i] = cu->strings[sh_idx];
-        cu->scs[i] = NULL;
+        handle = cu->strings[sh_idx];
+        
+        /* See if we can resolve it. */
+        if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
+            MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
+        MVM_string_flatten(tc, handle);
+        MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
+        if (scb) {
+            cu->scs_to_resolve[i] = NULL;
+            cu->scs[i] = scb->sc;
+            printf("SC resolved in load\n");
+        }
+        else {
+            cu->scs_to_resolve[i] = cu->strings[sh_idx];
+            cu->scs[i] = NULL;
+            printf(MVM_string_ascii_encode(tc, handle, NULL));
+            printf("failed to resolve SC at load; deferring\n");
+        }
+        if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
+            MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
     }
 }
 
