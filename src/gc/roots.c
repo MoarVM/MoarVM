@@ -215,6 +215,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             MVM_gc_worklist_add(tc, worklist, &cur_static_frame->cuuid);
             MVM_gc_worklist_add(tc, worklist, &cur_static_frame->name);
             
+            /* Add prior invocation, if any. */
+            if (cur_static_frame->prior_invocation)
+                MVM_gc_worklist_add(tc, frame_worklist, cur_static_frame->prior_invocation);
+            
             /* Mark that we did some work (and thus possibly have more work
              * to do later). */
             did_something = 1;
