@@ -159,7 +159,6 @@ class QAST::MASTOperations {
             if $arg_num == 0 && nqp::substr($op, 0, 7) eq 'return_' {
                 $*BLOCK.return_kind($arg.result_kind);
             }
-            $arg_num++;
             
             # args cannot be void
             if $arg_kind == $MVM_reg_void {
@@ -208,6 +207,8 @@ class QAST::MASTOperations {
             nqp::push(@arg_regs, $constant_operand
                 ?? $qastcomp.as_mast_constant($_)
                 !! $arg.result_reg);
+            
+            $arg_num++;
         }
         
         # release the registers to the allocator. See comment there.
