@@ -813,7 +813,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_not_i: {
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 ? 0 : 1;
-                        cur_op += 2;
+                        cur_op += 4;
                         break;
                     }
                     default: {
