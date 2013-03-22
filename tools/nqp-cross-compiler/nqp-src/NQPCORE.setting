@@ -1,0 +1,5 @@
+use nqp-mo;
+
+sub say($arg) {
+    nqp::say($arg)
+}

@@ -45,6 +45,7 @@ PMC2C             = $(PERL) $(PARROT_TOOLS_DIR)/build/pmc2c.pl
 PMC2C_INCLUDES    = --include src/pmc --include $(PARROT_SRC_DIR) --include $(PARROT_SRC_DIR)/pmc
 CINCLUDES         = -I$(PARROT_INCLUDE_DIR) -I$(PARROT_INCLUDE_DIR)/pmc
 LINKARGS          = $(LDFLAGS) $(LD_LOAD_FLAGS) $(LIBPARROT) @libs@ @icu_shared@
+NQP               = nqp
 
 # output directories
 DYNEXT_DIR       = dynext
@@ -55,6 +56,19 @@ DYNEXT_TARGET   = $(DYNEXT_DIR)/$(OPS)$(LOAD_EXT)
 DYNOPS          = $(OPS_DIR)/$(OPS)$(LOAD_EXT)
 
 OPS_SOURCE      = mvmcc.ops
+
+# Cross-compiler libraries
+CROSS_COMP_PBCS = MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QASTCompilerMAST.pbc QASTRegexCompilerMAST.pbc NQPCursorQAST.pbc
+
+# Related to cross-compilation of NQP
+PRECOMPILE_NS   = $(NQP) --target=pir --setting=NULL --stable-sc --output=$@
+CROSSCOMPILE_NS = $(NQP) nqp-moar-cc.nqp --setting=NULL --target=mbc --output=$@
+.SUFFIXES: .pir .pbc
+
+# The cross-compilation of NQP to Moar; we also build Parrot versions of the
+# things being cross-compiled.
+NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm
+NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir
 
 CLEANUPS = \
   *.manifest \
@@ -68,7 +82,9 @@ CLEANUPS = \
   *.pbc \
   *.pir \
 
-all: $(DYNEXT_TARGET) MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QASTCompilerMAST.pbc QASTRegexCompilerMAST.pbc NQPCursorQAST.pbc
+all: $(DYNEXT_TARGET) $(CROSS_COMP_PBCS) $(NQPLIBS)
+
+## Ops
 
 @make_dllcopy@
 
@@ -83,6 +99,8 @@ $(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) src/nodes_parrot.h ../../
 	cd src && $(CC) -c @cc_o_out@ops$(O) $(CINCLUDES) $(CFLAGS) -I. -DPARROT_OPS_BUILD ../../../src/core/ops.c
 	cd $(OPS_DIR) && $(LD) @ld_out@$(OPS)$(LOAD_EXT) $(OPS)$(O) ../ops$(O) ../compiler$(O) $(LINKARGS)
 
+## Cross-compiler
+
 MASTOps.pbc: ../../lib/MAST/Ops.nqp
 	nqp --target=pir ../../lib/MAST/Ops.nqp > MASTOps.pir
 	parrot --output=MASTOps.pbc MASTOps.pir
@@ -91,7 +109,7 @@ MASTNodes.pbc: ../../lib/MAST/Nodes.nqp MASTOps.pbc
 	nqp --target=pir ../../lib/MAST/Nodes.nqp > MASTNodes.pir
 	parrot --output=MASTNodes.pbc MASTNodes.pir
 
-MASTCompiler.pbc: src/MASTCompiler.nqp MASTNodes.pbc MASTOps.pbc
+MASTCompiler.pbc: src/MASTCompiler.nqp MASTNodes.pbc MASTOps.pbc $(DYNEXT_TARGET)
 	nqp --vmlibs=mvmcc_ops --target=pir src/MASTCompiler.nqp > MASTCompiler.pir
 	parrot --output=MASTCompiler.pbc MASTCompiler.pir
 
@@ -114,6 +132,26 @@ QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/
 NQPCursorQAST.pbc: src/NQPCursorQAST.nqp
 	nqp --target=pir src/NQPCursorQAST.nqp > NQPCursorQAST.pir
 	parrot --output=NQPCursorQAST.pbc NQPCursorQAST.pir
+
+## NQP -> Moar
+
+.pir.pbc:
+	$(PARROT) -o $@ $*.pir
+
+nqp-mo.pir: nqp-src/nqp-mo.pm
+	$(PRECOMPILE_NS) nqp-src/nqp-mo.pm
+
+NQPCOREMoar.setting.pir: nqp-src/NQPCORE.setting nqp-mo.pbc
+	$(PRECOMPILE_NS) nqp-src/NQPCORE.setting
+
+nqp-mo.moarvm: nqp-src/nqp-mo.pm nqp-mo.pbc
+	$(CROSSCOMPILE_NS) nqp-src/nqp-mo.pm
+
+ModuleLoader.class: nqp-src/ModuleLoader.pm
+	$(CROSSCOMPILE_NS) nqp-src/ModuleLoader.pm
+
+NQPCOREMoar.setting.moarvm: nqp-src/NQPCORE.setting NQPCOREMoar.setting.pbc
+	$(CROSSCOMPILE_NS) nqp-src/NQPCORE.setting
 
 ## testing
 
