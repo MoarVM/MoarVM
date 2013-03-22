@@ -42,6 +42,9 @@ typedef struct _MVMStaticFrame {
     /* Count of lexicals. */
     MVMuint32 num_lexicals;
     
+    /* The frame of the prior invocation of this static frame. */
+    struct _MVMFrame *prior_invocation;
+    
     /* The compilation unit unique ID of this frame. */
     struct _MVMString *cuuid;
     

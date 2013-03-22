@@ -149,6 +149,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         /* We need an outer, but none was provided by a closure. See if
          * we can find an appropriate frame on the current call stack. */
         MVMFrame *candidate = tc->cur_frame;
+        frame->outer = NULL;
         while (candidate) {
             if (candidate->static_info == static_frame->outer) {
                 frame->outer = candidate;
@@ -156,6 +157,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
             candidate = candidate->caller;
         }
+        if (!frame->outer)
+            frame->outer = static_frame->outer->prior_invocation;
         if (!frame->outer)
             MVM_exception_throw_adhoc(tc,
                 "Cannot locate an outer frame for the call");
@@ -194,6 +197,15 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller;
+    MVMFrame *prior;
+
+    /* Decrement the frame reference of the prior invocation, and then
+     * set us as it. */
+    do {
+        prior = returner->static_info->prior_invocation;
+    } while (!MVM_cas(&returner->static_info->prior_invocation, prior, returner));
+    if (prior)
+        MVM_frame_dec_ref(tc, prior);
     
     /* Clear up argument processing leftovers, if any. */
     if (returner->work) {
@@ -202,10 +214,6 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     
     /* signal to the GC to ignore ->work */
     returner->tc = NULL;
-
-    /* Decrement the frame reference (which, if it is not referenced by
-     * anything else, may free it overall). */
-    MVM_frame_dec_ref(tc, returner);
     
     /* Switch back to the caller frame if there is one; we also need to
      * decrement its reference count. */
