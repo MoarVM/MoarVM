@@ -1060,7 +1060,7 @@ QAST::MASTOperations.add_core_op('bind', -> $qastcomp, $op {
 
 # Exception handling/munging.
 QAST::MASTOperations.add_core_moarop_mapping('die', 'die');
-QAST::MASTOperations.add_core_moarop_mapping('die_s', 'die_s');
+QAST::MASTOperations.add_core_moarop_mapping('die_s', 'die_s', 0);
 
 # Default ways to box/unbox (for no particular HLL).
 QAST::MASTOperations.add_hll_unbox('', $MVM_reg_int64, -> $qastcomp, $reg {
@@ -1136,9 +1136,9 @@ QAST::MASTOperations.add_core_op('const', -> $qastcomp, $op {
 
 # Default way to do positional and associative lookups.
 QAST::MASTOperations.add_core_moarop_mapping('positional_get', 'atpos_o');
-QAST::MASTOperations.add_core_moarop_mapping('positional_bind', 'bindpos_o');
+QAST::MASTOperations.add_core_moarop_mapping('positional_bind', 'bindpos_o', 2);
 QAST::MASTOperations.add_core_moarop_mapping('associative_get', 'atkey_o');
-QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o');
+QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o', 2);
 
 # I/O opcodes
 my @say_opnames := [
@@ -1310,29 +1310,29 @@ QAST::MASTOperations.add_core_moarop_mapping('atkey', 'atkey_o');
 QAST::MASTOperations.add_core_moarop_mapping('atkey_i', 'atkey_i');
 QAST::MASTOperations.add_core_moarop_mapping('atkey_n', 'atkey_n');
 QAST::MASTOperations.add_core_moarop_mapping('atkey_s', 'atkey_s');
-QAST::MASTOperations.add_core_moarop_mapping('bindpos', 'bindpos_o');
-QAST::MASTOperations.add_core_moarop_mapping('bindpos_i', 'bindpos_i');
-QAST::MASTOperations.add_core_moarop_mapping('bindpos_n', 'bindpos_n');
-QAST::MASTOperations.add_core_moarop_mapping('bindpos_s', 'bindpos_s');
-QAST::MASTOperations.add_core_moarop_mapping('bindkey', 'bindkey_o');
-QAST::MASTOperations.add_core_moarop_mapping('bindkey_i', 'bindkey_i');
-QAST::MASTOperations.add_core_moarop_mapping('bindkey_n', 'bindkey_n');
-QAST::MASTOperations.add_core_moarop_mapping('bindkey_s', 'bindkey_s');
+QAST::MASTOperations.add_core_moarop_mapping('bindpos', 'bindpos_o', 2);
+QAST::MASTOperations.add_core_moarop_mapping('bindpos_i', 'bindpos_i', 2);
+QAST::MASTOperations.add_core_moarop_mapping('bindpos_n', 'bindpos_n', 2);
+QAST::MASTOperations.add_core_moarop_mapping('bindpos_s', 'bindpos_s', 2);
+QAST::MASTOperations.add_core_moarop_mapping('bindkey', 'bindkey_o', 2);
+QAST::MASTOperations.add_core_moarop_mapping('bindkey_i', 'bindkey_i', 2);
+QAST::MASTOperations.add_core_moarop_mapping('bindkey_n', 'bindkey_n', 2);
+QAST::MASTOperations.add_core_moarop_mapping('bindkey_s', 'bindkey_s', 2);
 QAST::MASTOperations.add_core_moarop_mapping('existskey', 'existskey');
 QAST::MASTOperations.add_core_moarop_mapping('deletekey', 'deletekey');
 QAST::MASTOperations.add_core_moarop_mapping('elems', 'elems');
-QAST::MASTOperations.add_core_moarop_mapping('push', 'push_o');
-QAST::MASTOperations.add_core_moarop_mapping('push_i', 'push_i');
-QAST::MASTOperations.add_core_moarop_mapping('push_n', 'push_n');
-QAST::MASTOperations.add_core_moarop_mapping('push_s', 'push_s');
+QAST::MASTOperations.add_core_moarop_mapping('push', 'push_o', 1);
+QAST::MASTOperations.add_core_moarop_mapping('push_i', 'push_i', 1);
+QAST::MASTOperations.add_core_moarop_mapping('push_n', 'push_n', 1);
+QAST::MASTOperations.add_core_moarop_mapping('push_s', 'push_s', 1);
 QAST::MASTOperations.add_core_moarop_mapping('pop', 'pop_o');
 QAST::MASTOperations.add_core_moarop_mapping('pop_i', 'pop_i');
 QAST::MASTOperations.add_core_moarop_mapping('pop_n', 'pop_n');
 QAST::MASTOperations.add_core_moarop_mapping('pop_s', 'pop_s');
-QAST::MASTOperations.add_core_moarop_mapping('unshift', 'unshift_o');
-QAST::MASTOperations.add_core_moarop_mapping('unshift_i', 'unshift_i');
-QAST::MASTOperations.add_core_moarop_mapping('unshift_n', 'unshift_n');
-QAST::MASTOperations.add_core_moarop_mapping('unshift_s', 'unshift_s');
+QAST::MASTOperations.add_core_moarop_mapping('unshift', 'unshift_o', 1);
+QAST::MASTOperations.add_core_moarop_mapping('unshift_i', 'unshift_i', 1);
+QAST::MASTOperations.add_core_moarop_mapping('unshift_n', 'unshift_n', 1);
+QAST::MASTOperations.add_core_moarop_mapping('unshift_s', 'unshift_s', 1);
 QAST::MASTOperations.add_core_moarop_mapping('shift', 'shift_o');
 QAST::MASTOperations.add_core_moarop_mapping('shift_i', 'shift_i');
 QAST::MASTOperations.add_core_moarop_mapping('shift_n', 'shift_n');
@@ -1376,10 +1376,10 @@ QAST::MASTOperations.add_core_moarop_mapping('getattr', 'getattrs_o');
 QAST::MASTOperations.add_core_moarop_mapping('getattr_i', 'getattrs_i');
 QAST::MASTOperations.add_core_moarop_mapping('getattr_n', 'getattrs_n');
 QAST::MASTOperations.add_core_moarop_mapping('getattr_s', 'getattrs_s');
-QAST::MASTOperations.add_core_moarop_mapping('bindattr', 'bindattrs_o');
-QAST::MASTOperations.add_core_moarop_mapping('bindattr_i', 'bindattrs_i');
-QAST::MASTOperations.add_core_moarop_mapping('bindattr_n', 'bindattrs_n');
-QAST::MASTOperations.add_core_moarop_mapping('bindattr_s', 'bindattrs_s');
+QAST::MASTOperations.add_core_moarop_mapping('bindattr', 'bindattrs_o', 3);
+QAST::MASTOperations.add_core_moarop_mapping('bindattr_i', 'bindattrs_i', 3);
+QAST::MASTOperations.add_core_moarop_mapping('bindattr_n', 'bindattrs_n', 3);
+QAST::MASTOperations.add_core_moarop_mapping('bindattr_s', 'bindattrs_s', 3);
 QAST::MASTOperations.add_core_moarop_mapping('unbox_i', 'unbox_i');
 QAST::MASTOperations.add_core_moarop_mapping('unbox_n', 'unbox_n');
 QAST::MASTOperations.add_core_moarop_mapping('unbox_s', 'unbox_s');
