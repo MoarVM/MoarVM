@@ -138,19 +138,19 @@ NQPCursorQAST.pbc: src/NQPCursorQAST.nqp
 .pir.pbc:
 	$(PARROT) -o $@ $*.pir
 
-nqp-mo.pir: nqp-src/nqp-mo.pm
+nqp-mo.pir: nqp-src/nqp-mo.pm $(CROSS_COMP_PBCS)
 	$(PRECOMPILE_NS) nqp-src/nqp-mo.pm
 
-NQPCOREMoar.setting.pir: nqp-src/NQPCORE.setting nqp-mo.pbc
+NQPCOREMoar.setting.pir: nqp-src/NQPCORE.setting nqp-mo.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE_NS) nqp-src/NQPCORE.setting
 
-nqp-mo.moarvm: nqp-src/nqp-mo.pm nqp-mo.pbc
+nqp-mo.moarvm: nqp-src/nqp-mo.pm nqp-mo.pbc $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/nqp-mo.pm
 
-ModuleLoader.class: nqp-src/ModuleLoader.pm
+ModuleLoader.class: nqp-src/ModuleLoader.pm $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/ModuleLoader.pm
 
-NQPCOREMoar.setting.moarvm: nqp-src/NQPCORE.setting NQPCOREMoar.setting.pbc
+NQPCOREMoar.setting.moarvm: nqp-src/NQPCORE.setting NQPCOREMoar.setting.pbc $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/NQPCORE.setting
 
 ## testing
