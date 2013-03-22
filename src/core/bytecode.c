@@ -282,13 +282,10 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         if (scb) {
             cu->scs_to_resolve[i] = NULL;
             cu->scs[i] = scb->sc;
-            printf("SC resolved in load\n");
         }
         else {
             cu->scs_to_resolve[i] = cu->strings[sh_idx];
             cu->scs[i] = NULL;
-            printf(MVM_string_ascii_encode(tc, handle, NULL));
-            printf("failed to resolve SC at load; deferring\n");
         }
         if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
             MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
