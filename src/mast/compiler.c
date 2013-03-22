@@ -839,7 +839,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
     
     /* Allocate heap starting point (just a guess). */
     heap_size = 0;
-    heap_alloc = num_strings * 16;
+    heap_alloc = num_strings * 32;
     heap = (char *)malloc(heap_alloc);
     
     /* Add each string to the heap. */
@@ -852,7 +852,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
         /* Ensure we have space. */
         unsigned int bytelen = (unsigned int)Parrot_str_byte_length(interp, utf8);
         unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
-        if (heap_size + 4 + bytelen + align > heap_alloc) {
+        if (heap_size + 4 + bytelen + align >= heap_alloc) {
             heap_alloc *= 2;
             heap = (char *)realloc(heap, heap_alloc);
         }
