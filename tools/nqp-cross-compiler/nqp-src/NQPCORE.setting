@@ -1,5 +1,12 @@
 use nqp-mo;
 
-sub say($arg) {
-    nqp::say($arg)
+sub print(*@args) {
+    for @args {
+        nqp::print($_);
+    }
+    1;
+}
+
+sub say(*@args) {
+    print(|@args, "\n");
 }
