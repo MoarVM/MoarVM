@@ -1602,5 +1602,4 @@ my knowhow EXPORTHOW {
 #    ($?PACKAGE.WHO)<native>       := NQPNativeHOW;
 }
 
-nqp::say('survived');
 # vim: set ft=perl6 nomodifiable :
