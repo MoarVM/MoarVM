@@ -1404,7 +1404,7 @@ QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
 QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');
 QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename');
-QAST::MASTOperations.add_core_moarop_mapping('forceouterctx', 'forceouterctx');
+QAST::MASTOperations.add_core_moarop_mapping('forceouterctx', 'forceouterctx', 0);
 
 # language/compiler ops
 QAST::MASTOperations.add_core_moarop_mapping('getcomp', 'getcomp');
