@@ -2036,7 +2036,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         else {
                             GET_REG(cur_op, 0).o = NULL;
                         }
-                        cur_op += 2;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_ctxcaller: {
@@ -2049,8 +2049,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
                             ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
                         }
-                        GET_REG(cur_op, 0).o = (MVMObject *)ctx;
-                        cur_op += 2;
+                        GET_REG(cur_op, 0).o = ctx;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_ctxlexpad: {
