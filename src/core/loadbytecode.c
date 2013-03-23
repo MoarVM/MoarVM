@@ -8,10 +8,24 @@ static MVMCallsite no_arg_callsite;
  * is triggered by the special_return mechanism. */
 void run_load(MVMThreadContext *tc, void *sr_data);
 void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
-    /* Try to load the compilation unit itself. */
-    MVMCompUnit *cu = MVM_cu_map_from_file(tc,
-        MVM_string_utf8_encode_C_string(tc, filename));
-        
+    MVMCompUnit *cu, *try_cu;
+    
+    /* See if we already loaded this. */
+    try_cu = tc->instance->head_compunit;
+    while (try_cu) {
+        if (try_cu->filename) {
+            if (MVM_string_equal(tc, try_cu->filename, filename)) {
+                /* Already loaded, so we're done. */
+                return;
+            }
+        }
+        try_cu = try_cu->next_compunit;
+    }
+
+    /* Otherwise, load from disk. */
+    cu = MVM_cu_map_from_file(tc, MVM_string_utf8_encode_C_string(tc, filename));
+    cu->filename = filename;
+    
     /* Set up zero-arg callsite. */
     no_arg_callsite.arg_flags = NULL;
     no_arg_callsite.arg_count = 0;
