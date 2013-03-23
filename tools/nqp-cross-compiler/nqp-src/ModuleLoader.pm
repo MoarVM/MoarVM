@@ -129,7 +129,7 @@ knowhow ModuleLoader {
         
         if $setting_name ne 'NULL' {
             # Add path prefix and .setting suffix.
-            my $path := "$setting_name.setting.class";
+            my $path := "$setting_name.setting.moarvm";
             my @prefixes := self.search_path('setting-path');
             for @prefixes -> $prefix {
             #    if nqp::stat("$prefix/$path", 0) {
