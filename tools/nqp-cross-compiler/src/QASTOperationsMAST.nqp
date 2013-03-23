@@ -1154,6 +1154,7 @@ QAST::MASTOperations.add_core_moarop_mapping('say', 'n/a',
             MAST::InstructionList.new(@ins, $arg.result_reg, $arg.result_kind)
         }
     }));
+QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
 
 # terms
 QAST::MASTOperations.add_core_moarop_mapping('time_i', 'time_i');

@@ -859,6 +859,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_string_say(tc, MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 0).o));
                         cur_op += 2;
                         break;
+                    case MVM_OP_print:
+                        MVM_string_print(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_dev, *(cur_op-1));

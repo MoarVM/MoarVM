@@ -147,6 +147,7 @@ BANK 1 dev
 0x03    sleep               r(int64)
 0x04    anonoshtype         w(obj)
 0x05    say_o               r(obj)
+0x06    print               r(str)
 
 BANK 2 string
 0x00    concat_s            w(str) r(str) r(str)

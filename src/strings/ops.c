@@ -515,6 +515,22 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
     free(utf8_encoded);
 }
 
+void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
+    MVMuint8 *utf8_encoded;
+    MVMuint64 utf8_encoded_length;
+    
+    if (!IS_CONCRETE((MVMObject *)a)) {
+        MVM_exception_throw_adhoc(tc, "print needs a concrete string");
+    }
+    
+    /* XXX send a buffer of substrings of size 100 or something? */
+    utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
+    
+    fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
+    
+    free(utf8_encoded);
+}
+
 /* Tests whether one string a has the other string b as a substring at that index */
 MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
     
