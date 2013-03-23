@@ -701,7 +701,6 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
         deserialize_stable(tc, reader, i, MVM_sc_get_stable(tc, sc, i));
     
     /* TODO: The rest... */
-    printf("WARNING: Deserialization NYI; just stubbed\n");
     
     /* Clear up afterwards. */
     if (reader->data)
