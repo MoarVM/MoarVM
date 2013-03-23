@@ -1901,6 +1901,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         orig = ((MVMCode *)obj)->body.outer;
                         ((MVMCode *)obj)->body.outer = ((MVMContext *)ctx)->body.context;
+                        ((MVMCode *)obj)->body.sf->outer = ((MVMContext *)ctx)->body.context->static_info;
                         if (orig != ((MVMContext *)ctx)->body.context) {
                             MVM_frame_inc_ref(tc, ((MVMContext *)ctx)->body.context);
                             if (orig) {
