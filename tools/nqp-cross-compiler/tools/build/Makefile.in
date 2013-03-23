@@ -161,6 +161,9 @@ test: all
 bench: all
 	prove -e nqp -v bench
 
+nqptest: all
+	prove -e "nqp nqp-moar-cc.nqp" t/nqp
+
 ## cleaning
 
 clean:
