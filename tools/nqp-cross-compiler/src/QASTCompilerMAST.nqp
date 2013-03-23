@@ -949,8 +949,8 @@ class QAST::MASTCompiler {
             if $lex {
                 $res_kind := $block.lexical_kind($name);
                 if $outer {
-                    # cache the lexical in this block, also to prevent it being declared
-                    $lex := $*BLOCK.register_lexical($node, $lex.index, $outer, $res_kind);
+                    # need to create lex that knows how many frames to go out
+                    $lex := MAST::Lexical.new( :index($lex.index), :frames_out($outer) );
                 }
                 if $*BINDVAL {
                     my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($res_kind));
