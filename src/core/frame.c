@@ -224,6 +224,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->cu;
         MVM_frame_dec_ref(tc, caller);
+        returner->caller = NULL;
         
         /* Handle any special return hooks. */
         if (caller->special_return) {
