@@ -37,6 +37,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMIterBody  *body  = (MVMIterBody *)data;
+    MVM_gc_worklist_add(tc, worklist, &body->target);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -176,7 +177,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr) {
         body->mode = MVM_ITER_MODE_ARRAY;
         body->array_state.index = -1;
         body->array_state.limit = REPR(target)->elems(tc, STABLE(target), target, OBJECT_BODY(target));
-        body->target = target;
+        MVM_ASSIGN_REF(tc, iterator, body->target, target);
     }
     else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
         iterator = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
@@ -185,7 +186,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr) {
         body = &((MVMIter *)iterator)->body;
         body->mode = MVM_ITER_MODE_HASH;
         body->hash_state.next = ((MVMHash *)target)->body.hash_head;
-        body->target = target;
+        MVM_ASSIGN_REF(tc, iterator, body->target, target);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot iterate this");
@@ -213,7 +214,7 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
         if (body->array_state.index == -1)
             MVM_exception_throw_adhoc(tc, "You have not yet advanced in the array iterator");
         target = body->target;
-        REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, 0);
+        REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, MVM_reg_obj);
     }
     else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
         if (!iterator->body.hash_state.curr)
