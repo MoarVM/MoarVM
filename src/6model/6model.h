@@ -127,6 +127,11 @@ typedef struct _MVMObject {
     
     /* The s-table for the object. */
     struct _MVMSTable *st;
+    
+    /* Padding for 32-bit systems. */
+#if !defined(_M_X64) && !defined(__amd64__)
+    MVMuint32 pad;
+#endif
 } MVMObject;
 
 /* An dummy object, mostly used to compute the offset of the data part of
