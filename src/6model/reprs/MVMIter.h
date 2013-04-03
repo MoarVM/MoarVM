@@ -4,7 +4,6 @@
 #define MVM_ITER_MODE_HASH 1
 
 typedef struct _MVMIterBody {
-    
     /* whether hash or array */
     MVMuint32 mode;
     
