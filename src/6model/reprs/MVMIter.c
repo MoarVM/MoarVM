@@ -166,31 +166,29 @@ MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     return this_repr;
 }
 
-MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr) {
-    MVMObject *target = *target_addr, *iterator;
+MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
+    MVMObject *iterator;
     MVMIterBody *body;
-    if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
-        iterator = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
-        /* must re-grab target from the register in case the GC ran */
-        target = *target_addr;
-        body = &((MVMIter *)iterator)->body;
-        body->mode = MVM_ITER_MODE_ARRAY;
-        body->array_state.index = -1;
-        body->array_state.limit = REPR(target)->elems(tc, STABLE(target), target, OBJECT_BODY(target));
-        MVM_ASSIGN_REF(tc, iterator, body->target, target);
-    }
-    else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
-        iterator = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
-        /* must re-grab target from the register in case the GC ran */
-        target = *target_addr;
-        body = &((MVMIter *)iterator)->body;
-        body->mode = MVM_ITER_MODE_HASH;
-        body->hash_state.next = ((MVMHash *)target)->body.hash_head;
-        MVM_ASSIGN_REF(tc, iterator, body->target, target);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot iterate this");
-    }
+    MVMROOT(tc, target, {
+        if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
+            iterator = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
+            body = &((MVMIter *)iterator)->body;
+            body->mode = MVM_ITER_MODE_ARRAY;
+            body->array_state.index = -1;
+            body->array_state.limit = REPR(target)->elems(tc, STABLE(target), target, OBJECT_BODY(target));
+            MVM_ASSIGN_REF(tc, iterator, body->target, target);
+        }
+        else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+            iterator = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
+            body = &((MVMIter *)iterator)->body;
+            body->mode = MVM_ITER_MODE_HASH;
+            body->hash_state.next = ((MVMHash *)target)->body.hash_head;
+            MVM_ASSIGN_REF(tc, iterator, body->target, target);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+        }
+    });
     return iterator;
 }
 

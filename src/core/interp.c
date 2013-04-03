@@ -1751,7 +1751,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_iter: {
-                        GET_REG(cur_op, 0).o = MVM_iter(tc, &GET_REG(cur_op, 2).o);
+                        GET_REG(cur_op, 0).o = MVM_iter(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
                     }
@@ -1780,7 +1780,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_setmethcache: {
                         MVMObject *cache = REPR(tc->instance->boot_types->BOOTHash)->allocate(tc, STABLE(tc->instance->boot_types->BOOTHash));
-                        MVMObject *iter = MVM_iter(tc, &GET_REG(cur_op, 2).o);
+                        MVMObject *iter = MVM_iter(tc, GET_REG(cur_op, 2).o);
                         MVMObject *obj = GET_REG(cur_op, 0).o;
                         while (MVM_coerce_istrue(tc, iter)) {
                             MVMRegister result;

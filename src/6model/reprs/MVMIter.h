@@ -31,6 +31,6 @@ typedef struct _MVMIter {
 /* Function for REPR setup. */
 MVMREPROps * MVMIter_initialize(MVMThreadContext *tc);
 
-MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject **target_addr);
+MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target);
 MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator);
 MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator);
