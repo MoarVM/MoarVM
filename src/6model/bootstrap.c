@@ -44,20 +44,35 @@ static void create_stub_VMString(MVMThreadContext *tc) {
 
 /* Creates a stub BOOTInt (missing a meta-object). */
 static void create_stub_BOOTInt(MVMThreadContext *tc) {
+    MVMBoolificationSpec *bs;
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6int);
-    tc->instance->boot_types->BOOTInt = repr->type_object_for(tc, NULL);
+    MVMObject *type = tc->instance->boot_types->BOOTInt = repr->type_object_for(tc, NULL);
+    bs = malloc(sizeof(MVMBoolificationSpec));
+    bs->mode = MVM_BOOL_MODE_UNBOX_INT;
+    bs->method = NULL;
+    type->st->boolification_spec = bs;
 }
 
 /* Creates a stub BOOTNum (missing a meta-object). */
 static void create_stub_BOOTNum(MVMThreadContext *tc) {
+    MVMBoolificationSpec *bs;
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6num);
-    tc->instance->boot_types->BOOTNum = repr->type_object_for(tc, NULL);
+    MVMObject *type = tc->instance->boot_types->BOOTNum = repr->type_object_for(tc, NULL);
+    bs = malloc(sizeof(MVMBoolificationSpec));
+    bs->mode = MVM_BOOL_MODE_UNBOX_NUM;
+    bs->method = NULL;
+    type->st->boolification_spec = bs;
 }
 
 /* Creates a stub BOOTStr (missing a meta-object). */
 static void create_stub_BOOTStr(MVMThreadContext *tc) {
+    MVMBoolificationSpec *bs;
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6str);
-    tc->instance->boot_types->BOOTStr = repr->type_object_for(tc, NULL);
+    MVMObject *type = tc->instance->boot_types->BOOTStr = repr->type_object_for(tc, NULL);
+    bs = malloc(sizeof(MVMBoolificationSpec));
+    bs->mode = MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO;
+    bs->method = NULL;
+    type->st->boolification_spec = bs;
 }
 
 /* Creates a stub BOOTArray (missing a meta-object). */
