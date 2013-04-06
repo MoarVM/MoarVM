@@ -1406,6 +1406,31 @@ QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
 QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');
 QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename');
 QAST::MASTOperations.add_core_moarop_mapping('forceouterctx', 'forceouterctx', 0);
+QAST::MASTOperations.add_core_op('setstaticlex', -> $qastcomp, $op {
+    if +@($op) != 3 {
+        nqp::die('setstaticlex requires three operands');
+    }
+    unless nqp::istype($op[0], QAST::Block) {
+        nqp::die('First operand to setstaticlex must be a QAST::Block');
+    }
+    
+    my @ops;
+    my $frame     := %*MAST_FRAMES{$op[0].cuid};
+    my $block_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+    push_op(@ops, 'getcode', $block_reg, $frame);
+
+    my $name := $qastcomp.as_mast($op[1], :want($MVM_reg_str));
+    push_ilist(@ops, $name);
+    
+    my $val := $qastcomp.as_mast($op[2], :want($MVM_reg_obj));
+    push_ilist(@ops, $val);
+    
+    push_op(@ops, 'setstaticlex', $block_reg, $name.result_reg, $val.result_reg);
+    $*REGALLOC.release_register($name.result_reg, $MVM_reg_str);
+    $*REGALLOC.release_register($val.result_reg, $MVM_reg_obj);
+
+    MAST::InstructionList.new(@ops, $block_reg, $MVM_reg_obj);
+});
 
 # language/compiler ops
 QAST::MASTOperations.add_core_moarop_mapping('getcomp', 'getcomp');
