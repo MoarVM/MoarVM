@@ -388,6 +388,11 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Associate frame with compilation unit. */
         frames[i]->cu = cu;
+        
+        /* Allocate default lexical environment storage. */
+        frames[i]->env_size = frames[i]->num_lexicals * sizeof(MVMRegister);
+        frames[i]->static_env = malloc(frames[i]->env_size);
+        memset(frames[i]->static_env, 0, frames[i]->env_size);
     }
     
     /* Fixup outers. */

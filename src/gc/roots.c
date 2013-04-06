@@ -219,6 +219,16 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             if (cur_static_frame->prior_invocation)
                 MVM_gc_worklist_add(tc, frame_worklist, cur_static_frame->prior_invocation);
             
+            /* Scan static lexicals. */
+            if (cur_static_frame->static_env) {
+                MVMuint16 *type_map = cur_static_frame->lexical_types;
+                MVMuint16  count    = cur_static_frame->num_lexicals;
+                MVMuint16  i;
+                for (i = 0; i < count; i++)
+                    if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
+                        MVM_gc_worklist_add(tc, worklist, &cur_static_frame->static_env[i].o);
+            }
+            
             /* Mark that we did some work (and thus possibly have more work
              * to do later). */
             did_something = 1;

@@ -4,9 +4,6 @@
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
 void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
-    /* Calculate lexicals storage needed. */
-    static_frame->env_size = static_frame->num_lexicals * sizeof(MVMRegister);
-    
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */
     static_frame->work_size = sizeof(MVMRegister) *
@@ -112,11 +109,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Store the code ref (NULL at the top-level). */
     frame->code_ref = code_ref;
     
-    /* Allocate space for lexicals and work area. */
+    /* Allocate space for lexicals and work area, copying the default lexical
+     * environment into place. */
     if (static_frame->env_size) {
         if (fresh)
             frame->env = malloc(static_frame->env_size);
-        memset(frame->env, 0, static_frame->env_size);
+        memcpy(frame->env, static_frame->static_env, static_frame->env_size);
     }
     else {
         frame->env = NULL;

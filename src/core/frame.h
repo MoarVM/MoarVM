@@ -22,7 +22,10 @@ typedef struct _MVMStaticFrame {
     MVMuint16 *lexical_types;
     
     /* Lexicals name map. */
-    MVMLexicalHashEntry *lexical_names;
+    MVMLexicalHashEntry *lexical_names;/* The environment for this frame, which lives beyond its execution.
+     
+    /* Defaults for lexicals upon new frame creation. */
+    MVMRegister *static_env;
 
     /* Flag for if this frame has been invoked ever. */
     MVMuint32 invoked;
