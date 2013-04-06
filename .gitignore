@@ -59,4 +59,4 @@ tools/nqp-cross-compiler/*.mastdump
 /nmake.cmd
 UNIDATA/*
 /src/strings/unicode.c
-
+*.class
