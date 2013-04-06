@@ -734,26 +734,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_coerce_is: {
-                        char buffer[25];
-                        sprintf(buffer, "%lld", GET_REG(cur_op, 2).i64);
-                        GET_REG(cur_op, 0).s = MVM_string_ascii_decode(tc, cu->hll_config->str_box_type, buffer, strlen(buffer));
+                        GET_REG(cur_op, 0).s = MVM_coerce_i_s(tc, GET_REG(cur_op, 2).i64);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_coerce_ns: {
-                        char buf[20];
-                        int i;
-                        sprintf(buf, "%-15f", GET_REG(cur_op, 2).n64);
-                        i = strlen(buf);
-                        while (i > 1 && (buf[--i] == '0' || buf[i] == '.' || buf[i] == ' '))
-                            buf[i] = '\0';
-                        GET_REG(cur_op, 0).s = MVM_string_ascii_decode(tc, cu->hll_config->str_box_type, buf, strlen(buf));
+                        GET_REG(cur_op, 0).s = MVM_coerce_i_s(tc, GET_REG(cur_op, 2).n64);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_coerce_si:
+                        GET_REG(cur_op, 0).i64 = MVM_coerce_s_i(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_coerce_sn:
-                        MVM_exception_throw_adhoc(tc, "coercion op NYI");
+                        GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
                         break;
                     case MVM_OP_smrt_numify: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;

@@ -1,5 +1,9 @@
 #include "moarvm.h"
 
+#if defined(_MSC_VER)
+#define strtoll _strtoi64
+#endif
+
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
     return str == NULL || !IS_CONCRETE(str) || NUM_GRAPHS(str) == 0 || (NUM_GRAPHS(str) == 1 && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48) ? 0 : 1;
 }
@@ -57,6 +61,22 @@ MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj) {
     return result;
 }
 
+MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
+    char buffer[25];
+    sprintf(buffer, "%lld", i);
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, strlen(buffer));
+}
+
+MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
+    char buf[20];
+    int i;
+    sprintf(buf, "%-15f", n);
+    i = strlen(buf);
+    while (i > 1 && (buf[--i] == '0' || buf[i] == '.' || buf[i] == ' '))
+        buf[i] = '\0';
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
+}
+
 MVMString * MVM_coerce_o_s(MVMThreadContext *tc, MVMObject *obj) {
     return MVM_coerce_smart_stringify(tc, obj);
 }
@@ -88,4 +108,18 @@ MVMString * MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj) {
             MVM_exception_throw_adhoc(tc, "cannot stringify this");
     }
     return NULL;
+}
+
+MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
+    char     *enc = MVM_string_ascii_encode(tc, s, NULL);
+    MVMint64  i   = strtoll(enc, NULL, 10);
+    free(enc);
+    return i;
+}
+
+MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
+    char     *enc = MVM_string_ascii_encode(tc, s, NULL);
+    MVMnum64  n   = atof(enc);
+    free(enc);
+    return n;
 }
