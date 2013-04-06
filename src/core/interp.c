@@ -816,6 +816,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_setstaticlex: {
+                        MVMObject *code = GET_REG(cur_op, 0).o;
+                        MVMString *name = GET_REG(cur_op, 2).s;
+                        MVMObject *val  = GET_REG(cur_op, 4).o;
+                        if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
+                            MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
+                            MVMuint8 found = 0;
+                            MVM_string_flatten(tc, name);
+                            if (sf->lexical_names) {
+                                MVMLexicalHashEntry *entry;
+                                MVM_HASH_GET(tc, sf->lexical_names, name, entry);
+                                if (entry && sf->lexical_types[entry->value] == MVM_reg_obj) {
+                                    sf->static_env[entry->value].o = val;
+                                    found = 1;
+                                }
+                            }
+                            if (!found)
+                                MVM_exception_throw_adhoc(tc, "setstaticlex given invalid lexical name");
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "setstaticlex needs a code ref");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));

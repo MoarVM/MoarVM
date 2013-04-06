@@ -139,6 +139,7 @@ BANK 0 primitives
 0x89    cmp_i               w(int64) r(int64) r(int64)
 0x8A    cmp_n               w(int64) r(num64) r(num64)
 0x8B    not_i               w(int64) r(int64)
+0x8C    setstaticlex        r(obj) r(str) r(obj)
 
 BANK 1 dev
 0x00    say_i               r(int64)

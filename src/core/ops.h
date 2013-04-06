@@ -151,6 +151,7 @@
 #define MVM_OP_cmp_i 137
 #define MVM_OP_cmp_n 138
 #define MVM_OP_not_i 139
+#define MVM_OP_setstaticlex 140
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
