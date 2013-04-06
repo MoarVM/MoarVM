@@ -1829,14 +1829,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             *invocation_handler = GET_REG(cur_op, 8).o;
                         MVMString *name = GET_REG(cur_op, 6).s;
                         MVMInvocationSpec *is = malloc(sizeof(MVMInvocationSpec));
-                        is->class_handle = ch;
-                        is->attr_name = name;
+                        MVMSTable *st = STABLE(obj);
+                        MVM_ASSIGN_REF(tc, st, is->class_handle, ch);
+                        MVM_ASSIGN_REF(tc, st, is->attr_name, name);
                         is->hint = MVM_NO_HINT;
-                        is->invocation_handler = invocation_handler;
+                        MVM_ASSIGN_REF(tc, st, is->invocation_handler, invocation_handler);
                         /* XXX not thread safe, but this should occur on non-shared objects anyway... */
-                        if (STABLE(obj)->invocation_spec)
-                            free(STABLE(obj)->invocation_spec);
-                        STABLE(obj)->invocation_spec = is;
+                        if (st->invocation_spec)
+                            free(st->invocation_spec);
+                        st->invocation_spec = is;
                         GET_REG(cur_op, 0).o = obj;
                         cur_op += 10;
                         break;
