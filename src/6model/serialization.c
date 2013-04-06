@@ -586,11 +586,12 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
             read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
             read_int32(obj_table_row, 4));  /* The index in that SC */
 
-        /* Allocate and store stub object, flagging it as a type object if
-         * needed. */
-        MVMObject *obj = st->REPR->allocate(tc, st);
-        if ((read_int32(obj_table_row, 12) & 1) != 1)
-            obj->header.flags |= MVM_CF_TYPE_OBJECT;
+        /* Allocate and store stub object. */
+        MVMObject *obj;
+        if ((read_int32(obj_table_row, 12) & 1))
+            obj = st->REPR->allocate(tc, st);
+        else
+            obj = MVM_gc_allocate_type_object(tc, st);
         MVM_sc_set_object(tc, reader->root.sc, i, obj);
         
         /* Set the object's SC. */
