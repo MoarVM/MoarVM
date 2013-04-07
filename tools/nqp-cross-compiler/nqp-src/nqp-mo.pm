@@ -188,10 +188,10 @@ knowhow NQPConcreteRoleHOW {
     # Have we been composed?
     has $!composed;
 
-#    my $archetypes := Archetypes.new( :nominal(1), :composable(1) );
-#    method archetypes() {
-#        $archetypes
-#    }
+    my $archetypes := Archetypes.new( :nominal(1), :composable(1) );
+    method archetypes() {
+        $archetypes
+    }
 
     ##
     ## Declarative
@@ -400,11 +400,11 @@ knowhow NQPCurriedRoleHOW {
     has $!curried_role;
     has @!pos_args;
     
-#    my $archetypes := Archetypes.new( :nominal(1), :composable(1), :parametric(1) );
-#    method archetypes() {
-#        $archetypes
-#    }
-#    
+    my $archetypes := Archetypes.new( :nominal(1), :composable(1), :parametric(1) );
+    method archetypes() {
+        $archetypes
+    }
+    
     method new(:$curried_role!, :@pos_args!) {
         my $obj := nqp::create(self);
         $obj.BUILD(:$curried_role, :@pos_args);
@@ -463,10 +463,10 @@ knowhow NQPParametricRoleHOW {
     # don't do that in NQP.)
     has $!body_block;
 
-#    my $archetypes := Archetypes.new( :nominal(1), :composable(1), :parametric(1) );
-#    method archetypes() {
-#        $archetypes
-#    }
+    my $archetypes := Archetypes.new( :nominal(1), :composable(1), :parametric(1) );
+    method archetypes() {
+        $archetypes
+    }
 
     ##
     ## Declarative
@@ -680,10 +680,10 @@ knowhow NQPClassHOW {
     has @!BUILDALLPLAN;
     has @!BUILDPLAN;
     
-#    my $archetypes := Archetypes.new( :nominal(1), :inheritable(1) );
-#    method archetypes() {
-#        $archetypes
-#    }
+    my $archetypes := Archetypes.new( :nominal(1), :inheritable(1) );
+    method archetypes() {
+        $archetypes
+    }
 
     ##
     ## Declarative.
@@ -1415,10 +1415,10 @@ knowhow NQPNativeHOW {
     has $!name;
     has $!composed;
 
-#    my $archetypes := Archetypes.new( :nominal(1) );
-#    method archetypes() {
-#        $archetypes
-#    }
+    my $archetypes := Archetypes.new( :nominal(1) );
+    method archetypes() {
+        $archetypes
+    }
     
     method new(:$name) {
         my $obj := nqp::create(self);
@@ -1538,10 +1538,10 @@ knowhow NQPModuleHOW {
     has $!name;
     has $!composed;
     
-#    my $archetypes := Archetypes.new( );
-#    method archetypes() {
-#        $archetypes
-#    }
+    my $archetypes := Archetypes.new( );
+    method archetypes() {
+        $archetypes
+    }
 
     method new(:$name) {
         my $obj := nqp::create(self);
