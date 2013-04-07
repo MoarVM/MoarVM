@@ -195,8 +195,11 @@ static MVMnum64 read_double(char *buffer, size_t offset) {
 
 /* If deserialization should fail, cleans up before throwing an exception. */
 MVM_NO_RETURN
+static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
+                             const char *messageFormat, ...) MVM_NO_RETURN_GCC;
+MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader, 
-        const char *messageFormat, ...) MVM_NO_RETURN_GCC {
+        const char *messageFormat, ...) {
     va_list args;
     if (reader->data)
         free(reader->data);
