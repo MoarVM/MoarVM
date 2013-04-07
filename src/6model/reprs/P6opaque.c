@@ -1,5 +1,8 @@
 #include "moarvm.h"
 
+#define MAX(x, y) ((y) > (x) ? (y) : (x))
+#define REFVAR_VM_HASH_STR_VAR 10
+
 /* This representation's function pointer table. */
 static MVMREPROps *this_repr;
 
@@ -708,6 +711,116 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMP6opaque) + cur_offset;
 }
 
+/* Deserializes representation data. */
+static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    MVMuint16 i, j, num_classes, cur_offset;
+    MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
+    
+    MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
+    memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
+    
+    repr_data->num_attributes = (MVMuint16)reader->read_int(tc, reader);
+        
+    repr_data->flattened_stables = (MVMSTable **)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
+    for (i = 0; i < repr_data->num_attributes; i++)
+        if (reader->read_int(tc, reader)) {
+            MVM_ASSIGN_REF(tc, st, repr_data->flattened_stables[i], reader->read_stable_ref(tc, reader));
+        }
+        else {
+            repr_data->flattened_stables[i] = NULL;
+        }
+
+    repr_data->mi = reader->read_int(tc, reader);
+    
+    if (reader->read_int(tc, reader)) {
+        repr_data->auto_viv_values = (MVMObject **)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMObject *));
+        for (i = 0; i < repr_data->num_attributes; i++)
+            MVM_ASSIGN_REF(tc, st, repr_data->auto_viv_values[i], reader->read_ref(tc, reader));
+    }
+    
+    repr_data->unbox_int_slot = reader->read_int(tc, reader);
+    repr_data->unbox_num_slot = reader->read_int(tc, reader);
+    repr_data->unbox_str_slot = reader->read_int(tc, reader);
+    
+    if (reader->read_int(tc, reader)) {
+        repr_data->unbox_slots = (P6opaqueBoxedTypeMap *)malloc(MAX(repr_data->num_attributes, 1) * sizeof(P6opaqueBoxedTypeMap));
+        for (i = 0; i < repr_data->num_attributes; i++) {
+            repr_data->unbox_slots[i].repr_id = reader->read_int(tc, reader);
+            repr_data->unbox_slots[i].slot = reader->read_int(tc, reader);
+        }
+    }
+    
+    num_classes = (MVMuint16)reader->read_int(tc, reader);
+    repr_data->name_to_index_mapping = (P6opaqueNameMap *)malloc((num_classes + 1) * sizeof(P6opaqueNameMap));
+    for (i = 0; i < num_classes; i++) {
+        MVMint32 num_attrs = 0;
+        MVM_ASSIGN_REF(tc, st, repr_data->name_to_index_mapping[i].class_key,
+            reader->read_ref(tc, reader));
+        if (reader->read_int16(tc, reader) == REFVAR_VM_HASH_STR_VAR) {
+            num_attrs = reader->read_int32(tc, reader);
+            repr_data->name_to_index_mapping[i].names = (MVMString **)malloc(MAX(num_attrs, 1) * sizeof(MVMString *));
+            repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)malloc(MAX(num_attrs, 1) * sizeof(MVMuint16));
+            for (j = 0; j < num_attrs; j++) {
+                MVM_ASSIGN_REF(tc, st, repr_data->name_to_index_mapping[i].names[j],
+                    reader->read_str(tc, reader));
+                repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)MVM_repr_get_int(tc,
+                    reader->read_ref(tc, reader));
+            }
+        }
+        repr_data->name_to_index_mapping[i].num_attrs = num_attrs;
+    }
+    
+    repr_data->pos_del_slot = (MVMint16)reader->read_int(tc, reader);
+    repr_data->ass_del_slot = (MVMint16)reader->read_int(tc, reader);
+    
+    /* Re-calculate the remaining info, which is platform specific or
+     * derived information. */
+    repr_data->attribute_offsets   = (MVMuint16 *)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
+    repr_data->gc_obj_mark_offsets = (MVMuint16 *)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
+    repr_data->initialize_slots    = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->gc_mark_slots       = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->gc_cleanup_slots    = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->gc_obj_mark_offsets_count = 0;
+    cur_offset          = 0;
+    cur_initialize_slot = 0;
+    cur_gc_mark_slot    = 0;
+    cur_gc_cleanup_slot = 0;
+    for (i = 0; i < repr_data->num_attributes; i++) {
+        if (repr_data->flattened_stables[i] == NULL) {
+            /* Store position. */
+            repr_data->attribute_offsets[i] = cur_offset;
+            
+            /* Reference type. Needs marking. */
+            repr_data->gc_obj_mark_offsets[repr_data->gc_obj_mark_offsets_count] = cur_offset;
+            repr_data->gc_obj_mark_offsets_count++;
+            
+            /* Increment by pointer size. */
+            cur_offset += sizeof(MVMObject *);
+        }
+        else {
+            /* Store position. */
+            MVMSTable *cur_st = repr_data->flattened_stables[i];
+            repr_data->attribute_offsets[i] = cur_offset;
+
+            /* Set up flags for initialization and GC. */
+            if (cur_st->REPR->initialize)
+                repr_data->initialize_slots[cur_initialize_slot++] = i;
+            if (cur_st->REPR->gc_mark)
+                repr_data->gc_mark_slots[cur_gc_mark_slot++] = i;
+            if (cur_st->REPR->gc_cleanup)
+                repr_data->gc_cleanup_slots[cur_gc_cleanup_slot++] = i;
+            
+            /* Increment by size reported by representation. */
+            cur_offset += cur_st->REPR->get_storage_spec(tc, cur_st).bits / 8;
+        }
+    }
+    repr_data->initialize_slots[cur_initialize_slot] = -1;
+    repr_data->gc_mark_slots[cur_gc_mark_slot] = -1;
+    repr_data->gc_cleanup_slots[cur_gc_cleanup_slot] = -1;
+    
+    st->REPR_data = repr_data;
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
@@ -748,5 +861,6 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->get_str = get_str;
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
     this_repr->deserialize_stable_size = deserialize_stable_size;
+    this_repr->deserialize_repr_data = deserialize_repr_data;
     return this_repr;
 }

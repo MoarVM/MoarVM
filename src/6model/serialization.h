@@ -76,10 +76,12 @@ typedef struct _MVMSerializationReader {
     char     **cur_read_end;
     
     /* Various reading functions. */
-    MVMint64    (*read_int) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMnum64    (*read_num) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMString * (*read_str) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMObject * (*read_ref) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMint64    (*read_int)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMint32    (*read_int32) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMint16    (*read_int16) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMnum64    (*read_num)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMString * (*read_str)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMObject * (*read_ref)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
     MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
     
     /* The object we're currently deserializing. */

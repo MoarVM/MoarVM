@@ -255,6 +255,24 @@ static MVMint64 read_int_func(MVMThreadContext *tc, MVMSerializationReader *read
     return result;
 }
 
+/* Reading function for native 32-bit integers. */
+static MVMint32 read_int32_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint32 result;
+    assert_can_read(tc, reader, 4);
+    result = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+    return result;
+}
+
+/* Reading function for native 16-bit integers. */
+static MVMint16 read_int16_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint16 result;
+    assert_can_read(tc, reader, 2);
+    result = read_int16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 2;
+    return result;
+}
+
 /* Reading function for native numbers. */
 static MVMnum64 read_num_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMnum64 result;
@@ -343,6 +361,18 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             return read_obj_ref(tc, reader);
         case REFVAR_VM_NULL:
             return NULL;
+        case REFVAR_VM_INT:
+            result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTInt);
+            MVM_repr_set_int(tc, result, read_int_func(tc, reader));
+            return result;
+        case REFVAR_VM_NUM:
+            result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTNum);
+            MVM_repr_set_num(tc, result, read_num_func(tc, reader));
+            return result;
+        case REFVAR_VM_STR:
+            result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStr);
+            MVM_repr_set_str(tc, result, read_str_func(tc, reader));
+            return result;
         case REFVAR_VM_HASH_STR_VAR:
             return read_hash_str_var(tc, reader);
         case REFVAR_STATIC_CODEREF:
@@ -670,6 +700,8 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     
     /* Put reader functions in place. */
     reader->read_int        = read_int_func;
+    reader->read_int32      = read_int32_func;
+    reader->read_int16      = read_int16_func;
     reader->read_num        = read_num_func;
     reader->read_str        = read_str_func;
     reader->read_ref        = read_ref_func;

@@ -60,6 +60,12 @@ typedef struct {
     
     /* If we have any other boxings, this maps repr ID to slot. */
     P6opaqueBoxedTypeMap *unbox_slots;
+    
+    /* Slot containing object to delegate for positional things. */
+    MVMint16 pos_del_slot;
+    
+    /* Slot containing object to delegate for associative things. */
+    MVMint16 ass_del_slot;
 
     /* A table mapping attribute names to indexes (which can then be looked
      * up in the offset table). Uses a final null entry as a sentinel. */
