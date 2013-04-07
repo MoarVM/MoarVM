@@ -187,20 +187,22 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 } while (0)
 
 #define autobox_switch(tc, result) do { \
-    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
-        case MVM_CALLSITE_ARG_OBJ: \
-            break; \
-        case MVM_CALLSITE_ARG_INT: \
-            autobox(tc, tc->cur_frame, result.arg->i64, int_box_type, 0, set_int, result.arg->o); \
-            break; \
-        case MVM_CALLSITE_ARG_NUM: \
-            autobox(tc, tc->cur_frame, result.arg->n64, num_box_type, 0, set_num, result.arg->o); \
-            break; \
-        case MVM_CALLSITE_ARG_STR: \
-            autobox(tc, tc->cur_frame, result.arg->s, str_box_type, 1, set_str, result.arg->o); \
-            break; \
-        default: \
-            MVM_exception_throw_adhoc(tc, "invalid type flag"); \
+    if (result.arg) { \
+        switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+            case MVM_CALLSITE_ARG_OBJ: \
+                break; \
+            case MVM_CALLSITE_ARG_INT: \
+                autobox(tc, tc->cur_frame, result.arg->i64, int_box_type, 0, set_int, result.arg->o); \
+                break; \
+            case MVM_CALLSITE_ARG_NUM: \
+                autobox(tc, tc->cur_frame, result.arg->n64, num_box_type, 0, set_num, result.arg->o); \
+                break; \
+            case MVM_CALLSITE_ARG_STR: \
+                autobox(tc, tc->cur_frame, result.arg->s, str_box_type, 1, set_str, result.arg->o); \
+                break; \
+            default: \
+                MVM_exception_throw_adhoc(tc, "invalid type flag"); \
+        } \
     } \
 } while (0)
 
