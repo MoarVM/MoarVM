@@ -728,12 +728,12 @@ knowhow NQPClassHOW {
         if nqp::existskey(%!methods, $name) {
             nqp::die("This class already has a method named " ~ $name);
         }
-#        if nqp::isnull($code_obj) || !nqp::defined($code_obj) {
-#            nqp::die("Cannot add a null method '$name' to class '$!name'");
-#        }
+        if nqp::isnull($code_obj) || !nqp::defined($code_obj) {
+            nqp::die("Cannot add a null method '$name' to class '$!name'");
+        }
         nqp::setmethcacheauth($obj, 0);
 #        %!caches{nqp::where(self)} := {} unless nqp::isnull(%!caches);
-#        nqp::push(@!method_order, %!methods{$name} := $code_obj);
+        nqp::push(@!method_order, %!methods{$name} := $code_obj);
     }
 
     method add_multi_method($obj, $name, $code_obj) {
@@ -1504,9 +1504,9 @@ knowhow NQPAttribute {
         0
     }
 
-#    method box_target() {
-#        !nqp::isnull($!box_target) && $!box_target ?? 1 !! 0
-#    }
+    method box_target() {
+        !nqp::isnull($!box_target) && $!box_target ?? 1 !! 0
+    }
     
     method auto_viv_container() {
         $!has_default ?? $!default !! nqp::null()
@@ -1520,13 +1520,13 @@ knowhow NQPAttribute {
         $!associative_delegate := $value;
     }
     
-#    method positional_delegate() {
-#        !nqp::isnull($!positional_delegate) && $!positional_delegate ?? 1 !! 0
-#    }
-#    
-#    method associative_delegate() {
-#        !nqp::isnull($!associative_delegate) && $!associative_delegate ?? 1 !! 0
-#    }
+    method positional_delegate() {
+        !nqp::isnull($!positional_delegate) && $!positional_delegate ?? 1 !! 0
+    }
+    
+    method associative_delegate() {
+        !nqp::isnull($!associative_delegate) && $!associative_delegate ?? 1 !! 0
+    }
 
     method compose($obj) {
         $obj
