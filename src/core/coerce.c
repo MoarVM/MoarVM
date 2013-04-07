@@ -71,9 +71,13 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     char buf[20];
     int i;
     sprintf(buf, "%-15f", n);
-    i = strlen(buf);
-    while (i > 1 && (buf[--i] == '0' || buf[i] == '.' || buf[i] == ' '))
-        buf[i] = '\0';
+    if (strstr(buf, ".")) {
+        i = strlen(buf);
+        while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
+            buf[i] = '\0';
+        if (buf[i] == '.')
+            buf[i] = '\0';
+    }
     return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
 }
 
@@ -90,20 +94,10 @@ MVMString * MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj) {
             return (MVMString *)obj;
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             return REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
-            char buffer[25];
-            sprintf(buffer, "%lld", REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-            return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, strlen(buffer));
-        }
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
-            char buf[16];
-            int i;
-            sprintf(buf, "%-15f", REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-            i = strlen(buf);
-            while (i > 1 && (buf[--i] == '0' || buf[i] == '.' || buf[i] == ' '))
-                buf[i] = '\0';
-            return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
-        }
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+            return MVM_coerce_i_s(tc, REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+            return MVM_coerce_n_s(tc, REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else
             MVM_exception_throw_adhoc(tc, "cannot stringify this");
     }

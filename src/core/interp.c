@@ -857,9 +857,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         char buf[20];
                         int i;
                         sprintf(buf, "%-15f", GET_REG(cur_op, 0).n64);
-                        i = strlen(buf);
-                        while (i > 1 && (buf[--i] == '0' || buf[i] == '.' || buf[i] == ' '))
-                            buf[i] = '\0';
+                        if (strstr(buf, ".")) {
+                            i = strlen(buf);
+                            while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
+                                buf[i] = '\0';
+                            if (buf[i] == '.')
+                                buf[i] = '\0';
+                        }
                         printf("%s\n", buf);
                         cur_op += 2;
                         break;
