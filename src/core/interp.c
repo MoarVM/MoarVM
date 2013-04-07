@@ -763,7 +763,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
                                 result = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                             else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-                                MVM_exception_throw_adhoc(tc, "s2n NYI");
+                                result = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
                             else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
                                 result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
                             else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
