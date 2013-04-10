@@ -4,7 +4,7 @@
 #define HEADER_SIZE             88
 #define MIN_BYTECODE_VERSION    1
 #define MAX_BYTECODE_VERSION    1
-#define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
+#define FRAME_HEADER_SIZE       7 * 4 + 3 * 2
 
 /* Describes the current reader state. */
 typedef struct {
@@ -354,6 +354,10 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             frames[i]->num_annotations = num_annotations;
         }
         
+        /* Read number of handlers. */
+        /* XXX TODO: Store it. */
+        read_int32(pos, 30);
+        
         pos += FRAME_HEADER_SIZE;
         
         /* Read the local types. */
@@ -385,6 +389,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             }
             pos += 4 * frames[i]->num_lexicals;
         }
+        
+        /* XXX TODO: Read in handlers. */
 
         /* Associate frame with compilation unit. */
         frames[i]->cu = cu;

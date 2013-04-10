@@ -13,7 +13,8 @@
 /* Some sizes. */
 #define HEADER_SIZE             88
 #define BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE       6 * 4 + 3 * 2
+#define FRAME_HEADER_SIZE       7 * 4 + 3 * 2
+#define FRAME_HANDLER_SIZE      4 * 4 + 2 * 2
 #define SC_DEP_SIZE             4
 
 typedef struct {
@@ -40,8 +41,11 @@ typedef struct {
     unsigned short *lexical_types;
     unsigned int num_lexicals;
     
-    /* Number of nnotations */
+    /* Number of annotations. */
     unsigned int num_annotations;
+    
+    /* Number of handlers */
+    unsigned int num_handlers;
     
     /* Labels that we have seen and know the address of. Hash of name to
      * index. */
@@ -715,6 +719,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     /* initialize number of annotation */
     fs->num_annotations = 0;
     
+    /* initialize number of handlers */
+    fs->num_handlers = 0;
+    
     /* initialize callsite reuse cache */
     fs->callsite_reuse_head = NULL;
     
@@ -755,6 +762,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     
     write_int32(ws->frame_seg, ws->frame_pos + 22, ws->annotation_pos);
     write_int32(ws->frame_seg, ws->frame_pos + 26, 0); /* number of annotation; fill in later */
+    write_int32(ws->frame_seg, ws->frame_pos + 30, 0); /* number of handlers; fill in later */
     
     ws->frame_pos += FRAME_HEADER_SIZE;
     
@@ -809,6 +817,15 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     
     /* Fill in number of annotations. */
     write_int32(ws->frame_seg, fs->frame_start + 26, fs->num_annotations);
+    
+    /* Fill in number of handlers. */
+    write_int32(ws->frame_seg, fs->frame_start + 30, fs->num_handlers);
+    
+    /* Write handlers. */
+    ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
+        FRAME_HANDLER_SIZE * fs->num_handlers);
+    for (i = 0; i < fs->num_handlers; i++) {
+    }
     
     /* Any leftover labels? */
     if (HASHELEMS(vm, fs->labels_to_resolve)) {
