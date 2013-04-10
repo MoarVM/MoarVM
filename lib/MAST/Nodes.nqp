@@ -464,8 +464,18 @@ class MAST::Annotated is MAST::Node {
 module HandlerAction {
     our $unwind_and_goto      := 0;
     our $unwind_and_goto_obj  := 1;
-    our $unwind_and_invoke    := 2;
-    our $invoke_and_we'll_see := 3;
+    our $invoke_and_we'll_see := 2;
+}
+
+# Category constants.
+module HandlerCategory {
+    our $catch   := 1;
+    our $control := 2;
+    our $next    := 4;
+    our $redo    := 8;
+    our $last    := 16;
+    our $return  := 32;
+    our $unwind  := 64;
 }
 
 # A region with a handler.
@@ -487,14 +497,6 @@ class MAST::HandlerScope is MAST::Node {
             }
             else {
                 nqp::die("Handler action unwind-and-goto needs a MAST::Label to go to");
-            }
-        }
-        elsif $action == $HandlerAction::unwind_and_invoke {
-            if nqp::istype($block, MAST::Local) {
-                nqp::bindattr($obj, MAST::HandlerScope, '$!block_local', $block);
-            }
-            else {
-                nqp::die("Handler action unwind-and-invoke needs a MAST::Local to invoke");
             }
         }
         elsif $action == $HandlerAction::invoke_and_we'll_see {
