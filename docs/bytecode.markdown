@@ -158,6 +158,9 @@ Each frame starts with the following data.
     | Number of annotations                                   |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | Number of handlers                                      |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of
 local it is. These are stored as 16-bit unsigned integers.
@@ -175,6 +178,32 @@ Lexicals are similar, apart from each entry is preceded by a 16-bit unsigned
 index into the string heap, which gives the name of the lexical.
 
 [Conjectural: a future MoarVM may instead do these in terms of REPRs.]
+
+Next comes the handlers table. Each handler has an entry as follows:
+
+    +---------------------------------------------------------+
+    | Start of protected region. Inclusive offset from start  |
+    | of the frame's bytecode                                 |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | End of protected region. Exclusive offset from start of |
+    | the frame's bytecode                                    |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Handler category mask bitfield                          |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Handler action (see exceptions spec for values)         |
+    |    16-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Register number containing the block to invoke, for a   |
+    | block handler.                                          |
+    |    16-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Handler address to go to. Offset from start of the      |
+    | frame's bytecode.                                       |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
 
 ## Callsites Data
 This data blob contains all of the callsite descriptors that are used in
