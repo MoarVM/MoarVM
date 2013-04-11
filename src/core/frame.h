@@ -48,6 +48,12 @@ typedef struct _MVMStaticFrame {
     /* The frame of the prior invocation of this static frame. */
     struct _MVMFrame *prior_invocation;
     
+    /* The number of exception handlers this frame has. */
+    MVMuint32 num_handlers;
+    
+    /* Frame exception handlers information. */
+    MVMFrameHandler *handlers;
+    
     /* The compilation unit unique ID of this frame. */
     struct _MVMString *cuuid;
     
