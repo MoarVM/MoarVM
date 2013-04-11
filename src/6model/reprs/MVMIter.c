@@ -184,7 +184,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             MVM_exception_throw_adhoc(tc, "Cannot iterate this");
         }
     });
-    return iterator;
+    return (MVMObject *)iterator;
 }
 
 MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
