@@ -5,6 +5,7 @@
 #define MIN_BYTECODE_VERSION    1
 #define MAX_BYTECODE_VERSION    1
 #define FRAME_HEADER_SIZE       7 * 4 + 3 * 2
+#define FRAME_HANDLER_SIZE      4 * 4 + 2 * 2
 
 /* Describes the current reader state. */
 typedef struct {
@@ -355,8 +356,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         }
         
         /* Read number of handlers. */
-        /* XXX TODO: Store it. */
-        read_int32(pos, 30);
+        frames[i]->num_handlers = read_int32(pos, 30);
         
         pos += FRAME_HEADER_SIZE;
         
@@ -390,7 +390,23 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             pos += 4 * frames[i]->num_lexicals;
         }
         
-        /* XXX TODO: Read in handlers. */
+        /* Read in handlers. */
+        if (frames[i]->num_handlers) {
+            /* Allocate space for handler data. */
+            frames[i]->handlers = malloc(frames[i]->num_handlers * sizeof(MVMFrameHandler));
+            
+            /* Read each handler. */
+            ensure_can_read(tc, cu, rs, pos, frames[i]->num_handlers * FRAME_HANDLER_SIZE);
+            for (j = 0; j < frames[i]->num_handlers; j++) {
+                frames[i]->handlers[j].start_offset = read_int32(pos, 0);
+                frames[i]->handlers[j].end_offset = read_int32(pos, 4);
+                frames[i]->handlers[j].category_mask = read_int32(pos, 8);
+                frames[i]->handlers[j].action = read_int16(pos, 12);
+                frames[i]->handlers[j].block_reg = read_int16(pos, 14);
+                frames[i]->handlers[j].goto_offset = read_int32(pos, 16);
+                pos += FRAME_HANDLER_SIZE;
+            }
+        }
 
         /* Associate frame with compilation unit. */
         frames[i]->cu = cu;
