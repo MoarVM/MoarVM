@@ -94,6 +94,17 @@ typedef struct {
     PMC    *instructions;
 } MAST_Annotated;
 
+/* MAST::HandlerScope */
+typedef struct {
+    PMC    *st;
+    PMC    *sc;
+    PMC    *instructions;
+    INTVAL  category_mask;
+    INTVAL  action;
+    PMC    *goto_label;
+    PMC    *block_local;
+} MAST_HandlerScope;
+
 /* Node types structure. */
 typedef struct {
     PMC *CompUnit;
@@ -107,6 +118,7 @@ typedef struct {
     PMC *Lexical;
     PMC *Call;
     PMC *Annotated;
+    PMC *HandlerScope;
 } MASTNodeTypes;
 
 /* This means we can talk about MASTNode in the compiler, not PMC. */
@@ -133,6 +145,7 @@ typedef STRING VMSTR;
 #define GET_SVal(n)                 ((MAST_SVal *)PMC_data(n))
 #define GET_Call(n)                 ((MAST_Call *)PMC_data(n))
 #define GET_Annotated(n)            ((MAST_Annotated *)PMC_data(n))
+#define GET_HandlerScope(n)         ((MAST_HandlerScope *)PMC_data(n))
 #define NEWLIST_I(vm)               (Parrot_pmc_new(interp, enum_class_ResizableIntegerArray))
 #define NEWLIST_S(vm)               (Parrot_pmc_new(interp, enum_class_ResizableStringArray))
 #define ELEMS(vm, arr)              ((unsigned int )VTABLE_elements(vm, arr))
