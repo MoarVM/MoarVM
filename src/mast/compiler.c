@@ -25,6 +25,32 @@ typedef struct {
     UT_hash_handle hash_handle;
 } CallsiteReuseEntry;
 
+/* Information about a handler. */
+typedef struct {
+    /* Offset of start of protected region from frame start. */
+    unsigned int start_offset;
+    
+    /* Offset of end of protected region, exclusive, from frame start. */
+    unsigned int end_offset;
+    
+    /* Exception categry mask. */
+    unsigned int category_mask;
+    
+    /* Handler action. */
+    unsigned short action;
+    
+    /* Local holding block to invoke, if invokey handler. */
+    unsigned short local;
+    
+    /* Label, which will need resolving. */
+    MASTNode *label;
+} FrameHandler;
+
+/* Handler actions. */
+#define HANDLER_UNWIND_GOTO      0
+#define HANDLER_UNWIND_GOTO_OBJ  1
+#define HANDLER_INVOKE           2
+
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
     /* Position of start of bytecode. */
@@ -57,6 +83,9 @@ typedef struct {
     
     /* Hash for callsite descriptor strings to callsite IDs */
     CallsiteReuseEntry *callsite_reuse_head;
+    
+    /* Handlers list. */
+    FrameHandler *handlers;
 } FrameState;
 
 /* Describes the current writer state for the compilation unit as a whole. */
@@ -166,6 +195,8 @@ void cleanup_frame(VM, FrameState *fs) {
         free(fs->local_types);
     if (fs->lexical_types)
         free(fs->lexical_types);
+    if (fs->handlers)
+        free(fs->handlers);
     
     /* the macros already check for null */
     HASH_ITER(hash_handle, fs->callsite_reuse_head, current, tmp)
@@ -674,6 +705,70 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         for (i = 0; i < num_ins; i++)
             compile_instruction(vm, ws, ATPOS(vm, a->instructions, i));
     }
+    else if (ISTYPE(vm, node, ws->types->HandlerScope)) {
+        MAST_HandlerScope *hs = GET_HandlerScope(node);
+        unsigned int i;
+        unsigned int num_ins = ELEMS(vm, hs->instructions);
+        unsigned int start   = ws->bytecode_pos - ws->cur_frame->bytecode_start;
+        unsigned int end;
+
+        for (i = 0; i < num_ins; i++)
+            compile_instruction(vm, ws, ATPOS(vm, hs->instructions, i));
+        end = ws->bytecode_pos - ws->cur_frame->bytecode_start;
+        
+        ws->cur_frame->num_handlers++;
+        if (ws->cur_frame->handlers)
+            ws->cur_frame->handlers = realloc(ws->cur_frame->handlers,
+                ws->cur_frame->num_handlers * sizeof(FrameHandler));
+        else
+            ws->cur_frame->handlers = malloc(
+                ws->cur_frame->num_handlers * sizeof(FrameHandler));
+
+        i = ws->cur_frame->num_handlers - 1;
+        ws->cur_frame->handlers[i].start_offset = start;
+        ws->cur_frame->handlers[i].end_offset = end;
+        ws->cur_frame->handlers[i].category_mask = (unsigned int)hs->category_mask;
+        ws->cur_frame->handlers[i].action = (unsigned short)hs->action;
+        
+        if (hs->action == HANDLER_UNWIND_GOTO || hs->action == HANDLER_UNWIND_GOTO_OBJ) {
+            /* Ensure we have a label. */
+            if (ISTYPE(vm, hs->goto_label, ws->types->Label)) {
+                ws->cur_frame->handlers[i].label = hs->goto_label;
+                ws->cur_frame->handlers[i].local = 0;
+            }
+            else {
+                cleanup_all(vm, ws);
+                DIE(vm, "MAST::Label required for HandlerScope goto");
+            }
+        }
+        else if (hs->action == HANDLER_INVOKE) {
+            if (ISTYPE(vm, hs->block_local, ws->types->Local)) {
+                MAST_Local *l = GET_Local(hs->block_local);
+                
+                /* Ensure it's within the set of known locals and an object. */
+                if (l->index >= ws->cur_frame->num_locals) {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "MAST::Local index out of range in HandlerScope");
+                }
+                if (ws->cur_frame->local_types[l->index] != MVM_reg_obj) {
+                    cleanup_all(vm, ws);
+                    DIE(vm, "MAST::Local for HandlerScope must be an object");
+                }
+                
+                /* Stash local index. */
+                ws->cur_frame->handlers[i].local = (unsigned short)l->index;
+                ws->cur_frame->handlers[i].label = NULL;
+            }
+            else {
+                cleanup_all(vm, ws);
+                DIE(vm, "MAST::Local required for HandlerScope invoke action");
+            }
+        }
+        else {
+            cleanup_all(vm, ws);
+            DIE(vm, "Invalid action code for handler scope");
+        }
+    }
     else {
         cleanup_all(vm, ws);
         DIE(vm, "Invalid MAST node in instruction list (must be Op, Call, Label, or Annotated)");
@@ -719,8 +814,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     /* initialize number of annotation */
     fs->num_annotations = 0;
     
-    /* initialize number of handlers */
+    /* initialize number of handlers and handlers pointer */
     fs->num_handlers = 0;
+    fs->handlers = NULL;
     
     /* initialize callsite reuse cache */
     fs->callsite_reuse_head = NULL;
@@ -825,6 +921,31 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
         FRAME_HANDLER_SIZE * fs->num_handlers);
     for (i = 0; i < fs->num_handlers; i++) {
+        write_int32(ws->frame_seg, ws->frame_pos, fs->handlers[i].start_offset);
+        ws->frame_pos += 4;
+        write_int32(ws->frame_seg, ws->frame_pos, fs->handlers[i].end_offset);
+        ws->frame_pos += 4;
+        write_int32(ws->frame_seg, ws->frame_pos, fs->handlers[i].category_mask);
+        ws->frame_pos += 4;
+        write_int16(ws->frame_seg, ws->frame_pos, fs->handlers[i].action);
+        ws->frame_pos += 2;
+        write_int16(ws->frame_seg, ws->frame_pos, fs->handlers[i].local);
+        ws->frame_pos += 2;
+        if (ws->cur_frame->handlers[i].label) {
+            MAST_Label *l = GET_Label(fs->handlers[i].label);
+            if (EXISTSKEY(vm, fs->known_labels, l->name)) {
+                write_int32(ws->frame_seg, ws->frame_pos,
+                    (unsigned int)ATKEY_I(vm, fs->known_labels, l->name));
+            }
+            else {
+                cleanup_all(vm, ws);
+                    DIE(vm, "HandlerScope uses unresolved label");
+            }
+        }
+        else {
+            write_int32(ws->frame_seg, ws->frame_pos, 0);
+        }
+        ws->frame_pos += 4;
     }
     
     /* Any leftover labels? */
