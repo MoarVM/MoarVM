@@ -65,7 +65,6 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
                 return lh;
             }
             if (mode == MVM_EX_THROW_DYN) {
-                printf("trying caller\n");
                 f = f->caller;
             }
             else {
@@ -79,10 +78,24 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     return lh;
 }
 
+/* Unwinds execution state to the specified frame. */
+static void unwind_to_frame(MVMThreadContext *tc, MVMFrame *target) {
+    while (tc->cur_frame != target) {
+        MVM_panic(1, "Stack unwinding NYI");
+    }
+}
+
 /* Runs an exception handler (which really means updating interpreter state
  * so that when we return to the runloop, we're in the handler). */
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh) {
-    MVM_panic(1, "Don't know how to run handlers yet");
+    switch (lh.handler->action) {
+        case MVM_EX_ACTION_GOTO:
+            unwind_to_frame(tc, lh.frame);
+            *tc->interp_cur_op = *tc->interp_bytecode_start + lh.handler->goto_offset;
+            break;
+        default:
+            MVM_panic(1, "Unimplemented handler action");
+    }
 }
 
 /* Panic over an unhandled exception throw by category. */
