@@ -837,6 +837,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_die: {
+                        MVM_exception_throw_adhoc(tc, "Died: %s", MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s));
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
@@ -2382,19 +2387,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = MVM_proc_time_n(tc);
                         cur_op += 2;
                         break;
-                    case MVM_OP_die: {
-                        MVMString *message = MVM_coerce_o_s(tc, GET_REG(cur_op, 2).o);
-                        MVM_exception_throw_adhoc(tc, "Died: %s", MVM_string_utf8_encode_C_string(tc, message));
-                        cur_op += 4;
-                        break;
-                    }
                     case MVM_OP_exit: {
                         exit(GET_REG(cur_op, 2).i64);
-                    }
-                    case MVM_OP_die_s: {
-                        MVM_exception_throw_adhoc(tc, "Died: %s", MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s));
-                        cur_op += 4;
-                        break;
                     }
                     case MVM_OP_loadbytecode: {
                         /* This op will end up returning into the runloop to run

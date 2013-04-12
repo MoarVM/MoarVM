@@ -152,6 +152,22 @@
 #define MVM_OP_cmp_n 138
 #define MVM_OP_not_i 139
 #define MVM_OP_setstaticlex 140
+#define MVM_OP_exception 141
+#define MVM_OP_handled 142
+#define MVM_OP_newexception 143
+#define MVM_OP_bindexmessage 144
+#define MVM_OP_bindexpayload 145
+#define MVM_OP_bindexcategory 146
+#define MVM_OP_getexmessage 147
+#define MVM_OP_getexpayload 148
+#define MVM_OP_getexcategory 149
+#define MVM_OP_throwdyn 150
+#define MVM_OP_throwlex 151
+#define MVM_OP_throwlexotic 152
+#define MVM_OP_throwcatdyn 153
+#define MVM_OP_throwcatlex 154
+#define MVM_OP_throwcatlexotic 155
+#define MVM_OP_die 156
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -427,10 +443,8 @@
 #define MVM_OP_newthread 26
 #define MVM_OP_jointhread 27
 #define MVM_OP_time_n 28
-#define MVM_OP_die 29
-#define MVM_OP_exit 30
-#define MVM_OP_die_s 31
-#define MVM_OP_loadbytecode 32
+#define MVM_OP_exit 29
+#define MVM_OP_loadbytecode 30
 
 /* Op name defines for bank serialization. */
 #define MVM_OP_sha1 0
