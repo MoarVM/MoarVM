@@ -1172,21 +1172,21 @@ class MAST::Ops {
                 'code', 153,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_int64
                 ]
             ),
             'throwcatlex', nqp::hash(
                 'code', 154,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_int64
                 ]
             ),
             'throwcatlexotic', nqp::hash(
                 'code', 155,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_int64
                 ]
             ),
             'die', nqp::hash(

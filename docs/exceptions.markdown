@@ -88,7 +88,7 @@ Sets the exception object's string message.
 ### bindexpayload r(obj), r(obj)
 Sets the exception object's payload (some other object).
 
-### bindexcategory r(obj), r(int)
+### bindexcategory r(obj), r(int64)
 Sets the exception object's category
 
 ### getexmessage w(str), r(obj)
@@ -97,7 +97,7 @@ Gets the exception object's string message.
 ### getexpayload W(obj), r(obj)
 Gets the exception object's payload.
 
-### getexcategory w(int), r(obj)
+### getexcategory w(int64), r(obj)
 Gets the exception object's category
 
 ## Throwing Exceptions
@@ -110,9 +110,9 @@ There are various instructions for throwing a new exception object.
 There are also instructions for throwing a particular category of exception
 without first creating an exception object.
 
-    throwcatdyn w(obj) r(int)
-    throwcatlex w(obj) r(int)
-    throwcatlexotic w(obj) r(int)
+    throwcatdyn w(obj) int64
+    throwcatlex w(obj) int64
+    throwcatlexotic w(obj) int64
 
 These will only produce an exception object for handlers that need it. The
 object that is produced will have a null message and payload, so only its

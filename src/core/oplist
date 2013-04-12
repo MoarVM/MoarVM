@@ -152,9 +152,9 @@ BANK 0 primitives
 0x96    throwdyn            w(obj) r(obj)
 0x97    throwlex            w(obj) r(obj)
 0x98    throwlexotic        w(obj) r(obj)
-0x99    throwcatdyn         w(obj) r(int64)
-0x9A    throwcatlex         w(obj) r(int64)
-0x9B    throwcatlexotic     w(obj) r(int64)
+0x99    throwcatdyn         w(obj) int64
+0x9A    throwcatlex         w(obj) int64
+0x9B    throwcatlexotic     w(obj) int64
 0x9C    die                 w(obj) r(str)
 
 BANK 1 dev
