@@ -12,6 +12,11 @@
 #define MVM_EX_CAT_RETURN        32
 #define MVM_EX_CAT_UNWIND        64
 
+/* Ways to throw an exception. */
+#define MVM_EX_THROW_DYN         0
+#define MVM_EX_THROW_LEX         1
+#define MVM_EX_THROW_LEXOTIC     2
+
 /* Information associated with an exception handler. */
 typedef struct _MVMFrameHandler {
     /* Start offset into the frame's bytecode for the handler, inclusive. */
@@ -34,6 +39,7 @@ typedef struct _MVMFrameHandler {
 } MVMFrameHandler;
 
 /* Exception related functions. */
+void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, union _MVMRegister *resume_result);
 MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 

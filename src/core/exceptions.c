@@ -1,6 +1,108 @@
 #include "moarvm.h"
 #include <stdarg.h>
 
+/* Checks if an exception handler is already on the active handler stack,
+ * so we don't re-trigger the same exception handler. */
+static MVMuint8 in_handler_stack(MVMThreadContext *tc, MVMFrameHandler *fh) {
+    /* XXX TODO: Implement this check. */
+    return 0;
+}
+
+/* Checks if a frame is still active. Naively, we could scan the call stack
+ * for it, but we can use the same thing the GC uses to know if to scan the
+ * work area. */
+static MVMuint8 in_caller_chain(MVMThreadContext *tc, MVMFrame *f_maybe) {
+    return f_maybe->tc ? 1 : 0;
+}
+
+/* Looks through the handlers of a particular scope, and sees if one will
+ * match what we're looking for. Returns a pointer to it if so; if not,
+ * returns NULL. */
+static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f, MVMuint32 cat) {
+    MVMStaticFrame *sf = f->static_info;
+    MVMuint32 pc, i;
+    if (f == tc->cur_frame)
+        pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
+    else
+        pc = (MVMuint32)(f->return_address - sf->bytecode);
+    for (i = 0; i < sf->num_handlers; i++) {
+        if (sf->handlers[i].category_mask & cat)
+            if (pc >= sf->handlers[i].start_offset && pc < sf->handlers[i].end_offset)
+                if (!in_handler_stack(tc, &sf->handlers[i]))
+                    return &sf->handlers[i];
+    }
+    return NULL;
+}
+
+/* Information about a located handler. */
+typedef struct {
+    MVMFrame        *frame;
+    MVMFrameHandler *handler;
+} LocatedHandler;
+
+/* Searches for a handler of the specified category, relative to the given
+ * starting frame, searching according to the chosen mode. */
+static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
+        MVMuint8 mode, MVMuint32 cat) {
+    LocatedHandler lh;
+    lh.frame = NULL;
+    lh.handler = NULL;
+    
+    if (mode == MVM_EX_THROW_LEXOTIC) {
+        while (f != NULL) {
+            lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat);
+            if (lh.frame != NULL)
+                return lh;
+            f = f->caller;
+        }
+    }
+    else {
+        while (f != NULL) {
+            MVMFrameHandler *h = search_frame_handlers(tc, f, cat);
+            if (h != NULL) {
+                lh.frame = f;
+                lh.handler = h;
+                return lh;
+            }
+            if (mode == MVM_EX_THROW_DYN) {
+                printf("trying caller\n");
+                f = f->caller;
+            }
+            else {
+                MVMFrame *f_maybe = f->outer;
+                while (f_maybe != NULL && !in_caller_chain(tc, f_maybe))
+                    f_maybe = f_maybe->outer;
+                f = f_maybe;
+            }
+        }
+    }
+    return lh;
+}
+
+/* Runs an exception handler (which really means updating interpreter state
+ * so that when we return to the runloop, we're in the handler). */
+static void run_handler(MVMThreadContext *tc, LocatedHandler lh) {
+    MVM_panic(1, "Don't know how to run handlers yet");
+}
+
+/* Panic over an unhandled exception throw by category. */
+static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
+    /* XXX TODO: Backtrace, turn cat into something meaningful. */
+    MVM_panic(1, "No exception handler located (category %d)", cat);
+}
+
+/* Throws an exception by category, searching for a handler according to
+ * the specified mode. If the handler resumes, the resumption result will
+ * be put into resume_result. Leaves the interpreter in a state where it
+ * will next run the instruction of the handler. If there is no handler,
+ * it will panic and exit with a backtrace. */
+void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result) {
+    LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat);
+    if (lh.frame == NULL)
+        panic_unhandled_cat(tc, cat);
+    run_handler(tc, lh);
+}
+
 /* Panics and shuts down the VM. Don't do this unless it's something quite
  * unrecoverable.
  * TODO: Some hook for embedders.
