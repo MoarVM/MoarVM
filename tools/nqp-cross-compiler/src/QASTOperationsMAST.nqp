@@ -1062,6 +1062,26 @@ QAST::MASTOperations.add_core_op('bind', -> $qastcomp, $op {
 QAST::MASTOperations.add_core_moarop_mapping('die', 'die');
 QAST::MASTOperations.add_core_moarop_mapping('die_s', 'die');
 
+# Control exception throwing.
+my %control_map := nqp::hash(
+    'next', $HandlerCategory::next,
+    'last', $HandlerCategory::last,
+    'redo', $HandlerCategory::redo
+);
+QAST::MASTOperations.add_core_op('control', -> $qastcomp, $op {
+    my $name := $op.name;
+    if nqp::existskey(%control_map, $name) {
+        my $il := nqp::list();
+        my $res := $*REGALLOC.fresh_register($MVM_reg_obj);
+        push_op($il, 'throwcatdyn', $res,
+            MAST::IVal.new( :value(%control_map{$name}) ));
+        MAST::InstructionList.new($il, $res, $MVM_reg_obj)
+    }
+    else {
+        nqp::die("Unknown control exception type '$name'");
+    }
+});
+
 # Default ways to box/unbox (for no particular HLL).
 QAST::MASTOperations.add_hll_unbox('', $MVM_reg_int64, -> $qastcomp, $reg {
     my $il := nqp::list();
