@@ -189,10 +189,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     *(tc->interp_cu) = static_frame->cu;
 }
 
-/* Attempt to return from the current frame. Returns non-zero if we can,
- * and zero if there is nowhere to return to (which would signal the exit
- * of the interpreter). */
-MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
+/* Return/unwind do about the same thing; this factors it out. */
+static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller;
     MVMFrame *prior;
@@ -228,7 +226,8 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         if (caller->special_return) {
             MVMSpecialReturn sr = caller->special_return;
             caller->special_return = NULL;
-            sr(tc, caller->special_return_data);
+            if (!unwind)
+                sr(tc, caller->special_return_data);
         }
         
         return 1;
@@ -237,6 +236,21 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         tc->cur_frame = NULL;
         return 0;
     }
+}
+
+/* Attempt to return from the current frame. Returns non-zero if we can,
+ * and zero if there is nowhere to return to (which would signal the exit
+ * of the interpreter). */
+MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
+    return return_or_unwind(tc, 0);
+}
+
+/* Attempt to unwind the current frame. Returns non-zero if we can, and
+ * zero if we've nowhere to unwind to (which signifies we're hit the exit
+ * point of the interpreter - which probably shouldn't happen, but caller
+ * will be in a better place to give an error). */
+MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc) {
+    return return_or_unwind(tc, 1);
 }
 
 /* Given the specified code object, copies it and returns a copy which

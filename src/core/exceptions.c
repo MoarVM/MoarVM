@@ -81,7 +81,8 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
 /* Unwinds execution state to the specified frame. */
 static void unwind_to_frame(MVMThreadContext *tc, MVMFrame *target) {
     while (tc->cur_frame != target) {
-        MVM_panic(1, "Stack unwinding NYI");
+        if (!MVM_frame_try_unwind(tc))
+            MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
     }
 }
 

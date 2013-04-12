@@ -164,6 +164,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref);
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
+MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
