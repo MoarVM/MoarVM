@@ -136,7 +136,7 @@ As for the dyn/lex/lexotic difference:
 * lex means "search outer", with the caveat that the outer must also be on the caller
   chain too
 * lexotic combines the two; for each entry in the dynamic scope, we scan all outers
-  from that point
+  from that point; note that such an outer should also be in the call chain
 
 ## Rethrowing
 
@@ -156,7 +156,7 @@ A goto handler that is allowed to get the exception object and/or rethrow it mus
 the point they consider the handler over in the case they do not rethrow. The op for
 this is simply:
 
-    handled
+    handled r(obj)
 
 Note that if, while the handler is active, another exception is thrown and unwinds the
 stack past this handler, that's fine.
@@ -184,33 +184,33 @@ Here is the overall algorithm in pseudo-code.
 
 XXX TODO: Finish this up. :-)
 
-    search_scope_handlers(s, cat):
-        for h in s.handlers
+    search_frame_handlers(f, cat):
+        for h in f.handlers
             if h.category_mask & cat
-                if s.pc >= h.from && s.pc < h.to
+                if f.pc >= h.from && f.pc < h.to
                     if !in_handler_stack(HSTACK, h)
                         return h
         return NULL
     
-    search_for_handler_from(s, mode, cat)
+    search_for_handler_from(f, mode, cat)
         if mode == LEXOTIC
-            while s != NULL
-                h = search_for_handler_from(s, LEX, cat)
+            while f != NULL
+                h = search_for_handler_from(f, LEX, cat)
                 if h != NULL
                     return h
-                s = s.caller
+                f = f.caller
         else
-            while s != NULL
-                h = search_scope_handlers(s, cat)
+            while f != NULL
+                h = search_frame_handlers(f, cat)
                 if h != NULL
                     return h
                 if mode == DYN
-                    s = s.caller
-                else if s == LEX
-                    s_maybe = s.outer
-                    while s_maybe != NULL && !is_in_caller_chain(s, s_maybe)
-                        s_maybe = s_maybe.outer
-                    s = s_maybe
+                    f = f.caller
+                else if f == LEX
+                    f_maybe = f.outer
+                    while f_maybe != NULL && !is_in_caller_chain(f, f_maybe)
+                        f_maybe = f_maybe.outer
+                    f = f_maybe
     return NULL
         
     run_handler(h, target_scope)
