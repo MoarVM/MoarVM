@@ -39,7 +39,7 @@ Handlers are associated with (static) frames. A handler consists of:
 * In the case of a block handler, the register in the frame that holds the
   block to invoke. The block should take no parameters.
 
-A bitwise and between the category filter and the category of the exception
+A bitwise `and` between the category filter and the category of the exception
 being thrown is used to check if the handler is applicable.
 
 Note that an Unwind handler is never actually set as the category of an
@@ -61,7 +61,7 @@ more deeply nested handlers appear in the table earlier than those lexically
 outer to them. This is really a job for the MAST to Bytecode compiler, since
 the MAST encodes the structure as nested nodes. Really, though, it's just a
 case of writing an entry into the frame's table after the node has been
-processed.
+processed. See the bytecode specification for details.
 
 ## Exception Objects
 
@@ -71,6 +71,11 @@ most HLLs will wish to attach their own objects as the payload.
 
 ### exception w(obj)
 Gets the exception currently being handled. Only valid in the scope of handler.
+
+### handled r(obj)
+Marks the specified exception as handled. Only valid in the scope of a handler
+for the specified exception. Also, only required for goto handlers that also
+include an exception object.
 
 ### newexception w(obj)
 Creates a new exception object, based on the current HLL's configured exception
