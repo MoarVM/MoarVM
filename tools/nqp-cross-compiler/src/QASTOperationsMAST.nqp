@@ -1060,7 +1060,7 @@ QAST::MASTOperations.add_core_op('bind', -> $qastcomp, $op {
 
 # Exception handling/munging.
 QAST::MASTOperations.add_core_moarop_mapping('die', 'die');
-QAST::MASTOperations.add_core_moarop_mapping('die_s', 'die_s', 0);
+QAST::MASTOperations.add_core_moarop_mapping('die_s', 'die');
 
 # Default ways to box/unbox (for no particular HLL).
 QAST::MASTOperations.add_hll_unbox('', $MVM_reg_int64, -> $qastcomp, $reg {
