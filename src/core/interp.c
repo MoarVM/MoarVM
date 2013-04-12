@@ -837,6 +837,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_throwcatdyn: {
+                        MVM_exception_throwcat(tc, MVM_EX_THROW_DYN,
+                            (MVMuint32)GET_I64(cur_op, 2), &GET_REG(cur_op, 0));
+                        break;
+                    }
+                    case MVM_OP_throwcatlex: {
+                        MVM_exception_throwcat(tc, MVM_EX_THROW_LEX,
+                            (MVMuint32)GET_I64(cur_op, 2), &GET_REG(cur_op, 0));
+                        break;
+                    }
+                    case MVM_OP_throwcatlexotic: {
+                        MVM_exception_throwcat(tc, MVM_EX_THROW_LEXOTIC,
+                            (MVMuint32)GET_I64(cur_op, 2), &GET_REG(cur_op, 0));
+                        break;
+                    }
                     case MVM_OP_die: {
                         MVM_exception_throw_adhoc(tc, "Died: %s", MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s));
                         cur_op += 4;
