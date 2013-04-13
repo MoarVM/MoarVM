@@ -595,106 +595,111 @@ QAST::MASTOperations.add_core_op('ifnull', -> $qastcomp, $op {
 });
 
 # Loops.
-for <while until> -> $op_name {
-    QAST::MASTOperations.add_core_op($op_name, -> $qastcomp, $op {
-        # Check operand count.
-        my $operands := +$op.list;
-        nqp::die("Operation '$op_name' needs 2 or 3 operands; got $operands")
-            if $operands != 2 && $operands != 3;
-        
-        # Create labels.
-        my $while_id    := $qastcomp.unique($op_name);
-        my $loop_lbl := MAST::Label.new($while_id ~ '_loop');
-        my $last_lbl  := MAST::Label.new($while_id ~ '_last');
-        
-        # Compile each of the children
-        my @comp_ops;
-        @comp_ops.push($qastcomp.as_mast($_)) for $op.list;
-        
-        if (@comp_ops[0].result_kind == $MVM_reg_void) {
-            nqp::die("operation '$op_name' condition cannot be void");
-        }
-        
-        # XXX coerce one to match the other? how to choose which one?
-        if (@comp_ops[0].result_kind != @comp_ops[1].result_kind) {
-            nqp::die("For now, operation '$op_name' needs both branches to result in the same kind");
-        }
-        my $res_kind := @comp_ops[1].result_kind;
-        my $res_reg  := $*REGALLOC.fresh_register($res_kind);
-        
-        my @ins;
-        
-        nqp::push(@ins, $loop_lbl);
-        push_ilist(@ins, @comp_ops[0]);
-        push_op(@ins, 'set', $res_reg, @comp_ops[0].result_reg);
-        
-        # Emit the exiting jump.
-        push_op(@ins,
-            resolve_condition_op(@comp_ops[0].result_kind, $op_name eq 'while'),
-            @comp_ops[0].result_reg,
-            $last_lbl
-        );
-        $*REGALLOC.release_register(@comp_ops[0].result_reg, @comp_ops[0].result_kind);
-        
-        # Emit the loop body; stash the result.
-        push_ilist(@ins, @comp_ops[1]);
-        push_op(@ins, 'set', $res_reg, @comp_ops[1].result_reg);
-        $*REGALLOC.release_register(@comp_ops[1].result_reg, @comp_ops[1].result_kind);
-        
-        if $operands == 3 {
-            push_ilist(@ins, @comp_ops[2]);
-        }
-        
-        # Emit the iteration jump.
-        push_op(@ins, 'goto', $loop_lbl);
-        
-        # Emit last label.
-        nqp::push(@ins, $last_lbl);
-        
-        # Build instruction list
-        # XXX see coercion note above for result type
-        MAST::InstructionList.new(@ins, $res_reg, $res_kind)
-    });
-}
+for ('', 'repeat_') -> $repness {
+    for <while until> -> $op_name {
+        QAST::MASTOperations.add_core_op("$repness$op_name", -> $qastcomp, $op {
+            # Create labels.
+            my $while_id := $qastcomp.unique($op_name);
+            my $test_lbl := MAST::Label.new($while_id ~ '_test');
+            my $next_lbl := MAST::Label.new($while_id ~ '_next');
+            my $redo_lbl := MAST::Label.new($while_id ~ '_redo');
+            my $hand_lbl := MAST::Label.new($while_id ~ '_handlers');
+            my $done_lbl := MAST::Label.new($while_id ~ '_done');
+            
+            # Compile each of the children; we'll need to look at the result
+            # types and pick an overall result type if in non-void context.
+            my @comp_ops;
+            my @comp_types;
+            my $handler := 1;
+            my $*IMM_ARG;
+            for $op.list {
+                if $_.named eq 'nohandler' { $handler := 0; }
+                else {
+                    my $*HAVE_IMM_ARG := $_.arity > 0 && $_ =:= $op.list[1];
+                    my $comp := $qastcomp.as_mast($_);
+                    @comp_ops.push($comp);
+                    @comp_types.push($comp.result_kind);
+                    if $*HAVE_IMM_ARG && !$*IMM_ARG {
+                        nqp::die("$op_name block expects an argument, but there's no immediate block to take it");
+                    }
+                }
+            }
+            my $res_kind := @comp_types[0] == @comp_types[1]
+                ?? @comp_types[0]
+                !! $MVM_reg_obj;
+            my $res_reg := $*REGALLOC.fresh_register($res_kind);
+            
+            # Check operand count.
+            my $operands := +@comp_ops;
+            nqp::die("Operation '$repness$op_name' needs 2 or 3 operands")
+                if $operands != 2 && $operands != 3;
 
-for <repeat_while repeat_until> -> $op_name {
-    QAST::MASTOperations.add_core_op($op_name, -> $qastcomp, $op {
-        # Check operand count.
-        my $operands := +$op.list;
-        nqp::die("Operation '$op_name' needs 2 operands")
-            if $operands != 2;
-        
-        # Create labels.
-        my $while_id := $qastcomp.unique($op_name);
-        my $loop_lbl := MAST::Label.new($while_id ~ '_loop');
-        
-        # Compile each of the children
-        my @comp_ops;
-        @comp_ops.push($qastcomp.as_mast($_)) for $op.list;
-        
-        if (@comp_ops[1].result_kind == $MVM_reg_void) {
-            nqp::die("operation '$op_name' condition cannot be void");
-        }
-        
-        my @ins;
-        
-        nqp::push(@ins, $loop_lbl);
-        push_ilist(@ins, @comp_ops[0]);
-        $*REGALLOC.release_register(@comp_ops[0].result_reg, @comp_ops[0].result_kind);
-        
-        # Emit the condition; stash the result.
-        push_ilist(@ins, @comp_ops[1]);
-        
-        # Emit the looping jump.
-        push_op(@ins,
-            resolve_condition_op(@comp_ops[1].result_kind, $op_name eq 'repeat_until'),
-            @comp_ops[1].result_reg,
-            $loop_lbl
-        );
-        
-        # Build instruction list
-        MAST::InstructionList.new(@ins, @comp_ops[1].result_reg, @comp_ops[1].result_kind)
-    });
+            # Test the condition and jump to the loop end if it's
+            # not met.
+            my @loop_il;
+            my $coerced := $qastcomp.coerce(@comp_ops[0], $res_kind);
+            if $repness {
+                # It's a repeat_ variant, need to go straight into the
+                # loop body unconditionally. Be sure to set the register
+                # for the result to something first.
+                if $res_kind == $MVM_reg_obj {
+                    push_op(@loop_il, 'null', $res_reg);
+                }
+                elsif $res_kind == $MVM_reg_str {
+                    push_op(@loop_il, 'null_s', $res_reg);
+                }
+                elsif $res_kind == $MVM_reg_num64 {
+                    push_op(@loop_il, 'const_n64', $res_reg,
+                        MAST::NVal.new( :value(0.0) ));
+                }
+                else {
+                    push_op(@loop_il, 'const_i64', $res_reg,
+                        MAST::IVal.new( :value(0) ));
+                }
+                push_op(@loop_il, 'goto', $redo_lbl);
+            }
+            nqp::push(@loop_il, $test_lbl);
+            push_ilist(@loop_il, $coerced);
+            push_op(@loop_il, 'set', $res_reg, $coerced.result_reg);
+            push_op(@loop_il,
+                resolve_condition_op(@comp_ops[0].result_kind, $op_name eq 'while'),
+                @comp_ops[0].result_reg,
+                $done_lbl
+            );
+
+            # Handle immediate blocks wanting the value as an arg.
+            if $*IMM_ARG {
+                $*IMM_ARG($res_reg);
+            }
+            
+            # Emit the loop body; stash the result.
+            my $body := $qastcomp.coerce(@comp_ops[1], $res_kind);
+            nqp::push(@loop_il, $redo_lbl);
+            push_ilist(@loop_il, $body);
+            push_op(@loop_il, 'set', $res_reg, $body.result_reg);
+            
+            # If there's a third child, evaluate it as part of the
+            # "next".
+            if $operands == 3 {
+                nqp::push(@loop_il, $next_lbl);
+                push_ilist(@loop_il, @comp_ops[2]);
+            }
+            
+            # Emit the iteration jump.
+            push_op(@loop_il, 'goto', $test_lbl);
+            
+            # Emit postlude, with exception handlers.
+            if $handler {
+                # XXX Add handlers
+                nqp::push(@loop_il, $done_lbl);
+                MAST::InstructionList.new(@loop_il, $res_reg, $res_kind)
+            }
+            else {
+                nqp::push(@loop_il, $done_lbl);
+                MAST::InstructionList.new(@loop_il, $res_reg, $res_kind)
+            }
+        });
+    }
 }
 
 QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
