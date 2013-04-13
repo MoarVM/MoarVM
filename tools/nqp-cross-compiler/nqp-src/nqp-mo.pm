@@ -70,93 +70,93 @@ my knowhow Archetypes {
 # From src\how\RoleToRoleApplier.pm
 
 knowhow RoleToRoleApplier {
-#    method apply($target, @roles) {
-#        # Aggregate all of the methods sharing names.
-#        my %meth_info;
-#        for @roles {
-#            my @methods := $_.HOW.methods($_);
-#            for @methods {
-#                my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
-#                my $meth := $_;
-#                my @meth_list;
-#                if nqp::defined(%meth_info{$name}) {
-#                    @meth_list := %meth_info{$name};
-#                }
-#                else {
-#                    %meth_info{$name} := @meth_list;
-#                }
-#                my $found := 0;
-#                for @meth_list {
-#                    if $meth =:= $_ {
-#                        $found := 1;
-#                    }
-#                }
-#                unless $found {
-#                    nqp::push(@meth_list, $meth);
-#                }
-#            }
-#        }
-#
-#        # Also need methods of target.
-#        my %target_meth_info;
-#        my @target_meths := $target.HOW.methods($target);
-#        for @target_meths {
-#            my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
-#            %target_meth_info{$name} := $_;
-#        }
-#
-#        # Process method list.
-#        for %meth_info {
-#            my $name := nqp::iterkey_s($_);
-#            my @add_meths := %meth_info{$name};
-#
-#            # Do we already have a method of this name? If so, ignore all of the
-#            # methods we have from elsewhere.
-#            unless nqp::defined(%target_meth_info{$name}) {
-#                # No methods in the target role. If only one, it's easy...
-#                if nqp::elems(@add_meths) == 1 {
-#                    $target.HOW.add_method($target, $name, @add_meths[0]);
-#                }
-#                else {
-#                    # More than one - add to collisions list.
-#                    $target.HOW.add_collision($target, $name);
-#                }
-#            }
-#        }
-#
-#        # Now do the other bits.
-#        my @all_roles;
-#        for @roles {
-#            my $how := $_.HOW;
-#
-#            # Compose is any attributes, unless there's a conflict.
-#            my @attributes := $how.attributes($_);
-#            for @attributes {
-#                my $add_attr := $_;
-#                my $skip := 0;
-#                my @cur_attrs := $target.HOW.attributes($target);
-#                for @cur_attrs {
-#                    if $_ =:= $add_attr {
-#                        $skip := 1;
-#                    }
-#                    else {
-#                        if $_.name eq $add_attr.name {
-#                            nqp::die("Attribute '" ~ $_.name ~ "' conflicts in role composition");
-#                        }
-#                    }
-#                }
-#                unless $skip {
-#                    $target.HOW.add_attribute($target, $add_attr);
-#                }
-#            }
-#
-#            # Build up full list.
-#            # XXX Not really right yet...
-#            nqp::push(@all_roles, $_);
-#        }
-#
-#        return @all_roles;
-#    }
+    method apply($target, @roles) {
+        # Aggregate all of the methods sharing names.
+        my %meth_info;
+        for @roles {
+            my @methods := $_.HOW.methods($_);
+            for @methods {
+                my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
+                my $meth := $_;
+                my @meth_list;
+                if nqp::defined(%meth_info{$name}) {
+                    @meth_list := %meth_info{$name};
+                }
+                else {
+                    %meth_info{$name} := @meth_list;
+                }
+                my $found := 0;
+                for @meth_list {
+                    if $meth =:= $_ {
+                        $found := 1;
+                    }
+                }
+                unless $found {
+                    nqp::push(@meth_list, $meth);
+                }
+            }
+        }
+
+        # Also need methods of target.
+        my %target_meth_info;
+        my @target_meths := $target.HOW.methods($target);
+        for @target_meths {
+            my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
+            %target_meth_info{$name} := $_;
+        }
+
+        # Process method list.
+        for %meth_info {
+            my $name := nqp::iterkey_s($_);
+            my @add_meths := %meth_info{$name};
+
+            # Do we already have a method of this name? If so, ignore all of the
+            # methods we have from elsewhere.
+            unless nqp::defined(%target_meth_info{$name}) {
+                # No methods in the target role. If only one, it's easy...
+                if nqp::elems(@add_meths) == 1 {
+                    $target.HOW.add_method($target, $name, @add_meths[0]);
+                }
+                else {
+                    # More than one - add to collisions list.
+                    $target.HOW.add_collision($target, $name);
+                }
+            }
+        }
+
+        # Now do the other bits.
+        my @all_roles;
+        for @roles {
+            my $how := $_.HOW;
+
+            # Compose is any attributes, unless there's a conflict.
+            my @attributes := $how.attributes($_);
+            for @attributes {
+                my $add_attr := $_;
+                my $skip := 0;
+                my @cur_attrs := $target.HOW.attributes($target);
+                for @cur_attrs {
+                    if $_ =:= $add_attr {
+                        $skip := 1;
+                    }
+                    else {
+                        if $_.name eq $add_attr.name {
+                            nqp::die("Attribute '" ~ $_.name ~ "' conflicts in role composition");
+                        }
+                    }
+                }
+                unless $skip {
+                    $target.HOW.add_attribute($target, $add_attr);
+                }
+            }
+
+            # Build up full list.
+            # XXX Not really right yet...
+            nqp::push(@all_roles, $_);
+        }
+
+        return @all_roles;
+    }
 }
 # From src\how\NQPConcreteRoleHOW.pm
 
@@ -332,13 +332,13 @@ knowhow RoleToClassApplier {
         nqp::existskey(%mt, $name);
     }
 
-#    sub has_attribute($target, $name) {
-#        my @attributes := $target.HOW.attributes($target, :local(1));
-#        for @attributes {
-#            if $_.name eq $name { return 1; }
-#        }
-#        return 0;
-#    }
+    sub has_attribute($target, $name) {
+        my @attributes := $target.HOW.attributes($target, :local(1));
+        for @attributes {
+            if $_.name eq $name { return 1; }
+        }
+        return 0;
+    }
 
     method apply($target, @roles) {
         # If we have many things to compose, then get them into a single helper
@@ -554,48 +554,48 @@ knowhow NQPParametricRoleHOW {
         NQPCurriedRoleHOW.new_type($obj, |@args)
     }
 
-#    # This specializes the role for the given class and builds a concrete
-#    # role.
-#    method specialize($obj, $class_arg, *@args) {
-#        # Run the body block to capture the arguments into the correct
-#        # type argument context.
-#        my $pad := $!body_block($class_arg, |@args);
-#
-#        # Construct a new concrete role.
-#        my $irole := NQPConcreteRoleHOW.new_type(:name($!name), :instance_of($obj));
-#
-#        # Copy attributes. (Nothing to reify in NQP as we don't currently
-#        # have parametric types that may end up in the signature.)
-#        for %!attributes {
-#            $irole.HOW.add_attribute($irole, nqp::iterval($_));
-#        }
-#
-#        # Capture methods in the correct lexical context.
-#        for %!methods {
-#            my $name := nqp::iterkey_s($_);
-#            my $meth := nqp::can(nqp::iterval($_), 'instantiate_generic')
-#                ?? nqp::iterval($_).instantiate_generic($pad)
-#                !! nqp::iterval($_).clone();
-#            if nqp::substr($name, 0, 12) eq '!!LATENAME!!' {
-#                $name := nqp::atkey($pad, nqp::substr($name, 12));
-#                $meth.'!set_name'($name);
-#            }
-#            $irole.HOW.add_method($irole, $name, $meth);
-#        }
-#        for @!multi_methods_to_incorporate {
-#            $irole.HOW.add_multi_method($irole, $_<name>, reify_method($_<code>));
-#        }
-#
-#        # Copy roles, instantiating them as we go.
-#        for @!roles {
-#            my $specialized := $_.HOW.specialize($_, $class_arg);
-#            $irole.HOW.add_role($irole, $specialized);
-#        }
-#
-#        # Compose and return produced role.
-#        $irole.HOW.compose($irole);
-#        return $irole;
-#    }
+    # This specializes the role for the given class and builds a concrete
+    # role.
+    method specialize($obj, $class_arg, *@args) {
+        # Run the body block to capture the arguments into the correct
+        # type argument context.
+        my $pad := $!body_block($class_arg, |@args);
+
+        # Construct a new concrete role.
+        my $irole := NQPConcreteRoleHOW.new_type(:name($!name), :instance_of($obj));
+
+        # Copy attributes. (Nothing to reify in NQP as we don't currently
+        # have parametric types that may end up in the signature.)
+        for %!attributes {
+            $irole.HOW.add_attribute($irole, nqp::iterval($_));
+        }
+
+        # Capture methods in the correct lexical context.
+        for %!methods {
+            my $name := nqp::iterkey_s($_);
+            my $meth := nqp::can(nqp::iterval($_), 'instantiate_generic')
+                ?? nqp::iterval($_).instantiate_generic($pad)
+                !! nqp::iterval($_).clone();
+            if nqp::substr($name, 0, 12) eq '!!LATENAME!!' {
+                $name := nqp::atkey($pad, nqp::substr($name, 12));
+                $meth.'!set_name'($name);
+            }
+            $irole.HOW.add_method($irole, $name, $meth);
+        }
+        for @!multi_methods_to_incorporate {
+            $irole.HOW.add_multi_method($irole, $_<name>, reify_method($_<code>));
+        }
+
+        # Copy roles, instantiating them as we go.
+        for @!roles {
+            my $specialized := $_.HOW.specialize($_, $class_arg);
+            $irole.HOW.add_role($irole, $specialized);
+        }
+
+        # Compose and return produced role.
+        $irole.HOW.compose($irole);
+        return $irole;
+    }
 
     ##
     ## Introspecty
@@ -975,98 +975,98 @@ knowhow NQPClassHOW {
         }
     }
 
-#    # Computes C3 MRO.
-#    sub compute_c3_mro($class) {
-#        my @immediate_parents := $class.HOW.parents($class, :local);
-#
-#        # Provided we have immediate parents...
-#        my @result;
-#        if nqp::elems(@immediate_parents) {
-#            if nqp::elems(@immediate_parents) == 1 {
-#                @result := compute_c3_mro(@immediate_parents[0]);
-#            } else {
-#                # Build merge list of lineraizations of all our parents, add
-#                # immediate parents and merge.
-#                my @merge_list;
-#                for @immediate_parents {
-#                    nqp::push(@merge_list, compute_c3_mro($_));
-#                }
-#                nqp::push(@merge_list, @immediate_parents);
-#                @result := c3_merge(@merge_list);
-#            }
-#        }
-#
-#        # Put this class on the start of the list, and we're done.
-#        nqp::unshift(@result, $class);
-#        return @result;
-#    }
-#
-#    # C3 merge routine.
-#    sub c3_merge(@merge_list) {
-#        my @result;
-#        my $accepted;
-#        my $something_accepted := 0;
-#        my $cand_count := 0;
-#
-#        # Try to find something appropriate to add to the MRO.
-#        for @merge_list {
-#            my @cand_list := $_;
-#            if @cand_list {
-#                my $rejected := 0;
-#                my $cand_class := @cand_list[0];
-#                $cand_count := $cand_count + 1;
-#                for @merge_list {
-#                    # Skip current list.
-#                    unless $_ =:= @cand_list {
-#                        # Is current candidate in the tail? If so, reject.
-#                        my $cur_pos := 1;
-#                        while $cur_pos <= nqp::elems($_) {
-#                            if $_[$cur_pos] =:= $cand_class {
-#                                $rejected := 1;
-#                            }
-#                            $cur_pos := $cur_pos + 1;
-#                        }
-#                    }
-#                }
-#
-#                # If we didn't reject it, this candidate will do.
-#                unless $rejected {
-#                    $accepted := $cand_class;
-#                    $something_accepted := 1;
-#                    last;
-#                }
-#            }
-#        }
-#
-#        # If we never found any candidates, return an empty list.
-#        if $cand_count == 0 {
-#            return @result;
-#        }
-#
-#        # If we didn't find anything to accept, error.
-#        unless $something_accepted {
-#            nqp::die("Could not build C3 linearization: ambiguous hierarchy");
-#        }
-#
-#        # Otherwise, remove what was accepted from the merge lists.
-#        my $i := 0;
-#        while $i < nqp::elems(@merge_list) {
-#            my @new_list;
-#            for @merge_list[$i] {
-#                unless $_ =:= $accepted {
-#                    nqp::push(@new_list, $_);
-#                }
-#            }
-#            @merge_list[$i] := @new_list;
-#            $i := $i + 1;
-#        }
-#
-#        # Need to merge what remains of the list, then put what was accepted on
-#        # the start of the list, and we're done.
-#        @result := c3_merge(@merge_list);
-#        nqp::unshift(@result, $accepted);
-#        return @result;
-#    }
+    # Computes C3 MRO.
+    sub compute_c3_mro($class) {
+        my @immediate_parents := $class.HOW.parents($class, :local);
+
+        # Provided we have immediate parents...
+        my @result;
+        if nqp::elems(@immediate_parents) {
+            if nqp::elems(@immediate_parents) == 1 {
+                @result := compute_c3_mro(@immediate_parents[0]);
+            } else {
+                # Build merge list of lineraizations of all our parents, add
+                # immediate parents and merge.
+                my @merge_list;
+                for @immediate_parents {
+                    nqp::push(@merge_list, compute_c3_mro($_));
+                }
+                nqp::push(@merge_list, @immediate_parents);
+                @result := c3_merge(@merge_list);
+            }
+        }
+
+        # Put this class on the start of the list, and we're done.
+        nqp::unshift(@result, $class);
+        return @result;
+    }
+
+    # C3 merge routine.
+    sub c3_merge(@merge_list) {
+        my @result;
+        my $accepted;
+        my $something_accepted := 0;
+        my $cand_count := 0;
+
+        # Try to find something appropriate to add to the MRO.
+        for @merge_list {
+            my @cand_list := $_;
+            if @cand_list {
+                my $rejected := 0;
+                my $cand_class := @cand_list[0];
+                $cand_count := $cand_count + 1;
+                for @merge_list {
+                    # Skip current list.
+                    unless $_ =:= @cand_list {
+                        # Is current candidate in the tail? If so, reject.
+                        my $cur_pos := 1;
+                        while $cur_pos <= nqp::elems($_) {
+                            if $_[$cur_pos] =:= $cand_class {
+                                $rejected := 1;
+                            }
+                            $cur_pos := $cur_pos + 1;
+                        }
+                    }
+                }
+
+                # If we didn't reject it, this candidate will do.
+                unless $rejected {
+                    $accepted := $cand_class;
+                    $something_accepted := 1;
+                    last;
+                }
+            }
+        }
+
+        # If we never found any candidates, return an empty list.
+        if $cand_count == 0 {
+            return @result;
+        }
+
+        # If we didn't find anything to accept, error.
+        unless $something_accepted {
+            nqp::die("Could not build C3 linearization: ambiguous hierarchy");
+        }
+
+        # Otherwise, remove what was accepted from the merge lists.
+        my $i := 0;
+        while $i < nqp::elems(@merge_list) {
+            my @new_list;
+            for @merge_list[$i] {
+                unless $_ =:= $accepted {
+                    nqp::push(@new_list, $_);
+                }
+            }
+            @merge_list[$i] := @new_list;
+            $i := $i + 1;
+        }
+
+        # Need to merge what remains of the list, then put what was accepted on
+        # the start of the list, and we're done.
+        @result := c3_merge(@merge_list);
+        nqp::unshift(@result, $accepted);
+        return @result;
+    }
 
     method publish_type_cache($obj) {
         my @tc;
@@ -1283,61 +1283,61 @@ knowhow NQPClassHOW {
     ## Checky
     ##
 
-#    method isa($obj, $check) {
-#        my $check-class := $check.WHAT;
-#        my $i := nqp::elems(@!mro);
-#        while $i > 0 {
-#            $i := $i - 1;
-#            if @!mro[$i] =:= $check-class {
-#                return 1;
-#            }
-#        }
-#        return 0;
-#    }
-#
-#    method does($obj, $check) {
-#        my $i := nqp::elems(@!done);
-#        while $i > 0 {
-#            $i := $i - 1;
-#            if @!done[$i] =:= $check {
-#                return 1;
-#            }
-#        }
-#        return 0;
-#    }
-#
-#    method can($obj, $name) {
-#        for @!mro {
-#            my %meths := $_.HOW.method_table($obj);
-#            my $can := %meths{$name};
-#            if nqp::defined($can) {
-#                return $can;
-#            }
-#        }
-#        return 0;
-#    }
-#
-#    ##
-#    ## Dispatchy
-#    ##
-#    method find_method($obj, $name, :$no_fallback = 0, :$no_trace = 0) {
-#        for @!mro {
-#            my %meths := $_.HOW.method_table($obj);
-#            if nqp::existskey(%meths, $name) {
-#                my $found := %meths{$name};
-#                return $!trace && !$no_trace && nqp::substr($name, 0, 1) ne '!' ??
-#                    -> *@pos, *%named { 
-#                        nqp::say(nqp::x('  ', $!trace_depth) ~ "Calling $name");
-#                        $!trace_depth := $!trace_depth + 1;
-#                        my $result := $found(|@pos, |%named);
-#                        $!trace_depth := $!trace_depth - 1;
-#                        $result
-#                    } !!
-#                    $found;
-#            }
-#        }
-#        nqp::null()
-#    }
+    method isa($obj, $check) {
+        my $check-class := $check.WHAT;
+        my $i := nqp::elems(@!mro);
+        while $i > 0 {
+            $i := $i - 1;
+            if @!mro[$i] =:= $check-class {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    method does($obj, $check) {
+        my $i := nqp::elems(@!done);
+        while $i > 0 {
+            $i := $i - 1;
+            if @!done[$i] =:= $check {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    method can($obj, $name) {
+        for @!mro {
+            my %meths := $_.HOW.method_table($obj);
+            my $can := %meths{$name};
+            if nqp::defined($can) {
+                return $can;
+            }
+        }
+        return 0;
+    }
+
+    ##
+    ## Dispatchy
+    ##
+    method find_method($obj, $name, :$no_fallback = 0, :$no_trace = 0) {
+        for @!mro {
+            my %meths := $_.HOW.method_table($obj);
+            if nqp::existskey(%meths, $name) {
+                my $found := %meths{$name};
+                return $!trace && !$no_trace && nqp::substr($name, 0, 1) ne '!' ??
+                    -> *@pos, *%named { 
+                        nqp::say(nqp::x('  ', $!trace_depth) ~ "Calling $name");
+                        $!trace_depth := $!trace_depth + 1;
+                        my $result := $found(|@pos, |%named);
+                        $!trace_depth := $!trace_depth - 1;
+                        $result
+                    } !!
+                    $found;
+            }
+        }
+        nqp::null()
+    }
 
     ##
     ## Cache-related
@@ -1350,51 +1350,51 @@ knowhow NQPClassHOW {
     }
     
     
-#    ##
-#    ## Mix-ins
-#    ## 
-#    has @!mixin_cache;
-#    method mixin($obj, $role) {
-#        # See if we mixed in before.
-#        my $found := 0;
-#        my $new_type;
-#        unless nqp::isnull(@!mixin_cache) {
-#            for @!mixin_cache -> $c_role, $c_type {
-#                if $c_role =:= $role {
-#                    $new_type := $c_type;
-#                    $found := 1;
-#                    last;
-#                }
-#            }
-#        }
-#        
-#        # Create and cache mixin-type if needed.
-#        unless $found {
-#            # Work out a type name for the post-mixed-in role.
-#            my $new_name := self.name($obj) ~ '+{' ~ $role.HOW.name($role) ~ '}';
-#            
-#            # Create new type, derive it from ourself and then add
-#            # all the roles we're mixing it.
-#            $new_type := self.new_type(:name($new_name), :repr($obj.REPR));
-#            $new_type.HOW.add_parent($new_type, $obj.WHAT);
-#            $new_type.HOW.add_role($new_type, $role);
-#            $new_type.HOW.compose($new_type);
-#            
-#            # Store the type.
-##            pir::nqp_disable_sc_write_barrier__v();
-#            @!mixin_cache := [] if nqp::isnull(@!mixin_cache);
-#            nqp::push(@!mixin_cache, $role);
-#            nqp::push(@!mixin_cache, $new_type);
-##            pir::nqp_enable_sc_write_barrier__v();
-#            1;
-#        }
-#        
-#        # If the original object was concrete, change its type by calling a
-#        # low level op. Otherwise, we just return the new type object
-#        nqp::isconcrete($obj) ??
-#            nqp::rebless($obj, $new_type) !!
-#            $new_type
-#    }
+    ##
+    ## Mix-ins
+    ## 
+    has @!mixin_cache;
+    method mixin($obj, $role) {
+        # See if we mixed in before.
+        my $found := 0;
+        my $new_type;
+        unless nqp::isnull(@!mixin_cache) {
+            for @!mixin_cache -> $c_role, $c_type {
+                if $c_role =:= $role {
+                    $new_type := $c_type;
+                    $found := 1;
+                    last;
+                }
+            }
+        }
+        
+        # Create and cache mixin-type if needed.
+        unless $found {
+            # Work out a type name for the post-mixed-in role.
+            my $new_name := self.name($obj) ~ '+{' ~ $role.HOW.name($role) ~ '}';
+            
+            # Create new type, derive it from ourself and then add
+            # all the roles we're mixing it.
+            $new_type := self.new_type(:name($new_name), :repr($obj.REPR));
+            $new_type.HOW.add_parent($new_type, $obj.WHAT);
+            $new_type.HOW.add_role($new_type, $role);
+            $new_type.HOW.compose($new_type);
+            
+            # Store the type.
+#            pir::nqp_disable_sc_write_barrier__v();
+            @!mixin_cache := [] if nqp::isnull(@!mixin_cache);
+            nqp::push(@!mixin_cache, $role);
+            nqp::push(@!mixin_cache, $new_type);
+#            pir::nqp_enable_sc_write_barrier__v();
+            1;
+        }
+        
+        # If the original object was concrete, change its type by calling a
+        # low level op. Otherwise, we just return the new type object
+        nqp::isconcrete($obj) ??
+            nqp::rebless($obj, $new_type) !!
+            $new_type
+    }
     
     ##
     ## Tracing
