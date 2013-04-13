@@ -280,42 +280,42 @@ class QAST::MASTCompiler {
         }
         else {
             my $res_reg := $*REGALLOC.fresh_register($desired);
-        if $desired == $MVM_reg_int64 {
-            if $got == $MVM_reg_num64 {
-                push_op($il, 'coerce_ni', $res_reg, $reg);
+            if $desired == $MVM_reg_int64 {
+                if $got == $MVM_reg_num64 {
+                    push_op($il, 'coerce_ni', $res_reg, $reg);
+                }
+                elsif $got == $MVM_reg_str {
+                    push_op($il, 'coerce_si', $res_reg, $reg);
+                }
+                else {
+                    nqp::die("Unknown coercion case for int");
+                }
             }
-            elsif $got == $MVM_reg_str {
-                push_op($il, 'coerce_si', $res_reg, $reg);
+            elsif $desired == $MVM_reg_num64 {
+                if $got == $MVM_reg_int64 {
+                    push_op($il, 'coerce_in', $res_reg, $reg);
+                }
+                elsif $got == $MVM_reg_str {
+                    push_op($il, 'coerce_sn', $res_reg, $reg);
+                }
+                else {
+                    nqp::die("Unknown coercion case for num");
+                }
+            }
+            elsif $desired == $MVM_reg_str {
+                if $got == $MVM_reg_int64 {
+                    push_op($il, 'coerce_is', $res_reg, $reg);
+                }
+                elsif $got == $MVM_reg_num64 {
+                    push_op($il, 'coerce_ns', $res_reg, $reg);
+                }
+                else {
+                    nqp::die("Unknown coercion case for str");
+                }
             }
             else {
-                nqp::die("Unknown coercion case for int");
+                nqp::die("Coercion from type '$got' to '$desired' NYI");
             }
-        }
-        elsif $desired == $MVM_reg_num64 {
-            if $got == $MVM_reg_int64 {
-                push_op($il, 'coerce_in', $res_reg, $reg);
-            }
-            elsif $got == $MVM_reg_str {
-                push_op($il, 'coerce_sn', $res_reg, $reg);
-            }
-            else {
-                nqp::die("Unknown coercion case for num");
-            }
-        }
-        elsif $desired == $MVM_reg_str {
-            if $got == $MVM_reg_int64 {
-                push_op($il, 'coerce_is', $res_reg, $reg);
-            }
-            elsif $got == $MVM_reg_num64 {
-                push_op($il, 'coerce_ns', $res_reg, $reg);
-            }
-            else {
-                nqp::die("Unknown coercion case for str");
-            }
-        }
-        else {
-            nqp::die("Coercion from type '$got' to '$desired' NYI");
-        }
             $*REGALLOC.release_register($reg, $got);
             $reg := $res_reg;
         }
