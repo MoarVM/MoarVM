@@ -102,36 +102,36 @@ $(OPS_DIR)/$(OPS)$(LOAD_EXT): $(OPS_DIR)/$(OPS_SOURCE) src/nodes_parrot.h ../../
 ## Cross-compiler
 
 MASTOps.pbc: ../../lib/MAST/Ops.nqp
-	nqp --target=pir ../../lib/MAST/Ops.nqp > MASTOps.pir
-	parrot --output=MASTOps.pbc MASTOps.pir
+	$(NQP) --target=pir ../../lib/MAST/Ops.nqp > MASTOps.pir
+	$(PARROT) --output=MASTOps.pbc MASTOps.pir
 
 MASTNodes.pbc: ../../lib/MAST/Nodes.nqp MASTOps.pbc
-	nqp --target=pir ../../lib/MAST/Nodes.nqp > MASTNodes.pir
-	parrot --output=MASTNodes.pbc MASTNodes.pir
+	$(NQP) --target=pir ../../lib/MAST/Nodes.nqp > MASTNodes.pir
+	$(PARROT) --output=MASTNodes.pbc MASTNodes.pir
 
 MASTCompiler.pbc: src/MASTCompiler.nqp MASTNodes.pbc MASTOps.pbc $(DYNEXT_TARGET)
-	nqp --vmlibs=mvmcc_ops --target=pir src/MASTCompiler.nqp > MASTCompiler.pir
-	parrot --output=MASTCompiler.pbc MASTCompiler.pir
+	$(NQP) --vmlibs=mvmcc_ops --target=pir src/MASTCompiler.nqp > MASTCompiler.pir
+	$(PARROT) --output=MASTCompiler.pbc MASTCompiler.pir
 
 MASTTesting.pbc: MASTCompiler.pbc src/MASTTesting.nqp QASTCompilerMAST.pbc
-	nqp --vmlibs=mvmcc_ops --target=pir src/MASTTesting.nqp > MASTTesting.pir
-	parrot --output=MASTTesting.pbc MASTTesting.pir
+	$(NQP) --vmlibs=mvmcc_ops --target=pir src/MASTTesting.nqp > MASTTesting.pir
+	$(PARROT) --output=MASTTesting.pbc MASTTesting.pir
 
 QASTOperationsMAST.pbc: MASTNodes.pbc MASTOps.pbc src/QASTOperationsMAST.nqp
-	nqp --target=pir src/QASTOperationsMAST.nqp > QASTOperationsMAST.pir
-	parrot --output=QASTOperationsMAST.pbc QASTOperationsMAST.pir
+	$(NQP) --target=pir src/QASTOperationsMAST.nqp > QASTOperationsMAST.pir
+	$(PARROT) --output=QASTOperationsMAST.pbc QASTOperationsMAST.pir
 
 QASTCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc QASTRegexCompilerMAST.pbc src/QASTCompilerMAST.nqp
-	nqp --target=pir src/QASTCompilerMAST.nqp > QASTCompilerMAST.pir
-	parrot --output=QASTCompilerMAST.pbc QASTCompilerMAST.pir
+	$(NQP) --target=pir src/QASTCompilerMAST.nqp > QASTCompilerMAST.pir
+	$(PARROT) --output=QASTCompilerMAST.pbc QASTCompilerMAST.pir
 
 QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/QASTRegexCompilerMAST.nqp NQPCursorQAST.pbc
-	nqp --target=pir src/QASTRegexCompilerMAST.nqp > QASTRegexCompilerMAST.pir
-	parrot --output=QASTRegexCompilerMAST.pbc QASTRegexCompilerMAST.pir
+	$(NQP) --target=pir src/QASTRegexCompilerMAST.nqp > QASTRegexCompilerMAST.pir
+	$(PARROT) --output=QASTRegexCompilerMAST.pbc QASTRegexCompilerMAST.pir
 
 NQPCursorQAST.pbc: src/NQPCursorQAST.nqp
-	nqp --target=pir src/NQPCursorQAST.nqp > NQPCursorQAST.pir
-	parrot --output=NQPCursorQAST.pbc NQPCursorQAST.pir
+	$(NQP) --target=pir src/NQPCursorQAST.nqp > NQPCursorQAST.pir
+	$(PARROT) --output=NQPCursorQAST.pbc NQPCursorQAST.pir
 
 ## NQP -> Moar
 
