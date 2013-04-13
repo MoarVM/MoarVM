@@ -10,3 +10,5 @@ src/ops/*.dll
 config.status
 *.pir
 *.pbc
+install
+parrot
