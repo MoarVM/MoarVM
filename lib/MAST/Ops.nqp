@@ -1195,6 +1195,20 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
+            ),
+            'newlexotic', nqp::hash(
+                'code', 157,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_ins
+                ]
+            ),
+            'lexoticresult', nqp::hash(
+                'code', 158,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [

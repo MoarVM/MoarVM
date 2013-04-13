@@ -168,6 +168,8 @@
 #define MVM_OP_throwcatlex 154
 #define MVM_OP_throwcatlexotic 155
 #define MVM_OP_die 156
+#define MVM_OP_newlexotic 157
+#define MVM_OP_lexoticresult 158
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
