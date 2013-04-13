@@ -272,6 +272,9 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "SCRef"),
         MVMSCRef_initialize(tc));
+    register_repr(tc,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lexotic"),
+        MVMLexotic_initialize(tc));
 }
 
 /* Get a representation's ID from its name. Note that the IDs may change so

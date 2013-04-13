@@ -116,6 +116,45 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
     run_handler(tc, lh);
 }
 
+/* Creates a new lexotic. */
+MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
+    MVMLexotic *lexotic;
+    
+    /* Locate handler associated with the specified label. */
+    MVMStaticFrame *sf = tc->cur_frame->static_info;
+    MVMFrameHandler *h = NULL;
+    MVMuint32 i;
+    for (i = 0; i < sf->num_handlers; i++) {
+        if (sf->handlers[i].action == MVM_EX_ACTION_GOTO &&
+                sf->handlers[i].goto_offset == offset) {
+            h = &sf->handlers[i];
+            break;
+        }
+    }
+    if (h == NULL)
+        MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
+    
+    /* Allocate lexotic object and set it up. */
+    lexotic = (MVMLexotic *)MVM_repr_alloc_init(tc, tc->instance->Lexotic);
+    lexotic->body.handler = h;
+    lexotic->body.frame = MVM_frame_inc_ref(tc, tc->cur_frame);
+    
+    return (MVMObject *)lexotic;
+}
+
+/* Unwinds to a lexotic captured handler. */
+void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFrame *f) {
+    if (in_caller_chain(tc, f)) {
+        LocatedHandler lh;
+        lh.frame = f;
+        lh.handler = h;
+        run_handler(tc, lh);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
+    }
+}
+
 /* Panics and shuts down the VM. Don't do this unless it's something quite
  * unrecoverable.
  * TODO: Some hook for embedders.

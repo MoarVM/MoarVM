@@ -129,6 +129,12 @@ static void create_stub_SCRef(MVMThreadContext *tc) {
     tc->instance->SCRef = repr->type_object_for(tc, NULL);
 }
 
+/* Creates a stub Lexotic (missing a meta-object). */
+static void create_stub_Lexotic(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_Lexotic);
+    tc->instance->Lexotic = repr->type_object_for(tc, NULL);
+}
+
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
 static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject   *self, *HOW, *type_object, *BOOTHash, *stash;
@@ -650,7 +656,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_repr_initialize_registry(tc);
 
     /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
-     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, and SCRef types. */
+     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef and Lexotic types. */
     create_stub_BOOTInt(tc);
     create_stub_BOOTNum(tc);
     create_stub_BOOTStr(tc);
@@ -662,6 +668,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_BOOTIter(tc);
     create_stub_BOOTContext(tc);
     create_stub_SCRef(tc);
+    create_stub_Lexotic(tc);
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "repr");
@@ -709,6 +716,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTContext);
     add_meta_object(tc, tc->instance->SCRef, "SCRef");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->SCRef);
+    add_meta_object(tc, tc->instance->Lexotic, "Lexotic");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->Lexotic);
     
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);

@@ -17,6 +17,7 @@
 #include "6model/reprs/MVMIter.h"
 #include "6model/reprs/MVMContext.h"
 #include "6model/reprs/SCRef.h"
+#include "6model/reprs/Lexotic.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -44,5 +45,6 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMIter                 15
 #define MVM_REPR_ID_MVMContext              16
 #define MVM_REPR_ID_SCRef                   17
+#define MVM_REPR_ID_Lexotic                 18
 
 void default_change_type(MVMThreadContext *tc, MVMObject *object, MVMObject *new_type);

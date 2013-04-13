@@ -51,6 +51,9 @@ typedef struct _MVMInstance {
      * serialization context itself). */
     MVMObject *SCRef;
     
+    /* Lexotic type, used in implementing return handling. */
+    MVMObject *Lexotic;
+    
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
     

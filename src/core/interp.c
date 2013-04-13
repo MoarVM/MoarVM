@@ -857,6 +857,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_newlexotic: {
+                        GET_REG(cur_op, 0).o = MVM_exception_newlexotic(tc,
+                            GET_UI32(cur_op, 2));
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_lexoticresult: {
+                        MVMObject *lex = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(lex) && REPR(lex)->ID == MVM_REPR_ID_Lexotic)
+                            GET_REG(cur_op, 0).o = ((MVMLexotic *)lex)->body.result;
+                        else
+                            MVM_exception_throw_adhoc(tc, "lexoticresult needs a Lexotic");
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
