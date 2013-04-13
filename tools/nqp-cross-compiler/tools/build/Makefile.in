@@ -156,13 +156,13 @@ NQPCOREMoar.setting.moarvm: nqp-src/NQPCORE.setting NQPCOREMoar.setting.pbc $(CR
 ## testing
 
 test: all
-	prove -e nqp t/moar t/qast
+	prove -e $(NQP) t/moar t/qast
 
 bench: all
-	prove -e nqp -v bench
+	prove -e $(NQP) -v bench
 
 nqptest: all
-	prove -e "nqp nqp-moar-cc.nqp" t/nqp
+	prove -e "$(NQP) nqp-moar-cc.nqp" t/nqp
 
 ## cleaning
 
