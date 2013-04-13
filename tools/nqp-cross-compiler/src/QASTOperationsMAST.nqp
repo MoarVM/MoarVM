@@ -688,11 +688,32 @@ for ('', 'repeat_') -> $repness {
             # Emit the iteration jump.
             push_op(@loop_il, 'goto', $test_lbl);
             
-            # Emit postlude, with exception handlers.
+            # Emit postlude, with exception handlers if needed. Note that we
+            # don't actually need to emit a bunch of handlers; since a handler
+            # scope will happily throw control to a label of our choosing, we
+            # just have the goto label be the place the control exception
+            # needs to send control to.
             if $handler {
-                # XXX Add handlers
-                nqp::push(@loop_il, $done_lbl);
-                MAST::InstructionList.new(@loop_il, $res_reg, $res_kind)
+                my @redo_il := [MAST::HandlerScope.new(
+                    :instructions(@loop_il),
+                    :category_mask($HandlerCategory::redo),
+                    :action($HandlerAction::unwind_and_goto),
+                    :goto($redo_lbl)
+                )];
+                my @next_il := [MAST::HandlerScope.new(
+                    :instructions(@redo_il),
+                    :category_mask($HandlerCategory::next),
+                    :action($HandlerAction::unwind_and_goto),
+                    :goto($operands == 3 ?? $next_lbl !! $test_lbl)
+                )];
+                my @last_il := [MAST::HandlerScope.new(
+                    :instructions(@next_il),
+                    :category_mask($HandlerCategory::last),
+                    :action($HandlerAction::unwind_and_goto),
+                    :goto($done_lbl)
+                )];
+                nqp::push(@last_il, $done_lbl);
+                MAST::InstructionList.new(@last_il, $res_reg, $res_kind)
             }
             else {
                 nqp::push(@loop_il, $done_lbl);
