@@ -923,58 +923,58 @@ knowhow NQPClassHOW {
         nqp::composetype($obj, $info)
     }
 
-#    method incorporate_multi_candidates($obj) {
-#        my $num_todo := nqp::elems(@!multi_methods_to_incorporate);
-#        my $i := 0;
-#        while $i != $num_todo {
-#            # Get method name and code.
-#            my $name := @!multi_methods_to_incorporate[$i]<name>;
-#            my $code := @!multi_methods_to_incorporate[$i]<code>;
-#
-#            # Do we have anything in the methods table already in
-#            # this class?
-#            my $dispatcher := %!methods{$name};
-#            if nqp::defined($dispatcher) {
-#                # Yes. Only or dispatcher, though? If only, error. If
-#                # dispatcher, simply add new dispatchee.
-#                if nqp::can($dispatcher, 'is_dispatcher') && $dispatcher.is_dispatcher {
-#                    $dispatcher.add_dispatchee($code);
-#                }
-#                else {
-#                    nqp::die("Cannot have a multi candidate for $name when an only method is also in the class");
-#                }
-#            }
-#            else {
-#                # Go hunting in the MRO for a proto.
-#                my $j := 1;
-#                my $found := 0;
-#                while $j != nqp::elems(@!mro) && !$found {
-#                    my $parent := @!mro[$j];
-#                    my %meths := $parent.HOW.method_table($parent);
-#                    my $dispatcher := %meths{$name};
-#                    if nqp::defined($dispatcher) {
-#                        # Found a possible - make sure it's a dispatcher, not
-#                        # an only.
-#                        if nqp::can($dispatcher, 'is_dispatcher') && $dispatcher.is_dispatcher {
-#                            my $new_disp := $dispatcher.derive_dispatcher();
-#                            $new_disp.add_dispatchee($code);
-#                            %!methods{$name} := $new_disp;
-#                            $found := 1;
-#                        }
-#                        else {
-#                            nqp::die("Could not find a proto for multi $name (it may exist, but an only is hiding it if so)");
-#                        }
-#                    }
-#                    $j := $j + 1;
-#                }
-#                unless $found {
-#                    nqp::die("Could not find a proto for multi $name, and proto generation is NYI");
-#                }
-#            }
-#            $i := $i + 1;
-#        }
-#    }
-#
+    method incorporate_multi_candidates($obj) {
+        my $num_todo := nqp::elems(@!multi_methods_to_incorporate);
+        my $i := 0;
+        while $i != $num_todo {
+            # Get method name and code.
+            my $name := @!multi_methods_to_incorporate[$i]<name>;
+            my $code := @!multi_methods_to_incorporate[$i]<code>;
+
+            # Do we have anything in the methods table already in
+            # this class?
+            my $dispatcher := %!methods{$name};
+            if nqp::defined($dispatcher) {
+                # Yes. Only or dispatcher, though? If only, error. If
+                # dispatcher, simply add new dispatchee.
+                if nqp::can($dispatcher, 'is_dispatcher') && $dispatcher.is_dispatcher {
+                    $dispatcher.add_dispatchee($code);
+                }
+                else {
+                    nqp::die("Cannot have a multi candidate for $name when an only method is also in the class");
+                }
+            }
+            else {
+                # Go hunting in the MRO for a proto.
+                my $j := 1;
+                my $found := 0;
+                while $j != nqp::elems(@!mro) && !$found {
+                    my $parent := @!mro[$j];
+                    my %meths := $parent.HOW.method_table($parent);
+                    my $dispatcher := %meths{$name};
+                    if nqp::defined($dispatcher) {
+                        # Found a possible - make sure it's a dispatcher, not
+                        # an only.
+                        if nqp::can($dispatcher, 'is_dispatcher') && $dispatcher.is_dispatcher {
+                            my $new_disp := $dispatcher.derive_dispatcher();
+                            $new_disp.add_dispatchee($code);
+                            %!methods{$name} := $new_disp;
+                            $found := 1;
+                        }
+                        else {
+                            nqp::die("Could not find a proto for multi $name (it may exist, but an only is hiding it if so)");
+                        }
+                    }
+                    $j := $j + 1;
+                }
+                unless $found {
+                    nqp::die("Could not find a proto for multi $name, and proto generation is NYI");
+                }
+            }
+            $i := $i + 1;
+        }
+    }
+
 #    # Computes C3 MRO.
 #    sub compute_c3_mro($class) {
 #        my @immediate_parents := $class.HOW.parents($class, :local);
@@ -1147,57 +1147,57 @@ knowhow NQPClassHOW {
     #   2 class name attr_name = try to find initialization value, or set nqp::list()
     #   3 class name attr_name = try to find initialization value, or set nqp::hash()
     #   4 class attr_name code = call default value closure if needed
-#    method create_BUILDPLAN($obj) {
-#        # First, we'll create the build plan for just this class.
-#        my @plan;
-#        my @attrs := $obj.HOW.attributes($obj, :local(1));
-#        
-#        # Does it have its own BUILD?
-#        my $build := $obj.HOW.find_method($obj, 'BUILD', :no_fallback(1));
-#        if nqp::defined($build) {
-#            # We'll call the custom one.
-#            nqp::push(@plan, [0, $build]);
-#        }
-#        else {
-#            # No custom BUILD. Rather than having an actual BUILD
-#            # in Mu, we produce ops here per attribute that may
-#            # need initializing.
-#            for @attrs {
-#                my $attr_name := $_.name;
-#                my $name      := nqp::substr($attr_name, 2);
-#                my $sigil     := nqp::substr($attr_name, 0, 1);
-#                my $sigop     := $sigil eq '@' ?? 2 !! $sigil eq '%' ?? 3 !! 1;
-#                nqp::push(@plan, [$sigop, $obj, $name, $attr_name]);
-#            }
-#        }
-#        
-#        # Check if there's any default values to put in place.
-#        for @attrs {
-#            if nqp::can($_, 'build') {
-#                my $default := $_.build;
-#                if nqp::defined($default) {
-#                    nqp::push(@plan, [4, $obj, $_.name, $default]);
-#                }
-#            }
-#        }
-#        
-#        # Install plan for this class.
-#        @!BUILDPLAN := @plan;
-#        
-#        # Now create the full plan by getting the MRO, and working from
-#        # least derived to most derived, copying the plans.
-#        my @all_plan;
-#        my @mro := self.mro($obj);
-#        my $i := nqp::elems(@mro);
-#        while $i > 0 {
-#            $i := $i - 1;
-#            my $class := @mro[$i];
-#            for $class.HOW.BUILDPLAN($class) {
-#                nqp::push(@all_plan, $_);
-#            }
-#        }
-#        @!BUILDALLPLAN := @all_plan;
-#    }
+    method create_BUILDPLAN($obj) {
+        # First, we'll create the build plan for just this class.
+        my @plan;
+        my @attrs := $obj.HOW.attributes($obj, :local(1));
+        
+        # Does it have its own BUILD?
+        my $build := $obj.HOW.find_method($obj, 'BUILD', :no_fallback(1));
+        if nqp::defined($build) {
+            # We'll call the custom one.
+            nqp::push(@plan, [0, $build]);
+        }
+        else {
+            # No custom BUILD. Rather than having an actual BUILD
+            # in Mu, we produce ops here per attribute that may
+            # need initializing.
+            for @attrs {
+                my $attr_name := $_.name;
+                my $name      := nqp::substr($attr_name, 2);
+                my $sigil     := nqp::substr($attr_name, 0, 1);
+                my $sigop     := $sigil eq '@' ?? 2 !! $sigil eq '%' ?? 3 !! 1;
+                nqp::push(@plan, [$sigop, $obj, $name, $attr_name]);
+            }
+        }
+        
+        # Check if there's any default values to put in place.
+        for @attrs {
+            if nqp::can($_, 'build') {
+                my $default := $_.build;
+                if nqp::defined($default) {
+                    nqp::push(@plan, [4, $obj, $_.name, $default]);
+                }
+            }
+        }
+        
+        # Install plan for this class.
+        @!BUILDPLAN := @plan;
+        
+        # Now create the full plan by getting the MRO, and working from
+        # least derived to most derived, copying the plans.
+        my @all_plan;
+        my @mro := self.mro($obj);
+        my $i := nqp::elems(@mro);
+        while $i > 0 {
+            $i := $i - 1;
+            my $class := @mro[$i];
+            for $class.HOW.BUILDPLAN($class) {
+                nqp::push(@all_plan, $_);
+            }
+        }
+        @!BUILDALLPLAN := @all_plan;
+    }
     
     method BUILDPLAN($obj) {
         @!BUILDPLAN
@@ -1344,9 +1344,9 @@ knowhow NQPClassHOW {
     ##
     method cache($obj, $key, $value_generator) {
         %!caches := nqp::hash() unless nqp::ishash(%!caches);
-#        nqp::existskey(%!caches, $key) ??
-#            %!caches{$key} !!
-#            (%!caches{$key} := $value_generator())
+        nqp::existskey(%!caches, $key) ??
+            %!caches{$key} !!
+            (%!caches{$key} := $value_generator())
     }
     
     
