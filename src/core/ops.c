@@ -962,6 +962,12 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_mod_n,
+        "mod_n",
+        3,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
 };
 static MVMOpInfo MVM_op_info_dev[] = {
     {
@@ -2668,7 +2674,7 @@ static MVMOpInfo *MVM_op_info[] = {
 static unsigned char MVM_op_banks = 8;
 
 static unsigned char MVM_opcounts_by_bank[] = {
-    159,
+    160,
     7,
     37,
     16,
