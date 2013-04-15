@@ -158,6 +158,7 @@ BANK 0 primitives
 0x9C    die                 w(obj) r(str)
 0x9D    newlexotic          w(obj) ins
 0x9E    lexoticresult       w(obj) r(obj)
+0x9F    mod_n               w(num64) r(num64) r(num64)
 
 BANK 1 dev
 0x00    say_i               r(int64)
