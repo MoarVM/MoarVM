@@ -1401,7 +1401,7 @@ knowhow NQPClassHOW {
     ##
     method trace-on($obj, $depth?) {
         $!trace := 1;
-#        $!trace_depth := $depth // 0;
+        $!trace_depth := $depth // 0;
         nqp::setmethcacheauth($obj, 0);
         nqp::setmethcache($obj, nqp::hash());
     }
