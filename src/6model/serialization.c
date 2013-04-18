@@ -206,7 +206,7 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
     free(reader);
     MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
-    MVM_exception_throw_adhoc(tc, messageFormat, args);
+    MVM_exception_throw_adhoc_va(tc, messageFormat, args);
     va_end(args);
 }
 

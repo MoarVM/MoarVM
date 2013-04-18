@@ -172,11 +172,17 @@ void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
 /* Throws an ad-hoc (untyped) exception. */
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) {
-    /* XXX Well, need to implement exceptions. So for now just mimic panic. */
     va_list args;
     va_start(args, messageFormat);
-    vfprintf(stderr, messageFormat, args);
+    MVM_exception_throw_adhoc_va(tc, messageFormat, args);
     va_end(args);
+}
+
+/* Throws an ad-hoc (untyped) exception. */
+MVM_NO_RETURN
+void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) {
+    /* XXX Well, need to implement exceptions. So for now just mimic panic. */
+    vfprintf(stderr, messageFormat, args);
     fwrite("\n", 1, 1, stderr);
     exit(1);
 }
