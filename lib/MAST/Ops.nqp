@@ -1829,10 +1829,11 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
-            '__INVALID_0__', nqp::hash(
+            'getwhere', nqp::hash(
                 'code', 18,
                 'operands', [
-                    
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
             'eqaddr', nqp::hash(

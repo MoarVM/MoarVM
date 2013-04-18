@@ -1445,9 +1445,10 @@ static MVMOpInfo MVM_op_info_object[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP___INVALID_0__,
-        "__INVALID_0__",
-        0,
+        MVM_OP_getwhere,
+        "getwhere",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_eqaddr,

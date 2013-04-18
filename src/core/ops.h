@@ -257,7 +257,7 @@
 #define MVM_OP_bindkey_o 15
 #define MVM_OP_existskey 16
 #define MVM_OP_deletekey 17
-#define MVM_OP___INVALID_0__ 18
+#define MVM_OP_getwhere 18
 #define MVM_OP_eqaddr 19
 #define MVM_OP_reprname 20
 #define MVM_OP_isconcrete 21
