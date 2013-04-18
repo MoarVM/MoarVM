@@ -3,6 +3,7 @@
 typedef struct _MVMCodeBody {
     MVMStaticFrame *sf;
     MVMFrame       *outer;
+    MVMObject      *code_object;
 } MVMCodeBody;
 typedef struct _MVMCode {
     MVMObject common;

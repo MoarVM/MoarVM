@@ -1937,14 +1937,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s) ? 0 : 1;
                         cur_op += 4;
                         break;
-                    case MVM_OP_getcodeobj:
-                    case MVM_OP_setcodeobj:
-                        MVM_exception_throw_adhoc(tc, "oops, these shouldn't have been spec'd");
+                    case MVM_OP_getcodeobj: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (REPR(obj)->ID == MVM_REPR_ID_MVMCode)
+                            GET_REG(cur_op, 0).o = ((MVMCode *)obj)->body.code_object;
+                        else
+                            MVM_exception_throw_adhoc(tc, "setcodeobj needs a code ref");
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_setcodeobj: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
+                            MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.code_object,
+                                GET_REG(cur_op, 2).o);
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "setcodeobj needs a code ref");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_setcodename: {
-                        MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
-                        c->body.sf->name = GET_REG(cur_op, 4).s;
-                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
-                        cur_op += 6;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
+                            MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.sf->name,
+                                GET_REG(cur_op, 2).s);
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "setcodename needs a code ref");
+                        }
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_forceouterctx: {

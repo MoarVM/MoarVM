@@ -2521,7 +2521,6 @@ class MAST::Ops {
             'setcodeobj', nqp::hash(
                 'code', 109,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
@@ -2529,7 +2528,6 @@ class MAST::Ops {
             'setcodename', nqp::hash(
                 'code', 110,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
