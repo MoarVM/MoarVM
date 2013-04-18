@@ -755,35 +755,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
-                    case MVM_OP_smrt_numify: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMnum64 result;
-                        if (!obj || !IS_CONCRETE(obj))
-                            result = 0.0;
-                        else {
-                            MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
-                            if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
-                                result = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
-                                result = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-                                result = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-                            else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
-                                result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
-                                result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else
-                                MVM_exception_throw_adhoc(tc, "cannot numify this");
-                        }
-                        GET_REG(cur_op, 0).n64 = result;
+                    case MVM_OP_smrt_numify:
+                        GET_REG(cur_op, 0).n64 = MVM_coerce_smart_numify(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
-                    }
-                    case MVM_OP_smrt_strify: {
+                    case MVM_OP_smrt_strify:
                         GET_REG(cur_op, 0).s = MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
-                    }
                     case MVM_OP_param_sp:
                         GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, &tc->cur_frame->params, GET_UI16(cur_op, 2));
                         cur_op += 4;
