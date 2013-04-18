@@ -245,13 +245,23 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     if (repr_data->auto_viv_values) {
                         MVMObject *value = repr_data->auto_viv_values[slot];
                         if (value != NULL) {
-                            MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                            REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                            set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], cloned);
-                            result_reg->o = cloned;
+                            if (IS_CONCRETE(value)) {
+                                MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
+                                REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                                set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], cloned);
+                                result_reg->o = cloned;
+                            }
+                            else {
+                                set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);
+                            }
+                        }
+                        else {
+                            result_reg->o = NULL;
                         }
                     }
-                    result_reg->o = NULL;
+                    else {
+                        result_reg->o = NULL;
+                    }
                 }
             }
             else {
