@@ -831,6 +831,21 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     st->REPR_data = repr_data;
 }
 
+/* Deserializes the data. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMuint16 num_attributes = repr_data->num_attributes;
+    MVMuint16 i;
+    for (i = 0; i < num_attributes; i++) {
+        MVMuint16 a_offset = repr_data->attribute_offsets[i];
+        MVMSTable *a_st = repr_data->flattened_stables[i];
+        if (a_st)
+            a_st->REPR->deserialize(tc, a_st, root, (char *)data + a_offset, reader);
+        else
+            set_obj_at_offset(tc, root, data, a_offset, reader->read_ref(tc, reader));
+    }
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
@@ -872,5 +887,6 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
     this_repr->deserialize_stable_size = deserialize_stable_size;
     this_repr->deserialize_repr_data = deserialize_repr_data;
+    this_repr->deserialize = deserialize;
     return this_repr;
 }
