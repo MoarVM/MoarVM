@@ -567,6 +567,36 @@ for <if unless> -> $op_name {
     });
 }
 
+QAST::MASTOperations.add_core_op('defor', -> $qastcomp, $op {
+    if +$op.list != 2 {
+        nqp::die("Operation 'defor' needs 2 operands");
+    }
+    
+    # Compile the expression.
+    my $res_reg := $*REGALLOC.fresh_o();
+    my $expr := $qastcomp.as_mast($op[0], :want($MVM_reg_obj));
+    
+    # Emit defined check.
+    my $def_reg := $*REGALLOC.fresh_i();
+    my $lbl := MAST::Label.new($qastcomp.unique('defor'));
+    push_op($expr.instructions, 'set', $res_reg, $expr.result_reg);
+    push_op($expr.instructions, 'isconcrete', $def_reg, $res_reg);
+    push_op($expr.instructions, 'if_i', $def_reg, $lbl);
+    $*REGALLOC.release_register($def_reg, $MVM_reg_int64);
+    
+    # Emit "then" part.
+    my $then := $qastcomp.as_mast($op[1], :want($MVM_reg_obj));
+    $*REGALLOC.release_register($expr.result_reg, $MVM_reg_obj);
+    $expr.append($then);
+    push_op($expr.instructions, 'set', $res_reg, $then.result_reg);
+    nqp::push($expr.instructions, $lbl);
+    $*REGALLOC.release_register($then.result_reg, $MVM_reg_obj);
+    my $newer := MAST::InstructionList.new(nqp::list(), $res_reg, $MVM_reg_obj);
+    $expr.append($newer);
+    
+    $expr
+});
+
 QAST::MASTOperations.add_core_op('ifnull', -> $qastcomp, $op {
     if +$op.list != 2 {
         nqp::die("The 'ifnull' op expects two children");
