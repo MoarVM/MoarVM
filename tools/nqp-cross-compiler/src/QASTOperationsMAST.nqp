@@ -1512,8 +1512,10 @@ QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 
 # code object related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
+QAST::MASTOperations.add_core_moarop_mapping('getcodeobj', 'getcodeobj');
+QAST::MASTOperations.add_core_moarop_mapping('setcodeobj', 'setcodeobj', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');
-QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename');
+QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename', 0);
 QAST::MASTOperations.add_core_moarop_mapping('forceouterctx', 'forceouterctx', 0);
 QAST::MASTOperations.add_core_op('setstaticlex', -> $qastcomp, $op {
     if +@($op) != 3 {
