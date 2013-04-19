@@ -1473,6 +1473,7 @@ QAST::MASTOperations.add_core_moarop_mapping('bootnumarray', 'bootnumarray');
 QAST::MASTOperations.add_core_moarop_mapping('bootstrarray', 'bootstrarray');
 QAST::MASTOperations.add_core_moarop_mapping('boothash', 'boothash');
 QAST::MASTOperations.add_core_moarop_mapping('create', 'create');
+QAST::MASTOperations.add_core_moarop_mapping('clone', 'clone');
 QAST::MASTOperations.add_core_moarop_mapping('isconcrete', 'isconcrete');
 QAST::MASTOperations.add_core_moarop_mapping('iscont', 'iscont');
 QAST::MASTOperations.add_core_moarop_mapping('decont', 'decont');
