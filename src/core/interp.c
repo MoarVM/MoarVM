@@ -1946,7 +1946,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (REPR(obj)->ID == MVM_REPR_ID_MVMCode)
                             GET_REG(cur_op, 0).o = ((MVMCode *)obj)->body.code_object;
                         else
-                            MVM_exception_throw_adhoc(tc, "setcodeobj needs a code ref");
+                            MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
                         cur_op += 4;
                         break;
                     }
