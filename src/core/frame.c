@@ -16,12 +16,16 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     static_frame->pool_index = apr_atomic_inc32(&tc->instance->num_frame_pools);
     if (static_frame->pool_index >= tc->frame_pool_table_size) {
         /* Grow the threadcontext's pool table */
+        MVMuint32 old_size = tc->frame_pool_table_size;
         MVMuint32 new_size = tc->frame_pool_table_size;
         do {
             new_size *= 2;
         } while (static_frame->pool_index >= new_size);
         
-        tc->frame_pool_table = realloc(tc->frame_pool_table, (size_t)new_size);
+        tc->frame_pool_table = realloc(tc->frame_pool_table,
+            new_size * sizeof(MVMFrame *));
+        memset(tc->frame_pool_table + old_size, 0,
+            (new_size - old_size) * sizeof(MVMFrame *));
         tc->frame_pool_table_size = new_size;
     }
     
