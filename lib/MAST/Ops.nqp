@@ -1288,6 +1288,7 @@ class MAST::Ops {
             'multicacheadd', nqp::hash(
                 'code', 169,
                 'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj

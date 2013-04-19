@@ -1025,8 +1025,8 @@ static MVMOpInfo MVM_op_info_primitives[] = {
     {
         MVM_OP_multicacheadd,
         "multicacheadd",
-        3,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        4,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_multicachefind,

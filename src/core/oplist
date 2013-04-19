@@ -168,7 +168,7 @@ BANK 0 primitives
 0xA6    captureposarg_s     w(str) r(obj) r(int64)
 0xA7    captureposprimspec  w(int64) r(obj) r(int64)
 0xA8    invokewithcapture   w(obj) r(obj) r(obj)
-0xA9    multicacheadd       r(obj) r(obj) r(obj)
+0xA9    multicacheadd       w(obj) r(obj) r(obj) r(obj)
 0xAA    multicachefind      w(obj) r(obj) r(obj)
 
 BANK 1 dev
