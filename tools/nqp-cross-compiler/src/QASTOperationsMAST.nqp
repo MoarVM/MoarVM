@@ -1217,6 +1217,22 @@ QAST::MASTOperations.add_core_moarop_mapping('curcode', 'curcode');
 QAST::MASTOperations.add_core_moarop_mapping('callercode', 'callercode');
 QAST::MASTOperations.add_core_moarop_mapping('ctxlexpad', 'ctxlexpad');
 
+# Argument capture processing, for writing things like multi-dispatchers in
+# high level languages.
+QAST::MASTOperations.add_core_moarop_mapping('usecapture', 'usecapture');
+QAST::MASTOperations.add_core_moarop_mapping('savecapture', 'savecapture');
+QAST::MASTOperations.add_core_moarop_mapping('captureposelems', 'captureposelems');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg', 'captureposarg');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg_i', 'captureposarg_i');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg_n', 'captureposarg_n');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg_s', 'captureposarg_s');
+QAST::MASTOperations.add_core_moarop_mapping('captureposprimspec', 'captureposprimspec');
+
+# Multiple dispatch related.
+QAST::MASTOperations.add_core_moarop_mapping('invokewithcapture', 'invokewithcapture');
+QAST::MASTOperations.add_core_moarop_mapping('multicacheadd', 'multicacheadd');
+QAST::MASTOperations.add_core_moarop_mapping('multicachefind', 'multicachefind');
+
 # Constant mapping.
 my %const_map := nqp::hash(
     'CCLASS_ANY',           65535,
