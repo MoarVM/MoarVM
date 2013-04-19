@@ -2147,20 +2147,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_curcode: {
-                        MVMObject *code = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCode);
-                        ((MVMCode *)code)->body.sf = tc->cur_frame->static_info;
-                        GET_REG(cur_op, 0).o = code;
+                    case MVM_OP_curcode:
+                        GET_REG(cur_op, 0).o = tc->cur_frame->code_ref;
                         cur_op += 2;
                         break;
-                    }
                     case MVM_OP_callercode: {
-                        MVMObject *code = NULL;;
-                        if (tc->cur_frame->caller) {
-                            code = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCode);
-                            ((MVMCode *)code)->body.sf = tc->cur_frame->caller->static_info;
-                        }
-                        GET_REG(cur_op, 0).o = code;
+                        GET_REG(cur_op, 0).o = tc->cur_frame->caller
+                            ? tc->cur_frame->caller->code_ref
+                            : NULL;
                         cur_op += 2;
                         break;
                     }
