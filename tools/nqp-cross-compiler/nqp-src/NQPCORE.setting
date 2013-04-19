@@ -51,23 +51,23 @@ my knowhow NQPRoutine {
     }
     
     # Derives a new dispatcher.
-#    method derive_dispatcher() {
-#        # Clone the underlying VM code ref.
-#        my $do  := nqp::clone($!do);
-#        
-#        # Clone and attach the code object.
-#        my $der := nqp::clone(self);
-#        nqp::bindattr($der, NQPRoutine, '$!do', $do);
-#        nqp::bindattr($der, NQPRoutine, '$!dispatchees', nqp::clone($!dispatchees));
-#        nqp::setcodeobj($do, $der);
-#        
-#        # If needed, arrange for a fixup of the cloned code-ref.
-#        unless nqp::isnull($!clone_callback) {
-#            $!clone_callback($!do, $do, $der);
-#        }
-#        
-#        $der
-#    }
+    method derive_dispatcher() {
+        # Clone the underlying VM code ref.
+        my $do  := nqp::clone($!do);
+        
+        # Clone and attach the code object.
+        my $der := nqp::clone(self);
+        nqp::bindattr($der, NQPRoutine, '$!do', $do);
+        nqp::bindattr($der, NQPRoutine, '$!dispatchees', nqp::clone($!dispatchees));
+        nqp::setcodeobj($do, $der);
+        
+        # If needed, arrange for a fixup of the cloned code-ref.
+        unless nqp::isnull($!clone_callback) {
+            $!clone_callback($!do, $do, $der);
+        }
+        
+        $der
+    }
     
     # Checks if one type is narrower than the other.
     sub is_narrower_type($a, $b) {
@@ -349,22 +349,22 @@ my knowhow NQPRoutine {
 #        }
 #    }
     
-#    method clone() {
-#        # Clone the underlying VM code ref.
-#        my $do  := nqp::clone($!do);
-#        
-#        # Clone and attach the code object.
-#        my $der := nqp::clone(self);
-#        nqp::bindattr($der, NQPRoutine, '$!do', $do);
-#        nqp::setcodeobj($do, $der);
-#        
-#        # If needed, arrange for a fixup of the cloned code-ref.
-#        unless nqp::isnull($!clone_callback) {
-#            $!clone_callback($!do, $do, $der);
-#        }
-#        
-#        $der
-#    }
+    method clone() {
+        # Clone the underlying VM code ref.
+        my $do  := nqp::clone($!do);
+        
+        # Clone and attach the code object.
+        my $der := nqp::clone(self);
+        nqp::bindattr($der, NQPRoutine, '$!do', $do);
+        nqp::setcodeobj($do, $der);
+        
+        # If needed, arrange for a fixup of the cloned code-ref.
+        unless nqp::isnull($!clone_callback) {
+            $!clone_callback($!do, $do, $der);
+        }
+        
+        $der
+    }
     
     method !set_name($name) {
         nqp::setcodename($!do, $name);
@@ -445,22 +445,22 @@ my knowhow NQPRegex {
     method NESTED_CODES() {
         nqp::isnull(@!nested_codes) ?? nqp::list() !! @!nested_codes
     }
-#    method clone() {
-#        # Clone the underlying VM code ref.
-#        my $do  := nqp::clone($!do);
-#        
-#        # Clone and attach the code object.
-#        my $der := nqp::clone(self);
-#        nqp::bindattr($der, NQPRegex, '$!do', $do);
-#        nqp::setcodeobj($do, $der);
-#        
-#        # If needed, arrange for a fixup of the cloned code-ref.
-#        unless nqp::isnull($!clone_callback) {
-#            $!clone_callback($!do, $do, $der);
-#        }
-#        
-#        $der
-#    }
+    method clone() {
+        # Clone the underlying VM code ref.
+        my $do  := nqp::clone($!do);
+        
+        # Clone and attach the code object.
+        my $der := nqp::clone(self);
+        nqp::bindattr($der, NQPRegex, '$!do', $do);
+        nqp::setcodeobj($do, $der);
+        
+        # If needed, arrange for a fixup of the cloned code-ref.
+        unless nqp::isnull($!clone_callback) {
+            $!clone_callback($!do, $do, $der);
+        }
+        
+        $der
+    }
     my $nfa_type;
     method SET_NFA_TYPE($type) {
         $nfa_type := $type;
