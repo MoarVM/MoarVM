@@ -58,6 +58,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
     
+    /* Fix up main thread's usecapture. */
+    instance->main_thread->cur_usecapture = MVM_repr_alloc_init(instance->main_thread, instance->CallCapture);
+    
     /* Create main thread object, and also make it the start of the all threads
      * linked list. */
     instance->threads = 
