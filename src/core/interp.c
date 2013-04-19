@@ -855,9 +855,111 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_usecapture:
+                    case MVM_OP_usecapture: {
+                        MVMCallCapture *cc = (MVMCallCapture *)tc->cur_usecapture;
+                        cc->body.mode = MVM_CALL_CAPTURE_MODE_USE;
+                        cc->body.apc  = &tc->cur_frame->params;
+                        GET_REG(cur_op, 0).o = tc->cur_usecapture;
+                        cur_op += 2;
+                        break;
+                    }
                     case MVM_OP_savecapture:
-                        MVM_exception_throw_adhoc(tc, "usecapture/savecapture NYI");
+                        MVM_exception_throw_adhoc(tc, "savecapture NYI");
+                        break;
+                    case MVM_OP_captureposelems: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).i64 = cc->body.apc->num_pos;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_captureposarg: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).o = MVM_args_get_pos_obj(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->o;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposarg_i: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).i64 = MVM_args_get_pos_int(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->i64;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg_i needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposarg_n: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).n64 = MVM_args_get_pos_num(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->n64;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposarg_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).s = MVM_args_get_pos_str(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->s;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg_s needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposprimspec:
+                        MVM_exception_throw_adhoc(tc, "captureposprimspec NYI");
+                        break;
+                    case MVM_OP_invokewithcapture: {
+                        MVMObject *cobj = GET_REG(cur_op, 4).o;
+                        if (IS_CONCRETE(cobj) && REPR(cobj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMObject *code = GET_REG(cur_op, 2).o;
+                            MVMCallCapture *cc = (MVMCallCapture *)cobj;
+                            MVM_frame_find_invokee(tc, code);
+                            tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                            tc->cur_frame->return_type = MVM_RETURN_OBJ;
+                            cur_op += 6;
+                            tc->cur_frame->return_address = cur_op;
+                            STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
+                                cc->body.apc->args);
+                            break;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "invokewithcapture needs a MVMCallCapture");
+                        }
+                    }
+                    case MVM_OP_multicacheadd:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 8;
+                        break;
+                    case MVM_OP_multicachefind:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 6;
                         break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
