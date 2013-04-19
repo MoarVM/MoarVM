@@ -159,6 +159,17 @@ BANK 0 primitives
 0x9D    newlexotic          w(obj) ins
 0x9E    lexoticresult       w(obj) r(obj)
 0x9F    mod_n               w(num64) r(num64) r(num64)
+0xA0    usecapture          w(obj)
+0xA1    savecapture         w(obj)
+0xA2    captureposelems     w(int64) r(obj)
+0xA3    captureposarg       w(obj) r(obj) r(int64)
+0xA4    captureposarg_i     w(int64) r(obj) r(int64)
+0xA5    captureposarg_n     w(num64) r(obj) r(int64)
+0xA6    captureposarg_s     w(str) r(obj) r(int64)
+0xA7    captureposprimspec  w(int64) r(obj) r(int64)
+0xA8    invokewithcapture   w(obj) r(obj) r(obj)
+0xA9    multicacheadd       r(obj) r(obj) r(obj)
+0xAA    multicachefind      w(obj) r(obj) r(obj)
 
 BANK 1 dev
 0x00    say_i               r(int64)
