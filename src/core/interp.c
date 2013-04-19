@@ -863,9 +863,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     }
-                    case MVM_OP_savecapture:
-                        MVM_exception_throw_adhoc(tc, "savecapture NYI");
+                    case MVM_OP_savecapture: {
+                        /* Create a new call capture object. */
+                        MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
+                        MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
+                        
+                        /* Copy the arguments. */
+                        MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
+                        MVMRegister *args = malloc(arg_size);
+                        memcpy(args, tc->cur_frame->params.args, arg_size);
+                        
+                        /* Set up the call capture. */
+                        cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
+                        cc->body.apc  = malloc(sizeof(MVMArgProcContext));
+                        MVM_args_proc_init(tc, cc->body.apc, tc->cur_frame->params.callsite, args);
+                        
+                        GET_REG(cur_op, 0).o = cc_obj;
+                        cur_op += 2;
                         break;
+                    }
                     case MVM_OP_captureposelems: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
