@@ -109,7 +109,19 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    /* XXX TODO */
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMuint16 i;
+    
+    /* Flattened in REPRs need a chance to copy 'emselves. */
+    for (i = 0; i < repr_data->num_attributes; i++) {
+        MVMSTable *st_copy = repr_data->flattened_stables[i];
+        MVMuint16  offset  = repr_data->attribute_offsets[i];
+        if (st_copy)
+            st_copy->REPR->copy_to(tc, st_copy, (char*)src + offset, dest_root, (char*)dest + offset);
+        else
+            set_obj_at_offset(tc, dest_root, dest, offset,
+                get_obj_at_offset(src, offset));
+    }
 }
 
 /* Called by the VM to mark any GCable items. */

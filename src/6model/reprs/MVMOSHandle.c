@@ -29,7 +29,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
      * note - 12:25 <jnthn> I mean, Perl 6 will has an attribute which
      * is the MoarVM handle, so a .clone() on a Perl 6 IO object
      * won't trigger cloning of the underlying handle.            */
-    MVM_exception_throw_adhoc(tc, "Cannot copy object with repr OSHandle; see comment here in the source");
+    MVM_exception_throw_adhoc(tc, "Cannot copy object with repr OSHandle");
 }
 
 /* Called by the VM in order to free memory associated with this object. */

@@ -44,7 +44,10 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMCodeBody *src_body  = (MVMCodeBody *)src;
     MVMCodeBody *dest_body = (MVMCodeBody *)dest;
-    MVM_panic(MVM_exitcode_NYI, "MVMCode copy_to NYI");
+    dest_body->sf = src_body->sf;
+    if (src_body->outer)
+        dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
+    MVM_ASSIGN_REF(tc, dest_root, dest_body->code_object, src_body->code_object);
 }
 
 /* Adds held objects to the GC worklist. */

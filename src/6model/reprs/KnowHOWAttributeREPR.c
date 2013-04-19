@@ -34,6 +34,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMKnowHOWAttributeREPRBody *dest_body = (MVMKnowHOWAttributeREPRBody *)dest;
     MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->type, src_body->type);
+    dest_body->box_target = src_body->box_target;
 }
 
 /* Gets the storage specification for this representation. */
