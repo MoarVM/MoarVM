@@ -87,6 +87,9 @@ typedef struct _MVMSerializationReader {
     /* List of code objects (static first, then all the closures). */
     MVMObject *codes_list;
     
+    /* Array of contexts (num_contexts in length). */
+    MVMFrame **contexts;
+    
     /* The data, which we'll want to free after deserialization. */
     char *data;
 } MVMSerializationReader;

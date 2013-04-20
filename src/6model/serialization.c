@@ -203,6 +203,8 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
     va_list args;
     if (reader->data)
         free(reader->data);
+    if (reader->contexts)
+        free(reader->contexts);
     free(reader);
     MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
@@ -679,6 +681,71 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
     }
 }
 
+/* Deserializes a context. */
+static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 row) {
+    MVMStaticFrame *sf;
+    MVMFrame       *f;
+    MVMint64        i, syms;
+    
+    /* Calculate location of context's table row. */
+    char *table_row = reader->root.contexts_table + row * CONTEXTS_TABLE_ENTRY_SIZE;
+    
+    /* Resolve the reference to the static code object this context is for. */
+    MVMuint32  static_sc_id = read_int32(table_row, 0);
+    MVMuint32  static_idx   = read_int32(table_row, 4);
+    MVMObject *static_code  = MVM_sc_get_code(tc,
+        locate_sc(tc, reader, static_sc_id), static_idx);
+
+    /* Create context. */
+    sf = ((MVMCode *)static_code)->body.sf;
+    f  = MVM_frame_create_context_only(tc, sf, static_code);
+    
+    /* Set context data read position, and set current read buffer to the correct thing. */
+    reader->contexts_data_offset = read_int32(table_row, 8);
+    reader->cur_read_buffer      = &(reader->root.contexts_data);
+    reader->cur_read_offset      = &(reader->contexts_data_offset);
+    reader->cur_read_end         = &(reader->contexts_data_end);
+    
+    /* Deserialize lexicals. */
+    syms = reader->read_int(tc, reader);
+    for (i = 0; i < syms; i++) {
+        MVMString   *sym = reader->read_str(tc, reader);
+        MVMRegister *lex = MVM_frame_lexical(tc, f, sym);
+        switch (MVM_frame_lexical_primspec(tc, f, sym)) {
+            case MVM_STORAGE_SPEC_BP_INT:
+                lex->i64 = reader->read_int(tc, reader);
+                break;
+            case MVM_STORAGE_SPEC_BP_NUM:
+                lex->n64 = reader->read_num(tc, reader);
+                break;
+            case MVM_STORAGE_SPEC_BP_STR:
+                lex->s = reader->read_str(tc, reader);
+                break;
+            default:
+                lex->o = reader->read_ref(tc, reader);
+        }
+    }
+    
+    /* Put context into contexts array (will be attached in a later pass). */
+    reader->contexts[row] = f;
+}
+
+/* Attaches a closure's outer pointer. */
+static void attach_closure_outer(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMObject *closure) {
+    char      *row = reader->root.closures_table + i * CLOSURES_TABLE_ENTRY_SIZE;
+    MVMuint32  idx = read_int32(row, 8);
+    if (idx)
+        ((MVMCode *)closure)->body.outer = MVM_frame_inc_ref(tc, reader->contexts[idx - 1]);
+}
+
+/* Attaches a context's outer pointer. */
+static void attach_context_outer(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMFrame *context) {
+    char      *row = reader->root.contexts_table + i * CONTEXTS_TABLE_ENTRY_SIZE;
+    MVMuint32  idx = read_int32(row, 12);
+    if (idx)
+        context->outer = MVM_frame_inc_ref(tc, reader->contexts[idx - 1]);
+}
+
 /* Deserializes a single STable, along with its REPR data. */
 static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMSTable *st) {
     /* Calculate location of STable's table row. */
@@ -759,7 +826,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
 void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext *sc,
         MVMObject *string_heap, MVMObject *codes_static, 
         MVMObject *repo_conflicts, MVMString *data) {
-    MVMint32 i;
+    MVMint32 scodes, i;
     
     /* Allocate and set up reader. */
     MVMSerializationReader *reader = malloc(sizeof(MVMSerializationReader));
@@ -780,6 +847,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
      * probably fine. */
     MVM_sc_set_code_list(tc, sc, codes_static);
     reader->codes_list = codes_static;
+    scodes = (MVMint32)MVM_repr_elems(tc, codes_static);
     
     /* During deserialization, we allocate directly in generation 2. This
      * is because these objects are almost certainly going to be long lived,
@@ -803,9 +871,17 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     stub_objects(tc, reader);
     
     /* Deserialize closures, deserialize contexts, then attach outers. */
+    reader->contexts = malloc(reader->root.num_contexts * sizeof(MVMFrame *));
     for (i = 0; i < reader->root.num_closures; i++)
         deserialize_closure(tc, reader, i);
-    
+    for (i = 0; i < reader->root.num_contexts; i++)
+        deserialize_context(tc, reader, i);
+    for (i = 0; i < reader->root.num_closures; i++)
+        attach_closure_outer(tc, reader, i,
+            MVM_sc_get_code(tc, reader->root.sc, scodes + i));
+    for (i = 0; i < reader->root.num_contexts; i++)
+        attach_context_outer(tc, reader, i, reader->contexts[i]);
+
     /* Fully deserialize STables, along with their representation data. */
     for (i = 0; i < reader->root.num_stables; i++)
         deserialize_stable(tc, reader, i, MVM_sc_get_stable(tc, sc, i));
@@ -819,6 +895,8 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Clear up afterwards. */
     if (reader->data)
         free(reader->data);
+    if (reader->contexts)
+        free(reader->contexts);
     free(reader);
     
     /* Restore normal GC allocation. */

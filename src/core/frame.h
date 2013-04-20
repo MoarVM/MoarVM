@@ -163,15 +163,19 @@ typedef struct _MVMInvocationSpec {
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref);
+MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMObject *code_ref);
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
-MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
+MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);;
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 type);
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 *type);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, struct _MVMString *name);
 void MVM_frame_binddynlex(MVMThreadContext *tc, struct _MVMString *name, MVMObject *value);
+MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, struct _MVMString *name);
+MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, struct _MVMString *name);
 
 #define MVM_frame_find_invokee(tc, code) do { \
     if (STABLE(code)->invoke == MVM_6model_invoke_default) { \
