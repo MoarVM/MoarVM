@@ -496,30 +496,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_param_rp_i:
                         GET_REG(cur_op, 0).i64 = MVM_args_get_pos_int(tc, &tc->cur_frame->params,
-                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED)->i64;
+                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.i64;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rp_n:
                         GET_REG(cur_op, 0).n64 = MVM_args_get_pos_num(tc, &tc->cur_frame->params,
-                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED)->n64;
+                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.n64;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rp_s:
                         GET_REG(cur_op, 0).s = MVM_args_get_pos_str(tc, &tc->cur_frame->params,
-                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED)->s;
+                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.s;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rp_o:
                         GET_REG(cur_op, 0).o = MVM_args_get_pos_obj(tc, &tc->cur_frame->params,
-                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED)->o;
+                            GET_UI16(cur_op, 2), MVM_ARG_REQUIRED).arg.o;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_op_i:
                     {
-                        MVMRegister *param = MVM_args_get_pos_int(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_pos_int(tc, &tc->cur_frame->params,
                             GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).i64 = param->i64;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).i64 = param.arg.i64;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -529,10 +529,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_param_op_n:
                     {
-                        MVMRegister *param = MVM_args_get_pos_num(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_pos_num(tc, &tc->cur_frame->params,
                             GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).n64 = param->n64;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).n64 = param.arg.n64;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -542,10 +542,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_param_op_s:
                     {
-                        MVMRegister *param = MVM_args_get_pos_str(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_pos_str(tc, &tc->cur_frame->params,
                             GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).s = param->s;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).s = param.arg.s;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -555,10 +555,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_param_op_o:
                     {
-                        MVMRegister *param = MVM_args_get_pos_obj(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_pos_obj(tc, &tc->cur_frame->params,
                             GET_UI16(cur_op, 2), MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).o = param->o;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).o = param.arg.o;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -568,30 +568,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_param_rn_i:
                         GET_REG(cur_op, 0).i64 = MVM_args_get_named_int(tc, &tc->cur_frame->params,
-                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->i64;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.i64;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rn_n:
                         GET_REG(cur_op, 0).n64 = MVM_args_get_named_num(tc, &tc->cur_frame->params,
-                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->n64;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.n64;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rn_s:
                         GET_REG(cur_op, 0).s = MVM_args_get_named_str(tc, &tc->cur_frame->params,
-                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->s;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.s;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_rn_o:
                         GET_REG(cur_op, 0).o = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
-                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED)->o;
+                            cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.o;
                         cur_op += 4;
                         break;
                     case MVM_OP_param_on_i:
                     {
-                        MVMRegister *param = MVM_args_get_named_int(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_named_int(tc, &tc->cur_frame->params,
                             cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).i64 = param->i64;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).i64 = param.arg.i64;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -601,10 +601,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_param_on_n:
                     {
-                        MVMRegister *param = MVM_args_get_named_num(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_named_num(tc, &tc->cur_frame->params,
                             cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).n64 = param->n64;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).n64 = param.arg.n64;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -614,10 +614,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_param_on_s:
                     {
-                        MVMRegister *param = MVM_args_get_named_str(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_named_str(tc, &tc->cur_frame->params,
                             cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).s = param->s;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).s = param.arg.s;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -627,10 +627,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_param_on_o:
                     {
-                        MVMRegister *param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
+                        MVMArgInfo param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
                             cu->strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
-                        if (param) {
-                            GET_REG(cur_op, 0).o = param->o;
+                        if (param.exists) {
+                            GET_REG(cur_op, 0).o = param.arg.o;
                             cur_op = bytecode_start + GET_UI32(cur_op, 4);
                         }
                         else {
@@ -899,7 +899,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                             MVMCallCapture *cc = (MVMCallCapture *)obj;
                             GET_REG(cur_op, 0).o = MVM_args_get_pos_obj(tc, cc->body.apc,
-                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->o;
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.o;
                         }
                         else {
                             MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
@@ -912,7 +912,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                             MVMCallCapture *cc = (MVMCallCapture *)obj;
                             GET_REG(cur_op, 0).i64 = MVM_args_get_pos_int(tc, cc->body.apc,
-                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->i64;
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.i64;
                         }
                         else {
                             MVM_exception_throw_adhoc(tc, "captureposarg_i needs a MVMCallCapture");
@@ -925,7 +925,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                             MVMCallCapture *cc = (MVMCallCapture *)obj;
                             GET_REG(cur_op, 0).n64 = MVM_args_get_pos_num(tc, cc->body.apc,
-                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->n64;
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.n64;
                         }
                         else {
                             MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCallCapture");
@@ -938,7 +938,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                             MVMCallCapture *cc = (MVMCallCapture *)obj;
                             GET_REG(cur_op, 0).s = MVM_args_get_pos_str(tc, cc->body.apc,
-                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->s;
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED).arg.s;
                         }
                         else {
                             MVM_exception_throw_adhoc(tc, "captureposarg_s needs a MVMCallCapture");
@@ -1847,8 +1847,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *value = GET_REG(cur_op, 2).o;
                         MVMROOT(tc, value, {
                             MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                            REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                            GET_REG(cur_op, 0).o = cloned;
+                            MVMROOT(tc, cloned, {
+                                REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                                GET_REG(cur_op, 0).o = cloned;
+                            });
                         });
                         cur_op += 4;
                         break;

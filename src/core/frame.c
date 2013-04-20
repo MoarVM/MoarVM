@@ -193,6 +193,58 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     *(tc->interp_cu) = static_frame->cu;
 }
 
+/* Creates a frame that is suitable for deserializing a context into. Does not
+ * try to use the frame pool, since we'll typically never recycle these. */
+MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMObject *code_ref) {
+    MVMFrame *frame;
+    
+    /* If the frame was never invoked before, need initial calculations
+     * and verification. */
+    if (!static_frame->invoked)
+        prepare_and_verify_static_frame(tc, static_frame);
+    
+    frame = malloc(sizeof(MVMFrame));
+    frame->params.named_used = NULL;
+    
+    /* Copy thread context into the frame. */
+    frame->tc = tc;
+    
+    /* Set static frame. */
+    frame->static_info = static_frame;
+    
+    /* Ensure special return pointer is null. */
+    frame->special_return = NULL;
+    
+    /* Store the code ref. */
+    frame->code_ref = code_ref;
+    
+    /* Allocate space for lexicals, copying the default lexical environment
+     * into place. */
+    if (static_frame->env_size) {
+        frame->env = malloc(static_frame->env_size);
+        memcpy(frame->env, static_frame->static_env, static_frame->env_size);
+    }
+    else {
+        frame->env = NULL;
+    }
+    
+    /* No work area needed; we'll never run this. */
+    frame->work = NULL;
+    
+    /* Outer will be set up later. */
+    frame->outer = NULL;
+    
+    /* Has no caller. */
+    frame->caller = NULL;
+
+    /* Initial reference count is 0 (will become referenced by being set as
+     * an outer context). */
+    frame->ref_count = 0;
+    
+    return frame;
+}
+
 /* Return/unwind do about the same thing; this factors it out. */
 static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
@@ -409,4 +461,46 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
         default:
             MVM_exception_throw_adhoc(tc, "invalid register type in binddynlex");
     }
+}
+
+/* Returns the storage unit for the lexical in the specified frame. */
+MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
+    MVMLexicalHashEntry *lexical_names = f->static_info->lexical_names;    
+    if (lexical_names) {
+        MVMLexicalHashEntry *entry;
+        MVM_string_flatten(tc, name);
+        MVM_HASH_GET(tc, lexical_names, name, entry)
+        if (entry)
+            return &f->env[entry->value];
+    }
+    MVM_exception_throw_adhoc(tc, "Frame has no lexical with name '%s'",
+        MVM_string_utf8_encode_C_string(tc, name));
+}
+
+/* Returns the primitive type specification for a lexical. */
+MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
+    MVMLexicalHashEntry *lexical_names = f->static_info->lexical_names;    
+    if (lexical_names) {
+        MVMLexicalHashEntry *entry;
+        MVM_string_flatten(tc, name);
+        MVM_HASH_GET(tc, lexical_names, name, entry)
+        if (entry) {
+            switch (f->static_info->lexical_types[entry->value]) {
+                case MVM_reg_int64:
+                    return MVM_STORAGE_SPEC_BP_INT;
+                case MVM_reg_num64:
+                    return MVM_STORAGE_SPEC_BP_NUM;
+                case MVM_reg_str:
+                    return MVM_STORAGE_SPEC_BP_STR;
+                case MVM_reg_obj:
+                    return MVM_STORAGE_SPEC_BP_NONE;
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Unhandled lexical type in lexprimspec for '%s'",
+                        MVM_string_utf8_encode_C_string(tc, name));
+            }
+        }
+    }
+    MVM_exception_throw_adhoc(tc, "Frame has no lexical with name '%s'",
+        MVM_string_utf8_encode_C_string(tc, name));
 }
