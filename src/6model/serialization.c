@@ -395,7 +395,7 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
         case REFVAR_VM_HASH_STR_VAR:
             return read_hash_str_var(tc, reader);
         case REFVAR_STATIC_CODEREF:
-        /*case REFVAR_CLONED_CODEREF:*/
+        case REFVAR_CLONED_CODEREF:
             return read_code_ref(tc, reader);
         default:
             fail_deserialize(tc, reader,
@@ -651,6 +651,34 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
     }
 }
 
+/* Deserializes a closure, though without attaching outer (that comes in a
+ * later step). */
+static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i) {
+    /* Calculate location of closure's table row. */
+    char *table_row = reader->root.closures_table + i * CLOSURES_TABLE_ENTRY_SIZE;
+    
+    /* Resolve the reference to the static code object. */
+    MVMuint32  static_sc_id = read_int32(table_row, 0);
+    MVMuint32  static_idx   = read_int32(table_row, 4);
+    MVMObject *static_code  = MVM_sc_get_code(tc,
+        locate_sc(tc, reader, static_sc_id), static_idx);
+    
+    /* Clone it and add it to the SC's code refs list. */
+    MVMObject *closure = MVM_repr_clone(tc, static_code);
+    MVM_repr_push_o(tc, reader->codes_list, closure);
+    
+    /* Tag it as being in this SC. */
+    MVM_sc_set_obj_sc(tc, closure, reader->root.sc);
+    
+    /* See if there's a code object we need to attach. */
+    if (read_int32(table_row, 12)) {
+        MVMObject *obj = MVM_sc_get_object(tc,
+            locate_sc(tc, reader, read_int32(table_row, 16)),
+            read_int32(table_row, 20));
+        MVM_ASSIGN_REF(tc, closure, ((MVMCode *)closure)->body.code_object, obj);
+    }
+}
+
 /* Deserializes a single STable, along with its REPR data. */
 static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMSTable *st) {
     /* Calculate location of STable's table row. */
@@ -751,6 +779,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Put code root list into SC. We'll end up mutating it, but that's
      * probably fine. */
     MVM_sc_set_code_list(tc, sc, codes_static);
+    reader->codes_list = codes_static;
     
     /* During deserialization, we allocate directly in generation 2. This
      * is because these objects are almost certainly going to be long lived,
@@ -772,6 +801,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     
     /* Stub allocate all objects. */
     stub_objects(tc, reader);
+    
+    /* Deserialize closures, deserialize contexts, then attach outers. */
+    for (i = 0; i < reader->root.num_closures; i++)
+        deserialize_closure(tc, reader, i);
     
     /* Fully deserialize STables, along with their representation data. */
     for (i = 0; i < reader->root.num_stables; i++)

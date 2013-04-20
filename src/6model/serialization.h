@@ -84,8 +84,8 @@ typedef struct _MVMSerializationReader {
     MVMObject * (*read_ref)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
     MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
     
-    /* The object we're currently deserializing. */
-    MVMObject *cur_object;
+    /* List of code objects (static first, then all the closures). */
+    MVMObject *codes_list;
     
     /* The data, which we'll want to free after deserialization. */
     char *data;
