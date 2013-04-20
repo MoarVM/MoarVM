@@ -876,6 +876,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         /* Set up the call capture. */
                         cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
                         cc->body.apc  = malloc(sizeof(MVMArgProcContext));
+                        memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
                         MVM_args_proc_init(tc, cc->body.apc, tc->cur_frame->params.callsite, args);
                         
                         GET_REG(cur_op, 0).o = cc_obj;
