@@ -1,4 +1,5 @@
 MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type);
+MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj);
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
 MVMnum64 MVM_repr_at_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);

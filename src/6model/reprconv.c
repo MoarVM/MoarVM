@@ -13,6 +13,17 @@ MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
     return obj;
 }
 
+MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj) {
+    MVMObject *res;
+    MVMROOT(tc, obj, {
+        res = REPR(obj)->allocate(tc, STABLE(obj));
+        MVMROOT(tc, res, {
+            REPR(obj)->copy_to(tc, STABLE(obj), OBJECT_BODY(obj), res, OBJECT_BODY(res));
+        });
+    });
+    return obj;
+}
+
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
     REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
