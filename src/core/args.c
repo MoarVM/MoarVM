@@ -1,11 +1,5 @@
 #include "moarvm.h"
 
-/* Struct used internally in here. */
-struct MVMArgInfo {
-    MVMRegister      *arg;
-    MVMCallsiteEntry  flags;
-};
-
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */
         memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
@@ -75,32 +69,33 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 /* Get positional arguments. */
 #define find_pos_arg(ctx, pos, result) do { \
     if (pos < ctx->num_pos) { \
-        result.arg = ctx->args + pos; \
+        result.arg   = ctx->args[pos]; \
         result.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[pos]; \
+        result.exists = 1; \
     } \
     else { \
-        result.arg = NULL; \
+        result.exists = 0; \
     } \
 } while (0)
 
 #define autounbox(tc, type_flag, expected, result) do { \
-    if (result.arg && !(result.flags & type_flag)) { \
+    if (result.exists && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
             MVMObject *obj; \
             MVMStorageSpec ss; \
-            obj = result.arg->o; \
+            obj = result.arg.o; \
             ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
             switch (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
-                    result.arg->i64 = MVM_repr_get_int(tc, obj); \
+                    result.arg.i64 = MVM_repr_get_int(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_INT; \
                     break; \
                 case MVM_STORAGE_SPEC_CAN_BOX_NUM: \
-                    result.arg->n64 = MVM_repr_get_num(tc, obj); \
+                    result.arg.n64 = MVM_repr_get_num(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_NUM; \
                     break; \
                 case MVM_STORAGE_SPEC_CAN_BOX_STR: \
-                    result.arg->s = MVM_repr_get_str(tc, obj); \
+                    result.arg.s = MVM_repr_get_str(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_STR; \
                     break; \
                 default: \
@@ -118,7 +113,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
                         case MVM_CALLSITE_ARG_INT: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 2"); \
                         case MVM_CALLSITE_ARG_NUM: \
-                            result.arg->i64 = (MVMint64)result.arg->n64; \
+                            result.arg.i64 = (MVMint64)result.arg.n64; \
                             break; \
                         case MVM_CALLSITE_ARG_STR: \
                             MVM_exception_throw_adhoc(tc, "coerce string to int NYI"); \
@@ -132,7 +127,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
                         case MVM_CALLSITE_ARG_OBJ: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 4"); \
                         case MVM_CALLSITE_ARG_INT: \
-                            result.arg->n64 = (MVMnum64)result.arg->i64; \
+                            result.arg.n64 = (MVMnum64)result.arg.i64; \
                             break; \
                         case MVM_CALLSITE_ARG_NUM: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 5"); \
@@ -167,7 +162,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 
 #define args_get_pos(tc, ctx, pos, required, result) do { \
     find_pos_arg(ctx, pos, result); \
-    if (result.arg == NULL && required) { \
+    if (!result.exists && required) { \
         MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed at least %u", pos + 1); \
     } \
 } while (0)
@@ -187,18 +182,18 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 } while (0)
 
 #define autobox_switch(tc, result) do { \
-    if (result.arg) { \
+    if (result.exists) { \
         switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
             case MVM_CALLSITE_ARG_OBJ: \
                 break; \
             case MVM_CALLSITE_ARG_INT: \
-                autobox(tc, tc->cur_frame, result.arg->i64, int_box_type, 0, set_int, result.arg->o); \
+                autobox(tc, tc->cur_frame, result.arg.i64, int_box_type, 0, set_int, result.arg.o); \
                 break; \
             case MVM_CALLSITE_ARG_NUM: \
-                autobox(tc, tc->cur_frame, result.arg->n64, num_box_type, 0, set_num, result.arg->o); \
+                autobox(tc, tc->cur_frame, result.arg.n64, num_box_type, 0, set_num, result.arg.o); \
                 break; \
             case MVM_CALLSITE_ARG_STR: \
-                autobox(tc, tc->cur_frame, result.arg->s, str_box_type, 1, set_str, result.arg->o); \
+                autobox(tc, tc->cur_frame, result.arg.s, str_box_type, 1, set_str, result.arg.o); \
                 break; \
             default: \
                 MVM_exception_throw_adhoc(tc, "invalid type flag"); \
@@ -206,75 +201,76 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     } \
 } while (0)
 
-MVMRegister * MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_pos(tc, ctx, pos, required, result);
     autobox_switch(tc, result);
-    return result.arg;
+    return result;
 }
-MVMRegister * MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_pos_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_pos(tc, ctx, pos, required, result);
     autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
-    return result.arg;
+    return result;
 }
-MVMRegister * MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_pos_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_pos(tc, ctx, pos, required, result);
     autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
-    return result.arg;
+    return result;
 }
-MVMRegister * MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_pos(tc, ctx, pos, required, result);
     autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
-    return result.arg;
+    return result;
 }
 
 #define args_get_named(tc, ctx, name, required, _type) do { \
      \
     MVMuint32 flag_pos, arg_pos; \
-    result.arg = NULL; \
+    result.exists = 0; \
      \
     for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) { \
         if (MVM_string_equal(tc, ctx->args[arg_pos].s, name)) { \
             if (ctx->named_used[(arg_pos - ctx->num_pos)/2]) { \
                 MVM_exception_throw_adhoc(tc, "Named argument already used: %s", MVM_string_utf8_encode_C_string(tc, name)); \
             } \
-            result.arg = ctx->args + arg_pos + 1; \
-            result.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
+            result.arg    = ctx->args[arg_pos + 1]; \
+            result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
+            result.exists = 1; \
             ctx->named_used[(arg_pos - ctx->num_pos)/2] = 1; \
             break; \
         } \
     } \
-    if (result.arg == NULL && required) \
+    if (!result.exists && required) \
         MVM_exception_throw_adhoc(tc, "Required named " _type " argument missing: %s", MVM_string_utf8_encode_C_string(tc, name)); \
      \
 } while (0)
 
-MVMRegister * MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_named(tc, ctx, name, required, "object");
     autobox_switch(tc, result);
-    return result.arg;
+    return result;
 }
-MVMRegister * MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_named(tc, ctx, name, required, "integer");
     autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
-    return result.arg;
+    return result;
 }
-MVMRegister * MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_named(tc, ctx, name, required, "number");
     autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
-    return result.arg;
+    return result;
 }
-MVMRegister * MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
-    struct MVMArgInfo result;
+MVMArgInfo MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
+    MVMArgInfo result;
     args_get_named(tc, ctx, name, required, "string");
     autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
-    return result.arg;
+    return result;
 }
 
 /* Result setting. The frameless flag indicates that the currently
@@ -378,7 +374,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     if (REPR(box)->initialize) \
         REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
     REPR(box)->box_funcs->set_func(tc, STABLE(box), box, \
-        OBJECT_BODY(box), arg_info.arg->reg_member); \
+        OBJECT_BODY(box), arg_info.arg.reg_member); \
     stmt1; \
     REPR(result)->action_funcs->action_func(tc, STABLE(result), result, \
         OBJECT_BODY(result), target1, target2); \
@@ -386,7 +382,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
 
 MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos) {
     MVMObject *type = (*(tc->interp_cu))->hll_config->slurpy_array_type, *result = NULL, *box = NULL;
-    struct MVMArgInfo arg_info;
+    MVMArgInfo arg_info;
     MVMRegister reg;
     
     if (!type || IS_CONCRETE(type)) {
@@ -401,7 +397,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
     
     find_pos_arg(ctx, pos, arg_info);
     pos++;
-    while (arg_info.arg) {
+    while (arg_info.exists) {
         
         if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
             MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_positional");
@@ -411,7 +407,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
                 REPR(result)->pos_funcs->push(tc, STABLE(result), result,
-                    OBJECT_BODY(result), *arg_info.arg, MVM_reg_obj);
+                    OBJECT_BODY(result), arg_info.arg, MVM_reg_obj);
                 break;
             }
             case MVM_CALLSITE_ARG_INT:{
@@ -442,9 +438,9 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
 
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMObject *type = (*(tc->interp_cu))->hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
-    struct MVMArgInfo arg_info;
+    MVMArgInfo arg_info;
     MVMuint32 flag_pos, arg_pos;
-    arg_info.arg = NULL;
+    arg_info.exists = 0;
     
     if (!type || IS_CONCRETE(type)) {
         MVM_exception_throw_adhoc(tc, "Missing hll slurpy hash type");
@@ -466,8 +462,9 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
         if (!key || !IS_CONCRETE(key)) {
             MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
         }
-        arg_info.arg = ctx->args + arg_pos + 1;
-        arg_info.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos];
+        arg_info.arg    = ctx->args[arg_pos + 1];
+        arg_info.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos];
+        arg_info.exists = 1;
         
         if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
             MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
@@ -476,7 +473,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
         switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
                 REPR(result)->ass_funcs->bind_key_boxed(tc, STABLE(result),
-                    result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg->o);
+                    result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg.o);
                 break;
             }
             case MVM_CALLSITE_ARG_INT: {
@@ -502,7 +499,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
 }
 
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    struct MVMArgInfo arg_info, key_info, val_info;
+    MVMArgInfo arg_info, key_info, val_info;
     MVMuint16 flag_pos = 0, arg_pos = 0, new_arg_pos = 0,
         new_arg_flags_size = ctx->arg_count > 0x7FFF ? ctx->arg_count : ctx->arg_count * 2,
         new_args_size = new_arg_flags_size, i, new_flag_pos = 0, new_num_pos = 0;
@@ -517,13 +514,14 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* first flatten any positionals */
     for ( ; arg_pos < ctx->num_pos; arg_pos++) {
         
-        arg_info.arg = ctx->args + arg_pos;
-        arg_info.flags = ctx->callsite->arg_flags[arg_pos];
+        arg_info.arg   = ctx->args[arg_pos];
+        arg_info.flags  = ctx->callsite->arg_flags[arg_pos];
+        arg_info.exists = 1;
         
         /* skip it if it's not flattening or is null. The bytecode loader
          * verifies it's a MVM_CALLSITE_ARG_OBJ. */
-        if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg->o) {
-            MVMObject *list = arg_info.arg->o;
+        if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg.o) {
+            MVMObject *list = arg_info.arg.o;
             MVMint64 count;
             
             count = REPR(list)->elems(tc, STABLE(list),
@@ -553,7 +551,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                 new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
             }
             
-            (new_args + new_arg_pos++)->o = arg_info.arg->o;
+            (new_args + new_arg_pos++)->o = arg_info.arg.o;
             new_arg_flags[new_flag_pos++] = arg_info.flags;
         }
     }
@@ -577,14 +575,14 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* now flatten any flattening hashes */
     for (arg_pos = 0; arg_pos < ctx->num_pos; arg_pos++) {
         
-        arg_info.arg = ctx->args + arg_pos;
+        arg_info.arg = ctx->args[arg_pos];
         arg_info.flags = ctx->callsite->arg_flags[arg_pos];
         
         if (!(arg_info.flags & MVM_CALLSITE_ARG_FLAT_NAMED))
             continue;
         
-        if (arg_info.arg->o && REPR(arg_info.arg->o)->ID == MVM_REPR_ID_MVMHash) {
-            MVMHashBody *body = &((MVMHash *)arg_info.arg->o)->body;
+        if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
+            MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
             MVMHashEntry *current, *tmp;
             
             HASH_ITER(hash_handle, body->hash_head, current, tmp) {
@@ -601,7 +599,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                 new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
             }
         }
-        else if (arg_info.arg->o) {
+        else if (arg_info.arg.o) {
             MVM_exception_throw_adhoc(tc, "flattening of other hash reprs NYI.");
         }
     }

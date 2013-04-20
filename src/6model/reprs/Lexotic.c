@@ -12,7 +12,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
         MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
         MVM_args_proc_init(tc, &arg_ctx, callsite, args);
         MVM_ASSIGN_REF(tc, invokee, lex->body.result,
-            MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED)->o);
+            MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o);
         MVM_args_proc_cleanup(tc, &arg_ctx);
         
         /* Unwind to the lexotic handler. */
