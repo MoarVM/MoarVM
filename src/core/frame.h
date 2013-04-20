@@ -139,22 +139,22 @@ typedef struct _MVMFrame {
 /* How do we invoke this thing? Specifies either an attribute to look at for
  * an invokable thing, or alternatively a method to call. */
 typedef struct _MVMInvocationSpec {
-    /**
+    /*
      * Class handle where we find the attribute to invoke.
      */
     struct _MVMObject *class_handle;
     
-    /**
+    /*
      * Attribute name where we find the attribute to invoke.
      */
     struct _MVMString *attr_name;
     
-    /**
+    /*
      * Attribute lookup hint used in gradual typing.
      */
     MVMint64 hint;
     
-    /**
+    /*
      * Thing that handles invocation.
      */
     struct _MVMObject *invocation_handler;
