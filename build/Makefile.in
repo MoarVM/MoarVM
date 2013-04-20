@@ -1,7 +1,7 @@
 # Compiler configuration
 CC       = @cc@
 CFLAGS   = @cflags@
-CINCLUDE = -I3rdparty/apr/include -I3rdparty/libatomic_ops/src -Isrc -I3rdparty
+CINCLUDE = -I3rdparty/apr/include -I3rdparty/libatomic_ops/src -I3rdparty/libtommath/ -Isrc -I3rdparty
 LD       = @link@
 LDFLAGS  = @ldflags@
 LLIBS    = @llibs@
