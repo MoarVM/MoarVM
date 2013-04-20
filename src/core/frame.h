@@ -169,32 +169,11 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
-MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);;
+MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 type);
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 *type);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, struct _MVMString *name);
 void MVM_frame_binddynlex(MVMThreadContext *tc, struct _MVMString *name, MVMObject *value);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, struct _MVMString *name);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, struct _MVMString *name);
-
-#define MVM_frame_find_invokee(tc, code) do { \
-    if (STABLE(code)->invoke == MVM_6model_invoke_default) { \
-        MVMInvocationSpec *is = STABLE(code)->invocation_spec; \
-        if (!is) { \
-            MVM_exception_throw_adhoc(tc, "Cannot invoke this object"); \
-        } \
-        if (is->class_handle) { \
-            MVMRegister dest; \
-            MVM_gc_root_temp_push(tc, (MVMCollectable **)&code); \
-            REPR(code)->attr_funcs->get_attribute(tc, \
-                STABLE(code), code, OBJECT_BODY(code), \
-                is->class_handle, is->attr_name, \
-                is->hint, &dest, MVM_reg_obj); \
-            MVM_gc_root_temp_pop(tc); \
-            code = dest.o; \
-        } \
-        else { \
-            code = is->invocation_handler; \
-        } \
-    } \
-} while (0)
+MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code);
