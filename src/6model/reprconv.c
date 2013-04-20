@@ -21,7 +21,7 @@ MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj) {
             REPR(obj)->copy_to(tc, STABLE(obj), OBJECT_BODY(obj), res, OBJECT_BODY(res));
         });
     });
-    return obj;
+    return res;
 }
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
