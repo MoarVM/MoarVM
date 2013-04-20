@@ -171,6 +171,17 @@
 #define MVM_OP_newlexotic 157
 #define MVM_OP_lexoticresult 158
 #define MVM_OP_mod_n 159
+#define MVM_OP_usecapture 160
+#define MVM_OP_savecapture 161
+#define MVM_OP_captureposelems 162
+#define MVM_OP_captureposarg 163
+#define MVM_OP_captureposarg_i 164
+#define MVM_OP_captureposarg_n 165
+#define MVM_OP_captureposarg_s 166
+#define MVM_OP_captureposprimspec 167
+#define MVM_OP_invokewithcapture 168
+#define MVM_OP_multicacheadd 169
+#define MVM_OP_multicachefind 170
 
 /* Op name defines for bank dev. */
 #define MVM_OP_say_i 0
@@ -257,7 +268,7 @@
 #define MVM_OP_bindkey_o 15
 #define MVM_OP_existskey 16
 #define MVM_OP_deletekey 17
-#define MVM_OP___INVALID_0__ 18
+#define MVM_OP_getwhere 18
 #define MVM_OP_eqaddr 19
 #define MVM_OP_reprname 20
 #define MVM_OP_isconcrete 21

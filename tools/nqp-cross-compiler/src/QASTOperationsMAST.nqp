@@ -567,6 +567,36 @@ for <if unless> -> $op_name {
     });
 }
 
+QAST::MASTOperations.add_core_op('defor', -> $qastcomp, $op {
+    if +$op.list != 2 {
+        nqp::die("Operation 'defor' needs 2 operands");
+    }
+    
+    # Compile the expression.
+    my $res_reg := $*REGALLOC.fresh_o();
+    my $expr := $qastcomp.as_mast($op[0], :want($MVM_reg_obj));
+    
+    # Emit defined check.
+    my $def_reg := $*REGALLOC.fresh_i();
+    my $lbl := MAST::Label.new($qastcomp.unique('defor'));
+    push_op($expr.instructions, 'set', $res_reg, $expr.result_reg);
+    push_op($expr.instructions, 'isconcrete', $def_reg, $res_reg);
+    push_op($expr.instructions, 'if_i', $def_reg, $lbl);
+    $*REGALLOC.release_register($def_reg, $MVM_reg_int64);
+    
+    # Emit "then" part.
+    my $then := $qastcomp.as_mast($op[1], :want($MVM_reg_obj));
+    $*REGALLOC.release_register($expr.result_reg, $MVM_reg_obj);
+    $expr.append($then);
+    push_op($expr.instructions, 'set', $res_reg, $then.result_reg);
+    nqp::push($expr.instructions, $lbl);
+    $*REGALLOC.release_register($then.result_reg, $MVM_reg_obj);
+    my $newer := MAST::InstructionList.new(nqp::list(), $res_reg, $MVM_reg_obj);
+    $expr.append($newer);
+    
+    $expr
+});
+
 QAST::MASTOperations.add_core_op('ifnull', -> $qastcomp, $op {
     if +$op.list != 2 {
         nqp::die("The 'ifnull' op expects two children");
@@ -1186,6 +1216,23 @@ QAST::MASTOperations.add_core_moarop_mapping('ctxcaller', 'ctxcaller');
 QAST::MASTOperations.add_core_moarop_mapping('curcode', 'curcode');
 QAST::MASTOperations.add_core_moarop_mapping('callercode', 'callercode');
 QAST::MASTOperations.add_core_moarop_mapping('ctxlexpad', 'ctxlexpad');
+QAST::MASTOperations.add_core_moarop_mapping('curlexpad', 'ctx');
+
+# Argument capture processing, for writing things like multi-dispatchers in
+# high level languages.
+QAST::MASTOperations.add_core_moarop_mapping('usecapture', 'usecapture');
+QAST::MASTOperations.add_core_moarop_mapping('savecapture', 'savecapture');
+QAST::MASTOperations.add_core_moarop_mapping('captureposelems', 'captureposelems');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg', 'captureposarg');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg_i', 'captureposarg_i');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg_n', 'captureposarg_n');
+QAST::MASTOperations.add_core_moarop_mapping('captureposarg_s', 'captureposarg_s');
+QAST::MASTOperations.add_core_moarop_mapping('captureposprimspec', 'captureposprimspec');
+
+# Multiple dispatch related.
+QAST::MASTOperations.add_core_moarop_mapping('invokewithcapture', 'invokewithcapture');
+QAST::MASTOperations.add_core_moarop_mapping('multicacheadd', 'multicacheadd');
+QAST::MASTOperations.add_core_moarop_mapping('multicachefind', 'multicachefind');
 
 # Constant mapping.
 my %const_map := nqp::hash(
@@ -1429,6 +1476,7 @@ QAST::MASTOperations.add_core_moarop_mapping('null_s', 'null_s');
 QAST::MASTOperations.add_core_moarop_mapping('what', 'getwhat');
 QAST::MASTOperations.add_core_moarop_mapping('how', 'gethow');
 QAST::MASTOperations.add_core_moarop_mapping('who', 'getwho');
+QAST::MASTOperations.add_core_moarop_mapping('where', 'getwhere');
 QAST::MASTOperations.add_core_moarop_mapping('setwho', 'setwho');
 QAST::MASTOperations.add_core_moarop_mapping('rebless', 'rebless');
 QAST::MASTOperations.add_core_moarop_mapping('knowhow', 'knowhow');
@@ -1442,6 +1490,7 @@ QAST::MASTOperations.add_core_moarop_mapping('bootnumarray', 'bootnumarray');
 QAST::MASTOperations.add_core_moarop_mapping('bootstrarray', 'bootstrarray');
 QAST::MASTOperations.add_core_moarop_mapping('boothash', 'boothash');
 QAST::MASTOperations.add_core_moarop_mapping('create', 'create');
+QAST::MASTOperations.add_core_moarop_mapping('clone', 'clone');
 QAST::MASTOperations.add_core_moarop_mapping('isconcrete', 'isconcrete');
 QAST::MASTOperations.add_core_moarop_mapping('iscont', 'iscont');
 QAST::MASTOperations.add_core_moarop_mapping('decont', 'decont');
@@ -1481,8 +1530,10 @@ QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 
 # code object related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
+QAST::MASTOperations.add_core_moarop_mapping('getcodeobj', 'getcodeobj');
+QAST::MASTOperations.add_core_moarop_mapping('setcodeobj', 'setcodeobj', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');
-QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename');
+QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename', 0);
 QAST::MASTOperations.add_core_moarop_mapping('forceouterctx', 'forceouterctx', 0);
 QAST::MASTOperations.add_core_op('setstaticlex', -> $qastcomp, $op {
     if +@($op) != 3 {

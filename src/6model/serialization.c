@@ -206,7 +206,7 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
     free(reader);
     MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
-    MVM_exception_throw_adhoc(tc, messageFormat, args);
+    MVM_exception_throw_adhoc_va(tc, messageFormat, args);
     va_end(args);
 }
 
@@ -308,6 +308,23 @@ static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *re
 /* Forward-declare read_ref_func. */
 MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader);
 
+/* Reads in an array of variant references. */
+static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+    MVMint32 elems, i;
+
+    /* Read the element count. */
+    assert_can_read(tc, reader, 4);
+    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+
+    /* Read in the elements. */
+    for (i = 0; i < elems; i++)
+        MVM_repr_bind_pos_o(tc, result, i, read_ref_func(tc, reader));
+    
+    return result;
+}
+
 /* Reads in an hash with string keys and variant references. */
 static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
@@ -373,6 +390,8 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStr);
             MVM_repr_set_str(tc, result, read_str_func(tc, reader));
             return result;
+        case REFVAR_VM_ARR_VAR:
+            return read_array_var(tc, reader);
         case REFVAR_VM_HASH_STR_VAR:
             return read_hash_str_var(tc, reader);
         case REFVAR_STATIC_CODEREF:
@@ -684,6 +703,28 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         st->REPR->deserialize_repr_data(tc, st, reader);
 }
 
+/* Deserializes a single object. */
+static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMObject *obj) {
+    /* We've no more to do for type objects. */
+    if (IS_CONCRETE(obj)) {
+        /* Calculate location of object's table row. */
+        char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
+        
+        /* Set current read buffer to the correct thing. */
+        reader->cur_read_buffer = &(reader->root.objects_data);
+        reader->cur_read_offset = &(reader->objects_data_offset);
+        reader->cur_read_end    = &(reader->objects_data_end);
+        
+        /* Delegate to its deserialization REPR function. */
+        reader->objects_data_offset = read_int32(obj_table_row, 8);
+        if (REPR(obj)->deserialize)
+            REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
+        else
+            fail_deserialize(tc, reader, "Missing deserialize REPR function for %s",
+                MVM_string_ascii_encode(tc, REPR(obj)->name, NULL));
+    }
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
@@ -736,6 +777,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     for (i = 0; i < reader->root.num_stables; i++)
         deserialize_stable(tc, reader, i, MVM_sc_get_stable(tc, sc, i));
     
+    /* Finish deserializing objects. */
+    for (i = 0; i < reader->root.num_objects; i++)
+        deserialize_object(tc, reader, i, MVM_sc_get_object(tc, sc, i));
+
     /* TODO: The rest... */
     
     /* Clear up afterwards. */

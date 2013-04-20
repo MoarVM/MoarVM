@@ -755,35 +755,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
-                    case MVM_OP_smrt_numify: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMnum64 result;
-                        if (!obj || !IS_CONCRETE(obj))
-                            result = 0.0;
-                        else {
-                            MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
-                            if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
-                                result = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
-                                result = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-                                result = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-                            else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
-                                result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
-                                result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                            else
-                                MVM_exception_throw_adhoc(tc, "cannot numify this");
-                        }
-                        GET_REG(cur_op, 0).n64 = result;
+                    case MVM_OP_smrt_numify:
+                        GET_REG(cur_op, 0).n64 = MVM_coerce_smart_numify(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
-                    }
-                    case MVM_OP_smrt_strify: {
+                    case MVM_OP_smrt_strify:
                         GET_REG(cur_op, 0).s = MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
-                    }
                     case MVM_OP_param_sp:
                         GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, &tc->cur_frame->params, GET_UI16(cur_op, 2));
                         cur_op += 4;
@@ -876,6 +855,128 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_usecapture: {
+                        MVMCallCapture *cc = (MVMCallCapture *)tc->cur_usecapture;
+                        cc->body.mode = MVM_CALL_CAPTURE_MODE_USE;
+                        cc->body.apc  = &tc->cur_frame->params;
+                        GET_REG(cur_op, 0).o = tc->cur_usecapture;
+                        cur_op += 2;
+                        break;
+                    }
+                    case MVM_OP_savecapture: {
+                        /* Create a new call capture object. */
+                        MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
+                        MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
+                        
+                        /* Copy the arguments. */
+                        MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
+                        MVMRegister *args = malloc(arg_size);
+                        memcpy(args, tc->cur_frame->params.args, arg_size);
+                        
+                        /* Set up the call capture. */
+                        cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
+                        cc->body.apc  = malloc(sizeof(MVMArgProcContext));
+                        MVM_args_proc_init(tc, cc->body.apc, tc->cur_frame->params.callsite, args);
+                        
+                        GET_REG(cur_op, 0).o = cc_obj;
+                        cur_op += 2;
+                        break;
+                    }
+                    case MVM_OP_captureposelems: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).i64 = cc->body.apc->num_pos;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_captureposarg: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).o = MVM_args_get_pos_obj(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->o;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposarg_i: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).i64 = MVM_args_get_pos_int(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->i64;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg_i needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposarg_n: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).n64 = MVM_args_get_pos_num(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->n64;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposarg_s: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMCallCapture *cc = (MVMCallCapture *)obj;
+                            GET_REG(cur_op, 0).s = MVM_args_get_pos_str(tc, cc->body.apc,
+                                (MVMuint32)GET_REG(cur_op, 4).i64, MVM_ARG_REQUIRED)->s;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "captureposarg_s needs a MVMCallCapture");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_captureposprimspec:
+                        MVM_exception_throw_adhoc(tc, "captureposprimspec NYI");
+                        break;
+                    case MVM_OP_invokewithcapture: {
+                        MVMObject *cobj = GET_REG(cur_op, 4).o;
+                        if (IS_CONCRETE(cobj) && REPR(cobj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                            MVMObject *code = GET_REG(cur_op, 2).o;
+                            MVMCallCapture *cc = (MVMCallCapture *)cobj;
+                            MVM_frame_find_invokee(tc, code);
+                            tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                            tc->cur_frame->return_type = MVM_RETURN_OBJ;
+                            cur_op += 6;
+                            tc->cur_frame->return_address = cur_op;
+                            STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
+                                cc->body.apc->args);
+                            break;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "invokewithcapture needs a MVMCallCapture");
+                        }
+                    }
+                    case MVM_OP_multicacheadd:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 8;
+                        break;
+                    case MVM_OP_multicachefind:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 6;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
@@ -1314,6 +1415,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_getwhere:
+                        GET_REG(cur_op, 2).i64 = (MVMint64)GET_REG(cur_op, 2).o;
+                        cur_op += 4;
+                        break;
                     case MVM_OP_eqaddr:
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).o == GET_REG(cur_op, 4).o ? 1 : 0;
                         cur_op += 6;
@@ -1954,14 +2059,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s) ? 0 : 1;
                         cur_op += 4;
                         break;
-                    case MVM_OP_getcodeobj:
-                    case MVM_OP_setcodeobj:
-                        MVM_exception_throw_adhoc(tc, "oops, these shouldn't have been spec'd");
+                    case MVM_OP_getcodeobj: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        if (REPR(obj)->ID == MVM_REPR_ID_MVMCode)
+                            GET_REG(cur_op, 0).o = ((MVMCode *)obj)->body.code_object;
+                        else
+                            MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_setcodeobj: {
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
+                            MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.code_object,
+                                GET_REG(cur_op, 2).o);
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "setcodeobj needs a code ref");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_setcodename: {
-                        MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
-                        c->body.sf->name = GET_REG(cur_op, 4).s;
-                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
-                        cur_op += 6;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
+                            MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.sf->name,
+                                GET_REG(cur_op, 2).s);
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "setcodename needs a code ref");
+                        }
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_forceouterctx: {
@@ -2137,20 +2265,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_curcode: {
-                        MVMObject *code = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCode);
-                        ((MVMCode *)code)->body.sf = tc->cur_frame->static_info;
-                        GET_REG(cur_op, 0).o = code;
+                    case MVM_OP_curcode:
+                        GET_REG(cur_op, 0).o = tc->cur_frame->code_ref;
                         cur_op += 2;
                         break;
-                    }
                     case MVM_OP_callercode: {
-                        MVMObject *code = NULL;;
-                        if (tc->cur_frame->caller) {
-                            code = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCode);
-                            ((MVMCode *)code)->body.sf = tc->cur_frame->caller->static_info;
-                        }
-                        GET_REG(cur_op, 0).o = code;
+                        GET_REG(cur_op, 0).o = tc->cur_frame->caller
+                            ? tc->cur_frame->caller->code_ref
+                            : NULL;
                         cur_op += 2;
                         break;
                     }

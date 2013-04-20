@@ -117,3 +117,26 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
     free(enc);
     return n;
 }
+
+MVMnum64 MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj) {
+    MVMnum64 result;
+    if (!obj || !IS_CONCRETE(obj)) {
+        result = 0.0;
+    }
+    else {
+        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+            result = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+            result = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+            result = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+        else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
+            result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
+            result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else
+            MVM_exception_throw_adhoc(tc, "cannot numify this");
+    }
+    return result;
+}

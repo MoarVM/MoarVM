@@ -159,6 +159,17 @@ BANK 0 primitives
 0x9D    newlexotic          w(obj) ins
 0x9E    lexoticresult       w(obj) r(obj)
 0x9F    mod_n               w(num64) r(num64) r(num64)
+0xA0    usecapture          w(obj)
+0xA1    savecapture         w(obj)
+0xA2    captureposelems     w(int64) r(obj)
+0xA3    captureposarg       w(obj) r(obj) r(int64)
+0xA4    captureposarg_i     w(int64) r(obj) r(int64)
+0xA5    captureposarg_n     w(num64) r(obj) r(int64)
+0xA6    captureposarg_s     w(str) r(obj) r(int64)
+0xA7    captureposprimspec  w(int64) r(obj) r(int64)
+0xA8    invokewithcapture   w(obj) r(obj) r(obj)
+0xA9    multicacheadd       w(obj) r(obj) r(obj) r(obj)
+0xAA    multicachefind      w(obj) r(obj) r(obj)
 
 BANK 1 dev
 0x00    say_i               r(int64)
@@ -245,7 +256,7 @@ BANK 4 object
 0x0F    bindkey_o           r(obj) r(str) r(obj)
 0x10    existskey           w(int64) r(obj) r(str)
 0x11    deletekey           r(obj) r(str)
-0x12    __INVALID_0__
+0x12    getwhere            w(int64) r(obj)
 0x13    eqaddr              w(int64) r(obj) r(obj)
 0x14    reprname            w(str) r(obj)
 0x15    isconcrete          w(int64) r(obj)
@@ -336,8 +347,8 @@ BANK 4 object
 0x6A    istrue_s            w(int64) r(str)
 0x6B    isfalse_s           w(int64) r(str)
 0x6C    getcodeobj          w(obj) r(obj)
-0x6D    setcodeobj          w(obj) r(obj) r(obj)
-0x6E    setcodename         w(obj) r(obj) r(str)
+0x6D    setcodeobj          r(obj) r(obj)
+0x6E    setcodename         r(obj) r(str)
 0x6F    forceouterctx       r(obj) r(obj)
 0x70    getcomp             w(obj) r(str)
 0x71    bindcomp            w(obj) r(str) r(obj)

@@ -732,7 +732,7 @@ knowhow NQPClassHOW {
             nqp::die("Cannot add a null method '$name' to class '$!name'");
         }
         nqp::setmethcacheauth($obj, 0);
-#        %!caches{nqp::where(self)} := {} unless nqp::isnull(%!caches);
+        %!caches{nqp::where(self)} := {} unless nqp::isnull(%!caches);
         nqp::push(@!method_order, %!methods{$name} := $code_obj);
     }
 
@@ -1401,7 +1401,7 @@ knowhow NQPClassHOW {
     ##
     method trace-on($obj, $depth?) {
         $!trace := 1;
-#        $!trace_depth := $depth // 0;
+        $!trace_depth := $depth // 0;
         nqp::setmethcacheauth($obj, 0);
         nqp::setmethcache($obj, nqp::hash());
     }

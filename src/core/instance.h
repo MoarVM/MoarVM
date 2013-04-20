@@ -54,6 +54,9 @@ typedef struct _MVMInstance {
     /* Lexotic type, used in implementing return handling. */
     MVMObject *Lexotic;
     
+    /* CallCapture type, used by custom dispatchers. */
+    MVMObject *CallCapture;
+    
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
     

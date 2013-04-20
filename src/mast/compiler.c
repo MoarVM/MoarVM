@@ -142,6 +142,10 @@ typedef struct {
     MAST_CompUnit *cu;
 } WriterState;
 
+static unsigned int umax(unsigned int a, unsigned int b) {
+    return a > b ? a : b;
+}
+
 /* copies memory dependent on endianness */
 static void memcpy_endian(char *dest, void *src, size_t size) {
 #ifdef MVM_BIGENDIAN
@@ -988,10 +992,11 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
             Parrot_utf8_encoding_ptr->num);
         
         /* Ensure we have space. */
-        unsigned int bytelen = (unsigned int)Parrot_str_byte_length(interp, utf8);
-        unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
-        if (heap_size + 4 + bytelen + align >= heap_alloc) {
-            heap_alloc *= 2;
+        unsigned int   bytelen = (unsigned int)Parrot_str_byte_length(interp, utf8);
+        unsigned short align   = bytelen & 3 ? 4 - (bytelen & 3) : 0;
+        unsigned int   need    = 4 + bytelen + align;
+        if (heap_size + need >= heap_alloc) {
+            heap_alloc = umax(heap_alloc * 2, heap_size + need);
             heap = (char *)realloc(heap, heap_alloc);
         }
         

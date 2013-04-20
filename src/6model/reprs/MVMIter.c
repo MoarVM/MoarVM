@@ -32,6 +32,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMIterBody *src_body  = (MVMIterBody *)src;
     MVMIterBody *dest_body = (MVMIterBody *)dest;
+    MVM_exception_throw_adhoc(tc, "Cannot copy object with representation VMIter");
 }
 
 /* Adds held objects to the GC worklist. */

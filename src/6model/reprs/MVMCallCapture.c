@@ -4,7 +4,7 @@
 static MVMREPROps *this_repr;
 
 /* Creates a new type object of this representation, and associates it with
- * the given HOW. */
+ * the given HOW. Also sets the invocation protocol handler in the STable. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st;
     MVMObject *obj;
@@ -13,9 +13,9 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
         st->WHAT = obj;
-        st->size = sizeof(MVMKnowHOWAttributeREPR);
+        st->size = sizeof(MVMCallCapture);
     });
-
+    
     return st->WHAT;
 }
 
@@ -30,11 +30,32 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMKnowHOWAttributeREPRBody *src_body  = (MVMKnowHOWAttributeREPRBody *)src;
-    MVMKnowHOWAttributeREPRBody *dest_body = (MVMKnowHOWAttributeREPRBody *)dest;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->type, src_body->type);
-    dest_body->box_target = src_body->box_target;
+    MVM_panic(MVM_exitcode_NYI, "MVMCallCapture cannot be copied");
+}
+
+/* Adds held objects to the GC worklist. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
+    if (body->mode == MVM_CALL_CAPTURE_MODE_SAVE) {
+        MVM_panic(MVM_exitcode_NYI, "MVMCallCapture GC mark NYI");
+    }
+}
+
+/* Called by the VM in order to free memory associated with this object. */
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    MVMCallCapture *ctx = (MVMCallCapture *)obj;
+    if (ctx->body.mode == MVM_CALL_CAPTURE_MODE_SAVE) {
+        /* We made our own copy of the args buffer and processing context, so
+         * free them both. */
+        if (ctx->body.apc) {
+            if (ctx->body.apc->args) {
+                free(ctx->body.apc->args);
+                ctx->body.apc->args = NULL;
+            }
+            free(ctx->body.apc);
+            ctx->body.apc = NULL;
+        }
+    }
 }
 
 /* Gets the storage specification for this representation. */
@@ -46,32 +67,13 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-/* Adds held objects to the GC worklist. */
-static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMKnowHOWAttributeREPRBody *body = (MVMKnowHOWAttributeREPRBody *)data;
-    MVM_gc_worklist_add(tc, worklist, &body->name);
-    MVM_gc_worklist_add(tc, worklist, &body->type);
-}
-
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
-/* Set the size of the STable. */
-static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(MVMKnowHOWAttributeREPR);
-}
-
-/* Deserializes the data. */
-static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    MVMKnowHOWAttributeREPRBody *body = (MVMKnowHOWAttributeREPRBody *)data;
-    MVM_ASSIGN_REF(tc, root, body->name, reader->read_str(tc, reader));
-    MVM_ASSIGN_REF(tc, root, body->type, tc->instance->KnowHOW);
-}
-
 /* Initializes the representation. */
-MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMCallCapture_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
@@ -79,10 +81,9 @@ MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc) {
     this_repr->allocate = allocate;
     this_repr->initialize = initialize;
     this_repr->copy_to = copy_to;
-    this_repr->get_storage_spec = get_storage_spec;
     this_repr->gc_mark = gc_mark;
+    this_repr->gc_free = gc_free;
+    this_repr->get_storage_spec = get_storage_spec;
     this_repr->compose = compose;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    this_repr->deserialize = deserialize;
     return this_repr;
 }

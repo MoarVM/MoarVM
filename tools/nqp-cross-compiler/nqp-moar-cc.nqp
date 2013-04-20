@@ -88,6 +88,10 @@ class HLL::Backend::MoarVM {
     method is_compunit($cuish) {
         !pir::isa__IPs($cuish, 'String')
     }
+    
+    method compunit_mainline($cuish) {
+        $cuish
+    }
 }
 
 sub MAIN(*@ARGS) {

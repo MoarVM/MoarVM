@@ -109,7 +109,19 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    /* XXX TODO */
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMuint16 i;
+    
+    /* Flattened in REPRs need a chance to copy 'emselves. */
+    for (i = 0; i < repr_data->num_attributes; i++) {
+        MVMSTable *st_copy = repr_data->flattened_stables[i];
+        MVMuint16  offset  = repr_data->attribute_offsets[i];
+        if (st_copy)
+            st_copy->REPR->copy_to(tc, st_copy, (char*)src + offset, dest_root, (char*)dest + offset);
+        else
+            set_obj_at_offset(tc, dest_root, dest, offset,
+                get_obj_at_offset(src, offset));
+    }
 }
 
 /* Called by the VM to mark any GCable items. */
@@ -245,13 +257,23 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     if (repr_data->auto_viv_values) {
                         MVMObject *value = repr_data->auto_viv_values[slot];
                         if (value != NULL) {
-                            MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                            REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                            set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], cloned);
-                            result_reg->o = cloned;
+                            if (IS_CONCRETE(value)) {
+                                MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
+                                REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                                set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], cloned);
+                                result_reg->o = cloned;
+                            }
+                            else {
+                                set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);
+                            }
+                        }
+                        else {
+                            result_reg->o = NULL;
                         }
                     }
-                    result_reg->o = NULL;
+                    else {
+                        result_reg->o = NULL;
+                    }
                 }
             }
             else {
@@ -821,6 +843,21 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     st->REPR_data = repr_data;
 }
 
+/* Deserializes the data. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMuint16 num_attributes = repr_data->num_attributes;
+    MVMuint16 i;
+    for (i = 0; i < num_attributes; i++) {
+        MVMuint16 a_offset = repr_data->attribute_offsets[i];
+        MVMSTable *a_st = repr_data->flattened_stables[i];
+        if (a_st)
+            a_st->REPR->deserialize(tc, a_st, root, (char *)data + a_offset, reader);
+        else
+            set_obj_at_offset(tc, root, data, a_offset, reader->read_ref(tc, reader));
+    }
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
@@ -862,5 +899,6 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
     this_repr->deserialize_stable_size = deserialize_stable_size;
     this_repr->deserialize_repr_data = deserialize_repr_data;
+    this_repr->deserialize = deserialize;
     return this_repr;
 }

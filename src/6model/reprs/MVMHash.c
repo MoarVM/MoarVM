@@ -42,7 +42,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMHashBody *dest_body = (MVMHashBody *)dest;
     MVMHashEntry *current, *tmp;
     
-    /* XXX if we really wanted to, we could avoid rehashing... */
+    /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
         size_t klen;
         void *kdata;

@@ -1217,6 +1217,90 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_num64,
                     $MVM_operand_read_reg +| $MVM_operand_num64
                 ]
+            ),
+            'usecapture', nqp::hash(
+                'code', 160,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'savecapture', nqp::hash(
+                'code', 161,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'captureposelems', nqp::hash(
+                'code', 162,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'captureposarg', nqp::hash(
+                'code', 163,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'captureposarg_i', nqp::hash(
+                'code', 164,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'captureposarg_n', nqp::hash(
+                'code', 165,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_num64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'captureposarg_s', nqp::hash(
+                'code', 166,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'captureposprimspec', nqp::hash(
+                'code', 167,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'invokewithcapture', nqp::hash(
+                'code', 168,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'multicacheadd', nqp::hash(
+                'code', 169,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'multicachefind', nqp::hash(
+                'code', 170,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [
@@ -1829,10 +1913,11 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
-            '__INVALID_0__', nqp::hash(
+            'getwhere', nqp::hash(
                 'code', 18,
                 'operands', [
-                    
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
             'eqaddr', nqp::hash(
@@ -2520,7 +2605,6 @@ class MAST::Ops {
             'setcodeobj', nqp::hash(
                 'code', 109,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
@@ -2528,7 +2612,6 @@ class MAST::Ops {
             'setcodename', nqp::hash(
                 'code', 110,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]

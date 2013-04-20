@@ -34,6 +34,11 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
     tc->frame_pool_table = calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
 
+    /* Create a CallCapture for usecapture instructions in this thread (needs
+     * special handling in initial thread as this runs before bootstrap). */
+    if (instance->CallCapture)
+        tc->cur_usecapture = MVM_repr_alloc_init(tc, instance->CallCapture);
+    
     return tc;
 }
 

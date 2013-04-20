@@ -85,6 +85,14 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMKnowHOWREPR);
 }
 
+/* Deserializes the data. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
+    MVM_ASSIGN_REF(tc, root, body->name, reader->read_str(tc, reader));
+    MVM_ASSIGN_REF(tc, root, body->attributes, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, root, body->methods, reader->read_ref(tc, reader));
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMKnowHOWREPR_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. Note
@@ -100,7 +108,8 @@ MVMREPROps * MVMKnowHOWREPR_initialize(MVMThreadContext *tc) {
         this_repr->get_storage_spec = get_storage_spec;
         this_repr->gc_mark = gc_mark;
         this_repr->compose = compose;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
+        this_repr->deserialize_stable_size = deserialize_stable_size;
+        this_repr->deserialize = deserialize;
     }
     return this_repr;
 }
