@@ -504,3 +504,26 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
     MVM_exception_throw_adhoc(tc, "Frame has no lexical with name '%s'",
         MVM_string_utf8_encode_C_string(tc, name));
 }
+
+MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
+    if (STABLE(code)->invoke == MVM_6model_invoke_default) {
+        MVMInvocationSpec *is = STABLE(code)->invocation_spec;
+        if (!is) {
+            MVM_exception_throw_adhoc(tc, "Cannot invoke this object");
+        }
+        if (is->class_handle) {
+            MVMRegister dest;
+            MVM_gc_root_temp_push(tc, (MVMCollectable **)&code);
+            REPR(code)->attr_funcs->get_attribute(tc,
+                STABLE(code), code, OBJECT_BODY(code),
+                is->class_handle, is->attr_name,
+                is->hint, &dest, MVM_reg_obj);
+            MVM_gc_root_temp_pop(tc);
+            code = dest.o;
+        }
+        else {
+            code = is->invocation_handler;
+        }
+    }
+    return code;
+}
