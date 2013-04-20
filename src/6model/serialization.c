@@ -849,6 +849,8 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->codes_list = codes_static;
     scodes = (MVMint32)MVM_repr_elems(tc, codes_static);
     
+    /* TODO: Mark all the static code refs we've been provided with as static. */
+    
     /* During deserialization, we allocate directly in generation 2. This
      * is because these objects are almost certainly going to be long lived,
      * but also because if we know that we won't end up moving the objects
@@ -861,6 +863,8 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     
     /* Resolve the SCs in the dependencies table. */
     resolve_dependencies(tc, reader);
+    
+    /* TODO: repossessing objects and STables. */
     
     /* Stub allocate all STables, and then have the appropriate REPRs do
      * the required size calculations. */
@@ -890,8 +894,6 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     for (i = 0; i < reader->root.num_objects; i++)
         deserialize_object(tc, reader, i, MVM_sc_get_object(tc, sc, i));
 
-    /* TODO: The rest... */
-    
     /* Clear up afterwards. */
     if (reader->data)
         free(reader->data);
