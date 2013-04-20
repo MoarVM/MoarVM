@@ -18,6 +18,8 @@
   + -Wall -Wextra
   + -Wall -Wextra -pedantic
   + Turn on -Werror -pedantic-error
+* Make sure that all visible names have an MVM or MVM_ prefix, except for those
+  intended to be the same across all NQP backends
 * Review type checking of MoarVM bytecode validator
 * Document ops
   + Write oplist / docs merging program
