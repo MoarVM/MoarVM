@@ -743,7 +743,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_coerce_ns: {
-                        GET_REG(cur_op, 0).s = MVM_coerce_i_s(tc, GET_REG(cur_op, 2).n64);
+                        GET_REG(cur_op, 0).s = MVM_coerce_n_s(tc, GET_REG(cur_op, 2).n64);
                         cur_op += 4;
                         break;
                     }
