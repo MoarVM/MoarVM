@@ -1,4 +1,4 @@
-# Copyright (C) 2006-2012, The Perl Foundation.
+# Copyright (C) 2006-2013, The Perl Foundation.
 # (Copy/paste/hack from NQP itself...)
 # $Id$
 
@@ -63,12 +63,14 @@ CROSS_COMP_PBCS = MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QAS
 # Related to cross-compilation of NQP
 PRECOMPILE_NS   = $(NQP) --target=pir --setting=NULL --stable-sc --output=$@
 CROSSCOMPILE_NS = $(NQP) nqp-moar-cc.nqp --setting=NULL --target=mbc --output=$@
+PRECOMPILE      = $(NQP) --target=pir --stable-sc --output=$@
+CROSSCOMPILE    = $(NQP) nqp-moar-cc.nqp --target=mbc --output=$@
 .SUFFIXES: .pir .pbc
 
 # The cross-compilation of NQP to Moar; we also build Parrot versions of the
 # things being cross-compiled.
-NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm
-NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir
+NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm QASTNodesMoar.moarvm
+NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir QASTNodesMoar.pir
 
 CLEANUPS = \
   *.manifest \
@@ -144,6 +146,9 @@ nqp-mo.pir: nqp-src/nqp-mo.pm $(CROSS_COMP_PBCS)
 NQPCOREMoar.setting.pir: nqp-src/NQPCORE.setting nqp-mo.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE_NS) nqp-src/NQPCORE.setting
 
+QASTNodesMoar.pir: nqp-src/QASTNodes.nqp NQPCOREMoar.setting.pbc $(CROSS_COMP_PBCS)
+	$(PRECOMPILE) nqp-src/QASTNodes.nqp
+
 nqp-mo.moarvm: nqp-src/nqp-mo.pm nqp-mo.pbc $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/nqp-mo.pm
 
@@ -152,6 +157,9 @@ ModuleLoader.class: nqp-src/ModuleLoader.pm $(CROSS_COMP_PBCS)
 
 NQPCOREMoar.setting.moarvm: nqp-src/NQPCORE.setting NQPCOREMoar.setting.pbc $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/NQPCORE.setting
+
+QASTNodesMoar.moarvm: nqp-src/QASTNodes.nqp QASTNodesMoar.pbc $(CROSS_COMP_PBCS)
+	$(CROSSCOMPILE) nqp-src/QASTNodes.nqp
 
 ## testing
 
