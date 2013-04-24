@@ -127,7 +127,7 @@ class QAST::Node {
         }
         if (self.node) {
             nqp::push(@chunks, ' ');
-#            nqp::push(@chunks, nqp::escape(self.node));
+            nqp::push(@chunks, nqp::escape(self.node));
         }
         nqp::push(@chunks, "\n");
         self.dump_children($indent + 2, @chunks);
@@ -223,7 +223,7 @@ class QAST::SVal is QAST::Node {
         self
     }
     method dump_extra_node_info() {
-#        nqp::escape($!value);
+        nqp::escape($!value);
     }
 }
 # From src\QAST\BVal.nqp
