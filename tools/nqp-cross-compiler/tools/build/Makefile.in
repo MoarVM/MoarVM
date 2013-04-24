@@ -63,14 +63,14 @@ CROSS_COMP_PBCS = MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QAS
 # Related to cross-compilation of NQP
 PRECOMPILE_NS   = $(NQP) --target=pir --setting=NULL --stable-sc --output=$@
 CROSSCOMPILE_NS = $(NQP) nqp-moar-cc.nqp --setting=NULL --target=mbc --output=$@
-PRECOMPILE      = $(NQP) --target=pir --stable-sc --output=$@
-CROSSCOMPILE    = $(NQP) nqp-moar-cc.nqp --target=mbc --output=$@
+PRECOMPILE      = $(NQP) --target=pir --no-regex-lib --stable-sc --output=$@
+CROSSCOMPILE    = $(NQP) nqp-moar-cc.nqp --target=mbc --no-regex-lib --output=$@
 .SUFFIXES: .pir .pbc
 
 # The cross-compilation of NQP to Moar; we also build Parrot versions of the
 # things being cross-compiled.
-NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm QASTNodesMoar.moarvm
-NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir QASTNodesMoar.pir
+NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm QASTNodesMoar.moarvm QRegexMoar.moarvm
+NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir QASTNodesMoar.pir QRegexMoar.pir
 
 CLEANUPS = \
   *.manifest \
@@ -149,17 +149,23 @@ NQPCOREMoar.setting.pir: nqp-src/NQPCORE.setting nqp-mo.pbc $(CROSS_COMP_PBCS)
 QASTNodesMoar.pir: nqp-src/QASTNodes.nqp NQPCOREMoar.setting.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE) nqp-src/QASTNodes.nqp
 
+QRegexMoar.pir: nqp-src/QRegex.nqp QASTNodesMoar.pbc $(CROSS_COMP_PBCS)
+	$(PRECOMPILE) nqp-src/QRegex.nqp
+
 nqp-mo.moarvm: nqp-src/nqp-mo.pm nqp-mo.pbc $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/nqp-mo.pm
 
 ModuleLoader.class: nqp-src/ModuleLoader.pm $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/ModuleLoader.pm
 
-NQPCOREMoar.setting.moarvm: nqp-src/NQPCORE.setting NQPCOREMoar.setting.pbc $(CROSS_COMP_PBCS)
+NQPCOREMoar.setting.moarvm: nqp-src/NQPCORE.setting NQPCOREMoar.setting.pbc nqp-mo.moarvm ModuleLoader.class $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/NQPCORE.setting
 
-QASTNodesMoar.moarvm: nqp-src/QASTNodes.nqp QASTNodesMoar.pbc $(CROSS_COMP_PBCS)
+QASTNodesMoar.moarvm: nqp-src/QASTNodes.nqp QASTNodesMoar.pbc NQPCOREMoar.setting.moarvm $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE) nqp-src/QASTNodes.nqp
+
+QRegexMoar.moarvm: nqp-src/QRegex.nqp QRegexMoar.pbc QASTNodesMoar.moarvm $(CROSS_COMP_PBCS)
+	$(CROSSCOMPILE) nqp-src/QRegex.nqp
 
 ## testing
 
