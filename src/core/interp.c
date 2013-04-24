@@ -890,7 +890,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 0).i64 = cc->body.apc->num_pos;
                         }
                         else {
-                            MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
+                            MVM_exception_throw_adhoc(tc, "captureposelems needs a MVMCallCapture");
                         }
                         cur_op += 4;
                         break;
