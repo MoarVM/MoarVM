@@ -1655,6 +1655,13 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
+            ),
+            'escape', nqp::hash(
+                'code', 37,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_str
+                ]
             )
         ],
         [

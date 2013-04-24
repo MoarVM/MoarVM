@@ -218,6 +218,7 @@ BANK 2 string
 0x22    ordfirst            w(int64) r(str)
 0x23    ordat               w(int64) r(str) r(int64)
 0x24    rindexfrom          w(int64) r(str) r(str) r(int64)
+0x25    escape              w(str) r(str)
 
 BANK 3 math
 0x00    sin_n               w(num64) r(num64)

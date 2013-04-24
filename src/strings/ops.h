@@ -64,3 +64,4 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator);
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);
 void MVM_string_flatten(MVMThreadContext *tc, MVMString *s);
+MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s);

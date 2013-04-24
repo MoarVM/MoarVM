@@ -950,3 +950,52 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
     s->body.int32s = buffer;
     if (storage) free(storage); /* not thread-safe */
 }
+
+/* Escapes a string, replacing various chars like \n with \\n. Can no doubt be
+ * further optimized. */
+MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
+    MVMString      *res     = NULL;    
+    MVMStringIndex  sgraphs = NUM_GRAPHS(s);
+    MVMStringIndex  spos    = 0;
+    MVMStringIndex  balloc  = sgraphs;
+    MVMCodepoint32 *buffer  = malloc(sizeof(MVMCodepoint32) * balloc);
+    MVMStringIndex  bpos    = 0;
+    
+    for (; spos < sgraphs; spos++) {
+        MVMCodepoint32 cp = MVM_string_get_codepoint_at_nocheck(tc, s, spos);
+        MVMCodepoint32 esc = 0;
+        switch (cp) {
+            case '\\': esc = '\\'; break;
+            case 7:    esc = 'a';  break;
+            case '\b': esc = 'b';  break;
+            case '\n': esc = 'n';  break;
+            case '\r': esc = 'r';  break;
+            case '\t': esc = 't';  break;
+            case '\f': esc = 'f';  break;
+            case '"':  esc = '"';  break;
+            case 27:   esc = 'e';  break;
+        }
+        if (esc) {
+            if (bpos + 2 > balloc) {
+                balloc += 32;
+                buffer = realloc(buffer, sizeof(MVMCodepoint32) * balloc);
+            }
+            buffer[bpos++] = '\\';
+            buffer[bpos++] = esc;
+        }
+        else {
+            if (bpos + 1 > balloc) {
+                balloc += 32;
+                buffer = realloc(buffer, sizeof(MVMCodepoint32) * balloc);
+            }
+            buffer[bpos++] = cp;
+        }
+    }
+    
+    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    res->body.flags = MVM_STRING_TYPE_INT32;
+    res->body.graphs = bpos;
+    res->body.int32s = buffer;
+    
+    return res;
+}
