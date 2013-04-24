@@ -48,7 +48,7 @@ class QAST::Node {
         nqp::bindattr($new, QAST::Node, '@!array', @children);
         nqp::bindattr($new, QAST::Node, '%!hash', nqp::hash());
         for %options {
-#            nqp::findmethod($new, $_.key)($new, $_.value);
+            nqp::findmethod($new, $_.key)($new, $_.value);
         }
         $new;
     }
