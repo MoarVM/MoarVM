@@ -4,8 +4,16 @@
  * numbers, it will be the appropriate sized piece of memory to store them
  * right there in the object. Note that P6opaque does not do packed storage, so
  * an int2 gets as much space as an int. */
-typedef struct _MVMP6opaque {
+typedef struct _MVMP6opaqueBody {
+    /* If we get mixed into, we may change size. If so, we can't really resize
+     * the object, so instead we hang its post-resize form off this pointer.
+     * In the future, more clever things are possible (like only putting the
+     * new fields into this object). */
+    void *replaced;
+} MVMP6opaqueBody;
+ typedef struct _MVMP6opaque {
     MVMObject common;
+    MVMP6opaqueBody body;
 } MVMP6opaque;
 
 /* This is used in the name to slot mapping. Indicates the class key that

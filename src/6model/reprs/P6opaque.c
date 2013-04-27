@@ -12,6 +12,13 @@ static MVMString *str_type       = NULL;
 static MVMString *str_box_target = NULL;
 static MVMString *str_attribute  = NULL;
 
+/* If an object gets mixed in to, we need to be sure we look at is real body,
+ * which may have been moved to hang off the specified pointer. */
+static void * real_data(void *data) {
+    MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
+    return body->replaced ? body->replaced : data;
+}
+
 /* Helpers for reading/writing values. */
 static MVMint64 get_int_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
@@ -94,6 +101,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data) {
         MVMint64 i;
         for (i = 0; repr_data->initialize_slots[i] >= 0; i++) {
@@ -111,6 +119,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16 i;
+    src = real_data(src);
     
     /* Flattened in REPRs need a chance to copy 'emselves. */
     for (i = 0; i < repr_data->num_attributes; i++) {
@@ -128,6 +137,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMint64 i;
+    data = real_data(data);
 
     /* Mark objects. */
     for (i = 0; i < repr_data->gc_obj_mark_offsets_count; i++) {
@@ -147,12 +157,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
     MVMint64 i;
+    void *data = real_data(OBJECT_BODY(obj));
 
     /* Cleanup any nested reprs that need it. */
     for (i = 0; repr_data->gc_cleanup_slots[i] >= 0; i++) {
         MVMuint16  offset = repr_data->attribute_offsets[repr_data->gc_cleanup_slots[i]];
         MVMSTable *st     = repr_data->flattened_stables[repr_data->gc_cleanup_slots[i]];
-        st->REPR->gc_cleanup(tc, st, (char *)OBJECT_BODY(obj) + offset);
+        st->REPR->gc_cleanup(tc, st, (char *)data + offset);
     }
 }
 
@@ -235,6 +246,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVMRegister *result_reg, MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMint64 slot;
+    data = real_data(data);
     
     if (!repr_data)
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
@@ -326,6 +338,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVMRegister value_reg, MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMint64 slot;
+    data = real_data(data);
     
     if (!repr_data)
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute_boxed");
@@ -403,6 +416,7 @@ static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_k
  * one. */
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data->unbox_int_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
         st->REPR->box_funcs->set_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot], value);
@@ -417,6 +431,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
  * hold one. */
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data->unbox_int_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
         return st->REPR->box_funcs->get_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
@@ -431,6 +446,7 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
  * hold one. */
 static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data->unbox_num_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_num_slot];
         st->REPR->box_funcs->set_num(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_num_slot], value);
@@ -445,6 +461,7 @@ static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
  * hold one. */
 static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data->unbox_num_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_num_slot];
         return st->REPR->box_funcs->get_num(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_num_slot]);
@@ -459,6 +476,7 @@ static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
  * one. */
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data->unbox_str_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_str_slot];
         st->REPR->box_funcs->set_str(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_str_slot], value);
@@ -473,6 +491,7 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
  * one. */
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data->unbox_str_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_str_slot];
         return st->REPR->box_funcs->get_str(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_str_slot]);
@@ -484,6 +503,7 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 }
 
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
+    data = real_data(data);
     MVM_exception_throw_adhoc(tc,
         "P6opaque: get_boxed_ref NYI");
 }
@@ -576,7 +596,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     mro_pos          = mro_count;
     cur_slot         = 0;
     cur_type         = 0;
-    cur_alloc_addr   = 0;
+    cur_alloc_addr   = sizeof(MVMP6opaqueBody);
     cur_obj_attr     = 0;
     cur_init_slot    = 0;
     cur_mark_slot    = 0;
@@ -699,7 +719,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     }
     
     /* Add allocated amount for body to have total object size. */
-    st->size = sizeof(MVMP6opaque) + cur_alloc_addr;
+    st->size = sizeof(MVMP6opaque) + (cur_alloc_addr - sizeof(MVMP6opaqueBody));
     
     /* Add sentinels/counts. */
     repr_data->gc_obj_mark_offsets_count = cur_obj_attr;
@@ -806,7 +826,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->gc_mark_slots       = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
     repr_data->gc_cleanup_slots    = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
     repr_data->gc_obj_mark_offsets_count = 0;
-    cur_offset          = 0;
+    cur_offset          = sizeof(MVMP6opaqueBody);
     cur_initialize_slot = 0;
     cur_gc_mark_slot    = 0;
     cur_gc_cleanup_slot = 0;
