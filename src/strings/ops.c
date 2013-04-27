@@ -357,6 +357,9 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     
     if (start > agraphs)
         start = agraphs;
+        
+    if (length == -1) /* -1 signifies go to the end of the string */
+        length = agraphs - start;
     
     if (length < 0)
         MVM_exception_throw_adhoc(tc, "Substring length (%lld) cannot be negative", length);
