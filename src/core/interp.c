@@ -1433,10 +1433,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).s = REPR(GET_REG(cur_op, 2).o)->name;
                         cur_op += 4;
                         break;
-                    case MVM_OP_isconcrete:
-                        GET_REG(cur_op, 0).i64 = IS_CONCRETE(GET_REG(cur_op, 2).o) ? 1 : 0;
+                    case MVM_OP_isconcrete: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = obj && IS_CONCRETE(obj) ? 1 : 0;
                         cur_op += 4;
                         break;
+                    }
                     case MVM_OP_atpos_i: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
