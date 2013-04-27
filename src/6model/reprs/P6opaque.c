@@ -610,13 +610,16 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVMint64 is_box_target = REPR(attr_info)->ass_funcs->exists_key(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target);
             
-            /* Ensure we have a name and it's a string. */
-            if (!name_obj || REPR(name_obj)->ID != MVM_REPR_ID_MVMString)
-                MVM_exception_throw_adhoc(tc, "P6opaque: missing or invalid attribute name");
+            /* Ensure we have a name. */
+            if (!name_obj)
+                MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute name");
             
             /* Attribute will live at the current position in the object. */
             repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
-            name_map->names[i] = (MVMString *)name_obj;
+            if (REPR(name_obj)->ID == MVM_REPR_ID_MVMString)
+                name_map->names[i] = (MVMString *)name_obj;
+            else
+                name_map->names[i] = MVM_repr_get_str(tc, name_obj);
             name_map->slots[i] = cur_slot;
             
             /* Consider the type. */
