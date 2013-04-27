@@ -882,6 +882,62 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     }
 }
 
+/* Performs a change of type, where possible. */
+void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
+    MVMP6opaqueREPRData *cur_repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
+    MVMP6opaqueREPRData *new_repr_data = (MVMP6opaqueREPRData *)STABLE(new_type)->REPR_data;
+    P6opaqueNameMap *cur_map_entry, *new_map_entry;
+    
+    /* Ensure we don't have a type object. */
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc,
+            "Cannot change the type of a type object");
+
+    /* Ensure that the REPR of the new type is also P6opaque. */
+    if (REPR(new_type)->ID != REPR(obj)->ID)
+        MVM_exception_throw_adhoc(tc,
+            "New type must have a matching representation");
+
+    /* Ensure the MRO prefixes match up. */
+    cur_map_entry = cur_repr_data->name_to_index_mapping;
+    new_map_entry = new_repr_data->name_to_index_mapping;
+    while (cur_map_entry->class_key != NULL) {
+        if (new_map_entry->class_key == NULL || new_map_entry->class_key != cur_map_entry->class_key)
+            MVM_exception_throw_adhoc(tc,
+                "Incompatible MROs in P6opaque rebless");
+        cur_map_entry++;
+        new_map_entry++;
+    }
+    
+    /* Resize if needed. */
+    if (STABLE(obj)->size != STABLE(new_type)->size) {
+        /* Get current object body. */
+        MVMP6opaqueBody *body = (MVMP6opaqueBody *)OBJECT_BODY(obj);
+        void            *old  = body->replaced ? body->replaced : body;
+        
+        /* Allocate new memory. */
+        size_t  new_size = STABLE(new_type)->size - sizeof(MVMObject);
+        void   *new = malloc(new_size);
+        memset(new, 0, new_size);
+        
+        /* Copy existing to new.
+         * XXX Need more care here, as may have to re-barrier pointers. */
+        memcpy(new, old, STABLE(obj)->size - sizeof(MVMObject));
+        
+        /* Pointer switch, taking care of existing body issues. */
+        if (body->replaced) {
+            body->replaced = new;
+            free(old);
+        }
+        else {
+            body->replaced = new;
+        }
+    }
+    
+    /* Finally, ready to switch over the STable. */
+    MVM_ASSIGN_REF(tc, obj, obj->st, STABLE(new_type));
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
@@ -906,6 +962,7 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     this_repr->gc_mark_repr_data = gc_mark_repr_data;
     this_repr->gc_free_repr_data = gc_free_repr_data;
     this_repr->get_storage_spec = get_storage_spec;
+    this_repr->change_type = change_type;
     this_repr->compose = compose;
     this_repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
     memset(this_repr->attr_funcs, 0, sizeof(MVMREPROps_Attribute));
