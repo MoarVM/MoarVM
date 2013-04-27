@@ -216,7 +216,7 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
         result.o = iterator->body.hash_state.curr->value;
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+        MVM_exception_throw_adhoc(tc, "Unknown iterator mode in iterval");
     }
     return result.o;
 }
