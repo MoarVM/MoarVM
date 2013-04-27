@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define MAX(x, y) ((y) > (x) ? (y) : (x))
+#define P6OMAX(x, y) ((y) > (x) ? (y) : (x))
 #define REFVAR_VM_HASH_STR_VAR 10
 
 /* This representation's function pointer table. */
@@ -746,7 +746,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     
     repr_data->num_attributes = (MVMuint16)reader->read_int(tc, reader);
         
-    repr_data->flattened_stables = (MVMSTable **)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
+    repr_data->flattened_stables = (MVMSTable **)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
     for (i = 0; i < repr_data->num_attributes; i++)
         if (reader->read_int(tc, reader)) {
             MVM_ASSIGN_REF(tc, st, repr_data->flattened_stables[i], reader->read_stable_ref(tc, reader));
@@ -758,7 +758,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->mi = reader->read_int(tc, reader);
     
     if (reader->read_int(tc, reader)) {
-        repr_data->auto_viv_values = (MVMObject **)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMObject *));
+        repr_data->auto_viv_values = (MVMObject **)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMObject *));
         for (i = 0; i < repr_data->num_attributes; i++)
             MVM_ASSIGN_REF(tc, st, repr_data->auto_viv_values[i], reader->read_ref(tc, reader));
     }
@@ -768,7 +768,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->unbox_str_slot = reader->read_int(tc, reader);
     
     if (reader->read_int(tc, reader)) {
-        repr_data->unbox_slots = (P6opaqueBoxedTypeMap *)malloc(MAX(repr_data->num_attributes, 1) * sizeof(P6opaqueBoxedTypeMap));
+        repr_data->unbox_slots = (P6opaqueBoxedTypeMap *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(P6opaqueBoxedTypeMap));
         for (i = 0; i < repr_data->num_attributes; i++) {
             repr_data->unbox_slots[i].repr_id = reader->read_int(tc, reader);
             repr_data->unbox_slots[i].slot = reader->read_int(tc, reader);
@@ -783,8 +783,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             reader->read_ref(tc, reader));
         if (reader->read_int16(tc, reader) == REFVAR_VM_HASH_STR_VAR) {
             num_attrs = reader->read_int32(tc, reader);
-            repr_data->name_to_index_mapping[i].names = (MVMString **)malloc(MAX(num_attrs, 1) * sizeof(MVMString *));
-            repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)malloc(MAX(num_attrs, 1) * sizeof(MVMuint16));
+            repr_data->name_to_index_mapping[i].names = (MVMString **)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMString *));
+            repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMuint16));
             for (j = 0; j < num_attrs; j++) {
                 MVM_ASSIGN_REF(tc, st, repr_data->name_to_index_mapping[i].names[j],
                     reader->read_str(tc, reader));
@@ -800,8 +800,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     
     /* Re-calculate the remaining info, which is platform specific or
      * derived information. */
-    repr_data->attribute_offsets   = (MVMuint16 *)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
-    repr_data->gc_obj_mark_offsets = (MVMuint16 *)malloc(MAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
+    repr_data->attribute_offsets   = (MVMuint16 *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
+    repr_data->gc_obj_mark_offsets = (MVMuint16 *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
     repr_data->initialize_slots    = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
     repr_data->gc_mark_slots       = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
     repr_data->gc_cleanup_slots    = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
