@@ -50,5 +50,3 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_Lexotic                 18
 #define MVM_REPR_ID_MVMCallCapture          19
 #define MVM_REPR_ID_P6bigint                20
-
-void default_change_type(MVMThreadContext *tc, MVMObject *object, MVMObject *new_type);
