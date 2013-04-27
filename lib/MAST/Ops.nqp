@@ -2513,7 +2513,6 @@ class MAST::Ops {
             'setmethcache', nqp::hash(
                 'code', 96,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
@@ -2521,7 +2520,6 @@ class MAST::Ops {
             'setmethcacheauth', nqp::hash(
                 'code', 97,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
@@ -2529,7 +2527,6 @@ class MAST::Ops {
             'settypecache', nqp::hash(
                 'code', 98,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
@@ -2537,7 +2534,6 @@ class MAST::Ops {
             'setinvokespec', nqp::hash(
                 'code', 99,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str,
@@ -2568,7 +2564,6 @@ class MAST::Ops {
             'setboolspec', nqp::hash(
                 'code', 103,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_obj

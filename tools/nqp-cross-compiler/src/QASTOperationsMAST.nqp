@@ -1517,12 +1517,12 @@ QAST::MASTOperations.add_core_moarop_mapping('can', 'can');
 QAST::MASTOperations.add_core_moarop_mapping('reprname', 'reprname');
 QAST::MASTOperations.add_core_moarop_mapping('newtype', 'newtype');
 QAST::MASTOperations.add_core_moarop_mapping('composetype', 'composetype');
-QAST::MASTOperations.add_core_moarop_mapping('setboolspec', 'setboolspec');
-QAST::MASTOperations.add_core_moarop_mapping('setmethcache', 'setmethcache');
-QAST::MASTOperations.add_core_moarop_mapping('setmethcacheauth', 'setmethcacheauth');
-QAST::MASTOperations.add_core_moarop_mapping('settypecache', 'settypecache');
+QAST::MASTOperations.add_core_moarop_mapping('setboolspec', 'setboolspec', 0);
+QAST::MASTOperations.add_core_moarop_mapping('setmethcache', 'setmethcache', 0);
+QAST::MASTOperations.add_core_moarop_mapping('setmethcacheauth', 'setmethcacheauth', 0);
+QAST::MASTOperations.add_core_moarop_mapping('settypecache', 'settypecache', 0);
 QAST::MASTOperations.add_core_moarop_mapping('isinvokable', 'isinvokable');
-QAST::MASTOperations.add_core_moarop_mapping('setinvokespec', 'setinvokespec');
+QAST::MASTOperations.add_core_moarop_mapping('setinvokespec', 'setinvokespec', 0);
 
 # defined - overridden by HLL, but by default same as .DEFINITE.
 QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');

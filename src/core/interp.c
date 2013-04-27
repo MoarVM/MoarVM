@@ -1976,19 +1976,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_setmethcacheauth: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
                         MVMint64 new_flags = STABLE(obj)->mode_flags & (~MVM_METHOD_CACHE_AUTHORITATIVE);
-                        MVMint64 flag = GET_REG(cur_op, 4).i64;
+                        MVMint64 flag = GET_REG(cur_op, 2).i64;
                         if (flag != 0)
                             new_flags |= MVM_METHOD_CACHE_AUTHORITATIVE;
                         STABLE(obj)->mode_flags = new_flags;
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 6;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_settypecache: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMObject *types = GET_REG(cur_op, 4).o;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        MVMObject *types = GET_REG(cur_op, 2).o;
                         MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
                         MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
                         for (i = 0; i < elems; i++) {
@@ -1999,14 +1998,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             free(STABLE(obj)->type_check_cache);
                         STABLE(obj)->type_check_cache = cache;
                         STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 6;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_setinvokespec: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o, *ch = GET_REG(cur_op, 4).o,
-                            *invocation_handler = GET_REG(cur_op, 8).o;
-                        MVMString *name = GET_REG(cur_op, 6).s;
+                        MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
+                            *invocation_handler = GET_REG(cur_op, 6).o;
+                        MVMString *name = GET_REG(cur_op, 4).s;
                         MVMInvocationSpec *is = malloc(sizeof(MVMInvocationSpec));
                         MVMSTable *st = STABLE(obj);
                         MVM_ASSIGN_REF(tc, st, is->class_handle, ch);
@@ -2017,8 +2015,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (st->invocation_spec)
                             free(st->invocation_spec);
                         st->invocation_spec = is;
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 10;
+                        cur_op += 8;
                         break;
                     }
                     case MVM_OP_isinvokable: {
@@ -2046,11 +2043,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_setboolspec: {
                         MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
-                        bs->mode = (MVMuint32)GET_REG(cur_op, 4).i64;
-                        bs->method = GET_REG(cur_op, 6).o;
-                        GET_REG(cur_op, 2).o->st->boolification_spec = bs;
-                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
-                        cur_op += 8;
+                        bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
+                        bs->method = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).o->st->boolification_spec = bs;
+                        cur_op += 6;
                         break;
                     }
                     case MVM_OP_istrue:
