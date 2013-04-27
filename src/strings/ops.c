@@ -355,19 +355,14 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
         MVM_exception_throw_adhoc(tc, "Substring needs a concrete string");
     }
     
-    if (start >= agraphs)
-        MVM_exception_throw_adhoc(tc, "Substring start offset (%lld) cannot be past end of string (%lld)",
-            start, agraphs);
+    if (start > agraphs)
+        start = agraphs;
     
-    if (length < -1) /* -1 signifies go to the end of the string */
+    if (length < 0)
         MVM_exception_throw_adhoc(tc, "Substring length (%lld) cannot be negative", length);
     
-    if (length == -1)
-        length = agraphs - start;
-    
     if (start + length > agraphs)
-        MVM_exception_throw_adhoc(tc, "Substring end (%lld) cannot be past end of string (%lld)",
-            start + length, agraphs);
+        length = agraphs - start;
     
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
