@@ -776,13 +776,10 @@ QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
     
     # Evaluate the thing we'll iterate over, get the iterator and
     # store it in a temporary.
-    my $il := ();
-    my $list_il := $qastcomp.as_mast(@operands[0]);
+    my $il := [];
+    my $list_il := $qastcomp.as_mast(@operands[0], :want($MVM_reg_obj));
     push_ilist($il, $list_il);
     if $res {
-        if $*WANT != $list_il.result_kind {
-            nqp::die("iterator kind didn't match wanted kind");
-        }
         push_op($il, 'set', $res, $list_il.result_reg);
     }
     my $iter_tmp := $*REGALLOC.fresh_o();
