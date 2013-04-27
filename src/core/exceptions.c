@@ -155,6 +155,16 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFram
     }
 }
 
+/* Dumps a backtrace relative to the current frame to stderr. */
+static void dump_backtrace(MVMThreadContext *tc) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    while (cur_frame != NULL) {
+        fprintf(stderr, "  in %s\n",
+            MVM_string_utf8_encode(tc, cur_frame->static_info->name, NULL));
+        cur_frame = cur_frame->caller;
+    }
+}
+
 /* Panics and shuts down the VM. Don't do this unless it's something quite
  * unrecoverable.
  * TODO: Some hook for embedders.
@@ -181,16 +191,17 @@ void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, 
 /* Throws an ad-hoc (untyped) exception. */
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) {
-    /* XXX Well, need to implement exceptions. So for now just mimic panic. */
+    /* Needs plugging in to the exceptions mechanism. */
     vfprintf(stderr, messageFormat, args);
     fwrite("\n", 1, 1, stderr);
+    dump_backtrace(tc);
     exit(1);
 }
 
 /* Throws an ad-hoc (untyped) formatted exception with an apr error appended. */
 MVM_NO_RETURN
 void MVM_exception_throw_apr_error(MVMThreadContext *tc, apr_status_t code, const char *messageFormat, ...) {
-    /* XXX Well, need to implement exceptions. So for now just mimic panic. */
+    /* Needs plugging in to the exceptions mechanism. */
     char *error_string = malloc(512);
     int offset;
     va_list args;
@@ -205,5 +216,7 @@ void MVM_exception_throw_apr_error(MVMThreadContext *tc, apr_status_t code, cons
     fwrite(error_string, 1, strlen(error_string), stderr);
     fwrite("\n", 1, 1, stderr);
     free(error_string);
+    
+    dump_backtrace(tc);
     exit(1);
 }
