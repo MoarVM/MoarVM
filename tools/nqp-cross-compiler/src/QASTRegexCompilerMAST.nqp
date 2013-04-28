@@ -286,6 +286,46 @@ class QAST::MASTRegexCompiler {
         @ins
     }
     
+    my %cclass_code;
+    INIT {
+        %cclass_code<.>  := nqp::const::CCLASS_ANY;
+        %cclass_code<d>  := nqp::const::CCLASS_NUMERIC;
+        %cclass_code<s>  := nqp::const::CCLASS_WHITESPACE;
+        %cclass_code<w>  := nqp::const::CCLASS_WORD;
+        %cclass_code<n>  := nqp::const::CCLASS_NEWLINE;
+    }
+
+    method cclass($node) {
+        my $subtype := $node.name;
+        my $cclass := %cclass_code{ $subtype };
+        self.panic("Unrecognized subtype '$subtype' in QAST::Regex cclass")
+            unless $cclass;
+        
+        my @ins := nqp::list();
+        my $i0 := fresh_i();
+        nqp::push(@ins, op('ge_i', $i0, %*REG<pos>, %*REG<eos>));
+        nqp::push(@ins, op('if_i', $i0, %*REG<fail>));
+        
+        if $cclass != nqp::const::CCLASS_ANY {
+            my $testop := $node.negate ?? 'if_i' !! 'unless_i';
+            nqp::push(@ins, op('const_i64', $i0, ival($cclass)));
+            nqp::push(@ins, op('iscclass', $i0, $i0, %*REG<tgt>, %*REG<pos>));
+            nqp::push(@ins, op($testop, $i0, %*REG<fail>));
+            
+            if $cclass == nqp::const::CCLASS_NEWLINE {
+                my $s0 := fresh_s();
+                nqp::push(@ins, op('const_s', $s0, sval("\r\n")));
+                nqp::push(@ins, op('eqat_s', $i0, %*REG<tgt>, $s0, %*REG<pos>));
+                nqp::push(@ins, op('add_i', %*REG<pos>, %*REG<pos>, $i0));
+                release($s0, $MVM_reg_str);
+            } 
+        }
+
+        nqp::push(@ins, op('inc_i', %*REG<pos>));
+        release($i0, $MVM_reg_int64);
+        @ins
+    }
+    
     method concat($node) {
         my @ins := nqp::list();
         merge_ins(@ins, self.regex_mast($_)) for $node.list;
