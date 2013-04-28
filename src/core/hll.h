@@ -27,3 +27,4 @@ typedef struct _MVMHLLConfig {
 
 MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, struct _MVMString *name);
 MVMObject *MVM_hll_set_config(MVMThreadContext *tc, struct _MVMString *name, MVMObject *config_hash);
+MVMHLLConfig *MVM_hll_current(MVMThreadContext *tc);
