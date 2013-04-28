@@ -410,97 +410,52 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     "titlecase works and can be distinct from uppercase");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
-    my $new_type_method := local($frame, NQPMu);
-    my $KnowHOW := local($frame, NQPMu);
-    my $arr_type := local($frame, NQPMu);
-    my $ignored := const($frame, sval(""));
-    my $arr_repr := const($frame, sval('MVMArray'));
-    my $ArrTypename := const($frame, sval('TestArray'));
-    
-    op(@ins, 'knowhow', $KnowHOW);
-    op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-    
-    call(@ins, $new_type_method,
-        [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $KnowHOW,
-        sval("repr"), $arr_repr,
-        sval("name"), $ArrTypename,
-        :result($arr_type));
-    
     my $input_str := const($frame, sval("\n\n\n\n\nfoo\n\nbar\nbaz\n"));
     my $separator := const($frame, sval("\n"));
     my $arr := local($frame, NQPMu);
-    op(@ins, 'split', $arr, $input_str, $arr_type, $separator);
+    op(@ins, 'split', $arr, $separator, $input_str);
     
     my $elems := local($frame, int);
     op(@ins, 'elems', $elems, $arr);
     op(@ins, 'say_i', $elems);
     
+    my $item_o := local($frame, NQPMu);
     my $item := local($frame, str);
-    op(@ins, 'atpos_s', $item, $arr, const($frame, ival(0)));
+    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(0)));
+    op(@ins, 'unbox_s', $item, $item_o);
     op(@ins, 'say_s', $item);
-    op(@ins, 'atpos_s', $item, $arr, const($frame, ival(2)));
+    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(2)));
+    op(@ins, 'unbox_s', $item, $item_o);
     op(@ins, 'say_s', $item);
     op(@ins, 'return');
 }, "3\nfoo\nbaz\n", "string split multiple separators together");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
-    my $new_type_method := local($frame, NQPMu);
-    my $KnowHOW := local($frame, NQPMu);
-    my $arr_type := local($frame, NQPMu);
-    my $ignored := const($frame, sval(""));
-    my $arr_repr := const($frame, sval('MVMArray'));
-    my $ArrTypename := const($frame, sval('TestArray'));
-    
-    op(@ins, 'knowhow', $KnowHOW);
-    op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-    
-    call(@ins, $new_type_method,
-        [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $KnowHOW,
-        sval("repr"), $arr_repr,
-        sval("name"), $ArrTypename,
-        :result($arr_type));
-    
     my $input_str := const($frame, sval("foo\n\nbar\nbaz\n"));
     my $separator := const($frame, sval(""));
     my $arr := local($frame, NQPMu);
-    op(@ins, 'split', $arr, $input_str, $arr_type, $separator);
+    op(@ins, 'split', $arr, $separator, $input_str);
     
     my $elems := local($frame, int);
     op(@ins, 'elems', $elems, $arr);
     op(@ins, 'say_i', $elems);
     
+    my $item_o := local($frame, NQPMu);
     my $item := local($frame, str);
-    op(@ins, 'atpos_s', $item, $arr, const($frame, ival(0)));
+    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(0)));
+    op(@ins, 'unbox_s', $item, $item_o);
     op(@ins, 'say_s', $item);
-    op(@ins, 'atpos_s', $item, $arr, const($frame, ival(12)));
+    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(12)));
+    op(@ins, 'unbox_s', $item, $item_o);
     op(@ins, 'say_s', $item);
     op(@ins, 'return');
 }, "13\nf\n\n\n", "string split empty separator");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
-    my $new_type_method := local($frame, NQPMu);
-    my $KnowHOW := local($frame, NQPMu);
-    my $arr_type := local($frame, NQPMu);
-    my $ignored := const($frame, sval(""));
-    my $arr_repr := const($frame, sval('MVMArray'));
-    my $ArrTypename := const($frame, sval('TestArray'));
-    
-    op(@ins, 'knowhow', $KnowHOW);
-    op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-    
-    call(@ins, $new_type_method,
-        [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $KnowHOW,
-        sval("repr"), $arr_repr,
-        sval("name"), $ArrTypename,
-        :result($arr_type));
-    
     my $input_str := const($frame, sval(""));
     my $separator := const($frame, sval("\n"));
     my $arr := local($frame, NQPMu);
-    op(@ins, 'split', $arr, $input_str, $arr_type, $separator);
+    op(@ins, 'split', $arr, $separator, $input_str);
     
     my $elems := local($frame, int);
     op(@ins, 'elems', $elems, $arr);
@@ -510,115 +465,46 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 }, "0\n", "string split empty input");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
-    my $new_type_method := local($frame, NQPMu);
-    my $KnowHOW := local($frame, NQPMu);
-    my $arr_type := local($frame, NQPMu);
-    my $ignored := const($frame, sval(""));
-    my $arr_repr := const($frame, sval('MVMArray'));
-    my $ArrTypename := const($frame, sval('TestArray'));
-    
-    op(@ins, 'knowhow', $KnowHOW);
-    op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-    
-    call(@ins, $new_type_method,
-        [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $KnowHOW,
-        sval("repr"), $arr_repr,
-        sval("name"), $ArrTypename,
-        :result($arr_type));
-    
     my $arr := local($frame, NQPMu);
     my $input_str := const($frame, sval("foo\n\nbar\nbaz\n"));
     my $output_str := local($frame, str);
     my $delimiter := const($frame, sval("\n"));
-    op(@ins, 'split', $arr, $input_str, $arr_type, $delimiter);
-    op(@ins, 'join', $output_str, $arr, $delimiter);
+    op(@ins, 'split', $arr, $delimiter, $input_str);
+    op(@ins, 'join', $output_str, $delimiter, $arr);
     op(@ins, 'say_s', $output_str);
 }, "foo\nbar\nbaz\n", "join basic");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
-    my $new_type_method := local($frame, NQPMu);
-    my $KnowHOW := local($frame, NQPMu);
-    my $arr_type := local($frame, NQPMu);
-    my $ignored := const($frame, sval(""));
-    my $arr_repr := const($frame, sval('MVMArray'));
-    my $ArrTypename := const($frame, sval('TestArray'));
-    
-    op(@ins, 'knowhow', $KnowHOW);
-    op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-    
-    call(@ins, $new_type_method,
-        [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $KnowHOW,
-        sval("repr"), $arr_repr,
-        sval("name"), $ArrTypename,
-        :result($arr_type));
-    
     my $arr := local($frame, NQPMu);
     my $input_str := const($frame, sval("\n"));
     my $output_str := local($frame, str);
     my $delimiter := const($frame, sval("\n"));
-    op(@ins, 'split', $arr, $input_str, $arr_type, $delimiter);
-    op(@ins, 'join', $output_str, $arr, $delimiter);
+    op(@ins, 'split', $arr, $delimiter, $input_str);
+    op(@ins, 'join', $output_str, $delimiter, $arr);
     op(@ins, 'say_s', $output_str);
 }, "\n", "join empty array");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
-    my $new_type_method := local($frame, NQPMu);
-    my $KnowHOW := local($frame, NQPMu);
-    my $arr_type := local($frame, NQPMu);
-    my $ignored := const($frame, sval(""));
-    my $arr_repr := const($frame, sval('MVMArray'));
-    my $ArrTypename := const($frame, sval('TestArray'));
-    
-    op(@ins, 'knowhow', $KnowHOW);
-    op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-    
-    call(@ins, $new_type_method,
-        [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $KnowHOW,
-        sval("repr"), $arr_repr,
-        sval("name"), $ArrTypename,
-        :result($arr_type));
-    
     my $arr := local($frame, NQPMu);
     my $input_str := const($frame, sval("foo\n\nbar\nbaz\n"));
     my $output_str := local($frame, str);
     my $delimiter := const($frame, sval("\n"));
-    op(@ins, 'split', $arr, $input_str, $arr_type, $delimiter);
+    op(@ins, 'split', $arr, $delimiter, $input_str);
     op(@ins, 'set', $delimiter, const($frame, sval("")));
-    op(@ins, 'join', $output_str, $arr, $delimiter);
+    op(@ins, 'join', $output_str, $delimiter, $arr);
     op(@ins, 'say_s', $output_str);
 }, "foobarbaz\n", "join empty delimiter");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
-    my $new_type_method := local($frame, NQPMu);
-    my $KnowHOW := local($frame, NQPMu);
-    my $arr_type := local($frame, NQPMu);
-    my $ignored := const($frame, sval(""));
-    my $arr_repr := const($frame, sval('MVMArray'));
-    my $ArrTypename := const($frame, sval('TestArray'));
-    
-    op(@ins, 'knowhow', $KnowHOW);
-    op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-    
-    call(@ins, $new_type_method,
-        [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
-        $KnowHOW,
-        sval("repr"), $arr_repr,
-        sval("name"), $ArrTypename,
-        :result($arr_type));
-    
-    my $null := local($frame, str);
-    
+    my $null := local($frame, NQPMu);
     my $arr := local($frame, NQPMu);
     my $input_str := const($frame, sval("foo\n\nbar\nbaz\n"));
     my $output_str := local($frame, str);
     my $delimiter := const($frame, sval("\n"));
-    op(@ins, 'split', $arr, $input_str, $arr_type, $delimiter);
-    op(@ins, 'bindpos_s', $arr, const($frame, ival(1)), $null);
+    op(@ins, 'split', $arr, $delimiter, $input_str);
+    op(@ins, 'bindpos_o', $arr, const($frame, ival(1)), $null);
     op(@ins, 'set', $delimiter, const($frame, sval("")));
-    op(@ins, 'join', $output_str, $arr, $delimiter);
+    op(@ins, 'join', $output_str, $delimiter, $arr);
     op(@ins, 'say_s', $output_str);
 }, "foobaz\n", "join sparse array");
 
