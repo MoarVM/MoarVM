@@ -1043,106 +1043,106 @@ role NQPCursorRole is export {
 }
 
 
-#class NQPMatch is NQPCapture {
-#    has $!orig;
-#    has int $!from;
-#    has int $!to;
-#    has $!ast;
-#    has $!cursor;
-#
-#    method from() { $!from }
-#    method orig() { $!orig }
-#    method to()   { $!to }
-#    method CURSOR() { $!cursor }
-## Skip v-table mapping on Moar...
-##    method Str() is parrot_vtable('get_string')  { nqp::substr($!orig, $!from, $!to-$!from) }
-##    method Int() is parrot_vtable('get_integer') { +self.Str() }
-##    method Num() is parrot_vtable('get_number')  { +self.Str() }
-#    method Str() { nqp::substr($!orig, $!from, $!to-$!from) }
-#    method Int() { +self.Str() }
-#    method Num() { +self.Str() }
-#    method Bool() { $!to >= $!from }
-#    method chars() { $!to >= $!from ?? $!to - $!from !! 0 }
-#    
-#    method !make($ast) { $!ast := $ast }
-#    method ast()       { $!ast }
-#    
-#    method dump($indent?) {
-#        unless nqp::defined($indent) {
-#            $indent := 0;
-#        }
-#        if self.Bool() {
-#            my @chunks;
-#            
-#            sub dump_match($key, $value) {
-#                nqp::push(@chunks, nqp::x(' ', $indent));
-#                nqp::push(@chunks, '- ');
-#                nqp::push(@chunks, $key);
-#                nqp::push(@chunks, ': ');
-#                if nqp::can($value, 'Str') {
-#                    nqp::push(@chunks, $value.Str());
-#                }
-#                else {
-#                    nqp::push(@chunks, '<object>');
-#                }
-#                nqp::push(@chunks, "\n");
-#                if nqp::can($value, 'dump') {
-#                    nqp::push(@chunks, $value.dump($indent + 2));
-#                }
-#            }
-#            
-#            sub dump_match_array($key, @matches) {
-#                nqp::push(@chunks, nqp::x(' ', $indent));
-#                nqp::push(@chunks, '- ');
-#                nqp::push(@chunks, $key);
-#                nqp::push(@chunks, ': ');
-#                nqp::push(@chunks, ~+@matches);
-#                nqp::push(@chunks, " matches\n");
-#                for @matches {
-#                    nqp::push(@chunks, $_.dump($indent + 2));
-#                }
-#            }
-#            
-#            my int $i := 0;
-#            for self.list() {
-#                if $_ {
-#                    nqp::islist($_)
-#                        ?? dump_match_array($i, $_)
-#                        !! dump_match($i, $_);
-#                }
-#            }
-#            for self.hash() {
-#                if $_.value {
-#                    nqp::islist($_.value)
-#                        ?? dump_match_array($_.key, $_.value)
-#                        !! dump_match($_.key, $_.value);
-#                }
-#            }
-#            return join('', @chunks);
-#        }
-#        else {
-#            return nqp::x(' ', $indent) ~ "- NO MATCH\n";
-#        }
-#    }
-#
-#    method !dump_str($key) {
-#        sub dump_array($key, $item) {
-#            my $str := '';
-#            if $item ~~ NQPCapture {
-#                $str := $str ~ $item."!dump_str"($key)
-#            }
-#            elsif !nqp::isnull($item) {
-#                my $n := 0;
-#                for $item { $str := $str ~ dump_array($key ~ "[$n]", $_); $n++ }
-#            }
-#            $str;
-#        }
-#        my $str := $key ~ ': ' ~ nqp::escape(self.Str) ~ ' @ ' ~ self.from ~ "\n";
-#        $str := $str ~ dump_array($key, self.list);
-#        for self.hash { $str := $str ~ dump_array($key ~ '<' ~ $_.key ~ '>', $_.value); }
-#        $str;
-#    }
-#}
+class NQPMatch is NQPCapture {
+    has $!orig;
+    has int $!from;
+    has int $!to;
+    has $!ast;
+    has $!cursor;
+
+    method from() { $!from }
+    method orig() { $!orig }
+    method to()   { $!to }
+    method CURSOR() { $!cursor }
+# Skip v-table mapping on Moar...
+#    method Str() is parrot_vtable('get_string')  { nqp::substr($!orig, $!from, $!to-$!from) }
+#    method Int() is parrot_vtable('get_integer') { +self.Str() }
+#    method Num() is parrot_vtable('get_number')  { +self.Str() }
+    method Str() { nqp::substr($!orig, $!from, $!to-$!from) }
+    method Int() { +self.Str() }
+    method Num() { +self.Str() }
+    method Bool() { $!to >= $!from }
+    method chars() { $!to >= $!from ?? $!to - $!from !! 0 }
+    
+    method !make($ast) { $!ast := $ast }
+    method ast()       { $!ast }
+    
+    method dump($indent?) {
+        unless nqp::defined($indent) {
+            $indent := 0;
+        }
+        if self.Bool() {
+            my @chunks;
+            
+            sub dump_match($key, $value) {
+                nqp::push(@chunks, nqp::x(' ', $indent));
+                nqp::push(@chunks, '- ');
+                nqp::push(@chunks, $key);
+                nqp::push(@chunks, ': ');
+                if nqp::can($value, 'Str') {
+                    nqp::push(@chunks, $value.Str());
+                }
+                else {
+                    nqp::push(@chunks, '<object>');
+                }
+                nqp::push(@chunks, "\n");
+                if nqp::can($value, 'dump') {
+                    nqp::push(@chunks, $value.dump($indent + 2));
+                }
+            }
+            
+            sub dump_match_array($key, @matches) {
+                nqp::push(@chunks, nqp::x(' ', $indent));
+                nqp::push(@chunks, '- ');
+                nqp::push(@chunks, $key);
+                nqp::push(@chunks, ': ');
+                nqp::push(@chunks, ~+@matches);
+                nqp::push(@chunks, " matches\n");
+                for @matches {
+                    nqp::push(@chunks, $_.dump($indent + 2));
+                }
+            }
+            
+            my int $i := 0;
+            for self.list() {
+                if $_ {
+                    nqp::islist($_)
+                        ?? dump_match_array($i, $_)
+                        !! dump_match($i, $_);
+                }
+            }
+            for self.hash() {
+                if $_.value {
+                    nqp::islist($_.value)
+                        ?? dump_match_array($_.key, $_.value)
+                        !! dump_match($_.key, $_.value);
+                }
+            }
+            return join('', @chunks);
+        }
+        else {
+            return nqp::x(' ', $indent) ~ "- NO MATCH\n";
+        }
+    }
+
+    method !dump_str($key) {
+        sub dump_array($key, $item) {
+            my $str := '';
+            if $item ~~ NQPCapture {
+                $str := $str ~ $item."!dump_str"($key)
+            }
+            elsif !nqp::isnull($item) {
+                my $n := 0;
+                for $item { $str := $str ~ dump_array($key ~ "[$n]", $_); $n++ }
+            }
+            $str;
+        }
+        my $str := $key ~ ': ' ~ nqp::escape(self.Str) ~ ' @ ' ~ self.from ~ "\n";
+        $str := $str ~ dump_array($key, self.list);
+        for self.hash { $str := $str ~ dump_array($key ~ '<' ~ $_.key ~ '>', $_.value); }
+        $str;
+    }
+}
 
 class NQPCursor does NQPCursorRole {
     my $EMPTY_MATCH_LIST := nqp::list();
