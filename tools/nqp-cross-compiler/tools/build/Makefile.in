@@ -58,7 +58,7 @@ DYNOPS          = $(OPS_DIR)/$(OPS)$(LOAD_EXT)
 OPS_SOURCE      = mvmcc.ops
 
 # Cross-compiler libraries
-CROSS_COMP_PBCS = MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QASTCompilerMAST.pbc QASTRegexCompilerMAST.pbc NQPCursorQAST.pbc
+CROSS_COMP_PBCS = MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QASTCompilerMAST.pbc QASTRegexCompilerMAST.pbc
 
 # Related to cross-compilation of NQP
 PRECOMPILE_NS   = $(NQP) --target=pir --setting=NULL --stable-sc --output=$@
@@ -127,13 +127,9 @@ QASTCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc QASTRegex
 	$(NQP) --target=pir src/QASTCompilerMAST.nqp > QASTCompilerMAST.pir
 	$(PARROT) --output=QASTCompilerMAST.pbc QASTCompilerMAST.pir
 
-QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/QASTRegexCompilerMAST.nqp NQPCursorQAST.pbc
+QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/QASTRegexCompilerMAST.nqp
 	$(NQP) --target=pir src/QASTRegexCompilerMAST.nqp > QASTRegexCompilerMAST.pir
 	$(PARROT) --output=QASTRegexCompilerMAST.pbc QASTRegexCompilerMAST.pir
-
-NQPCursorQAST.pbc: src/NQPCursorQAST.nqp
-	$(NQP) --target=pir src/NQPCursorQAST.nqp > NQPCursorQAST.pir
-	$(PARROT) --output=NQPCursorQAST.pbc NQPCursorQAST.pir
 
 ## NQP -> Moar
 

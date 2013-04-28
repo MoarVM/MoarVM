@@ -1,5 +1,4 @@
 use QASTOperationsMAST;
-use NQPCursorQAST;
 
 my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
 my $MVM_reg_int8            := 1;
