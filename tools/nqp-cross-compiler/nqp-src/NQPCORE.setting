@@ -560,10 +560,10 @@ my class NQPMu {
         self.bless(|%attributes);
     }
 
-#    proto method ACCEPTS($topic) { * }
-#    multi method ACCEPTS(NQPMu:U $self: $topic) {
-#        nqp::istype($topic, self.WHAT)
-#    }
+    proto method ACCEPTS($topic) { * }
+    multi method ACCEPTS(NQPMu:U $self: $topic) {
+        nqp::istype($topic, self.WHAT)
+    }
 
     method isa($type) {
         self.HOW.isa(self, $type)
