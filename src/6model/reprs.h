@@ -20,6 +20,7 @@
 #include "6model/reprs/Lexotic.h"
 #include "6model/reprs/MVMCallCapture.h"
 #include "6model/reprs/P6bigint.h"
+#include "6model/reprs/NFA.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -50,3 +51,4 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_Lexotic                 18
 #define MVM_REPR_ID_MVMCallCapture          19
 #define MVM_REPR_ID_P6bigint                20
+#define MVM_REPR_ID_NFA                     21
