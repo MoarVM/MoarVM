@@ -1526,6 +1526,10 @@ QAST::MASTOperations.add_core_moarop_mapping('setinvokespec', 'setinvokespec', 0
 # defined - overridden by HLL, but by default same as .DEFINITE.
 QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 
+# lexical related opcodes
+QAST::MASTOperations.add_core_moarop_mapping('getlexdyn', 'getdynlex');
+QAST::MASTOperations.add_core_moarop_mapping('bindlexdyn', 'binddynlex');
+
 # code object related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
 QAST::MASTOperations.add_core_moarop_mapping('getcodeobj', 'getcodeobj');
