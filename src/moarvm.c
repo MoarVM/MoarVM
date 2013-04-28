@@ -84,6 +84,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up hll symbol tables mutex. */
     init_mutex(instance->mutex_hll_syms, "hll syms");
     
+    /* Initialize string cclass handling. */
+    MVM_string_cclass_init(instance->main_thread);
+    
     return instance;
 }
 

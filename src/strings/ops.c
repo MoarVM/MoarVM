@@ -984,18 +984,18 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
             buffer[bpos++] = cp;
         }
     }
-    
+
     res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     res->body.flags = MVM_STRING_TYPE_INT32;
     res->body.graphs = bpos;
     res->body.int32s = buffer;
-    
+
     return res;
 }
 
 /* Takes a string and reverses its characters. */
 MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
-    MVMString      *res     = NULL;    
+    MVMString      *res     = NULL;
     MVMStringIndex  sgraphs = NUM_GRAPHS(s);
     MVMStringIndex  spos    = 0;
     MVMCodepoint32 *rbuffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
@@ -1003,11 +1003,170 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
 
     for (; spos < sgraphs; spos++)
         rbuffer[--rpos] = MVM_string_get_codepoint_at_nocheck(tc, s, spos);
-    
+
     res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     res->body.flags = MVM_STRING_TYPE_INT32;
     res->body.graphs = sgraphs;
     res->body.int32s = rbuffer;
-    
+
     return res;
+}
+
+/* The following statics hold on to various unicode property values we will
+ * resolve once so we don't have to do it repeatedly. */
+static MVMint64 UPV_Nd = 0;
+static MVMint64 UPV_Lu = 0;
+static MVMint64 UPV_Ll = 0;
+static MVMint64 UPV_Lt = 0;
+static MVMint64 UPV_Lm = 0;
+static MVMint64 UPV_Lo = 0;
+static MVMint64 UPV_Zs = 0;
+static MVMint64 UPV_Zl = 0;
+static MVMint64 UPV_Pc = 0;
+static MVMint64 UPV_Pd = 0;
+static MVMint64 UPV_Ps = 0;
+static MVMint64 UPV_Pe = 0;
+static MVMint64 UPV_Pi = 0;
+static MVMint64 UPV_Pf = 0;
+static MVMint64 UPV_Po = 0;
+
+/* Resolves various unicode property values that we'll need. */
+void MVM_string_cclass_init(MVMThreadContext *tc) {
+    UPV_Nd = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Nd"));
+    UPV_Lu = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lu"));
+    UPV_Ll = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Ll"));
+    UPV_Lt = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lt"));
+    UPV_Lm = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lm"));
+    UPV_Lo = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lo"));
+    UPV_Zs = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Zs"));
+    UPV_Zl = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Zl"));
+    UPV_Pc = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pc"));
+    UPV_Pd = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pd"));
+    UPV_Ps = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Ps"));
+    UPV_Pe = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pe"));
+    UPV_Pi = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pi"));
+    UPV_Pf = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pf"));
+    UPV_Po = MVM_unicode_name_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Po"));
+}
+
+/* Checks if the character at the specified offset is a member of the
+ * indicated character class. */
+MVMint64 MVM_string_iscclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
+    switch (cclass) {
+        case MVM_CCLASS_ANY:
+            return 1;
+        
+        case MVM_CCLASS_UPPERCASE:
+            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lu);
+        
+        case MVM_CCLASS_LOWERCASE:
+            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ll);
+        
+        case MVM_CCLASS_WORD:
+            if (MVM_string_get_codepoint_at(tc, s, offset) == '_')
+                return 1;
+            /* Deliberate fall-through; word is _ or digit or alphabetic. */
+        
+        case MVM_CCLASS_ALPHANUMERIC:
+            if (MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd))
+                return 1;
+            /* Deliberate fall-through; alphanumeric is digit or alphabetic. */
+        
+        case MVM_CCLASS_ALPHABETIC:
+            return 
+                MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ll)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lu)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lt)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lm)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lo);
+        
+        case MVM_CCLASS_NUMERIC:
+            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd);
+        
+        case MVM_CCLASS_HEXADECIMAL:
+            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_UNICODE_PROPERTY_ASCII_HEX_DIGIT, 1);
+            
+        case MVM_CCLASS_WHITESPACE:
+            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_UNICODE_PROPERTY_WHITE_SPACE, 1);
+
+        case MVM_CCLASS_BLANK:
+            if (MVM_string_get_codepoint_at(tc, s, offset) == '\t')
+                return 1;
+            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Zs);
+
+        case MVM_CCLASS_CONTROL: {
+            MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
+            return (cp >= 0 && cp < 32) || cp == 127;
+        }
+
+        case MVM_CCLASS_PUNCTUATION:
+            return 
+                MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pc)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pd)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ps)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pe)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pi)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pf)
+             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Po);
+            
+        case MVM_CCLASS_NEWLINE: {
+            MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
+            if (cp == '\n' || cp == '\r')
+                return 1;
+            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Zl);
+        }
+        
+        default:
+            return 0;
+    }
 }
