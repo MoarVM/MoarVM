@@ -46,8 +46,10 @@ class QAST::MASTRegexCompiler {
         my $two      := fresh_i();
         my $three    := fresh_i();
         my $four     := fresh_i();
+        my $five     := fresh_i();
         my $P11      := fresh_o();
         my $method   := fresh_o();
+        my $tmp      := fresh_o();
         
         # create our labels
         my $startlabel   := label($prefix ~ 'start');
@@ -84,15 +86,8 @@ class QAST::MASTRegexCompiler {
         
         my @*RXJUMPS := nqp::list();
         
-        my $cstarttype_lex := $*BLOCK.resolve_lexical('CursorStart'); # MAST::Lexical
-        my $cstarttype := fresh_o();
         my $cstart := fresh_o();
         my $i19 := fresh_i(); # yes, I know, inheriting the name from ancestor method
-        # XXX TODO actually use the correct cursor symbol somehow
-        my $cursor_lex := MAST::Lexical.new( :index($*MAST_FRAME.add_lexical(NQPMu, '=Cursor')) );
-        %*REG{'cursor_lex'} := $cursor_lex;
-        ($*BLOCK.lexicals()){'=Cursor'} := $cursor_lex;
-        ($*BLOCK.lexical_kinds()){'=Cursor'} := $MVM_reg_obj;
         my $i0 := fresh_i();
         
         my @ins := [
@@ -102,16 +97,19 @@ class QAST::MASTRegexCompiler {
             op('const_i64', $two, ival(2)),
             op('const_i64', $three, ival(3)),
             op('const_i64', $four, ival(4)),
-            op('getlex', $cstarttype, $cstarttype_lex),
-            op('findmeth', $method, $self, sval('!cursor_start')),
+            op('const_i64', $five, ival(5)),
+            op('findmeth', $method, $self, sval('!cursor_start_all')),
             call($method, [ $Arg::obj ], :result($cstart), $self ),
-            op('getattr_o', $cur, $cstart, $cstarttype, sval('$!cur'), ival(-1)),
-            op('getattr_s', $tgt, $cstart, $cstarttype, sval('$!tgt'), ival(-1)),
-            op('getattr_i', $pos, $cstart, $cstarttype, sval('$!pos'), ival(-1)),
-            op('getattr_o', $curclass, $cstart, $cstarttype, sval('$!curclass'), ival(-1)),
-            op('getattr_o', $bstack, $cstart, $cstarttype, sval('$!bstack'), ival(-1)),
-            op('getattr_i', $i19, $cstart, $cstarttype, sval('$!i19'), ival(-1)),
-            op('bindlex', $cursor_lex, $cur),
+            op('atpos_o', $cur, $cstart, $zero),
+            op('atpos_o', $tmp, $cstart, $one),
+            op('unbox_s', $tgt, $tmp),
+            op('atpos_o', $tmp, $cstart, $two),
+            op('unbox_i', $pos, $tmp),
+            op('atpos_o', $curclass, $cstart, $three),
+            op('atpos_o', $bstack, $cstart, $four),
+            op('atpos_o', $tmp, $cstart, $five),
+            op('unbox_i', $i19, $tmp),
+            op('bindlex', $*BLOCK.resolve_lexical('$¢'), $cur),
             op('graphs_s', $eos, $tgt),
             op('eq_i', $i0, $one, $i19),
             op('if_i', $i0, $restartlabel),
@@ -162,7 +160,7 @@ class QAST::MASTRegexCompiler {
             op('dec_i', $i18),
             op('atpos_i', $i18, $bstack, $i18),
             $cutlabel,
-            op('setelems', $cstack, $i18),
+            op('setelemspos', $cstack, $i18),
             $jumplabel,
             op('jumplist', ival(+@*RXJUMPS), $i19)
         ]);
