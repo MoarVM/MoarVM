@@ -1170,3 +1170,33 @@ MVMint64 MVM_string_iscclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s
             return 0;
     }
 }
+
+/* Searches for the next char that is in the specified character class. */
+MVMint64 MVM_string_findcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
+    MVMint64 length = NUM_GRAPHS(s);
+    MVMint64 end    = offset + count;
+    MVMint64 pos;
+    
+    end = length < end ? length : end;
+    
+    for (pos = offset; pos < end; pos++)
+        if (MVM_string_iscclass(tc, cclass, s, pos) > 0)
+            return pos;
+    
+    return end;
+}
+
+/* Searches for the next char that is not in the specified character class. */
+MVMint64 MVM_string_findnotcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
+    MVMint64 length = NUM_GRAPHS(s);
+    MVMint64 end    = offset + count;
+    MVMint64 pos;
+    
+    end = length < end ? length : end;
+    
+    for (pos = offset; pos < end; pos++)
+        if (MVM_string_iscclass(tc, cclass, s, pos) == 0)
+            return pos;
+    
+    return end;
+}
