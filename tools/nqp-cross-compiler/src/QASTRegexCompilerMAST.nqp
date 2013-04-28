@@ -375,7 +375,6 @@ class QAST::MASTRegexCompiler {
         my @flags := [$Arg::obj, $Arg::int];
         my $op;
         my $meth := fresh_o();
-        nqp::push(@args, %*REG<cur>);
         if $node.name {
             my $name := $*QASTCOMPILER.as_mast($node.name);
             merge_ins(@ins, $name.instructions);
