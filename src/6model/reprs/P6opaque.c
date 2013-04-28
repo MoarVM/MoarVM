@@ -277,6 +277,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             }
                             else {
                                 set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);
+                                result_reg->o = value;
                             }
                         }
                         else {
