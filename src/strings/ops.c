@@ -710,49 +710,50 @@ char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint6
     return NULL;
 }
 
-MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *input, MVMObject *type_object, MVMString *separator) {
+MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input) {
     MVMObject *result;
     MVMStringIndex start, end, sep_length;
+    MVMHLLConfig *hll = MVM_hll_current(tc);
     
     if (!IS_CONCRETE((MVMObject *)separator)) {
         MVM_exception_throw_adhoc(tc, "split needs a concrete string separator");
     }
     
-    if (REPR(type_object)->ID != MVM_REPR_ID_MVMArray || IS_CONCRETE(type_object)) {
-        MVM_exception_throw_adhoc(tc, "split needs a type object with MVMArray REPR");
-    }
-    
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_object);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&input);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&separator);
-    result = REPR(type_object)->allocate(tc, STABLE(type_object));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
-    
-    start = 0;
-    end = NUM_GRAPHS(input);
-    sep_length = NUM_GRAPHS(separator);
-    
-    while (start < end) {
-        MVMString *portion;
-        MVMStringIndex index, length;
-        
-        /* XXX make this use the dual-traverse iterator, but such that it
-            can reset the index of what it's comparing... <!> */
-        index = MVM_string_index(tc, input, separator, start);
-        length = sep_length ? (index == -1 ? end : index) - start : 1;
-        if (length) {
-            portion = MVM_string_substring(tc, input, start, length);
-            MVM_repr_push_o(tc, result, (MVMObject *)portion);
-        }
-        start += length + sep_length;
-    }
-    
-    MVM_gc_root_temp_pop_n(tc, 4);
+    MVMROOT(tc, input, {
+    MVMROOT(tc, separator, {
+        result = MVM_repr_alloc_init(tc, hll->slurpy_array_type);
+        MVMROOT(tc, result, {
+            start = 0;
+            end = NUM_GRAPHS(input);
+            sep_length = NUM_GRAPHS(separator);
+            
+            while (start < end) {
+                MVMString *portion;
+                MVMStringIndex index;
+                MVMStringIndex length;
+                
+                /* XXX make this use the dual-traverse iterator, but such that it
+                    can reset the index of what it's comparing... <!> */
+                index = MVM_string_index(tc, input, separator, start);
+                length = sep_length ? (index == -1 ? end : index) - start : 1;
+                if (length) {
+                    portion = MVM_string_substring(tc, input, start, length);
+                    MVMROOT(tc, portion, {
+                        MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
+                        MVM_repr_set_str(tc, pobj, portion);
+                        MVM_repr_push_o(tc, result, pobj);
+                    });
+                }
+                start += length + sep_length;
+            }
+        });
+    });
+    });
     
     return result;
 }
 
-MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *separator) {
+MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input) {
     MVMint64 elems, length = 0, index = -1, position = 0;
     MVMString *portion, *result;
     MVMuint32 codes = 0;
@@ -760,99 +761,93 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMObject *input, MVMString *s
     MVMStringIndex sgraphs, rgraphs;
     MVMStrand *strands;
     
-    if (REPR(input)->ID != MVM_REPR_ID_MVMArray || !IS_CONCRETE(input)) {
-        MVM_exception_throw_adhoc(tc, "join needs a concrete object with MVMArray REPR");
+    if (!IS_CONCRETE(input)) {
+        MVM_exception_throw_adhoc(tc, "join needs a concrete array to join");
     }
     
     if (!IS_CONCRETE((MVMObject *)separator)) {
         MVM_exception_throw_adhoc(tc, "join needs a concrete separator");
     }
     
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&separator);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&input);
-    /* inherit the string type of the separator.... seems ok to me */
-    result = (MVMString *)(REPR(separator)->allocate(tc, STABLE(separator)));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
-    
-    elems = REPR(input)->elems(tc, STABLE(input),
-        input, OBJECT_BODY(input));
-    
-    sgraphs = NUM_GRAPHS(separator);
-    max_strand_depth = STRAND_DEPTH(separator);
-    
-    while (++index < elems) {
-        MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
-        MVMStringIndex pgraphs;
-        
-        /* allow null items in the array, I guess.. */
-        if (!item)
-            continue;
-        if (REPR(item)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(item)) {
-            MVM_gc_root_temp_pop_n(tc, 3);
-            MVM_exception_throw_adhoc(tc, "join needs concrete strings only");
-        }
-        
-        portion = (MVMString *)item;
-        pgraphs = NUM_GRAPHS(portion);
-        if (pgraphs) 
-            ++portion_index;
-        if (index && sgraphs)
-            ++portion_index;
-        length += pgraphs + (index ? sgraphs : 0);
-        /* XXX codes += portion->body.codes + (index ? separator->body.codes : 0); */
-        if (STRAND_DEPTH(portion) > max_strand_depth)
-            max_strand_depth = STRAND_DEPTH(portion);
-    }
-    
-    rgraphs = length;
-    /* XXX consider whether to coalesce combining characters
-    if they cause new combining sequences to appear */
-    /* XXX result->body.codes = codes; */
-    
-    if (portion_index > (1<<30)) {
-        MVM_gc_root_temp_pop_n(tc, 3);
-        MVM_exception_throw_adhoc(tc, "join array items > %lld arbitrarily unsupported...", (1<<30));
-    }
-    
-    if (portion_index) {
-        index = -1;
-        position = 0;
-        strands = result->body.strands = calloc(sizeof(MVMStrand), portion_index + 1);
-        
-        portion_index = 0;
-        while (++index < elems) {
-            MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
+    MVMROOT(tc, separator, {
+    MVMROOT(tc, input, {
+        result = (MVMString *)MVM_repr_alloc_init(tc, separator);
+        MVMROOT(tc, result, {
+            elems = REPR(input)->elems(tc, STABLE(input),
+                input, OBJECT_BODY(input));
             
-            if (!item)
-                continue;
+            sgraphs = NUM_GRAPHS(separator);
+            max_strand_depth = STRAND_DEPTH(separator);
             
-            /* Note: this allows the separator to precede the empty string. */
-            if (index && sgraphs) {
-                strands[portion_index].compare_offset = position;
-                strands[portion_index].string = separator;
-                position += sgraphs;
-                ++portion_index;
+            while (++index < elems) {
+                MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
+                MVMStringIndex pgraphs;
+                
+                /* allow null or type object items in the array, I guess.. */
+                if (!item || !IS_CONCRETE(item))
+                    continue;
+                
+                portion = MVM_repr_get_str(tc, item);
+                pgraphs = NUM_GRAPHS(portion);
+                if (pgraphs) 
+                    ++portion_index;
+                if (index && sgraphs)
+                    ++portion_index;
+                length += pgraphs + (index ? sgraphs : 0);
+                /* XXX codes += portion->body.codes + (index ? separator->body.codes : 0); */
+                if (STRAND_DEPTH(portion) > max_strand_depth)
+                    max_strand_depth = STRAND_DEPTH(portion);
             }
             
-            portion = (MVMString *)item;
-            length = NUM_GRAPHS(portion);
-            if (length) {
-                strands[portion_index].compare_offset = position;
-                strands[portion_index].string = portion;
-                position += length;
-                ++portion_index;
+            rgraphs = length;
+            /* XXX consider whether to coalesce combining characters
+            if they cause new combining sequences to appear */
+            /* XXX result->body.codes = codes; */
+            
+            if (portion_index > (1<<30)) {
+                MVM_exception_throw_adhoc(tc, "join array items > %lld arbitrarily unsupported...", (1<<30));
             }
-        }
-        strands[portion_index].graphs = position;
-        strands[portion_index].strand_depth = max_strand_depth + 1;
-        result->body.flags = MVM_STRING_TYPE_ROPE;
-        result->body.num_strands = portion_index;
-    }
-    else {
-        /* leave type default of int32 and graphs 0 */
-    }
-    
-    MVM_gc_root_temp_pop_n(tc, 3);
+            
+            if (portion_index) {
+                index = -1;
+                position = 0;
+                strands = result->body.strands = calloc(sizeof(MVMStrand), portion_index + 1);
+                
+                portion_index = 0;
+                while (++index < elems) {
+                    MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
+                    
+                    if (!item || !IS_CONCRETE(item))
+                        continue;
+                    
+                    /* Note: this allows the separator to precede the empty string. */
+                    if (index && sgraphs) {
+                        strands[portion_index].compare_offset = position;
+                        strands[portion_index].string = separator;
+                        position += sgraphs;
+                        ++portion_index;
+                    }
+                    
+                    portion = MVM_repr_get_str(tc, item);
+                    length = NUM_GRAPHS(portion);
+                    if (length) {
+                        strands[portion_index].compare_offset = position;
+                        strands[portion_index].string = portion;
+                        position += length;
+                        ++portion_index;
+                    }
+                }
+                strands[portion_index].graphs = position;
+                strands[portion_index].strand_depth = max_strand_depth + 1;
+                result->body.flags = MVM_STRING_TYPE_ROPE;
+                result->body.num_strands = portion_index;
+            }
+            else {
+                /* leave type default of int32 and graphs 0 */
+            }
+        });
+    });
+    });
     
     /* assertion/check */
     if (NUM_GRAPHS(result) != position)

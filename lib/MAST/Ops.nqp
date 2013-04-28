@@ -1522,7 +1522,6 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
@@ -1530,8 +1529,8 @@ class MAST::Ops {
                 'code', 22,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_str,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_str
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
             'replace', nqp::hash(

@@ -202,8 +202,8 @@ BANK 2 string
 0x12    decode_b            w(obj) r(obj) r(int64)
 0x13    decode              w(str) r(obj) r(int64)
 0x14    encode              w(obj) r(str) r(int64)
-0x15    split               w(obj) r(str) r(obj) r(str)
-0x16    join                w(str) r(obj) r(str)
+0x15    split               w(obj) r(str) r(str)
+0x16    join                w(str) r(str) r(obj)
 0x17    replace             w(str) r(str) r(str) r(str)
 0x18    getcpbyname         w(int64) r(str)
 0x19    indexat_scb         r(str) r(int64) str ins

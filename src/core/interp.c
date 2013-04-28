@@ -1120,12 +1120,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_split:
                         GET_REG(cur_op, 0).o = MVM_string_split(tc,
-                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s);
-                        cur_op += 8;
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
                         break;
                     case MVM_OP_join:
                         GET_REG(cur_op, 0).s = MVM_string_join(tc,
-                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                         cur_op += 6;
                         break;
                     /*case MVM_OP_replace:
