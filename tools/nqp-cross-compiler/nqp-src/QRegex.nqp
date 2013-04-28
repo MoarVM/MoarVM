@@ -65,12 +65,12 @@ class QRegex::NFA {
         self;
     }
 
-#    method regex_nfa($node, $from, $to) {
-#        my $method := ($node.rxtype // 'concat');
-#        self.HOW.can(self, $method) 
-#         ?? self."$method"($node, $from, $to)
-#         !! self.fate($node, $from, $to);
-#    }
+    method regex_nfa($node, $from, $to) {
+        my $method := ($node.rxtype // 'concat');
+        self.HOW.can(self, $method) 
+         ?? self."$method"($node, $from, $to)
+         !! self.fate($node, $from, $to);
+    }
 
     method fate($node, $from, $to) { 
         self.addedge($from, 0, $EDGE_FATE, 0, :newedge(0)) 
@@ -291,34 +291,34 @@ class QRegex::NFA {
         $!states
     }
 
-#    method mergesubrule($start, $to, $fate, $cursor, str $name, %caller_seen?) {
-#        #nqp::say("adding $name");
-#        my %seen := nqp::clone(%caller_seen);
-#        my @substates;
-#        if nqp::can($cursor, $name) {
-#            if !nqp::existskey(%seen, $name) {
-#                my $meth := $cursor.HOW.find_method($cursor, $name, :no_trace(1));
-#                @substates := $meth.NFA() if nqp::can($meth, 'NFA');
-#                @substates := [] if nqp::isnull(@substates);
-#            }
-#            if !@substates && !nqp::existskey(%seen, $name) {
-#                # Maybe it's a protoregex, in which case states are an alternation
-#                # of all of the possible rules.
-#                my %protorx      := $cursor.HOW.cache($cursor, "!protoregex_table", { $cursor."!protoregex_table"() });
-#                my $nfa          := QRegex::NFA.new;
-#                my int $gotmatch := 0;
-#                if nqp::existskey(%protorx, $name) {
-#                    for %protorx{$name} -> $rxname {
-#                        $nfa.addedge(1, 0, $EDGE_SUBRULE, $rxname);
-#                        $gotmatch := 1;
-#                    }
-#                }
-#                @substates := $nfa.states() if $gotmatch;
-#            }
-#        }
-#        %seen{$name} := 1;
-#        self.mergesubstates($start, $to, $fate, @substates, $cursor, %seen);
-#    }
+    method mergesubrule($start, $to, $fate, $cursor, str $name, %caller_seen?) {
+        #nqp::say("adding $name");
+        my %seen := nqp::clone(%caller_seen);
+        my @substates;
+        if nqp::can($cursor, $name) {
+            if !nqp::existskey(%seen, $name) {
+                my $meth := $cursor.HOW.find_method($cursor, $name, :no_trace(1));
+                @substates := $meth.NFA() if nqp::can($meth, 'NFA');
+                @substates := [] if nqp::isnull(@substates);
+            }
+            if !@substates && !nqp::existskey(%seen, $name) {
+                # Maybe it's a protoregex, in which case states are an alternation
+                # of all of the possible rules.
+                my %protorx      := $cursor.HOW.cache($cursor, "!protoregex_table", { $cursor."!protoregex_table"() });
+                my $nfa          := QRegex::NFA.new;
+                my int $gotmatch := 0;
+                if nqp::existskey(%protorx, $name) {
+                    for %protorx{$name} -> $rxname {
+                        $nfa.addedge(1, 0, $EDGE_SUBRULE, $rxname);
+                        $gotmatch := 1;
+                    }
+                }
+                @substates := $nfa.states() if $gotmatch;
+            }
+        }
+        %seen{$name} := 1;
+        self.mergesubstates($start, $to, $fate, @substates, $cursor, %seen);
+    }
     
     method mergesubstates($start, $to, $fate, @substates, $cursor, %seen?) {
         if @substates {
@@ -474,54 +474,54 @@ role NQPCursorRole is export {
     method pos() { $!pos }
 
     my $NO_CAPS := nqp::hash();
-#    method CAPHASH() {
-#        my $caps    := nqp::hash();
-#        my %caplist := $NO_CAPS;
-#        my $iter;
-#        my str $curcap;
-#        my $cs;
-#        my int $csi;
-#        my int $cselems;
-#        my $subcur;
-#        my $submatch;
-#        my $name;
-#        
-#        if !nqp::isnull($!regexsub) && nqp::defined($!regexsub) {
-#            %caplist := nqp::can($!regexsub, 'CAPS') ?? $!regexsub.CAPS() !! nqp::null();
-#            if !nqp::isnull(%caplist) && %caplist {
-#                $iter := nqp::iterator(%caplist);
-#                while $iter {
-#                    $curcap := nqp::iterkey_s(nqp::shift($iter));
-#                    $caps{$curcap} := nqp::list() if nqp::atkey(%caplist, $curcap) >= 2;
-#                }
-#            }
-#        }
-#        if !nqp::isnull($!cstack) && $!cstack {
-#            $cs      := $!cstack;
-#            $cselems := nqp::elems($cs);
-#            while $csi < $cselems {
-#                $subcur := nqp::atpos($cs, $csi);
-#                $submatch := $subcur.MATCH;
-#                $name := nqp::getattr($subcur, $?CLASS, '$!name');
-#                if !nqp::isnull($name) && nqp::defined($name) {
-#                    if nqp::index($name, '=') < 0 {
-#                        %caplist{$name} >= 2
-#                            ?? nqp::push($caps{$name}, $submatch)
-#                            !! nqp::bindkey($caps, $name, $submatch);
-#                    }
-#                    else {
-#                        for nqp::split('=', $name) -> $name {
-#                            %caplist{$name} >= 2
-#                                ?? nqp::push($caps{$name}, $submatch)
-#                                !! nqp::bindkey($caps, $name, $submatch);
-#                        }
-#                    }
-#                }
-#                $csi++;
-#            }
-#        } 
-#        $caps;
-#    }
+    method CAPHASH() {
+        my $caps    := nqp::hash();
+        my %caplist := $NO_CAPS;
+        my $iter;
+        my str $curcap;
+        my $cs;
+        my int $csi;
+        my int $cselems;
+        my $subcur;
+        my $submatch;
+        my $name;
+        
+        if !nqp::isnull($!regexsub) && nqp::defined($!regexsub) {
+            %caplist := nqp::can($!regexsub, 'CAPS') ?? $!regexsub.CAPS() !! nqp::null();
+            if !nqp::isnull(%caplist) && %caplist {
+                $iter := nqp::iterator(%caplist);
+                while $iter {
+                    $curcap := nqp::iterkey_s(nqp::shift($iter));
+                    $caps{$curcap} := nqp::list() if nqp::atkey(%caplist, $curcap) >= 2;
+                }
+            }
+        }
+        if !nqp::isnull($!cstack) && $!cstack {
+            $cs      := $!cstack;
+            $cselems := nqp::elems($cs);
+            while $csi < $cselems {
+                $subcur := nqp::atpos($cs, $csi);
+                $submatch := $subcur.MATCH;
+                $name := nqp::getattr($subcur, $?CLASS, '$!name');
+                if !nqp::isnull($name) && nqp::defined($name) {
+                    if nqp::index($name, '=') < 0 {
+                        %caplist{$name} >= 2
+                            ?? nqp::push($caps{$name}, $submatch)
+                            !! nqp::bindkey($caps, $name, $submatch);
+                    }
+                    else {
+                        for nqp::split('=', $name) -> $name {
+                            %caplist{$name} >= 2
+                                ?? nqp::push($caps{$name}, $submatch)
+                                !! nqp::bindkey($caps, $name, $submatch);
+                        }
+                    }
+                }
+                $csi++;
+            }
+        } 
+        $caps;
+    }
 
     method !cursor_init($orig, :$p = 0, :$c, :$shared) {
         my $new := self.CREATE();
@@ -697,7 +697,7 @@ role NQPCursorRole is export {
         while @fates {
             $rxname := nqp::atpos(@rxfate, nqp::pop_i(@fates));
             #nqp::say("invoking $rxname");
-#            $cur := self."$rxname"();
+            $cur := self."$rxname"();
             @fates := @EMPTY if nqp::getattr_i($cur, $?CLASS, '$!pos') >= 0;
         }
         $cur // self."!cursor_start_cur"();
