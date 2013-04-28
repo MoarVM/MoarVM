@@ -992,3 +992,22 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     
     return res;
 }
+
+/* Takes a string and reverses its characters. */
+MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
+    MVMString      *res     = NULL;    
+    MVMStringIndex  sgraphs = NUM_GRAPHS(s);
+    MVMStringIndex  spos    = 0;
+    MVMCodepoint32 *rbuffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
+    MVMStringIndex  rpos    = sgraphs;
+
+    for (; spos < sgraphs; spos++)
+        rbuffer[--rpos] = MVM_string_get_codepoint_at_nocheck(tc, s, spos);
+    
+    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    res->body.flags = MVM_STRING_TYPE_INT32;
+    res->body.graphs = sgraphs;
+    res->body.int32s = rbuffer;
+    
+    return res;
+}

@@ -1308,6 +1308,12 @@ static MVMOpInfo MVM_op_info_string[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_flip,
+        "flip",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 static MVMOpInfo MVM_op_info_math[] = {
     {
@@ -2749,7 +2755,7 @@ static unsigned char MVM_op_banks = 8;
 static unsigned char MVM_opcounts_by_bank[] = {
     171,
     7,
-    38,
+    39,
     16,
     129,
     45,
