@@ -999,7 +999,7 @@ QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
 });
 
 QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
-    my @args := $op.list;
+    my @args := nqp::clone($op.list);
     if +@args == 0 {
         nqp::die('Method call node requires at least one child');
     }
@@ -1049,10 +1049,7 @@ QAST::MASTOperations.add_core_op('callmethod', -> $qastcomp, $op {
         $method_name := MAST::SVal.new( :value($op.name) );
     }
     else {
-        my $method_name_ilist := $qastcomp.as_mast($methodname_expr);
-        # this check may not be necessary (enforced by the HLL grammar)
-        nqp::die("method name expression must result in a string")
-            unless $method_name_ilist.result_kind == $MVM_reg_str;
+        my $method_name_ilist := $qastcomp.as_mast($methodname_expr, :want($MVM_reg_str));
         push_ilist(@ins, $method_name_ilist);
         $method_name := $method_name_ilist.result_reg;
     }
