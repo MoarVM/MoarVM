@@ -663,17 +663,17 @@ role NQPCursorRole is export {
         $!regexsub($new);
     }
 
-#    method !reduce(str $name) {
-#        my $actions := nqp::getlexdyn('$*ACTIONS');
-#        nqp::findmethod($actions, $name)($actions, self.MATCH)
-#            if !nqp::isnull($actions) && nqp::can($actions, $name);
-#    }
-#
-#    method !reduce_with_match($name, $key, $match) {
-#        my $actions := nqp::getlexdyn('$*ACTIONS');
-#        nqp::findmethod($actions, $name)($actions, $match, $key)
-#            if !nqp::isnull($actions) && nqp::can($actions, $name);
-#    }
+    method !reduce(str $name) {
+        my $actions := nqp::getlexdyn('$*ACTIONS');
+        nqp::findmethod($actions, $name)($actions, self.MATCH)
+            if !nqp::isnull($actions) && nqp::can($actions, $name);
+    }
+
+    method !reduce_with_match($name, $key, $match) {
+        my $actions := nqp::getlexdyn('$*ACTIONS');
+        nqp::findmethod($actions, $name)($actions, $match, $key)
+            if !nqp::isnull($actions) && nqp::can($actions, $name);
+    }
     
     method !shared() { $!shared }
 
@@ -791,7 +791,7 @@ role NQPCursorRole is export {
         if $pos >= $highwater {
             $highexpect := nqp::getattr($shared, ParseShared, '@!highexpect');
             if $pos > $highwater {
-#                nqp::setelems($highexpect, 0);
+                nqp::setelems($highexpect, 0);
                 nqp::bindattr_i($shared, ParseShared, '$!highwater', $pos);
             }
             nqp::push_s($highexpect, $dba);
@@ -818,7 +818,7 @@ role NQPCursorRole is export {
     
     method !clear_highwater() {
         my $highexpect := nqp::getattr($!shared, ParseShared, '@!highexpect');
-#        nqp::setelems($highexpect, 0);
+        nqp::setelems($highexpect, 0);
         nqp::bindattr_i($!shared, ParseShared, '$!highwater', -1)
     }
 
@@ -878,7 +878,7 @@ role NQPCursorRole is export {
         my $cur := self."!cursor_start_cur"();
         my str $target := nqp::getattr_s($!shared, ParseShared, '$!target');
         my $shared := nqp::clone($!shared);
-#        nqp::bindattr_s($shared, ParseShared, '$!target', nqp::flip($target));
+        nqp::bindattr_s($shared, ParseShared, '$!target', nqp::flip($target));
         nqp::bindattr($cur, $?CLASS, '$!shared', $shared);
         nqp::bindattr_i($cur, $?CLASS, '$!from', nqp::chars($target) - $!pos);
         nqp::bindattr_i($cur, $?CLASS, '$!pos', nqp::chars($target) - $!pos);
