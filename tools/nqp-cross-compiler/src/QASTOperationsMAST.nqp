@@ -1510,7 +1510,7 @@ QAST::MASTOperations.add_core_moarop_mapping('unbox_s', 'unbox_s');
 QAST::MASTOperations.add_core_moarop_mapping('box_i', 'box_i');
 QAST::MASTOperations.add_core_moarop_mapping('box_n', 'box_n');
 QAST::MASTOperations.add_core_moarop_mapping('box_s', 'box_s');
-QAST::MASTOperations.add_core_moarop_mapping('can', 'can');
+QAST::MASTOperations.add_core_moarop_mapping('can', 'can_s');
 QAST::MASTOperations.add_core_moarop_mapping('reprname', 'reprname');
 QAST::MASTOperations.add_core_moarop_mapping('newtype', 'newtype');
 QAST::MASTOperations.add_core_moarop_mapping('composetype', 'composetype');
