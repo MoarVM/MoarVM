@@ -232,6 +232,9 @@
 #define MVM_OP_rindexfrom 36
 #define MVM_OP_escape 37
 #define MVM_OP_flip 38
+#define MVM_OP_iscclass 39
+#define MVM_OP_findcclass 40
+#define MVM_OP_findnotcclass 41
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

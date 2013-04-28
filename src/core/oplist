@@ -220,6 +220,9 @@ BANK 2 string
 0x24    rindexfrom          w(int64) r(str) r(str) r(int64)
 0x25    escape              w(str) r(str)
 0x26    flip                w(str) r(str)
+0x27    iscclass            w(int64) r(int64) r(str) r(int64)
+0x28    findcclass          w(int64) r(int64) r(str) r(int64) r(int64)
+0x29    findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64)
 
 BANK 3 math
 0x00    sin_n               w(num64) r(num64)
