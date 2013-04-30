@@ -182,9 +182,9 @@ class QAST::MASTRegexCompiler {
             my $mast := $*QASTCOMPILER.as_mast($_);
             merge_ins(@masts, $mast.instructions);
             nqp::push(@results, $mast.result_reg);
-            nqp::push(@results, $mast.result_kind);
+            nqp::push(@result_kinds, $mast.result_kind);
         }
-        [@masts, @results, @result_kinds, []]
+        [@masts, @results, @result_kinds]
     }
     
     method alt($node) {
@@ -611,34 +611,53 @@ class QAST::MASTRegexCompiler {
     ];
 
     method subrule($node) {
-        my @ins := nqp::list();
-        my $subtype := $node.subtype;
+        my @ins      := nqp::list();
+        my $subtype  := $node.subtype;
+        my $testop   := $node.negate ?? 'ge_i' !! 'lt_i';
+        my $captured := 0;
+        
         my $cpn := self.children($node[0]);
         my @pargs := $cpn[1];
         my @pkinds := $cpn[2]; # positional result registers
+        
         my $submast := nqp::shift(@pargs);
         my $submast_kind := nqp::shift(@pkinds);
-        my $testop := $node.negate ?? 'ge_i' !! 'lt_i';
-        my $captured := 0;
-        my $p11 := %*REG<P11>;
-        my @flags := [];
+        release($submast, $submast_kind);
+
         my $i := 0;
-        my $i11 := fresh_i();
+        my @flags := [$Arg::obj];
         for @pkinds {
             nqp::push(@flags, @kind_to_args[$_]);
             release(@pargs[$i++], $_);
         }
-        release($submast, $submast_kind);
+        
+        my $p11 := %*REG<P11>;
+        my $i11 := fresh_i();
+        
         merge_ins(@ins, $cpn[0]);
         merge_ins(@ins, [
             op('bindattr_i', %*REG<cur>, %*REG<curclass>, sval('$!pos'),
-                %*REG<pos>, ival(-1)),
-            call($submast, @flags, %*REG<cur>, |@pargs, :result($p11)),
-            # %*REG<P11> ($p11 here) is magically set just before the jump at the backtracker
+                %*REG<pos>, ival(-1))
+        ]);
+        if nqp::istype($node[0][0], QAST::SVal) {
+            # Method call.
+            merge_ins(@ins, [
+                op('findmeth', %*REG<method>, %*REG<cur>, sval($node[0][0].value)),
+                call(%*REG<method>, @flags, %*REG<cur>, |@pargs, :result($p11))
+            ]);
+        }
+        else {
+            # Normal invocation (probably positional capture).
+            merge_ins(@ins, [
+                call($submast, @flags, %*REG<cur>, |@pargs, :result($p11))
+            ]);
+        }
+        merge_ins(@ins, [
             op('getattr_i', $i11, $p11, %*REG<curclass>, sval('$!pos'), ival(-1)),
             op($testop, $i11, $i11, %*REG<zero>),
             op('if_i', $i11, %*REG<fail>)
         ]);
+        
         if $subtype ne 'zerowidth' {
             my $rxname := self.unique($*RXPREFIX ~ '_rxsubrule');
             my $passlabel_index := rxjump($rxname ~ '_pass');
@@ -655,18 +674,23 @@ class QAST::MASTRegexCompiler {
                 merge_ins(@ins, [
                     op('goto', $passlabel),
                     $backlabel,
+                    # %*REG<P11> ($p11 here) is magically set just before the jump at the backtracker
                     op('findmeth', %*REG<method>, $p11, sval('!cursor_next')),
                     call(%*REG<method>, [$Arg::obj], $p11, :result($p11)),
-                    op('bindattr_i', $i11, $p11, %*REG<curclass>, sval('$!pos'), ival(-1)),
+                    op('getattr_i', $i11, $p11, %*REG<curclass>, sval('$!pos'), ival(-1)),
                     op($testop, $i11, $i11, %*REG<zero>),
                     op('if_i', $i11, %*REG<fail>),
                     $passlabel
                 ]);
+                
                 if $subtype eq 'capture' {
+                    my $sname := fresh_s();
                     nqp::push(@ins, op('findmeth', %*REG<method>, %*REG<cur>,
                         sval('!cursor_capture')));
+                    nqp::push(@ins, op('const_s', $sname, sval($node.name)));
                     nqp::push(@ins, call(%*REG<method>, [$Arg::obj, $Arg::obj, $Arg::str],
-                        %*REG<cur>, $p11, sval($node.name), :result(%*REG<cstack>)));
+                        %*REG<cur>, $p11, $sname, :result(%*REG<cstack>)));
+                    release($sname, $MVM_reg_str);
                     $captured := 1;
                 }
                 else {
@@ -675,9 +699,11 @@ class QAST::MASTRegexCompiler {
                     nqp::push(@ins, call(%*REG<method>, [$Arg::obj, $Arg::obj],
                         %*REG<cur>, $p11, :result(%*REG<cstack>)));
                 }
+                
                 my $bstack := %*REG<bstack>;
                 merge_ins(@ins, [
-                    op('push_i', $bstack, $backlabel_index), # magic here
+                    op('const_i64', $i11, ival($backlabel_index)),
+                    op('push_i', $bstack, $i11),
                     op('push_i', $bstack, %*REG<zero>),
                     op('push_i', $bstack, %*REG<pos>),
                     op('elems', $i11, %*REG<cstack>),
@@ -685,15 +711,22 @@ class QAST::MASTRegexCompiler {
                 ]);
             }
         }
+        
         if !$captured && $subtype eq 'capture' {
+            my $sname := fresh_s();
             nqp::push(@ins, op('findmeth', %*REG<method>, %*REG<cur>,
                 sval('!cursor_capture')));
+            nqp::push(@ins, op('const_s', $sname, sval($node.name)));
             nqp::push(@ins, call(%*REG<method>, [$Arg::obj, $Arg::obj, $Arg::str],
-                %*REG<cur>, $p11, sval($node.name), :result(%*REG<cstack>)));
+                %*REG<cur>, $p11, $sname, :result(%*REG<cstack>)));
+            release($sname, $MVM_reg_str);
         }
+        
         nqp::push(@ins, op('getattr_i', %*REG<pos>, $p11, %*REG<curclass>,
             sval('$!pos'), ival(-1))) unless $subtype eq 'zerowidth';
-       release($i11, $MVM_reg_int64);
+        
+        release($i11, $MVM_reg_int64);
+        
         @ins
     }
     
