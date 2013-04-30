@@ -4,8 +4,8 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 4
-#define MIN_VERSION     4
+#define CURRENT_VERSION 5
+#define MIN_VERSION     5
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 4 * 16
@@ -791,6 +791,11 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* Container spec. */
     if (read_int_func(tc, reader)) {
         fail_deserialize(tc, reader, "Container spec deserialization NYI");
+    }
+    
+    /* Invocation spec. */
+    if (read_int_func(tc, reader)) {
+        fail_deserialize(tc, reader, "Invocation spec deserialization NYI");
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */
