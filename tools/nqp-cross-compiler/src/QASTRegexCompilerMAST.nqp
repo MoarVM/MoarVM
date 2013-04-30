@@ -84,7 +84,7 @@ class QAST::MASTRegexCompiler {
             'method',   $method,
             'self',     $self);
         
-        my @*RXJUMPS := nqp::list();
+        my @*RXJUMPS := nqp::list($donelabel);
         
         my $cstart := fresh_o();
         my $i19 := fresh_i(); # yes, I know, inheriting the name from ancestor method
