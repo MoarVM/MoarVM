@@ -416,12 +416,9 @@ class QAST::MASTRegexCompiler {
         my $op;
         my $meth := fresh_o();
         if $node.name {
-            my $name := $*QASTCOMPILER.as_mast($node.name);
-            merge_ins(@ins, $name.instructions);
-            nqp::die("name not a string")
-                unless $name.result_kind == $MVM_reg_str;
-            release($name.result_reg, $MVM_reg_str);
-            nqp::push(@args, $name.result_reg);
+            my $sname := fresh_s();
+            nqp::push(@ins, op('const_s', sval($node.name)));
+            nqp::push(@args, $sname);
             nqp::push(@flags, $Arg::str);
         }
         if $node.backtrack ne 'r' {
