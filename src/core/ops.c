@@ -1067,12 +1067,6 @@ static MVMOpInfo MVM_op_info_dev[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_say_o,
-        "say_o",
-        1,
-        { MVM_operand_read_reg | MVM_operand_obj }
-    },
-    {
         MVM_OP_print,
         "print",
         1,
@@ -2772,7 +2766,7 @@ static unsigned char MVM_op_banks = 8;
 
 static unsigned char MVM_opcounts_by_bank[] = {
     171,
-    7,
+    6,
     42,
     16,
     129,

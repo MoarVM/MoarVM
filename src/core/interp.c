@@ -1021,10 +1021,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = MVM_file_get_anon_oshandle_type(tc);
                         cur_op += 2;
                         break;
-                    case MVM_OP_say_o:
-                        MVM_string_say(tc, MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 0).o));
-                        cur_op += 2;
-                        break;
                     case MVM_OP_print:
                         MVM_string_print(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;

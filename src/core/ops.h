@@ -189,8 +189,7 @@
 #define MVM_OP_say_n 2
 #define MVM_OP_sleep 3
 #define MVM_OP_anonoshtype 4
-#define MVM_OP_say_o 5
-#define MVM_OP_print 6
+#define MVM_OP_print 5
 
 /* Op name defines for bank string. */
 #define MVM_OP_concat_s 0

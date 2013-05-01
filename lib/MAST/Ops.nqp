@@ -1334,14 +1334,8 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
-            'say_o', nqp::hash(
-                'code', 5,
-                'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_obj
-                ]
-            ),
             'print', nqp::hash(
-                'code', 6,
+                'code', 5,
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
