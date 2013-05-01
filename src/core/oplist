@@ -222,6 +222,9 @@ BANK 2 string
 0x27    iscclass            w(int64) r(int64) r(str) r(int64)
 0x28    findcclass          w(int64) r(int64) r(str) r(int64) r(int64)
 0x29    findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64)
+0x2A    nfafromstatelist    w(obj) r(obj) r(obj)
+0x2B    nfarunproto         w(obj) r(obj) r(str) r(int64)
+0x2C    nfarunalt           r(obj) r(str) r(int64) r(obj) r(obj) r(obj)
 
 BANK 3 math
 0x00    sin_n               w(num64) r(num64)

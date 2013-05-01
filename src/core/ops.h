@@ -234,6 +234,9 @@
 #define MVM_OP_iscclass 39
 #define MVM_OP_findcclass 40
 #define MVM_OP_findnotcclass 41
+#define MVM_OP_nfafromstatelist 42
+#define MVM_OP_nfarunproto 43
+#define MVM_OP_nfarunalt 44
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
