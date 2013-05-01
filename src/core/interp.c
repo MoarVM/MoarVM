@@ -2072,16 +2072,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
-                    case MVM_OP_istrue:
-                        /* Coerce may jump by itself if it wants to call a method. */
-                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0), NULL, NULL, 0))
-                            cur_op += 4;
+                    case MVM_OP_istrue: {
+                        /* Increment PC first then call coerce, since it may want to
+                         * do an invocation. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
+                        cur_op += 4;
+                        MVM_coerce_istrue(tc, obj, res, NULL, NULL, 0);
                         break;
-                    case MVM_OP_isfalse:
-                        /* Coerce may jump by itself if it wants to call a method. */
-                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0), NULL, NULL, 1))
-                            cur_op += 4;
+                    }
+                    case MVM_OP_isfalse: {
+                        /* Increment PC first then call coerce, since it may want to
+                         * do an invocation. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
+                        cur_op += 4;
+                        MVM_coerce_istrue(tc, obj, res, NULL, NULL, 1);
                         break;
+                    }
                     case MVM_OP_istrue_s:
                         GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;

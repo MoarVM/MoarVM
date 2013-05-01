@@ -4,6 +4,30 @@
 #define strtoll _strtoi64
 #endif
 
+/* Dummy, invocant-arg callsite. */
+static MVMCallsite inv_arg_callsite;
+static MVMuint8    obj_arg_flag;
+static MVMint8     inv_arg_callsite_setup;
+static MVMCallsite *get_inv_callsite() {
+    if (!inv_arg_callsite_setup) {
+        /* Set up invocant arg callsite. */
+        obj_arg_flag = MVM_CALLSITE_ARG_OBJ;
+        inv_arg_callsite.arg_flags = &obj_arg_flag;
+        inv_arg_callsite.arg_count = 1;
+        inv_arg_callsite.num_pos   = 1;
+        inv_arg_callsite_setup = 1;
+    }
+    return &inv_arg_callsite;
+}
+
+/* Special return structure for boolification handling. */
+typedef struct {
+    MVMuint8    *true_addr;
+    MVMuint8    *false_addr;
+    MVMint64     flip;
+    MVMRegister  res_reg;
+} BoolMethReturnData;
+
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
     return str == NULL || !IS_CONCRETE(str) || NUM_GRAPHS(str) == 0 || (NUM_GRAPHS(str) == 1 && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48) ? 0 : 1;
 }
@@ -12,8 +36,10 @@ MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
  * this case, a return hook is set up to handle doing the right thing. The
  * result register to put the result in should be indicated in res_reg, or
  * alternatively the true/false addresses to set the PC to should be set.
- * Returns a true value if the PC was updated, and false if not. */
-MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
+ * In the register case, expects that the current PC is already at the
+ * next instruction before this is called. */
+void boolify_return(MVMThreadContext *tc, void *sr_data);
+void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
     MVMint64 result;
     if (obj == NULL) {
@@ -23,7 +49,33 @@ MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *re
         MVMBoolificationSpec *bs = obj->st->boolification_spec;
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_CALL_METHOD:
-                MVM_exception_throw_adhoc(tc, "callmethod boolification NYI");
+                if (res_reg) {
+                    /* We need to do the invocation, and set this register
+                     * the result. Then we just do the call and and we're
+                     * finished. */
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    tc->cur_frame->return_value   = res_reg;
+                    tc->cur_frame->return_type    = MVM_RETURN_INT;
+                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    tc->cur_frame->args[0].o = obj;
+                    STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+                }
+                else {
+                    /* Need to set up special return hook. */
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    BoolMethReturnData *data = malloc(sizeof(BoolMethReturnData));
+                    data->true_addr  = true_addr;
+                    data->false_addr = false_addr;
+                    data->flip       = flip;
+                    tc->cur_frame->special_return      = boolify_return;
+                    tc->cur_frame->special_return_data = data;
+                    tc->cur_frame->return_value        = &data->res_reg;
+                    tc->cur_frame->return_type         = MVM_RETURN_INT;
+                    tc->cur_frame->return_address      = *(tc->interp_cur_op);
+                    tc->cur_frame->args[0].o = obj;
+                    STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+                    return;
+                }
                 break;
             case MVM_BOOL_MODE_UNBOX_INT:
                 result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0 ? 0 : 1;
@@ -61,15 +113,25 @@ MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *re
     
     if (res_reg) {
         res_reg->i64 = result;
-        return 0;
     }
     else {
         if (result)
             *(tc->interp_cur_op) = true_addr;
         else
             *(tc->interp_cur_op) = false_addr;
-        return 1;
     }
+}
+
+/* Callback after running boolification method. */
+void boolify_return(MVMThreadContext *tc, void *sr_data) {
+    BoolMethReturnData *data = (BoolMethReturnData *)sr_data;
+    MVMint64 result = data->res_reg.i64;
+    if (data->flip)
+        result = result ? 0 : 1;
+    if (result)
+        *(tc->interp_cur_op) = data->true_addr;
+    else
+        *(tc->interp_cur_op) = data->false_addr;
 }
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
