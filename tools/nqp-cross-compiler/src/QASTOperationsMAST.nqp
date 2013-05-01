@@ -499,9 +499,22 @@ for <if unless> -> $op_name {
             nqp::die("operation '$op_name' condition cannot be void");
         }
         
-        my $res_kind := @comp_ops[1].result_kind;
-        my $is_void := $res_kind == $MVM_reg_void || (nqp::defined($*WANT) && $*WANT == $MVM_reg_void);
-        my $res_reg  := $is_void ?? MAST::VOID !! $*REGALLOC.fresh_register($res_kind);
+        my $res_kind;
+        my $res_reg;
+        my $is_void := nqp::defined($*WANT) && $*WANT == $MVM_reg_void;
+        if $is_void {
+            $res_reg := MAST::VOID;
+        }
+        else {
+            $res_kind := $operands == 3
+                ?? (@comp_ops[1].result_kind == @comp_ops[2].result_kind
+                    ?? @comp_ops[1].result_kind
+                    !! $MVM_reg_obj)
+                !! (@comp_ops[0].result_kind == @comp_ops[1].result_kind
+                    ?? @comp_ops[0].result_kind
+                    !! $MVM_reg_obj);
+            $res_reg := $*REGALLOC.fresh_register($res_kind);
+        }
         
         my @ins;
         
