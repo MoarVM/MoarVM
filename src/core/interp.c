@@ -2695,6 +2695,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         break;
                     }
+                    case MVM_OP_scwbdisable:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_scwbenable:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_serialization, *(cur_op-1));

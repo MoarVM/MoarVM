@@ -480,5 +480,7 @@
 #define MVM_OP_deserialize 12
 #define MVM_OP_wval 13
 #define MVM_OP_wval_wide 14
+#define MVM_OP_scwbdisable 15
+#define MVM_OP_scwbenable 16
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);

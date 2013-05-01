@@ -3440,6 +3440,18 @@ class MAST::Ops {
                     $MVM_operand_int16,
                     $MVM_operand_int64
                 ]
+            ),
+            'scwbdisable', nqp::hash(
+                'code', 15,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'scwbenable', nqp::hash(
+                'code', 16,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
             )
         ]
     ];
