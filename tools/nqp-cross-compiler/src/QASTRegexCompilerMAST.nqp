@@ -822,7 +822,7 @@ class QAST::MASTRegexCompiler {
             op('lt_i', $i0, $caps, %*REG<one>),
             op('if_i', $i0, $nocapslabel),
             op('lt_i', $i0, $ptr, %*REG<one>),
-            op('if_i', $makemarklabel),
+            op('if_i', $i0, $makemarklabel),
             op('sub_i', $ptr, $ptr, %*REG<three>),
             op('atpos_i', $i0, $bstack, $ptr),
             op('ge_i', $i0, $i0, %*REG<zero>),
