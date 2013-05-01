@@ -104,6 +104,9 @@ static void string_consts(MVMThreadContext *tc) {
     s->Str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Str");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->Str);
     
+    s->Num = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Num");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->Num);
+    
     tc->instance->str_consts = s;
 }
 

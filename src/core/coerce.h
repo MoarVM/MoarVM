@@ -11,4 +11,4 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 /* Numification. */
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, struct _MVMString *s);
 MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, struct _MVMString *s);
-MVMnum64 MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj);
+void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg);

@@ -20,6 +20,7 @@ struct _MVMBootTypes {
 struct _MVMStringConsts {
     struct _MVMString *empty;
     struct _MVMString *Str;
+    struct _MVMString *Num;
 };
 
 typedef struct _MVMREPRHashEntry {

@@ -755,10 +755,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
-                    case MVM_OP_smrt_numify:
-                        GET_REG(cur_op, 0).n64 = MVM_coerce_smart_numify(tc, GET_REG(cur_op, 2).o);
+                    case MVM_OP_smrt_numify: {
+                        /* Increment PC before calling coercer, as it may make
+                         * a method call to get the result. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
                         cur_op += 4;
+                        MVM_coerce_smart_numify(tc, obj, res);
                         break;
+                    }
                     case MVM_OP_smrt_strify: {
                         /* Increment PC before calling coercer, as it may make
                          * a method call to get the result. */

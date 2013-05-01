@@ -167,8 +167,16 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
 }
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
-    /* First, check if there is a Str method. */
-    MVMObject *strmeth = MVM_6model_find_method_cache_only(tc, obj,
+    MVMObject *strmeth;
+    
+    /* Handle null case. */
+    if (!obj) {
+        res_reg->s = tc->instance->str_consts->empty;
+        return;
+    }
+    
+    /* Check if there is a Str method. */
+    strmeth = MVM_6model_find_method_cache_only(tc, obj,
         tc->instance->str_consts->Str);
     if (strmeth) {
         /* We need to do the invocation; just set it up with our result reg as
@@ -182,7 +190,8 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         return;
     }
     
-    if (!obj || !IS_CONCRETE(obj))
+    /* Otherwise, guess something appropriate. */
+    if (!IS_CONCRETE(obj))
         res_reg->s = tc->instance->str_consts->empty;
     else {
         MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
@@ -213,25 +222,47 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
     return n;
 }
 
-MVMnum64 MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj) {
-    MVMnum64 result;
-    if (!obj || !IS_CONCRETE(obj)) {
-        result = 0.0;
+void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
+    MVMObject *nummeth;
+    
+    /* Handle null case. */
+    if (!obj) {
+        res_reg->n64 = 0.0;
+        return;
+    }
+    
+    /* Check if there is a Num method. */
+    nummeth = MVM_6model_find_method_cache_only(tc, obj,
+        tc->instance->str_consts->Num);
+    if (nummeth) {
+        /* We need to do the invocation; just set it up with our result reg as
+         * the one for the call. */
+        MVMObject *code = MVM_frame_find_invokee(tc, nummeth);
+        tc->cur_frame->return_value   = res_reg;
+        tc->cur_frame->return_type    = MVM_RETURN_NUM;
+        tc->cur_frame->return_address = *(tc->interp_cur_op);
+        tc->cur_frame->args[0].o = obj;
+        STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+        return;
+    }
+    
+    /* Otherwise, guess something appropriate. */
+    if (!IS_CONCRETE(obj)) {
+        res_reg->n64 = 0.0;
     }
     else {
         MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
-            result = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
-            result = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-            result = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+            res_reg->n64 = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
-            result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
-            result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
             MVM_exception_throw_adhoc(tc, "cannot numify this");
     }
-    return result;
 }
