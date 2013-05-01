@@ -575,17 +575,19 @@ class QAST::MASTRegexCompiler {
         my $faillabel := @*RXJUMPS[$faillabel_index];
         my $i11 := fresh_i();
         my $p11 := fresh_o();
+        my $s11 := fresh_s();
         self.regex_mark(@ins, $faillabel_index, %*REG<pos>, %*REG<zero>);
         merge_ins(@ins, self.regex_mast($node[0]));
         self.regex_peek(@ins, $faillabel_index, %*REG<pos>, $i11);
         merge_ins(@ins, [
             op('findmeth', %*REG<method>, %*REG<cur>, sval('!cursor_start_subcapture')),
-            call(%*REG<method>, [$Arg::obj, $Arg::int], $i11, :result($p11)),
+            call(%*REG<method>, [$Arg::obj, $Arg::int], %*REG<cur>, $i11, :result($p11)),
             op('findmeth', %*REG<method>, $p11, sval('!cursor_pass')),
             call(%*REG<method>, [$Arg::obj, $Arg::int], $p11, %*REG<pos>),
             op('findmeth', %*REG<method>, %*REG<cur>, sval('!cursor_capture')),
+            op('const_s', $s11, sval($node.name)),
             call(%*REG<method>, [$Arg::obj, $Arg::obj, $Arg::str],
-                %*REG<cur>, $p11, sval($node.name), :result(%*REG<cstack>)),
+                %*REG<cur>, $p11, $s11, :result(%*REG<cstack>)),
             op('goto', $donelabel),
             $faillabel,
             op('goto', %*REG<fail>),
@@ -593,6 +595,7 @@ class QAST::MASTRegexCompiler {
         ]);
         release($i11, $MVM_reg_int64);
         release($p11, $MVM_reg_obj);
+        release($s11, $MVM_reg_str);
         @ins
     }
     
