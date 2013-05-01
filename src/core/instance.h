@@ -16,6 +16,12 @@ struct _MVMBootTypes {
     MVMObject *BOOTStrArray;
 };
 
+/* Various common string constants. */
+struct _MVMStringConsts {
+    struct _MVMString *empty;
+    struct _MVMString *Str;
+};
+
 typedef struct _MVMREPRHashEntry {
     /* index of the REPR */
     MVMuint32 value;
@@ -59,6 +65,9 @@ typedef struct _MVMInstance {
     
     /* Set of bootstrapping types. */
     struct _MVMBootTypes *boot_types;
+    
+    /* Set of string constants. */
+    struct _MVMStringConsts *str_consts;
     
     /* An array mapping representation IDs to function tables. */
     MVMREPROps **repr_registry;

@@ -759,10 +759,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = MVM_coerce_smart_numify(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
-                    case MVM_OP_smrt_strify:
-                        GET_REG(cur_op, 0).s = MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 2).o);
+                    case MVM_OP_smrt_strify: {
+                        /* Increment PC before calling coercer, as it may make
+                         * a method call to get the result. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
                         cur_op += 4;
+                        MVM_coerce_smart_stringify(tc, obj, res);
                         break;
+                    }
                     case MVM_OP_param_sp:
                         GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, &tc->cur_frame->params, GET_UI16(cur_op, 2));
                         cur_op += 4;

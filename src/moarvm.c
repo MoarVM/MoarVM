@@ -10,6 +10,7 @@
 } while (0)
 
 /* Create a new instance of the VM. */
+static void string_consts(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     apr_status_t apr_init_stat;
@@ -87,7 +88,23 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Initialize string cclass handling. */
     MVM_string_cclass_init(instance->main_thread);
     
+    /* Set up some string constants commonly used. */
+    string_consts(instance->main_thread);
+    
     return instance;
+}
+
+/* Sets up some string constants. */
+static void string_consts(MVMThreadContext *tc) {
+    struct _MVMStringConsts *s = malloc(sizeof(struct _MVMStringConsts));
+    
+    s->empty = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->empty);
+    
+    s->Str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Str");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->Str);
+    
+    tc->instance->str_consts = s;
 }
 
 /* This callback is passed to the interpreter code. It takes care of making

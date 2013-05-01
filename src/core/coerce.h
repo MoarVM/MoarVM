@@ -6,7 +6,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
 /* Stringification. */
 struct _MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i);
 struct _MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n);
-struct _MVMString * MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj);
+void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg);
 
 /* Numification. */
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, struct _MVMString *s);

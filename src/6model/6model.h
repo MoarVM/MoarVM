@@ -491,5 +491,6 @@ typedef struct _MVMREPROps {
 
 /* Some functions related to 6model core functionality. */
 MVMObject * MVM_6model_find_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
+MVMObject * MVM_6model_find_method_cache_only(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
 MVMint64 MVM_6model_can_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
 void MVM_6model_invoke_default(struct _MVMThreadContext *tc, MVMObject *invokee, struct _MVMCallsite *callsite, union _MVMRegister *args);
