@@ -578,7 +578,7 @@ class QAST::MASTRegexCompiler {
         my $s11 := fresh_s();
         self.regex_mark(@ins, $faillabel_index, %*REG<pos>, %*REG<zero>);
         merge_ins(@ins, self.regex_mast($node[0]));
-        self.regex_peek(@ins, $faillabel_index, %*REG<pos>, $i11);
+        self.regex_peek(@ins, $faillabel_index, $i11);
         merge_ins(@ins, [
             op('findmeth', %*REG<method>, %*REG<cur>, sval('!cursor_start_subcapture')),
             call(%*REG<method>, [$Arg::obj, $Arg::int], %*REG<cur>, $i11, :result($p11)),
