@@ -1400,6 +1400,8 @@ QAST::MASTOperations.add_core_moarop_mapping('setobjsc', 'setobjsc');
 QAST::MASTOperations.add_core_moarop_mapping('getobjsc', 'getobjsc');
 QAST::MASTOperations.add_core_moarop_mapping('serialize', 'serialize');
 QAST::MASTOperations.add_core_moarop_mapping('deserialize', 'deserialize');
+QAST::MASTOperations.add_core_moarop_mapping('scwbdisable', 'scwbdisable');
+QAST::MASTOperations.add_core_moarop_mapping('scwbenable', 'scwbenable');
 
 # bitwise opcodes
 QAST::MASTOperations.add_core_moarop_mapping('bitor_i', 'bor_i');
