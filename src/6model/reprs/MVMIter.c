@@ -188,6 +188,19 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
     return (MVMObject *)iterator;
 }
 
+MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter) {
+    switch (iter->body.mode) {
+        case MVM_ITER_MODE_ARRAY:
+            return iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+            break;
+        case MVM_ITER_MODE_HASH:
+            return iter->body.hash_state.next != NULL ? 1 : 0;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Invalid iteration mode used");
+    }
+}
+
 MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
     if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter
             || iterator->body.mode != MVM_ITER_MODE_HASH)

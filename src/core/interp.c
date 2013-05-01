@@ -122,18 +122,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_if_o:
-                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o))
-                            cur_op += 6;
-                        else
-                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         GC_SYNC_POINT(tc);
+                        MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o, NULL,
+                            bytecode_start + GET_UI32(cur_op, 2),
+                            cur_op + 6,
+                            0);
                         break;
                     case MVM_OP_unless_o:
-                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o))
-                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
-                        else
-                            cur_op += 6;
                         GC_SYNC_POINT(tc);
+                        MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o, NULL,
+                            bytecode_start + GET_UI32(cur_op, 2),
+                            cur_op + 6,
+                            1);
                         break;
                     case MVM_OP_extend_u8:
                     case MVM_OP_extend_u16:
@@ -1984,7 +1984,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *cache = REPR(tc->instance->boot_types->BOOTHash)->allocate(tc, STABLE(tc->instance->boot_types->BOOTHash));
                         MVMObject *iter = MVM_iter(tc, GET_REG(cur_op, 2).o);
                         MVMObject *obj = GET_REG(cur_op, 0).o;
-                        while (MVM_coerce_istrue(tc, iter)) {
+                        while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
                             MVMRegister result;
                             MVMObject *cur;
                             REPR(iter)->pos_funcs->shift(tc, STABLE(iter), iter,
@@ -2073,12 +2073,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_istrue:
-                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o);
-                        cur_op += 4;
+                        /* Coerce may jump by itself if it wants to call a method. */
+                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0), NULL, NULL, 0))
+                            cur_op += 4;
                         break;
                     case MVM_OP_isfalse:
-                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o) ? 0 : 1;
-                        cur_op += 4;
+                        /* Coerce may jump by itself if it wants to call a method. */
+                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0), NULL, NULL, 1))
+                            cur_op += 4;
                         break;
                     case MVM_OP_istrue_s:
                         GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s);

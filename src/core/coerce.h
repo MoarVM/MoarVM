@@ -1,6 +1,7 @@
 /* Boolification. */
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, struct _MVMString *str);
-MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj);
+MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
+    MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip);
 
 /* Stringification. */
 struct _MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i);
