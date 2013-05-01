@@ -38,11 +38,11 @@ my knowhow NQPRoutine {
     
     # Adds a multi-dispatch candidate.
     method add_dispatchee($code) {
-#        nqp::scwbdisable();
+        nqp::scwbdisable();
         $!dispatch_cache := nqp::null();
         $!dispatch_order := nqp::null();
         nqp::push($!dispatchees, $code);
-#        nqp::scwbenable();
+        nqp::scwbenable();
     }
     
     # Checks if this code object is a dispatcher.
@@ -255,9 +255,9 @@ my knowhow NQPRoutine {
         # Get list and number of candidates, triggering a sort if there are none.
         my @candidates := $!dispatch_order;
         if nqp::isnull(@candidates) {
-#            nqp::scwbdisable();
+            nqp::scwbdisable();
             @candidates := $!dispatch_order := self.sort_dispatchees();
-#            nqp::scwbenable();
+            nqp::scwbenable();
         }
         my $num_candidates := nqp::elems(@candidates);
 
@@ -334,9 +334,9 @@ my knowhow NQPRoutine {
         # Cache the result if there's a single chosen one and return it.
         if nqp::elems(@possibles) == 1 {
             my $result := @possibles[0]<sub>;
-#            nqp::scwbdisable();
+            nqp::scwbdisable();
             $!dispatch_cache := nqp::multicacheadd($!dispatch_cache, $capture, $result);
-#            nqp::scwbenable();
+            nqp::scwbenable();
             $result
         }
         elsif nqp::elems(@possibles) == 0 {

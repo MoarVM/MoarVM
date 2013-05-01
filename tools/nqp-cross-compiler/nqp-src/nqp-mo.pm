@@ -1392,11 +1392,11 @@ knowhow NQPClassHOW {
             $new_type.HOW.compose($new_type);
             
             # Store the type.
-#            nqp::scwbdisable();
+            nqp::scwbdisable();
             @!mixin_cache := [] if nqp::isnull(@!mixin_cache);
             nqp::push(@!mixin_cache, $role);
             nqp::push(@!mixin_cache, $new_type);
-#            nqp::scwbenable();
+            nqp::scwbenable();
             1;
         }
         
