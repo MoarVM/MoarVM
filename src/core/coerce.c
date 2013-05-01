@@ -24,7 +24,7 @@ static MVMCallsite *get_inv_callsite() {
 typedef struct {
     MVMuint8    *true_addr;
     MVMuint8    *false_addr;
-    MVMint64     flip;
+    MVMuint8     flip;
     MVMRegister  res_reg;
 } BoolMethReturnData;
 
@@ -39,6 +39,7 @@ MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
  * In the register case, expects that the current PC is already at the
  * next instruction before this is called. */
 void boolify_return(MVMThreadContext *tc, void *sr_data);
+void flip_return(MVMThreadContext *tc, void *sr_data);
 void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
     MVMint64 result;
@@ -51,13 +52,18 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
             case MVM_BOOL_MODE_CALL_METHOD:
                 if (res_reg) {
                     /* We need to do the invocation, and set this register
-                     * the result. Then we just do the call and and we're
-                     * finished. */
+                     * the result. Then we just do the call. For the flip
+                     * case, just set up special return handler to flip
+                     * the register. */
                     MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
                     tc->cur_frame->return_value   = res_reg;
                     tc->cur_frame->return_type    = MVM_RETURN_INT;
                     tc->cur_frame->return_address = *(tc->interp_cur_op);
                     tc->cur_frame->args[0].o = obj;
+                    if (flip) {
+                        tc->cur_frame->special_return      = flip_return;
+                        tc->cur_frame->special_return_data = res_reg;
+                    }
                     STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
                 }
                 else {
@@ -132,6 +138,12 @@ void boolify_return(MVMThreadContext *tc, void *sr_data) {
         *(tc->interp_cur_op) = data->true_addr;
     else
         *(tc->interp_cur_op) = data->false_addr;
+}
+
+/* Callback to flip result. */
+void flip_return(MVMThreadContext *tc, void *sr_data) {
+    MVMRegister *r = (MVMRegister *)sr_data;
+    r->i64 = r->i64 ? 0 : 1;
 }
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
