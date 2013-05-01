@@ -63,8 +63,8 @@ CROSS_COMP_PBCS = MASTNodes.pbc MASTOps.pbc MASTCompiler.pbc MASTTesting.pbc QAS
 # Related to cross-compilation of NQP
 PRECOMPILE_NS   = $(NQP) --target=pir --setting=NULL --stable-sc --output=$@
 CROSSCOMPILE_NS = $(NQP) nqp-moar-cc.nqp --setting=NULL --target=mbc --output=$@
-PRECOMPILE      = $(NQP) --target=pir --no-regex-lib --stable-sc --output=$@
-CROSSCOMPILE    = $(NQP) nqp-moar-cc.nqp --target=mbc --no-regex-lib --output=$@
+PRECOMPILE      = $(NQP) --target=pir --setting=NQPCOREMoar --no-regex-lib --stable-sc --output=$@
+CROSSCOMPILE    = $(NQP) nqp-moar-cc.nqp --target=mbc --setting=NQPCOREMoar --no-regex-lib --output=$@
 .SUFFIXES: .pir .pbc
 
 # The cross-compilation of NQP to Moar; we also build Parrot versions of the
