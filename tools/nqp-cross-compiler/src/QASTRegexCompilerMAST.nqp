@@ -451,7 +451,7 @@ class QAST::MASTRegexCompiler {
     method qastnode($node) {
         my @ins := [
             op('bindattr_i', %*REG<cur>, %*REG<curclass>, sval('$!pos'), %*REG<pos>, ival(-1)),
-            op('bindlex', %*REG<cursor_lex>, %*REG<cur>)
+            op('bindlex', $*BLOCK.resolve_lexical('$¢'), %*REG<cur>)
         ];
         my $cmast := $*QASTCOMPILER.as_mast($node[0]);
         merge_ins(@ins, $cmast.instructions);
