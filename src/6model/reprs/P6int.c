@@ -72,6 +72,10 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(P6int);
 }
 
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    ((P6intBody *)data)->value = reader->read_int(tc, reader);
+}
+
 /* Initializes the representation. */
 MVMREPROps * P6int_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
@@ -90,5 +94,6 @@ MVMREPROps * P6int_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
     this_repr->compose = compose;
     this_repr->deserialize_stable_size = deserialize_stable_size;
+    this_repr->deserialize = deserialize;
     return this_repr;
 }
