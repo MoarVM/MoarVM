@@ -154,10 +154,6 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
 }
 
-MVMString * MVM_coerce_o_s(MVMThreadContext *tc, MVMObject *obj) {
-    return MVM_coerce_smart_stringify(tc, obj);
-}
-
 MVMString * MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj) {
     if (!obj || !IS_CONCRETE(obj))
         return MVM_string_ascii_decode(tc, tc->instance->VMString, "", 0);
