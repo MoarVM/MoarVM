@@ -1273,19 +1273,7 @@ QAST::MASTOperations.add_core_moarop_mapping('associative_get', 'atkey_o');
 QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o', 2);
 
 # I/O opcodes
-my @say_opnames := [
-    'say','say_i','say_i','say_i','say_i','say_n','say_n','say_s','say_o'
-];
-QAST::MASTOperations.add_core_moarop_mapping('say', 'n/a',
-    :mapper(-> $operations, $moarop, $ret {
-        -> $qastcomp, $op_name, @op_args {
-            my @ins := nqp::list();            
-            my $arg := $qastcomp.as_mast(@op_args[0]);
-            nqp::splice(@ins, $arg.instructions, 0, 0);
-            push_op(@ins, @say_opnames[$arg.result_kind], $arg.result_reg);
-            MAST::InstructionList.new(@ins, $arg.result_reg, $arg.result_kind)
-        }
-    }));
+QAST::MASTOperations.add_core_moarop_mapping('say', 'say_s', 0);
 QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
 
 # terms
