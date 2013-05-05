@@ -103,9 +103,8 @@ sub MAIN(*@ARGS) {
     # Set backend and run.
     $nqpcomp-cc.backend(HLL::Backend::MoarVM);
     $nqpcomp-cc.command_line(@ARGS, :stable-sc(1),
-        :setting('NQPCOREMoar'), :no-regex-lib(1),
-        # XXX Uncomment below when we're ready.
-        # :custom-regex-lib('QRegexMoar'),
+        :setting('NQPCOREMoar'),
+        :custom-regex-lib('QRegexMoar'),
         :encoding('utf8'), :transcode('ascii iso-8859-1'));
 }
 

@@ -1,5 +1,14 @@
 #include "moarvm.h"
 
+/* Locates a method by name, checking in the method cache only. */
+MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
+    MVMObject *cache = STABLE(obj)->method_cache;
+    if (cache && IS_CONCRETE(cache))
+        return REPR(cache)->ass_funcs->at_key_boxed(tc, STABLE(cache),
+            cache, OBJECT_BODY(cache), (MVMObject *)name);
+    return NULL;
+}
+
 /* Locates a method by name. Returns the method if it exists, or throws an
  * exception if it can not be found. */
 MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {

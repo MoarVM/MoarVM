@@ -174,7 +174,7 @@ knowhow NQPConcreteRoleHOW {
     has $!instance_of;
 
     # Attributes and methods.
-    has %!attributes;
+    has @!attributes;
     has %!methods;
     has @!multi_methods_to_incorporate;
     has @!collisions;
@@ -207,7 +207,7 @@ knowhow NQPConcreteRoleHOW {
     method BUILD(:$name!, :$instance_of!) {
         $!name := $name;
         $!instance_of := $instance_of;
-        %!attributes := nqp::hash();
+        @!attributes := nqp::list();
         %!methods := nqp::hash();
         @!multi_methods_to_incorporate := nqp::list();
         @!collisions := nqp::list();
@@ -240,10 +240,12 @@ knowhow NQPConcreteRoleHOW {
 
     method add_attribute($obj, $meta_attr) {
         my $name := $meta_attr.name;
-        if nqp::existskey(%!attributes, $name) {
-            nqp::die("This role already has an attribute named " ~ $name);
+        for @!attributes {
+            if $_.name eq $name {
+                nqp::die("This role already has an attribute named " ~ $name);
+            }
         }
-        %!attributes{$name} := $meta_attr;
+        nqp::push(@!attributes, $meta_attr);
     }
 
     method add_parent($obj, $parent) {
@@ -305,8 +307,8 @@ knowhow NQPConcreteRoleHOW {
 
     method attributes($obj, :$local) {
         my @attrs;
-        for %!attributes {
-            nqp::push(@attrs, nqp::iterval($_));
+        for @!attributes {
+            nqp::push(@attrs, $_);
         }
         @attrs
     }
@@ -360,8 +362,7 @@ knowhow RoleToClassApplier {
 
         # Collisions?
         my @collisions := $to_compose_meta.collisions($to_compose);
-        for @collisions {
-            my $name := nqp::can($_, 'name') ?? $_.name !! nqp::getcodename($_);
+        for @collisions -> $name {
             unless has_method($target, $name, 1) {
                 nqp::die("Method '$name' collides and a resolution must be provided by the class '" ~
                     $target.HOW.name($target) ~ "'");
@@ -448,7 +449,7 @@ knowhow NQPParametricRoleHOW {
     has $!name;
 
     # Attributes and methods.
-    has %!attributes;
+    has @!attributes;
     has %!methods;
     has @!multi_methods_to_incorporate;
 
@@ -481,7 +482,7 @@ knowhow NQPParametricRoleHOW {
 
     method BUILD(:$name!) {
         $!name := $name;
-        %!attributes := nqp::hash();
+        @!attributes := nqp::list();
         %!methods := nqp::hash();
         @!multi_methods_to_incorporate := nqp::list();
         @!roles := nqp::list();
@@ -516,10 +517,12 @@ knowhow NQPParametricRoleHOW {
 
     method add_attribute($obj, $meta_attr) {
         my $name := $meta_attr.name;
-        if nqp::existskey(%!attributes, $name) {
-            nqp::die("This role already has an attribute named " ~ $name);
+        for @!attributes {
+            if $_.name eq $name {
+                nqp::die("This role already has an attribute named " ~ $name);
+            }
         }
-        %!attributes{$name} := $meta_attr;
+        nqp::push(@!attributes, $meta_attr);
     }
 
     method add_parent($obj, $parent) {
@@ -566,8 +569,8 @@ knowhow NQPParametricRoleHOW {
 
         # Copy attributes. (Nothing to reify in NQP as we don't currently
         # have parametric types that may end up in the signature.)
-        for %!attributes {
-            $irole.HOW.add_attribute($irole, nqp::iterval($_));
+        for @!attributes {
+            $irole.HOW.add_attribute($irole, $_);
         }
 
         # Capture methods in the correct lexical context.
@@ -619,8 +622,8 @@ knowhow NQPParametricRoleHOW {
 
     method attributes($obj, :$local) {
         my @attrs;
-        for %!attributes {
-            nqp::push(@attrs, nqp::iterval($_));
+        for @!attributes {
+            nqp::push(@attrs, $_);
         }
         @attrs
     }
@@ -644,7 +647,7 @@ knowhow NQPClassHOW {
     has $!name;
 
     # Attributes, methods, parents and roles directly added.
-    has %!attributes;
+    has @!attributes;
     has %!methods;
     has @!method_order;
     has @!multi_methods_to_incorporate;
@@ -698,7 +701,7 @@ knowhow NQPClassHOW {
 
     method BUILD(:$name = '<anon>') {
         $!name := $name;
-        %!attributes := nqp::hash();
+        @!attributes := nqp::list();
         %!methods := nqp::hash();
         @!method_order := nqp::list();
         @!multi_methods_to_incorporate := nqp::list();
@@ -752,10 +755,12 @@ knowhow NQPClassHOW {
 
     method add_attribute($obj, $meta_attr) {
         my $name := $meta_attr.name;
-        if nqp::existskey(%!attributes, $name) {
-            nqp::die("This class already has an attribute named " ~ $name);
+        for @!attributes {
+            if $_.name eq $name {
+                nqp::die("This class already has an attribute named " ~ $name);
+            }
         }
-        %!attributes{$name} := $meta_attr;
+        nqp::push(@!attributes, $meta_attr);
     }
 
     method add_parent($obj, $parent) {
@@ -909,6 +914,12 @@ knowhow NQPClassHOW {
                 }
                 if nqp::can($attr, 'auto_viv_container') {
                     %attr_info<auto_viv_container> := $attr.auto_viv_container;
+                }
+                if $attr.positional_delegate {
+                    %attr_info<positional_delegate> := 1;
+                }
+                if $attr.associative_delegate {
+                    %attr_info<associative_delegate> := 1;
                 }
                 nqp::push(@attrs, %attr_info);
             }
@@ -1153,7 +1164,7 @@ knowhow NQPClassHOW {
         my @attrs := $obj.HOW.attributes($obj, :local(1));
         
         # Does it have its own BUILD?
-        my $build := $obj.HOW.find_method($obj, 'BUILD', :no_fallback(1));
+        my $build := $obj.HOW.method_table($obj)<BUILD>;
         if nqp::defined($build) {
             # We'll call the custom one.
             nqp::push(@plan, [0, $build]);
@@ -1257,8 +1268,8 @@ knowhow NQPClassHOW {
     method attributes($obj, :$local = 0) {
         my @attrs;
         if $local {
-            for %!attributes {
-                nqp::push(@attrs, nqp::iterval($_));
+            for @!attributes {
+                nqp::push(@attrs, $_);
             }
         }
         else {
@@ -1381,11 +1392,11 @@ knowhow NQPClassHOW {
             $new_type.HOW.compose($new_type);
             
             # Store the type.
-#            pir::nqp_disable_sc_write_barrier__v();
+            nqp::scwbdisable();
             @!mixin_cache := [] if nqp::isnull(@!mixin_cache);
             nqp::push(@!mixin_cache, $role);
             nqp::push(@!mixin_cache, $new_type);
-#            pir::nqp_enable_sc_write_barrier__v();
+            nqp::scwbenable();
             1;
         }
         

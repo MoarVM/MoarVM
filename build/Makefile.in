@@ -298,7 +298,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/MVMThread$(O) src/6model/reprs/MVMIter$(O) \
             src/6model/reprs/MVMContext$(O) src/6model/reprs/SCRef$(O) \
             src/6model/reprs/Lexotic$(O) src/6model/reprs/MVMCallCapture$(O) \
-            src/6model/reprs/P6bigint$(O) \
+            src/6model/reprs/P6bigint$(O) src/6model/reprs/NFA$(O) \
             src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) \
             src/6model/serialization$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
@@ -320,7 +320,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h \
             src/6model/reprs/MVMThread.h src/6model/reprs/MVMIter.h src/6model/reprs/MVMContext.h \
             src/6model/reprs/SCRef.h src/6model/reprs/Lexotic.h src/6model/reprs/MVMCallCapture.h \
-            src/6model/reprs/P6bigint.h \
+            src/6model/reprs/P6bigint.h src/6model/reprs/NFA.h \
             src/6model/sc.h src/strings/unicode_gen.h \
             src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h \
             src/strings/latin1.h src/strings/utf16.h 3rdparty/uthash.h src/gen/config.h
@@ -683,6 +683,8 @@ src/6model/reprs/MVMCallCapture$(O): src/6model/reprs/MVMCallCapture.c $(HEADERS
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMCallCapture$(O) src/6model/reprs/MVMCallCapture.c
 src/6model/reprs/P6bigint$(O): src/6model/reprs/P6bigint.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6bigint$(O) src/6model/reprs/P6bigint.c
+src/6model/reprs/NFA$(O): src/6model/reprs/NFA.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/NFA$(O) src/6model/reprs/NFA.c
 src/6model/6model$(O): src/6model/6model.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/6model$(O) src/6model/6model.c
 src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)

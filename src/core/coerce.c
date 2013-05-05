@@ -4,61 +4,146 @@
 #define strtoll _strtoi64
 #endif
 
+/* Dummy, invocant-arg callsite. */
+static MVMCallsite inv_arg_callsite;
+static MVMuint8    obj_arg_flag;
+static MVMint8     inv_arg_callsite_setup;
+static MVMCallsite *get_inv_callsite() {
+    if (!inv_arg_callsite_setup) {
+        /* Set up invocant arg callsite. */
+        obj_arg_flag = MVM_CALLSITE_ARG_OBJ;
+        inv_arg_callsite.arg_flags = &obj_arg_flag;
+        inv_arg_callsite.arg_count = 1;
+        inv_arg_callsite.num_pos   = 1;
+        inv_arg_callsite_setup = 1;
+    }
+    return &inv_arg_callsite;
+}
+
+/* Special return structure for boolification handling. */
+typedef struct {
+    MVMuint8    *true_addr;
+    MVMuint8    *false_addr;
+    MVMuint8     flip;
+    MVMRegister  res_reg;
+} BoolMethReturnData;
+
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
     return str == NULL || !IS_CONCRETE(str) || NUM_GRAPHS(str) == 0 || (NUM_GRAPHS(str) == 1 && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48) ? 0 : 1;
 }
 
-MVMint64 MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj) {
-    MVMBoolificationSpec *bs;
-    MVMint64 result = 0;
-    if (obj == NULL)
-        return 0;
-    bs = obj->st->boolification_spec;
-    switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
-        case MVM_BOOL_MODE_UNBOX_INT:
-            result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0 ? 0 : 1;
-            break;
-        case MVM_BOOL_MODE_UNBOX_NUM:
-            result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0.0 ? 0 : 1;
-            break;
-        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
-            result = !IS_CONCRETE(obj) || NUM_GRAPHS(REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj))) == 0 ? 0 : 1;
-            break;
-        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO: {
-            MVMString *str;
-            if (!IS_CONCRETE(obj)) {
-                result = 0;
-                break;
-            }
-            str = REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-            result = MVM_coerce_istrue_s(tc, str);
-            break;
-        }
-        case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-            result = !IS_CONCRETE(obj) ? 0 : 1;
-            break;
-        case MVM_BOOL_MODE_ITER: {
-            MVMIter *iter = (MVMIter *)obj;
-            if (!IS_CONCRETE(obj)) {
-                result = 0;
-                break;
-            }
-            switch (iter->body.mode) {
-                case MVM_ITER_MODE_ARRAY:
-                    result = iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
-                    break;
-                case MVM_ITER_MODE_HASH:
-                    result = iter->body.hash_state.next != NULL ? 1 : 0;
-                    break;
-                default:
-                    MVM_exception_throw_adhoc(tc, "Invalid iteration mode used");
-            }
-            break;
-        }
-        default:
-            MVM_exception_throw_adhoc(tc, "Invalid boolification spec mode used");
+/* Tries to do the boolification. It may be that a method call is needed. In
+ * this case, a return hook is set up to handle doing the right thing. The
+ * result register to put the result in should be indicated in res_reg, or
+ * alternatively the true/false addresses to set the PC to should be set.
+ * In the register case, expects that the current PC is already at the
+ * next instruction before this is called. */
+void boolify_return(MVMThreadContext *tc, void *sr_data);
+void flip_return(MVMThreadContext *tc, void *sr_data);
+void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
+        MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
+    MVMint64 result;
+    if (obj == NULL) {
+        result = 0;
     }
-    return result;
+    else {
+        MVMBoolificationSpec *bs = obj->st->boolification_spec;
+        switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
+            case MVM_BOOL_MODE_CALL_METHOD:
+                if (res_reg) {
+                    /* We need to do the invocation, and set this register
+                     * the result. Then we just do the call. For the flip
+                     * case, just set up special return handler to flip
+                     * the register. */
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    tc->cur_frame->return_value   = res_reg;
+                    tc->cur_frame->return_type    = MVM_RETURN_INT;
+                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    tc->cur_frame->args[0].o = obj;
+                    if (flip) {
+                        tc->cur_frame->special_return      = flip_return;
+                        tc->cur_frame->special_return_data = res_reg;
+                    }
+                    STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+                }
+                else {
+                    /* Need to set up special return hook. */
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    BoolMethReturnData *data = malloc(sizeof(BoolMethReturnData));
+                    data->true_addr  = true_addr;
+                    data->false_addr = false_addr;
+                    data->flip       = flip;
+                    tc->cur_frame->special_return      = boolify_return;
+                    tc->cur_frame->special_return_data = data;
+                    tc->cur_frame->return_value        = &data->res_reg;
+                    tc->cur_frame->return_type         = MVM_RETURN_INT;
+                    tc->cur_frame->return_address      = *(tc->interp_cur_op);
+                    tc->cur_frame->args[0].o = obj;
+                    STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+                    return;
+                }
+                break;
+            case MVM_BOOL_MODE_UNBOX_INT:
+                result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0 ? 0 : 1;
+                break;
+            case MVM_BOOL_MODE_UNBOX_NUM:
+                result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0.0 ? 0 : 1;
+                break;
+            case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
+                result = !IS_CONCRETE(obj) || NUM_GRAPHS(REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj))) == 0 ? 0 : 1;
+                break;
+            case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO: {
+                MVMString *str;
+                if (!IS_CONCRETE(obj)) {
+                    result = 0;
+                    break;
+                }
+                str = REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+                result = MVM_coerce_istrue_s(tc, str);
+                break;
+            }
+            case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+                result = !IS_CONCRETE(obj) ? 0 : 1;
+                break;
+            case MVM_BOOL_MODE_ITER: {
+                result = IS_CONCRETE(obj) ? MVM_iter_istrue(tc, (MVMIter *)obj) : 0;
+                break;
+            }
+            default:
+                MVM_exception_throw_adhoc(tc, "Invalid boolification spec mode used");
+        }
+    }
+    
+    if (flip)
+        result = result ? 0 : 1;
+    
+    if (res_reg) {
+        res_reg->i64 = result;
+    }
+    else {
+        if (result)
+            *(tc->interp_cur_op) = true_addr;
+        else
+            *(tc->interp_cur_op) = false_addr;
+    }
+}
+
+/* Callback after running boolification method. */
+void boolify_return(MVMThreadContext *tc, void *sr_data) {
+    BoolMethReturnData *data = (BoolMethReturnData *)sr_data;
+    MVMint64 result = data->res_reg.i64;
+    if (data->flip)
+        result = result ? 0 : 1;
+    if (result)
+        *(tc->interp_cur_op) = data->true_addr;
+    else
+        *(tc->interp_cur_op) = data->false_addr;
+}
+
+/* Callback to flip result. */
+void flip_return(MVMThreadContext *tc, void *sr_data) {
+    MVMRegister *r = (MVMRegister *)sr_data;
+    r->i64 = r->i64 ? 0 : 1;
 }
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
@@ -81,27 +166,46 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
 }
 
-MVMString * MVM_coerce_o_s(MVMThreadContext *tc, MVMObject *obj) {
-    return MVM_coerce_smart_stringify(tc, obj);
-}
-
-MVMString * MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj) {
-    if (!obj || !IS_CONCRETE(obj))
-        return MVM_string_ascii_decode(tc, tc->instance->VMString, "", 0);
+void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
+    MVMObject *strmeth;
+    
+    /* Handle null case. */
+    if (!obj) {
+        res_reg->s = tc->instance->str_consts->empty;
+        return;
+    }
+    
+    /* Check if there is a Str method. */
+    strmeth = MVM_6model_find_method_cache_only(tc, obj,
+        tc->instance->str_consts->Str);
+    if (strmeth) {
+        /* We need to do the invocation; just set it up with our result reg as
+         * the one for the call. */
+        MVMObject *code = MVM_frame_find_invokee(tc, strmeth);
+        tc->cur_frame->return_value   = res_reg;
+        tc->cur_frame->return_type    = MVM_RETURN_STR;
+        tc->cur_frame->return_address = *(tc->interp_cur_op);
+        tc->cur_frame->args[0].o = obj;
+        STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+        return;
+    }
+    
+    /* Otherwise, guess something appropriate. */
+    if (!IS_CONCRETE(obj))
+        res_reg->s = tc->instance->str_consts->empty;
     else {
         MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (REPR(obj)->ID == MVM_REPR_ID_MVMString)
-            return (MVMString *)obj;
+            res_reg->s = (MVMString *)obj;
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-            return REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->s = REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
-            return MVM_coerce_i_s(tc, REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+            res_reg->s = MVM_coerce_i_s(tc, REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
-            return MVM_coerce_n_s(tc, REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+            res_reg->s = MVM_coerce_n_s(tc, REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else
             MVM_exception_throw_adhoc(tc, "cannot stringify this");
     }
-    return NULL;
 }
 
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
@@ -118,25 +222,47 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
     return n;
 }
 
-MVMnum64 MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj) {
-    MVMnum64 result;
-    if (!obj || !IS_CONCRETE(obj)) {
-        result = 0.0;
+void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
+    MVMObject *nummeth;
+    
+    /* Handle null case. */
+    if (!obj) {
+        res_reg->n64 = 0.0;
+        return;
+    }
+    
+    /* Check if there is a Num method. */
+    nummeth = MVM_6model_find_method_cache_only(tc, obj,
+        tc->instance->str_consts->Num);
+    if (nummeth) {
+        /* We need to do the invocation; just set it up with our result reg as
+         * the one for the call. */
+        MVMObject *code = MVM_frame_find_invokee(tc, nummeth);
+        tc->cur_frame->return_value   = res_reg;
+        tc->cur_frame->return_type    = MVM_RETURN_NUM;
+        tc->cur_frame->return_address = *(tc->interp_cur_op);
+        tc->cur_frame->args[0].o = obj;
+        STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+        return;
+    }
+    
+    /* Otherwise, guess something appropriate. */
+    if (!IS_CONCRETE(obj)) {
+        res_reg->n64 = 0.0;
     }
     else {
         MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
-            result = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = (MVMnum64)REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
-            result = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-            result = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+            res_reg->n64 = MVM_coerce_s_n(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
-            result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
-            result = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+            res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else
             MVM_exception_throw_adhoc(tc, "cannot numify this");
     }
-    return result;
 }

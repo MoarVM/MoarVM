@@ -122,18 +122,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_if_o:
-                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o))
-                            cur_op += 6;
-                        else
-                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
                         GC_SYNC_POINT(tc);
+                        MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o, NULL,
+                            bytecode_start + GET_UI32(cur_op, 2),
+                            cur_op + 6,
+                            0);
                         break;
                     case MVM_OP_unless_o:
-                        if (!MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o))
-                            cur_op = bytecode_start + GET_UI32(cur_op, 2);
-                        else
-                            cur_op += 6;
                         GC_SYNC_POINT(tc);
+                        MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o, NULL,
+                            bytecode_start + GET_UI32(cur_op, 2),
+                            cur_op + 6,
+                            1);
                         break;
                     case MVM_OP_extend_u8:
                     case MVM_OP_extend_u16:
@@ -755,14 +755,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
-                    case MVM_OP_smrt_numify:
-                        GET_REG(cur_op, 0).n64 = MVM_coerce_smart_numify(tc, GET_REG(cur_op, 2).o);
+                    case MVM_OP_smrt_numify: {
+                        /* Increment PC before calling coercer, as it may make
+                         * a method call to get the result. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
                         cur_op += 4;
+                        MVM_coerce_smart_numify(tc, obj, res);
                         break;
-                    case MVM_OP_smrt_strify:
-                        GET_REG(cur_op, 0).s = MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 2).o);
+                    }
+                    case MVM_OP_smrt_strify: {
+                        /* Increment PC before calling coercer, as it may make
+                         * a method call to get the result. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
                         cur_op += 4;
+                        MVM_coerce_smart_stringify(tc, obj, res);
                         break;
+                    }
                     case MVM_OP_param_sp:
                         GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, &tc->cur_frame->params, GET_UI16(cur_op, 2));
                         cur_op += 4;
@@ -1021,10 +1031,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = MVM_file_get_anon_oshandle_type(tc);
                         cur_op += 2;
                         break;
-                    case MVM_OP_say_o:
-                        MVM_string_say(tc, MVM_coerce_smart_stringify(tc, GET_REG(cur_op, 0).o));
-                        cur_op += 2;
-                        break;
                     case MVM_OP_print:
                         MVM_string_print(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
@@ -1120,12 +1126,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_split:
                         GET_REG(cur_op, 0).o = MVM_string_split(tc,
-                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s);
-                        cur_op += 8;
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
                         break;
                     case MVM_OP_join:
                         GET_REG(cur_op, 0).s = MVM_string_join(tc,
-                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                         cur_op += 6;
                         break;
                     /*case MVM_OP_replace:
@@ -1216,6 +1222,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).s = MVM_string_escape(tc,
                             GET_REG(cur_op, 2).s);
                         cur_op += 4;
+                        break;
+                    case MVM_OP_flip:
+                        GET_REG(cur_op, 0).s = MVM_string_flip(tc,
+                            GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_iscclass:
+                        GET_REG(cur_op, 0).i64 = MVM_string_iscclass(tc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 6).i64);
+                        cur_op += 8;
+                        break;
+                    case MVM_OP_findcclass:
+                        GET_REG(cur_op, 0).i64 = MVM_string_findcclass(tc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                        cur_op += 10;
+                        break;
+                    case MVM_OP_findnotcclass:
+                        GET_REG(cur_op, 0).i64 = MVM_string_findnotcclass(tc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                        cur_op += 10;
                         break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
@@ -1433,10 +1462,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).s = REPR(GET_REG(cur_op, 2).o)->name;
                         cur_op += 4;
                         break;
-                    case MVM_OP_isconcrete:
-                        GET_REG(cur_op, 0).i64 = IS_CONCRETE(GET_REG(cur_op, 2).o) ? 1 : 0;
+                    case MVM_OP_isconcrete: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = obj && IS_CONCRETE(obj) ? 1 : 0;
                         cur_op += 4;
                         break;
+                    }
                     case MVM_OP_atpos_i: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
@@ -1959,7 +1990,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *cache = REPR(tc->instance->boot_types->BOOTHash)->allocate(tc, STABLE(tc->instance->boot_types->BOOTHash));
                         MVMObject *iter = MVM_iter(tc, GET_REG(cur_op, 2).o);
                         MVMObject *obj = GET_REG(cur_op, 0).o;
-                        while (MVM_coerce_istrue(tc, iter)) {
+                        while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
                             MVMRegister result;
                             MVMObject *cur;
                             REPR(iter)->pos_funcs->shift(tc, STABLE(iter), iter,
@@ -1974,19 +2005,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_setmethcacheauth: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
                         MVMint64 new_flags = STABLE(obj)->mode_flags & (~MVM_METHOD_CACHE_AUTHORITATIVE);
-                        MVMint64 flag = GET_REG(cur_op, 4).i64;
+                        MVMint64 flag = GET_REG(cur_op, 2).i64;
                         if (flag != 0)
                             new_flags |= MVM_METHOD_CACHE_AUTHORITATIVE;
                         STABLE(obj)->mode_flags = new_flags;
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 6;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_settypecache: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMObject *types = GET_REG(cur_op, 4).o;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        MVMObject *types = GET_REG(cur_op, 2).o;
                         MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
                         MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
                         for (i = 0; i < elems; i++) {
@@ -1997,14 +2027,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             free(STABLE(obj)->type_check_cache);
                         STABLE(obj)->type_check_cache = cache;
                         STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 6;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_setinvokespec: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o, *ch = GET_REG(cur_op, 4).o,
-                            *invocation_handler = GET_REG(cur_op, 8).o;
-                        MVMString *name = GET_REG(cur_op, 6).s;
+                        MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
+                            *invocation_handler = GET_REG(cur_op, 6).o;
+                        MVMString *name = GET_REG(cur_op, 4).s;
                         MVMInvocationSpec *is = malloc(sizeof(MVMInvocationSpec));
                         MVMSTable *st = STABLE(obj);
                         MVM_ASSIGN_REF(tc, st, is->class_handle, ch);
@@ -2015,8 +2044,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (st->invocation_spec)
                             free(st->invocation_spec);
                         st->invocation_spec = is;
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 10;
+                        cur_op += 8;
                         break;
                     }
                     case MVM_OP_isinvokable: {
@@ -2044,21 +2072,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_setboolspec: {
                         MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
-                        bs->mode = (MVMuint32)GET_REG(cur_op, 4).i64;
-                        bs->method = GET_REG(cur_op, 6).o;
-                        GET_REG(cur_op, 2).o->st->boolification_spec = bs;
-                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
-                        cur_op += 8;
+                        bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
+                        bs->method = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).o->st->boolification_spec = bs;
+                        cur_op += 6;
                         break;
                     }
-                    case MVM_OP_istrue:
-                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o);
+                    case MVM_OP_istrue: {
+                        /* Increment PC first then call coerce, since it may want to
+                         * do an invocation. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
                         cur_op += 4;
+                        MVM_coerce_istrue(tc, obj, res, NULL, NULL, 0);
                         break;
-                    case MVM_OP_isfalse:
-                        GET_REG(cur_op, 0).i64 = MVM_coerce_istrue(tc, GET_REG(cur_op, 2).o) ? 0 : 1;
+                    }
+                    case MVM_OP_isfalse: {
+                        /* Increment PC first then call coerce, since it may want to
+                         * do an invocation. */
+                        MVMObject   *obj = GET_REG(cur_op, 2).o;
+                        MVMRegister *res = &GET_REG(cur_op, 0);
                         cur_op += 4;
+                        MVM_coerce_istrue(tc, obj, res, NULL, NULL, 1);
                         break;
+                    }
                     case MVM_OP_istrue_s:
                         GET_REG(cur_op, 0).i64 = MVM_coerce_istrue_s(tc, GET_REG(cur_op, 2).s);
                         cur_op += 4;
@@ -2663,6 +2700,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         break;
                     }
+                    case MVM_OP_scwbdisable:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_scwbenable:
+                        /* TODO: Implement this. */
+                        GET_REG(cur_op, 0).o = NULL;
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_serialization, *(cur_op-1));

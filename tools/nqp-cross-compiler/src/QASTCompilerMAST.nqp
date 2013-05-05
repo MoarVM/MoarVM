@@ -1171,14 +1171,6 @@ class QAST::MASTCompiler {
             $MVM_reg_obj)
     }
     
-    multi method as_mast(QAST::Annotated $node, :$want) {
-        my $ilist := self.compile_all_the_stmts($node.instructions, -1);
-        MAST::InstructionList.new([
-            MAST::Annotated.new(:file($node.file), :line($node.line),
-                :instructions($ilist.instructions))],
-            $ilist.result_reg, $ilist.result_kind)
-    }
-    
     multi method as_mast(QAST::Regex $node, :$want) {
         nqp::defined($want)
             ?? QAST::MASTRegexCompiler.new().as_mast($node, :want($want))
@@ -1190,6 +1182,13 @@ class QAST::MASTCompiler {
         try $name := nqp::isnull($unknown) || nqp::isnull($unknown.HOW) ?? nqp::die('fail') !! $unknown.HOW.name($unknown);
         $name := pir::typeof__SP($unknown) unless nqp::isnull($unknown) || $name ne 'null';
         nqp::die("Unknown QAST node type $name");
+    }
+    
+    method annotated($ilist, $file, $line) {
+        MAST::InstructionList.new([
+            MAST::Annotated.new(:file($file), :line($line),
+                :instructions($ilist.instructions))],
+            $ilist.result_reg, $ilist.result_kind)
     }
     
     my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];

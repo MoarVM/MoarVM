@@ -189,8 +189,7 @@
 #define MVM_OP_say_n 2
 #define MVM_OP_sleep 3
 #define MVM_OP_anonoshtype 4
-#define MVM_OP_say_o 5
-#define MVM_OP_print 6
+#define MVM_OP_print 5
 
 /* Op name defines for bank string. */
 #define MVM_OP_concat_s 0
@@ -231,6 +230,13 @@
 #define MVM_OP_ordat 35
 #define MVM_OP_rindexfrom 36
 #define MVM_OP_escape 37
+#define MVM_OP_flip 38
+#define MVM_OP_iscclass 39
+#define MVM_OP_findcclass 40
+#define MVM_OP_findnotcclass 41
+#define MVM_OP_nfafromstatelist 42
+#define MVM_OP_nfarunproto 43
+#define MVM_OP_nfarunalt 44
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
@@ -477,5 +483,7 @@
 #define MVM_OP_deserialize 12
 #define MVM_OP_wval 13
 #define MVM_OP_wval_wide 14
+#define MVM_OP_scwbdisable 15
+#define MVM_OP_scwbenable 16
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);

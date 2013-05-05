@@ -177,9 +177,8 @@ BANK 1 dev
 0x02    say_n               r(num64)
 0x03    sleep               r(int64)
 0x04    anonoshtype         w(obj)
-0x05    say_o               r(obj)
-0x06    print               r(str)
-0x07    say_I               r(obj)
+0x05    print               r(str)
+0x06    say_I               r(obj)
 
 BANK 2 string
 0x00    concat_s            w(str) r(str) r(str)
@@ -203,8 +202,8 @@ BANK 2 string
 0x12    decode_b            w(obj) r(obj) r(int64)
 0x13    decode              w(str) r(obj) r(int64)
 0x14    encode              w(obj) r(str) r(int64)
-0x15    split               w(obj) r(str) r(obj) r(str)
-0x16    join                w(str) r(obj) r(str)
+0x15    split               w(obj) r(str) r(str)
+0x16    join                w(str) r(str) r(obj)
 0x17    replace             w(str) r(str) r(str) r(str)
 0x18    getcpbyname         w(int64) r(str)
 0x19    indexat_scb         r(str) r(int64) str ins
@@ -220,6 +219,13 @@ BANK 2 string
 0x23    ordat               w(int64) r(str) r(int64)
 0x24    rindexfrom          w(int64) r(str) r(str) r(int64)
 0x25    escape              w(str) r(str)
+0x26    flip                w(str) r(str)
+0x27    iscclass            w(int64) r(int64) r(str) r(int64)
+0x28    findcclass          w(int64) r(int64) r(str) r(int64) r(int64)
+0x29    findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64)
+0x2A    nfafromstatelist    w(obj) r(obj) r(obj)
+0x2B    nfarunproto         w(obj) r(obj) r(str) r(int64)
+0x2C    nfarunalt           r(obj) r(str) r(int64) r(obj) r(obj) r(obj)
 
 BANK 3 math
 0x00    sin_n               w(num64) r(num64)
@@ -374,14 +380,14 @@ BANK 4 object
 0x5D    iterval             w(obj) r(obj)
 0x5E    getcodename         w(str) r(obj)
 0x5F    composetype         w(obj) r(obj) r(obj)
-0x60    setmethcache        w(obj) r(obj) r(obj)
-0x61    setmethcacheauth    w(obj) r(obj) r(int64)
-0x62    settypecache        w(obj) r(obj) r(obj)
-0x63    setinvokespec       w(obj) r(obj) r(obj) r(str) r(obj)
+0x60    setmethcache        r(obj) r(obj)
+0x61    setmethcacheauth    r(obj) r(int64)
+0x62    settypecache        r(obj) r(obj)
+0x63    setinvokespec       r(obj) r(obj) r(str) r(obj)
 0x64    isinvokable         w(int64) r(obj)
 0x65    iscont              w(int64) r(obj)
 0x66    decont              w(obj) r(obj)
-0x67    setboolspec         w(obj) r(obj) r(int64) r(obj)
+0x67    setboolspec         r(obj) r(int64) r(obj)
 0x68    istrue              w(int64) r(obj)
 0x69    isfalse             w(int64) r(obj)
 0x6A    istrue_s            w(int64) r(str)
@@ -504,3 +510,5 @@ BANK 7 serialization
 0x0C    deserialize         w(str) r(str) r(obj) r(obj) r(obj) r(obj)
 0x0D    wval                w(obj) int16 int16
 0x0E    wval_wide           w(obj) int16 int64
+0x0F    scwbdisable         w(obj)
+0x10    scwbenable          w(obj)
