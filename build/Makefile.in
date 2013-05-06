@@ -302,7 +302,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) \
             src/6model/serialization$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
-            src/strings/latin1$(O) src/strings/utf16$(O) src/moarvm$(O)
+            src/strings/latin1$(O) src/strings/utf16$(O) src/math/bigintops$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
 HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
@@ -323,7 +323,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/6model/reprs/P6bigint.h src/6model/reprs/NFA.h \
             src/6model/sc.h src/strings/unicode_gen.h \
             src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h \
-            src/strings/latin1.h src/strings/utf16.h 3rdparty/uthash.h src/gen/config.h
+            src/strings/latin1.h src/strings/utf16.h src/math/bigintops.h 3rdparty/uthash.h src/gen/config.h
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(LIBTOMMATH_BIN) $(CORE_OBJS) $(MAIN_OBJ)
@@ -705,6 +705,8 @@ src/strings/latin1$(O): src/strings/latin1.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/latin1$(O) src/strings/latin1.c
 src/strings/utf16$(O): src/strings/utf16.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/utf16$(O) src/strings/utf16.c
+src/math/bigintops$(O): src/math/bigintops.c $(HEADERS)
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/math/bigintops$(O) src/math/bigintops.c
 src/moarvm$(O): src/moarvm.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/moarvm$(O) src/moarvm.c
 src/main$(O): src/main.c $(HEADERS)
@@ -713,5 +715,5 @@ src/main$(O): src/main.c $(HEADERS)
 # Cleanup.
 clean:
 	$(RM) moarvm$(EXE)
-	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O) src/strings/unicode.c src/io/*$(O)
+	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O) src/strings/unicode.c src/io/*$(O) src/math/*$(O)
 	$(RM) 3rdparty/libtommath/*$(O)
