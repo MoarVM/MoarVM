@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-mp_int * MVM_get_bigint(MVMObject *obj) {
+static mp_int * MVM_get_bigint(MVMObject *obj) {
   return &((P6bigint *)obj)->body.i;
 }
 

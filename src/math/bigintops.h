@@ -1,5 +1,3 @@
-mp_int * MVM_get_bigint(MVMObject *obj);
-
 void MVM_bigint_abs(MVMObject *b, MVMObject *a);
 void MVM_bigint_neg(MVMObject *b, MVMObject *a);
 void MVM_bigint_not(MVMObject *b, MVMObject *a);
