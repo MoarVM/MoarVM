@@ -199,9 +199,10 @@ class QAST::MASTRegexCompiler {
         my $endlabel := @*RXJUMPS[$endlabel_index];
         my @ins := nqp::list();
         my @label_ins := nqp::list();
-        #nqp::push(@label_ins, op('create', %*REG<P11>, %*REG<IARRTYPE>); # XXX new integer array
-        self.regex_mark(@ins, $endlabel, %*REG<negone>, %*REG<zero>);
-        nqp::push(@ins, op('findmeth', %*REG<method>, %*REG<cur>, '!alt'));
+        nqp::push(@label_ins, op('bootintarray', %*REG<P11>));
+        nqp::push(@label_ins, op('create', %*REG<P11>, %*REG<P11>));
+        self.regex_mark(@ins, $endlabel_index, %*REG<negone>, %*REG<zero>);
+        nqp::push(@ins, op('findmeth', %*REG<method>, %*REG<cur>, sval('!alt')));
         my $name := fresh_s();
         nqp::push(@ins, op('const_s', $name, sval($node.name)));
         nqp::push(@ins, call(%*REG<method>, [ $Arg::obj, $Arg::int, $Arg::str, $Arg::obj ],
@@ -212,6 +213,7 @@ class QAST::MASTRegexCompiler {
         # Emit all the possible alternatives
         my $altcount := 0;
         my $iter     := nqp::iterator($node.list);
+        my $itmp     := fresh_i();
         while $iter {
             my $altlabel_index := rxjump($prefix ~ $altcount);
             my $altlabel := @*RXJUMPS[$altlabel_index];
@@ -219,9 +221,11 @@ class QAST::MASTRegexCompiler {
             nqp::push(@ins, $altlabel);
             merge_ins(@ins, @amast);
             nqp::push(@ins, op('goto', $endlabel));
-            nqp::push(@label_ins, op('push_i', %*REG<P11>, $altlabel_index));
+            nqp::push(@label_ins, op('const_i64', $itmp, ival($altlabel_index)));
+            nqp::push(@label_ins, op('push_i', %*REG<P11>, $itmp));
             $altcount++;
         }
+        release($itmp, $MVM_reg_int64);
         nqp::push(@ins, $endlabel);
         self.regex_commit(@ins, $endlabel_index) if $node.backtrack eq 'r';
         merge_ins(@label_ins, @ins);
