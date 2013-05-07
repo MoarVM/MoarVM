@@ -283,6 +283,9 @@ class QAST::MASTRegexCompiler {
         elsif $subtype eq 'fail' {
             nqp::push(@ins, op('goto', $fail));
         }
+        elsif $subtype eq 'pass' {
+            # Nothing to do.
+        }
         else {
             nqp::die("anchor subtype $subtype NYI");
         }
