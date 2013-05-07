@@ -355,18 +355,18 @@ class QAST::MASTRegexCompiler {
             $firstlabel
         ];
         # make a mark that holds our starting position in the pos slot
-        self.regex_mark(@ins, $conjlabel, %*REG<pos>, %*REG<zero>);
+        self.regex_mark(@ins, $conjlabel_index, %*REG<pos>, %*REG<zero>);
         merge_ins(@ins, self.regex_mast(nqp::shift($iter)));
         # use previous mark to make one with pos=start, rep=end
         my $i11 := fresh_i();
         my $i12 := fresh_i();
-        self.regex_peek(@ins, $conjlabel, $i11);
-        self.regex_mark(@ins, $conjlabel, $i11, %*REG<pos>);
+        self.regex_peek(@ins, $conjlabel_index, $i11);
+        self.regex_mark(@ins, $conjlabel_index, $i11, %*REG<pos>);
         
         while $iter {
             nqp::push(@ins, op('set', %*REG<pos>, $i11));
             merge_ins(@ins, self.regex_mast(nqp::shift($iter)));
-            self.regex_peek(@ins, $conjlabel, $i11, $i12);
+            self.regex_peek(@ins, $conjlabel_index, $i11, $i12);
             nqp::push(@ins, op('ne_i', $i12, %*REG<pos>, $i12));
             nqp::push(@ins, op('if_i', $i12, %*REG<fail>));
         }
