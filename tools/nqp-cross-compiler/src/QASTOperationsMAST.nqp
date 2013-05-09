@@ -1545,30 +1545,27 @@ QAST::MASTOperations.add_core_moarop_mapping('setcodeobj', 'setcodeobj', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');
 QAST::MASTOperations.add_core_moarop_mapping('setcodename', 'setcodename', 0);
 QAST::MASTOperations.add_core_moarop_mapping('forceouterctx', 'forceouterctx', 0);
-QAST::MASTOperations.add_core_op('setstaticlex', -> $qastcomp, $op {
-    if +@($op) != 3 {
-        nqp::die('setstaticlex requires three operands');
-    }
-    unless nqp::istype($op[0], QAST::Block) {
-        nqp::die('First operand to setstaticlex must be a QAST::Block');
+QAST::MASTOperations.add_core_op('setup_blv', -> $qastcomp, $op {
+    if +@($op) != 1 || !nqp::ishash($op[0]) {
+        nqp::die('setup_blv requires one hash operand');
     }
     
     my @ops;
-    my $frame     := %*MAST_FRAMES{$op[0].cuid};
-    my $block_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
-    push_op(@ops, 'getcode', $block_reg, $frame);
-
-    my $name := $qastcomp.as_mast($op[1], :want($MVM_reg_str));
-    push_ilist(@ops, $name);
+    for $op[0] {
+        my $frame     := %*MAST_FRAMES{$_.key};
+        my $block_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+        push_op(@ops, 'getcode', $block_reg, $frame);
+        for $_.value -> @lex {
+            my $valres := $qastcomp.as_mast(QAST::WVal.new( :value(@lex[1]) ));
+            push_ilist(@ops, $valres);
+            push_op(@ops, 'setlexvalue', $block_reg, MAST::SVal.new( :value(@lex[0]) ),
+                $valres.result_reg, MAST::IVal.new( :value(@lex[2]) ));
+            $*REGALLOC.release_register($valres.result_reg, $MVM_reg_obj);
+        }
+        $*REGALLOC.release_register($block_reg, $MVM_reg_obj);
+    }
     
-    my $val := $qastcomp.as_mast($op[2], :want($MVM_reg_obj));
-    push_ilist(@ops, $val);
-    
-    push_op(@ops, 'setstaticlex', $block_reg, $name.result_reg, $val.result_reg);
-    $*REGALLOC.release_register($name.result_reg, $MVM_reg_str);
-    $*REGALLOC.release_register($val.result_reg, $MVM_reg_obj);
-
-    MAST::InstructionList.new(@ops, $block_reg, $MVM_reg_obj);
+    MAST::InstructionList.new(@ops, $*REGALLOC.fresh_o(), $MVM_reg_obj)
 });
 
 # language/compiler ops

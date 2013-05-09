@@ -142,11 +142,20 @@ class QAST::MASTCompiler {
             }
         }
         
-        method add_lexical($var) {
-            my $type := $var.returns // NQPMu; # taking out this // NQPMu makes the cross compiler go Boom.
+        method add_lexical($var, :$is_static, :$is_cont, :$is_state) {
+            my $type := $var.returns;
             my $kind := $!compiler.type_to_register_kind($type);
             my $index := $*MAST_FRAME.add_lexical($type, $var.name);
             self.register_lexical($var, $index, 0, $kind);
+            if $is_static || $is_cont || $is_state {
+                my %blv := %*BLOCK_LEX_VALUES;
+                unless nqp::existskey(%blv, $!qast.cuid) {
+                    %blv{$!qast.cuid} := [];
+                }
+                my $flags := $is_static ?? 0 !!
+                             $is_cont   ?? 1 !! 2;
+                nqp::push(%blv{$!qast.cuid}, [$var.name, $var.value, $flags]);
+            }
             $kind;
         }
         
@@ -402,10 +411,17 @@ class QAST::MASTCompiler {
         }
         if (pir::new__Ps('Env')<MVMCCDEBUG>) { say($cu.dump); }
         
-        # Should have a single child which is the outer block; compile it.
+        # Should have a single child which is the outer block.
         if +@($cu) != 1 || !nqp::istype($cu[0], QAST::Block) {
             nqp::die("QAST::CompUnit should have one child that is a QAST::Block");
         }
+        
+        # Hash mapping blocks with static lexicals to an array of arrays. Each
+        # of the sub-arrays has the form [$name, $value, $flags], where flags
+        # are 0 = static lex, 1 = container, 2 = state container.
+        my %*BLOCK_LEX_VALUES;
+        
+        # Compile the block.
         self.as_mast($cu[0]);
         
         # If we are in compilation mode, or have pre-deserialization or
@@ -414,6 +430,9 @@ class QAST::MASTCompiler {
         my $comp_mode := $cu.compilation_mode;
         my @pre_des   := $cu.pre_deserialize;
         my @post_des  := $cu.post_deserialize;
+        if %*BLOCK_LEX_VALUES {
+            nqp::push(@post_des, QAST::Op.new( :op('setup_blv'), %*BLOCK_LEX_VALUES ));
+        }
         if $ENABLE_SC_COMP && ($comp_mode || @pre_des || @post_des) {
             # Create a block into which we'll install all of the other
             # pieces.
@@ -572,10 +591,6 @@ class QAST::MASTCompiler {
             
             my $*BLOCK := $block;
             my $*MAST_FRAME := $frame;
-            
-        #    if !nqp::defined($outer) || !($outer ~~ BlockInfo) {
-        #        nqp::splice($frame.instructions, NQPCursorQAST.new().build_types(), 0, 0);
-        #    }
             
             $ins := self.compile_all_the_stmts(@($node));
             
@@ -821,6 +836,9 @@ class QAST::MASTCompiler {
                 ?? QAST::MASTOperations.compile_mastop(self, $node.alternative('moarop'), $node.list, :$want)
                 !! QAST::MASTOperations.compile_mastop(self, $node.alternative('moarop'), $node.list);
         }
+        elsif $node.supports('mast') {
+            return $node.alternative('mast');
+        }
         elsif $node.supports('jvm') {
             # Currently, NQP spits out very generic code in the JVM option, so we
             # will pretend we are a JVM for now. This means we should be able to
@@ -913,6 +931,24 @@ class QAST::MASTCompiler {
                 else {
                     nqp::die("Cannot declare variable with scope '$scope'; use 'local' or 'lexical'");
                 }
+            }
+            elsif $decl eq 'static' {
+                if $scope ne 'lexical' {
+                    nqp::die("Can only use 'static' decl with scope 'lexical'");
+                }
+                $*BLOCK.add_lexical($node, :is_static);
+            }
+            elsif $decl eq 'contvar' {
+                if $scope ne 'lexical' {
+                    nqp::die("Can only use 'contvar' decl with scope 'lexical'");
+                }
+                $*BLOCK.add_lexical($node, :is_cont);
+            }
+            elsif $decl eq 'statevar' {
+                if $scope ne 'lexical' {
+                    nqp::die("Can only use 'statevar' decl with scope 'lexical'");
+                }
+                $*BLOCK.add_lexical($node, :is_state);
             }
             else {
                 nqp::die("Don't understand declaration type '$decl'");

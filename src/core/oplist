@@ -139,7 +139,7 @@ BANK 0 primitives
 0x89    cmp_i               w(int64) r(int64) r(int64)
 0x8A    cmp_n               w(int64) r(num64) r(num64)
 0x8B    not_i               w(int64) r(int64)
-0x8C    setstaticlex        r(obj) r(str) r(obj)
+0x8C    setlexvalue         r(obj) str r(obj) int16
 0x8D    exception           w(obj)
 0x8E    handled             r(obj)
 0x8F    newexception        w(obj)

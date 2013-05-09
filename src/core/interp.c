@@ -805,10 +805,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_setstaticlex: {
+                    case MVM_OP_setlexvalue: {
                         MVMObject *code = GET_REG(cur_op, 0).o;
-                        MVMString *name = GET_REG(cur_op, 2).s;
+                        MVMString *name = cu->strings[GET_UI16(cur_op, 2)];
                         MVMObject *val  = GET_REG(cur_op, 4).o;
+                        MVMint16   flag = GET_I16(cur_op, 8);
+                        if (flag)
+                            MVM_exception_throw_adhoc(tc, "setlexvalue only handles static case so far");
                         if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
                             MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
                             MVMuint8 found = 0;
@@ -827,7 +830,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         else {
                             MVM_exception_throw_adhoc(tc, "setstaticlex needs a code ref");
                         }
-                        cur_op += 6;
+                        cur_op += 8;
                         break;
                     }
                     case MVM_OP_throwcatdyn: {

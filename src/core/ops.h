@@ -151,7 +151,7 @@
 #define MVM_OP_cmp_i 137
 #define MVM_OP_cmp_n 138
 #define MVM_OP_not_i 139
-#define MVM_OP_setstaticlex 140
+#define MVM_OP_setlexvalue 140
 #define MVM_OP_exception 141
 #define MVM_OP_handled 142
 #define MVM_OP_newexception 143
