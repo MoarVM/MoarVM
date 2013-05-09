@@ -134,8 +134,9 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
-                    nfa->states[i][cur_edge].arg.s = MVM_repr_get_str(tc,
-                        MVM_repr_at_pos_o(tc, edge_info, j + 1));
+                    MVM_ASSIGN_REF(tc, nfa_obj,
+                        nfa->states[i][cur_edge].arg.s,
+                        MVM_repr_get_str(tc, MVM_repr_at_pos_o(tc, edge_info, j + 1)));
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
                 case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
