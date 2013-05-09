@@ -3339,7 +3339,6 @@ class MAST::Ops {
             'exit', nqp::hash(
                 'code', 29,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),

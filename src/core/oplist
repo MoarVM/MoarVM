@@ -452,7 +452,7 @@ BANK 6 processthread
 0x1A    newthread           w(obj) r(obj) r(obj)
 0x1B    jointhread          r(obj)
 0x1C    time_n              w(num64)
-0x1D    exit                w(int64) r(int64)
+0x1D    exit                r(int64)
 0x1E    loadbytecode        w(str) r(str)
 
 BANK 7 serialization

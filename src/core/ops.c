@@ -2666,8 +2666,8 @@ static MVMOpInfo MVM_op_info_processthread[] = {
     {
         MVM_OP_exit,
         "exit",
-        2,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        1,
+        { MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_loadbytecode,
