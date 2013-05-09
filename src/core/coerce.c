@@ -268,3 +268,27 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
             MVM_exception_throw_adhoc(tc, "cannot numify this");
     }
 }
+
+MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
+    /* Handle null and non-concrete case. */
+    if (!obj || !IS_CONCRETE(obj)) {
+        return 0;
+    }
+        
+    /* Otherwise, guess something appropriate. */
+    else {
+        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+            return REPR(obj)->box_funcs->get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+            return (MVMint64)REPR(obj)->box_funcs->get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+            return MVM_coerce_s_i(tc, REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+        else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
+            return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
+            return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else
+            MVM_exception_throw_adhoc(tc, "cannot intify this");
+    }
+}
