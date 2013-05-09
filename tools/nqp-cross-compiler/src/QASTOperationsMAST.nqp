@@ -1575,6 +1575,11 @@ QAST::MASTOperations.add_core_moarop_mapping('getcurhllsym', 'getcurhllsym');
 QAST::MASTOperations.add_core_moarop_mapping('bindcurhllsym', 'bindcurhllsym');
 QAST::MASTOperations.add_core_moarop_mapping('loadbytecode', 'loadbytecode');
 
+# regex engine related opcodes
+QAST::MASTOperations.add_core_moarop_mapping('nfafromstatelist', 'nfafromstatelist');
+QAST::MASTOperations.add_core_moarop_mapping('nfarunproto', 'nfarunproto');
+QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
+
 # process related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 
