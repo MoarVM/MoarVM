@@ -1372,33 +1372,33 @@ class HLL::Compiler does HLL::Backend::Default {
         }
     }
 
-#    method usage($name?) {
-#        if $name {
-#            say($name);
-#        }
-#        nqp::say($!usage);
-#        nqp::exit(0);
-#    }
-#
-#    method version() {
-#        my $version := %!config<version>;
-#        my $backver := $!backend.version_string();
-#        nqp::say("This is $!language version $version built on $backver");
-#        nqp::exit(0);
-#    }
+    method usage($name?) {
+        if $name {
+            say($name);
+        }
+        nqp::say($!usage);
+        nqp::exit(0);
+    }
+
+    method version() {
+        my $version := %!config<version>;
+        my $backver := $!backend.version_string();
+        nqp::say("This is $!language version $version built on $backver");
+        nqp::exit(0);
+    }
 
     method show-config() { self.verbose-config(); }
 
-#    method verbose-config() {
-#        my $bname := $!backend.name;
-#        for $!backend.config {
-#            nqp::say($bname ~ '::' ~ $_.key ~ '=' ~ $_.value);
-#        }
-#        for %!config {
-#            nqp::say($!language ~ '::' ~ $_.key ~ '=' ~ $_.value);
-#        }
-#        nqp::exit(0);
-#    }
+    method verbose-config() {
+        my $bname := $!backend.name;
+        for $!backend.config {
+            nqp::say($bname ~ '::' ~ $_.key ~ '=' ~ $_.value);
+        }
+        for %!config {
+            nqp::say($!language ~ '::' ~ $_.key ~ '=' ~ $_.value);
+        }
+        nqp::exit(0);
+    }
     
     method nqpevent(*@pos) {
         $!backend.nqpevent(|@pos)
