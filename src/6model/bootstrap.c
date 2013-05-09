@@ -77,8 +77,13 @@ static void create_stub_BOOTStr(MVMThreadContext *tc) {
 
 /* Creates a stub BOOTArray (missing a meta-object). */
 static void create_stub_BOOTArray(MVMThreadContext *tc) {
+    MVMBoolificationSpec *bs;
     MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
-    tc->instance->boot_types->BOOTArray = repr->type_object_for(tc, NULL);
+    MVMObject  *type = tc->instance->boot_types->BOOTArray = repr->type_object_for(tc, NULL);
+    bs = malloc(sizeof(MVMBoolificationSpec));
+    bs->mode = MVM_BOOL_MODE_HAS_ELEMS;
+    bs->method = NULL;
+    type->st->boolification_spec = bs;
 }
 
 /* Creates a stub BOOTHash (missing a meta-object). */
@@ -600,6 +605,7 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
 
 /* Bootstraps a typed array. */
 static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject *type) {
+    MVMBoolificationSpec *bs;
     MVMObject  *repr_info;
     MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
     MVMObject  *array = repr->type_object_for(tc, NULL);
@@ -617,6 +623,12 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
                 REPR(array)->compose(tc, STABLE(array), repr_info);
             });
         });
+        
+        /* Also give it a boolification spec. */
+        bs = malloc(sizeof(MVMBoolificationSpec));
+        bs->mode = MVM_BOOL_MODE_HAS_ELEMS;
+        bs->method = NULL;
+        array->st->boolification_spec = bs;
     });
     return array;
 }

@@ -105,10 +105,12 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
             case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
                 result = !IS_CONCRETE(obj) ? 0 : 1;
                 break;
-            case MVM_BOOL_MODE_ITER: {
+            case MVM_BOOL_MODE_ITER:
                 result = IS_CONCRETE(obj) ? MVM_iter_istrue(tc, (MVMIter *)obj) : 0;
                 break;
-            }
+            case MVM_BOOL_MODE_HAS_ELEMS:
+                result = IS_CONCRETE(obj) ? MVM_repr_elems(tc, obj) != 0 : 0;
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Invalid boolification spec mode used");
         }
