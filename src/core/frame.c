@@ -307,6 +307,7 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     
     closure->body.sf    = sf;
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
+    MVM_ASSIGN_REF(tc, closure, closure->body.code_object, ((MVMCode *)code)->body.code_object);
     
     return (MVMObject *)closure;
 }
