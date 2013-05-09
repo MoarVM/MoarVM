@@ -225,6 +225,7 @@ BANK 2 string
 0x2A    nfafromstatelist    w(obj) r(obj) r(obj)
 0x2B    nfarunproto         w(obj) r(obj) r(str) r(int64)
 0x2C    nfarunalt           r(obj) r(str) r(int64) r(obj) r(obj) r(obj)
+0x2D    flattenropes        r(str)
 
 BANK 3 math
 0x00    sin_n               w(num64) r(num64)

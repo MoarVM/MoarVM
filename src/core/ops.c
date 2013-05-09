@@ -1344,6 +1344,12 @@ static MVMOpInfo MVM_op_info_string[] = {
         6,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_flattenropes,
+        "flattenropes",
+        1,
+        { MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 static MVMOpInfo MVM_op_info_math[] = {
     {
@@ -2797,7 +2803,7 @@ static unsigned char MVM_op_banks = 8;
 static unsigned char MVM_opcounts_by_bank[] = {
     171,
     6,
-    45,
+    46,
     16,
     129,
     45,

@@ -237,6 +237,7 @@
 #define MVM_OP_nfafromstatelist 42
 #define MVM_OP_nfarunproto 43
 #define MVM_OP_nfarunalt 44
+#define MVM_OP_flattenropes 45
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

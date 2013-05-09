@@ -1720,6 +1720,12 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
+            ),
+            'flattenropes', nqp::hash(
+                'code', 45,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_str
+                ]
             )
         ],
         [

@@ -103,6 +103,7 @@ class QAST::MASTRegexCompiler {
             op('atpos_o', $cur, $cstart, $zero),
             op('atpos_o', $tmp, $cstart, $one),
             op('unbox_s', $tgt, $tmp),
+            op('flattenropes', $tgt),
             op('atpos_o', $tmp, $cstart, $two),
             op('unbox_i', $pos, $tmp),
             op('atpos_o', $curclass, $cstart, $three),
