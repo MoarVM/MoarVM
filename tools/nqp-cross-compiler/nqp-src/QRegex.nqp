@@ -364,23 +364,23 @@ class QRegex::NFA {
     # NFA type.
     my knowhow NFAType is repr('NFA') { }
 
-#    method run(str $target, int $offset) {
-#        unless nqp::isconcrete($!nfa_object) {
-#            nqp::scwbdisable();
-#            $!nfa_object := nqp::nfafromstatelist($!states, NFAType);
-#            nqp::scwbenable();
-#        }
-#        nqp::nfarunproto($!nfa_object, $target, $offset)
-#    }
-#    
-#    method run_alt(str $target, int $offset, $bstack, $cstack, @labels) {
-#        unless nqp::isconcrete($!nfa_object) {
-#            nqp::scwbdisable();
-#            $!nfa_object := nqp::nfafromstatelist($!states, NFAType);
-#            nqp::scwbenable();
-#        }
-#        nqp::nfarunalt($!nfa_object, $target, $offset, $bstack, $cstack, @labels)
-#    }
+    method run(str $target, int $offset) {
+        unless nqp::isconcrete($!nfa_object) {
+            nqp::scwbdisable();
+            $!nfa_object := nqp::nfafromstatelist($!states, NFAType);
+            nqp::scwbenable();
+        }
+        nqp::nfarunproto($!nfa_object, $target, $offset)
+    }
+    
+    method run_alt(str $target, int $offset, $bstack, $cstack, @labels) {
+        unless nqp::isconcrete($!nfa_object) {
+            nqp::scwbdisable();
+            $!nfa_object := nqp::nfafromstatelist($!states, NFAType);
+            nqp::scwbenable();
+        }
+        nqp::nfarunalt($!nfa_object, $target, $offset, $bstack, $cstack, @labels)
+    }
     
     method generic() {
         $!generic
