@@ -269,8 +269,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         
         gen2count = worklist->items;
         
-        /* Otherwise, we need to do the copy. What sort of thing are we
-         * going to copy? */
+        /* Finally, we need to mark the collectable. */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
             /* Need to view it as an object in here. */
             MVMObject *new_addr_obj = (MVMObject *)new_addr;
