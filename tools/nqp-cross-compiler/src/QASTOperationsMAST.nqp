@@ -1581,6 +1581,7 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunproto', 'nfarunproto');
 QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 
 # process related opcodes
+QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 
 sub resolve_condition_op($kind, $negated) {
