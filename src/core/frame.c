@@ -205,16 +205,13 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
         prepare_and_verify_static_frame(tc, static_frame);
     
     frame = malloc(sizeof(MVMFrame));
-    frame->params.named_used = NULL;
+    memset(frame, 0, sizeof(MVMFrame));
     
     /* Copy thread context into the frame. */
     frame->tc = tc;
     
     /* Set static frame. */
     frame->static_info = static_frame;
-    
-    /* Ensure special return pointer is null. */
-    frame->special_return = NULL;
     
     /* Store the code ref. */
     frame->code_ref = code_ref;
@@ -225,23 +222,9 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
         frame->env = malloc(static_frame->env_size);
         memcpy(frame->env, static_frame->static_env, static_frame->env_size);
     }
-    else {
-        frame->env = NULL;
-    }
-    
-    /* No work area needed; we'll never run this. */
-    frame->work = NULL;
-    
-    /* Outer will be set up later. */
-    frame->outer = NULL;
-    
-    /* Has no caller. */
-    frame->caller = NULL;
 
     /* Initial reference count is 0 (will become referenced by being set as
-     * an outer context). */
-    frame->ref_count = 0;
-    
+     * an outer context). So just return it now. */
     return frame;
 }
 
