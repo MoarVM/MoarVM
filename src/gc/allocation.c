@@ -56,8 +56,8 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, MVMREPROps *repr, MVMOb
         st->header.flags |= MVM_CF_STABLE;
         st->header.owner  = tc->thread_id;
         st->REPR          = repr;
-        st->HOW           = how;
         st->invoke        = MVM_6model_invoke_default;
+        MVM_ASSIGN_REF(tc, st, st->HOW, how);
     });
     return st;
 }
@@ -69,7 +69,7 @@ MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
         obj                = MVM_gc_allocate_zeroed(tc, sizeof(MVMObject));
         obj->header.flags |= MVM_CF_TYPE_OBJECT;
         obj->header.owner  = tc->thread_id;
-        obj->st            = st;
+        MVM_ASSIGN_REF(tc, obj, obj->st, st);
     });
     return obj;
 }
@@ -80,7 +80,7 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
     MVMROOT(tc, st, {
         obj               = MVM_gc_allocate_zeroed(tc, st->size);
         obj->header.owner = tc->thread_id;
-        obj->st           = st;
+        MVM_ASSIGN_REF(tc, obj, obj->st, st);
     });
     return obj;
 }
