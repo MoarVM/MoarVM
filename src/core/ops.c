@@ -852,7 +852,7 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         MVM_OP_setlexvalue,
         "setlexvalue",
         4,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int64 }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
         MVM_OP_exception,

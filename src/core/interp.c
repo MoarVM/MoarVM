@@ -809,7 +809,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *code = GET_REG(cur_op, 0).o;
                         MVMString *name = cu->strings[GET_UI16(cur_op, 2)];
                         MVMObject *val  = GET_REG(cur_op, 4).o;
-                        MVMint16   flag = GET_I16(cur_op, 8);
+                        MVMint16   flag = GET_I16(cur_op, 6);
                         if (flag)
                             MVM_exception_throw_adhoc(tc, "setlexvalue only handles static case so far");
                         if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
