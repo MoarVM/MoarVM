@@ -672,8 +672,8 @@ class QAST::MASTRegexCompiler {
             if $node.backtrack eq 'r' {
                 unless $subtype eq 'method' {
                     self.regex_mark(@ins, $passlabel_index, %*REG<negone>, %*REG<zero>);
-                    nqp::push(@ins, $passlabel);
                 }
+                nqp::push(@ins, $passlabel);
             }
             else {
                 my $backlabel_index := rxjump($rxname ~ '_back');
