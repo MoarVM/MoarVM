@@ -832,13 +832,13 @@ class HLL::Actions {
         make $<textq> ?? '\\' ~ $<textq>.Str !! $<textqq>.Str;
     }
 
-#    method charname($/) {
-#        my $codepoint := $<integer>
-#                         ?? $<integer>.ast
-#                         !! nqp::codepointfromname(~$/);
-#        $/.CURSOR.panic("Unrecognized character name $/") if $codepoint < 0;
-#        make nqp::chr($codepoint);
-#    }
+    method charname($/) {
+        my $codepoint := $<integer>
+                         ?? $<integer>.ast
+                         !! nqp::codepointfromname(~$/);
+        $/.CURSOR.panic("Unrecognized character name $/") if $codepoint < 0;
+        make nqp::chr($codepoint);
+    }
 
     method charnames($/) {
         my $str := '';
