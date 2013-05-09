@@ -123,6 +123,12 @@ typedef struct _MVMThreadContext {
     MVMuint32             alloc_gen2roots;
     MVMCollectable     ***gen2roots;
     
+    /* Generation 2 aggregates that are believed to point to at least
+     * one nursery object. */
+    MVMuint32             num_gen2aggs;
+    MVMuint32             alloc_gen2aggs;
+    MVMObject           **gen2aggs;
+    
     /* The GC's cross-thread in-tray of processing work. */
     struct _MVMGCPassedWork *gc_in_tray;
     /* The GC's thread-local "sent items" list, by next_by_sender. */

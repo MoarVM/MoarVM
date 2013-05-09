@@ -32,7 +32,7 @@
     { \
         MVMCollectable *u = (MVMCollectable *)update_root; \
         MVMCollectable *r = (MVMCollectable *)referenced; \
-        if (((u->flags & MVM_CF_SECOND_GEN) && !(r->flags & MVM_CF_SECOND_GEN)) || u->sc) \
+        if (((u->flags & MVM_CF_SECOND_GEN) && r && !(r->flags & MVM_CF_SECOND_GEN)) || u->sc) \
             MVM_gc_write_agg_barrier_hit(tc, u, r); \
     }
 

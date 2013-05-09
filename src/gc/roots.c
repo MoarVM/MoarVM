@@ -111,18 +111,42 @@ void MVM_gc_root_gen2_ref_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
 
 /* Pushes an aggregate that is in generation 2, but now references a nursery
  * object, into the gen2 aggregates root set. */
-void MVM_gc_root_gen2_agg_add(MVMThreadContext *tc, MVMCollectable *aggregate) {
-    /* XXX TODO. */
+void MVM_gc_root_gen2_agg_add(MVMThreadContext *tc, MVMObject *aggregate) {
+    /* Ensure the root is not null. */
+    if (aggregate == NULL)
+        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null aggregate address as an inter-generational root");
+    
+    /* Allocate extra gen2 aggregate space if needed. */
+    if (tc->num_gen2aggs == tc->alloc_gen2aggs) {
+        tc->alloc_gen2aggs *= 2;
+        tc->gen2aggs = realloc(tc->gen2aggs,
+            sizeof(MVMObject *) * tc->alloc_gen2aggs);
+    }
+    
+    /* Add this one to the list. */
+    tc->gen2aggs[tc->num_gen2aggs] = aggregate;
+    tc->num_gen2aggs++;
 }
 
 /* Adds the set of thread-local inter-generational roots to a GC worklist. */
 void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    MVMuint32         i, num_roots;
+    MVMuint32         i, num_roots, num_aggs;
     MVMCollectable ***gen2roots;
+    MVMObject       **gen2aggs;
+    
+    /* Add objects rooted by something in gen2. */
     num_roots = tc->num_gen2roots;
     gen2roots = tc->gen2roots;
     for (i = 0; i < num_roots; i++)
         MVM_gc_worklist_add(tc, worklist, gen2roots[i]);
+    
+    /* Mark gen2 aggregates that point to gen1 things. */
+    num_aggs = tc->num_gen2aggs;
+    gen2aggs = tc->gen2aggs;
+    for (i = 0; i < num_aggs; i++) {
+        MVMObject *agg = gen2aggs[i];
+        REPR(agg)->gc_mark(tc, STABLE(agg), OBJECT_BODY(agg), worklist);
+    }
 }
 
 /* Visits all of the roots in the gen2 list and cleans them up. */
