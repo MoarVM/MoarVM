@@ -53,7 +53,8 @@ static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
 }
 
 /* Allocates space using the second generation allocator and returns
- * a pointer to the allocated space. */
+ * a pointer to the allocated space. Does not zero the space or set
+ * it up in any way. */
 void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
     void *result;
     
@@ -103,10 +104,11 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
 
 /* Allocates space using the second generation allocator and returns
  * a pointer to the allocated space. Promises the memory will be
- * zeroed. */
+ * zeroed, except that the MVMCollectable gen 2 flag will get set. */
 void * MVM_gc_gen2_allocate_zeroed(MVMGen2Allocator *al, MVMuint32 size) {
     void *a = MVM_gc_gen2_allocate(al, size);
     memset(a, 0, size);
+    ((MVMCollectable *)a)->flags = MVM_CF_SECOND_GEN;
     return a;
 }
 
