@@ -1150,7 +1150,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_indexat_scb:
                         /* branches on *failure* to match in the constant string, to save an instruction in regexes */
                         if (MVM_string_char_at_in_string(tc, GET_REG(cur_op, 0).s,
-                                GET_REG(cur_op, 2).i64, cu->strings[GET_UI16(cur_op, 4)]))
+                                GET_REG(cur_op, 2).i64, cu->strings[GET_UI16(cur_op, 4)]) >= 0)
                             cur_op += 10;
                         else
                             cur_op = bytecode_start + GET_UI32(cur_op, 6);
