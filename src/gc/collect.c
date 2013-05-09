@@ -310,6 +310,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
             if (new_addr_st->boolification_spec)
                 MVM_gc_worklist_add(tc, worklist, &new_addr_st->boolification_spec->method);
+            if (new_addr_st->invocation_spec) {
+                MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->class_handle);
+                MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->attr_name);
+                MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->invocation_handler);
+            }
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
             
             /* If it needs to have its REPR data marked, do that. */
