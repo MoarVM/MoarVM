@@ -365,11 +365,25 @@ MVMObject * MVM_nfa_run_proto(MVMThreadContext *tc, MVMObject *nfa, MVMString *t
     return fateres;
 }
 
-
-
-
-
-
-
-
-
+/* Takes an NFA, target string and offset. Runs the NFA, and uses the output
+ * to update the bstack with backtracking points to try the alternation
+ * branches in the correct order. The current capture stack is needed for its
+ * height. */
+void MVM_nfa_run_alt(MVMThreadContext *tc, MVMObject *nfa, MVMString *target,
+        MVMint64 offset, MVMObject *bstack, MVMObject *cstack, MVMObject *labels) {
+    /* Run the NFA. */
+    MVMint64  total_fates, i;
+    MVMint64 *fates = nqp_nfa_run(tc, (MVMNFABody *)OBJECT_BODY(nfa), target, offset, &total_fates);
+    
+    /* Push the results onto the bstack. */
+    MVMint64 caps = cstack && IS_CONCRETE(cstack)
+        ? MVM_repr_elems(tc, cstack)
+        : 0;
+    for (i = 0; i < total_fates; i++) {
+        MVM_repr_push_i(tc, bstack, MVM_repr_at_pos_i(tc, labels, fates[i]));
+        MVM_repr_push_i(tc, bstack, offset);
+        MVM_repr_push_i(tc, bstack, 0);
+        MVM_repr_push_i(tc, bstack, caps);
+    }
+    free(fates);
+}
