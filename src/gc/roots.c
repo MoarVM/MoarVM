@@ -146,6 +146,7 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     for (i = 0; i < num_aggs; i++) {
         MVMObject *agg = gen2aggs[i];
         REPR(agg)->gc_mark(tc, STABLE(agg), OBJECT_BODY(agg), worklist);
+        MVM_gc_worklist_add(tc, worklist, &gen2aggs[i]);
     }
 }
 
@@ -157,7 +158,7 @@ void MVM_gc_root_gen2_cleanup_promoted(MVMThreadContext *tc) {
     gen2roots = tc->gen2roots;
     cur_survivor = 0;
     for (i = 0; i < num_roots; i++) {
-        if (*(gen2roots[i]) && !((*gen2roots[i])->flags & MVM_CF_SECOND_GEN)) {
+        if (*gen2roots[i] && (*gen2roots[i])->forwarder && !((*gen2roots[i])->forwarder->flags & MVM_CF_SECOND_GEN)) {
             gen2roots[cur_survivor++] = gen2roots[i];
         }
     }
