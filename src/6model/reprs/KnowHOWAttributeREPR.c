@@ -12,7 +12,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
-        st->WHAT = obj;
+        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMKnowHOWAttributeREPR);
     });
 

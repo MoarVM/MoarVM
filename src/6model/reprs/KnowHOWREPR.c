@@ -13,7 +13,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
     
     obj = MVM_gc_allocate_type_object(tc, st);
-    st->WHAT = obj;
+    MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
     st->size = sizeof(MVMKnowHOWREPR);
     
     MVM_gc_root_temp_pop(tc);
