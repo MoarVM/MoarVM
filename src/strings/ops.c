@@ -121,7 +121,7 @@ else if (wehave > tocompare) { \
 } \
 else { \
     st->other_member += tocompare; \
-    st->available -= tocompare;\
+    st->available -= tocompare; \
 } \
 
 #define descend_sized(member, other_member, size, other_size, cp, other_cp) \
