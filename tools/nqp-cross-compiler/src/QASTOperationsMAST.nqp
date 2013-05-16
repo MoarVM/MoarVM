@@ -1429,8 +1429,13 @@ QAST::MASTOperations.add_core_moarop_mapping('isle_n', 'le_n');
 QAST::MASTOperations.add_core_moarop_mapping('isgt_n', 'gt_n');
 QAST::MASTOperations.add_core_moarop_mapping('isge_n', 'ge_n');
 
+QAST::MASTOperations.add_core_moarop_mapping('cmp_s', 'cmp_s');
 QAST::MASTOperations.add_core_moarop_mapping('iseq_s', 'eq_s');
 QAST::MASTOperations.add_core_moarop_mapping('isne_s', 'ne_s');
+QAST::MASTOperations.add_core_moarop_mapping('islt_s', 'lt_s');
+QAST::MASTOperations.add_core_moarop_mapping('isle_s', 'le_s');
+QAST::MASTOperations.add_core_moarop_mapping('isgt_s', 'gt_s');
+QAST::MASTOperations.add_core_moarop_mapping('isge_s', 'ge_s');
 
 # aggregate opcodes
 QAST::MASTOperations.add_core_moarop_mapping('atpos', 'atpos_o');
