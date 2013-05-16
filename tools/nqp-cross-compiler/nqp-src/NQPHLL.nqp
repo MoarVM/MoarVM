@@ -448,14 +448,14 @@ An operator precedence parser.
                     my $preprec  := nqp::ifnull(nqp::atkey(%preO, 'prec'), '');
                     my $postprec := nqp::ifnull(nqp::atkey(%postO, 'prec'), '');
                     
-#                    if $postprec gt $preprec ||
-#                    $postprec eq $preprec && %postO<uassoc> eq 'right'
-#                    {
-#                        nqp::push(@opstack, nqp::shift(@prefixish));
-#                    }
-#                    else {
-#                        nqp::push(@opstack, nqp::pop(@postfixish));
-#                    }
+                    if $postprec gt $preprec ||
+                    $postprec eq $preprec && %postO<uassoc> eq 'right'
+                    {
+                        nqp::push(@opstack, nqp::shift(@prefixish));
+                    }
+                    else {
+                        nqp::push(@opstack, nqp::pop(@postfixish));
+                    }
                 }
                 nqp::push(@opstack, nqp::shift(@prefixish)) while @prefixish;
                 nqp::push(@opstack, nqp::pop(@postfixish)) while @postfixish;
@@ -495,16 +495,16 @@ An operator precedence parser.
                 $inprec := ~%inO<prec>;
                 $infixcur.panic('Missing infixish operator precedence')
                     unless $inprec;
-#                if $inprec lt $preclim {
-#                    $term_done := 1;
-#                    last;
-#                }
+                if $inprec lt $preclim {
+                    $term_done := 1;
+                    last;
+                }
         
                 %inO<prec> := nqp::ifnull(nqp::atkey(%inO, 'sub'), nqp::atkey(%inO, 'prec'));
                 
                 while @opstack {
                     $opprec := ~@opstack[+@opstack-1]<OPER><O><prec>;
-#                    last unless $opprec gt $inprec;
+                    last unless $opprec gt $inprec;
                     self.EXPR_reduce(@termstack, @opstack);
                 }
 
@@ -781,16 +781,16 @@ class HLL::Actions {
                 $lastlit := $lastlit ~ $ast.value;
             }
             else {
-#                if $lastlit gt '' {
-#                    @parts.push(QAST::SVal.new( :value($lastlit) ));
-#                }
+                if $lastlit gt '' {
+                    @parts.push(QAST::SVal.new( :value($lastlit) ));
+                }
                 @parts.push(nqp::istype($ast, QAST::Node)
                     ?? $ast
                     !! QAST::SVal.new( :value($ast) ));
                 $lastlit := '';
             }
         }
-#        if $lastlit gt '' { @parts.push(QAST::SVal.new( :value($lastlit) )); }
+        if $lastlit gt '' { @parts.push(QAST::SVal.new( :value($lastlit) )); }
         my $past := @parts ?? @parts.shift !! QAST::SVal.new( :value('') );
         while @parts {
             $past := QAST::Op.new( $past, @parts.shift, :op('concat') );
