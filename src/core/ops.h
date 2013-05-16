@@ -238,6 +238,11 @@
 #define MVM_OP_nfarunproto 43
 #define MVM_OP_nfarunalt 44
 #define MVM_OP_flattenropes 45
+#define MVM_OP_gt_s 46
+#define MVM_OP_ge_s 47
+#define MVM_OP_lt_s 48
+#define MVM_OP_le_s 49
+#define MVM_OP_cmp_s 50
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0

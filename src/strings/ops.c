@@ -1012,6 +1012,34 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     return res;
 }
 
+/* Compares two strings, returning -1, 0 or 1 to indicate less than,
+ * equal or greater than. */
+MVMint64 * MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMStringIndex alen = NUM_GRAPHS(a);
+    MVMStringIndex blen = NUM_GRAPHS(b);
+    MVMStringIndex i, scanlen;
+    
+    /* Simple cases when one or both are zero length. */
+    if (alen == 0)
+        return blen == 0 ? 0 : -1;
+    if (blen == 0)
+        return 1;
+    
+    /* Otherwise, need to scan them. */
+    scanlen = alen > blen ? blen : alen;
+    for (i = 0; i < scanlen; i++) {
+        MVMCodepoint32 ai = MVM_string_get_codepoint_at_nocheck(tc, a, i);
+        MVMCodepoint32 bi = MVM_string_get_codepoint_at_nocheck(tc, b, i);
+        if (ai != bi)
+            return ai < bi ? -1 : 1;
+    }
+    
+    /* All shared chars equal, so go on length. */
+    return alen < blen ? -1 :
+           alen > blen ?  1 :
+                          0 ;
+}
+
 /* The following statics hold on to various unicode property values we will
  * resolve once so we don't have to do it repeatedly. */
 static MVMint64 UPV_Nd = 0;

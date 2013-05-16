@@ -226,6 +226,11 @@ BANK 2 string
 0x2B    nfarunproto         w(obj) r(obj) r(str) r(int64)
 0x2C    nfarunalt           r(obj) r(str) r(int64) r(obj) r(obj) r(obj)
 0x2D    flattenropes        r(str)
+0x2E    gt_s                w(int64) r(str) r(str)
+0x2F    ge_s                w(int64) r(str) r(str)
+0x30    lt_s                w(int64) r(str) r(str)
+0x31    le_s                w(int64) r(str) r(str)
+0x32    cmp_s               w(int64) r(str) r(str)
 
 BANK 3 math
 0x00    sin_n               w(num64) r(num64)
