@@ -91,6 +91,7 @@ MVMREPROps * MVMLexotic_initialize(MVMThreadContext *tc) {
     if (!this_repr) {
         this_repr = malloc(sizeof(MVMREPROps));
         memset(this_repr, 0, sizeof(MVMREPROps));
+        this_repr->refs_frames = 1;
         this_repr->type_object_for = type_object_for;
         this_repr->allocate = allocate;
         this_repr->initialize = initialize;

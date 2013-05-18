@@ -484,6 +484,10 @@ typedef struct _MVMREPROps {
 
     /* The representation's ID. */
     MVMuint32 ID;
+    
+    /* Does this representation reference frames (either MVMStaticFrame or
+     * MVMFrame)? */
+    MVMuint32 refs_frames;
 } MVMREPROps;
 
 /* Various handy macros for getting at important stuff. */
