@@ -33,7 +33,8 @@ void MVM_gc_write_agg_barrier_hit(MVMThreadContext *tc, MVMCollectable *update_r
         MVMCollectable *referenced) {
     /* Old generation aggregate pointing to nursery object? */
     if ((update_root->flags & MVM_CF_SECOND_GEN) && referenced && !(referenced->flags & MVM_CF_SECOND_GEN)) {
-        MVM_gc_root_gen2_agg_add(tc, (MVMObject *)update_root);
+        if (!(update_root->flags & MVM_CF_IN_GEN2_AGG_LIST))
+            MVM_gc_root_gen2_agg_add(tc, (MVMObject *)update_root);
     }
     
     /* Object being updated is in an SC? */

@@ -126,6 +126,9 @@ void MVM_gc_root_gen2_agg_add(MVMThreadContext *tc, MVMObject *aggregate) {
     /* Add this one to the list. */
     tc->gen2aggs[tc->num_gen2aggs] = aggregate;
     tc->num_gen2aggs++;
+    
+    /* Flag it as added, so we don't add it multiple times. */
+    aggregate->header.flags |= MVM_CF_IN_GEN2_AGG_LIST;
 }
 
 /* Adds the set of thread-local inter-generational roots to a GC worklist. */
