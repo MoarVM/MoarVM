@@ -1,11 +1,11 @@
 /* How big is the nursery area? Note that since it's semi-space copying, we
  * actually have double this amount allocated. Also it is per thread. */
-#define MVM_NURSERY_SIZE 524288
+#define MVM_NURSERY_SIZE 2097152
 
 /* How often do we collect the second generation? This is specified as the
  * number of nursery runs that happen per full collection. For example, if
  * this is set to 10 then every tenth collection will involve the full heap. */
-#define MVM_GC_GEN2_RATIO 5
+#define MVM_GC_GEN2_RATIO 10
 
 /* What things should be processed in this GC run? */
 typedef enum {
