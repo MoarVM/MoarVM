@@ -157,6 +157,16 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     /* Place current frame on the frame worklist. */
     MVM_gc_worklist_add(tc, frame_worklist, start_frame);
     
+    /* XXX For now we also put on all compilation units. This is a hack,
+     * as it means compilation units never die. */
+    {
+        MVMCompUnit *cur_cu = tc->instance->head_compunit;
+        while (cur_cu) {
+            MVM_gc_worklist_add(tc, compunit_worklist, cur_cu);
+            cur_cu = cur_cu->next_compunit;
+        }
+    }
+    
     /* Iterate while we scan all the things. */
     while (did_something) {
         MVMFrame       *cur_frame;
