@@ -44,6 +44,9 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
  * but that isn't permanent. */
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVM_gc_worklist_add(tc, worklist, &tc->instance->threads);
+    MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
+    MVM_gc_worklist_add(tc, worklist, &tc->instance->hll_syms);
+    MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
@@ -258,6 +261,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
                 if (cur_compunit->scs_to_resolve[i])
                     MVM_gc_worklist_add(tc, worklist, &cur_compunit->scs_to_resolve[i]);
             }
+            
+            /* Add various other referenced strings, etc. */
+            MVM_gc_worklist_add(tc, worklist, &cur_compunit->hll_name);
+            MVM_gc_worklist_add(tc, worklist, &cur_compunit->filename);
             
             /* Mark that we did some work (and thus possibly have more work
              * to do later). */
