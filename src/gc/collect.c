@@ -88,13 +88,17 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
         
-        /* Add things that are roots for the first generation because
-        * they are pointed to by objects in the second generation and
-        * process them (also per-thread). */
-        MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
-        GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from gen2 \n", worklist->items);
-        process_worklist(tc, worklist, &wtp, gen);
-        
+        /* Add things that are roots for the first generation because the are
+        * pointed to by objects in the second generation and process them
+        * (also per-thread). Note we need not do this if we're doing a full
+        * collection anyway (in fact, we must not for correctness, otherwise
+        * the gen2 rooting keeps them alive forever). */
+        if (gen == MVMGCGenerations_Nursery) {
+            MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
+            GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from gen2 \n", worklist->items);
+            process_worklist(tc, worklist, &wtp, gen);
+        }
+
         /* Find roots in frames and process them. */
         if (tc->cur_frame) {
             MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
@@ -129,10 +133,10 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         free(wtp.target_work);
     }
     
-    /* At this point, some of the objects in the generation 2 worklist may
-     * have been promoted into generation 2 itself, in which case they no
-     * longer need to reside in the worklist. */
-    MVM_gc_root_gen2_cleanup_promoted(tc);
+    /* If it was a full collection, some of the things in gen2 that we root
+     * due to point to gen1 objects may be dead. */
+    if (gen != MVMGCGenerations_Nursery)
+        MVM_gc_root_gen2_cleanup(tc);
 }
 
 /* Processes the current worklist. */
@@ -264,77 +268,84 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             *item_ptr = item->forwarder = new_addr;
         }
 
-        /* Add the serialization context address to the worklist. */
-        MVM_gc_worklist_add(tc, worklist, &new_addr->sc);
-        
+        /* Finally, we need to mark the collectable (at its moved address). 
+         * Track how many items we had before we mark it, in case we need
+         * to write barrier them post-move to uphold the generational
+         * invariant. */
         gen2count = worklist->items;
+        MVM_gc_mark_collectable(tc, worklist, new_addr);
         
-        /* Finally, we need to mark the collectable. */
-        if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
-            /* Need to view it as an object in here. */
-            MVMObject *new_addr_obj = (MVMObject *)new_addr;
-            
-            /* Add the STable to the worklist. */
-            MVM_gc_worklist_add(tc, worklist, &new_addr_obj->st);
-            
-            /* If needed, mark it. This will add addresses to the worklist
-             * that will need updating. Note that we are passing the address
-             * of the object *after* copying it since those are the addresses
-             * we care about updating; the old chunk of memory is now dead! */
-            
-            if (GCCOLL_DEBUG && !STABLE(new_addr_obj))
-                MVM_panic(MVM_exitcode_gcnursery, "Found an outdated reference %p to address %p", item_ptr, item);
-            
-            if (REPR(new_addr_obj)->gc_mark)
-                REPR(new_addr_obj)->gc_mark(tc, STABLE(new_addr_obj), OBJECT_BODY(new_addr_obj), worklist);
-        }
-        else if (item->flags & MVM_CF_TYPE_OBJECT) {
-            /* Add the STable to the worklist. */
-            MVM_gc_worklist_add(tc, worklist, &((MVMObject *)new_addr)->st);
-        }
-        else if (item->flags & MVM_CF_STABLE) {
-            /* Add all references in the STable to the work list. */
-            MVMSTable *new_addr_st = (MVMSTable *)new_addr;
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache);
-            for (i = 0; i < new_addr_st->vtable_length; i++)
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->vtable[i]);
-            for (i = 0; i < new_addr_st->type_check_cache_length; i++)
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->type_check_cache[i]);
-            if (new_addr_st->container_spec) {
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->value_slot.class_handle);
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->value_slot.attr_name);
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->fetch_method);
-            }
-            if (new_addr_st->boolification_spec)
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->boolification_spec->method);
-            if (new_addr_st->invocation_spec) {
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->class_handle);
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->attr_name);
-                MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->invocation_handler);
-            }
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
-            
-            /* If it needs to have its REPR data marked, do that. */
-            if (new_addr_st->REPR->gc_mark_repr_data)
-                new_addr_st->REPR->gc_mark_repr_data(tc, new_addr_st, worklist);
-        }
-        else {
-            MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC marking");
-        }
-        
+        /* In moving an object to generation 2, we may have left it pointing
+         * to nursery objects. If so, make sure it's in the gen2 roots. */
         if (new_addr->flags & MVM_CF_SECOND_GEN) {
             MVMCollectable **j;
             MVMuint32 max = worklist->items, k;
             
             for (k = gen2count; k < max; k++) {
                 j = worklist->list[k];
-                if (*j) {
-                    MVM_WB_REF(tc, new_addr, *j, *j);
-                }
+                if (*j)
+                    MVM_WB(tc, new_addr, *j);
             }
         }
+    }
+}
+
+/* Marks a collectable item (object, type object, STable). */
+void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable *new_addr) {
+    MVMuint16 i;
+    
+    MVM_gc_worklist_add(tc, worklist, &new_addr->sc);
+    
+    if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
+        /* Need to view it as an object in here. */
+        MVMObject *new_addr_obj = (MVMObject *)new_addr;
+        
+        /* Add the STable to the worklist. */
+        MVM_gc_worklist_add(tc, worklist, &new_addr_obj->st);
+        
+        /* If needed, mark it. This will add addresses to the worklist
+         * that will need updating. Note that we are passing the address
+         * of the object *after* copying it since those are the addresses
+         * we care about updating; the old chunk of memory is now dead! */
+        if (GCCOLL_DEBUG && !STABLE(new_addr_obj))
+            MVM_panic(MVM_exitcode_gcnursery, "Found an outdated reference to address %p", new_addr);
+        if (REPR(new_addr_obj)->gc_mark)
+            REPR(new_addr_obj)->gc_mark(tc, STABLE(new_addr_obj), OBJECT_BODY(new_addr_obj), worklist);
+    }
+    else if (new_addr->flags & MVM_CF_TYPE_OBJECT) {
+        /* Add the STable to the worklist. */
+        MVM_gc_worklist_add(tc, worklist, &((MVMObject *)new_addr)->st);
+    }
+    else if (new_addr->flags & MVM_CF_STABLE) {
+        /* Add all references in the STable to the work list. */
+        MVMSTable *new_addr_st = (MVMSTable *)new_addr;
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache);
+        for (i = 0; i < new_addr_st->vtable_length; i++)
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->vtable[i]);
+        for (i = 0; i < new_addr_st->type_check_cache_length; i++)
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->type_check_cache[i]);
+        if (new_addr_st->container_spec) {
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->value_slot.class_handle);
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->value_slot.attr_name);
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->fetch_method);
+        }
+        if (new_addr_st->boolification_spec)
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->boolification_spec->method);
+        if (new_addr_st->invocation_spec) {
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->class_handle);
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->attr_name);
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->invocation_handler);
+        }
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
+        
+        /* If it needs to have its REPR data marked, do that. */
+        if (new_addr_st->REPR->gc_mark_repr_data)
+            new_addr_st->REPR->gc_mark_repr_data(tc, new_addr_st, worklist);
+    }
+    else {
+        MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC marking");
     }
 }
 

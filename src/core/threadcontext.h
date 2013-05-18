@@ -117,23 +117,19 @@ typedef struct _MVMThreadContext {
     MVMuint32             alloc_temproots;
     MVMCollectable     ***temproots;
     
-    /* Nursery objects rooted because something in generation 2 is
-     * pointing at them. */
+    /* Nursery collectables (maybe STables) rooted because something in
+     * generation 2 is pointing at them. */
     MVMuint32             num_gen2roots;
     MVMuint32             alloc_gen2roots;
-    MVMCollectable     ***gen2roots;
-    
-    /* Generation 2 aggregates that are believed to point to at least
-     * one nursery object. */
-    MVMuint32             num_gen2aggs;
-    MVMuint32             alloc_gen2aggs;
-    MVMObject           **gen2aggs;
+    MVMCollectable      **gen2roots;
     
     /* The GC's cross-thread in-tray of processing work. */
     struct _MVMGCPassedWork *gc_in_tray;
+    
     /* The GC's thread-local "sent items" list, by next_by_sender. */
     struct _MVMGCPassedWork *gc_sent_items;
     struct _MVMGCPassedWork *gc_next_to_check;
+    
     /* threads to process this gc run. */
     struct _MVMWorkThread   *gc_work;
     MVMuint32                gc_work_size;

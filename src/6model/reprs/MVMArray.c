@@ -304,12 +304,12 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected object register");
-            MVM_ASSIGN_AGG(tc, root, body->slots.o[body->start + index], value.o);
+            MVM_ASSIGN_REF(tc, root, body->slots.o[body->start + index], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected string register");
-            MVM_ASSIGN_AGG(tc, root, body->slots.s[body->start + index], value.s);
+            MVM_ASSIGN_REF(tc, root, body->slots.s[body->start + index], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
@@ -365,12 +365,12 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: push expected object register");
-            MVM_ASSIGN_AGG(tc, root, body->slots.o[body->start + body->elems - 1], value.o);
+            MVM_ASSIGN_REF(tc, root, body->slots.o[body->start + body->elems - 1], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: push expected string register");
-            MVM_ASSIGN_AGG(tc, root, body->slots.s[body->start + body->elems - 1], value.s);
+            MVM_ASSIGN_REF(tc, root, body->slots.s[body->start + body->elems - 1], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
@@ -494,12 +494,12 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected object register");
-            MVM_ASSIGN_AGG(tc, root, body->slots.o[body->start], value.o);
+            MVM_ASSIGN_REF(tc, root, body->slots.o[body->start], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected string register");
-            MVM_ASSIGN_AGG(tc, root, body->slots.s[body->start], value.s);
+            MVM_ASSIGN_REF(tc, root, body->slots.s[body->start], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)

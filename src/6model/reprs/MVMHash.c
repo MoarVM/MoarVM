@@ -120,8 +120,8 @@ static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         entry->hash_handle.key = (void *)kdata;
     entry->key = key;
     entry->value = value;
-    MVM_WB_AGG(tc, root, key);
-    MVM_WB_AGG(tc, root, value);
+    MVM_WB(tc, root, key);
+    MVM_WB(tc, root, value);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {

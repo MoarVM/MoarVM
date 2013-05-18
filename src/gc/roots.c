@@ -90,14 +90,14 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         MVM_gc_worklist_add(tc, worklist, temproots[i]);
 }
 
-/* Pushes a root onto the inter-generational roots list. The memory address
- * must stay valid for the duration of the enclosing object's lifetime.  */
-void MVM_gc_root_gen2_ref_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
-    /* Ensure the root is not null. */
-    if (obj_ref == NULL)
-        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as an inter-generational root");
+/* Pushes a collectable that is in generation 2, but now references a nursery
+ * collectable, into the gen2 root set. */
+void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
+    /* Ensure the collectable is not null. */
+    if (c == NULL)
+        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null collectable address as an inter-generational root");
     
-    /* Allocate extra gen2 root space if needed. */
+    /* Allocate extra gen2 aggregate space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
         tc->alloc_gen2roots *= 2;
         tc->gen2roots = realloc(tc->gen2roots,
@@ -105,66 +105,34 @@ void MVM_gc_root_gen2_ref_add(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     }
     
     /* Add this one to the list. */
-    tc->gen2roots[tc->num_gen2roots] = obj_ref;
+    tc->gen2roots[tc->num_gen2roots] = c;
     tc->num_gen2roots++;
-}
-
-/* Pushes an aggregate that is in generation 2, but now references a nursery
- * object, into the gen2 aggregates root set. */
-void MVM_gc_root_gen2_agg_add(MVMThreadContext *tc, MVMObject *aggregate) {
-    /* Ensure the root is not null. */
-    if (aggregate == NULL)
-        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null aggregate address as an inter-generational root");
-    
-    /* Allocate extra gen2 aggregate space if needed. */
-    if (tc->num_gen2aggs == tc->alloc_gen2aggs) {
-        tc->alloc_gen2aggs *= 2;
-        tc->gen2aggs = realloc(tc->gen2aggs,
-            sizeof(MVMObject *) * tc->alloc_gen2aggs);
-    }
-    
-    /* Add this one to the list. */
-    tc->gen2aggs[tc->num_gen2aggs] = aggregate;
-    tc->num_gen2aggs++;
     
     /* Flag it as added, so we don't add it multiple times. */
-    aggregate->header.flags |= MVM_CF_IN_GEN2_AGG_LIST;
+    c->flags |= MVM_CF_IN_GEN2_ROOT_LIST;
 }
 
 /* Adds the set of thread-local inter-generational roots to a GC worklist. */
 void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    MVMuint32         i, num_roots, num_aggs;
-    MVMCollectable ***gen2roots;
-    MVMObject       **gen2aggs;
+    MVMCollectable **gen2roots = tc->gen2roots;
+    MVMuint32        num_roots = tc->num_gen2roots;
+    MVMuint32        i;
     
-    /* Add objects rooted by something in gen2. */
-    num_roots = tc->num_gen2roots;
-    gen2roots = tc->gen2roots;
+    /* Mark gen2 objects that point to nursery things. */
     for (i = 0; i < num_roots; i++)
-        MVM_gc_worklist_add(tc, worklist, gen2roots[i]);
-    
-    /* Mark gen2 aggregates that point to gen1 things. */
-    num_aggs = tc->num_gen2aggs;
-    gen2aggs = tc->gen2aggs;
-    for (i = 0; i < num_aggs; i++) {
-        MVMObject *agg = gen2aggs[i];
-        REPR(agg)->gc_mark(tc, STABLE(agg), OBJECT_BODY(agg), worklist);
-        MVM_gc_worklist_add(tc, worklist, &gen2aggs[i]);
-    }
+        MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
 }
 
-/* Visits all of the roots in the gen2 list and cleans them up. */
-void MVM_gc_root_gen2_cleanup_promoted(MVMThreadContext *tc) {
-    MVMuint32         i, cur_survivor, num_roots;
-    MVMCollectable ***gen2roots;
-    num_roots = tc->num_gen2roots;
-    gen2roots = tc->gen2roots;
-    cur_survivor = 0;
-    for (i = 0; i < num_roots; i++) {
-        if (*gen2roots[i] && (*gen2roots[i])->forwarder && !((*gen2roots[i])->forwarder->flags & MVM_CF_SECOND_GEN)) {
-            gen2roots[cur_survivor++] = gen2roots[i];
-        }
-    }
+/* Visits all of the roots in the gen2 list and removes those that have been
+ * collected. Applied after a full collection. */
+void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
+    MVMCollectable **gen2roots    = tc->gen2roots;
+    MVMuint32        num_roots    = tc->num_gen2roots;
+    MVMuint32        cur_survivor = 0;
+    MVMuint32        i;
+    for (i = 0; i < num_roots; i++)
+        if (gen2roots[i]->forwarder)
+            gen2roots[cur_survivor++] = gen2roots[i]->forwarder;
     tc->num_gen2roots = cur_survivor;
 }
 

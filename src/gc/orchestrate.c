@@ -98,7 +98,7 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
         }
     } while (next && (t = next));
     if (tail)
-        MVM_WB_REF(tc, t, t->body.next, tail);
+        MVM_WB(tc, t, tail);
     t->body.next = tail;
     return count;
 }
