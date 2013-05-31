@@ -1,35 +1,49 @@
 # MoarVM
 
-MoarVM (short for Metamodel On A Runtime) is a runtime centered on the
-6model meta-programming world view. Like 6model, it is decidedly built
-with Perl 6 in mind, but since Perl 6 is designed to be twisted into all
-manner of shapes then no doubt MoarVM can be put to work in a bunch of
-different situations too.
+MoarVM (short for Metamodel On A Runtime Virtual Machine) is a runtime built
+for the 6model object system. It is primarily aimed at running NQP and Rakudo
+Perl 6, but should be able to serve as a backend for any compilers built using
+the NQP compiler toolchain.
 
-## Key Principles
+## Build It
 
-MoarVM distinguishes itself in a number of ways:
+Building the VM itself takes just:
 
-* MoarVM is gradually typed, rather than having a focus on static or dynamic
-  typing. In general, it is built to use type information when it has it,
-  but is comfortable operating in its absence too.
+    perl Configure.pl
+    make
 
-* MoarVM has a notion of ubiquitous representation polymorphism; storage
-  strategy is not tangled up with the nominal type system.
-  
-* MoarVM doesn't have any kind of intermediate language or assembly
-  language; as input, it takes a low level AST, which is packed in a
-  binary form. Of course, you could develop an IL that translates to
-  the AST, but the official interface is the AST.
+Or `nmake` on Windows. Currently it is known to build on Windows with MSVC,
+and with `gcc` and `clang` on Linux. We'll work on expanding this with time.
 
-* MoarVM uses NFG internally for strings. Separately from this, it makes
-  it possible to talk about encoded buffers - but they need to be turned
-  into NFG strings before string operations are performed.
+## Build the NQP Cross-Compiler
 
-* MoarVM doesn't re-invent wheels when it doesn't have to. As a result, it
-  uses the Apache Portable Runtime for a whole bunch of things, libtommath
-  for providing big integer support and dyncall for providing calls to C
-  native libraries.
+To run some NQP code, or tests, then:
 
-* MoarVM also doesn't want to give you dependency hell, so anything that it
-  depends on, it includes and builds.
+    cd nqp-cc
+    perl Configure.pl
+    make
+
+Then run some NQP code with:
+
+    nqp nqp-moar-cc.nqp -e "say('Hello, MoarVM')"
+
+To run some VM-centric tests, do:
+
+    make test
+
+To run what is passing of the NQP test suite so far, do:
+
+    make nqptest
+
+Note that at present, you need a working Parrot and NQP in order to run the
+cross-compiler. In the future, NQP will be self-hosting on MoarVM and that
+shall not be needed. In order to obtain these, you can replace the initial
+configure line with:
+
+    perl Configure.pl --gen-parrot
+
+## Status
+
+MoarVM is currently in development. It is capable of having much of the NQP
+test suite cross-compiled and run on it, but does not yet host NQP, nor Rakudo
+Perl 6.
