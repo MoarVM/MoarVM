@@ -338,7 +338,7 @@ $(LAO_LIB):
 	$(LAO_BUILD_LINE)
 
 test:
-    @echo "Please build nqp-cc and run the tests in there"
+	@echo "Please build nqp-cc and run the tests in there"
 
 # Generated unicode database
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
