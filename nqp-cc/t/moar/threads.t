@@ -262,7 +262,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'create', $r3, $at);
             op(@ins, 'const_s', $r2, sval('In new thread'));
             op(@ins, 'say_s', $r2);
-            op(@ins, 'const_i64', $r0, ival(10000000));
+            op(@ins, 'const_i64', $r0, ival(100000));
             nqp::push(@ins, $l0);
             op(@ins, 'create', $r1, $at);
             op(@ins, 'push_o', $r3, $r1);
