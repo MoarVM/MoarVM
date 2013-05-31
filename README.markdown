@@ -47,3 +47,9 @@ configure line with:
 MoarVM is currently in development. It is capable of having much of the NQP
 test suite cross-compiled and run on it, but does not yet host NQP, nor Rakudo
 Perl 6.
+
+## Contributing
+
+Contributions by pull request are accepted. If you are interested in commit
+access so you can contribute more easily, drop by the #moarvm channel on
+freenode.org.
