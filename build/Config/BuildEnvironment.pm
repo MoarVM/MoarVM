@@ -105,7 +105,7 @@ sub detect {
 
                 # Required flags
                 cmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses -Wreturn-type',
-                lmiscflags  => '-L 3rdparty/apr/.libs',
+                lmiscflags  => '-L3rdparty/apr/.libs',
                 llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
 
                 # Optional settings
@@ -130,7 +130,7 @@ sub detect {
 
                 # Required flags
                 cmiscflags  => '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-                lmiscflags  => '-L 3rdparty/apr/.libs',
+                lmiscflags  => '-L3rdparty/apr/.libs',
                 llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
 
                 # Optional settings
@@ -182,7 +182,7 @@ sub detect {
 
                 # Required flags
                 cmiscflags  => '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-                lmiscflags  => '-L 3rdparty/apr/.libs',
+                lmiscflags  => '-L3rdparty/apr/.libs',
                 llibs       => '-lapr-1 -lpthread -lm',
 
                 # Optional settings
@@ -206,7 +206,7 @@ sub detect {
 
                 # Required flags
                 cmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses -Wreturn-type',
-                lmiscflags  => '-L 3rdparty/apr/.libs',
+                lmiscflags  => '-L3rdparty/apr/.libs',
                 llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
 
                 # Optional settings
