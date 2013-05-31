@@ -24,12 +24,25 @@ sub configure {
             return (excuse => "Don't know how to build APR on Windows without Microsoft toolchain");
         }
     }
+    elsif( $^O =~ /linux/ && can_run('gcc') ) {
+        return (%config,
+            llibs => '-lapr-1 -lpthread -lm',
+            apr_build_line => 'cd 3rdparty/apr && ./configure && make',
+            apr_lib => ''
+        );
+    }
     else {
         return (%config,
             apr_build_line => 'cd 3rdparty/apr && ./configure && make',
             apr_lib => '3rdparty/apr/.libs/libapr-1.a'
         );
     }
+}
+
+sub can_run {
+    my $try = shift;
+    my $out = `$try 2>&1`;
+    return defined $out && $out ne '';
 }
 
 'Yeti';
