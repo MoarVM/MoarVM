@@ -12,21 +12,21 @@ pir::spawnw__Is("del /? >temp.output 2>&1");
 my $out := slurp('temp.output');
 if (!($out ~~ /Extensions/)) {
     # unix
-    $moarvm := '../../moarvm';
+    $moarvm := '../moarvm';
     $del := 'rm -f';
     $copy := 'cp';
     $outputnull := '/dev/null';
     $quote := "'";
 }
 else {
-    $moarvm := '..\\..\\moarvm';
+    $moarvm := '..\\moarvm';
     $del := 'del /Q';
     $copy := 'copy /Y';
     $outputnull := 'NUL';
     $quote := '"';
 }
 
-my $env := pir::new__Ps('Env');
+my $env := nqp::getenvhash();
 my $DEBUG := $env<MVMDEBUG>;
 my $*COERCE_ARGS_OBJ := 0;
 
