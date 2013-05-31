@@ -93,31 +93,7 @@ sub detect {
             louto       => '-o ',
         );
 
-        if (can_run('clang')) {
-            # Config settings for Clang toolchain
-            %config = (
-                # Defaults
-                %config,
-
-                # Command names
-                cc          => 'clang',
-                link        => 'clang',
-
-                # Required flags
-                cmiscflags  => '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-                lmiscflags  => '-L 3rdparty/apr/.libs',
-                llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
-
-                # Optional settings
-                copt        => $opts->{optimize}   ? '-O3'                : '',
-                cdebug      => $opts->{debug}      ? '-g'                 : '',
-                cinstrument => $opts->{instrument} ? '-fsanitize=address' : '',
-                lopt        => $opts->{optimize}   ? '-O3'                : '',
-                ldebug      => $opts->{debug}      ? '-g'                 : '',
-                linstrument => $opts->{instrument} ? '-fsanitize=address' : '',
-            );
-        }
-        elsif (can_run('gcc')) {
+        if (can_run('gcc')) {
             # Config settings for GCC toolchain
             %config = (
                 # Defaults
@@ -140,6 +116,30 @@ sub detect {
                 lopt        => $opts->{optimize}   ? '-O3'                : '',
                 ldebug      => $opts->{debug}      ? '-g'                 : '',
                 linstrument => $opts->{instrument} ? ''                   : '',
+            );
+        }
+        elsif (can_run('clang')) {
+            # Config settings for Clang toolchain
+            %config = (
+                # Defaults
+                %config,
+
+                # Command names
+                cc          => 'clang',
+                link        => 'clang',
+
+                # Required flags
+                cmiscflags  => '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
+                lmiscflags  => '-L 3rdparty/apr/.libs',
+                llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
+
+                # Optional settings
+                copt        => $opts->{optimize}   ? '-O3'                : '',
+                cdebug      => $opts->{debug}      ? '-g'                 : '',
+                cinstrument => $opts->{instrument} ? '-fsanitize=address' : '',
+                lopt        => $opts->{optimize}   ? '-O3'                : '',
+                ldebug      => $opts->{debug}      ? '-g'                 : '',
+                linstrument => $opts->{instrument} ? '-fsanitize=address' : '',
             );
         }
         else {
