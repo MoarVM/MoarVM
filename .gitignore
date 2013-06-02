@@ -60,3 +60,4 @@ nqp-cc/*.mastdump
 UNIDATA/*
 /src/strings/unicode.c
 *.class
+tags
