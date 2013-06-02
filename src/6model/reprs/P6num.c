@@ -20,8 +20,8 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    P6intBody *src_body  = (P6intBody *)src;
-    P6intBody *dest_body = (P6intBody *)dest;
+    P6numBody *src_body  = (P6numBody *)src;
+    P6numBody *dest_body = (P6numBody *)dest;
     dest_body->value = src_body->value;
 }
 
