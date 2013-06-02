@@ -28,7 +28,7 @@ sub configure {
         return (%config,
             llibs => '-lapr-1 -lpthread -lm',
             apr_build_line => 'cd 3rdparty/apr && ./configure && make',
-            apr_lib => ''
+            apr_lib => '3rdparty/apr/.libs/libapr-1.a'
         );
     }
     else {
