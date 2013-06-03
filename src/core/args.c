@@ -514,7 +514,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* first flatten any positionals */
     for ( ; arg_pos < ctx->num_pos; arg_pos++) {
         
-        arg_info.arg   = ctx->args[arg_pos];
+        arg_info.arg    = ctx->args[arg_pos];
         arg_info.flags  = ctx->callsite->arg_flags[arg_pos];
         arg_info.exists = 1;
         
@@ -551,7 +551,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                 new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
             }
             
-            (new_args + new_arg_pos++)->o = arg_info.arg.o;
+            *(new_args + new_arg_pos++) = arg_info.arg;
             new_arg_flags[new_flag_pos++] = arg_info.flags;
         }
     }
@@ -568,7 +568,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         }
         
         (new_args + new_arg_pos++)->s = (ctx->args + arg_pos)->s;
-        (new_args + new_arg_pos++)->o = (ctx->args + arg_pos + 1)->o;
+        *(new_args + new_arg_pos++) = *(ctx->args + arg_pos + 1);
         new_arg_flags[new_flag_pos++] = ctx->callsite->arg_flags[flag_pos];
     }
     
