@@ -177,7 +177,6 @@ BANK 1 dev
 0x02    say_n               r(num64)
 0x03    sleep               r(int64)
 0x04    anonoshtype         w(obj)
-0x05    print               r(str)
 
 BANK 2 string
 0x00    concat_s            w(str) r(str) r(str)
@@ -427,6 +426,8 @@ BANK 5 io
 0x2A    addrtoname          w(str) r(str)
 0x2B    porttosvc           w(str) r(int64)
 0x2C    setencoding         r(obj) r(int64)
+0x2D    print               r(str)
+0x2E    say                 r(str)
 
 BANK 6 processthread
 0x00    getenv              w(str) r(str)

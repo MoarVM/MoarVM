@@ -1034,10 +1034,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = MVM_file_get_anon_oshandle_type(tc);
                         cur_op += 2;
                         break;
-                    case MVM_OP_print:
-                        MVM_string_print(tc, GET_REG(cur_op, 0).s);
-                        cur_op += 2;
-                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_dev, *(cur_op-1));
@@ -2551,6 +2547,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_hostname:
                         GET_REG(cur_op, 0).s = MVM_socket_hostname(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_print:
+                        MVM_string_print(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_say:
+                        MVM_string_say(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
                     default: {
