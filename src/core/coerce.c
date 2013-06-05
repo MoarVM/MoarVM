@@ -155,7 +155,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
-    char buf[20];
+    char buf[21];
     int i;
     sprintf(buf, "%-15f", n);
     if (strstr(buf, ".")) {
