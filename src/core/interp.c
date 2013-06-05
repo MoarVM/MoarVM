@@ -1008,7 +1008,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_say_n: {
-                        char buf[20];
+                        char buf[21];
                         int i;
                         sprintf(buf, "%-15f", GET_REG(cur_op, 0).n64);
                         if (strstr(buf, ".")) {
