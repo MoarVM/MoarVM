@@ -1,5 +1,6 @@
 dynext/*.dll
 dynext/*.so
+dynext/*.bundle
 src/ops/*.c
 src/ops/*.h
 src/ops/*.obj
@@ -7,6 +8,7 @@ src/ops/*.o
 src/ops/*.exp
 src/ops/*.lib
 src/ops/*.dll
+src/ops/*.bundle
 config.status
 *.pir
 *.pbc
