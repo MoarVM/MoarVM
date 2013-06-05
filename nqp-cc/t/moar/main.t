@@ -9,7 +9,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         # The main frame.
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('In first (but not main) frame'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
         
         # Create calling frame.
@@ -18,14 +18,14 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $main_r0 := local($main_frame, str);
         my $main_r1 := local($main_frame, NQPMu);
         op(@main_ins, 'const_s', $main_r0, sval('In main frame, making call'));
-        op(@main_ins, 'say_s', $main_r0);
+        op(@main_ins, 'say', $main_r0);
         op(@main_ins, 'getcode', $main_r1, $frame);
         nqp::push(@main_ins, MAST::Call.new(
                 :target($main_r1),
                 :flags([])
             ));
         op(@main_ins, 'const_s', $main_r0, sval('Back in main frame before end'));
-        op(@main_ins, 'say_s', $main_r0);
+        op(@main_ins, 'say', $main_r0);
         op(@main_ins, 'return');
         $cu.add_frame($main_frame);
         

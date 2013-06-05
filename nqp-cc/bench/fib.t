@@ -41,9 +41,11 @@ sub runfib($n) {
         
         my $r0 := const($frame, ival($n));
         my $r3 := local($frame, NQPMu);
+        my $str := local($frame, str);
         op(@ins, 'getcode', $r3, $fibsub);
         call(@ins, $r3, [$Arg::int], $r0, :result($r0));
-        op(@ins, 'say_i', $r0);
+        op(@ins, 'coerce_is', $str, $r0);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
         $cu.add_frame($fibsub);
     },

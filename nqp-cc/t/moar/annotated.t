@@ -8,7 +8,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my @ins := nqp::list;
             my $r1 := local($frame, str);
             op(@ins, 'const_s', $r1, sval('Alive'));
-            op(@ins, 'say_s', $r1);
+            op(@ins, 'say', $r1);
             @ins
         }
         op(@ins, 'goto', label("foo"));

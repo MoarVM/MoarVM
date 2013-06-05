@@ -17,7 +17,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'open_fh', $r4, $r0, $r3, $r7, $r8);
         op(@ins, 'read_fhs', $r3, $r4, $r2);
         op(@ins, 'substr_s', $r3, $r3, $r5, $r6);
-        op(@ins, 'say_s', $r3);
+        op(@ins, 'say', $r3);
         op(@ins, 'return');
     },
     "# Copyright\n",

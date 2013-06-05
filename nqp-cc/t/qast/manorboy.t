@@ -112,12 +112,14 @@ while $i <= $test_depth {
             QAST::VM.new( :moarop('takeclosure'), QAST::BVal.new( :value($A) ) )
         ),
         QAST::VM.new(
-            :moarop('say_i'),
-            QAST::Op.new(
-                :op('call'), :returns(int),
-                lex('&A'),
-                QAST::IVal.new( :value($i) ), # <-- here is the loop variable
-                Kcall(1), Kcall(-1), Kcall(-1), Kcall(1), Kcall(0) ) )
+            :moarop('say'),
+            QAST::VM.new(
+            	:moarop('coerce_is'),
+				QAST::Op.new(
+					:op('call'), :returns(int),
+					lex('&A'),
+					QAST::IVal.new( :value($i) ), # <-- here is the loop variable
+					Kcall(1), Kcall(-1), Kcall(-1), Kcall(1), Kcall(0) ) ) )
     );
     
     my $expected := @answers[$i];

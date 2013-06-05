@@ -23,7 +23,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             :result($type_object));
             
         
-        op(@ins, 'say_s', const($frame, sval("alive")));
+        op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');
     },
     "alive\n",

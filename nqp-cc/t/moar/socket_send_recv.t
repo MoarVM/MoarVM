@@ -14,6 +14,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r13 := const($frame, ival(0));
         my $r14 := const($frame, ival(-1));
         my $r15 := const($frame, ival(0));
+        my $r16 := local($frame, str);
         op(@ins, 'anonoshtype', $r0);
         op(@ins, 'connect_sk', $r0, $r0, $r1, $r7, $r8, $r12);
         op(@ins, 'send_sks', $r15, $r0, $r10, $r13, $r14);
@@ -21,9 +22,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'close_sk', $r0);
         op(@ins, 'graphs_s', $r7, $r1);
         op(@ins, 'gt_i', $r7, $r7, const($frame, ival(0)));
-        op(@ins, 'say_i', $r7);
-#        op(@ins, 'say_s', $r1); # prints some html.  uncomment it to see :)
-        op(@ins, 'say_s', const($frame, sval("alive")));
+        op(@ins, 'coerce_is', $r16, $r7);
+        op(@ins, 'say', $r16);
+#        op(@ins, 'say', $r1); # prints some html.  uncomment it to see :)
+        op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');
     },
     "1\nalive\n",

@@ -106,6 +106,7 @@ sub _bench($arr_size_opt, $iter_opt) {
         my $Y_DONE := label("Y_DONE");
         my $i3 := local($frame, int);
         my $i4 := local($frame, int);
+        my $str := local($frame, str);
         
         op(@ins, 'const_i64', $arr_size, ival($arr_size_opt));
         op(@ins, 'create', $arr_1, $arr_type);
@@ -129,7 +130,8 @@ sub _bench($arr_size_opt, $iter_opt) {
         
         op(@ins, 'time_i', $end_time);
         op(@ins, 'sub_i', $i3, $end_time, $start_time);
-        op(@ins, 'say_i', $i3);
+        op(@ins, 'coerce_is', $str, $i3);
+        op(@ins, 'say', $str);
         
     nqp::push(@ins, $Y_LOOP);
         op(@ins, 'ge_i', $i0, $y_index, $iterations);
@@ -155,7 +157,8 @@ sub _bench($arr_size_opt, $iter_opt) {
         
         op(@ins, 'time_i', $end_time);
         op(@ins, 'sub_i', $i3, $end_time, $start_time);
-        op(@ins, 'say_i', $i3);
+        op(@ins, 'coerce_is', $str, $i3);
+        op(@ins, 'say', $str);
     },
     "",
     "array accesses "~($arr_size_opt * $iter_opt) ~ " of boxed and unboxed ints", 1);
