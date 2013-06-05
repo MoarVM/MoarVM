@@ -184,11 +184,8 @@
 #define MVM_OP_multicachefind 170
 
 /* Op name defines for bank dev. */
-#define MVM_OP_say_i 0
-#define MVM_OP_say_s 1
-#define MVM_OP_say_n 2
-#define MVM_OP_sleep 3
-#define MVM_OP_anonoshtype 4
+#define MVM_OP_sleep 0
+#define MVM_OP_anonoshtype 1
 
 /* Op name defines for bank string. */
 #define MVM_OP_concat_s 0
