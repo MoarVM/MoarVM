@@ -66,7 +66,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $str := local($frame, str);
         op(@ins, 'create', $ins, $type);
         op(@ins, 'const_s', $str, sval('alive'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "alive\n",
@@ -81,6 +81,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $exp := local($frame, NQPMu);
         my $got := local($frame, NQPMu);
         my $res := local($frame, int);
+        my $str := local($frame, str);
         
         # Create an instance.
         op(@ins, 'create', $ins, $type);
@@ -93,7 +94,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         # Look it up again and compare it.
         op(@ins, 'getattrs_o', $got, $ins, $type, $name);
         op(@ins, 'eqaddr', $res, $got, $exp);
-        op(@ins, 'say_i', $res);
+        op(@ins, 'coerce_is', $str, $res);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "1\n",
@@ -106,6 +108,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $name := local($frame, str);
         my $exp := local($frame, int);
         my $got := local($frame, int);
+        my $str := local($frame, str);
 
         # Create an instance.
         op(@ins, 'create', $ins, $type);
@@ -117,7 +120,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         
         # Look it up again and output it.
         op(@ins, 'getattrs_i', $got, $ins, $type, $name);
-        op(@ins, 'say_i', $got);
+        op(@ins, 'coerce_is', $str, $got);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "987\n",
@@ -130,6 +134,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $name := local($frame, str);
         my $exp := local($frame, num);
         my $got := local($frame, num);
+        my $str := local($frame, str);
         
         # Create an instance.
         op(@ins, 'create', $ins, $type);
@@ -141,7 +146,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         
         # Look it up again and output it.
         op(@ins, 'getattrs_n', $got, $ins, $type, $name);
-        op(@ins, 'say_n', $got);
+        op(@ins, 'coerce_ns', $str, $got);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "46.7\n", approx => 1,
@@ -165,7 +171,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         
         # Look it up again and output it.
         op(@ins, 'getattrs_s', $got, $ins, $type, $name);
-        op(@ins, 'say_s', $got);
+        op(@ins, 'say', $got);
         op(@ins, 'return');
     },
     "omg a kangaroo\n",

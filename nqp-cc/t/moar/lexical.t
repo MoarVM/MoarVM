@@ -7,10 +7,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $foo := lexical($frame, int, '$foo');
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
+        my $r3 := local($frame, str);
         op(@ins, 'const_i64', $r1, ival(45));
         op(@ins, 'bindlex', $foo, $r1);
         op(@ins, 'getlex', $r2, $foo);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r3, $r2);
+        op(@ins, 'say', $r3);
         op(@ins, 'return');
     },
     "45\n",
@@ -23,7 +25,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r0 := local($i_frame, str);
             my @ins := $i_frame.instructions;
             op(@ins, 'getlex', $r0, MAST::Lexical.new( :index(0), :frames_out(1) ));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'return');
             return $i_frame;
         }
@@ -85,6 +87,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $c1 := local($frame, NQPMu);
         my $r0 := local($frame, NQPMu);
         my $r1 := local($frame, int);
+        my $r2 := local($frame, str);
         op(@ins, 'getcode', $r0, $f_frame);
         nqp::push(@ins, MAST::Call.new(
                 :target($r0),
@@ -101,13 +104,15 @@ mast_frame_output_is(-> $frame, @ins, $cu {
                 :flags([]),
                 :result($r1)
             ));
-        op(@ins, 'say_i', $r1);
+        op(@ins, 'coerce_is', $r2, $r1);
+        op(@ins, 'say', $r2);
         nqp::push(@ins, MAST::Call.new(
                 :target($c1),
                 :flags([]),
                 :result($r1)
             ));
-        op(@ins, 'say_i', $r1);
+        op(@ins, 'coerce_is', $r2, $r1);
+        op(@ins, 'say', $r2);
         nqp::push(@ins, MAST::Call.new(
                 :target($c0),
                 :flags([]),
@@ -118,13 +123,15 @@ mast_frame_output_is(-> $frame, @ins, $cu {
                 :flags([]),
                 :result($r1)
             ));
-        op(@ins, 'say_i', $r1);
+        op(@ins, 'coerce_is', $r2, $r1);
+        op(@ins, 'say', $r2);
         nqp::push(@ins, MAST::Call.new(
                 :target($c1),
                 :flags([]),
                 :result($r1)
             ));
-        op(@ins, 'say_i', $r1);
+        op(@ins, 'coerce_is', $r2, $r1);
+        op(@ins, 'say', $r2);
         op(@ins, 'return');
     },
     "1\n1\n3\n2\n",
@@ -137,7 +144,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r0 := local($i_frame, str);
             my @ins := $i_frame.instructions;
             op(@ins, 'getlex_ns', $r0, sval('$nom'));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'return');
             return $i_frame;
         }

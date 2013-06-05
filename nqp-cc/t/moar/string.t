@@ -6,7 +6,7 @@ plan(40);
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('OMG strings!'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "OMG strings!\n",
@@ -19,7 +19,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('foobar'));
         op(@ins, 'const_s', $r1, sval('baz'));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "-1\n",
@@ -32,7 +33,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('baz'));
         op(@ins, 'const_s', $r1, sval('foobar'));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "-1\n",
@@ -45,7 +47,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval(''));
         op(@ins, 'const_s', $r1, sval('foobar'));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "-1\n",
@@ -58,7 +61,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval(''));
         op(@ins, 'const_s', $r1, sval(''));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "0\n",
@@ -71,7 +75,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('foobar'));
         op(@ins, 'const_s', $r1, sval(''));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "-1\n",
@@ -84,7 +89,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('my $r0 := local($frame, str)'));
         op(@ins, 'const_s', $r1, sval('my $r0 := local($frame, str)'));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "0\n",
@@ -97,7 +103,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('foobar'));
         op(@ins, 'const_s', $r1, sval('foo'));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "0\n",
@@ -110,7 +117,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('foobar'));
         op(@ins, 'const_s', $r1, sval('oob'));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "1\n",
@@ -123,7 +131,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('foobar'));
         op(@ins, 'const_s', $r1, sval('bar'));
         op(@ins, 'index_s', $r2, $r0, $r1, const($frame, ival(0)));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "3\n",
@@ -136,7 +145,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('foobar'));
         op(@ins, 'const_s', $r1, sval('bar'));
         op(@ins, 'eq_s', $r2, $r0, $r1);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "0\n",
@@ -149,7 +159,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('bar'));
         op(@ins, 'const_s', $r1, sval('bar'));
         op(@ins, 'eq_s', $r2, $r0, $r1);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "1\n",
@@ -162,7 +173,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('foobar'));
         op(@ins, 'const_s', $r1, sval('bar'));
         op(@ins, 'ne_s', $r2, $r0, $r1);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "1\n",
@@ -175,7 +187,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('bar'));
         op(@ins, 'const_s', $r1, sval('bar'));
         op(@ins, 'ne_s', $r2, $r0, $r1);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "0\n",
@@ -189,7 +202,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r1, ival(0));
         op(@ins, 'const_i64', $r2, ival(3));
         op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "bar\n",
@@ -203,7 +216,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r1, ival(0));
         op(@ins, 'const_i64', $r2, ival(2));
         op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "ba\n",
@@ -217,7 +230,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r1, ival(1));
         op(@ins, 'const_i64', $r2, ival(1));
         op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "a\n",
@@ -231,7 +244,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r1, ival(1));
         op(@ins, 'const_i64', $r2, ival(2));
         op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "ar\n",
@@ -243,7 +256,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('bar'));
         op(@ins, 'const_s', $r1, sval('foo'));
         op(@ins, 'concat_s', $r0, $r1, $r0);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "foobar\n",
@@ -255,7 +268,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('bar'));
         op(@ins, 'const_i64', $r1, ival(4));
         op(@ins, 'repeat_s', $r0, $r0, $r1);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "barbarbarbar\n", # doin' it like a barbarian
@@ -264,7 +277,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('( « ]> > <term> <.ws>{$¢.add_enum($<na'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     '( « ]> > <term> <.ws>{$¢.add_enum($<na'~"\n",
@@ -278,7 +291,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r1, sval('oba'));
         op(@ins, 'const_i64', $r2, ival(2));
         op(@ins, 'eqat_s', $r2, $r0, $r1, $r2);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "1\n",
@@ -292,7 +306,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r1, sval('oba'));
         op(@ins, 'const_i64', $r2, ival(1));
         op(@ins, 'eqat_s', $r2, $r0, $r1, $r2);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "0\n",
@@ -310,7 +325,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r3, ival(3));
         op(@ins, 'const_i64', $r4, ival(0));
         op(@ins, 'haveat_s', $r2, $r0, $r2, $r3, $r1, $r4);
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r0, $r2);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "1\n",
@@ -322,7 +338,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('( « ]> > <term> <.ws>{$¢.add_enum($<na'));
         op(@ins, 'const_i64', $r1, ival(2));
         op(@ins, 'getcp_s', $r1, $r0, $r1);
-        op(@ins, 'say_i', $r1);
+        op(@ins, 'coerce_is', $r0, $r1);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "171\n",
@@ -334,7 +351,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('«'));
         op(@ins, 'const_i64', $r1, ival(171));
         op(@ins, 'repeat_s', $r0, $r0, $r1);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     nqp::x("«", 171) ~ "\n",
@@ -346,7 +363,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('(  ]> > <term> <.ws>{$¢«.add_enum($<na'));
         op(@ins, 'const_i64', $r1, ival(171));
         op(@ins, 'indexcp_s', $r1, $r0, $r1);
-        op(@ins, 'say_i', $r1);
+        op(@ins, 'coerce_is', $r0, $r1);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "23\n",
@@ -355,9 +373,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('beer'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'uc', $r0, $r0);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "beer\nBEER\n",
@@ -366,9 +384,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('CHEESE'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'lc', $r0, $r0);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "CHEESE\ncheese\n",
@@ -377,9 +395,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('пиво'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'uc', $r0, $r0);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "пиво\nПИВО\n",
@@ -388,9 +406,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('СЫР'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'lc', $r0, $r0);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "СЫР\nсыр\n",
@@ -399,11 +417,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         op(@ins, 'const_s', $r0, sval('ǉ'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'tc', $r0, $r0);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'uc', $r0, $r0);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "ǉ\nǈ\nǇ\n",
@@ -416,17 +434,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $separator, $input_str);
     
     my $elems := local($frame, int);
+    my $str := local($frame, str);
     op(@ins, 'elems', $elems, $arr);
-    op(@ins, 'say_i', $elems);
+    op(@ins, 'coerce_is', $str, $elems);
+    op(@ins, 'say', $str);
     
     my $item_o := local($frame, NQPMu);
     my $item := local($frame, str);
     op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(0)));
     op(@ins, 'unbox_s', $item, $item_o);
-    op(@ins, 'say_s', $item);
+    op(@ins, 'say', $item);
     op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(2)));
     op(@ins, 'unbox_s', $item, $item_o);
-    op(@ins, 'say_s', $item);
+    op(@ins, 'say', $item);
     op(@ins, 'return');
 }, "3\nfoo\nbaz\n", "string split multiple separators together");
 
@@ -437,17 +457,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $separator, $input_str);
     
     my $elems := local($frame, int);
+    my $str := local($frame, str);
     op(@ins, 'elems', $elems, $arr);
-    op(@ins, 'say_i', $elems);
+    op(@ins, 'coerce_is', $str, $elems);
+    op(@ins, 'say', $str);
     
     my $item_o := local($frame, NQPMu);
     my $item := local($frame, str);
     op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(0)));
     op(@ins, 'unbox_s', $item, $item_o);
-    op(@ins, 'say_s', $item);
+    op(@ins, 'say', $item);
     op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(12)));
     op(@ins, 'unbox_s', $item, $item_o);
-    op(@ins, 'say_s', $item);
+    op(@ins, 'say', $item);
     op(@ins, 'return');
 }, "13\nf\n\n\n", "string split empty separator");
 
@@ -458,8 +480,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $separator, $input_str);
     
     my $elems := local($frame, int);
+    my $str := local($frame, str);
     op(@ins, 'elems', $elems, $arr);
-    op(@ins, 'say_i', $elems);
+    op(@ins, 'coerce_is', $str, $elems);
+    op(@ins, 'say', $str);
     
     op(@ins, 'return');
 }, "0\n", "string split empty input");
@@ -471,7 +495,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     my $delimiter := const($frame, sval("\n"));
     op(@ins, 'split', $arr, $delimiter, $input_str);
     op(@ins, 'join', $output_str, $delimiter, $arr);
-    op(@ins, 'say_s', $output_str);
+    op(@ins, 'say', $output_str);
 }, "foo\nbar\nbaz\n", "join basic");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
@@ -481,7 +505,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     my $delimiter := const($frame, sval("\n"));
     op(@ins, 'split', $arr, $delimiter, $input_str);
     op(@ins, 'join', $output_str, $delimiter, $arr);
-    op(@ins, 'say_s', $output_str);
+    op(@ins, 'say', $output_str);
 }, "\n", "join empty array");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
@@ -492,7 +516,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $delimiter, $input_str);
     op(@ins, 'set', $delimiter, const($frame, sval("")));
     op(@ins, 'join', $output_str, $delimiter, $arr);
-    op(@ins, 'say_s', $output_str);
+    op(@ins, 'say', $output_str);
 }, "foobarbaz\n", "join empty delimiter");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
@@ -505,7 +529,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'bindpos_o', $arr, const($frame, ival(1)), $null);
     op(@ins, 'set', $delimiter, const($frame, sval("")));
     op(@ins, 'join', $output_str, $delimiter, $arr);
-    op(@ins, 'say_s', $output_str);
+    op(@ins, 'say', $output_str);
 }, "foobaz\n", "join sparse array");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
@@ -523,10 +547,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'repeat_s', $r3, $r0, $r1);
         op(@ins, 'const_i64', $r1, ival(4));
         op(@ins, 'repeat_s', $r3, $r3, $r1);
-        op(@ins, 'say_s', $r2);
-        op(@ins, 'say_s', $r3);
+        op(@ins, 'say', $r2);
+        op(@ins, 'say', $r3);
         op(@ins, 'eq_s', $r1, $r2, $r3);
-        op(@ins, 'say_i', $r1);
+        op(@ins, 'coerce_is', $r0, $r1);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "BARBARBARBARBARBARBARBARBARBARBARBARBARBARBARBAR\n"~

@@ -22,7 +22,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@loop_ins, 'if_i', $r1, $l_next);
         op(@loop_ins, 'throwcatdyn', $r3, ival($HandlerCategory::last));
         nqp::push(@loop_ins, $l_next);
-        op(@loop_ins, 'say_i', $r0);
+        op(@loop_ins, 'coerce_is', $r2, $r0);
+        op(@loop_ins, 'say', $r2);
         op(@loop_ins, 'goto', $l_loop);
         
         nqp::push(@ins, MAST::HandlerScope.new(
@@ -33,7 +34,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         ));
         nqp::push(@ins, $l_end);
         op(@ins, 'const_s', $r2, sval('At program end'));
-        op(@ins, 'say_s', $r2);
+        op(@ins, 'say', $r2);
         op(@ins, 'return');
     },
     "1\n2\nAt program end\n",
@@ -45,6 +46,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r0 := local($frame, int);
             my $r1 := local($frame, int);
             my $r2 := local($frame, NQPMu);
+            my $r3 := local($frame, str);
             my $l_next := label('next');
             
             my @ins := $frame.instructions;
@@ -55,7 +57,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'if_i', $r1, $l_next);
             op(@ins, 'throwcatdyn', $r2, ival($HandlerCategory::last));
             nqp::push(@ins, $l_next);
-            op(@ins, 'say_i', $r0);
+            op(@ins, 'coerce_is', $r3, $r0);
+            op(@ins, 'say', $r3);
             
             return $frame;
         }
@@ -84,7 +87,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         ));
         nqp::push(@ins, $l_end);
         op(@ins, 'const_s', $r2, sval('At program end'));
-        op(@ins, 'say_s', $r2);
+        op(@ins, 'say', $r2);
         op(@ins, 'return');
         
         $cu.add_frame($callee);

@@ -10,6 +10,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $counter := const($frame, ival(4));
         my $index := local($frame, int);
         my $loop := label('loop');
+        my $str := local($frame, str);
         op(@ins, 'mkdir', $r0);
         op(@ins, 'chdir', $r0);
         
@@ -42,7 +43,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         
         nqp::push(@ins, $done);
         op(@ins, 'close_dir', $dh);
-        op(@ins, 'say_i', $counter);
+        op(@ins, 'coerce_is', $str, $counter);
+        op(@ins, 'say', $str);
         op(@ins, 'chdir', const($frame, sval("..")));
         op(@ins, 'rmdir', $r0);
         op(@ins, 'return');

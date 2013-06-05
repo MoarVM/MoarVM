@@ -1003,39 +1003,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             /* Development operations. */
             case MVM_OP_BANK_dev: {
                 switch (*(cur_op++)) {
-                    case MVM_OP_say_i:
-                        printf("%lld\n", GET_REG(cur_op, 0).i64); /* lld seems to work on msvc and gcc */
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_say_n: {
-                        char buf[21];
-                        int i;
-                        sprintf(buf, "%-15f", GET_REG(cur_op, 0).n64);
-                        if (strstr(buf, ".")) {
-                            i = strlen(buf);
-                            while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
-                                buf[i] = '\0';
-                            if (buf[i] == '.')
-                                buf[i] = '\0';
-                        }
-                        printf("%s\n", buf);
-                        cur_op += 2;
-                        break;
-                    }
-                    case MVM_OP_say_s:
-                        MVM_string_say(tc, GET_REG(cur_op, 0).s);
-                        cur_op += 2;
-                        break;
                     case MVM_OP_sleep: /* microseconds for now */
                         apr_sleep((apr_interval_time_t)GET_REG(cur_op, 0).i64);
                         cur_op += 2;
                         break;
                     case MVM_OP_anonoshtype:
                         GET_REG(cur_op, 0).o = MVM_file_get_anon_oshandle_type(tc);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_print:
-                        MVM_string_print(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
                     default: {
@@ -2551,6 +2524,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_hostname:
                         GET_REG(cur_op, 0).s = MVM_socket_hostname(tc);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_print:
+                        MVM_string_print(tc, GET_REG(cur_op, 0).s);
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_say:
+                        MVM_string_say(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
                     default: {

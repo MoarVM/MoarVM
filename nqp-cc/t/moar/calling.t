@@ -8,7 +8,7 @@ sub callee() {
     my $r0 := local($frame, str);
     my @ins := $frame.instructions;
     op(@ins, 'const_s', $r0, sval('OMG in callee!'));
-    op(@ins, 'say_s', $r0);
+    op(@ins, 'say', $r0);
     op(@ins, 'return');
     return $frame;
 }
@@ -18,14 +18,14 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, NQPMu);
         op(@ins, 'const_s', $r0, sval('Before call'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'getcode', $r1, $callee);
         nqp::push(@ins, MAST::Call.new(
                 :target($r1),
                 :flags([])
             ));
         op(@ins, 'const_s', $r0, sval('After call'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -37,14 +37,14 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, NQPMu);
         op(@ins, 'const_s', $r0, sval('Before call'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'getcode', $r1, $callee);
         nqp::push(@ins, MAST::Call.new(
                 :target($r1),
                 :flags([])
             ));
         op(@ins, 'const_s', $r0, sval('After call'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         $cu.add_frame($callee);
     },
     "Before call\nOMG in callee!\nAfter call\n",
@@ -56,14 +56,14 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, str);
         my $r1 := local($frame, NQPMu);
         op(@ins, 'const_s', $r0, sval('Before call'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'getcode', $r1, $callee);
         nqp::push(@ins, MAST::Call.new(
                 :target($r1),
                 :flags([])
             ));
         op(@ins, 'const_s', $r0, sval('After call'));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -83,9 +83,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $callee := callee_ret_i();
         my $r0 := local($frame, int);
         my $r1 := local($frame, NQPMu);
+        my $r2 := local($frame, str);
         op(@ins, 'getcode', $r1, $callee);
         call(@ins, $r1, [], :result($r0));
-        op(@ins, 'say_i', $r0);
+        op(@ins, 'coerce_is', $r2, $r0);
+        op(@ins, 'say', $r2);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -105,9 +107,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $callee := callee_ret_n();
         my $r0 := local($frame, num);
         my $r1 := local($frame, NQPMu);
+        my $r2 := local($frame, str);
         op(@ins, 'getcode', $r1, $callee);
         call(@ins, $r1, [], :result($r0));
-        op(@ins, 'say_n', $r0);
+        op(@ins, 'coerce_ns', $r2, $r0);
+        op(@ins, 'say', $r2);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -129,7 +133,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r1 := local($frame, NQPMu);
         op(@ins, 'getcode', $r1, $callee);
         call(@ins, $r1, [], :result($r0));
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -145,7 +149,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'gethow', $r1, $r0);
         op(@ins, 'findmeth', $r2, $r1, sval('name'));
         call(@ins, $r2, [$Arg::obj, $Arg::obj], $r1, $r0, :result($r3));
-        op(@ins, 'say_s', $r3);
+        op(@ins, 'say', $r3);
         op(@ins, 'return');
     },
     "KnowHOW\n",
@@ -171,11 +175,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
         my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, str);
         op(@ins, 'const_i64', $r0, ival(49));
         op(@ins, 'const_i64', $r1, ival(7));
         op(@ins, 'getcode', $r3, $callee);
         call(@ins, $r3, [$Arg::int, $Arg::int], $r0, $r1, :result($r2));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r4, $r2);
+        op(@ins, 'say', $r4);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -205,11 +211,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r1 := local($frame, int);
         my $r2 := local($frame, int);
         my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, str);
         op(@ins, 'const_i64', $r0, ival(10));
         op(@ins, 'const_i64', $r1, ival(7));
         op(@ins, 'getcode', $r3, $callee);
         call(@ins, $r3, [$Arg::int, $Arg::int], $r0, $r1, :result($r2));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r4, $r2);
+        op(@ins, 'say', $r4);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -221,10 +229,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         my $r2 := local($frame, int);
         my $r3 := local($frame, NQPMu);
+        my $r4 := local($frame, str);
         op(@ins, 'const_i64', $r0, ival(10));
         op(@ins, 'getcode', $r3, $callee);
         call(@ins, $r3, [$Arg::int], $r0, :result($r2));
-        op(@ins, 'say_i', $r2);
+        op(@ins, 'coerce_is', $r4, $r2);
+        op(@ins, 'say', $r4);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },
@@ -253,7 +263,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r2, sval('hello'));
         op(@ins, 'getcode', $r3, $callee);
         call(@ins, $r3, [$Arg::named +| $Arg::str], sval('torepeat'), $r2, :result($r2));
-        op(@ins, 'say_s', $r2);
+        op(@ins, 'say', $r2);
         op(@ins, 'return');
         $cu.add_frame($callee);
     },

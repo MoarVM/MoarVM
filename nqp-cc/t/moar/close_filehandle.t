@@ -12,7 +12,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'anonoshtype', $r0);
         op(@ins, 'getstdout', $r0, $r0, $r4);
         op(@ins, 'close_fh', $r0);
-        op(@ins, 'say_s', const($frame, sval("alive")));
+        op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');
     },
     "",
@@ -33,7 +33,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'anonoshtype', $r0);
         op(@ins, 'open_fh', $r4, $r0, $r3, $r7, $r8);
         op(@ins, 'close_fh', $r4);
-        op(@ins, 'say_s', const($frame, sval("alive")));
+        op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');
     },
     "alive\n",
