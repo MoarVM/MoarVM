@@ -7,7 +7,7 @@ sub configure {
     
     if ($^O =~ /MSWin32/) {
         if ($config{'make'} eq 'nmake') {
-            if (`cl 2>&1` =~ /80x86/) {
+            if (`cl 2>&1` =~ /x86/) {
                 return (%config,
                     apr_build_line => 'cd 3rdparty/apr && nmake -f Makefile.win ARCH="Win32 Release" buildall',
                     apr_lib => '3rdparty/apr/LibR/apr-1.lib'
