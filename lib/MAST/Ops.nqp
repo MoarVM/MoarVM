@@ -2494,26 +2494,26 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
-            'sethllconf', nqp::hash(
+            'sethllconfig', nqp::hash(
                 'code', 82,
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
-            'hllboxtyp_i', nqp::hash(
+            'hllboxtype_i', nqp::hash(
                 'code', 83,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
-            'hllboxtyp_n', nqp::hash(
+            'hllboxtype_n', nqp::hash(
                 'code', 84,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
-            'hllboxtyp_s', nqp::hash(
+            'hllboxtype_s', nqp::hash(
                 'code', 85,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj

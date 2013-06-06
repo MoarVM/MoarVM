@@ -264,9 +264,9 @@ sub boxer($kind, $type_op, $op) {
     }
 }
 
-QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_int64, boxer($MVM_reg_int64, 'hllboxtyp_i', 'box_i'));
-QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_num64, boxer($MVM_reg_num64, 'hllboxtyp_n', 'box_n'));
-QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_str, boxer($MVM_reg_str, 'hllboxtyp_s', 'box_s'));
+QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_int64, boxer($MVM_reg_int64, 'hllboxtype_i', 'box_i'));
+QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_num64, boxer($MVM_reg_num64, 'hllboxtype_n', 'box_n'));
+QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_str, boxer($MVM_reg_str, 'hllboxtype_s', 'box_s'));
 
 sub push_op(@dest, $op, *@args) {
     # Resolve the op.

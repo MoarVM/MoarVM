@@ -1948,26 +1948,26 @@ static MVMOpInfo MVM_op_info_object[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_sethllconf,
-        "sethllconf",
+        MVM_OP_sethllconfig,
+        "sethllconfig",
         2,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_hllboxtyp_i,
-        "hllboxtyp_i",
+        MVM_OP_hllboxtype_i,
+        "hllboxtype_i",
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_hllboxtyp_n,
-        "hllboxtyp_n",
+        MVM_OP_hllboxtype_n,
+        "hllboxtype_n",
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_hllboxtyp_s,
-        "hllboxtyp_s",
+        MVM_OP_hllboxtype_s,
+        "hllboxtype_s",
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },

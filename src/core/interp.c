@@ -1939,19 +1939,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTHash;
                         cur_op += 2;
                         break;
-                    case MVM_OP_sethllconf:
+                    case MVM_OP_sethllconfig:
                         MVM_hll_set_config(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
-                    case MVM_OP_hllboxtyp_i:
+                    case MVM_OP_hllboxtype_i:
                         GET_REG(cur_op, 0).o = cu->hll_config->int_box_type;
                         cur_op += 2;
                         break;
-                    case MVM_OP_hllboxtyp_n:
+                    case MVM_OP_hllboxtype_n:
                         GET_REG(cur_op, 0).o = cu->hll_config->num_box_type;
                         cur_op += 2;
                         break;
-                    case MVM_OP_hllboxtyp_s:
+                    case MVM_OP_hllboxtype_s:
                         GET_REG(cur_op, 0).o = cu->hll_config->str_box_type;
                         cur_op += 2;
                         break;

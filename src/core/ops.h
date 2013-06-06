@@ -341,10 +341,10 @@
 #define MVM_OP_bootstr 79
 #define MVM_OP_bootarray 80
 #define MVM_OP_boothash 81
-#define MVM_OP_sethllconf 82
-#define MVM_OP_hllboxtyp_i 83
-#define MVM_OP_hllboxtyp_n 84
-#define MVM_OP_hllboxtyp_s 85
+#define MVM_OP_sethllconfig 82
+#define MVM_OP_hllboxtype_i 83
+#define MVM_OP_hllboxtype_n 84
+#define MVM_OP_hllboxtype_s 85
 #define MVM_OP_elems 86
 #define MVM_OP_null_s 87
 #define MVM_OP_newtype 88
