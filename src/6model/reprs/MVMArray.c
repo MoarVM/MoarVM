@@ -771,6 +771,14 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMArray);
 }
 
+/* Deserializes representation data. */
+static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
+    repr_data->slot_type = MVM_ARRAY_OBJ;
+    repr_data->elem_size = sizeof(MVMObject *);
+    st->REPR_data = repr_data;
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
@@ -802,5 +810,6 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->compose = compose;
     this_repr->elems = elems;
     this_repr->deserialize_stable_size = deserialize_stable_size;
+    this_repr->deserialize_repr_data = deserialize_repr_data;
     return this_repr;
 }
