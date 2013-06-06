@@ -630,6 +630,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type);
             MVMint64 is_box_target = REPR(attr_info)->ass_funcs->exists_key(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target);
+            MVMint8 inlined = 0;
             
             /* Ensure we have a name. */
             if (!name_obj)
@@ -654,6 +655,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     unboxed_type = spec.boxed_primitive;
                     bits = spec.bits;
                     repr_data->flattened_stables[i] = STABLE(type);
+                    inlined = 1;
                     
                     /* Does it need special initialization? */
                     if (REPR(type)->initialize) {
@@ -702,7 +704,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             }
             
             /* Handle object attributes, which need marking and may have auto-viv needs. */
-            if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE) {
+            if (!inlined) {
                 repr_data->gc_obj_mark_offsets[cur_obj_attr] = cur_alloc_addr;
                 cur_obj_attr++;
                 /* XXX auto-viv stuff */
