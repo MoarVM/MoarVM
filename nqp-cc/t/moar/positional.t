@@ -8,7 +8,7 @@ sub array_type($frame) {
     my $r0 := local($frame, str);
     my $r1 := local($frame, NQPMu);
     my $r2 := local($frame, NQPMu);
-    op(@ins, 'const_s', $r0, sval('MVMArray'));
+    op(@ins, 'const_s', $r0, sval('VMArray'));
     op(@ins, 'knowhow', $r1);
     op(@ins, 'findmeth', $r2, $r1, sval('new_type'));
     call(@ins, $r2, [$Arg::obj, $Arg::named +| $Arg::str], $r1, sval('repr'), $r0, :result($r1));

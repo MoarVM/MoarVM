@@ -222,10 +222,10 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMString"),
         MVMString_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMArray"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "VMArray"),
         MVMArray_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMHash"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "VMHash"),
         MVMHash_initialize(tc));
     register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMCFunction"),
@@ -264,7 +264,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMThread"),
         MVMThread_initialize(tc));
     register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMIter"),
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "VMIter"),
         MVMIter_initialize(tc));
     register_repr(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMContext"),
