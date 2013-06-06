@@ -2822,6 +2822,18 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
+            ),
+            'hlllist', nqp::hash(
+                'code', 129,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'hllhash', nqp::hash(
+                'code', 130,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [

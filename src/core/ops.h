@@ -388,6 +388,8 @@
 #define MVM_OP_bootintarray 126
 #define MVM_OP_bootnumarray 127
 #define MVM_OP_bootstrarray 128
+#define MVM_OP_hlllist 129
+#define MVM_OP_hllhash 130
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

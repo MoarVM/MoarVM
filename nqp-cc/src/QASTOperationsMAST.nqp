@@ -346,7 +346,7 @@ QAST::MASTOperations.add_core_op('list', -> $qastcomp, $op {
     # Just desugar to create the empty list.
     my $arr := $qastcomp.as_mast(QAST::Op.new(
         :op('create'),
-        QAST::Op.new( :op('bootarray') )
+        QAST::Op.new( :op('hlllist') )
     ));
     if +$op.list {
         my $arr_reg := $arr.result_reg;
@@ -457,7 +457,7 @@ QAST::MASTOperations.add_core_op('hash', -> $qastcomp, $op {
     # Just desugar to create the empty hash.
     my $hash := $qastcomp.as_mast(QAST::Op.new(
         :op('create'),
-        QAST::Op.new( :op('boothash') )
+        QAST::Op.new( :op('hllhash') )
     ));
     if +$op.list {
         my $hash_reg := $hash.result_reg;
@@ -1501,6 +1501,8 @@ QAST::MASTOperations.add_core_moarop_mapping('bootintarray', 'bootintarray');
 QAST::MASTOperations.add_core_moarop_mapping('bootnumarray', 'bootnumarray');
 QAST::MASTOperations.add_core_moarop_mapping('bootstrarray', 'bootstrarray');
 QAST::MASTOperations.add_core_moarop_mapping('boothash', 'boothash');
+QAST::MASTOperations.add_core_moarop_mapping('hlllist', 'hlllist');
+QAST::MASTOperations.add_core_moarop_mapping('hllhash', 'hllhash');
 QAST::MASTOperations.add_core_moarop_mapping('create', 'create');
 QAST::MASTOperations.add_core_moarop_mapping('clone', 'clone');
 QAST::MASTOperations.add_core_moarop_mapping('isconcrete', 'isconcrete');
