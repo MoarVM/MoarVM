@@ -71,7 +71,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $str := local($frame, str);
         op(@ins, 'create', $ins, $type);
         op(@ins, 'const_s', $str, sval('alive'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "alive\n",
@@ -82,10 +82,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $box := local($frame, NQPMu);
         my $orig_int := local($frame, int);
         my $result_int := local($frame, int);
+        my $str := local($frame, str);
         op(@ins, 'const_i64', $orig_int, ival(112358));
         op(@ins, 'box_i', $box, $orig_int, $type);
         op(@ins, 'unbox_i', $result_int, $box);
-        op(@ins, 'say_i', $result_int);
+        op(@ins, 'coerce_is', $str, $result_int);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "112358\n",
@@ -96,10 +98,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $box := local($frame, NQPMu);
         my $orig_num := local($frame, num);
         my $result_num := local($frame, num);
+        my $str := local($frame, str);
         op(@ins, 'const_n64', $orig_num, nval(3.14));
         op(@ins, 'box_n', $box, $orig_num, $type);
         op(@ins, 'unbox_n', $result_num, $box);
-        op(@ins, 'say_n', $result_num);
+        op(@ins, 'coerce_ns', $str, $result_num);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "3.14\n",
@@ -114,7 +118,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $orig_str, sval("Awesome snub-nosed monkey"));
         op(@ins, 'box_s', $box, $orig_str, $type);
         op(@ins, 'unbox_s', $result_str, $box);
-        op(@ins, 'say_s', $result_str);
+        op(@ins, 'say', $result_str);
         op(@ins, 'return');
     },
     "Awesome snub-nosed monkey\n",

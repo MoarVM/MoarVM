@@ -28,7 +28,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r1 := const($frame, ival(0));
         my $r2 := const($frame, ival(11));
         op(@ins, 'substr_s', $r0, $r0, $r1, $r2);
-        op(@ins, 'say_s', $r0);
+        op(@ins, 'say', $r0);
         op(@ins, 'return');
     },
     "# Copyright\n",
@@ -64,7 +64,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'spew', $r1, $r0, $r7);
         op(@ins, 'slurp', $r2, $type_object, $r0, $r7);
         op(@ins, 'delete_f', $r0);
-        op(@ins, 'say_s', $r2);
+        op(@ins, 'say', $r2);
         op(@ins, 'return');
     },
     "file contents«¢>\n",

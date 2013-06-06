@@ -1305,40 +1305,16 @@ class MAST::Ops {
             )
         ],
         [
-            'say_i', nqp::hash(
+            'sleep', nqp::hash(
                 'code', 0,
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
-            'say_s', nqp::hash(
+            'anonoshtype', nqp::hash(
                 'code', 1,
                 'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_str
-                ]
-            ),
-            'say_n', nqp::hash(
-                'code', 2,
-                'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_num64
-                ]
-            ),
-            'sleep', nqp::hash(
-                'code', 3,
-                'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_int64
-                ]
-            ),
-            'anonoshtype', nqp::hash(
-                'code', 4,
-                'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
-                ]
-            ),
-            'print', nqp::hash(
-                'code', 5,
-                'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             )
         ],
@@ -3189,6 +3165,18 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
+            'print', nqp::hash(
+                'code', 45,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_str
+                ]
+            ),
+            'say', nqp::hash(
+                'code', 46,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             )
         ],

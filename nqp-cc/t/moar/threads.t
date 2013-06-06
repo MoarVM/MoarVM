@@ -34,11 +34,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r1 := local($frame, int);
             my @ins := $frame.instructions;
             op(@ins, 'const_s', $r0, sval('In new thread'));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'const_i64', $r1, ival(1000000));
             op(@ins, 'sleep', $r1);
             op(@ins, 'const_s', $r0, sval('In new thread after sleep'));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'return');
             return $frame;
         }
@@ -54,17 +54,17 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $time   := local($frame, int);
         
         op(@ins, 'const_s', $str, sval('Before thread'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread, $code, $type);
         op(@ins, 'const_i64', $time, ival(500000));
         op(@ins, 'sleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'const_i64', $time, ival(1000000));
         op(@ins, 'sleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread at end'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "Before thread\nIn new thread\nIn main thread\nIn new thread after sleep\nIn main thread at end\n",
@@ -78,9 +78,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r1 := local($t_frame, int);
             my @ins := $t_frame.instructions;
             op(@ins, 'const_s', $r0, sval('In new thread'));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'getlex', $r0, MAST::Lexical.new( :index(0), :frames_out(1) ));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'return');
             return $t_frame;
         }
@@ -99,13 +99,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $str, sval('Lexical from outer'));
         op(@ins, 'bindlex', $lex, $str);
         op(@ins, 'const_s', $str, sval('Before thread'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread, $code, $type);
         op(@ins, 'const_i64', $time, ival(500000));
         op(@ins, 'sleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread at end'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "Before thread\nIn new thread\nLexical from outer\nIn main thread at end\n",
@@ -118,11 +118,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r1 := local($frame, int);
             my @ins := $frame.instructions;
             op(@ins, 'const_s', $r0, sval('In new thread'));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'const_i64', $r1, ival(200000));
             op(@ins, 'sleep', $r1);
             op(@ins, 'const_s', $r0, sval('In new thread after sleep'));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'return');
             return $frame;
         }
@@ -138,12 +138,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $time   := local($frame, int);
         
         op(@ins, 'const_s', $str, sval('Before thread'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread, $code, $type);
         op(@ins, 'jointhread', $thread);
         op(@ins, 'const_s', $str, sval('In main thread after join'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "Before thread\nIn new thread\nIn new thread after sleep\nIn main thread after join\n",
@@ -155,7 +155,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my @ins := $frame.instructions;
             my $r0 := local($frame, str);
             op(@ins, 'const_s', $r0, sval('In new thread'));
-            op(@ins, 'say_s', $r0);
+            op(@ins, 'say', $r0);
             op(@ins, 'return');
             return $frame;
         }
@@ -172,14 +172,14 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $time    := local($frame, int);
         
         op(@ins, 'const_s', $str, sval('Before new threads'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread1, $code, $type);
         op(@ins, 'newthread', $thread2, $code, $type);
         op(@ins, 'jointhread', $thread1);
         op(@ins, 'jointhread', $thread2);
         op(@ins, 'const_s', $str, sval('Joined both threads'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "Before new threads\nIn new thread\nIn new thread\nJoined both threads\n",
@@ -194,7 +194,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r2 := local($frame, str);
             my $l0 := label('loop');
             op(@ins, 'const_s', $r2, sval('In new thread'));
-            op(@ins, 'say_s', $r2);
+            op(@ins, 'say', $r2);
             op(@ins, 'const_i64', $r0, ival(1000000));
             nqp::push(@ins, $l0);
             op(@ins, 'knowhow', $r1);
@@ -219,7 +219,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $time    := local($frame, int);
         
         op(@ins, 'const_s', $str, sval('Before new threads'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread1, $code, $type);
         op(@ins, 'newthread', $thread2, $code, $type);
@@ -230,7 +230,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'jointhread', $thread3);
         op(@ins, 'jointhread', $thread4);
         op(@ins, 'const_s', $str, sval('Lived until after joins'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "Before new threads\nIn new thread\nIn new thread\nIn new thread\nIn new thread\nLived until after joins\n",
@@ -261,7 +261,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $l0 := label('loop');
             op(@ins, 'create', $r3, $at);
             op(@ins, 'const_s', $r2, sval('In new thread'));
-            op(@ins, 'say_s', $r2);
+            op(@ins, 'say', $r2);
             op(@ins, 'const_i64', $r0, ival(100000));
             nqp::push(@ins, $l0);
             op(@ins, 'create', $r1, $at);
@@ -286,7 +286,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $time    := local($frame, int);
         
         op(@ins, 'const_s', $str, sval('Before new threads'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread1, $code, $type);
         op(@ins, 'newthread', $thread2, $code, $type);
@@ -297,7 +297,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'jointhread', $thread3);
         op(@ins, 'jointhread', $thread4);
         op(@ins, 'const_s', $str, sval('Lived until after joins'));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'return');
     },
     "Before new threads\nIn new thread\nIn new thread\nIn new thread\nIn new thread\nLived until after joins\n",

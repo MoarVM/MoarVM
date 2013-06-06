@@ -20,11 +20,12 @@ sub primes($upto) {
         my $NEXT := label('NEXT');
         my $OK := label('OK');
         
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         op(@ins, 'const_i64', $i8, ival($upto));
-        op(@ins, 'say_i', $i8);
+        op(@ins, 'coerce_is', $str, $i8);
+        op(@ins, 'say', $str);
         op(@ins, 'const_s', $str, sval(" is: "));
-        op(@ins, 'say_s', $str);
+        op(@ins, 'say', $str);
         
     nqp::push(@ins, $REDO);
         op(@ins, 'set', $i3, $two);
@@ -43,10 +44,12 @@ sub primes($upto) {
         op(@ins, 'inc_i', $i1);
         op(@ins, 'le_i', $i8, $i1, $i2);
         op(@ins, 'if_i', $i8, $REDO);
-        op(@ins, 'say_i', $i6);
+        op(@ins, 'coerce_is', $str, $i6);
+        op(@ins, 'say', $str);
         op(@ins, 'const_s', $str, sval("last is: "));
-        op(@ins, 'say_s', $str);
-        op(@ins, 'say_i', $i7);
+        op(@ins, 'say', $str);
+        op(@ins, 'coerce_is', $str, $i7);
+        op(@ins, 'say', $str);
         
     },
     "",
