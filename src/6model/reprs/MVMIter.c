@@ -140,6 +140,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* XXX element type supplied through this... */
 }
 
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMArray);
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
@@ -164,6 +169,7 @@ MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
     this_repr->compose = compose;
     this_repr->elems = elems;
+    this_repr->deserialize_stable_size = deserialize_stable_size;
     return this_repr;
 }
 
