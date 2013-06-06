@@ -1579,6 +1579,7 @@ QAST::MASTOperations.add_core_moarop_mapping('getcomp', 'getcomp');
 QAST::MASTOperations.add_core_moarop_mapping('bindcomp', 'bindcomp');
 QAST::MASTOperations.add_core_moarop_mapping('getcurhllsym', 'getcurhllsym');
 QAST::MASTOperations.add_core_moarop_mapping('bindcurhllsym', 'bindcurhllsym');
+QAST::MASTOperations.add_core_moarop_mapping('sethllconfig', 'sethllconfig');
 QAST::MASTOperations.add_core_moarop_mapping('loadbytecode', 'loadbytecode');
 
 # regex engine related opcodes
