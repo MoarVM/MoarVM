@@ -1014,7 +1014,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
 
 /* Compares two strings, returning -1, 0 or 1 to indicate less than,
  * equal or greater than. */
-MVMint64 * MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+MVMint16 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMStringIndex alen = NUM_GRAPHS(a);
     MVMStringIndex blen = NUM_GRAPHS(b);
     MVMStringIndex i, scanlen;
