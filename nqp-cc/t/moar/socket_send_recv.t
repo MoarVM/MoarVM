@@ -15,8 +15,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r14 := const($frame, ival(-1));
         my $r15 := const($frame, ival(0));
         my $r16 := local($frame, str);
-        op(@ins, 'anonoshtype', $r0);
-        op(@ins, 'connect_sk', $r0, $r0, $r1, $r7, $r8, $r12);
+        op(@ins, 'connect_sk', $r0, $r1, $r7, $r8, $r12);
         op(@ins, 'send_sks', $r15, $r0, $r10, $r13, $r14);
         op(@ins, 'recv_sks', $r1, $r0, $r11);
         op(@ins, 'close_sk', $r0);

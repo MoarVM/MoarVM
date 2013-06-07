@@ -1048,12 +1048,6 @@ static MVMOpInfo MVM_op_info_dev[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_int64 }
     },
-    {
-        MVM_OP_anonoshtype,
-        "anonoshtype",
-        1,
-        { MVM_operand_write_reg | MVM_operand_obj }
-    },
 };
 static MVMOpInfo MVM_op_info_string[] = {
     {
@@ -2300,8 +2294,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_open_dir,
         "open_dir",
-        4,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_read_dir,
@@ -2318,8 +2312,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_open_fh,
         "open_fh",
-        5,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        4,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_close_fh,
@@ -2342,8 +2336,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_slurp,
         "slurp",
-        4,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_spew,
@@ -2414,26 +2408,26 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_getstdin,
         "getstdin",
-        3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_getstdout,
         "getstdout",
-        3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_getstderr,
         "getstderr",
-        3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_connect_sk,
         "connect_sk",
-        6,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        5,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_close_sk,
@@ -2444,8 +2438,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_bind_sk,
         "bind_sk",
-        6,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        5,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_listen_sk,
@@ -2838,7 +2832,7 @@ static unsigned char MVM_op_banks = 8;
 
 static unsigned char MVM_opcounts_by_bank[] = {
     172,
-    2,
+    1,
     51,
     16,
     131,

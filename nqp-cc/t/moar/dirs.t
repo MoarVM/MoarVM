@@ -22,9 +22,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'if_i', $counter, $loop);
         
         my $dh := local($frame, NQPMu);
-        my $osh := local($frame, NQPMu);
-        op(@ins, 'anonoshtype', $osh);
-        op(@ins, 'open_dir', $dh, $osh, const($frame, sval(".")), $r2);
+        op(@ins, 'open_dir', $dh, const($frame, sval(".")), $r2);
         
         my $loop2 := label('loop2');
         my $done := label('done');

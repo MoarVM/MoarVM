@@ -186,7 +186,6 @@
 
 /* Op name defines for bank dev. */
 #define MVM_OP_sleep 0
-#define MVM_OP_anonoshtype 1
 
 /* Op name defines for bank string. */
 #define MVM_OP_concat_s 0

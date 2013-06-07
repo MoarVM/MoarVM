@@ -1318,12 +1318,6 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
-            ),
-            'anonoshtype', nqp::hash(
-                'code', 1,
-                'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj
-                ]
             )
         ],
         [
@@ -2902,7 +2896,6 @@ class MAST::Ops {
                 'code', 8,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
@@ -2924,7 +2917,6 @@ class MAST::Ops {
                 'code', 11,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_int64
@@ -2956,7 +2948,6 @@ class MAST::Ops {
                 'code', 15,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_str,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
@@ -3048,7 +3039,6 @@ class MAST::Ops {
                 'code', 27,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
@@ -3056,7 +3046,6 @@ class MAST::Ops {
                 'code', 28,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
@@ -3064,7 +3053,6 @@ class MAST::Ops {
                 'code', 29,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
@@ -3072,7 +3060,6 @@ class MAST::Ops {
                 'code', 30,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_int64,
@@ -3089,7 +3076,6 @@ class MAST::Ops {
                 'code', 32,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_int64,

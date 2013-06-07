@@ -2,20 +2,7 @@
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
-/* cache the oshandle repr */
-static MVMObject *anon_oshandle_type;
-MVMObject * MVM_file_get_anon_oshandle_type(MVMThreadContext *tc) {
-    if (!anon_oshandle_type) {
-        /* fake up an anonymous type using MVMOSHandle REPR */
-        anon_oshandle_type = MVM_repr_get_by_name(tc, MVM_string_ascii_decode_nt(tc,
-                tc->instance->VMString, "MVMOSHandle"))->type_object_for(tc,
-                REPR(tc->instance->KnowHOW)->allocate(tc, STABLE(tc->instance->KnowHOW)));
-    }
-    return anon_oshandle_type;
-}
-
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
-
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle");
@@ -327,7 +314,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
 
 /* writes a string to a file, overwriting it if necessary */
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMint64 encoding_flag) {
-    MVMObject *fh = MVM_file_open_fh(tc, MVM_file_get_anon_oshandle_type(tc), filename,
+    MVMObject *fh = MVM_file_open_fh(tc, tc->instance->boot_types->BOOTIO, filename,
         (MVMint64)(APR_FOPEN_TRUNCATE | APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_BINARY), encoding_flag);
     
     MVM_file_write_fhs(tc, fh, output, 0, NUM_GRAPHS(output));

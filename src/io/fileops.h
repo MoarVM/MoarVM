@@ -1,4 +1,3 @@
-MVMObject * MVM_file_get_anon_oshandle_type(MVMThreadContext *tc);
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_append(MVMThreadContext *tc, MVMString *src, MVMString *dest);
