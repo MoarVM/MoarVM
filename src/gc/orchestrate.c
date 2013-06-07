@@ -290,6 +290,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         
         if (gen == MVMGCGenerations_Both) {
             GCORCH_LOG(tc, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
+            MVM_gc_collect_cleanup_gen2roots(other);
             MVM_gc_collect_free_gen2_unmarked(other);
         }
     }

@@ -528,8 +528,22 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
     }
 }
 
-/* Goes through the unmarked objects in the second generation heap and builds free
- * lists out of them. Also does any required finalization. */
+/* Goes through the inter-generational roots and removes any that have been
+* determined dead. Should run just after gen2 GC has run but before building
+* the free list (which clears the marks). */
+void MVM_gc_collect_cleanup_gen2roots(MVMThreadContext *tc) {
+    MVMCollectable **gen2roots = tc->gen2roots;
+    MVMuint32        num_roots = tc->num_gen2roots;
+    MVMuint32        ins_pos   = 0;
+    MVMuint32        i;
+    for (i = 0; i < num_roots; i++)
+        if (gen2roots[i]->forwarder)
+            gen2roots[ins_pos++] = gen2roots[i];
+    tc->num_gen2roots = ins_pos;
+}
+
+/* Goes through the unmarked objects in the second generation heap and builds
+ * free lists out of them. Also does any required finalization. */
 void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
     /* Visit each of the size class bins. */
     MVMGen2Allocator *gen2 = tc->gen2;
