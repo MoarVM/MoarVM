@@ -146,6 +146,12 @@ static void create_stub_CallCapture(MVMThreadContext *tc) {
     tc->instance->CallCapture = repr->type_object_for(tc, NULL);
 }
 
+/* Creates a stub BOOTIO (missing a meta-object). */
+static void create_stub_BOOTIO(MVMThreadContext *tc) {
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMOSHandle);
+    tc->instance->boot_types->BOOTIO = repr->type_object_for(tc, NULL);
+}
+
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
 static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject   *self, *HOW, *type_object, *BOOTHash, *stash;
@@ -689,6 +695,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_SCRef(tc);
     create_stub_Lexotic(tc);
     create_stub_CallCapture(tc);
+    create_stub_BOOTIO(tc);
 
     /* Set up some strings. */
     str_repr     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "repr");
@@ -740,6 +747,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->Lexotic);
     add_meta_object(tc, tc->instance->CallCapture, "CallCapture");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->CallCapture);
+    add_meta_object(tc, tc->instance->boot_types->BOOTIO, "BOOTIO");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types->BOOTIO);
     
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);

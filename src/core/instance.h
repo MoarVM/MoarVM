@@ -14,6 +14,7 @@ struct _MVMBootTypes {
     MVMObject *BOOTIntArray;
     MVMObject *BOOTNumArray;
     MVMObject *BOOTStrArray;
+    MVMObject *BOOTIO;
 };
 
 /* Various common string constants. */
