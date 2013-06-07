@@ -689,19 +689,19 @@ class HLL::Actions {
                     for $pad {
                         my str $key := ~$_;
                         unless $block.symbol($key) {
-#                            my $lextype := nqp::lexprimspec($pad, $key);
-#                            if $lextype == 0 {
-#                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey($pad, $key)));
-#                            }
-#                            elsif $lextype == 1 {
-#                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey_i($pad, $key)), :type(int));
-#                            }
-#                            elsif $lextype == 2 {
-#                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey_n($pad, $key)), :type(num));
-#                            }
-#                            elsif $lextype == 3 {
-#                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey_s($pad, $key)), :type(str));
-#                            }
+                            my $lextype := nqp::lexprimspec($pad, $key);
+                            if $lextype == 0 {
+                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey($pad, $key)));
+                            }
+                            elsif $lextype == 1 {
+                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey_i($pad, $key)), :type(int));
+                            }
+                            elsif $lextype == 2 {
+                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey_n($pad, $key)), :type(num));
+                            }
+                            elsif $lextype == 3 {
+                                $block.symbol($key, :scope<lexical>, :value(nqp::atkey_s($pad, $key)), :type(str));
+                            }
                         }
                     }
                 }
