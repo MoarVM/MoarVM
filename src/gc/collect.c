@@ -246,7 +246,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
                     MVMObject *new_obj_addr = (MVMObject *)new_addr;
                     if (REPR(new_obj_addr)->refs_frames)
-                        MVM_gc_root_gen2_add(tc, new_obj_addr);
+                        MVM_gc_root_gen2_add(tc, (MVMCollectable *)new_obj_addr);
                 }
                 
                 /* If we're going to sweep the second generation, also need
