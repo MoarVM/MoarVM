@@ -170,6 +170,7 @@ BANK 0 primitives
 0xA8    invokewithcapture   w(obj) r(obj) r(obj)
 0xA9    multicacheadd       w(obj) r(obj) r(obj) r(obj)
 0xAA    multicachefind      w(obj) r(obj) r(obj)
+0xAB    lexprimspec         w(int64) r(obj) r(str)
 
 BANK 1 dev
 0x00    sleep               r(int64)

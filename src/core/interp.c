@@ -991,6 +991,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = NULL;
                         cur_op += 6;
                         break;
+                    case MVM_OP_lexprimspec: {
+                        MVMObject *ctx  = GET_REG(cur_op, 2).o;
+                        MVMString *name = GET_REG(cur_op, 4).s;
+                        if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
+                            MVM_exception_throw_adhoc(tc, "lexprimspec needs a context");
+                        GET_REG(cur_op, 0).i64 = MVM_frame_lexical_primspec(tc,
+                            ((MVMContext *)ctx)->body.context, name);
+                        cur_op += 6;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
