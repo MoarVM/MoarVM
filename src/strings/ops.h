@@ -86,3 +86,4 @@ void MVM_string_cclass_init(MVMThreadContext *tc);
 MVMint64 MVM_string_iscclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset);
 MVMint64 MVM_string_findcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
 MVMint64 MVM_string_findnotcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
+MVMObject * MVM_string_to_int(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag);
