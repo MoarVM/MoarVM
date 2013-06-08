@@ -1277,6 +1277,16 @@ QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o', 2)
 QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
 QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
 
+QAST::MASTOperations.add_core_moarop_mapping('chmod', 'chmod_f', 0);
+QAST::MASTOperations.add_core_moarop_mapping('unlink', 'delete_f', 0);
+QAST::MASTOperations.add_core_moarop_mapping('rmdir', 'rmdir', 0);
+# XXX cwd
+QAST::MASTOperations.add_core_moarop_mapping('chdir', 'chdir', 0);
+QAST::MASTOperations.add_core_moarop_mapping('mkdir', 'mkdir', 0);
+QAST::MASTOperations.add_core_moarop_mapping('rename', 'rename_f', 0);
+QAST::MASTOperations.add_core_moarop_mapping('copy', 'copy_f', 0);
+# XXX link, symlink
+
 # terms
 QAST::MASTOperations.add_core_moarop_mapping('time_i', 'time_i');
 QAST::MASTOperations.add_core_moarop_mapping('time_n', 'time_n');
