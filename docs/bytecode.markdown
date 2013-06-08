@@ -258,57 +258,11 @@ or (perhaps better) on the first execution. After that, all future
 interpreter executions can just plow through the instructions without
 ever having to do checks.
 
-Bank 0 is for control flow and primitive operations.
-
-    0x00    no_op                               do nothing
-    0x01    goto        ins                     unconditional branch
-    0x02    if_i        r(int64), ins           branch if non-zero
-    0x03    unless_i    r(int64), ins           branch if zero
-    0x04    if_n        r(num64), ins           branch if non-zero
-    0x05    unless_n    r(num64), ins           branch if zero
-    0x06    if_s        r(str), ins             branch if string not empty
-    0x07    unless_s    r(str), ins             branch if string empty
-    0x08    if_s0       r(str), ins             branch if string not empty and not '0'
-    0x09    unless_s0   r(str), ins             branch if string empty or '0'
-    0x0A    if_o        r(obj), ins             branch if true (boolification protocol)
-    0x0B    unless_o    r(obj), ins             branch if false (boolification protocol)
-    0x0C    set         r(`1), r(`1)            copy one register value to another
-    0x0D    extend_u8   w(int64), r(int8)       unsigned integer extension (8 to 64)
-    0x0E    extend_u16  w(int64), r(int16)      unsigned integer extension (16 to 64)
-    0x0F    extend_u32  w(int64), r(int32)      unsigned integer extension (32 to 64)
-    0x10    extend_i8   w(int64), r(int8)       signed integer extension (8 to 64)
-    0x11    extend_i16  w(int64), r(int16)      signed integer extension (16 to 64)
-    0x12    extend_i32  w(int64), r(int32)      signed integer extension (32 to 64)
-    0x13    trunc_u8    w(int8), r(int64)       unsigned integer truncation (64 to 8)
-    0x14    trunc_u16   w(int16), r(int64)      unsigned integer truncation (64 to 16)
-    0x15    trunc_u32   w(int32), r(int64)      unsigned integer truncation (64 to 32)
-    0x16    trunc_i8    w(int8), r(int64)       signed integer truncation (64 to 8)
-    0x17    trunc_i16   w(int16), r(int64)      signed integer truncation (64 to 16)
-    0x18    trunc_i32   w(int32), r(int64)      signed integer truncation (64 to 32)
-    0x19    extend_n32  w(num64), r(num32)      float extension (32 to 64)
-    0x1A    trunc_n32   w(num32), r(num64)      float truncation (64 to 32)
-    0x1B    get_lex     w(`1), rl(`1)           get lexical from this frame
-    0x1C    bind_lex    wl(`1), r(`1)           bind lexical from this frame
-    0x1D    get_lex_lo  w(`1), lo, rl(`1)       get lexical from outer frame
-    0x1E    bind_lex_lo wl(`1), lo, r(`1)       bind lexical from outer frame
-    0x1F    get_lex_ni  w(int64), str           get integer lexical by name
-    0x20    get_lex_nn  w(num64), str           get number lexical by name
-    0x21    get_lex_ns  w(str), str             get string lexical by name
-    0x22    get_lex_no  w(obj), str             get object lexical by name
-    0x23    bind_lex_ni str, r(int64)           bind integer lexical by name
-    0x24    bind_lex_nn str, r(num64)           bind number lexical by name
-    0x25    bind_lex_ns str, r(str)             bind string lexical by name
-    0x26    bind_lex_no str, r(obj)             bind object lexical by name
-    0x27    return_i    r(int64)                return an integer
-    0x28    return_n    r(num64)                return a number
-    0x29    return_s    r(str)                  return a string
-    0x2A    return_o    r(obj)                  return an object
-    0x2B    return                              return (presumably to void context)
-
-Bank 1 is for 6model related operations.
+The set of ops is listed in src/core/oplist.
 
 ## Annotation segment
 This consists of a number of 10-byte records, composed of:
-    32-bit unsigned integer offset into the bytecode segment
-    16-bit unsigned integer strings heap index (filename)
-    32-bit unsigned integer (line number)
+
+* 32-bit unsigned integer offset into the bytecode segment
+* 16-bit unsigned integer strings heap index (filename)
+* 32-bit unsigned integer (line number)
