@@ -81,7 +81,7 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
 void MVM_string_flatten(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s);
-MVMint64 * MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b);
+MVMint16 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b);
 void MVM_string_cclass_init(MVMThreadContext *tc);
 MVMint64 MVM_string_iscclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset);
 MVMint64 MVM_string_findcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
