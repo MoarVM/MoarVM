@@ -1276,7 +1276,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     case MVM_OP_radix:
-                        GET_REG(cur_op, 0).o = MVM_string_to_int(tc, 
+                        GET_REG(cur_op, 0).o = MVM_radix(tc, 
                             GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
                             GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                         cur_op += 10;
