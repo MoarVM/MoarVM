@@ -142,7 +142,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(MVMArray);
+    st->size = sizeof(MVMIter);
 }
 
 /* Initializes the representation. */
