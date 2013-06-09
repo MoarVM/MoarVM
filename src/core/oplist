@@ -227,6 +227,7 @@ BANK 2 string
 0x30    lt_s                w(int64) r(str) r(str)
 0x31    le_s                w(int64) r(str) r(str)
 0x32    cmp_s               w(int64) r(str) r(str)
+0x33    radix               w(obj) r(int64) r(str) r(int64) r(int64)
 
 BANK 3 math
 0x00    sin_n               w(num64) r(num64)
