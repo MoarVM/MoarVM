@@ -1275,6 +1275,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;
+                    case MVM_OP_radix:
+                        GET_REG(cur_op, 0).o = MVM_radix(tc, 
+                            GET_REG(cur_op, 2).i16, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i16);
+                        cur_op += 10;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_string, *(cur_op-1));
