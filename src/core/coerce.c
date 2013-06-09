@@ -292,3 +292,55 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
             MVM_exception_throw_adhoc(tc, "cannot intify this");
     }
 }
+
+MVMObject * MVM_radix(MVMThreadContext *tc, MVMint16 radix, MVMString *str, MVMint64 offset, MVMint16 flag) {
+    MVMObject *result;
+    MVMnum64 zvalue = 0.0;
+    MVMnum64 zbase  = 1.0;
+    MVMint32 chars  = NUM_GRAPHS(str);
+    MVMnum64 value  = zvalue;
+    MVMnum64 base   = zbase;
+    MVMint64   pos  = -1;
+    MVMuint16  neg  = 0;
+    MVMint64   ch;
+
+    if (radix > 36) {
+        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
+    }
+
+    ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+    if ((flag & 0x02) && (ch == '+' || ch == '-')) {
+        neg = (ch == '-');
+        offset++;
+        ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+    }
+
+    while (offset < chars) {
+        if (ch >= '0' && ch <= '9') ch = ch - '0';
+        else if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 10;
+        else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;
+        else break;
+        if (ch >= radix) break;
+        zvalue = zvalue * radix + ch;
+        zbase = zbase * radix;
+        offset++; pos = offset;
+        if (ch != 0 || !(flag & 0x04)) { value=zvalue; base=zbase; }
+        if (offset >= chars) break;
+        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        if (ch != '_') continue;
+        offset++;
+        if (offset >= chars) break;
+        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+    }
+
+    if (neg || flag & 0x01) { value = -value; }
+
+    /* initialize the object */
+    result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTNumArray);
+
+    MVM_repr_push_n(tc, result, value);
+    MVM_repr_push_n(tc, result, base);
+    MVM_repr_push_n(tc, result, pos);
+
+    return result;
+}

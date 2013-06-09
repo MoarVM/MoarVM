@@ -1356,6 +1356,12 @@ static MVMOpInfo MVM_op_info_string[] = {
         3,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_radix,
+        "radix",
+        5,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int16 }
+    },
 };
 static MVMOpInfo MVM_op_info_math[] = {
     {
@@ -2833,7 +2839,7 @@ static unsigned char MVM_op_banks = 8;
 static unsigned char MVM_opcounts_by_bank[] = {
     172,
     1,
-    51,
+    52,
     16,
     131,
     47,

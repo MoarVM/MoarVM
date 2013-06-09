@@ -239,6 +239,7 @@
 #define MVM_OP_lt_s 48
 #define MVM_OP_le_s 49
 #define MVM_OP_cmp_s 50
+#define MVM_OP_radix 51
 
 /* Op name defines for bank math. */
 #define MVM_OP_sin_n 0
