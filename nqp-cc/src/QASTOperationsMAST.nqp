@@ -1274,6 +1274,12 @@ QAST::MASTOperations.add_core_moarop_mapping('associative_get', 'atkey_o');
 QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o', 2);
 
 # I/O opcodes
+
+QAST::MASTOperations.add_core_moarop_mapping('getstdin', 'getstdin');
+QAST::MASTOperations.add_core_moarop_mapping('getstdout', 'getstdout');
+QAST::MASTOperations.add_core_moarop_mapping('getstderr', 'getstderr');
+QAST::MASTOperations.add_core_moarop_mapping('setencoding', 'setencoding');
+QAST::MASTOperations.add_core_moarop_mapping('eof_fh', 'eof_fh');
 QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
 QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
 

@@ -455,7 +455,6 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_
 }
 
 MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
     MVMOSHandle *handle;
     
     verify_filehandle_type(tc, oshandle, &handle, "check eof");
@@ -473,4 +472,13 @@ MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object, MV
 
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag) {
     return MVM_file_get_stdstream(tc, type_object, 2, encoding_flag);
+}
+
+MVMObject * MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMint8 encoding_flag) {
+    MVMOSHandle *handle;
+
+    ENCODING_VALID(encoding_flag);
+    verify_filehandle_type(tc, oshandle, &handle, "set oshandle encoding");
+
+    handle->body.encoding_type = encoding_flag;
 }
