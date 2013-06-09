@@ -66,6 +66,9 @@ sub parse_ops($file) {
             $cur_bank = +$0;
             @banks[$cur_bank] //= Bank.new(name => ~$1);
         }
+        elsif $line ~~ /^\#/ {
+            # comments is ignored.
+        }
         elsif $line !~~ /^\s*$/ {
             die "Op declaration before bank declaration" unless @banks[$cur_bank];
             my ($code, $name, @operands) = $line.split(/\s+/);
