@@ -1228,3 +1228,32 @@ MVMint64 MVM_string_findnotcclass(MVMThreadContext *tc, MVMint64 cclass, MVMStri
     
     return end;
 }
+
+static MVMint16   encoding_name_init   = 0;
+static MVMString *encoding_utf8_name   = NULL;
+static MVMString *encoding_ascii_name  = NULL;
+static MVMString *encoding_latin1_name = NULL;
+MVMuint8 MVM_find_encoding_by_name(MVMThreadContext *tc, MVMString *name) {
+    if (!encoding_name_init) {
+        encoding_utf8_name   = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8");
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf8_name);
+        encoding_ascii_name  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "ascii");
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_ascii_name);
+        encoding_latin1_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "iso-8859-1");
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_latin1_name);
+        encoding_name_init   = 1;
+    }
+
+    if (MVM_string_equal(tc, name, encoding_utf8_name)) {
+        return MVM_encoding_type_utf8;
+    }
+    else if (MVM_string_equal(tc, name, encoding_ascii_name)) {
+        return MVM_encoding_type_ascii;
+    }
+    else if (MVM_string_equal(tc, name, encoding_latin1_name)) {
+        return MVM_encoding_type_latin1;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "unknown encoding type: %s", MVM_string_utf8_encode_C_string(tc, name));
+    }
+}
