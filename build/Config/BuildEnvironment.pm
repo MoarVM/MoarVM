@@ -223,6 +223,81 @@ sub detect {
             return (excuse => 'So far, we only support building with clang or gcc on Darwin.');
         }
     }
+    elsif ( $^O eq 'freebsd' ) {
+        # Defaults for Linux
+        %config = (
+            # Misc
+            os          => 'FreeBSD',
+
+            # Filename conventions
+            exe         => '',
+            o           => '.o',
+
+            # Command names
+            rm          => 'rm -f',
+            cat         => 'cat',
+            make        => 'make',
+
+            # Compiler attribute declaration differences
+            noreturn    => '',
+            noreturngcc => '__attribute__((noreturn))',
+
+            # Required flags
+            couto       => '-o ',
+            louto       => '-o ',
+        );
+
+        # clang is available from 9.0 and the default compiler on >= 10.0
+        if (can_run('clang')) {
+            # Config settings for Clang toolchain
+            %config = (
+                # Defaults
+                %config,
+
+                # Command names
+                cc          => 'clang',
+                link        => 'clang',
+
+                # Required flags
+                cmiscflags  => '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
+                lmiscflags  => '-L3rdparty/apr/.libs',
+                llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
+
+                # Optional settings
+                copt        => $opts->{optimize}   ? '-O3'                : '',
+                cdebug      => $opts->{debug}      ? '-g'                 : '',
+                cinstrument => $opts->{instrument} ? '-fsanitize=address' : '',
+                lopt        => $opts->{optimize}   ? '-O3'                : '',
+                ldebug      => $opts->{debug}      ? '-g'                 : '',
+                linstrument => $opts->{instrument} ? '-fsanitize=address' : '',
+            );
+        }
+        elsif (can_run('gcc')) {
+            # Config settings for GCC toolchain
+            %config = (
+                # Defaults
+                %config,
+
+                # Command names
+                cc          => 'gcc',
+                link        => 'gcc',
+
+                # Required flags
+                cmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE -Wparentheses -Wreturn-type',
+                lmiscflags  => '-L3rdparty/apr/.libs',
+                llibs       => '-Wl,-Bstatic -lapr-1 -Wl,-Bdynamic -lpthread -lm',
+
+                # Optional settings
+                # XXXX: What instrumentation is available for GCC?
+                copt        => $opts->{optimize}   ? '-O3'                : '',
+                cdebug      => $opts->{debug}      ? '-g'                 : '',
+                cinstrument => $opts->{instrument} ? ''                   : '',
+                lopt        => $opts->{optimize}   ? '-O3'                : '',
+                ldebug      => $opts->{debug}      ? '-g'                 : '',
+                linstrument => $opts->{instrument} ? ''                   : '',
+            );
+        }
+    }
     else {
         return (excuse => 'No recognized operating system or compiler found.'."  found: $^O");
     }
