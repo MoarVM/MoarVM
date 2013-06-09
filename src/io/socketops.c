@@ -7,11 +7,11 @@ static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSH
 
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
-        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle");
+        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
     if ((*handle)->body.handle_type != MVM_OSHANDLE_SOCKET) {
-        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type socket");
+        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type socket", msg);
     }
 }
 
