@@ -2568,6 +2568,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_string_say(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
+                    case MVM_OP_setencoding:
+                        MVM_file_set_oshandle_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i8);
+                        cur_op += 4;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_io, *(cur_op-1));
