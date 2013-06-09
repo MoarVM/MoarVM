@@ -22,3 +22,4 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag);
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag);
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag);
+MVMObject * MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);

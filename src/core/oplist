@@ -227,9 +227,6 @@ BANK 2 string
 0x30    lt_s                w(int64) r(str) r(str)
 0x31    le_s                w(int64) r(str) r(str)
 0x32    cmp_s               w(int64) r(str) r(str)
-# XXX: should be 
-# 0x33    radix               w(obj) r(int16) r(str) r(int64) r(int16)
-# after int16 is supported
 0x33    radix               w(obj) r(int64) r(str) r(int64) r(int64)
 
 BANK 3 math
@@ -428,7 +425,7 @@ BANK 5 io
 0x29    nametoaddr          w(obj) r(str)
 0x2A    addrtoname          w(str) r(str)
 0x2B    porttosvc           w(str) r(int64)
-0x2C    setencoding         r(obj) r(int64)
+0x2C    setencoding         r(obj) r(str)
 0x2D    print               r(str)
 0x2E    say                 r(str)
 
