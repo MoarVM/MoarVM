@@ -542,13 +542,13 @@ my class NQPMu {
                     nqp::bindattr(self, nqp::atpos($task, 1), nqp::atpos($task, 3), nqp::hash());
                 }
             }
-#            elsif nqp::iseq_i($code, 4) {
-#                unless nqp::attrinited(self, nqp::atpos($task, 1), nqp::atpos($task, 2)) {
-#                    nqp::bindattr(self, nqp::atpos($task, 1), nqp::atpos($task, 2),
-#                        nqp::atpos($task, 3)(self,
-#                            nqp::getattr(self, nqp::atpos($task, 1), nqp::atpos($task, 2))));
-#                }
-#            }
+            elsif nqp::iseq_i($code, 4) {
+                unless nqp::attrinited(self, nqp::atpos($task, 1), nqp::atpos($task, 2)) {
+                    nqp::bindattr(self, nqp::atpos($task, 1), nqp::atpos($task, 2),
+                        nqp::atpos($task, 3)(self,
+                            nqp::getattr(self, nqp::atpos($task, 1), nqp::atpos($task, 2))));
+                }
+            }
             else {
                 nqp::die("Invalid BUILDALLPLAN");
             }

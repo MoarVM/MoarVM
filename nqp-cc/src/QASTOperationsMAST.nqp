@@ -1529,6 +1529,7 @@ QAST::MASTOperations.add_core_moarop_mapping('getattr', 'getattrs_o');
 QAST::MASTOperations.add_core_moarop_mapping('getattr_i', 'getattrs_i');
 QAST::MASTOperations.add_core_moarop_mapping('getattr_n', 'getattrs_n');
 QAST::MASTOperations.add_core_moarop_mapping('getattr_s', 'getattrs_s');
+QAST::MASTOperations.add_core_moarop_mapping('attrinited', 'attrinited');
 QAST::MASTOperations.add_core_moarop_mapping('bindattr', 'bindattrs_o', 3);
 QAST::MASTOperations.add_core_moarop_mapping('bindattr_i', 'bindattrs_i', 3);
 QAST::MASTOperations.add_core_moarop_mapping('bindattr_n', 'bindattrs_n', 3);
