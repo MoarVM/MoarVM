@@ -5,11 +5,11 @@
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
-        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle");
+        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
     if ((*handle)->body.handle_type != MVM_OSHANDLE_FILE) {
-        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle");
+        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle", msg);
     }
 }
 
@@ -474,8 +474,9 @@ MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object, MV
     return MVM_file_get_stdstream(tc, type_object, 2, encoding_flag);
 }
 
-MVMObject * MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMint8 encoding_flag) {
+MVMObject * MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
+    MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
 
     ENCODING_VALID(encoding_flag);
     verify_filehandle_type(tc, oshandle, &handle, "set oshandle encoding");

@@ -3180,7 +3180,7 @@ class MAST::Ops {
                 'code', 44,
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'print', nqp::hash(

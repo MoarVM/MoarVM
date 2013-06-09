@@ -6,11 +6,11 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 
     /* work on only MVMOSHandle of type MVM_OSHANDLE_DIR */
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
-        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle");
+        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
     if ((*handle)->body.handle_type != MVM_OSHANDLE_DIR) {
-        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type dir handle");
+        MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type dir handle", msg);
     }
 }
 

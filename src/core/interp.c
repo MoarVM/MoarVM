@@ -2569,7 +2569,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_setencoding:
-                        MVM_file_set_oshandle_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i8);
+                        MVM_file_set_oshandle_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
                     default: {
