@@ -474,7 +474,7 @@ MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object, MV
     return MVM_file_get_stdstream(tc, type_object, 2, encoding_flag);
 }
 
-MVMObject * MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
+void MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
     MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
 
