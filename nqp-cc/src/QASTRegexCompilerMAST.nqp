@@ -296,7 +296,8 @@ class QAST::MASTRegexCompiler {
         }
         elsif $subtype eq 'rwb' {
             merge_ins(@ins, [
-                op('le_i', $i11, $pos, %*REG<eos>),
+                op('le_i', $i11, $pos, %*REG<zero>),
+                op('if_i', $i11, $fail),
                 op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
                 op('if_i', $i11, %*REG<fail>),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
