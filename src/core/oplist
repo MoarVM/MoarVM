@@ -227,9 +227,6 @@ BANK 2 string
 0x30    lt_s                w(int64) r(str) r(str)
 0x31    le_s                w(int64) r(str) r(str)
 0x32    cmp_s               w(int64) r(str) r(str)
-# XXX: should be 
-# 0x33    radix               w(obj) r(int16) r(str) r(int64) r(int16)
-# after int16 is supported
 0x33    radix               w(obj) r(int64) r(str) r(int64) r(int64)
 
 BANK 3 math
@@ -382,9 +379,6 @@ BANK 4 object
 0x80    bootstrarray        w(obj)
 0x81    hlllist             w(obj)
 0x82    hllhash             w(obj)
-# XXX: should be 
-# 0x83    attrinited          w(int16) r(obj) r(obj) r(str)
-# after int16 is supported
 0x83    attrinited          w(int64) r(obj) r(obj) r(str)
 
 BANK 5 io

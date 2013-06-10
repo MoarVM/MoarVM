@@ -1277,8 +1277,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_radix:
                         GET_REG(cur_op, 0).o = MVM_radix(tc, 
-                            GET_REG(cur_op, 2).i16, GET_REG(cur_op, 4).s,
-                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i16);
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                         cur_op += 10;
                         break;
                     default: {
@@ -2382,7 +2382,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_attrinited: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).i16 = REPR(obj)->attr_funcs->is_attribute_initialized(tc,
+                        GET_REG(cur_op, 0).i64 = REPR(obj)->attr_funcs->is_attribute_initialized(tc,
                             STABLE(obj), OBJECT_BODY(obj),
                             GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s, MVM_NO_HINT);
                         cur_op += 8;
