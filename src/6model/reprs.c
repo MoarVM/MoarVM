@@ -21,7 +21,7 @@ static void default_bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObjec
     die_no_attrs(tc, st->REPR->name);
 }
 GCC_DIAG_OFF(return-type)
-static MVMint32 default_is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
+static MVMint64 default_is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     die_no_attrs(tc, st->REPR->name);
 }
 GCC_DIAG_ON(return-type)
