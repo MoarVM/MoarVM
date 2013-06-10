@@ -50,6 +50,10 @@ class QAST::MASTRegexCompiler {
         my $P11      := fresh_o();
         my $method   := fresh_o();
         my $tmp      := fresh_o();
+
+        # cclass_const
+        my $cclass_word     := fresh_i();
+        my $cclass_newline  := fresh_i();
         
         # create our labels
         my $startlabel   := label($prefix ~ 'start');
@@ -82,7 +86,10 @@ class QAST::MASTRegexCompiler {
             'fail',     $faillabel,
             'jump',     $jumplabel,
             'method',   $method,
-            'self',     $self);
+            'self',     $self,
+            'cclass_word'   , $cclass_word,
+            'cclass_newline', $cclass_newline
+            );
         
         my @*RXJUMPS := nqp::list($donelabel);
         
@@ -98,6 +105,8 @@ class QAST::MASTRegexCompiler {
             op('const_i64', $three, ival(3)),
             op('const_i64', $four, ival(4)),
             op('const_i64', $five, ival(5)),
+            op('const_i64', $cclass_word, ival(nqp::const::CCLASS_WORD)),
+            op('const_i64', $cclass_newline, ival(nqp::const::CCLASS_WORD)),
             op('findmeth', $method, $self, sval('!cursor_start_all')),
             call($method, [ $Arg::obj ], :result($cstart), $self ),
             op('atpos_o', $cur, $cstart, $zero),
@@ -263,7 +272,6 @@ class QAST::MASTRegexCompiler {
         my @ins := nqp::list();
         my $subtype := $node.subtype;
         my $donelabel := label(self.unique($*RXPREFIX ~ '_rxanchor') ~ '_done');
-        my $cclass_type := fresh_i();
         my $i11 := fresh_i();
         my $pos := %*REG<pos>;
         my $fail := %*REG<fail>;
@@ -279,22 +287,20 @@ class QAST::MASTRegexCompiler {
             merge_ins(@ins, [
                 op('ge_i', $i11, $pos, %*REG<eos>),
                 op('if_i', $i11, $fail),
-                op('const_i64', $cclass_type, ival(nqp::const::CCLASS_WORD)),
-                op('is_cclass', $i11, $cclass_type, %*REG<tgt>, $pos),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
                 op('unless_i', $i11, %*REG<fail>),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('is_cclass', $i11, $cclass_type, %*REG<tgt>, $i11),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
                 op('if_i', $i11, $fail)
             ]);
         }
         elsif $subtype eq 'rwb' {
             merge_ins(@ins, [
                 op('le_i', $i11, $pos, %*REG<eos>),
-                op('const_i64', $cclass_type, ival(nqp::const::CCLASS_WORD)),
-                op('is_cclass', $i11, $cclass_type, %*REG<tgt>, $pos),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
                 op('if_i', $i11, %*REG<fail>),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('is_cclass', $i11, $cclass_type, %*REG<tgt>, $i11),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
                 op('unless_i', $i11, $fail)
             ]);
         }
@@ -305,23 +311,21 @@ class QAST::MASTRegexCompiler {
                 op('ge_i', $i11, $pos, %*REG<eos>),
                 op('if_i', $i11, $fail),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('const_i64', $cclass_type, ival(nqp::const::CCLASS_NEWLINE)),
-                op('is_cclass', $i11, $cclass_type, %*REG<tgt>, $i11),
+                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
                 op('unless_i', $i11, $fail),
                 $donelabel
             ]);
         }
         elsif $subtype eq 'eol' {
             merge_ins(@ins, [
-                op('const_i64', $cclass_type, ival(nqp::const::CCLASS_NEWLINE)),
-                op('is_cclass', $i11, $cclass_type, %*REG<tgt>, %*REG<pos>),
+                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, %*REG<pos>),
                 op('if_i', $i11, $donelabel),
                 op('ne_i', $i11, %*REG<pos>, %*REG<eos>),
                 op('if_i', $i11, $fail),
                 op('eq_i', $i11, %*REG<pos>, %*REG<zero>),
                 op('if_i', $i11, $donelabel),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('is_cclass', $i11, $cclass_type, %*REG<tgt>, $i11),
+                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
                 op('if_i', $i11, $fail),
                 $donelabel
             ]);
@@ -335,7 +339,6 @@ class QAST::MASTRegexCompiler {
         else {
             nqp::die("anchor subtype $subtype NYI");
         }
-        release($cclass_type, $MVM_reg_int64);
         release($i11, $MVM_reg_int64);
         @ins
     }
