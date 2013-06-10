@@ -268,7 +268,7 @@ typedef struct _MVMREPROps_Attribute {
         MVMObject *class_handle, struct _MVMString *name);
 
     /* Checks if an attribute has been initialized. */
-    MVMint32 (*is_attribute_initialized) (struct _MVMThreadContext *tc, MVMSTable *st,
+    MVMint64 (*is_attribute_initialized) (struct _MVMThreadContext *tc, MVMSTable *st,
         void *data, MVMObject *class_handle, struct _MVMString *name,
         MVMint64 hint);
 } MVMREPROps_Attribute;

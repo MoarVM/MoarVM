@@ -403,6 +403,16 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
 }
 
+/* Checks if an attribute has been initialized. */
+static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMint64 slot = try_get_slot(tc, repr_data, class_handle, name);
+    if (slot >= 0)
+        return NULL != get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
+    else
+        no_such_attribute(tc, "initializedness check", class_handle, name);
+}
+
 /* Gets the hint for the given attribute ID. */
 static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_key, MVMString *name) {
     MVMint64 slot;
@@ -1120,7 +1130,7 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     memset(this_repr->attr_funcs, 0, sizeof(MVMREPROps_Attribute));
     this_repr->attr_funcs->get_attribute = get_attribute;
     this_repr->attr_funcs->bind_attribute = bind_attribute;
-    /*this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;*/
+    this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;
     this_repr->attr_funcs->hint_for = hint_for;
     this_repr->box_funcs = malloc(sizeof(MVMREPROps_Boxing));
     this_repr->box_funcs->set_int = set_int;
