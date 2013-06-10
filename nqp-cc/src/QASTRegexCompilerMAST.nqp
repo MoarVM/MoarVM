@@ -50,6 +50,10 @@ class QAST::MASTRegexCompiler {
         my $P11      := fresh_o();
         my $method   := fresh_o();
         my $tmp      := fresh_o();
+
+        # cclass_const
+        my $cclass_word     := fresh_i();
+        my $cclass_newline  := fresh_i();
         
         # create our labels
         my $startlabel   := label($prefix ~ 'start');
@@ -82,7 +86,10 @@ class QAST::MASTRegexCompiler {
             'fail',     $faillabel,
             'jump',     $jumplabel,
             'method',   $method,
-            'self',     $self);
+            'self',     $self,
+            'cclass_word'   , $cclass_word,
+            'cclass_newline', $cclass_newline
+            );
         
         my @*RXJUMPS := nqp::list($donelabel);
         
@@ -98,6 +105,8 @@ class QAST::MASTRegexCompiler {
             op('const_i64', $three, ival(3)),
             op('const_i64', $four, ival(4)),
             op('const_i64', $five, ival(5)),
+            op('const_i64', $cclass_word, ival(nqp::const::CCLASS_WORD)),
+            op('const_i64', $cclass_newline, ival(nqp::const::CCLASS_NEWLINE)),
             op('findmeth', $method, $self, sval('!cursor_start_all')),
             call($method, [ $Arg::obj ], :result($cstart), $self ),
             op('atpos_o', $cur, $cstart, $zero),
@@ -277,9 +286,50 @@ class QAST::MASTRegexCompiler {
         elsif $subtype eq 'lwb' {
             merge_ins(@ins, [
                 op('ge_i', $i11, $pos, %*REG<eos>),
+                op('if_i', $i11, $fail),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
+                op('unless_i', $i11, %*REG<fail>),
+                op('sub_i', $i11, %*REG<pos>, %*REG<one>),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
                 op('if_i', $i11, $fail)
             ]);
-            nqp::die("NYI");
+        }
+        elsif $subtype eq 'rwb' {
+            merge_ins(@ins, [
+                op('le_i', $i11, $pos, %*REG<zero>),
+                op('if_i', $i11, $fail),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
+                op('if_i', $i11, %*REG<fail>),
+                op('sub_i', $i11, %*REG<pos>, %*REG<one>),
+                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
+                op('unless_i', $i11, $fail)
+            ]);
+        }
+        elsif $subtype eq 'bol' {
+            merge_ins(@ins, [
+                op('eq_i', $i11, %*REG<pos>, %*REG<zero>),
+                op('if_i', $i11, $donelabel),
+                op('ge_i', $i11, $pos, %*REG<eos>),
+                op('if_i', $i11, $fail),
+                op('sub_i', $i11, %*REG<pos>, %*REG<one>),
+                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
+                op('unless_i', $i11, $fail),
+                $donelabel
+            ]);
+        }
+        elsif $subtype eq 'eol' {
+            merge_ins(@ins, [
+                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, %*REG<pos>),
+                op('if_i', $i11, $donelabel),
+                op('ne_i', $i11, %*REG<pos>, %*REG<eos>),
+                op('if_i', $i11, $fail),
+                op('eq_i', $i11, %*REG<pos>, %*REG<zero>),
+                op('if_i', $i11, $donelabel),
+                op('sub_i', $i11, %*REG<pos>, %*REG<one>),
+                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
+                op('if_i', $i11, $fail),
+                $donelabel
+            ]);
         }
         elsif $subtype eq 'fail' {
             nqp::push(@ins, op('goto', $fail));
