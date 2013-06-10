@@ -106,7 +106,7 @@ class QAST::MASTRegexCompiler {
             op('const_i64', $four, ival(4)),
             op('const_i64', $five, ival(5)),
             op('const_i64', $cclass_word, ival(nqp::const::CCLASS_WORD)),
-            op('const_i64', $cclass_newline, ival(nqp::const::CCLASS_WORD)),
+            op('const_i64', $cclass_newline, ival(nqp::const::CCLASS_NEWLINE)),
             op('findmeth', $method, $self, sval('!cursor_start_all')),
             call($method, [ $Arg::obj ], :result($cstart), $self ),
             op('atpos_o', $cur, $cstart, $zero),
