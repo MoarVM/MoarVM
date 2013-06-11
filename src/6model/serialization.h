@@ -107,3 +107,4 @@ typedef struct _MVMSerializationWriter {
 void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *string_heap, MVMObject *codes_static, MVMObject *repo_conflicts,
     MVMString *data);
+MVMString * MVN_sha1(MVMThreadContext *tc, MVMString *str);

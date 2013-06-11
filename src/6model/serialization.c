@@ -1,4 +1,5 @@
 #include <moarvm.h>
+#include <sha1.h>
 
 #define MAX(x, y) ((y) > (x) ? (y) : (x))
 
@@ -908,4 +909,31 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     
     /* Restore normal GC allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
+}
+
+/*
+
+=item sha1
+
+Computes the SHA-1 hash of String.
+
+=cut
+
+*/
+MVMString * MVN_sha1(MVMThreadContext *tc, MVMString *str) {
+    /* Grab the Parrot string as a C string. */
+    char *cstr = MVM_string_utf8_encode_C_string(tc, str);
+
+    /* Compute its SHA-1 and encode it. */
+    SHA1_CTX      context;
+    unsigned char digest[20];
+    char          output[80];
+    SHA1_Init(&context);
+    SHA1_Update(&context, (unsigned char*)cstr, strlen(cstr));
+    SHA1_Final(&context, digest);
+    SHA1_DigestToHex(digest, output);
+
+    /* Free the C-string and put result into a new string. */
+    free(cstr);
+    return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, output, 40, MVM_encoding_type_utf8);
 }
