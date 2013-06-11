@@ -326,7 +326,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
             src/6model/reprs/P6bigint.h src/6model/reprs/NFA.h \
             src/6model/sc.h src/strings/unicode_gen.h \
             src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h \
-            src/strings/latin1.h src/strings/utf16.h 3rdparty/uthash.h src/gen/config.h
+            src/strings/latin1.h src/strings/utf16.h 3rdparty/uthash.h src/gen/config.h 3rdparty/apr/include/apr.h
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(LIBTOMMATH_BIN) $(CORE_OBJS) $(MAIN_OBJ)
@@ -335,6 +335,7 @@ moarvm$(EXE): $(THIRDPARTY_LIBS) $(LIBTOMMATH_BIN) $(CORE_OBJS) $(MAIN_OBJ)
 # APR
 $(APR_LIB):
 	$(APR_BUILD_LINE)
+3rdparty/apr/include/apr.h: $(APR_LIB)
 
 # libatomic_ops
 $(LAO_LIB):
