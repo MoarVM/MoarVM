@@ -342,7 +342,7 @@ $(LAO_LIB):
 
 # sha1
 $(SHA1_LIB): 3rdparty/sha1/sha1.h
-    cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) -I. $(CFLAGS) sha1.c
+	cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) -I. $(CFLAGS) sha1.c
 
 test:
 	@echo "Please build nqp-cc and run the tests in there"
