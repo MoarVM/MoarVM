@@ -920,7 +920,7 @@ Computes the SHA-1 hash of String.
 =cut
 
 */
-MVMString * MVN_sha1(MVMThreadContext *tc, MVMString *str) {
+MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
     /* Grab the Parrot string as a C string. */
     char *cstr = MVM_string_utf8_encode_C_string(tc, str);
 

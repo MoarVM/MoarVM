@@ -2698,7 +2698,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             case MVM_OP_BANK_serialization: {
                 switch (*(cur_op++)) {
                     case MVM_OP_sha1:
-                        GET_REG(cur_op, 0).s = MVN_sha1(tc,
+                        GET_REG(cur_op, 0).s = MVM_sha1(tc,
                             GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
