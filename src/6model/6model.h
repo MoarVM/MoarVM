@@ -153,11 +153,37 @@ typedef struct {
     MVMint64           hint;           /* Hint for use in static/gradual typing. */
 } MVMAttributeIdentifier;
 
-/* Information that we hold if the type is declaring a scalar container
- * of some sort. */
+/* Container specification information, for types that serve as containers.
+ * A container is something that can be assigned into. It may be some kind
+ * of container object (like Perl 6's Scalar) or it may be a reference to a
+ * native lexical or object field. The function table determines the way it
+ * behaves. */
 typedef struct {
-    MVMAttributeIdentifier  value_slot;
-    MVMObject              *fetch_method;
+    /* Fetches a value out of a container. Used for decontainerization. */
+    MVMObject * (*fetch) (struct _MVMThreadContext *tc, struct _MVMCallsite *callsite, MVMObject *cont);
+    
+    /* Stores a value in a container. Used for assignment. */
+    void (*store) (struct _MVMThreadContext *tc, struct _MVMCallsite *callsite, MVMObject *cont, MVMObject *obj);
+    
+    /* Stores a value in a container, without any checking of it (this
+     * assumes an optimizer or something else already did it). Used for
+     * assignment. */
+    void (*store_unchecked) (struct _MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
+    
+    /* Name of this container specification. */
+    struct _MVMString *name;
+    
+    /* Marks container data, if any. */
+    void (*gc_mark_data) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMGCWorklist *worklist);
+
+    /* Frees container data, if any. */
+    void (*gc_free_data) (struct _MVMThreadContext *tc, struct _MVMSTable *st);
+    
+    /* Serializes the container data, if any. */
+    void (*serialize) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMSerializationWriter *writer);
+    
+    /* Deserializes the container data, if any. */
+    void (*deserialize) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMSerializationWriter *reader);
 } MVMContainerSpec;
 
 /* How do we turn something of this type into a boolean? */
@@ -229,7 +255,11 @@ typedef struct _MVMSTable {
      * order to fetch the value in it. If not, it'll be null, which can
      * be taken as a "not a container" indication. */
     MVMContainerSpec *container_spec;
-    
+
+    /* Data that the container spec may need to function. */
+    /* Any data specific to this type that the REPR wants to keep. */
+    void *container_data;
+
     /*
      * If this is invokable, then this contains information needed to
      * figure out how to invoke it. If not, it'll be null.
