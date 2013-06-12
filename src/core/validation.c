@@ -118,8 +118,16 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         break;
                         
                     case MVM_operand_coderef:
-                        /* TODO XXX I don't know how to bounds check a literal coderef */
                         operand_size = 2;
+                        if (cur_op + operand_size > bytecode_end)
+                            throw_past_end(tc, labels);
+                        operand_target = GET_UI16(cur_op, 0);
+                        if (operand_target >= cu->num_frames) {
+                            cleanup_all(tc, labels);
+                            MVM_exception_throw_adhoc(tc,
+                                "Bytecode validation error: coderef index (%u) out of range; frame has %u coderefs",
+                                operand_target, cu->num_frames);
+                        }
                         break; /* reset to 0 */
                     
                     case MVM_operand_str:
