@@ -75,7 +75,7 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
 
     MVMROOT(tc, config, {
         MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
-        MVMROOT(tc, config, {
+        MVMROOT(tc, fetch, {
             MVMString *store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
             if (!MVM_repr_exists_key(tc, config, fetch))
                 MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
