@@ -11,7 +11,6 @@ typedef struct {
 
 static MVMObject * code_pair_fetch(MVMThreadContext *tc, MVMObject *cont) {
     MVMRegister return_value;
-    MVMRegister           args[1] = { cont };
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject *            code   = MVM_frame_find_invokee(tc, data->fetch_code);
 
@@ -73,16 +72,21 @@ static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-    MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
-    MVMString *store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
-    if (!MVM_repr_exists_key(tc, config, fetch))
-        MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
 
-    if (!MVM_repr_exists_key(tc, config, store))
-        MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
+    MVMROOT(tc, config, {
+        MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
+        MVMROOT(tc, config, {
+            MVMString *store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
+            if (!MVM_repr_exists_key(tc, config, fetch))
+                MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
 
-    data->fetch_code = MVM_repr_at_key_boxed(tc, config, fetch);
-    data->store_code = MVM_repr_at_key_boxed(tc, config, store);
+            if (!MVM_repr_exists_key(tc, config, store))
+                MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
+
+            data->fetch_code = MVM_repr_at_key_boxed(tc, config, fetch);
+            data->store_code = MVM_repr_at_key_boxed(tc, config, store);
+        });
+    });
 }
 
 static MVMContainerConfigurer * initialize_code_pair_spec(MVMThreadContext *tc) {
