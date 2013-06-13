@@ -26,7 +26,7 @@ sub configure {
     }
     elsif( $^O =~ /linux/ && can_run('gcc') ) {
         return (%config,
-            llibs => '-lapr-1 -lpthread -lm',
+            llibs => '-lapr-1 -lpthread -lm -luuid',
             apr_build_line => 'cd 3rdparty/apr && ./configure && make',
             apr_lib => '3rdparty/apr/.libs/libapr-1.a'
         );
