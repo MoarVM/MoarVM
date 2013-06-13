@@ -160,10 +160,10 @@ typedef struct {
  * behaves. */
 typedef struct {
     /* Fetches a value out of a container. Used for decontainerization. */
-    MVMObject * (*fetch) (struct _MVMThreadContext *tc, struct _MVMCallsite *callsite, MVMObject *cont);
+    MVMObject * (*fetch) (struct _MVMThreadContext *tc, MVMObject *cont);
     
     /* Stores a value in a container. Used for assignment. */
-    void (*store) (struct _MVMThreadContext *tc, struct _MVMCallsite *callsite, MVMObject *cont, MVMObject *obj);
+    void (*store) (struct _MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
     
     /* Stores a value in a container, without any checking of it (this
      * assumes an optimizer or something else already did it). Used for
@@ -183,8 +183,18 @@ typedef struct {
     void (*serialize) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMSerializationWriter *writer);
     
     /* Deserializes the container data, if any. */
-    void (*deserialize) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMSerializationWriter *reader);
+    void (*deserialize) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMSerializationReader *reader);
 } MVMContainerSpec;
+
+/* A container configurer knows how to attach a certain type of container
+ * to an STable and configure it. */
+typedef struct {
+    /* Sets this container spec in place for the specified STable. */ 
+    void (*set_container_spec) (struct _MVMThreadContext *tc, struct _MVMSTable *st);
+    
+    /* Configures the container spec with the specified info. */
+    void (*configure_container_spec) (struct _MVMThreadContext *tc, struct _MVMSTable *st, MVMObject *config);
+} MVMContainerConfigurer;
 
 /* How do we turn something of this type into a boolean? */
 typedef struct {
