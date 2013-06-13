@@ -190,7 +190,7 @@ static void *utf8_encode(void *bytes, MVMCodepoint32 cp)
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. 
  * Only bring in the raw codepoints for now. */
-MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type, char *utf8, size_t bytes) {
+MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type, const char *utf8, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     MVMint32 count = 0;
     MVMCodepoint32 codepoint;
@@ -199,7 +199,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMint32 bufsize = 16;
     MVMint32 *buffer = malloc(sizeof(MVMint32) * bufsize);
     size_t orig_bytes;
-    char *orig_utf8;
+    const char *orig_utf8;
     MVMint32 line;
     MVMint32 col;
     
