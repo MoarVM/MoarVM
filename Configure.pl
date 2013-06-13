@@ -14,7 +14,7 @@ use Config::Generate;
 
 
 my %opts;
-GetOptions(\%opts, 'help|?', 'debug!', 'optimize!', 'instrument!');
+GetOptions(\%opts, 'help|?', 'debug!', 'optimize!', 'instrument!', 'clang!');
 pod2usage(1) if $opts{help};
 
 print "Welcome to MoarVM!\n\n";
@@ -22,10 +22,12 @@ print "Welcome to MoarVM!\n\n";
 print dots("Checking master build settings ...");
 $opts{debug}      //= 0 + !$opts{optimize};
 $opts{optimize}   //= 0 + !$opts{debug};
+$opts{clang}      //= 0;
 $opts{instrument} //= 0;
 print " OK\n    (debug: " . _yn($opts{debug})
     . ", optimize: "      . _yn($opts{optimize})
-    . ", instrument: "    . _yn($opts{instrument}) . ")\n";
+    . ", instrument: "    . _yn($opts{instrument})
+    . ", clang: "         . _yn($opts{clang}) . ")\n";
 
 print dots("Trying to figure out how to build on your system ...");
 my %config = Config::BuildEnvironment::detect(\%opts);
