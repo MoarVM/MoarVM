@@ -5,7 +5,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     MVMHLLConfig *entry;
     size_t klen;
     
-    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "bad String");
+    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get hll config needs concrete string");
     
     if (apr_thread_mutex_lock(tc->instance->mutex_hllconfigs) != APR_SUCCESS) {
         MVM_exception_throw_adhoc(tc, "Unable to lock hll config hash");
