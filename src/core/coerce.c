@@ -6,12 +6,11 @@
 
 /* Dummy, invocant-arg callsite. */
 static MVMCallsite inv_arg_callsite;
-static MVMuint8    obj_arg_flag;
-static MVMint8     inv_arg_callsite_setup;
-static MVMCallsite *get_inv_callsite() {
+static MVMuint8     inv_arg_callsite_setup;
+static MVMCallsite * get_inv_callsite() {
     if (!inv_arg_callsite_setup) {
         /* Set up invocant arg callsite. */
-        obj_arg_flag = MVM_CALLSITE_ARG_OBJ;
+        MVMuint8 obj_arg_flag = MVM_CALLSITE_ARG_OBJ;
         inv_arg_callsite.arg_flags = &obj_arg_flag;
         inv_arg_callsite.arg_count = 1;
         inv_arg_callsite.num_pos   = 1;
