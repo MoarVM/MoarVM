@@ -1,4 +1,3 @@
-void MVM_6model_add_container_config(PARROT_INTERP, STRING *name,
-        ContainerConfigurer *configurer);
-ContainerConfigurer * MVM_6model_get_container_config(PARROT_INTERP, STRING *name);
-void MVM_6model_containers_setup(PARROT_INTERP);
+void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, MVMContainerConfigurer *configurer);
+ContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
+void MVM_6model_containers_setup(MVMThreadContext *tc);

@@ -9,6 +9,14 @@ typedef struct {
     MVMObject *store_code;
 } CodePairContData;
 
+typedef struct {
+    /* container configurations key name */
+    MVMString *name;
+    MVMContainerConfigurer *configurer;
+    /* Inline handle to the hash in which this is stored. */
+    UT_hash_handle hash_handle;
+} ContainerRegistry;
+
 static MVMObject * code_pair_fetch(MVMThreadContext *tc, MVMObject *cont) {
     MVMRegister return_value;
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
@@ -114,28 +122,52 @@ static MVMContainerConfigurer * initialize_code_pair_spec(MVMThreadContext *tc) 
  
 /* Container registry is a hash mapping names of container configurations
  * to function tables. */
-static MVMObject *container_registry = NULL;
- 
+static ContainerRegistry *container_registry = NULL;
+static apr_thread_mutex_t *mutex_container_registry;
+
 /* Adds a container configurer to the registry. */
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         MVMContainerConfigurer *configurer) {
-    /* XXX: HOW TO DO IT? */
+    void *kdata;
+    ContainerRegistry *entry;
+    size_t klen;
+    
+    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "bad String");
+    
+    if (apr_thread_mutex_lock(mutex_container_registry) != APR_SUCCESS) {
+        MVM_exception_throw_adhoc(tc, "Unable to lock container registry hash");
+    }
+
+    HASH_FIND(hash_handle, container_registry, kdata, klen, entry);
+
+    if (!entry) {
+        entry = malloc(sizeof(ContainerRegistry));
+        entry->name = name;
+        entry->configurer = configurer;
+    }
+
+    HASH_ADD_KEYPTR(hash_handle, container_registry, kdata, klen, entry);
+
+    if (apr_thread_mutex_unlock(tc->instance->mutex_hllconfigs) != APR_SUCCESS) {
+        MVM_exception_throw_adhoc(tc, "Unable to unlock container registry hash");
+    }
 }
 
 /* Gets a container configurer from the registry. */
 MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
-    /* XXX: HOW TO DO IT? */
+    void *kdata;
+    ContainerRegistry *entry;
+    size_t klen;
+    
+    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "bad String");
+
+    HASH_FIND(hash_handle, container_registry, kdata, klen, entry);
+    return entry != NULL ? entry->configurer : NULL;
 }
 
 /* Does initial setup work of the container registry, including registering
  * the various built-in container types. */
 void MVM_6model_containers_setup(MVMThreadContext *tc) {
-    /* Set up object for dynamically registering extra configurers. */
-    /* XXX: HOW TO DO IT? */
-
-    /* Initialize registry. */
-    container_registry = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
-    
     /* Add built-in configurations. */
     MVM_6model_add_container_config(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"),
