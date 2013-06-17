@@ -6,18 +6,14 @@ static MVMREPROps *this_repr;
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
-    
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
-    
-    obj = MVM_gc_allocate_type_object(tc, st);
-    MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-    st->size = sizeof(MVMKnowHOWREPR);
-    
-    MVM_gc_root_temp_pop(tc);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
 
+    MVMROOT(tc, st, {
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        st->size = sizeof(MVMKnowHOWREPR);
+    });
+    
     return st->WHAT;
 }
 
