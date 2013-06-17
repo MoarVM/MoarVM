@@ -921,7 +921,7 @@ Computes the SHA-1 hash of String.
 
 */
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
-    /* Grab the Parrot string as a C string. */
+    /* Grab the MVMString as a C string. */
     char *cstr = MVM_string_utf8_encode_C_string(tc, str);
 
     /* Compute its SHA-1 and encode it. */
