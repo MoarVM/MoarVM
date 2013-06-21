@@ -217,6 +217,7 @@ sub detect {
         );
         options( \%config, $opts );
 
+        $config{llibs} = '-lapr-1 -lpthread -lm' if $^O eq 'darwin' and $compiler eq 'clang';
     }
     else {
         return (excuse => 'No recognized operating system or compiler found.'."  found: $^O");
