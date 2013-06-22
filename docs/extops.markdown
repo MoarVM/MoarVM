@@ -117,12 +117,6 @@ core/bytecode.c excerpt - nqp::installop:
         MVMuint8 arg_3_type;
         MVMuint8 arg_4_type;
         
-        /* the compilation unit that installed the op */
-        MVMCompUnit *comp_unit;
-        
-        /* index of the string in the compunit's string heap */
-        MVMuint32 string_heap_index;
-        
         /* index of the op in the runtime-installed op table
             (loadorder-dependent code) - actual opcode as seen
             by the interpreter runloop (after it's been subbed
@@ -191,8 +185,6 @@ core/bytecode.c excerpt - nqp::installop:
         if (customop->arg_3_type = arg_3_type) arg_count++;
         if (customop->arg_4_type = arg_4_type) arg_count++;
         customop->arg_count = arg_count;
-        /* TODO: get current compilation unit to customop->comp_unit somehow */
-        /* TODO: get string heap index to customop->string_heap_index somehow */
         customop->function_ptr = (MVMCustomOp *)function_ptr; /* LOLZ; safe! */
         /* the name strings should always be in a string heap already, so don't need GC root */
         HASH_ADD_KEYPTR(hash_handle, tc->instance->customops_hash, kdata, klen, customop);
@@ -213,7 +205,12 @@ core/interp.c excerpt - the invocation of nqp::customopcall's replacements:
     
     <snip>
     
-    case MVM_OP_BANK_128: { /* and identical for 129-255 */
+    case MVM_OP_BANK_128:
+    case MVM_OP_BANK_129:
+    ...
+    case MVM_OP_BANK_254:
+    case MVM_OP_BANK_255:
+    {
         MVMCustomOpRecord *op_record = &customops[*(MVMuint16 *)cur_op++ - 32678];
         MVMCustomOp *function_ptr = op_record->function_ptr;
         cur_op += 2 * (2 + op_record->arg_count);
