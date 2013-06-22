@@ -292,11 +292,11 @@ void opname(MVMThreadContext *tc) { \
     MVMRegister *reg_base = *tc->interp_reg_base; \
     MVMCompUnit *cu = *tc->interp_cu; \
     MVMuint8 num_args = (arity); \
-    MVMuint8 reg0_type = (reg0);
-    MVMuint8 reg1_type = (reg1);
-    MVMuint8 reg2_type = (reg2);
-    MVMuint8 reg3_type = (reg3);
-    MVMuint8 reg4_type = (reg4);
+    MVMuint8 reg0_type = (reg0); \
+    MVMuint8 reg1_type = (reg1); \
+    MVMuint8 reg2_type = (reg2); \
+    MVMuint8 reg3_type = (reg3); \
+    MVMuint8 reg4_type = (reg4); \
     REGI(0) = 0; REGN(0) = 0.0; REGS(0) = REGO(0) = NULL; \
     block; \
 }
