@@ -238,11 +238,11 @@ example extension (loading the rakudo ops dynamically) - Rakudo/Ops.p6 (or NQP):
     
     my $z = concatenationize(Rakudo::Ops::additivitation(44, 66), "blah");
 
-moarvm.h excerpt
+moarvm.h excerpt (note the injecting of 1 offset if it's not the result reg):
 
     #define _dq "
     #define REG(idx) (((idx) >= 0 && (idx) <= num_args) \
-        ? reg_base[*((MVMuint16 *)(cur_op + (idx)))] \
+        ? reg_base[*((MVMuint16 *)(cur_op + ((idx) > 0 ? idx + 1 : 0)))] \
         : MVM_panic(tc, "register index %i out of range (%i registers).", (idx), num_regs))
     
     /* "B" is for "Blank"? */
@@ -309,3 +309,15 @@ module's BEGIN block (to be passed to install_ops), the .c could also
 contain an autoloader/importer routine that returns an array of pointers
 as p6ints and names as MVMStrings so that NativeCall wouldn't need to
 search for each one... somewhat similarly to how Lua does it.
+
+validation.c excerpt (verify custom op arg types and inline the real
+oprecord offsets):
+
+    /* pseudo-code, silly. */
+    similar to the actual interpreter, grab the MVMCustomOpRecord, but
+    simply validate each operand type specified for the custom op with
+    the types and count of the registers specified in the bytecode.
+    Replace the opcode itself with the value in the first (constant int)
+    arg.  Advance by the number of operands, just like the interpreter.
+
+well.. there are a couple other moving parts I'm forgetting at the moment...
