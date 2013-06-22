@@ -111,6 +111,7 @@ typedef struct _MVMCustomOpRecord {
     
     /* number of arg registers (not counting result/output reg) */
     MVMuint8 arg_count;
+    /* TODO; bit-pack the above and the below 6 fields. */
     
     /* arg types; see below for values (0-4); 0 is a sentinel
         meaning no more args. */
