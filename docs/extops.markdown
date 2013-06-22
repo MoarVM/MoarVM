@@ -5,10 +5,7 @@ Jonathan (and others) - please review/comment/fix/destroy/redo/etc
 The MoarVM interpreter uses 16-bit opcodes, where the first byte is called
 the "bank".  The first 128 banks are reserved for the MoarVM built-in ops
 and semi-officially related software such as Rakudo Perl 6.  The other 128
-banks are used for custom ops installed at runtime.  The last 8 banks (1024
-codes) of the first 128 banks are reserved for "position-independent" codes
-that simply invoke function pointers registered at runtime to those offsets
-in an in-memory table.
+banks are used for custom ops installed at runtime.
 
 The *actual* codes of opcodes (as they are seen by the interpreter runloop)
 are not cached offline or on disk in a central registry.  Instead, in the
