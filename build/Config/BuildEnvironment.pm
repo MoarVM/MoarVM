@@ -205,7 +205,7 @@ sub detect {
         my $clang = can_run('clang');
         my $compiler;
 
-        $compiler = 'clang' if $clang && ( $opts->{clang} || $^O =~ m!^(freebsd|darwin)$! );
+        $compiler = 'clang' if $clang && ( $opts->{clang} || $^O =~ m!^(freebsd|darwin)$! || !$gcc );
         $compiler = 'gcc'   if !$compiler && $gcc;
 
         return ( excuse => 'No recognized operating system or compiler found.'."  found: $^O")
