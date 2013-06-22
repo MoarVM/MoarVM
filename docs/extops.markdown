@@ -192,6 +192,14 @@ MVMint64 MVM_bytecode_installop(MVMThreadContext *tc, MVMString *opname,
     /* the name strings should always be in a string heap already, so don't need GC root */
     HASH_ADD_KEYPTR(hash_handle, tc->instance->customops_hash, kdata, klen, customop);
     
+    /* TODO: find the last-initiated MVMCompUnit (should be the one that's
+        running this installop), and work backwards from the literal string
+        pointer provided for the opname to find its index in the string heap.
+        Cache the opcode as a value in the offset of that index on
+        compunit->strings_opcodes_map (array of struct { MVMuint16 index;
+        MVMuint16 opcode; }), so that validation.c doesn't have to do a hash
+        lookup to translate each custom op to its registered value. */
+    
     /* TODO: this hash should eventually be a 6model Hash to 6model objects
         with these values in attributes, so the thing can be serialized as
         part of a preload-order bytecode ...load ... at which point this
@@ -331,8 +339,9 @@ oprecord offsets):
 similar to the actual interpreter, grab the MVMCustomOpRecord, but
 simply validate each operand type specified for the custom op with
 the types and count of the registers specified in the bytecode.
-Replace the opcode itself with the value in the first (constant int)
-arg.  Advance by the number of operands, just like the interpreter. */
+Replace the nqp::customopcall opcode itself with the opcode from
+the MVMCustomOpRecord.  Advance by the number of operands, just
+like the interpreter. */
 ```
 
 well.. there are a couple other moving parts I'm forgetting at the moment...
