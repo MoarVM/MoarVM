@@ -3,47 +3,80 @@
 Jonathan (and others) - please review/comment/fix/destroy/redo/etc
 
 The MoarVM interpreter uses 16-bit opcodes, where the first byte is called
-the "bank".  The first 128 banks are reserved for the MoarVM built-in opcodes
+the "bank".  The first 128 banks are reserved for the MoarVM built-in ops
 and semi-officially related software such as Rakudo Perl 6.  The other 128
 banks are used for custom ops installed at runtime.  The last 8 banks (1024
 codes) of the first 128 banks are reserved for "position-independent" codes
-that will be translated upon loading of the bytecode, as they will be
-registered with the in-compilation World upon loading of the compilation
-unit.
+that simply invoke function pointers registered at runtime to those offsets
+in an in-memory table.
 
 The *actual* codes of opcodes (as they are seen by the interpreter runloop)
-are not cached offline or on disk in a central registry.  Instead, the
-opcodes *installed* by a particular compilation unit (generally, a .moarvm
-bytecode file loaded from disk or a compilation unit generated in memory by
-a compiler) lie within the opcodes in the 8 banks at banks 120-127 in the
-in-memory and on-disk representations of the compilation unit bytecode blob.
-This is accomplished by the "load" entry point of the compilation unit
-running code that registers (up to 1024) of its "position-independent" codes
-by name/namespace with the running compiler (as there is generally a World-
-aware HLL compiler running at the time ModuleLoader does its thing).  When
-it registers the new opcodes, each one is given the next available "real"
-opcode in the upper 128 banks, and the mapping is returned to the running
-compiler itself so that the compiler can store it as it chooses.
+are not cached offline or on disk in a central registry.  Instead, in the
+.moarvm disk representation of the bytecode, the custom op invocations are
+translated (back) into their call-by-name variant, where the normal 16-bit
+op is nqp::customopcall, and the 2nd arg to the op is a string heap offset
+in that compilation unit to the name of the op it wants to call.  That is,
+the "PIC" opcode is represented as a string by a layer of indirection via
+the compilation unit's string heap.
+
+During verification by the bytecode loader, those ops are translated into
+their final form by running MVM_bytecode_customop_lookup, which looks in a
+malloc'd cache table (of the same length as the compunit's string heap) of
+those string heap offsets to an index of the MVMCustomOpRecord record below.
+The inline size in the bytecode of each custom op invocation is not always
+the same.  It consists of the 16-bit opcode itself (whether it's the
+nqp::customopcall as stored on disk or the substituted actual op offset),
+one register index for the result, one 16-bit inline int constant for the
+string heap offset of the opname including namespace, and zero through four
+register indexes for the op args.  It is up to the bytecode verifier to
+check each invocation site against the signature registered with that op to
+see if it matches the types of the register indexes in the bytecode.  The
+bytecode verifier gets the signature information from the MVMCustomOpRecord.
+
+When a compilation unit is loaded, its "load" entry point routine calls the
+INIT block of the compilation unit (if it has one), and the INIT block does
+something like the example below, registering the native function pointers
+with the runtime.  It registers its "position-independent" codes by name
+(including namespace::) with the running compiler (as there is generally a
+World-aware HLL compiler running at the time ModuleLoader does its thing).
+When it registers the new opcodes, each one is given the next available
+"real" opcode in the upper 128 banks, and the compilation unit string heap
+index (or some pre-mapping of it if that's not available yet) is returned
+to the running compiler so it can inline it into the nqp::customopcall
+bytecode as the 1st arg to the op call.
+
+(deep breath)
 
 The below example purports to show the contents of a skeleton extension as
 it would look to a developer.  (please excuse incorrect syntax; it's pretty
-much pseudo-code.)  Note: the real extensions for Rakudo itself will
+much pseudo-code.)  Note: the extension(s) for the real Rakudo itself will
 actually register and use opcodes from its own reserved banks in the lower
 128, let's say banks 16-19, so this example is not quite representative in
-that regard.
+that respect.
 
 helper package (part of the MoarVM/NQP runtime) - MoarVM/CustomOps.p6:
 
     package MoarVM::CustomOps;
     use NativeCall;
     
+    my %typemap = 'i', 1, 'n', 2, 's', 3, 'o', 4;
+    
     sub install_ops($library_file, $c_prefix,
             $op_prefix, %ops, $names_sigs) is export {
         my $world = nqp::hllcompilerworld;
         my $opslib = native_lib($library_file);
         -> $name, $sig {
+            my @args; my $count;
+            { my $code = %typemap{$_};
+                nqp::die("you fail") unless $code >= 1 && $code <= 4;
+                push @args, $code;
+            } for $sig.comb;
+            nqp::die("must have a result type") unless +@args;
+            nqp::die("too many args") if +@args > 5;
+            push(@args, 0) while +@args < 5;
             %_ops{$name} = $world.install_native_op("$op_prefix::$name",
-                native_function($opslib, "$c_prefix$name"), $sig);
+                native_function($opslib, "$c_prefix$name"), @args[0],
+                @args[1], @args[2], @args[3], @args[4]);
         } for $names_sigs;
     }
 
@@ -59,22 +92,142 @@ a special internal opcode (nqp::installop) that takes the opcode namespace::
 into which to install it (similar to Perl 5's xsub installer), the name of
 the op as it will appear in the HLL source code (namespace::opname), the int
 representing the function pointer address, and a string representing the
-register signature (a la parrot's signature), so the bytecode verifier knows
-how to validate its register arg types.
+register signature (a la parrot's op signatures), so the bytecode verifier
+knows how to validate its register arg types.
 
-core/bytecode.c - nqp::installop (or moarvm::installop if it's "loaded"?): 
+Since the custom ops are resolved "by name" (sort of) upon bytecode loading,
+we don't have to worry about Rakudo bootstrapping, since in order to install
+the custom ops for Rakudo, we can simply rely on the compiler (in NQP) to
+generate the appropriate loading/installing code.
+
+core/bytecode.c excerpt - nqp::installop:
 
     #include "moarvm.h"
     
-    /* returns the opcode (32768-65535) into which it was installed */
-    MVMint64 MVM_bytecode_install_op(MVMThreadContext *tc, MVMString *opname,
-            MVMint64 
+    typedef struct _MVMCustomOpRecord {
+        
+        /* name of the op, including namespace:: prefix */
+        MVMString *opname;
+        
+        /* number of arg registers (not counting result/output reg) */
+        MVMuint8 arg_count;
+        
+        /* arg types; see below for values (0-4); 0 is a sentinel
+            meaning no more args. */
+        MVMuint8 arg_0_type;
+        MVMuint8 arg_1_type;
+        MVMuint8 arg_2_type;
+        MVMuint8 arg_3_type;
+        MVMuint8 arg_4_type;
+        
+        /* the compilation unit that installed the op */
+        MVMCompUnit *comp_unit;
+        
+        /* index of the string in the compunit's string heap */
+        MVMuint32 string_heap_index;
+        
+        /* index of the op in the runtime-installed op table
+            (loadorder-dependent code) - actual opcode as seen
+            by the interpreter runloop (after it's been subbed
+            by the bytecode loader/verifier).  */
+        MVMuint16 opcode;
+        
+        /* the function pointer (see below for signature/macro) */
+        MVMCustomOp *function_ptr;
+        
+        /* (speculative/future) function pointer to the code in C
+            that the JIT can call to generate an AST for the
+            operation, for super-ultra-awesome optimization
+            possibilities (when pigs fly! ;) */
+        /* MVMCustomOpJITtoMAST * jittomast_ptr; */
+        
+        /* so the record can be in a hash too (so a compiler or JIT
+            can access the upper code at runtime in order to inline
+            or optimize stuff) */
+        UT_hash_handle hash_handle;
+    } MVMCustomOpRecord;
+    
+    /* returns an offset in the compunit into which it was installed */
+    MVMint64 MVM_bytecode_installop(MVMThreadContext *tc, MVMString *opname,
+            MVMint64 function_ptr, MVMint64 arg_0_type, MVMint64 arg_1_type,
+            MVMint64 arg_2_type, MVMint64 arg_3_type, MVMint64 arg_4_type) {
+            
+        /* TODO: protect with a mutex */
+        /* must also grab thread creation mutex b/c we have to
+           update the tc->interp_customops pointer */
+        
+        MVMCustomOpRecord *customops, *customop;
+        MVMuint16 opcode = tc->instance->nextcustomop++;
+        MVMuint8 arg_count;
+        void *kdata;
+        size_t klen;
+        
+        if (opcode == 32768)
+            MVM_panic(tc, "too many custom ops!");
+        
+        MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, opname, "bad String");
+        HASH_FIND(hash_handle, tc->instance->customops_hash, kdata, klen, customop);
+        if (customop)
+            MVM_panic(tc, "already installed custom op by this name");
+        
+        customops = tc->instance->customops;
+        
+        if (customops == NULL) {
+            customops = tc->instance->customops =
+                calloc( sizeof(MVMCustomOpRecord),
+                    (tc->instance->customops_size = 256));
+        }
+        else if (opcode == tc->instance->customops_size) {
+            customops = tc->instance->customops =
+                realloc(tc->instance->customops,
+                    (tc->instance->customops_size *= 2));
+            memset(tc->instance->customops + tc->instance->customops_size/2,
+                0, tc->instance->customops_size / 2 * sizeof(MVMCustomOpRecord));
+        }
+        
+        customop = customops + opcode;
+        customop->opname = opname;
+        customop->arg_0_type = arg_0_type;
+        arg_count = 1;
+        if (customop->arg_1_type = arg_1_type) arg_count++;
+        if (customop->arg_2_type = arg_2_type) arg_count++;
+        if (customop->arg_3_type = arg_3_type) arg_count++;
+        if (customop->arg_4_type = arg_4_type) arg_count++;
+        customop->arg_count = arg_count;
+        /* TODO: get current compilation unit to customop->comp_unit somehow */
+        /* TODO: get string heap index to customop->string_heap_index somehow */
+        customop->function_ptr = (MVMCustomOp *)function_ptr; /* LOLZ; safe! */
+        /* the name strings should always be in a string heap already, so don't need GC root */
+        HASH_ADD_KEYPTR(hash_handle, tc->instance->customops_hash, kdata, klen, customop);
+        
+        /* TODO: this hash should eventually be a 6model Hash to 6model objects
+            with these values in attributes, so the thing can be serialized as
+            part of a preload-order bytecode ...load ... at which point this
+            INIT-time registration simply becomes fixing up the function pointer
+            and opcode value. */
+        
+        return customop->opcode = opcode + 32768;
+    }
+
+core/interp.c excerpt - the invocation of nqp::customopcall's replacements:
+
+    MVMCustomOpRecord *customops = tc->instance->customops;
+    tc->interp_customops = &customops;
+    
+    <snip>
+    
+    case MVM_OP_BANK_128: { /* and identical for 129-255 */
+        MVMCustomOpRecord *op_record = &customops[*(MVMuint16 *)cur_op++ - 32678];
+        MVMCustomOp *function_ptr = op_record->function_ptr;
+        cur_op += 2 * (2 + op_record->arg_count);
+        function_ptr(tc); /* function can get ->current_frame from tc */
+    }
 
 example extension (loading the rakudo ops dynamically) - Rakudo/Ops.p6 (or NQP):
 
     package Rakudo::Ops;
     my %_ops;
-    BEGIN {
+    INIT {
       use MoarVM::CustomOps;
       install_ops('rakudo_ops.lib', 'MVM_rakudo_op_',
           'rakudo', (%_ops = nqp::hash), [
@@ -91,12 +244,15 @@ moarvm.h excerpt
     #define REG(idx) (((idx) >= 0 && (idx) <= num_args) \
         ? reg_base[*((MVMuint16 *)(cur_op + (idx)))] \
         : MVM_panic(tc, "register index %i out of range (%i registers).", (idx), num_regs))
+    
+    /* "B" is for "Blank"? */
+    #define BREG 0
     #define IREG 1
     #define NREG 2
     #define SREG 3
     #define OREG 4
 
-The type checks should be compile-time optimized-away by all but the
+Note: The type checks should be compile-time optimized-away by all but the
 stupidest of C compilers.  Though they fail at runtime, I consider that
 "fail fast" enough, as this is simply a best-effort attempt at a coder
 convenience type-check, not a rigorous one to actually enforce that the
@@ -121,7 +277,7 @@ moarvm.h excerpt (continued):
     
     #define MVM_CUSTOM_OP(opname, arity, block, reg0, reg1, reg2, reg3, reg4) \
     \
-    void opname(MVMThreadContext *tc, MVMFrame *frame) { \
+    void opname(MVMThreadContext *tc) { \
         MVMuint8 *cur_op = *tc->interp_cur_op; \
         MVMRegister *reg_base = *tc->interp_reg_base; \
         MVMCompUnit *cu = *tc->interp_cu; \
@@ -140,21 +296,16 @@ rakudo_ops.c
 
     #include "moarvm.h"
     
-    MVM_CUSTOM_OP(MVM_rakudo_op_additivitation, 2, { IREG, IREG, IREG }, {
+    MVM_CUSTOM_OP(MVM_rakudo_op_additivitation, 2, {
         REGI(0) = REGI(1) + REGI(2);
-    })
+    }, IREG, IREG, IREG, BREG, BREG)
     
-    MVM_CUSTOM_OP(MVM_rakudo_op_concatenationize, 2, { SREG, SREG, SREG }, {
+    MVM_CUSTOM_OP(MVM_rakudo_op_concatenationize, 2, {
         REGS(0) = MVM_string_concatenate(tc, REGS(1), REGS(2));
-    })
+    }, SREG, SREG, SREG, BREG, BREG)
 
 Note: instead of listing each "xsub" op to be "imported" in the .p6
 module's BEGIN block (to be passed to install_ops), the .c could also
 contain an autoloader/importer routine that returns an array of pointers
 as p6ints and names as MVMStrings so that NativeCall wouldn't need to
-search for each one... somewhat similarly to how Lua does it.  (This is
-why the 
-
-
-
-
+search for each one... somewhat similarly to how Lua does it.
