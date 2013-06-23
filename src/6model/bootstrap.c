@@ -680,8 +680,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_repr_initialize_registry(tc);
 
     /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
-     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic, and
-     * CallCapture types. */
+     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
+     * CallCapture, and IO types. */
     create_stub_BOOTInt(tc);
     create_stub_BOOTNum(tc);
     create_stub_BOOTStr(tc);
