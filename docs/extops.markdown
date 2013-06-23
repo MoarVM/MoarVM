@@ -1,55 +1,142 @@
-# Extensions and Custom Ops [proposed/tentative]
+### Extensions and Custom Ops [proposed/tentative]
 
-Jonathan (and others) - please review/comment/fix/destroy/redo/etc
+anyone review/comment please...
+
+#### The MoarVM Opcodes Overview
 
 The MoarVM interpreter uses 16-bit opcodes, where the first byte is called
-the "bank".  The first 128 banks are reserved for the MoarVM built-in ops
-and semi-officially related software such as Rakudo Perl 6.  The other 128
-banks are used for custom ops installed at runtime.
+the "bank".  There are currently around 470 built-in ops, and I'd guess
+there'll be around 500 once Rakudo's bootstrapped and passing spectest.
 
-The *actual* codes of opcodes (as they are seen by the interpreter runloop)
-are not cached offline or on disk in a central registry.  Instead, in the
-.moarvm disk representation of the bytecode, the custom op invocations are
-translated (back) into their call-by-name variant, where the normal 16-bit
-op is nqp::customopcall, and the 2nd arg to the op is a string heap offset
-in that compilation unit to the name of the op it wants to call.  That is,
-the "PIC" opcode is represented as a string by a layer of indirection via
-the compilation unit's string heap.
+The interpreter loop currently dispatches a top level of switch/case by
+bank, after reading the next byte in the stream, and then dispatches by
+switch/case to the particular op in the bank by reading the next byte in the
+stream.  It is not known whether the various C compilers compile these any
+more efficiently than a flat switch/case of all 65536 potential opcodes with
+all cases enumerated (in order).  However, I suggest that it would be more
+efficient to read both bytes into an unsigned short and then do bit 
+operations to split out the two bytes... or simply dispatch into one large
+switch/case.  It's at least worth testing whether it's faster on some
+platforms and compilers.
 
-During verification by the bytecode loader, those ops are translated into
-their final form by running MVM_bytecode_customop_lookup, which looks in a
-malloc'd cache table (of the same length as the compunit's string heap) of
-those string heap offsets to an index of the MVMCustomOpRecord record below.
-The inline size in the bytecode of each custom op invocation is not always
-the same.  It consists of the 16-bit opcode itself (whether it's the
-nqp::customopcall as stored on disk or the substituted actual op offset),
-one register index for the result, one 16-bit inline int constant for the
-string heap offset of the opname including namespace, and zero through four
-register indexes for the op args.  It is up to the bytecode verifier to
-check each invocation site against the signature registered with that op to
-see if it matches the types of the register indexes in the bytecode.  The
-bytecode verifier gets the signature information from the MVMCustomOpRecord.
+Many opcodes are self-contained (they don't call other C functions, and some
+don't even make system calls), but lots and lots of them do call functions.
+Since the ./moarvm binary is statically-linked (mostly), the link-time code
+generation and optimization by modern compilers should do a pretty good job
+of making such things optimal [please excuse the truism].  However, in the
+case of dynamically loaded extensions to the VM that need to dynamically
+load native libraries with a C ABI (nearly all native libraries have a build
+that exposes such a thing), the function pointers must be resolved at
+runtime after the library is loaded.  Perl 6's NativeCall module (using
+dyncall on parrot) can load libraries by name and enumerate/locate entry
+points and functions by name.
+
+I propose to use the dyncall functionality to load MoarVM extensions and
+resolve function pointers.  The following is a draft design/spec doc for how
+that might look:
+
+----------------------------------------------------------------
+
+#### Representing Custom Op Calls on Disk and in Memory
+
+In the .moarvm disk representation of the bytecode, an entry for each custom
+op invoked from that compilation unit exists in a table in the bytecode.
+Each entry contains: 1. a 16-bit index into the string heap representing the
+fully-qualified (namespace included) name of the op, and 2. a 16-bit MoarVM
+opcode representing the signature of the op at the time it was loaded before
+persisting to bytecode, and 3. an optional 16-bit index into the string heap
+to a string that represents the signature of the custom op if it doesn't fit
+within the 261 provided permutations of types/arities.  In the in-memory
+(deserialized) representation of the bytecode/compilation unit, each record
+also has room to store the cache of the function pointer representing the
+C function to which the op was resolved.
+
+The custom op calls in the bytecode instruction stream are stored as a
+particular "stand-in" opcode - nqp::customopcall, which simply serves as a
+sentinel for the bytecode validator to do its load-time resolution of the
+custom ops.  The MAST compiler enforces the customopcall to have something
+like the following signature: w(`1) int16 r(`2) r(`3) r(`4) r(`5), except
+the 3rd through 6th operands are optional.  The int16 (inlined 16-bit
+literal (unsigned, actually) integer) operand is the offset into the
+compunit's custom_ops table for the record representing all the calls from
+that compilation unit to that particular custom op.
+
+#### Loading Code That Calls Custom Ops
+
+During bytecode validation (on-demand upon first invocation of a frame),
+when the validator comes across an nqp::customopcall opcode, it locates the
+appropriate record, and if the record's function call slot is NULL, it means
+the function pointer hasn't been resolved, but also that the saved signature
+hasn't yet been validated against the version of that opcode that has been
+loaded by its dependencies (if it has!).  First the validator does a hash
+lookup to see whether the custom op has been loaded (this also requires a
+mutex protection, unless we're by then using a lock-free HLL hash for this),
+then if it hasn't, it throws an exception.  If it has been loaded by a
+dependency, "awesome!".  So then it compares the signatures of the calls in
+the compunit whose frame is being validated against the signature of the
+loaded op by that name, and if they match, "awesome!".  If not, throw a
+bytecode validation exception: "custom call signature mismatch - your
+dependency broke you."
+
+Then the validator substitutes in the appropriate opcode corresponding to
+the signature.  These 261 opcodes have names such as copc_i_iiii (takes four
+integer read operands and writes one integer operand), or copc_o_ (takes no
+read operands and writes an object operand (possibly NULL, in the case of
+operations that don't need to return anything.  It's important for the op
+to always at least pretend to return something, to keep the QAST->MAST
+compiler sane.  If the opcode is exotic (has more than 4 read operands), it
+gets the special opcode nqp::bigcustomopcall, whose signature looks like:
+w(`1) int16(opcall index like normal), int16(literal inlined integer,
+which represents the number of read operands), int16(literal inlined int16
+value, which represents the type of first read operand), r(`1)(first read
+operand), and then repeat the prior two operands as many times as necessary.
+
+Once the opcode is substituted in the instruction stream, operand type
+validation of the actual passed parameters (register indexes) proceeds
+normally in the bytecode, using the new opcode's signature.  The validator
+doesn't need to do anything with the function pointer... Conjecture: though
+I suggest testing the efficiency improvement/degradation of inlining the
+function pointer into each callsite.
+
+#### Loading Extensions
 
 When a compilation unit is loaded, its "load" entry point routine calls the
 INIT block of the compilation unit (if it has one), and the INIT block does
 something like the example below, registering the native function pointers
-with the runtime.  It registers its "position-independent" codes by name
-(including namespace::) with the running compiler (as there is generally a
-World-aware HLL compiler running at the time ModuleLoader does its thing).
-When it registers the new opcodes, each one is given the next available
-"real" opcode in the upper 128 banks, and the compilation unit string heap
-index (or some pre-mapping of it if that's not available yet) is returned
-to the running compiler so it can inline it into the nqp::customopcall
-bytecode as the 1st arg to the op call.
+and their signatures with the runtime.  It communicates with the runtime via
+the currently-compiling compiler (as there is generally a World-aware HLL
+compiler running at the time ModuleLoader does its thing).
 
-(deep breath)
+Note: There will *also* be a central registry (simply stored within the
+MoarVM source code repo) of custom ops in popular/primary extensions (such
+as Rakudo and MoarVM's native Perl 5 2-way interop/embedding extension), and
+any other custom ops in "standard"-ish "CPAN" (et al.) extension
+distributions whose names/signatures are committed to not changing once
+registered (an important module can simply reserve a new opcode (out of the
+65536 available (minus the 700 built-ins)) if it needs to change the
+signature of an op, but it also must change the op name as part of the
+deprecation.
+
+Luckily, a single C function signature is sufficient for invoking custom
+ops, since the entire runtime can be reached from the MVMThreadContext *tc,
+passed as the only parameter, and it doesn't need to return a value.
+
+It's strongly suggested that a compilation unit always install all of its
+own custom ops in its own load routine entry point, to guarantee that if
+any of the other frames is invoked the op will be loaded.
+
+Note: Afaict, we actually don't need to make special provision in QAST/MAST
+for custom ops under this scheme, since the compiler will actually have
+already *run* the INIT-time code of a module it's compiling by the time it
+encounters an invocation of a custom op in the module it's compiling.
+
+#### Examples
+
+## THE BELOW IS FROM AN EARLIER ITERATION OF THE PROPOSED DESIGN; ALL THE TEXT ABOVE SUPERSEDES THE BELOW EXAMPLES (including comments).  IT'S SOMEWHAT HELPFUL TOWARD INDICATING WHAT THEY'LL LOOK LIKE EVENTURALLY THOUGH.
 
 The below example purports to show the contents of a skeleton extension as
-it would look to a developer.  (please excuse incorrect syntax; it's pretty
-much pseudo-code.)  Note: the extension(s) for the real Rakudo itself will
-actually register and use opcodes from its own reserved banks in the lower
-128, let's say banks 16-19, so this example is not quite representative in
-that respect.
+it would look to a developer.  (please excuse incorrect syntax; it's pseudo-
+code in some places. ;)
 
 helper package (part of the MoarVM/NQP runtime) - MoarVM/CustomOps.p6:
 
@@ -306,7 +393,8 @@ void opname(MVMThreadContext *tc) { \
     MVMuint8 reg2_type = (reg2); \
     MVMuint8 reg3_type = (reg3); \
     MVMuint8 reg4_type = (reg4); \
-    REGI(0) = 0; REGN(0) = 0.0; REGS(0) = REGO(0) = NULL; \
+    /* not sure the output result nulling is necessary */ \
+    REGI(0) = 0; REGN(0) = 0.0; REGO(0) = REGS(0) = NULL; \
     block; \
 }
 typedef MVM_CUSTOM_OP((*MVMCustomOp));
@@ -336,13 +424,18 @@ validation.c excerpt (verify custom op arg types and inline the real
 oprecord offsets):
 
 ```C
-/* pseudo-code, silly.
-similar to the actual interpreter, grab the MVMCustomOpRecord, but
+/* similar to the actual interpreter, grab the MVMCustomOpRecord, but
 simply validate each operand type specified for the custom op with
-the types and count of the registers specified in the bytecode.
-Replace the nqp::customopcall opcode itself with the opcode from
-the MVMCustomOpRecord.  Advance by the number of operands, just
-like the interpreter. */
+the types and count of the registers specified in the bytecode. If
+it hasn't been checked already, compare the signature of the loaded
+custom op by that name against the signature of the custom op by that
+name that was stored in the compilation unit when it was loaded from
+disk, if it was.  Replace the nqp::customopcall opcode itself with
+the opcode from the MVMCustomOpRecord.  Advance by the number of
+operands, just like the interpreter. */
 ```
 
-well.. there are a couple other moving parts I'm forgetting at the moment...
+Conjecture: since we already have a record for each customop called
+from a compilation unit, it actually doesn't save any instructions to
+alter the opcode in the bytecode instruction stream in memory from
+nqp::customopcall, since it has to lookup the 
