@@ -15,6 +15,8 @@ Building the VM itself takes just:
 Or `nmake` on Windows. Currently it is known to build on Windows with MSVC,
 and with `gcc` and `clang` on Linux. We'll work on expanding this with time.
 
+You need to install libuuid on linux(It's required by libapr).
+
 ## Build the NQP Cross-Compiler
 
 To run some NQP code, or tests, then:
