@@ -186,6 +186,7 @@
 
 /* Op name defines for bank dev. */
 #define MVM_OP_sleep 0
+#define MVM_OP_say_I 1
 
 /* Op name defines for bank string. */
 #define MVM_OP_concat_s 0
@@ -258,6 +259,44 @@
 #define MVM_OP_sqrt_n 13
 #define MVM_OP_gcd_i 14
 #define MVM_OP_lcm_i 15
+#define MVM_OP_add_I 16
+#define MVM_OP_sub_I 17
+#define MVM_OP_mul_I 18
+#define MVM_OP_div_I 19
+#define MVM_OP_mod_I 20
+#define MVM_OP_neg_I 21
+#define MVM_OP_abs_I 22
+#define MVM_OP_inc_I 23
+#define MVM_OP_dec_I 24
+#define MVM_OP_cmp_I 25
+#define MVM_OP_eq_I 26
+#define MVM_OP_ne_I 27
+#define MVM_OP_lt_I 28
+#define MVM_OP_le_I 29
+#define MVM_OP_gt_I 30
+#define MVM_OP_ge_I 31
+#define MVM_OP_not_I 32
+#define MVM_OP_bor_I 33
+#define MVM_OP_bxor_I 34
+#define MVM_OP_band_I 35
+#define MVM_OP_bnot_I 36
+#define MVM_OP_blshift_I 37
+#define MVM_OP_brshift_I 38
+#define MVM_OP_pow_I 39
+#define MVM_OP_gcd_I 40
+#define MVM_OP_lcm_I 41
+#define MVM_OP_expmod_I 42
+#define MVM_OP_isprime_I 43
+#define MVM_OP_rand_I 44
+#define MVM_OP_coerce_Ii 45
+#define MVM_OP_coerce_In 46
+#define MVM_OP_coerce_Is 47
+#define MVM_OP_coerce_iI 48
+#define MVM_OP_coerce_nI 49
+#define MVM_OP_coerce_sI 50
+#define MVM_OP_isbig_I 51
+#define MVM_OP_base_I 52
+#define MVM_OP_radix_I 53
 
 /* Op name defines for bank object. */
 #define MVM_OP_knowhow 0
