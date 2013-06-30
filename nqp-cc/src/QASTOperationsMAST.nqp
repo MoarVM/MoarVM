@@ -1576,6 +1576,10 @@ QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');
 # lexical related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('getlexdyn', 'getdynlex');
 QAST::MASTOperations.add_core_moarop_mapping('bindlexdyn', 'binddynlex');
+QAST::MASTOperations.add_core_op('locallifetime', -> $qastcomp, $op {
+    # TODO: take advantage of this info for code-gen, if possible.
+    $qastcomp.as_mast($op[0])
+});
 
 # code object related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
