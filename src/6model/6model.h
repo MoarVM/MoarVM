@@ -160,7 +160,7 @@ typedef struct {
  * behaves. */
 typedef struct {
     /* Fetches a value out of a container. Used for decontainerization. */
-    MVMObject * (*fetch) (struct _MVMThreadContext *tc, MVMObject *cont);
+    void (*fetch) (struct _MVMThreadContext *tc, MVMObject *cont, union _MVMRegister *res);
     
     /* Stores a value in a container. Used for assignment. */
     void (*store) (struct _MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);

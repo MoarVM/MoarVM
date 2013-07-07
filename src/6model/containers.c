@@ -36,12 +36,11 @@ static void init_code_pair_arg_callsite() {
     arg_callsite_setup = 1;
 }
 
-static MVMObject * code_pair_fetch(MVMThreadContext *tc, MVMObject *cont) {
-    MVMRegister return_value;
+static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject *            code   = MVM_frame_find_invokee(tc, data->fetch_code);
 
-    tc->cur_frame->return_value   = &return_value;
+    tc->cur_frame->return_value   = res;
     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
     tc->cur_frame->return_address = *(tc->interp_cur_op);
     tc->cur_frame->args[0].o      = cont;
@@ -51,8 +50,6 @@ static MVMObject * code_pair_fetch(MVMThreadContext *tc, MVMObject *cont) {
     }
 
     STABLE(code)->invoke(tc, code, &fetch_arg_callsite, tc->cur_frame->args);
-
-    return return_value.o;
 }
 
 static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
