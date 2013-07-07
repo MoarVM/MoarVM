@@ -101,8 +101,9 @@ typedef struct _MVMSerializationWriter {
     MVMSerializationRoot root;
     
     /* Much more todo here... */
-        /* Various writing functions. */
-    void (*write_int) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMnum64 value);
+    
+    /* Various writing functions. */
+    void (*write_int) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMint64 value);
     void (*write_num) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMnum64 value);
     void (*write_str) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMString *value);
     void (*write_ref) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMObject *value);
