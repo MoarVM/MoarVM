@@ -26,14 +26,14 @@ sub configure {
     }
     elsif( $^O =~ /linux/ && can_run('gcc') ) {
         return (%config,
-            llibs => '-lapr-1 -lpthread -lm',
-            apr_build_line => 'cd 3rdparty/apr && ./configure && make',
+            llibs => '-lapr-1 -lpthread -lm -luuid',
+            apr_build_line => 'cd 3rdparty/apr && ./configure --disable-shared && make',
             apr_lib => '3rdparty/apr/.libs/libapr-1.a'
         );
     }
     else {
         return (%config,
-            apr_build_line => 'cd 3rdparty/apr && ./configure && make',
+            apr_build_line => 'cd 3rdparty/apr && ./configure --disable-shared && make',
             apr_lib => '3rdparty/apr/.libs/libapr-1.a'
         );
     }

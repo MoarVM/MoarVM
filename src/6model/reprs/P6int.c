@@ -7,9 +7,13 @@ static MVMREPROps *this_repr;
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
-    MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-    MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-    st->size = sizeof(P6int);
+
+    MVMROOT(tc, st, {
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        st->size = sizeof(P6int);
+    });
+    
     return st->WHAT;
 }
 

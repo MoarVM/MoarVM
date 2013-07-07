@@ -61,6 +61,7 @@
 #include "io/socketops.h"
 #include "io/dirops.h"
 #include "io/procops.h"
+#include "math/bigintops.h"
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);

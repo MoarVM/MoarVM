@@ -29,17 +29,20 @@ static void create_stub_VMString(MVMThreadContext *tc) {
     /* Now we can create a type object; note we have no HOW yet,
      * though. */
     MVMSTable *st  = MVM_gc_allocate_stable(tc, repr, NULL);
+    MVMROOT(tc, st, {
+        /* We can now go for the type object. */
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
     
-    /* REPR normally sets up size, but we'll have to do that manually
-     * here also. */
-    st->size = sizeof(MVMString);
-    
-    /* We can now go for the type object. */
-    tc->instance->VMString = MVM_gc_allocate_type_object(tc, st);
-    
-    /* Set the WHAT in the STable we just made to point to the type
-     * object (this is completely normal). */
-    st->WHAT = tc->instance->VMString;
+        /* Set the WHAT in the STable we just made to point to the type
+        * object (this is completely normal). */
+        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+
+        /* REPR normally sets up size, but we'll have to do that manually
+        * here also. */
+        st->size = sizeof(MVMString);
+
+        tc->instance->VMString = obj;
+    });
 }
 
 /* Creates a stub BOOTInt (missing a meta-object). */
@@ -680,8 +683,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_repr_initialize_registry(tc);
 
     /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
-     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic, and
-     * CallCapture types. */
+     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
+     * CallCapture, and IO types. */
     create_stub_BOOTInt(tc);
     create_stub_BOOTNum(tc);
     create_stub_BOOTStr(tc);

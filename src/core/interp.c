@@ -1369,6 +1369,290 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_abs_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, type, {
+                                MVMObject *b = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_abs(b, a);
+                                GET_REG(cur_op, 0).o = b;
+                            });
+                        });
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_neg_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, type, {
+                                MVMObject *b = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_neg(b, a);
+                                GET_REG(cur_op, 0).o = b;
+                            });
+                        });
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_add_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_add(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_sub_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_sub(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_mul_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_mul(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_div_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_div(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_mod_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_mod(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_expmod_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *c = GET_REG(cur_op, 6).o, *type = GET_REG(cur_op, 8).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, c, {
+                                    MVMROOT(tc, type, {
+                                        MVMObject *d = MVM_repr_alloc_init(tc, type);
+                                        MVM_bigint_expmod(d, a, b, c);
+                                        GET_REG(cur_op, 0).o = d;
+                                    });
+                                });
+                            });
+                        });
+                        cur_op += 10;
+                        break;
+                    }
+                    case MVM_OP_gcd_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_gcd(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_lcm_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_lcm(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_bor_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_or(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_bxor_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_xor(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_band_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, b, {
+                                MVMROOT(tc, type, {
+                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_and(c, a, b);
+                                    GET_REG(cur_op, 0).o = c;
+                                });
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_bnot_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, type, {
+                                MVMObject *b = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_not(b, a);
+                                GET_REG(cur_op, 0).o = b;
+                            });
+                        });
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_blshift_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 6).o;
+                        MVMint64 b = GET_REG(cur_op, 4).i64;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, type, {
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_shl(c, a, b);
+                                GET_REG(cur_op, 0).o = c;
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_brshift_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 6).o;
+                        MVMint64 b = GET_REG(cur_op, 4).i64;
+                        MVMROOT(tc, a, {
+                            MVMROOT(tc, type, {
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_shr(c, a, b);
+                                GET_REG(cur_op, 0).o = c;
+                            });
+                        });
+                        cur_op += 8;
+                        break;
+                    }
+                    case MVM_OP_cmp_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).i64 = MVM_bigint_cmp(a, b);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_eq_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).i64 = MP_EQ == MVM_bigint_cmp(a, b);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_ne_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).i64 = MP_EQ != MVM_bigint_cmp(a, b);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_lt_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).i64 = MP_LT == MVM_bigint_cmp(a, b);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_le_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).i64 = MP_GT != MVM_bigint_cmp(a, b);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_gt_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).i64 = MP_GT == MVM_bigint_cmp(a, b);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_ge_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
+                        GET_REG(cur_op, 0).i64 = MP_LT != MVM_bigint_cmp(a, b);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_coerce_sI: {
+                        MVMString *s = GET_REG(cur_op, 2).s, *type = GET_REG(cur_op, 4).o;
+                        MVMROOT(tc, s, {
+                            MVMROOT(tc, type, {
+                                MVMObject *a = MVM_repr_alloc_init(tc, type);
+                                MVMROOT(tc, a, {
+                                    MVMuint8 *buf = MVM_string_ascii_encode(tc, s, NULL);
+                                    MVM_bigint_from_str(a, buf);
+                                    free(buf);
+                                    GET_REG(cur_op, 0).o = a;
+                                });
+                            });
+                        });
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_coerce_Is: {
+                        MVMObject *a = GET_REG(cur_op, 2).o;
+                        MVMROOT(tc, a, {
+                            GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, a);
+                        });
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_math, *(cur_op-1));
