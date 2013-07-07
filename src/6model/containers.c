@@ -79,35 +79,31 @@ static void code_pair_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWor
     MVM_gc_worklist_add(tc, worklist, &data->store_code);
 }
 
-/* XXX: Looks like this function never be called. */
 static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
     if (data) {
         free(data);
-        data = NULL;
+        st->container_data = NULL;
     }
 }
 
 static void code_pair_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-
     writer->write_ref(tc, writer, data->fetch_code);
     writer->write_ref(tc, writer, data->store_code);
 }
     
 static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-
-    data->fetch_code = reader->read_ref(tc, reader);
-    data->store_code = reader->read_ref(tc, reader);
+    MVM_ASSIGN_REF(tc, st, data->fetch_code, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, st, data->store_code, reader->read_ref(tc, reader));
 }
 
 static MVMContainerSpec *code_pair_spec = NULL;
 
 static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
     CodePairContData *data = malloc(sizeof(CodePairContData));
-
     data->fetch_code   = NULL;
     data->store_code   = NULL;
     st->container_data = data;
@@ -127,8 +123,8 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
             if (!MVM_repr_exists_key(tc, config, store))
                 MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
 
-            data->fetch_code = MVM_repr_at_key_boxed(tc, config, fetch);
-            data->store_code = MVM_repr_at_key_boxed(tc, config, store);
+            MVM_ASSIGN_REF(tc, st, data->fetch_code, MVM_repr_at_key_boxed(tc, config, fetch));
+            MVM_ASSIGN_REF(tc, st, data->store_code, MVM_repr_at_key_boxed(tc, config, store));
         });
     });
 }
