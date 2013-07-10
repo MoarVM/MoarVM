@@ -43,10 +43,11 @@ signature of the op at the time it was loaded.  In the in-memory (deserialized)
 representation of the compilation unit, each record also has room to store the
 cache of the function pointer representing the C function to which the op was
 resolved.  Each distinct op called from that compilation unit is encoded in the
-executable bytecode as its index in the extension op table plus 32768.  The
+executable bytecode as its index in the extension op table plus 4096.  The
 first 16 banks (of 256 ops each, so 4096) are reserved for the VM's native ops,
 and the highest 32768 (highest bit set) are reserved for JIT hooks, so you have
-28672 available for unique extension ops called from a single compunit.
+28672 available for unique extension ops called from a single compunit.  The
+table on-disk and in-memory extop tables are dense; there are no gaps.
 
 #### Loading Code That Calls Extension Ops
 
@@ -64,12 +65,13 @@ unless we're by then using a lock-free HLL hash for this), then if it hasn't,
 it throws a bytecode validation exception.  If it has been loaded (by itself or
 by a dependency), it compares the signatures of the call in the compunit whose
 frame is being validated against the signature of the loaded op by that name,
-and if they don't match, throw a bytecode validation exception: "custom call
-signature mismatch - the op's old signature was deprecated?"  If the signatures
+and if they don't match, throw a bytecode validation exception: "extension op
+<opname> call signature mismatch - the op's old signature (xxxx) was
+deprecated? You tried to load a call with signature <xxxx>."  If the signatures
 matched, operand type validation of the actual passed parameters (register
 indexes) proceeds normally, using the extop's signature.  The validator copies
 the function pointer from the process-wide registry into the in-memory record
-of the extop call in that compunit, and invokes it.
+of the extop call in that compunit.
 
 #### Loading Extensions
 
@@ -174,8 +176,6 @@ typedef struct _MVMExtOpRecord {
     UT_hash_handle hash_handle;
 } MVMExtOpRecord;
 
-#define MAX_EXTOPS 28672
-
 /* Resolve the function pointer and nstall the op at runtime. */
 void MVM_bytecode_extop_install(MVMThreadContext *tc, MVMObject *library,
         MVMString *opname, MVMString *funcname, MVMString *signature) {
@@ -189,9 +189,6 @@ void MVM_bytecode_extop_install(MVMThreadContext *tc, MVMObject *library,
     MVMuint16 opidx = tc->instance->nextcustomop++;
     void *kdata;
     size_t klen;
-    
-    if (opidx == MAX_EXTOPS)
-        MVM_panic(tc, "too many custom ops!");
     
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, opname, "bad String");
     HASH_FIND(hash_handle, tc->instance->customops_hash, kdata, klen, customop);
@@ -216,6 +213,7 @@ void MVM_bytecode_extop_install(MVMThreadContext *tc, MVMObject *library,
     customop = customops + opidx;
     customop->opname = opname;
     customop->signature = signature;
+    customop->op_size = MVM_bytecode_extop_compute_opsize(tc, signature);
     
     /* use the NativeCall API directly to grab the function pointer
        using the cached library object */
@@ -248,8 +246,9 @@ case MVM_OP_BANK_127:
     MVMExtOpRecord *op_record =
             &customops[*(MVMuint16 *)cur_op++ - EXTOP_OFFSET];
     MVMCustomOp *function_ptr = op_record->function_ptr;
-    cur_op += 2 * (2 + op_record->arg_count);
     function_ptr(tc);
+    cur_op += op_record->op_size;
+    break;
 }
 ```
 
@@ -280,18 +279,9 @@ my $z = rakudo::concatenationize(rakudo::additivitation(44, 66), "blah");
 moarvm.h excerpt (note the injecting of 1 offset if it's not the result reg):
 
 ```C
-#define _dq "
-#define REG(idx) (((idx) >= 0 && (idx) <= num_args) \
-    ? reg_base[*((MVMuint16 *)(cur_op + ((idx) > 0 ? idx + 1 : 0)))] \
-    : MVM_panic(tc, "register index %i out of range (%i registers).", \
-        (idx), num_regs))
+#define REG(idx) \
+    (reg_base[*((MVMuint16 *)(cur_op + ((idx) > 0 ? idx + 1 : 0)))])
 
-/* "B" is for "Blank"? */
-#define BREG 0
-#define IREG 1
-#define NREG 2
-#define SREG 3
-#define OREG 4
 ```
 
 Note: The type checks should be compile-time optimized-away by all but the
@@ -304,10 +294,6 @@ in the HLL code actually matches the one defined/used in the C source code.
 moarvm.h excerpt (continued):
 
 ```C
-#define REGI(idx) REG((idx)).i
-#define REGN(idx) REG((idx)).n
-#define REGS(idx) REG((idx)).s
-#define REGO(idx) REG((idx)).o
 
 #define MVM_CUSTOM_OP(opname, block) \
 \
@@ -326,11 +312,11 @@ rakudo_ops.c
 #include "moarvm.h"
 
 MVM_CUSTOM_OP(MVM_rakudo_op_additivitation, {
-    REGI(0) = REGI(1) + REGI(2);
+    REG(0).i = REG(1).i + REG(2).i;
 })
 
 MVM_CUSTOM_OP(MVM_rakudo_op_concatenationize, {
-    REGS(0) = MVM_string_concatenate(tc, REGS(1), REGS(2));
+    REG(0).s = MVM_string_concatenate(tc, REG(1).s, REG(2).s);
 })
 ```
 
