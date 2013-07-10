@@ -164,6 +164,9 @@ typedef struct _MVMExtOpRecord {
     /* the function pointer (see below for signature/macro) */
     MVMCustomOp *function_ptr;
     
+    /* number of bytes the interpreter should advance the cur_op pointer */
+    MVMint32 op_size;
+    
     /* (speculative/future) function pointer to the code in C
         that the JIT can call to generate an AST for the
         operation, for super-ultra-awesome optimization
