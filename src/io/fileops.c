@@ -177,6 +177,9 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     
     ENCODING_VALID(encoding_flag);
     
+    /* generate apr compatible open mode flags */
+    MVM_set_apr_open_modes(flag);
+    
     /* try to open the file */
     if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
         free(fname);
@@ -314,8 +317,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
 
 /* writes a string to a file, overwriting it if necessary */
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMint64 encoding_flag) {
-    MVMObject *fh = MVM_file_open_fh(tc, tc->instance->boot_types->BOOTIO, filename,
-        (MVMint64)(APR_FOPEN_TRUNCATE | APR_FOPEN_WRITE | APR_FOPEN_CREATE | APR_FOPEN_BINARY), encoding_flag);
+    MVMObject *fh = MVM_file_open_fh(tc, tc->instance->boot_types->BOOTIO, filename, MVM_open_mode_write, encoding_flag);
     
     MVM_file_write_fhs(tc, fh, output, 0, NUM_GRAPHS(output));
     
