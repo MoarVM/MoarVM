@@ -1305,6 +1305,9 @@ QAST::MASTOperations.add_core_op('open', -> $qastcomp, $op {
 });
 QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
 QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
+QAST::MASTOperations.add_core_moarop_mapping('getstdin', 'getstdin');
+QAST::MASTOperations.add_core_moarop_mapping('getstdout', 'getstdout');
+QAST::MASTOperations.add_core_moarop_mapping('getstderr', 'getstderr');
 
 QAST::MASTOperations.add_core_moarop_mapping('chmod', 'chmod_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('unlink', 'delete_f', 0);

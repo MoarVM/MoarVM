@@ -2795,22 +2795,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_getstdin:
-                        GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc,
-                            tc->instance->boot_types->BOOTIO,
-                            GET_REG(cur_op, 2).i64);
-                        cur_op += 4;
+                        GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc);
+                        cur_op += 2;
                         break;
                     case MVM_OP_getstdout:
-                        GET_REG(cur_op, 0).o = MVM_file_get_stdout(tc,
-                            tc->instance->boot_types->BOOTIO,
-                            GET_REG(cur_op, 2).i64);
-                        cur_op += 4;
+                        GET_REG(cur_op, 0).o = MVM_file_get_stdout(tc);
+                        cur_op += 2;
                         break;
                     case MVM_OP_getstderr:
-                        GET_REG(cur_op, 0).o = MVM_file_get_stderr(tc,
-                            tc->instance->boot_types->BOOTIO,
-                            GET_REG(cur_op, 2).i64);
-                        cur_op += 4;
+                        GET_REG(cur_op, 0).o = MVM_file_get_stderr(tc);
+                        cur_op += 2;
                         break;
                     case MVM_OP_connect_sk:
                         GET_REG(cur_op, 0).o = MVM_socket_connect(tc,

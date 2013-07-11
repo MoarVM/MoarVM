@@ -420,11 +420,12 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 }
 
 /* return an OSHandle representing one of the standard streams */
-static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMObject *type_object, MVMuint8 type, MVMint64 encoding_flag) {
+static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
     MVMOSHandle *result;
     apr_file_t  *handle;
     apr_status_t rv;
-    
+    MVMObject *type_object = tc->instance->boot_types->BOOTIO;
+    MVMint64 encoding_flag = 1;
     ENCODING_VALID(encoding_flag);
     
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
@@ -464,16 +465,16 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
     return apr_file_eof(handle->body.file_handle) == APR_EOF ? 1 : 0;
 }
 
-MVMObject * MVM_file_get_stdin(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag) {
-    return MVM_file_get_stdstream(tc, type_object, 0, encoding_flag);
+MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
+    return MVM_file_get_stdstream(tc, 0);
 }
 
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag) {
-    return MVM_file_get_stdstream(tc, type_object, 1, encoding_flag);
+MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
+    return MVM_file_get_stdstream(tc, 1);
 }
 
-MVMObject * MVM_file_get_stderr(MVMThreadContext *tc, MVMObject *type_object, MVMint64 encoding_flag) {
-    return MVM_file_get_stdstream(tc, type_object, 2, encoding_flag);
+MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
+    return MVM_file_get_stdstream(tc, 2);
 }
 
 void MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {

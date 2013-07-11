@@ -9,7 +9,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r2 := const($frame, ival(0));
         my $r3 := const($frame, ival(-1));
         my $r4 := const($frame, ival(1));
-        op(@ins, 'getstdout', $r0, $r4);
+        op(@ins, 'getstdout', $r0);
         op(@ins, 'close_fh', $r0);
         op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');

@@ -3376,22 +3376,19 @@ class MAST::Ops {
             'getstdin', nqp::hash(
                 'code', 27,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
             'getstdout', nqp::hash(
                 'code', 28,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
             'getstderr', nqp::hash(
                 'code', 29,
                 'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_obj,
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             ),
             'connect_sk', nqp::hash(
