@@ -2759,9 +2759,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     case MVM_OP_write_fhs:
-                        GET_REG(cur_op, 0).i64 = MVM_file_write_fhs(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
-                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
-                        cur_op += 10;
+                        GET_REG(cur_op, 0).i64 = MVM_file_write_fhs(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
                         break;
                     case MVM_OP_seek_fh:
                         MVM_file_seek(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64,

@@ -1311,13 +1311,13 @@ QAST::MASTOperations.add_core_moarop_mapping('getstdout', 'getstdout');
 QAST::MASTOperations.add_core_moarop_mapping('getstderr', 'getstderr');
 QAST::MASTOperations.add_core_moarop_mapping('setencoding', 'setencoding');
 # QAST::MASTOperations.add_core_moarop_mapping('tellfh', ?);
-# QAST::MASTOperations.add_core_moarop_mapping('printfh', ?);
+QAST::MASTOperations.add_core_moarop_mapping('printfh', 'write_fhs');
 # QAST::MASTOperations.add_core_moarop_mapping('sayfh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('readlinefh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('readlineintfh', ?);
 QAST::MASTOperations.add_core_moarop_mapping('readallfh', 'readall_fh');
 # QAST::MASTOperations.add_core_moarop_mapping('eoffh', ?);
-# QAST::MASTOperations.add_core_moarop_mapping('closefh', ?);
+QAST::MASTOperations.add_core_moarop_mapping('closefh', 'close_fh', 0);
 
 QAST::MASTOperations.add_core_moarop_mapping('chmod', 'chmod_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('unlink', 'delete_f', 0);

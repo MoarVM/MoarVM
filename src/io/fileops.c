@@ -298,7 +298,7 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 e
 }
 
 /* writes a string to a filehandle. */
-MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint64 start, MVMint64 length) {
+MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str) {
     apr_status_t rv;
     MVMuint8 *output;
     MVMuint64 output_size;
@@ -307,7 +307,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
     
     verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
     
-    output = MVM_encode_string_to_C_buffer(tc, str, start, length, &output_size, handle->body.encoding_type);
+    output = MVM_encode_string_to_C_buffer(tc, str, 0, -1, &output_size, handle->body.encoding_type);
     bytes_written = (apr_size_t)output_size;
     if ((rv = apr_file_write(handle->body.file_handle, (const void *)output, &bytes_written)) != APR_SUCCESS) {
         free(output);
@@ -322,7 +322,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMint64 encoding_flag) {
     MVMObject *fh = MVM_file_open_fh(tc, tc->instance->boot_types->BOOTIO, filename, MVM_open_mode_write, encoding_flag);
     
-    MVM_file_write_fhs(tc, fh, output, 0, NUM_GRAPHS(output));
+    MVM_file_write_fhs(tc, fh, output);
     
     MVM_file_close_fh(tc, fh);
     /* XXX need to GC free the filehandle? */
