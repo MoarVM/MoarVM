@@ -1281,6 +1281,9 @@ my %open_mode := nqp::hash(
     'rp', 4, # MVM_OPEN_READPIPE
     'wp', 5, # MVM_OPEN_WRITEPIPE
 );
+QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
+QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
+# QAST::MASTOperations.add_core_moarop_mapping('stat', ?);
 QAST::MASTOperations.add_core_moarop_mapping('open_fh', 'open_fh');
 QAST::MASTOperations.add_core_op('open', -> $qastcomp, $op {
     my @operands := $op.list;
@@ -1303,21 +1306,29 @@ QAST::MASTOperations.add_core_op('open', -> $qastcomp, $op {
         QAST::Var.new( :name($fh), :scope('local') )
     ));
 });
-QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
-QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getstdin', 'getstdin');
 QAST::MASTOperations.add_core_moarop_mapping('getstdout', 'getstdout');
 QAST::MASTOperations.add_core_moarop_mapping('getstderr', 'getstderr');
+# QAST::MASTOperations.add_core_moarop_mapping('setencoding', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('tellfh', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('printfh', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('sayfh', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('readlinefh', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('readlineintfh', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('readallfh', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('eoffh', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('closefh', ?);
 
 QAST::MASTOperations.add_core_moarop_mapping('chmod', 'chmod_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('unlink', 'delete_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('rmdir', 'rmdir', 0);
-# XXX cwd
+# QAST::MASTOperations.add_core_moarop_mapping('cwd', ?);
 QAST::MASTOperations.add_core_moarop_mapping('chdir', 'chdir', 0);
 QAST::MASTOperations.add_core_moarop_mapping('mkdir', 'mkdir', 0);
 QAST::MASTOperations.add_core_moarop_mapping('rename', 'rename_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('copy', 'copy_f', 0);
-# XXX link, symlink
+# QAST::MASTOperations.add_core_moarop_mapping('symlink', ?);
+# QAST::MASTOperations.add_core_moarop_mapping('link', ?);
 
 # terms
 QAST::MASTOperations.add_core_moarop_mapping('time_i', 'time_i');
