@@ -1310,7 +1310,7 @@ QAST::MASTOperations.add_core_moarop_mapping('getstdin', 'getstdin');
 QAST::MASTOperations.add_core_moarop_mapping('getstdout', 'getstdout');
 QAST::MASTOperations.add_core_moarop_mapping('getstderr', 'getstderr');
 QAST::MASTOperations.add_core_moarop_mapping('setencoding', 'setencoding');
-# QAST::MASTOperations.add_core_moarop_mapping('tellfh', ?);
+QAST::MASTOperations.add_core_moarop_mapping('tellfh', 'tell_fh');
 QAST::MASTOperations.add_core_moarop_mapping('printfh', 'write_fhs');
 # QAST::MASTOperations.add_core_moarop_mapping('sayfh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('readlinefh', ?);

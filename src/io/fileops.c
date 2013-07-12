@@ -248,12 +248,15 @@ MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMString *result;
     apr_status_t rv;
     MVMOSHandle *handle;
-    apr_file_t *fp;
     apr_finfo_t finfo;
-    apr_mmap_t *mmap;
     apr_pool_t *tmp_pool;
-
-    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
+    char *buf;
+    MVMint64 bytes_read;
+    
+    /* XXX TODO length currently means bytes. alter it to mean graphemes. */
+    /* XXX TODO handle length == -1 to mean read to EOF */
+    
+    verify_filehandle_type(tc, oshandle, &handle, "Readall from filehandle");
     
     ENCODING_VALID(handle->body.encoding_type);
     
@@ -266,24 +269,23 @@ MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Readall failed to get info about file: ");
     }
+    apr_pool_destroy(tmp_pool);
     
     if (finfo.size > 0) {
-        if ((rv = apr_mmap_create(&mmap, handle->body.file_handle, 0, finfo.size, APR_MMAP_READ, tmp_pool)) != APR_SUCCESS) {
-            apr_pool_destroy(tmp_pool);
-            MVM_exception_throw_apr_error(tc, rv, "Readall failed to mmap file: ");
+        buf = malloc(finfo.size);
+        bytes_read = finfo.size;
+        
+        if ((rv = apr_file_read(handle->body.file_handle, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS) {
+            free(buf);
+            MVM_exception_throw_apr_error(tc, rv, "Readall from filehandle failed: ");
         }
-        
-        /* convert the mmap to a MVMString */
                                                    /* XXX should this take a type object? */
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, mmap->mm, finfo.size, handle->body.encoding_type);
-        
-        /* delete the mmap */
-        apr_mmap_delete(mmap);
+        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
+        free(buf);
     }
     else {
         result = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     }
-    apr_pool_destroy(tmp_pool);
     
     return result;
 }
@@ -338,6 +340,21 @@ void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, M
     if ((rv = apr_file_seek(handle->body.file_handle, (apr_seek_where_t)flag, (apr_off_t *)&offset)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to seek in filehandle: ");
     }
+}
+
+/* tells position within file */
+MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    MVMint64 offset = 0;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "tell in filehandle");
+    
+    if ((rv = apr_file_seek(handle->body.file_handle, APR_CUR, (apr_off_t *)&offset)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle: ");
+    }
+    
+    return offset;
 }
 
 /* locks a filehandle */
