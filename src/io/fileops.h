@@ -14,6 +14,7 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
 MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str);
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle);
+MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle);

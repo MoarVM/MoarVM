@@ -470,6 +470,7 @@ BANK 5 io
 0x2E    say                 r(str)
 0x2F    readlall_fh         w(str) r(obj)
 0x30    tell_fh             w(int64) r(obj)
+0x31    eof                 w(int64) r(obj)
 
 BANK 6 processthread
 0x00    getenv              w(str) r(str)
