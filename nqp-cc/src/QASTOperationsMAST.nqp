@@ -1275,11 +1275,11 @@ QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o', 2)
 
 # I/O opcodes
 my %open_mode := nqp::hash(
-    'r',  1, # MVM_OPEN_READ
-    'w',  2, # MVM_OPEN_WRITE
-    'wa', 3, # MVM_OPEN_APPEND
-    'rp', 4, # MVM_OPEN_READPIPE
-    'wp', 5, # MVM_OPEN_WRITEPIPE
+    'r',  1, # MVM_open_mode_read
+    'w',  2, # MVM_open_mode_write
+    'wa', 3, # MVM_open_mode_append
+    'rp', 4, # MVM_open_mode_readpipe
+    'wp', 5, # MVM_open_mode_writepipe
 );
 QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
 QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
