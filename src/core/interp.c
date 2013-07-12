@@ -2709,8 +2709,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_mkdir:
-                        MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s);
-                        cur_op += 2;
+                        MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).i64);
+                        cur_op += 4;
                         break;
                     case MVM_OP_rmdir:
                         MVM_dir_rmdir(tc, GET_REG(cur_op, 0).s);

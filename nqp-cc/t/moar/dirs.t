@@ -7,11 +7,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := const($frame, sval("testdirs"));
         my $r1 := const($frame, sval("testfile_"));
         my $r2 := const($frame, ival(1));
+        my $r3 := const($frame, ival(0o777));
         my $counter := const($frame, ival(4));
         my $index := local($frame, int);
         my $loop := label('loop');
         my $str := local($frame, str);
-        op(@ins, 'mkdir', $r0);
+        op(@ins, 'mkdir', $r0, $r3);
         op(@ins, 'chdir', $r0);
         
         # create 3 files

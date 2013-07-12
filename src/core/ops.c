@@ -2528,8 +2528,8 @@ static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_mkdir,
         "mkdir",
-        1,
-        { MVM_operand_read_reg | MVM_operand_str }
+        2,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_rmdir,

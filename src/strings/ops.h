@@ -16,6 +16,7 @@
     case MVM_open_mode_append: mode = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_APPEND; break; \
     default: MVM_exception_throw_adhoc(tc, "invalid mode flag: %d", (mode)); \
     }
+#define MVM_get_apr_perms(p) (apr_fileperms_t)((p & 7) + (((p & 56) >> 3) * 16) + (((p & 448) >> 6) << 8))
 /* substring consumer functions accept a state object in *data and
     consume a substring portion. Utilized by many of the string ops
     so traversal state can be maintained while applying a function to

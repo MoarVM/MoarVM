@@ -3221,7 +3221,8 @@ class MAST::Ops {
             'mkdir', nqp::hash(
                 'code', 6,
                 'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_str
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
             'rmdir', nqp::hash(
