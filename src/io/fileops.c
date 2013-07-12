@@ -477,12 +477,12 @@ MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
     return MVM_file_get_stdstream(tc, 2);
 }
 
-void MVM_file_set_oshandle_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
+void MVM_file_setencoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
     MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
 
     ENCODING_VALID(encoding_flag);
-    verify_filehandle_type(tc, oshandle, &handle, "set oshandle encoding");
+    verify_filehandle_type(tc, oshandle, &handle, "setencoding");
 
     handle->body.encoding_type = encoding_flag;
 }

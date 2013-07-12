@@ -1309,7 +1309,7 @@ QAST::MASTOperations.add_core_op('open', -> $qastcomp, $op {
 QAST::MASTOperations.add_core_moarop_mapping('getstdin', 'getstdin');
 QAST::MASTOperations.add_core_moarop_mapping('getstdout', 'getstdout');
 QAST::MASTOperations.add_core_moarop_mapping('getstderr', 'getstderr');
-# QAST::MASTOperations.add_core_moarop_mapping('setencoding', ?);
+QAST::MASTOperations.add_core_moarop_mapping('setencoding', 'setencoding');
 # QAST::MASTOperations.add_core_moarop_mapping('tellfh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('printfh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('sayfh', ?);
