@@ -468,6 +468,7 @@ BANK 5 io
 0x2C    setencoding         r(obj) r(str)
 0x2D    print               r(str)
 0x2E    say                 r(str)
+0x2F    readlall_fh         w(str) r(obj)
 
 BANK 6 processthread
 0x00    getenv              w(str) r(str)

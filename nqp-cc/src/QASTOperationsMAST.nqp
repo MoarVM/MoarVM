@@ -1315,7 +1315,7 @@ QAST::MASTOperations.add_core_moarop_mapping('setencoding', 'setencoding');
 # QAST::MASTOperations.add_core_moarop_mapping('sayfh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('readlinefh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('readlineintfh', ?);
-# QAST::MASTOperations.add_core_moarop_mapping('readallfh', ?);
+QAST::MASTOperations.add_core_moarop_mapping('readallfh', 'readall_fh');
 # QAST::MASTOperations.add_core_moarop_mapping('eoffh', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('closefh', ?);
 

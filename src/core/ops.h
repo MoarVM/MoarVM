@@ -480,6 +480,7 @@
 #define MVM_OP_setencoding 44
 #define MVM_OP_print 45
 #define MVM_OP_say 46
+#define MVM_OP_readall_fh 47
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_getenv 0

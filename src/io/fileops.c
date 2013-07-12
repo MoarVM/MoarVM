@@ -243,53 +243,56 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     return result;
 }
 
-/* read all of a file into a string */
-MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 encoding_flag) {
+/* read all of a filehandle into a string. */
+MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMString *result;
     apr_status_t rv;
+    MVMOSHandle *handle;
     apr_file_t *fp;
     apr_finfo_t finfo;
     apr_mmap_t *mmap;
-    char *fname = MVM_string_utf8_encode_C_string(tc, filename);
     apr_pool_t *tmp_pool;
+
+    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
     
-    ENCODING_VALID(encoding_flag);
-    
-    if (REPR(type_object)->ID != MVM_REPR_ID_MVMString || IS_CONCRETE(type_object)) {
-        MVM_exception_throw_adhoc(tc, "Slurp needs a type object with MVMString REPR");
-    }
+    ENCODING_VALID(handle->body.encoding_type);
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to create pool: ");
+        MVM_exception_throw_apr_error(tc, rv, "Readall failed to create pool: ");
     }
     
-    if ((rv = apr_file_open(&fp, fname, APR_READ, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
-        free(fname);
+    if ((rv = apr_file_info_get(&finfo, APR_FINFO_SIZE, handle->body.file_handle)) != APR_SUCCESS) {
         apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to open file: ");
+        MVM_exception_throw_apr_error(tc, rv, "Readall failed to get info about file: ");
     }
     
-    free(fname);
-    
-    if ((rv = apr_file_info_get(&finfo, APR_FINFO_SIZE, fp)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to get info about file: ");
+    if (finfo.size > 0) {
+        if ((rv = apr_mmap_create(&mmap, handle->body.file_handle, 0, finfo.size, APR_MMAP_READ, tmp_pool)) != APR_SUCCESS) {
+            apr_pool_destroy(tmp_pool);
+            MVM_exception_throw_apr_error(tc, rv, "Readall failed to mmap file: ");
+        }
+        
+        /* convert the mmap to a MVMString */
+                                                   /* XXX should this take a type object? */
+        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, mmap->mm, finfo.size, handle->body.encoding_type);
+        
+        /* delete the mmap */
+        apr_mmap_delete(mmap);
     }
-    if ((rv = apr_mmap_create(&mmap, fp, 0, finfo.size, APR_MMAP_READ, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Slurp failed to mmap file: ");
+    else {
+        result = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     }
-    
-    /* no longer need the filehandle */
-    apr_file_close(fp);
-    
-    /* convert the mmap to a MVMString */
-    result = MVM_decode_C_buffer_to_string(tc, type_object, mmap->mm, finfo.size, encoding_flag);
-    
-    /* delete the mmap */
-    apr_mmap_delete(mmap);
     apr_pool_destroy(tmp_pool);
+    
+    return result;
+}
+
+/* read all of a file into a string */
+MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 encoding_flag) {
+    MVMObject *oshandle = (MVMObject *)MVM_file_open_fh(tc, tc->instance->boot_types->BOOTIO, filename, MVM_open_mode_read, encoding_flag);
+    MVMString *result = MVM_file_readall_fh(tc, oshandle);
+    MVM_file_close_fh(tc, oshandle);
     
     return result;
 }

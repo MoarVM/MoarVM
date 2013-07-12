@@ -3519,7 +3519,14 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
-            )
+            ),
+            'readall_fh', nqp::hash(
+                'code', 47,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
         ],
         [
             'getenv', nqp::hash(

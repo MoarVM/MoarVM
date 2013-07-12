@@ -2745,9 +2745,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 4).i64);
                         cur_op += 6;
                         break;
+                    case MVM_OP_readall_fh:
+                        GET_REG(cur_op, 0).s = MVM_file_readall_fh(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_slurp:
                         GET_REG(cur_op, 0).s = MVM_file_slurp(tc,
-                            tc->instance->VMString,
                             GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                         cur_op += 6;
                         break;
