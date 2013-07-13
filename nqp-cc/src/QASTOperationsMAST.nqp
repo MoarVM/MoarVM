@@ -1283,7 +1283,7 @@ my %open_mode := nqp::hash(
 );
 QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
 QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
-# QAST::MASTOperations.add_core_moarop_mapping('stat', ?);
+QAST::MASTOperations.add_core_moarop_mapping('stat', 'stat');
 QAST::MASTOperations.add_core_moarop_mapping('open_fh', 'open_fh');
 QAST::MASTOperations.add_core_op('open', -> $qastcomp, $op {
     my @operands := $op.list;
@@ -1316,7 +1316,7 @@ QAST::MASTOperations.add_core_moarop_mapping('printfh', 'write_fhs');
 QAST::MASTOperations.add_core_moarop_mapping('readlinefh', 'readline_fh');
 # QAST::MASTOperations.add_core_moarop_mapping('readlineintfh', ?);
 QAST::MASTOperations.add_core_moarop_mapping('readallfh', 'readall_fh');
-QAST::MASTOperations.add_core_moarop_mapping('eoffh', 'eof');
+QAST::MASTOperations.add_core_moarop_mapping('eoffh', 'eof_fh');
 QAST::MASTOperations.add_core_moarop_mapping('closefh', 'close_fh', 0);
 
 QAST::MASTOperations.add_core_moarop_mapping('chmod', 'chmod_f', 0);

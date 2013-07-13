@@ -1,4 +1,5 @@
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
+MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_append(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);
@@ -22,7 +23,6 @@ void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_pipe(MVMThreadContext *tc, MVMObject *oshandle1, MVMObject *oshandle2);
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
-MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc);
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc);
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc);

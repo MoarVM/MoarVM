@@ -17,6 +17,28 @@
     default: MVM_exception_throw_adhoc(tc, "invalid mode flag: %d", (mode)); \
     }
 #define MVM_get_apr_perms(p) (apr_fileperms_t)((p & 7) + (((p & 56) >> 3) * 16) + (((p & 448) >> 6) << 8))
+
+#define MVM_stat_exists              0
+#define MVM_stat_filesize            1
+#define MVM_stat_isdir               2
+#define MVM_stat_isreg               3
+#define MVM_stat_isdev               4
+#define MVM_stat_createtime          5
+#define MVM_stat_accesstime          6
+#define MVM_stat_modifytime          7
+#define MVM_stat_changetime          8
+#define MVM_stat_backuptime          9
+#define MVM_stat_uid                10
+#define MVM_stat_gid                11
+#define MVM_stat_islnk              12
+#define MVM_stat_platform_dev       -1
+#define MVM_stat_platform_inode     -2
+#define MVM_stat_platform_mode      -3
+#define MVM_stat_platform_nlinks    -4
+#define MVM_stat_platform_devtype   -5
+#define MVM_stat_platform_blocksize -6
+#define MVM_stat_platform_blocks    -7
+
 /* substring consumer functions accept a state object in *data and
     consume a substring portion. Utilized by many of the string ops
     so traversal state can be maintained while applying a function to

@@ -2775,7 +2775,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).i64 = MVM_file_tell_fh(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
-                    case MVM_OP_eof:
+                    case MVM_OP_eof_fh:
                         GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
@@ -2804,9 +2804,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_file_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                         cur_op += 4;
                         break;
-                    case MVM_OP_eof_fh:
-                        GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
-                        cur_op += 4;
+                    case MVM_OP_stat:
+                        GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
                         break;
                     case MVM_OP_getstdin:
                         GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc);

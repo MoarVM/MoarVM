@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include <unistd.h>
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
@@ -11,6 +12,68 @@ static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MV
     if ((*handle)->body.handle_type != MVM_OSHANDLE_FILE) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle", msg);
     }
+}
+
+apr_finfo_t * MVM_file_info(MVMThreadContext *tc, apr_finfo_t *finfo, MVMString *filename, apr_int32_t wanted) {
+    apr_status_t rv;
+    apr_pool_t *tmp_pool;
+    apr_file_t *file_handle;
+    char *fname = MVM_string_utf8_encode_C_string(tc, filename);
+    
+    /* need a temporary pool */
+    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
+        free(fname);
+        MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
+    }
+
+    if ((rv = apr_file_open(&file_handle, (const char *)fname, APR_FOPEN_READ, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+        free(fname);
+        apr_pool_destroy(tmp_pool);
+        MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
+    }
+    
+    free(fname);
+    
+    if((rv = apr_file_info_get(finfo, wanted, file_handle)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to stat file: ");
+    }
+    
+    if ((rv = apr_file_close(file_handle)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to close filehandle: ");
+    }
+    
+    return finfo;
+}
+
+MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *fn, MVMint64 status) {
+    MVMint64 r = -1;
+    apr_finfo_t finfo;
+
+    switch (status) {
+        case MVM_stat_exists:             r = MVM_file_exists(tc, fn); break;
+        case MVM_stat_filesize:           r = MVM_file_info(tc, &finfo, fn, APR_FINFO_SIZE)->size; break;
+        case MVM_stat_isdir:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & APR_DIR ? 1 : 0; break;
+        case MVM_stat_isreg:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & APR_REG ? 1 : 0; break;
+        case MVM_stat_isdev:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & (APR_CHR|APR_BLK) ? 1 : 0; break;
+        case MVM_stat_createtime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_CTIME)->ctime; break;
+        case MVM_stat_accesstime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_ATIME)->atime; break;
+        case MVM_stat_modifytime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_MTIME)->mtime; break;
+        case MVM_stat_changetime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_CTIME)->ctime; break;
+        case MVM_stat_backuptime:         r = -1; break;
+        case MVM_stat_uid:                r = MVM_file_info(tc, &finfo, fn, APR_FINFO_USER)->user; break;
+        case MVM_stat_gid:                r = MVM_file_info(tc, &finfo, fn, APR_FINFO_GROUP)->group; break;
+        case MVM_stat_islnk:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & APR_LNK ? 1 : 0; break;
+        case MVM_stat_platform_dev:       r = MVM_file_info(tc, &finfo, fn, APR_FINFO_DEV)->device; break;
+        case MVM_stat_platform_inode:     r = MVM_file_info(tc, &finfo, fn, APR_FINFO_INODE)->inode; break;
+        case MVM_stat_platform_mode:      r = MVM_file_info(tc, &finfo, fn, APR_FINFO_PROT)->protection; break;
+        case MVM_stat_platform_nlinks:    r = MVM_file_info(tc, &finfo, fn, APR_FINFO_NLINK)->nlink; break;
+        case MVM_stat_platform_devtype:   r = -1; break;
+        case MVM_stat_platform_blocksize: r = MVM_file_info(tc, &finfo, fn, APR_FINFO_CSIZE)->csize; break;
+        case MVM_stat_platform_blocks:    r = -1; break;
+        default: break;
+    }
+    
+    return r;
 }
 
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path) {
