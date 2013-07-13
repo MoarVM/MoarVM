@@ -2740,18 +2740,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_file_close_fh(tc, GET_REG(cur_op, 0).o);
                         cur_op += 2;
                         break;
-                    case MVM_OP_readline_fh:
-                        GET_REG(cur_op, 0).s = MVM_file_readline_fh(tc, GET_REG(cur_op, 2).o);
-                        cur_op += 4;
-                        break;
                     case MVM_OP_read_fhs:
                         GET_REG(cur_op, 0).s = MVM_file_read_fhs(tc, GET_REG(cur_op, 2).o,
                             GET_REG(cur_op, 4).i64);
                         cur_op += 6;
-                        break;
-                    case MVM_OP_readall_fh:
-                        GET_REG(cur_op, 0).s = MVM_file_readall_fh(tc, GET_REG(cur_op, 2).o);
-                        cur_op += 4;
                         break;
                     case MVM_OP_slurp:
                         GET_REG(cur_op, 0).s = MVM_file_slurp(tc,
@@ -2770,14 +2762,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_file_seek(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64,
                             GET_REG(cur_op, 4).i64);
                         cur_op += 6;
-                        break;
-                    case MVM_OP_tell_fh:
-                        GET_REG(cur_op, 0).i64 = MVM_file_tell_fh(tc, GET_REG(cur_op, 2).o);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_eof_fh:
-                        GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
-                        cur_op += 4;
                         break;
                     case MVM_OP_lock_fh:
                         GET_REG(cur_op, 0).i64 = MVM_file_lock(tc, GET_REG(cur_op, 2).o,
@@ -2804,9 +2788,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_file_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                         cur_op += 4;
                         break;
-                    case MVM_OP_stat:
-                        GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
-                        cur_op += 6;
+                    case MVM_OP_eof_fh:
+                        GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
                         break;
                     case MVM_OP_getstdin:
                         GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc);
@@ -2860,6 +2844,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).s = MVM_socket_hostname(tc);
                         cur_op += 2;
                         break;
+                    case MVM_OP_setencoding:
+                        MVM_file_setencoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_print:
                         MVM_string_print(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
@@ -2868,8 +2856,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_string_say(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
                         break;
-                    case MVM_OP_setencoding:
-                        MVM_file_setencoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
+                    case MVM_OP_readall_fh:
+                        GET_REG(cur_op, 0).s = MVM_file_readall_fh(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_tell_fh:
+                        GET_REG(cur_op, 0).i64 = MVM_file_tell_fh(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    case MVM_OP_stat:
+                        GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_readline_fh:
+                        GET_REG(cur_op, 0).s = MVM_file_readline_fh(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
                     default: {
