@@ -29,9 +29,7 @@ knowhow ModuleLoader {
         # its mainline. Otherwise, we already loaded it so go on
         # with what we already have.
         my $module_ctx;
-        # XXX join/split
-        #my $path := nqp::join('/', nqp::split('::', $module_name)) ~ '.class';
-        my $path := $module_name ~ '.moarvm';
+        my $path := nqp::join('/', nqp::split('::', $module_name)) ~ '.moarvm';
         my @prefixes := self.search_path('module-path');
         for @prefixes -> $prefix {
             #if nqp::stat("$prefix/$path", 0) {
