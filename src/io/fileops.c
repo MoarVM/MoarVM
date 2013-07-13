@@ -1,5 +1,4 @@
 #include "moarvm.h"
-#include <unistd.h>
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
