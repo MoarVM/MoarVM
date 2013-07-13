@@ -211,6 +211,57 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
+/* reads a line from a filehandle. */
+MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMString *result;
+    apr_status_t rv;
+    MVMOSHandle *handle;
+    char ch;
+    char *buf;
+    apr_off_t offset = 0;
+    apr_off_t fetched = 0;
+    apr_off_t bytes_read = 0;
+    
+    verify_filehandle_type(tc, oshandle, &handle, "readline from filehandle");
+    
+    if ((rv = apr_file_seek(handle->body.file_handle, APR_CUR, &offset)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(1): ");
+    }
+    
+    while (apr_file_getc(&ch, handle->body.file_handle) == APR_SUCCESS && ch != 10 && ch != 13) {
+        bytes_read++;
+    }
+    
+    /* have a look if it is a windows newline, and step back if not. */
+    if (ch == 13 && apr_file_getc(&ch, handle->body.file_handle) == APR_SUCCESS && ch != 10) {
+        fetched--;
+    }
+    
+    if ((rv = apr_file_seek(handle->body.file_handle, APR_CUR, &fetched)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(2): ");
+    }
+    
+    if ((rv = apr_file_seek(handle->body.file_handle, APR_SET, &offset)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(3)");
+    }
+    
+    buf = malloc((int)(bytes_read + 1));
+    
+    if ((rv = apr_file_read(handle->body.file_handle, buf, &bytes_read)) != APR_SUCCESS) {
+        free(buf);
+        MVM_exception_throw_apr_error(tc, rv, "readline from filehandle failed: ");
+    }
+    
+    if ((rv = apr_file_seek(handle->body.file_handle, APR_SET, &fetched)) != APR_SUCCESS) {
+        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(4)");
+    }
+                                               /* XXX should this take a type object? */
+    result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
+    free(buf);
+    
+    return result;
+}
+
 /* reads a string from a filehandle. */
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;

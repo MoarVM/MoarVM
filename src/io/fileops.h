@@ -7,6 +7,7 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag);
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f);
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 flag, MVMint64 encoding_flag);
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle);
+MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
 MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 encoding_flag);

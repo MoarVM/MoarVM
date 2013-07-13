@@ -483,6 +483,7 @@
 #define MVM_OP_readall_fh 47
 #define MVM_OP_tell_fh 48
 #define MVM_OP_eof 49
+#define MVM_OP_readline_fh 50
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_getenv 0
