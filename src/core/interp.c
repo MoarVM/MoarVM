@@ -429,7 +429,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_abs_n:
-                        MVM_exception_throw_adhoc(tc, "abs_n NYI");
+                        GET_REG(cur_op, 0).n64 = (MVMint64)(GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
+                        break;
                     case MVM_OP_eq_i:
                         GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 == GET_REG(cur_op, 4).i64;
                         cur_op += 6;

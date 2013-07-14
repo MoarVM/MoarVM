@@ -1331,7 +1331,7 @@ QAST::MASTOperations.add_core_moarop_mapping('pow_n', 'pow_n');
 #QAST::MASTOperations.add_core_moarop_mapping('pow_I', 'nqp_bigint_pow', 'PPPPP');
 QAST::MASTOperations.add_core_moarop_mapping('abs_i', 'abs_i');
 QAST::MASTOperations.add_core_moarop_mapping('abs_I', 'abs_I');
-#QAST::MASTOperations.add_core_moarop_mapping('abs_n', 'abs', 'Nn');
+QAST::MASTOperations.add_core_moarop_mapping('abs_n', 'abs_n');
 #QAST::MASTOperations.add_core_moarop_mapping('ceil_n', 'ceil', 'Nn');
 #QAST::MASTOperations.add_core_moarop_mapping('floor_n', 'floor', 'NN');
 #QAST::MASTOperations.add_core_moarop_mapping('ln_n', 'ln', 'Nn');
