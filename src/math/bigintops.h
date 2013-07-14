@@ -9,6 +9,7 @@ void MVM_bigint_sub(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_mul(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_div(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_mod(MVMObject *c, MVMObject *a, MVMObject *b);
+void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_gcd(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_lcm(MVMObject *c, MVMObject *a, MVMObject *b);
 

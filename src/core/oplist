@@ -272,7 +272,7 @@ BANK 3 math
 0x24    bnot_I              w(obj) r(obj) r(obj)
 0x25    blshift_I           w(obj) r(obj) r(int64) r(obj)
 0x26    brshift_I           w(obj) r(obj) r(int64) r(obj)
-0x27    pow_I               w(obj) r(obj) r(obj) r(obj)
+0x27    pow_I               w(obj) r(obj) r(obj) r(obj) r(obj)
 0x28    gcd_I               w(obj) r(obj) r(obj) r(obj)
 0x29    lcm_I               w(obj) r(obj) r(obj) r(obj)
 0x2A    expmod_I            w(obj) r(obj) r(obj) r(obj) r(obj)

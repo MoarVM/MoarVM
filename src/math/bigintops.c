@@ -1,4 +1,34 @@
 #include "moarvm.h"
+#include <math.h>
+
+static double mp_get_double(mp_int *a) {
+    double d    = 0.0;
+    double sign = SIGN(a) == MP_NEG ? -1.0 : 1.0;
+    int i;
+    if (USED(a) == 0)
+        return d;
+    if (USED(a) == 1)
+        return sign * (double) DIGIT(a, 0);
+
+    mp_clamp(a);
+    i = USED(a) - 1;
+    d = (double) DIGIT(a, i);
+    i--;
+    if (i == -1) {
+        return sign * d;
+    }
+    d *= pow(2.0, DIGIT_BIT);
+    d += (double) DIGIT(a, i);
+
+    if (USED(a) > 2) {
+        i--;
+        d *= pow(2.0, DIGIT_BIT);
+        d += (double) DIGIT(a, i);
+    }
+
+    d *= pow(2.0, DIGIT_BIT * i);
+    return sign * d;
+}
 
 static mp_int * MVM_get_bigint(MVMObject *obj) {
   return &((P6bigint *)obj)->body.i;
@@ -50,6 +80,47 @@ void MVM_bigint_div(MVMObject *c, MVMObject *a, MVMObject *b) {
     mp_int *ib = MVM_get_bigint(b);
     mp_int *ic = MVM_get_bigint(c);
     mp_div(ia, ib, ic, NULL);
+}
+
+void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b) {
+    mp_int *base = MVM_get_bigint(a);
+    mp_int *exponent = MVM_get_bigint(b);
+    mp_int *ic = MVM_get_bigint(c);
+    mp_digit exponent_d = 0;
+    int cmp = mp_cmp_d(exponent, 0);
+    mp_init(ic);
+
+    if (((cmp == MP_EQ) || (MP_EQ == mp_cmp_d(base, 1)))) {
+        mp_set_int(ic, 1);
+    }
+    else {
+        if ((cmp == MP_GT)) {
+            exponent_d = mp_get_int(exponent);
+            if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
+                cmp = mp_cmp_d(base, 0);
+                if (((MP_EQ == cmp) || (MP_EQ == mp_cmp_d(base, 1)))) {
+                    mp_copy(base, ic);
+                }
+                else {
+                    double ZERO = 0.0;
+                    if ((MP_GT == cmp)) {
+                        mp_set_int(ic, (double)1.0 / ZERO);
+                    }
+                    else {
+                        mp_set_int(ic, (double)(-1.0) / ZERO);
+                    }
+                }
+            }
+            else {
+                mp_expt_d(base, exponent_d, ic);
+            }
+        }
+        else {
+            double f_base = mp_get_double(base);
+            double f_exp = mp_get_double(exponent);
+            mp_set_int(ic, pow(f_base, f_exp));
+        }
+    }
 }
 
 void MVM_bigint_shl(MVMObject *b, MVMObject *a, MVMint64 n) {
