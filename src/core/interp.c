@@ -2731,10 +2731,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_open_fh:
-                        GET_REG(cur_op, 0).o = MVM_file_open_fh(tc,
-                            tc->instance->boot_types->BOOTIO,
-                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
-                        cur_op += 8;
+                        GET_REG(cur_op, 0).o = MVM_file_open_fh(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
                         break;
                     case MVM_OP_close_fh:
                         MVM_file_close_fh(tc, GET_REG(cur_op, 0).o);
@@ -2747,11 +2745,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_slurp:
                         GET_REG(cur_op, 0).s = MVM_file_slurp(tc,
-                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;
                     case MVM_OP_spew:
-                        MVM_file_spew(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                        MVM_file_spew(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;
                     case MVM_OP_write_fhs:

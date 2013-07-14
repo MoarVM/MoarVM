@@ -8,6 +8,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r1 := const($frame, sval("testfile_"));
         my $r2 := const($frame, ival(1));
         my $r3 := const($frame, ival(0o777));
+        my $r4 := const($frame, sval("utf8"));
         my $counter := const($frame, ival(4));
         my $index := local($frame, int);
         my $loop := label('loop');
@@ -19,7 +20,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         nqp::push(@ins, $loop);
         op(@ins, 'dec_i', $counter);
         op(@ins, 'concat_s', $r1, $r1, const($frame, sval("_")));
-        op(@ins, 'spew', const($frame, sval("foo")), $r1, $r2);
+        op(@ins, 'spew', const($frame, sval("foo")), $r1, $r4);
         op(@ins, 'if_i', $counter, $loop);
         
         my $dh := local($frame, NQPMu);

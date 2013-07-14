@@ -220,16 +220,14 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 }
 
 /* open a filehandle; takes a type object */
-MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMString *filename, MVMint64 flag, MVMint64 encoding_flag) {
+MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
     MVMOSHandle *result;
     apr_status_t rv;
     apr_pool_t *tmp_pool;
     apr_file_t *file_handle;
+    apr_int32_t flag;
     char *fname = MVM_string_utf8_encode_C_string(tc, filename);
-    
-    if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
-        MVM_exception_throw_adhoc(tc, "Open file needs a type object with MVMOSHandle REPR");
-    }
+    char *fmode = MVM_string_utf8_encode_C_string(tc, mode);
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
@@ -237,10 +235,15 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
         MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
     }
     
-    ENCODING_VALID(encoding_flag);
-    
     /* generate apr compatible open mode flags */
-    MVM_set_apr_open_modes(flag);
+    if (0 == strcmp("r", fmode))
+        flag = APR_FOPEN_READ;
+    else if (0 == strcmp("w", fmode))
+        flag = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_TRUNCATE;
+    else if (0 == strcmp("wa", fmode))
+        flag = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_APPEND;
+    else
+        MVM_exception_throw_adhoc(tc, "invalid open mode: %d", fmode);
     
     /* try to open the file */
     if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
@@ -250,12 +253,12 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMObject *type_object, MVMSt
     }
     
     /* initialize the object */
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    result = (MVMOSHandle *)REPR(tc->instance->boot_types->BOOTIO)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIO));
     
     result->body.file_handle = file_handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
     result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = encoding_flag;
+    result->body.encoding_type = MVM_encoding_type_utf8;
     
     free(fname);
     
@@ -404,8 +407,10 @@ MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 }
 
 /* read all of a file into a string */
-MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMint64 encoding_flag) {
-    MVMObject *oshandle = (MVMObject *)MVM_file_open_fh(tc, tc->instance->boot_types->BOOTIO, filename, MVM_open_mode_read, encoding_flag);
+MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding) {
+    MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "r", 1);
+    MVMObject *oshandle = (MVMObject *)MVM_file_open_fh(tc, filename, mode);
+    MVM_file_set_encoding(tc, oshandle, encoding);
     MVMString *result = MVM_file_readall_fh(tc, oshandle);
     MVM_file_close_fh(tc, oshandle);
     
@@ -434,11 +439,11 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
 }
 
 /* writes a string to a file, overwriting it if necessary */
-void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMint64 encoding_flag) {
-    MVMObject *fh = MVM_file_open_fh(tc, tc->instance->boot_types->BOOTIO, filename, MVM_open_mode_write, encoding_flag);
-    
+void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMString *encoding) {
+    MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "w", 1);
+    MVMObject *fh = MVM_file_open_fh(tc, filename, mode);
+    MVM_file_set_encoding(tc, fh, encoding);
     MVM_file_write_fhs(tc, fh, output);
-    
     MVM_file_close_fh(tc, fh);
     /* XXX need to GC free the filehandle? */
 }

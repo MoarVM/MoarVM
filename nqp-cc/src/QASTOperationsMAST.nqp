@@ -1274,38 +1274,10 @@ QAST::MASTOperations.add_core_moarop_mapping('associative_get', 'atkey_o');
 QAST::MASTOperations.add_core_moarop_mapping('associative_bind', 'bindkey_o', 2);
 
 # I/O opcodes
-my %open_mode := nqp::hash(
-    'r',  1, # MVM_open_mode_read
-    'w',  2, # MVM_open_mode_write
-    'wa', 3, # MVM_open_mode_append
-    'rp', 4, # MVM_open_mode_readpipe
-    'wp', 5, # MVM_open_mode_writepipe
-);
 QAST::MASTOperations.add_core_moarop_mapping('say', 'say', 0);
 QAST::MASTOperations.add_core_moarop_mapping('print', 'print', 0);
 QAST::MASTOperations.add_core_moarop_mapping('stat', 'stat');
-QAST::MASTOperations.add_core_moarop_mapping('open_fh', 'open_fh');
-QAST::MASTOperations.add_core_op('open', -> $qastcomp, $op {
-    my @operands := $op.list;
-    unless +@operands == 2 { nqp::die("open requires two operands. Usage: nqp::open('test.txt', 'w')") }
-
-    my $mode := @operands[1] && nqp::existskey(%open_mode, @operands[1].value)
-                ?? %open_mode{ @operands[1].value }
-                !! nqp::die("Unkown mode '" ~   @operands[1].value ~ "' in nqp::open()");
-
-    my $fh := QAST::Node.unique('open_');
-    $qastcomp.as_mast( QAST::Stmts.new(
-        QAST::Var.new( :name($fh), :scope('local'), :decl('var') ),
-        QAST::Op.new( :op('open_fh'),
-            QAST::Var.new( :name($fh), :scope('local') ),
-            $op[0],
-            QAST::IVal.new( :value($mode) ),
-            # We assume utf8 encoding. Use nqp::setencoding to change it.
-            QAST::IVal.new( :value(1) )
-        ),
-        QAST::Var.new( :name($fh), :scope('local') )
-    ));
-});
+QAST::MASTOperations.add_core_moarop_mapping('open', 'open_fh');
 QAST::MASTOperations.add_core_moarop_mapping('getstdin', 'getstdin');
 QAST::MASTOperations.add_core_moarop_mapping('getstdout', 'getstdout');
 QAST::MASTOperations.add_core_moarop_mapping('getstderr', 'getstderr');

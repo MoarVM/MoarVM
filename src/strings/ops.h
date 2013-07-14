@@ -10,12 +10,6 @@
 #define MVM_open_mode_append 3
 #define MVM_open_mode_readpipe 4
 #define MVM_open_mode_writepipe 5
-#define MVM_set_apr_open_modes(mode)    switch(mode) { \
-    case MVM_open_mode_read: mode = APR_FOPEN_READ; break; \
-    case MVM_open_mode_write: mode = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_TRUNCATE; break; \
-    case MVM_open_mode_append: mode = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_APPEND; break; \
-    default: MVM_exception_throw_adhoc(tc, "invalid mode flag: %d", (mode)); \
-    }
 #define MVM_get_apr_perms(p) (apr_fileperms_t)((p & 7) + (((p & 56) >> 3) * 16) + (((p & 448) >> 6) << 8))
 
 #define MVM_stat_exists              0
