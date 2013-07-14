@@ -2845,7 +2845,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 2;
                         break;
                     case MVM_OP_setencoding:
-                        MVM_file_setencoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
+                        MVM_file_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
                     case MVM_OP_print:

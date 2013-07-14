@@ -26,4 +26,4 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc);
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc);
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc);
-void MVM_file_setencoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);
+void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);
