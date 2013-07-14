@@ -1010,9 +1010,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_ceil_n:
                         {
                             MVMnum64 num = GET_REG(cur_op, 2).n64;
-                            //~ int negative = num < 0 ? -1 : 1;
                             MVMint64 abs = (MVMint64)num;
-                            if (num > abs) num = ++abs; // * negative;
+                            if (num > abs) num = ++abs;
                             GET_REG(cur_op, 0).i64 = num;
                             cur_op += 4;
                         }
