@@ -183,6 +183,8 @@
 #define MVM_OP_multicacheadd 169
 #define MVM_OP_multicachefind 170
 #define MVM_OP_lexprimspec 171
+#define MVM_OP_ceil_n 172
+#define MVM_OP_floor_n 173
 
 /* Op name defines for bank dev. */
 #define MVM_OP_sleep 0

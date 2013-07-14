@@ -171,6 +171,8 @@ BANK 0 primitives
 0xA9    multicacheadd       w(obj) r(obj) r(obj) r(obj)
 0xAA    multicachefind      w(obj) r(obj) r(obj)
 0xAB    lexprimspec         w(int64) r(obj) r(str)
+0xAC    ceil_n              w(int64) r(num64)
+0xAD    floor_n             w(int64) r(num64)
 
 BANK 1 dev
 0x00    sleep               r(int64)
