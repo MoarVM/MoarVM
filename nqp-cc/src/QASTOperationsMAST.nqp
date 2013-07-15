@@ -1342,9 +1342,10 @@ QAST::MASTOperations.add_core_moarop_mapping('radix', 'radix');
 #QAST::MASTOperations.add_core_moarop_mapping('exp_n', 'exp', 'Nn');
 #QAST::MASTOperations.add_core_moarop_mapping('isnanorinf', 'is_inf_or_nan', 'In');
 
-# bigint <-> string conversions
+# bigint <-> string/num conversions
 QAST::MASTOperations.add_core_moarop_mapping('tostr_I', 'coerce_Is');
 QAST::MASTOperations.add_core_moarop_mapping('fromstr_I', 'coerce_sI');
+QAST::MASTOperations.add_core_moarop_mapping('tonum_I', 'coerce_In');
 
 # trig opcodes
 QAST::MASTOperations.add_core_moarop_mapping('sin_n', 'sin_n');

@@ -1683,6 +1683,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_coerce_In: {
+                        MVMObject *a = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).n64 = MVM_bigint_to_num(tc, a);
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_coerce_Is: {
                         MVMObject *a = GET_REG(cur_op, 2).o;
                         MVMROOT(tc, a, {

@@ -170,3 +170,8 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a) {
     free(buf);
     return result;
 }
+
+MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
+    mp_int *ia = MVM_get_bigint(a);
+    return (MVMnum64)mp_get_double(ia);
+}

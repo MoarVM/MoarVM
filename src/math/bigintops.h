@@ -26,3 +26,4 @@ MVMint64 MVM_bigint_cmp(MVMObject *a, MVMObject *b);
 
 void MVM_bigint_from_str(MVMObject *a, MVMuint8 *buf);
 MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a);
+MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a);
