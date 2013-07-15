@@ -287,6 +287,7 @@ BANK 3 math
 0x33    isbig_I             w(int64) r(obj)
 0x34    base_I              w(str) r(obj) r(int64)
 0x35    radix_I             w(obj) r(int64) r(str) r(int64) r(int64) r(obj)
+0x36    div_In              w(num64) r(obj) r(obj)
 
 BANK 4 object
 0x00    knowhow             w(obj)

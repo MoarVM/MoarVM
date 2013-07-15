@@ -299,6 +299,7 @@
 #define MVM_OP_isbig_I 51
 #define MVM_OP_base_I 52
 #define MVM_OP_radix_I 53
+#define MVM_OP_div_In 54
 
 /* Op name defines for bank object. */
 #define MVM_OP_knowhow 0

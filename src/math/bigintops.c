@@ -226,3 +226,25 @@ void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
     mp_int *ia = MVM_get_bigint(a);
     from_num(n, ia);
 }
+
+MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
+    MVMnum64 c;
+    mp_int *ia = MVM_get_bigint(a);
+    mp_int *ib = MVM_get_bigint(b);
+
+    int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
+    if (max_size > 1023) {
+        mp_int reduced_a, reduced_b;
+        mp_init(&reduced_a);
+        mp_init(&reduced_b);
+        mp_div_2d(ia, max_size - 1023, &reduced_a, NULL);
+        mp_div_2d(ib, max_size - 1023, &reduced_b, NULL);
+        c = mp_get_double(&reduced_a) / mp_get_double(&reduced_b);
+        mp_clear(&reduced_a);
+        mp_clear(&reduced_b);
+    } else {
+        c = mp_get_double(ia) / mp_get_double(ib);
+    }
+    return c;
+}
+
