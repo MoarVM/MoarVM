@@ -1668,7 +1668,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_coerce_sI: {
-                        MVMString *s = GET_REG(cur_op, 2).s, *type = GET_REG(cur_op, 4).o;
+                        MVMString *s = GET_REG(cur_op, 2).s;
+                        MVMObject *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, s, {
                             MVMROOT(tc, type, {
                                 MVMObject *a = MVM_repr_alloc_init(tc, type);
