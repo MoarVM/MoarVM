@@ -1,33 +1,79 @@
 #include "moarvm.h"
 #include <math.h>
 
-static double mp_get_double(mp_int *a) {
-    double d    = 0.0;
-    double sign = SIGN(a) == MP_NEG ? -1.0 : 1.0;
+static MVMnum64 mp_get_double(mp_int *a) {
+    MVMnum64 d    = 0.0;
+    MVMnum64 sign = SIGN(a) == MP_NEG ? -1.0 : 1.0;
     int i;
     if (USED(a) == 0)
         return d;
     if (USED(a) == 1)
-        return sign * (double) DIGIT(a, 0);
+        return sign * (MVMnum64) DIGIT(a, 0);
 
     mp_clamp(a);
     i = USED(a) - 1;
-    d = (double) DIGIT(a, i);
+    d = (MVMnum64) DIGIT(a, i);
     i--;
     if (i == -1) {
         return sign * d;
     }
     d *= pow(2.0, DIGIT_BIT);
-    d += (double) DIGIT(a, i);
+    d += (MVMnum64) DIGIT(a, i);
 
     if (USED(a) > 2) {
         i--;
         d *= pow(2.0, DIGIT_BIT);
-        d += (double) DIGIT(a, i);
+        d += (MVMnum64) DIGIT(a, i);
     }
 
     d *= pow(2.0, DIGIT_BIT * i);
     return sign * d;
+}
+
+static void from_num(MVMnum64 d, mp_int *a) {
+    MVMnum64 d_digit = pow(2, DIGIT_BIT);
+    MVMnum64 da      = fabs(d);
+    MVMnum64 upper;
+    MVMnum64 lower;
+    MVMnum64 lowest;
+    MVMnum64 rest;
+    int      digits  = 0;
+
+    mp_zero(a);
+
+    while (da > d_digit * d_digit * d_digit) {;
+        da /= d_digit;
+        digits++;
+    }
+    mp_grow(a, digits + 3);
+
+    /* populate the top 3 digits */
+    upper = da / (d_digit*d_digit);
+    rest = fmod(da, d_digit*d_digit);
+    lower = rest / d_digit;
+    lowest = fmod(rest,d_digit );
+    if (upper >= 1) {
+        mp_set_long(a, (unsigned long) upper);
+        mp_mul_2d(a, DIGIT_BIT , a);
+        DIGIT(a, 0) = (mp_digit) lower;
+        mp_mul_2d(a, DIGIT_BIT , a);
+    } else {
+        if (lower >= 1) {
+            mp_set_long(a, (unsigned long) lower);
+            mp_mul_2d(a, DIGIT_BIT , a);
+            a->used = 2;
+        } else {
+            a->used = 1;
+        }
+    }
+    DIGIT(a, 0) = (mp_digit) lowest;
+
+    /* shift the rest */
+    mp_mul_2d(a, DIGIT_BIT * digits, a);
+    if (d < 0)
+        mp_neg(a, a);
+    mp_clamp(a);
+    mp_shrink(a);
 }
 
 static mp_int * MVM_get_bigint(MVMObject *obj) {
@@ -102,12 +148,12 @@ void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b) {
                     mp_copy(base, ic);
                 }
                 else {
-                    double ZERO = 0.0;
+                    MVMnum64 ZERO = 0.0;
                     if ((MP_GT == cmp)) {
-                        mp_set_int(ic, (double)1.0 / ZERO);
+                        mp_set_int(ic, (MVMnum64)1.0 / ZERO);
                     }
                     else {
-                        mp_set_int(ic, (double)(-1.0) / ZERO);
+                        mp_set_int(ic, (MVMnum64)(-1.0) / ZERO);
                     }
                 }
             }
@@ -116,8 +162,8 @@ void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b) {
             }
         }
         else {
-            double f_base = mp_get_double(base);
-            double f_exp = mp_get_double(exponent);
+            MVMnum64 f_base = mp_get_double(base);
+            MVMnum64 f_exp = mp_get_double(exponent);
             mp_set_int(ic, pow(f_base, f_exp));
         }
     }
@@ -173,5 +219,10 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a) {
 
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
     mp_int *ia = MVM_get_bigint(a);
-    return (MVMnum64)mp_get_double(ia);
+    return mp_get_double(ia);
+}
+
+void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
+    mp_int *ia = MVM_get_bigint(a);
+    from_num(n, ia);
 }
