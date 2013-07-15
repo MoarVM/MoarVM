@@ -1,7 +1,9 @@
 #include <moarvm.h>
 #include <sha1.h>
 
-#define MAX(x, y) ((y) > (x) ? (y) : (x))
+#ifndef MAX
+    #define MAX(x, y) ((y) > (x) ? (y) : (x))
+#endif
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
