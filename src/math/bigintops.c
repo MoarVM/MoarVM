@@ -248,3 +248,9 @@ MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     return c;
 }
 
+void nqp_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
+    mp_int *rnd = MVM_get_bigint(a);
+    mp_int *max = MVM_get_bigint(b);
+    mp_rand(rnd, USED(max) + 1);
+    mp_mod(rnd, max, rnd);
+}

@@ -1667,6 +1667,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_rand_I: {
+                        MVMObject *max = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
+                        MVMROOT(tc, type, {
+                            MVMObject *rnd = MVM_repr_alloc_init(tc, type);
+                            nqp_bigint_rand(tc, rnd, max);
+                            GET_REG(cur_op, 0).o = rnd;
+                        });
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_coerce_nI: {
                         MVMnum64 n = GET_REG(cur_op, 2).n64;
                         MVMObject *type = GET_REG(cur_op, 4).o;

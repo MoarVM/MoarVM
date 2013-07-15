@@ -29,3 +29,4 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base);
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a);
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n);
 MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
+void nqp_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
