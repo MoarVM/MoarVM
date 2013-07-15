@@ -204,14 +204,14 @@ void MVM_bigint_from_str(MVMObject *a, MVMuint8 *buf) {
 }
 
 /* XXXX: This feels wrongly factored and possibly GC-unsafe */
-MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a) {
+MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
     mp_int *i = MVM_get_bigint(a);
     int len;
     char *buf;
     MVMString *result;
-    mp_radix_size(i, 10, &len);
+    mp_radix_size(i, base, &len);
     buf = (char *) malloc(len);
-    mp_toradix_n(i, buf, 10, len);
+    mp_toradix_n(i, buf, base, len);
     result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
     free(buf);
     return result;

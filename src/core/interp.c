@@ -1708,9 +1708,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_coerce_Is: {
                         MVMObject *a = GET_REG(cur_op, 2).o;
                         MVMROOT(tc, a, {
-                            GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, a);
+                            GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, a, 10);
                         });
                         cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_base_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o;
+                        MVMROOT(tc, a, {
+                            GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, a, GET_REG(cur_op, 4).i64);
+                        });
+                        cur_op += 6;
                         break;
                     }
                     default: {
