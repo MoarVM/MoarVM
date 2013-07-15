@@ -254,3 +254,18 @@ void nqp_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     mp_rand(rnd, USED(max) + 1);
     mp_mod(rnd, max, rnd);
 }
+
+MVMint64 nqp_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
+    /* mp_prime_is_prime returns True for 1, and I think
+     * it's worth special-casing this particular number :-)
+     */
+    mp_int *ia = MVM_get_bigint(a);
+    if (mp_cmp_d(ia, 1) == MP_EQ) {
+        return 0;
+    }
+    else {
+        int result;
+        mp_prime_is_prime(ia, b, &result);
+        return result;
+    }
+}

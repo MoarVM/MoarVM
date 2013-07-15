@@ -1342,6 +1342,7 @@ QAST::MASTOperations.add_core_moarop_mapping('radix', 'radix');
 #QAST::MASTOperations.add_core_moarop_mapping('log_n', 'ln', 'NN');
 #QAST::MASTOperations.add_core_moarop_mapping('exp_n', 'exp', 'Nn');
 #QAST::MASTOperations.add_core_moarop_mapping('isnanorinf', 'is_inf_or_nan', 'In');
+QAST::MASTOperations.add_core_moarop_mapping('isprime_I', 'isprime_I');
 QAST::MASTOperations.add_core_moarop_mapping('rand_I', 'rand_I');
 
 # bigint <-> string/num conversions

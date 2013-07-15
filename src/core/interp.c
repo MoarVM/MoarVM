@@ -1667,6 +1667,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_isprime_I: {
+                        MVMObject *a = GET_REG(cur_op, 2).o;
+                        MVMint64 b = GET_REG(cur_op, 4).i64;
+                        GET_REG(cur_op, 0).n64 = nqp_bigint_is_prime(tc, a, b);
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_rand_I: {
                         MVMObject *max = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, type, {
