@@ -227,6 +227,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     apr_pool_t *tmp_pool;
     apr_file_t *file_handle;
     apr_int32_t flag;
+    MVMObject *type_object = tc->instance->boot_types->BOOTIO;
     char *fname = MVM_string_utf8_encode_C_string(tc, filename);
     char *fmode = MVM_string_utf8_encode_C_string(tc, mode);
     
@@ -254,7 +255,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     }
     
     /* initialize the object */
-    result = (MVMOSHandle *)REPR(tc->instance->boot_types->BOOTIO)->allocate(tc, STABLE(tc->instance->boot_types->BOOTIO));
+    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     
     result->body.file_handle = file_handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
@@ -565,12 +566,6 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
     apr_file_t  *handle;
     apr_status_t rv;
     MVMObject *type_object = tc->instance->boot_types->BOOTIO;
-    MVMint64 encoding_flag = 1;
-    ENCODING_VALID(encoding_flag);
-    
-    if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
-        MVM_exception_throw_adhoc(tc, "Open stream needs a type object with MVMOSHandle REPR");
-    }
     
     result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     
@@ -592,7 +587,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
     }
     result->body.file_handle = handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
-    result->body.encoding_type = encoding_flag;
+    result->body.encoding_type = MVM_encoding_type_utf8;
     
     return (MVMObject *)result;
 }
@@ -621,7 +616,6 @@ void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString 
     MVMOSHandle *handle;
     MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
 
-    ENCODING_VALID(encoding_flag);
     verify_filehandle_type(tc, oshandle, &handle, "setencoding");
 
     handle->body.encoding_type = encoding_flag;
