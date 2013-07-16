@@ -166,7 +166,7 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     apr_status_t rv;
-    const char *a;
+    char *a;
     apr_pool_t *tmp_pool;
     
     /* need a temporary pool */
@@ -174,14 +174,16 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
     }
     
-    a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
+    a = MVM_string_utf8_encode_C_string(tc, f);
     
     /* 720002 means file wasn't there on windows, 2 on linux...  */
     /* TODO find defines for these and make it os-specific */
-    if ((rv = apr_file_remove(a, tmp_pool)) != APR_SUCCESS && rv != 720002 && rv != 2) {
+    if ((rv = apr_file_remove((const char *)a, tmp_pool)) != APR_SUCCESS && rv != 720002 && rv != 2) {
+        free(a);
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
     }
+    free(a);
     apr_pool_destroy(tmp_pool);
 }
 
@@ -190,13 +192,15 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
  * XXX TODO: accept bits by perl format instead...? */
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
     apr_status_t rv;
-    const char *a;
+    char *a;
     
-    a = (const char *) MVM_string_utf8_encode_C_string(tc, f);
+    a = MVM_string_utf8_encode_C_string(tc, f);
     
-    if ((rv = apr_file_perms_set(a, (apr_fileperms_t)flag)) != APR_SUCCESS) {
+    if ((rv = apr_file_perms_set((const char *)a, (apr_fileperms_t)flag)) != APR_SUCCESS) {
+        free(a);
         MVM_exception_throw_apr_error(tc, rv, "Failed to set permissions on path: ");
     }
+    free(a);
 }
 
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
@@ -250,6 +254,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     /* try to open the file */
     if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
         free(fname);
+        free(fmode);
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
     }
@@ -263,7 +268,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     result->body.encoding_type = MVM_encoding_type_utf8;
     
     free(fname);
-    
+    free(fmode);
     return (MVMObject *)result;
 }
 
