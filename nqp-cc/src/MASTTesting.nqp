@@ -8,22 +8,28 @@ my $del;
 my $copy;
 my $outputnull;
 my $quote;
-pir::spawnw__Is("del /? >temp.output 2>&1");
-my $out := slurp('temp.output');
-if (!($out ~~ /Extensions/)) {
+#?if parrot
+my %conf := pir::getinterp__P()[pir::const::IGLOBALS_CONFIG_HASH];
+my $os := %conf<platform>;
+#?endif
+#?if jvm
+#my %conf := nqp::jvmgetproperties(); XXX uncomment when fudging works
+#my $os := %conf<os.name>;
+#?endif
+if nqp::lc($os) ~~ /^(win|mswin)/ {
+    $moarvm := '..\\moarvm';
+    $del := 'del /Q';
+    $copy := 'copy /Y';
+    $outputnull := 'NUL';
+    $quote := '"';
+}
+else {
     # unix
     $moarvm := '../moarvm';
     $del := 'rm -f';
     $copy := 'cp';
     $outputnull := '/dev/null';
     $quote := "'";
-}
-else {
-    $moarvm := '..\\moarvm';
-    $del := 'del /Q';
-    $copy := 'copy /Y';
-    $outputnull := 'NUL';
-    $quote := '"';
 }
 
 my $env := nqp::getenvhash();
