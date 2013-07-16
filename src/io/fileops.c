@@ -13,10 +13,12 @@ static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MV
     }
 }
 
-apr_finfo_t * MVM_file_info(MVMThreadContext *tc, apr_finfo_t *finfo, MVMString *filename, apr_int32_t wanted) {
+static apr_finfo_t MVM_file_info(MVMThreadContext *tc, MVMString *filename, apr_int32_t wanted) {
     apr_status_t rv;
     apr_pool_t *tmp_pool;
     apr_file_t *file_handle;
+    apr_finfo_t finfo;
+
     char *fname = MVM_string_utf8_encode_C_string(tc, filename);
     
     /* need a temporary pool */
@@ -33,7 +35,7 @@ apr_finfo_t * MVM_file_info(MVMThreadContext *tc, apr_finfo_t *finfo, MVMString 
     
     free(fname);
     
-    if((rv = apr_file_info_get(finfo, wanted, file_handle)) != APR_SUCCESS) {
+    if((rv = apr_file_info_get(&finfo, wanted, file_handle)) != APR_SUCCESS) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to stat file: ");
     }
     
@@ -46,28 +48,27 @@ apr_finfo_t * MVM_file_info(MVMThreadContext *tc, apr_finfo_t *finfo, MVMString 
 
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *fn, MVMint64 status) {
     MVMint64 r = -1;
-    apr_finfo_t finfo;
 
     switch (status) {
         case MVM_stat_exists:             r = MVM_file_exists(tc, fn); break;
-        case MVM_stat_filesize:           r = MVM_file_info(tc, &finfo, fn, APR_FINFO_SIZE)->size; break;
-        case MVM_stat_isdir:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & APR_DIR ? 1 : 0; break;
-        case MVM_stat_isreg:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & APR_REG ? 1 : 0; break;
-        case MVM_stat_isdev:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & (APR_CHR|APR_BLK) ? 1 : 0; break;
-        case MVM_stat_createtime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_CTIME)->ctime; break;
-        case MVM_stat_accesstime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_ATIME)->atime; break;
-        case MVM_stat_modifytime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_MTIME)->mtime; break;
-        case MVM_stat_changetime:         r = MVM_file_info(tc, &finfo, fn, APR_FINFO_CTIME)->ctime; break;
+        case MVM_stat_filesize:           r = MVM_file_info(tc, fn, APR_FINFO_SIZE).size; break;
+        case MVM_stat_isdir:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_DIR ? 1 : 0; break;
+        case MVM_stat_isreg:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_REG ? 1 : 0; break;
+        case MVM_stat_isdev:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & (APR_CHR|APR_BLK) ? 1 : 0; break;
+        case MVM_stat_createtime:         r = MVM_file_info(tc, fn, APR_FINFO_CTIME).ctime; break;
+        case MVM_stat_accesstime:         r = MVM_file_info(tc, fn, APR_FINFO_ATIME).atime; break;
+        case MVM_stat_modifytime:         r = MVM_file_info(tc, fn, APR_FINFO_MTIME).mtime; break;
+        case MVM_stat_changetime:         r = MVM_file_info(tc, fn, APR_FINFO_CTIME).ctime; break;
         case MVM_stat_backuptime:         r = -1; break;
-        case MVM_stat_uid:                r = MVM_file_info(tc, &finfo, fn, APR_FINFO_USER)->user; break;
-        case MVM_stat_gid:                r = MVM_file_info(tc, &finfo, fn, APR_FINFO_GROUP)->group; break;
-        case MVM_stat_islnk:              r = MVM_file_info(tc, &finfo, fn, APR_FINFO_TYPE)->filetype & APR_LNK ? 1 : 0; break;
-        case MVM_stat_platform_dev:       r = MVM_file_info(tc, &finfo, fn, APR_FINFO_DEV)->device; break;
-        case MVM_stat_platform_inode:     r = MVM_file_info(tc, &finfo, fn, APR_FINFO_INODE)->inode; break;
-        case MVM_stat_platform_mode:      r = MVM_file_info(tc, &finfo, fn, APR_FINFO_PROT)->protection; break;
-        case MVM_stat_platform_nlinks:    r = MVM_file_info(tc, &finfo, fn, APR_FINFO_NLINK)->nlink; break;
+        case MVM_stat_uid:                r = MVM_file_info(tc, fn, APR_FINFO_USER).user; break;
+        case MVM_stat_gid:                r = MVM_file_info(tc, fn, APR_FINFO_GROUP).group; break;
+        case MVM_stat_islnk:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_LNK ? 1 : 0; break;
+        case MVM_stat_platform_dev:       r = MVM_file_info(tc, fn, APR_FINFO_DEV).device; break;
+        case MVM_stat_platform_inode:     r = MVM_file_info(tc, fn, APR_FINFO_INODE).inode; break;
+        case MVM_stat_platform_mode:      r = MVM_file_info(tc, fn, APR_FINFO_PROT).protection; break;
+        case MVM_stat_platform_nlinks:    r = MVM_file_info(tc, fn, APR_FINFO_NLINK).nlink; break;
         case MVM_stat_platform_devtype:   r = -1; break;
-        case MVM_stat_platform_blocksize: r = MVM_file_info(tc, &finfo, fn, APR_FINFO_CSIZE)->csize; break;
+        case MVM_stat_platform_blocksize: r = MVM_file_info(tc, fn, APR_FINFO_CSIZE).csize; break;
         case MVM_stat_platform_blocks:    r = -1; break;
         default: break;
     }
@@ -410,8 +411,9 @@ MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding) {
     MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "r", 1);
     MVMObject *oshandle = (MVMObject *)MVM_file_open_fh(tc, filename, mode);
+    MVMString *result;
     MVM_file_set_encoding(tc, oshandle, encoding);
-    MVMString *result = MVM_file_readall_fh(tc, oshandle);
+    result = MVM_file_readall_fh(tc, oshandle);
     MVM_file_close_fh(tc, oshandle);
     
     return result;
