@@ -233,14 +233,16 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     apr_int32_t flag;
     MVMObject *type_object = tc->instance->boot_types->BOOTIO;
     char *fname = MVM_string_utf8_encode_C_string(tc, filename);
-    char *fmode = MVM_string_utf8_encode_C_string(tc, mode);
+    char *fmode;
     
     /* need a temporary pool */
     if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
         free(fname);
         MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
     }
-    
+
+    fmode = MVM_string_utf8_encode_C_string(tc, mode);
+
     /* generate apr compatible open mode flags */
     if (0 == strcmp("r", fmode))
         flag = APR_FOPEN_READ;
