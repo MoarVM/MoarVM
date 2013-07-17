@@ -80,6 +80,63 @@ static mp_int * MVM_get_bigint(MVMObject *obj) {
   return &((P6bigint *)obj)->body.i;
 }
 
+static void grow_and_negate(mp_int *a, int size, mp_int *b) {
+    int i;
+    int actual_size = MAX(size, USED(a));
+    mp_zero(b);
+    mp_grow(b, actual_size);
+    USED(b) = actual_size;
+    for (i = 0; i < actual_size; i++) {
+        DIGIT(b, i) = (~DIGIT(a, i)) & MP_MASK;
+    }
+    mp_add_d(b, 1, b);
+}
+
+
+static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
+        int (*mp_bitop)(mp_int *, mp_int *, mp_int *)) {
+    mp_int d;
+    if (SIGN(a) ^ SIGN(b)) {
+        /* exactly one of them is negative, so need to perform
+         * some magic. tommath stores a sign bit, but Perl 6 expects
+         * 2's complement */
+        mp_init(&d);
+        if (MP_NEG == SIGN(a)) {
+            grow_and_negate(a, USED(b), &d);
+            mp_bitop(&d, b, c);
+        } else {
+            grow_and_negate(b, USED(a), &d);
+            mp_bitop(a, &d, c);
+        }
+        if (DIGIT(c, USED(c) - 1) & ((mp_digit)1<<(mp_digit)(DIGIT_BIT - 1))) {
+            grow_and_negate(c, c->used, &d);
+            mp_copy(&d, c);
+            mp_neg(c, c);
+        }
+        mp_clear(&d);
+    } else {
+        mp_bitop(a, b, c);
+    }
+
+}
+
+static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
+    if (count >= 0) {
+        mp_mul_2d(value, count, result);
+    }
+    else if (MP_NEG == SIGN(value)) {
+        /* fake two's complement semantics on top of sign-magnitude
+         * algorithm appears to work [citation needed]
+         */
+        mp_add_d(value, 1, result);
+        mp_div_2d(result, -count, result, NULL);
+        mp_sub_d(result, 1, result);
+    }
+    else {
+        mp_div_2d(value, -count, result, NULL);
+    }
+}
+
 #define MVM_BIGINT_UNARY_OP(opname) \
 void MVM_bigint_##opname(MVMObject *b, MVMObject *a) { \
     mp_int *ia = MVM_get_bigint(a); \
@@ -93,6 +150,14 @@ void MVM_bigint_##opname(MVMObject *c, MVMObject *a, MVMObject *b) { \
     mp_int *ib = MVM_get_bigint(b); \
     mp_int *ic = MVM_get_bigint(c); \
     mp_##opname(ia, ib, ic); \
+}
+
+#define MVM_BIGINT_BINARY_OP_2(opname) \
+void MVM_bigint_##opname(MVMObject *c, MVMObject *a, MVMObject *b) { \
+    mp_int *ia = MVM_get_bigint(a); \
+    mp_int *ib = MVM_get_bigint(b); \
+    mp_int *ic = MVM_get_bigint(c); \
+    two_complement_bitop(ia, ib, ic, mp_##opname); \
 }
 
 #define MVM_BIGINT_COMPARE_OP(opname) \
@@ -114,9 +179,9 @@ MVM_BIGINT_BINARY_OP(mod)
 MVM_BIGINT_BINARY_OP(gcd)
 MVM_BIGINT_BINARY_OP(lcm)
 
-MVM_BIGINT_BINARY_OP(or)
-MVM_BIGINT_BINARY_OP(xor)
-MVM_BIGINT_BINARY_OP(and)
+MVM_BIGINT_BINARY_OP_2(or)
+MVM_BIGINT_BINARY_OP_2(xor)
+MVM_BIGINT_BINARY_OP_2(and)
 
 MVM_BIGINT_COMPARE_OP(cmp)
 
@@ -172,13 +237,13 @@ void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b) {
 void MVM_bigint_shl(MVMObject *b, MVMObject *a, MVMint64 n) {
     mp_int *ia = MVM_get_bigint(a);
     mp_int *ib = MVM_get_bigint(b);
-    mp_mul_2d(ia, n, ib);
+    two_complement_shl(ib, ia, n);
 }
 
 void MVM_bigint_shr(MVMObject *b, MVMObject *a, MVMint64 n) {
     mp_int *ia = MVM_get_bigint(a);
     mp_int *ib = MVM_get_bigint(b);
-    mp_div_2d(ia, n, ib, NULL);
+    two_complement_shl(ib, ia, -n);
 }
 
 void MVM_bigint_not(MVMObject *b, MVMObject *a) {
