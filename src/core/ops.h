@@ -484,7 +484,7 @@
 #define MVM_OP_setencoding 44
 #define MVM_OP_print 45
 #define MVM_OP_say 46
-#define MVM_OP_readlall_fh 47
+#define MVM_OP_readall_fh 47
 #define MVM_OP_tell_fh 48
 #define MVM_OP_stat 49
 #define MVM_OP_readline_fh 50

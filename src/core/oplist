@@ -424,6 +424,7 @@ BANK 4 object
 0x83    attrinited          w(int64) r(obj) r(obj) r(str)
 0x84    setcontspec         r(obj) r(str) r(obj)
 
+
 BANK 5 io
 0x00    copy_f              r(str) r(str)
 0x01    append_f            r(str) r(str)
@@ -472,7 +473,7 @@ BANK 5 io
 0x2C    setencoding         r(obj) r(str)
 0x2D    print               r(str)
 0x2E    say                 r(str)
-0x2F    readlall_fh         w(str) r(obj)
+0x2F    readall_fh         w(str) r(obj)
 0x30    tell_fh             w(int64) r(obj)
 0x31    stat                w(int64) r(str) r(int64)
 0x32    readline_fh         w(str) r(obj)
