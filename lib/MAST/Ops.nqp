@@ -1324,7 +1324,7 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_num64
                 ]
-            ),
+            )
         ],
         [
             'sleep', nqp::hash(
@@ -2213,7 +2213,7 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
-            ),
+            )
         ],
         [
             'knowhow', nqp::hash(
@@ -3197,6 +3197,14 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
+            ),
+            'setcontspec', nqp::hash(
+                'code', 132,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [
@@ -3569,7 +3577,7 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
-            ),
+            )
         ],
         [
             'getenv', nqp::hash(

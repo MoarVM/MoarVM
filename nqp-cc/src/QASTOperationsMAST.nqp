@@ -1590,6 +1590,7 @@ QAST::MASTOperations.add_core_moarop_mapping('setmethcacheauth', 'setmethcacheau
 QAST::MASTOperations.add_core_moarop_mapping('settypecache', 'settypecache', 0);
 QAST::MASTOperations.add_core_moarop_mapping('isinvokable', 'isinvokable');
 QAST::MASTOperations.add_core_moarop_mapping('setinvokespec', 'setinvokespec', 0);
+QAST::MASTOperations.add_core_moarop_mapping('setcontspec', 'setcontspec', 0);
 
 # defined - overridden by HLL, but by default same as .DEFINITE.
 QAST::MASTOperations.add_core_moarop_mapping('defined', 'isconcrete');

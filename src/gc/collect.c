@@ -335,9 +335,7 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
         for (i = 0; i < new_addr_st->type_check_cache_length; i++)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->type_check_cache[i]);
         if (new_addr_st->container_spec) {
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->value_slot.class_handle);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->value_slot.attr_name);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->container_spec->fetch_method);
+            new_addr_st->container_spec->gc_mark_data(tc, new_addr_st, worklist);
         }
         if (new_addr_st->boolification_spec)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->boolification_spec->method);
