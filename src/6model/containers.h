@@ -44,3 +44,11 @@ typedef struct _MVMContainerConfigurer{
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, MVMContainerConfigurer *configurer);
 MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
 void MVM_6model_containers_setup(MVMThreadContext *tc);
+
+/* Macro for decontainerization. */
+#define DECONT(tc, src, dest) do {\
+    if(IS_CONCRETE(src) && STABLE(src)->container_spec)\
+        STABLE(src)->container_spec->fetch(tc, src, &dest);\
+    else\
+        (dest.o = src); \
+    } while(0);
