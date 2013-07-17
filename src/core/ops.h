@@ -185,6 +185,8 @@
 #define MVM_OP_lexprimspec 171
 #define MVM_OP_ceil_n 172
 #define MVM_OP_floor_n 173
+#define MVM_OP_assign 174
+#define MVM_OP_assignunchecked 175
 
 /* Op name defines for bank dev. */
 #define MVM_OP_sleep 0

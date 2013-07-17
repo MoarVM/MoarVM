@@ -1007,24 +1007,48 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
-                    case MVM_OP_ceil_n:
-                        {
-                            MVMnum64 num = GET_REG(cur_op, 2).n64;
-                            MVMint64 abs = (MVMint64)num;
-                            if (num > abs) num = ++abs;
-                            GET_REG(cur_op, 0).i64 = num;
-                            cur_op += 4;
-                        }
+                    case MVM_OP_ceil_n:{
+                        MVMnum64 num = GET_REG(cur_op, 2).n64;
+                        MVMint64 abs = (MVMint64)num;
+                        if (num > abs) num = ++abs;
+                        GET_REG(cur_op, 0).i64 = num;
+                        cur_op += 4;
                         break;
-                    case MVM_OP_floor_n:
-                        {
-                            MVMnum64 num = GET_REG(cur_op, 2).n64;
-                            MVMint64 abs = (MVMint64)num;
-                            if (num < abs) num = --abs;
-                            GET_REG(cur_op, 0).i64 = num;
-                            cur_op += 4;
-                        }
+                    }
+                    case MVM_OP_floor_n: {
+                        MVMnum64 num = GET_REG(cur_op, 2).n64;
+                        MVMint64 abs = (MVMint64)num;
+                        if (num < abs) num = --abs;
+                        GET_REG(cur_op, 0).i64 = num;
+                        cur_op += 4;
                         break;
+                    }
+                    case MVM_OP_assign: {
+                        MVMObject *cont  = GET_REG(cur_op, 0).o;
+                        MVMRegister value;
+                        MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                        if (spec) {
+                            DECONT(tc, GET_REG(cur_op, 2).o, value);
+                            spec->store(tc, cont, value.o);
+                        } else {
+                            MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_assignunchecked: {
+                        MVMObject *cont  = GET_REG(cur_op, 0).o;
+                        MVMRegister value;
+                        MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                        if (spec) {
+                            DECONT(tc, GET_REG(cur_op, 2).o, value);
+                            spec->store_unchecked(tc, cont, value.o);
+                        } else {
+                            MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
