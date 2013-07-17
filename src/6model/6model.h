@@ -7,6 +7,7 @@ struct _MVMSerializationWriter;
 struct _MVMThreadContext;
 struct _MVMCallsite;
 struct _MVMGCWorklist;
+struct _MVMContainerSpec;
 union  _MVMRegister;
 
 /* Boolification mode flags. */
@@ -153,13 +154,6 @@ typedef struct {
     MVMint64           hint;           /* Hint for use in static/gradual typing. */
 } MVMAttributeIdentifier;
 
-/* Information that we hold if the type is declaring a scalar container
- * of some sort. */
-typedef struct {
-    MVMAttributeIdentifier  value_slot;
-    MVMObject              *fetch_method;
-} MVMContainerSpec;
-
 /* How do we turn something of this type into a boolean? */
 typedef struct {
     MVMObject *method;
@@ -228,8 +222,12 @@ typedef struct _MVMSTable {
     /* If this is a container, then this contains information needed in
      * order to fetch the value in it. If not, it'll be null, which can
      * be taken as a "not a container" indication. */
-    MVMContainerSpec *container_spec;
-    
+    struct _MVMContainerSpec *container_spec;
+
+    /* Data that the container spec may need to function. */
+    /* Any data specific to this type that the REPR wants to keep. */
+    void *container_data;
+
     /*
      * If this is invokable, then this contains information needed to
      * figure out how to invoke it. If not, it'll be null.

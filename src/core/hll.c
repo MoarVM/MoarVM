@@ -5,11 +5,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     MVMHLLConfig *entry;
     size_t klen;
     
-    if (!name || REPR(name)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(name)) {
-        MVM_exception_throw_adhoc(tc, "get hll config needs concrete string");
-    }
-    
-    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "bad String");
+    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get hll config needs concrete string");
     
     if (apr_thread_mutex_lock(tc->instance->mutex_hllconfigs) != APR_SUCCESS) {
         MVM_exception_throw_adhoc(tc, "Unable to lock hll config hash");
@@ -53,10 +49,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
 
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash) {
     MVMHLLConfig *config;
-    
-    if (!name || REPR(name)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(name)) {
-        MVM_exception_throw_adhoc(tc, "set hll config needs concrete string");
-    }
 
     config = MVM_hll_get_config_for(tc, name);
     

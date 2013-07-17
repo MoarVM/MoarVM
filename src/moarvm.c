@@ -77,7 +77,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     
     /* Set up compiler registr mutex. */
     init_mutex(instance->mutex_compiler_registry, "compiler registry");
-    
+
+    /* Set up container registry mutex. */
+    init_mutex(instance->mutex_container_registry, "container registry");
+
     /* Create hll symbol tables */
     instance->hll_syms = MVM_repr_alloc_init(instance->main_thread, instance->boot_types->BOOTHash);
     MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->hll_syms);
