@@ -142,6 +142,27 @@ typedef struct {
     MAST_CompUnit *cu;
 } WriterState;
 
+static unsigned int umax(unsigned int a, unsigned int b);
+static void memcpy_endian(char *dest, void *src, size_t size);
+static void write_int64(char *buffer, size_t offset, unsigned long long value);
+static void write_int32(char *buffer, size_t offset, unsigned int value);
+static void write_int16(char *buffer, size_t offset, unsigned short value);
+static void write_int8(char *buffer, size_t offset, unsigned char value);
+static void write_double(char *buffer, size_t offset, double value);
+void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need);
+void cleanup_frame(VM, FrameState *fs);
+void cleanup_all(VM, WriterState *ws);
+unsigned short get_string_heap_index(VM, WriterState *ws, VMSTR *strval);
+unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame);
+unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type);
+void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand);
+unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags);
+void compile_instruction(VM, WriterState *ws, MASTNode *node);
+void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx);
+char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size);
+char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size);
+char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *size);
+
 static unsigned int umax(unsigned int a, unsigned int b) {
     return a > b ? a : b;
 }
@@ -487,7 +508,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     unsigned short align = elems % 2;
     unsigned short i;
     CallsiteReuseEntry *entry = NULL;
-    unsigned char *identifier = malloc(elems);
+    unsigned char *identifier = (unsigned char *)malloc(elems);
     
     for (i = 0; i < elems; i++)
         identifier[i] = (unsigned char)ATPOS_I(vm, flags, i);
@@ -722,10 +743,10 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         
         ws->cur_frame->num_handlers++;
         if (ws->cur_frame->handlers)
-            ws->cur_frame->handlers = realloc(ws->cur_frame->handlers,
+            ws->cur_frame->handlers = (FrameHandler *)realloc(ws->cur_frame->handlers,
                 ws->cur_frame->num_handlers * sizeof(FrameHandler));
         else
-            ws->cur_frame->handlers = malloc(
+            ws->cur_frame->handlers = (FrameHandler *)malloc(
                 ws->cur_frame->num_handlers * sizeof(FrameHandler));
 
         i = ws->cur_frame->num_handlers - 1;
@@ -876,7 +897,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     }
 
     /* Write lexicals. */
-    fs->lexical_types = malloc(sizeof(unsigned short) * fs->num_lexicals);
+    fs->lexical_types = (short unsigned int *)malloc(sizeof(unsigned short) * fs->num_lexicals);
     for (i = 0; i < fs->num_lexicals; i++) {
         unsigned short lexical_type = type_to_local_type(vm, ws, ATPOS(vm, f->lexical_types, i));
         fs->lexical_types[i] = lexical_type;

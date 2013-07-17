@@ -65,13 +65,19 @@ class HLL::Backend::MoarVM {
     
     method moar($class, *%adverbs) {
         -> {
-            pir::spawnw__Is("del /? >temp.output 2>&1");
-            my $out := slurp('temp.output');
-            if (!($out ~~ /Extensions/)) {
-                pir::spawnw__Is("../moarvm temp.moarvm");
+#?if parrot
+            my %conf := pir::getinterp__P()[pir::const::IGLOBALS_CONFIG_HASH];
+            my $os := %conf<platform>;
+#?endif
+#?if jvm
+#            my %conf := nqp::jvmgetproperties(); XXX uncomment when fudging works
+#            my $os := %conf<os.name>;
+#?endif
+            if nqp::lc($os) ~~ /^(win|mswin)/ {
+                pir::spawnw__Is("..\\moarvm temp.moarvm");
             }
             else {
-                pir::spawnw__Is("..\\moarvm temp.moarvm");
+                pir::spawnw__Is("../moarvm temp.moarvm");
             }
         }
     }

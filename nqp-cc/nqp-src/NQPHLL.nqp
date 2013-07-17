@@ -982,37 +982,37 @@ class HLL::Compiler does HLL::Backend::Default {
 
     method config() { %!config };
 
-#    method autoprint($value) {
-#        self.interactive_result($value)
-#            unless nqp::tellfh(nqp::getstdout()) > $*AUTOPRINTPOS;
-#    }
+    method autoprint($value) {
+        self.interactive_result($value)
+            unless nqp::tellfh(nqp::getstdout()) > $*AUTOPRINTPOS;
+    }
 
-#    method interactive(*%adverbs) {
-#        nqp::printfh(nqp::getstderr(), self.interactive_banner);
-#
-#        my $stdin    := nqp::getstdin();
-#        my $encoding := ~%adverbs<encoding>;
-#        if $encoding && $encoding ne 'fixed_8' {
-#            nqp::setencoding($stdin, $encoding);
-#        }
-#
-#        my $target := nqp::lc(%adverbs<target>);
-#        my $save_ctx;
-#        while 1 {
-#            last if nqp::eoffh($stdin);
-#
-#            my $prompt := self.interactive_prompt // '> ';
+    method interactive(*%adverbs) {
+        nqp::printfh(nqp::getstderr(), self.interactive_banner);
+
+        my $stdin    := nqp::getstdin();
+        my $encoding := ~%adverbs<encoding>;
+        if $encoding && $encoding ne 'fixed_8' {
+            nqp::setencoding($stdin, $encoding);
+        }
+
+        my $target := nqp::lc(%adverbs<target>);
+        my $save_ctx;
+        while 1 {
+            last if nqp::eoffh($stdin);
+
+            my $prompt := self.interactive_prompt // '> ';
 #            my $code := nqp::readlineintfh($stdin, ~$prompt);
 #            if nqp::isnull($code) || !nqp::defined($code) {
 #                nqp::print("\n");
 #                last;
 #            }
-#
-#            # Set the current position of stdout for autoprinting control
-#            my $*AUTOPRINTPOS := nqp::tellfh(nqp::getstdout());
-#            my $*CTXSAVE := self;
-#            my $*MAIN_CTX;
-#
+
+            # Set the current position of stdout for autoprinting control
+            my $*AUTOPRINTPOS := nqp::tellfh(nqp::getstdout());
+            my $*CTXSAVE := self;
+            my $*MAIN_CTX;
+
 #            if $code {
 #                $code := $code ~ "\n";
 #                my $output;
@@ -1036,8 +1036,8 @@ class HLL::Compiler does HLL::Backend::Default {
 #                   self.dumper($output, $target, |%adverbs);
 #                }
 #            }
-#        }
-#    }
+        }
+    }
     
     method interactive_result($value) {
         nqp::say(~$value)
@@ -1148,38 +1148,38 @@ class HLL::Compiler does HLL::Backend::Default {
     }
 
 
-#    method command_eval(*@a, *%adverbs) {
-#        self.version              if %adverbs<version> || %adverbs<v>;
-#        self.verbose-config       if %adverbs<verbose-config> || %adverbs<V>
-#                                     || %adverbs<show-config>;
-#        self.nqpevent(%adverbs<nqpevent>) if %adverbs<nqpevent>;
-#
-#        my $result;
-#        my $error;
-#        my $has_error := 0;
-#        my $target := nqp::lc(%adverbs<target>);
+    method command_eval(*@a, *%adverbs) {
+        self.version              if %adverbs<version> || %adverbs<v>;
+        self.verbose-config       if %adverbs<verbose-config> || %adverbs<V>
+                                     || %adverbs<show-config>;
+        self.nqpevent(%adverbs<nqpevent>) if %adverbs<nqpevent>;
+
+        my $result;
+        my $error;
+        my $has_error := 0;
+        my $target := nqp::lc(%adverbs<target>);
 #        try {
-#            if nqp::defined(%adverbs<e>) {
-#                $!user_progname := '-e';
-#                my $?FILES := '-e';
-#                $result := self.eval(%adverbs<e>, '-e', |@a, |%adverbs);
-#                unless $target eq '' || $!backend.is_textual_stage($target) || %adverbs<output> {
-#					self.dumper($result, $target, |%adverbs);
-#				}
-#            }
-#            elsif !@a { $result := self.interactive(|%adverbs) }
-#            elsif %adverbs<combine> { $result := self.evalfiles(@a, |%adverbs) }
-#            else { $result := self.evalfiles(@a[0], |@a, |%adverbs) }
-#
-#            if !nqp::isnull($result) && ($!backend.is_textual_stage($target) || %adverbs<output>) {
-#                my $output := %adverbs<output>;
-#                my $fh := ($output eq '' || $output eq '-')
-#                        ?? nqp::getstdout()
-#                        !! nqp::open($output, 'w');
-#                self.panic("Cannot write to $output") unless $fh;
-#                nqp::printfh($fh, $result);
-#                nqp::closefh($fh);
-#            }
+            if nqp::defined(%adverbs<e>) {
+                $!user_progname := '-e';
+                my $?FILES := '-e';
+                $result := self.eval(%adverbs<e>, '-e', |@a, |%adverbs);
+                unless $target eq '' || $!backend.is_textual_stage($target) || %adverbs<output> {
+					self.dumper($result, $target, |%adverbs);
+				}
+            }
+            elsif !@a { $result := self.interactive(|%adverbs) }
+            elsif %adverbs<combine> { $result := self.evalfiles(@a, |%adverbs) }
+            else { $result := self.evalfiles(@a[0], |@a, |%adverbs) }
+
+            if !nqp::isnull($result) && ($!backend.is_textual_stage($target) || %adverbs<output>) {
+                my $output := %adverbs<output>;
+                my $fh := ($output eq '' || $output eq '-')
+                        ?? nqp::getstdout()
+                        !! nqp::open($output, 'w');
+                self.panic("Cannot write to $output") unless $fh;
+                nqp::printfh($fh, $result);
+                nqp::closefh($fh);
+            }
 #            CATCH {
 #                $has_error := 1;
 #                $error     := $_;
@@ -1194,19 +1194,19 @@ class HLL::Compiler does HLL::Backend::Default {
 #                $error     := $_;
 #            }
 #        }
-#        if ($has_error) {
-#            if %adverbs<ll-exception> || !nqp::can(self, 'handle-exception') {
-#                my $err := nqp::getstderr();
+        if ($has_error) {
+            if %adverbs<ll-exception> || !nqp::can(self, 'handle-exception') {
+                my $err := nqp::getstderr();
 #                nqp::printfh($err, nqp::getmessage($error));
-#                nqp::printfh($err, "\n");
+                nqp::printfh($err, "\n");
 #                nqp::printfh($err, nqp::join("\n", nqp::backtracestrings($error)));
-#                nqp::exit(1);
-#            } else {
-#                self.handle-exception($error);
-#            }
-#        }
-#        $result;
-#    }
+                nqp::exit(1);
+            } else {
+                self.handle-exception($error);
+            }
+        }
+        $result;
+    }
 
     method process_args(@args) {
         # First argument is the program name.
@@ -1241,27 +1241,27 @@ class HLL::Compiler does HLL::Backend::Default {
         my @files := nqp::islist($files) ?? $files !! [$files];
         $!user_progname := join(',', @files);
         my @codes;
-#        for @files -> $filename {
-#            my $err := 0;
-#            my $in-handle;
+        for @files -> $filename {
+            my $err := 0;
+            my $in-handle;
 #            try {
-#                $in-handle := nqp::open($filename, 'r');
+                $in-handle := nqp::open($filename, 'r');
 #                CATCH {
 #                    nqp::say("Could not open $filename. $_");
 #                    $err := 1;
 #                }
 #            }
-#            nqp::exit(1) if $err;
+            nqp::exit(1) if $err;
 #            try {
-#                nqp::setencoding($in-handle, $encoding);
-#                nqp::push(@codes, nqp::readallfh($in-handle));
-#                nqp::closefh($in-handle);
+                nqp::setencoding($in-handle, $encoding);
+                nqp::push(@codes, nqp::readallfh($in-handle));
+                nqp::closefh($in-handle);
 #                CATCH {
 #                    $err := "Error while reading from file: $_";
 #                }
 #            }
-#            nqp::die($err) if $err;
-#        }
+            nqp::die($err) if $err;
+        }
         my $code := join('', @codes);
         my $?FILES := join(' ', @files);
         my $r := self.eval($code, |@args, |%adverbs);
@@ -1282,60 +1282,61 @@ class HLL::Compiler does HLL::Backend::Default {
         return 0;
     }
 
-#    method compile($source, :$from, *%adverbs) {
-#        my %*COMPILING<%?OPTIONS> := %adverbs;
-#        my $*LINEPOSCACHE;
-#
-#        my $target := nqp::lc(%adverbs<target>);
-#        my $result := $source;
-#        my $stderr := nqp::getstderr();
-#        my $stdin  := nqp::getstdin();
-#        my $stagestats := %adverbs<stagestats>;
-#        unless $from eq '' || self.exists_stage($from) {
-#            nqp::die("Unknown compilation input '$from'");
-#        }
-#        unless $target eq '' || self.exists_stage($target) {
-#            nqp::die("Unknown compilation target '$target'");
-#        }
-#        for self.stages() {
-#            if $from ne '' {
-#                if $_ eq $from {
-#                    $from := '';
-#                }
-#                next;
-#            }
-#            my $timestamp := nqp::time_n();
-#            if nqp::can(self, $_) {
-#                $result := self."$_"($result, |%adverbs);
-#            }
-#            elsif nqp::can($!backend, $_) {
-#                $result := $!backend."$_"($result, |%adverbs);
-#            }
-#            else {
-#                nqp::die("Unknown compilation stage '$_'");
-#            }
-#            my $diff := nqp::time_n() - $timestamp;
-#            if nqp::defined($stagestats) {
+    method compile($source, :$from, *%adverbs) {
+        my %*COMPILING<%?OPTIONS> := %adverbs;
+        my $*LINEPOSCACHE;
+
+        my $target := nqp::lc(%adverbs<target>);
+        my $result := $source;
+        my $stderr := nqp::getstderr();
+        my $stdin  := nqp::getstdin();
+        my $stagestats := %adverbs<stagestats>;
+        unless $from eq '' || self.exists_stage($from) {
+            nqp::die("Unknown compilation input '$from'");
+        }
+        unless $target eq '' || self.exists_stage($target) {
+            nqp::die("Unknown compilation target '$target'");
+        }
+        for self.stages() {
+            if $from ne '' {
+                if $_ eq $from {
+                    $from := '';
+                }
+                next;
+            }
+            my $timestamp := nqp::time_n();
+            if nqp::can(self, $_) {
+                $result := self."$_"($result, |%adverbs);
+            }
+            elsif nqp::can($!backend, $_) {
+                $result := $!backend."$_"($result, |%adverbs);
+            }
+            else {
+                nqp::die("Unknown compilation stage '$_'");
+            }
+            my $diff := nqp::time_n() - $timestamp;
+            if nqp::defined($stagestats) {
+                nqp::printfh($stderr, "Stage $_: $diff");
 #                nqp::printfh($stderr, nqp::sprintf("Stage %-11s: %7.3f", [$_, $diff]));
-#                $!backend.force_gc() if nqp::bitand_i($stagestats, 0x4);
-#                nqp::printfh($stderr, $!backend.vmstat())
-#                    if nqp::bitand_i($stagestats, 0x2);
-#                nqp::printfh($stderr, "\n");
-#                if nqp::bitand_i($stagestats, 0x8) {
-#                   nqp::printfh($stderr, "continue> ");
-#                   nqp::readlinefh($stdin);
-#                }
-#            }
-#            last if $_ eq $target;
-#        }
-#        
-#        if %adverbs<compunit_ok> {
-#            return $result
-#        }
-#        else {
-#            return $!backend.compunit_mainline($result);
-#        }
-#    }
+                $!backend.force_gc() if nqp::bitand_i($stagestats, 0x4);
+                nqp::printfh($stderr, $!backend.vmstat())
+                    if nqp::bitand_i($stagestats, 0x2);
+                nqp::printfh($stderr, "\n");
+                if nqp::bitand_i($stagestats, 0x8) {
+                   nqp::printfh($stderr, "continue> ");
+                   nqp::readlinefh($stdin);
+                }
+            }
+            last if $_ eq $target;
+        }
+        
+        if %adverbs<compunit_ok> {
+            return $result
+        }
+        else {
+            return $!backend.compunit_mainline($result);
+        }
+    }
 
     method start($source, *%adverbs) {
         $source;
@@ -1881,7 +1882,7 @@ class HLL::World {
         $!code_ref_blocks := [];
         nqp::scsetdesc($!sc, $description);
         
-#        # Add to currently compiling SC stack.
+        # Add to currently compiling SC stack.
 #        nqp::pushcompsc($!sc);
     }
     

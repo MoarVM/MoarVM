@@ -9,6 +9,7 @@ void MVM_bigint_sub(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_mul(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_div(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_mod(MVMObject *c, MVMObject *a, MVMObject *b);
+void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_gcd(MVMObject *c, MVMObject *a, MVMObject *b);
 void MVM_bigint_lcm(MVMObject *c, MVMObject *a, MVMObject *b);
 
@@ -24,4 +25,8 @@ void MVM_bigint_expmod(MVMObject *d, MVMObject *a, MVMObject *b, MVMObject *c);
 MVMint64 MVM_bigint_cmp(MVMObject *a, MVMObject *b);
 
 void MVM_bigint_from_str(MVMObject *a, MVMuint8 *buf);
-MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a);
+MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base);
+MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a);
+void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n);
+MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
+void nqp_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b);

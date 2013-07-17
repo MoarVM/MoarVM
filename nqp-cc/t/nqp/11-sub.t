@@ -2,7 +2,7 @@
 
 # check subs
 
-say('1..17');
+say('1..18');
 
 sub one ( ) {
     say("ok 1 # sub def and call");
@@ -86,3 +86,5 @@ sub next_() { 16 };
 say('ok ', next_());
 sub redo_() { 17 };
 say('ok ', redo_());
+sub eighteen($a-a) {}
+say('ok paramer with a dash')

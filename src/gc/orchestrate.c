@@ -350,7 +350,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             MVM_panic(MVM_exitcode_gcorch, "finish votes was %d\n", tc->instance->gc_finish);
         
         tc->instance->gc_ack = tc->instance->gc_finish = num_threads + 1;
-        GCORCH_LOG(tc, "Thread %d run %d : finish votes is %d\n", tc->instance->gc_finish);
+        GCORCH_LOG(tc, "Thread %d run %d : finish votes is %d\n", (int)tc->instance->gc_finish);
         
         /* signal to the rest to start */
         if (MVM_atomic_decr(&tc->instance->gc_start) != 1)

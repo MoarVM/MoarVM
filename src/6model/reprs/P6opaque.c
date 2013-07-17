@@ -411,6 +411,7 @@ static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, vo
         return NULL != get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
     else
         no_such_attribute(tc, "initializedness check", class_handle, name);
+    return 0;
 }
 
 /* Gets the hint for the given attribute ID. */

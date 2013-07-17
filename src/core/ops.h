@@ -183,6 +183,8 @@
 #define MVM_OP_multicacheadd 169
 #define MVM_OP_multicachefind 170
 #define MVM_OP_lexprimspec 171
+#define MVM_OP_ceil_n 172
+#define MVM_OP_floor_n 173
 
 /* Op name defines for bank dev. */
 #define MVM_OP_sleep 0
@@ -297,6 +299,7 @@
 #define MVM_OP_isbig_I 51
 #define MVM_OP_base_I 52
 #define MVM_OP_radix_I 53
+#define MVM_OP_div_In 54
 
 /* Op name defines for bank object. */
 #define MVM_OP_knowhow 0
@@ -481,6 +484,10 @@
 #define MVM_OP_setencoding 44
 #define MVM_OP_print 45
 #define MVM_OP_say 46
+#define MVM_OP_readlall_fh 47
+#define MVM_OP_tell_fh 48
+#define MVM_OP_stat 49
+#define MVM_OP_readline_fh 50
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_getenv 0

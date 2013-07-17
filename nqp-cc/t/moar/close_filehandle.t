@@ -8,8 +8,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r1 := const($frame, sval("OutputMe\n"));
         my $r2 := const($frame, ival(0));
         my $r3 := const($frame, ival(-1));
-        my $r4 := const($frame, ival(1));
-        op(@ins, 'getstdout', $r0, $r4);
+        op(@ins, 'getstdout', $r0);
         op(@ins, 'close_fh', $r0);
         op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');
@@ -26,9 +25,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r4 := local($frame, NQPMu);
         my $r5 := const($frame, ival(0));
         my $r6 := const($frame, ival(11));
-        my $r7 := const($frame, ival(7));
-        my $r8 := const($frame, ival(1));
-        op(@ins, 'open_fh', $r4, $r3, $r7, $r8);
+        my $r7 := const($frame, sval("r"));
+        op(@ins, 'open_fh', $r4, $r3, $r7);
         op(@ins, 'close_fh', $r4);
         op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');

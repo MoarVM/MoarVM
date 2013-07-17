@@ -736,7 +736,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
                     can reset the index of what it's comparing... <!> */
                 index = MVM_string_index(tc, input, separator, start);
                 length = sep_length ? (index == -1 ? end : index) - start : 1;
-                if (length) {
+                if (length > 0 || (sep_length && length == 0)) {
                     portion = MVM_string_substring(tc, input, start, length);
                     MVMROOT(tc, portion, {
                         MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
@@ -745,6 +745,15 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
                     });
                 }
                 start += length + sep_length;
+                /* Gather an empty string if the delimiter is found at the end. */
+                if (sep_length && start == end) {
+                    portion = MVM_string_substring(tc, input, start, length);
+                    MVMROOT(tc, portion, {
+                        MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
+                        MVM_repr_set_str(tc, pobj, portion);
+                        MVM_repr_push_o(tc, result, pobj);
+                    });
+                }
             }
         });
     });
@@ -771,7 +780,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     
     MVMROOT(tc, separator, {
     MVMROOT(tc, input, {
-        result = (MVMString *)MVM_repr_alloc_init(tc, separator);
+        result = (MVMString *)MVM_repr_alloc_init(tc, (MVMObject *)separator);
         MVMROOT(tc, result, {
             elems = REPR(input)->elems(tc, STABLE(input),
                 input, OBJECT_BODY(input));

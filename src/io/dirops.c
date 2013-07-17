@@ -15,7 +15,7 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 }
 
 /* create a directory recursively */
-void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *f) {
+void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *f, MVMint64 mode) {
     apr_status_t rv;
     apr_pool_t *tmp_pool;
     char *a;
@@ -27,7 +27,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *f) {
     
     a = MVM_string_utf8_encode_C_string(tc, f);
     
-    if ((rv = apr_dir_make_recursive((const char *)a, APR_FPROT_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
+    if ((rv = apr_dir_make_recursive((const char *)a, MVM_get_apr_perms(mode), tmp_pool)) != APR_SUCCESS) {
         free(a);
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to mkdir: ");

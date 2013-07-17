@@ -441,14 +441,14 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     
     my $item_o := local($frame, NQPMu);
     my $item := local($frame, str);
-    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(0)));
+    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(5)));
     op(@ins, 'unbox_s', $item, $item_o);
     op(@ins, 'say', $item);
-    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(2)));
+    op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(8)));
     op(@ins, 'unbox_s', $item, $item_o);
     op(@ins, 'say', $item);
     op(@ins, 'return');
-}, "3\nfoo\nbaz\n", "string split multiple separators together");
+}, "10\nfoo\nbaz\n", "string split multiple separators together");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
     my $input_str := const($frame, sval("foo\n\nbar\nbaz\n"));
@@ -496,7 +496,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $delimiter, $input_str);
     op(@ins, 'join', $output_str, $delimiter, $arr);
     op(@ins, 'say', $output_str);
-}, "foo\nbar\nbaz\n", "join basic");
+}, "foo\n\nbar\nbaz\n\n", "join basic");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
     my $arr := local($frame, NQPMu);
@@ -506,7 +506,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     op(@ins, 'split', $arr, $delimiter, $input_str);
     op(@ins, 'join', $output_str, $delimiter, $arr);
     op(@ins, 'say', $output_str);
-}, "\n", "join empty array");
+}, "\n\n", "join (almost) empty array");
 
 mast_frame_output_is(-> $frame, @ins, $cu {
     my $arr := local($frame, NQPMu);
@@ -526,7 +526,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     my $output_str := local($frame, str);
     my $delimiter := const($frame, sval("\n"));
     op(@ins, 'split', $arr, $delimiter, $input_str);
-    op(@ins, 'bindpos_o', $arr, const($frame, ival(1)), $null);
+    op(@ins, 'bindpos_o', $arr, const($frame, ival(2)), $null);
     op(@ins, 'set', $delimiter, const($frame, sval("")));
     op(@ins, 'join', $output_str, $delimiter, $arr);
     op(@ins, 'say', $output_str);
