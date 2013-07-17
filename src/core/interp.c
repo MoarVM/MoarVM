@@ -1028,7 +1028,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMRegister value;
                         MVMContainerSpec *spec = STABLE(cont)->container_spec;
                         if (spec) {
-                            DECONT(tc, GET_REG(cur_op, 2).o, value);
+                            MVMObject *obj = GET_REG(cur_op, 2).o;
+                            cur_op += 4;
+                            DECONT(tc, obj, value);
                             spec->store(tc, cont, value.o);
                         } else {
                             MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
@@ -1041,12 +1043,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMRegister value;
                         MVMContainerSpec *spec = STABLE(cont)->container_spec;
                         if (spec) {
-                            DECONT(tc, GET_REG(cur_op, 2).o, value);
+                            MVMObject *obj = GET_REG(cur_op, 2).o;
+                            cur_op += 4;
+                            DECONT(tc, obj, value);
                             spec->store_unchecked(tc, cont, value.o);
                         } else {
                             MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
                         }
-                        cur_op += 4;
                         break;
                     }
                     default: {
@@ -2500,8 +2503,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_decont: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        DECONT(tc, obj, GET_REG(cur_op, 0));
+                        MVMRegister r = GET_REG(cur_op, 0);
                         cur_op += 4;
+                        DECONT(tc, obj, r);
                         break;
                     }
                     case MVM_OP_setboolspec: {
