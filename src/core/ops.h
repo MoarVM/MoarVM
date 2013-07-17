@@ -431,6 +431,7 @@
 #define MVM_OP_hlllist 129
 #define MVM_OP_hllhash 130
 #define MVM_OP_attrinited 131
+#define MVM_OP_setcontspec 132
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

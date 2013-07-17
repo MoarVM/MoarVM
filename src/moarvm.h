@@ -42,6 +42,7 @@
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"
+#include "6model/containers.h"
 #include "6model/sc.h"
 #include "6model/serialization.h"
 #include "gc/allocation.h"

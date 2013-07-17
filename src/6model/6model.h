@@ -7,6 +7,7 @@ struct _MVMSerializationWriter;
 struct _MVMThreadContext;
 struct _MVMCallsite;
 struct _MVMGCWorklist;
+struct _MVMContainerSpec;
 union  _MVMRegister;
 
 /* Boolification mode flags. */
@@ -153,49 +154,6 @@ typedef struct {
     MVMint64           hint;           /* Hint for use in static/gradual typing. */
 } MVMAttributeIdentifier;
 
-/* Container specification information, for types that serve as containers.
- * A container is something that can be assigned into. It may be some kind
- * of container object (like Perl 6's Scalar) or it may be a reference to a
- * native lexical or object field. The function table determines the way it
- * behaves. */
-typedef struct {
-    /* Fetches a value out of a container. Used for decontainerization. */
-    void (*fetch) (struct _MVMThreadContext *tc, MVMObject *cont, union _MVMRegister *res);
-    
-    /* Stores a value in a container. Used for assignment. */
-    void (*store) (struct _MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
-    
-    /* Stores a value in a container, without any checking of it (this
-     * assumes an optimizer or something else already did it). Used for
-     * assignment. */
-    void (*store_unchecked) (struct _MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
-    
-    /* Name of this container specification. */
-    struct _MVMString *name;
-    
-    /* Marks container data, if any. */
-    void (*gc_mark_data) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMGCWorklist *worklist);
-
-    /* Frees container data, if any. */
-    void (*gc_free_data) (struct _MVMThreadContext *tc, struct _MVMSTable *st);
-    
-    /* Serializes the container data, if any. */
-    void (*serialize) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMSerializationWriter *writer);
-    
-    /* Deserializes the container data, if any. */
-    void (*deserialize) (struct _MVMThreadContext *tc, struct _MVMSTable *st, struct _MVMSerializationReader *reader);
-} MVMContainerSpec;
-
-/* A container configurer knows how to attach a certain type of container
- * to an STable and configure it. */
-typedef struct {
-    /* Sets this container spec in place for the specified STable. */ 
-    void (*set_container_spec) (struct _MVMThreadContext *tc, struct _MVMSTable *st);
-    
-    /* Configures the container spec with the specified info. */
-    void (*configure_container_spec) (struct _MVMThreadContext *tc, struct _MVMSTable *st, MVMObject *config);
-} MVMContainerConfigurer;
-
 /* How do we turn something of this type into a boolean? */
 typedef struct {
     MVMObject *method;
@@ -264,7 +222,7 @@ typedef struct _MVMSTable {
     /* If this is a container, then this contains information needed in
      * order to fetch the value in it. If not, it'll be null, which can
      * be taken as a "not a container" indication. */
-    MVMContainerSpec *container_spec;
+    struct _MVMContainerSpec *container_spec;
 
     /* Data that the container spec may need to function. */
     /* Any data specific to this type that the REPR wants to keep. */

@@ -20,13 +20,12 @@ typedef struct {
 static MVMuint8 arg_callsite_setup = 0;
 static MVMCallsite fetch_arg_callsite;
 static MVMCallsite store_arg_callsite;
+static MVMCallsiteEntry fecth_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsiteEntry store_arg_flags[] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
 
 static void init_code_pair_arg_callsite() {
     /* Set up invocant arg callsite. */
-    MVMCallsiteEntry  fecth_arg_flag[1] = { MVM_CALLSITE_ARG_OBJ };
-    MVMCallsiteEntry store_arg_flags[2] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
-
-    fetch_arg_callsite.arg_flags  = fecth_arg_flag;
+    fetch_arg_callsite.arg_flags  = fecth_arg_flags;
     fetch_arg_callsite.arg_count  = 1;
     fetch_arg_callsite.num_pos    = 1;
 
@@ -152,8 +151,7 @@ static MVMContainerConfigurer * initialize_code_pair_spec(MVMThreadContext *tc) 
  
 /* Container registry is a hash mapping names of container configurations
  * to function tables. */
-static ContainerRegistry *container_registry = NULL;
-static apr_thread_mutex_t *mutex_container_registry;
+static ContainerRegistry *container_registry;
 
 /* Adds a container configurer to the registry. */
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
@@ -164,7 +162,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
     
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "add container config needs concrete string");
     
-    if (apr_thread_mutex_lock(mutex_container_registry) != APR_SUCCESS) {
+    if (apr_thread_mutex_lock(tc->instance->mutex_container_registry) != APR_SUCCESS) {
         MVM_exception_throw_adhoc(tc, "Unable to lock container registry hash");
     }
 
@@ -177,7 +175,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     HASH_ADD_KEYPTR(hash_handle, container_registry, kdata, klen, entry);
 
-    if (apr_thread_mutex_unlock(tc->instance->mutex_hllconfigs) != APR_SUCCESS) {
+    if (apr_thread_mutex_unlock(tc->instance->mutex_container_registry) != APR_SUCCESS) {
         MVM_exception_throw_adhoc(tc, "Unable to unlock container registry hash");
     }
 }

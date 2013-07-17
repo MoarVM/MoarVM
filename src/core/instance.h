@@ -131,6 +131,9 @@ typedef struct _MVMInstance {
     MVMObject          *hll_syms;
     apr_thread_mutex_t *mutex_hll_syms;
     
+    /* mutex for container registry */
+    apr_thread_mutex_t *mutex_container_registry;
+
     /* Hash of all known serialization contexts. Not marked for GC; an SC
      * removes it from this when it gets GC'd. */
     struct _MVMSerializationContextBody *sc_weakhash;

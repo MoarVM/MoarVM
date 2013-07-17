@@ -2672,6 +2672,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 8;
                         break;
                     }
+                    case MVM_OP_setcontspec: {
+                        MVMSTable *st = STABLE(GET_REG(cur_op, 0).o);
+                        MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, GET_REG(cur_op, 2).s);
+                        if (st->container_spec) {
+                            MVM_exception_throw_adhoc(tc,
+                                "Cannot change a type's container specification");
+                        }
+
+                        cc->set_container_spec(tc, st);
+                        cc->configure_container_spec(tc, st, GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

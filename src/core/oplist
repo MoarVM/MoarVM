@@ -419,6 +419,7 @@ BANK 4 object
 0x81    hlllist             w(obj)
 0x82    hllhash             w(obj)
 0x83    attrinited          w(int64) r(obj) r(obj) r(str)
+0x84    setcontspec         r(obj) r(str) r(obj)
 
 BANK 5 io
 0x00    copy_f              r(str) r(str)
