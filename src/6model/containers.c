@@ -37,7 +37,7 @@ static void init_code_pair_arg_callsite() {
 
 static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject *            code   = MVM_frame_find_invokee(tc, data->fetch_code);
+    MVMObject             *code   = MVM_frame_find_invokee(tc, data->fetch_code);
 
     tc->cur_frame->return_value   = res;
     tc->cur_frame->return_type    = MVM_RETURN_OBJ;

@@ -2499,7 +2499,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_decont: {
-                        DECONT(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 0))
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        DECONT(tc, obj, GET_REG(cur_op, 0));
                         cur_op += 4;
                         break;
                     }

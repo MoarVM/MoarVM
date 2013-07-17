@@ -51,4 +51,4 @@ void MVM_6model_containers_setup(MVMThreadContext *tc);
         STABLE(src)->container_spec->fetch(tc, src, &dest);\
     else\
         (dest.o = src); \
-    } while(0);
+    } while(0)
