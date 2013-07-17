@@ -1025,26 +1025,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_assign: {
                         MVMObject *cont  = GET_REG(cur_op, 0).o;
-                        MVMRegister value;
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
                         MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                        MVMRegister value;
+                        cur_op += 4;
                         if (spec) {
-                            MVMObject *obj = GET_REG(cur_op, 2).o;
-                            cur_op += 4;
                             DECONT(tc, obj, value);
                             spec->store(tc, cont, value.o);
                         } else {
                             MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
                         }
-                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_assignunchecked: {
                         MVMObject *cont  = GET_REG(cur_op, 0).o;
-                        MVMRegister value;
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
                         MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                        MVMRegister value;
+                        cur_op += 4;
                         if (spec) {
-                            MVMObject *obj = GET_REG(cur_op, 2).o;
-                            cur_op += 4;
                             DECONT(tc, obj, value);
                             spec->store_unchecked(tc, cont, value.o);
                         } else {
@@ -2503,9 +2502,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_decont: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMRegister r = GET_REG(cur_op, 0);
+                        MVMRegister *r = &GET_REG(cur_op, 0);
                         cur_op += 4;
-                        DECONT(tc, obj, r);
+                        DECONT(tc, obj, (*r));
                         break;
                     }
                     case MVM_OP_setboolspec: {
