@@ -410,13 +410,13 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     return result;
 }
 
-/* returns 1 if bi is too large to fit into an INTVAL without loss of
+/* returns 1 if a is too large to fit into an INTVAL without loss of
    information */
-MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *bi) {
-    mp_int *a = get_bigint(bi);
-    MVMint64 is_big = a->used > 1;
+MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
+    mp_int *b = get_bigint(a);
+    MVMint64 is_big = b->used > 1;
     /* XXX somebody please check that on a 32 bit platform */
-    if ( sizeof(MVMint64) * 8 < DIGIT_BIT && is_big == 0 && DIGIT(a, 0) & ~0x7FFFFFFFUL)
+    if ( sizeof(MVMint64) * 8 < DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
         is_big = 1;
     return is_big;
 }

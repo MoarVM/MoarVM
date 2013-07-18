@@ -290,6 +290,8 @@ BANK 3 math
 0x34    base_I              w(str) r(obj) r(int64)
 0x35    radix_I             w(obj) r(int64) r(str) r(int64) r(int64) r(obj)
 0x36    div_In              w(num64) r(obj) r(obj)
+0x37    log_n               w(num64) r(num64)
+0x38    exp_n               w(num64) r(num64)
 
 BANK 4 object
 0x00    knowhow             w(obj)
@@ -426,7 +428,6 @@ BANK 4 object
 0x83    attrinited          w(int64) r(obj) r(obj) r(str)
 0x84    setcontspec         r(obj) r(str) r(obj)
 0x85    existspos           w(int64) r(obj) r(int64)
-
 
 
 BANK 5 io

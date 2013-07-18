@@ -302,6 +302,8 @@
 #define MVM_OP_base_I 52
 #define MVM_OP_radix_I 53
 #define MVM_OP_div_In 54
+#define MVM_OP_log_n 55
+#define MVM_OP_exp_n 56
 
 /* Op name defines for bank object. */
 #define MVM_OP_knowhow 0
