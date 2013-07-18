@@ -324,7 +324,11 @@ typedef struct _MVMREPROps_Positional {
     /* Sets the element count of the array, expanding or shrinking
      * it as needed. */
     void (*set_elems) (struct _MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMuint64 size);
+        MVMObject *root, void *data, MVMuint64 count);
+
+    /* Returns a true value of the specified index exists, and a false one if not. */
+    MVMuint64 (*exists_pos) (struct _MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 index);
 
     /* Pushes the specified value onto the array. */
     void (*push) (struct _MVMThreadContext *tc, MVMSTable *st,

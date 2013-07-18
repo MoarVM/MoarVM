@@ -2504,7 +2504,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *obj = GET_REG(cur_op, 2).o;
                         MVMRegister *r = &GET_REG(cur_op, 0);
                         cur_op += 4;
-                        DECONT(tc, obj, (*r));
+                        DECONT(tc, obj, *r);
                         break;
                     }
                     case MVM_OP_setboolspec: {
@@ -2796,6 +2796,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                         cc->set_container_spec(tc, st);
                         cc->configure_container_spec(tc, st, GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_existspos: {
+                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = REPR(obj)->pos_funcs->exists_pos(tc,
+                            STABLE(obj), obj, OBJECT_BODY(obj), GET_REG(cur_op, 4).i64);
                         cur_op += 6;
                         break;
                     }

@@ -2,7 +2,7 @@
 
 # Test nqp::op pseudo-functions.
 
-plan(104);
+plan(111);
 
 
 ok( nqp::add_i(5,2) == 7, 'nqp::add_i');
@@ -146,11 +146,11 @@ ok( !nqp::existskey(%hash,"bar"),"existskey with missing key");
 
 my @arr;
 @arr[1] := 3;
-#~ ok(!nqp::existspos(@arr, 0), 'existspos with missing pos');
-#~ ok(nqp::existspos(@arr, 1), 'existspos with existing pos');
-#~ ok(!nqp::existspos(@arr, 2), 'existspos with missing pos');
-#~ ok(nqp::existspos(@arr, -1), 'existspos with existing pos');
-#~ ok(!nqp::existspos(@arr, -2), 'existspos with missing pos');
-#~ ok(!nqp::existspos(@arr, -100), 'existspos with absurd values');
-#~ @arr[1] := NQPMu;
-#~ ok(nqp::existspos(@arr, 1), 'existspos with still existing pos');
+ok(!nqp::existspos(@arr, 0), 'existspos with missing pos');
+ok(nqp::existspos(@arr, 1), 'existspos with existing pos');
+ok(!nqp::existspos(@arr, 2), 'existspos with missing pos');
+ok(nqp::existspos(@arr, -1), 'existspos with existing pos');
+ok(!nqp::existspos(@arr, -2), 'existspos with missing pos');
+ok(!nqp::existspos(@arr, -100), 'existspos with absurd values');
+@arr[1] := NQPMu;
+ok(nqp::existspos(@arr, 1), 'existspos with still existing pos');

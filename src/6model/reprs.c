@@ -70,6 +70,9 @@ static void default_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *roo
 static void default_set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
+static void default_exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
+    die_no_pos(tc, st->REPR->name);
+}
 static void default_push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
@@ -150,6 +153,7 @@ static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
     repr->pos_funcs->at_pos = default_at_pos;
     repr->pos_funcs->bind_pos = default_bind_pos;
     repr->pos_funcs->set_elems = default_set_elems;
+    repr->pos_funcs->exists_pos = default_exists_pos;
     repr->pos_funcs->push = default_push;
     repr->pos_funcs->pop = default_pop;
     repr->pos_funcs->unshift = default_unshift;

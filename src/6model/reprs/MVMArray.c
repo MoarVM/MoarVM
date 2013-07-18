@@ -357,6 +357,21 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     set_size_internal(tc, body, count, repr_data);
 }
 
+MVMuint64 exists_pos(struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+
+    /* Handle negative indexes. */
+    if (index < 0) {
+        index += body->elems;
+    }
+    
+    if (index < 0 || index >= body->elems) {
+        return 0;
+    }
+
+    return body->slots.o[body->start + index] != NULL;
+}
+
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
@@ -801,6 +816,7 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->pos_funcs->at_pos = at_pos;
     this_repr->pos_funcs->bind_pos = bind_pos;
     this_repr->pos_funcs->set_elems = set_elems;
+    this_repr->pos_funcs->exists_pos = exists_pos;
     this_repr->pos_funcs->push = push;
     this_repr->pos_funcs->pop = pop;
     this_repr->pos_funcs->unshift = unshift;

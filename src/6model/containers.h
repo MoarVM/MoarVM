@@ -48,7 +48,7 @@ void MVM_6model_containers_setup(MVMThreadContext *tc);
 /* Macro for decontainerization. */
 #define DECONT(tc, src, dest) do {\
     if(IS_CONCRETE(src) && STABLE(src)->container_spec)\
-        STABLE(src)->container_spec->fetch(tc, src, &dest);\
+        STABLE(src)->container_spec->fetch(tc, src, &(dest));\
     else\
-        (dest.o = src); \
+        ((dest).o = src); \
     } while(0)

@@ -1509,6 +1509,7 @@ QAST::MASTOperations.add_core_moarop_mapping('existskey', 'existskey');
 QAST::MASTOperations.add_core_moarop_mapping('deletekey', 'deletekey');
 QAST::MASTOperations.add_core_moarop_mapping('elems', 'elems');
 QAST::MASTOperations.add_core_moarop_mapping('setelems', 'setelemspos', 0);
+QAST::MASTOperations.add_core_moarop_mapping('existspos', 'existspos');
 QAST::MASTOperations.add_core_moarop_mapping('push', 'push_o', 1);
 QAST::MASTOperations.add_core_moarop_mapping('push_i', 'push_i', 1);
 QAST::MASTOperations.add_core_moarop_mapping('push_n', 'push_n', 1);
