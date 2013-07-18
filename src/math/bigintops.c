@@ -76,7 +76,7 @@ static void from_num(MVMnum64 d, mp_int *a) {
     mp_shrink(a);
 }
 
-static mp_int * MVM_get_bigint(MVMObject *obj) {
+static mp_int * get_bigint(MVMObject *obj) {
   return &((P6bigint *)obj)->body.i;
 }
 
@@ -139,31 +139,31 @@ static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
 
 #define MVM_BIGINT_UNARY_OP(opname) \
 void MVM_bigint_##opname(MVMObject *b, MVMObject *a) { \
-    mp_int *ia = MVM_get_bigint(a); \
-    mp_int *ib = MVM_get_bigint(b); \
+    mp_int *ia = get_bigint(a); \
+    mp_int *ib = get_bigint(b); \
     mp_##opname(ia, ib); \
 }
 
 #define MVM_BIGINT_BINARY_OP(opname) \
 void MVM_bigint_##opname(MVMObject *c, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = MVM_get_bigint(a); \
-    mp_int *ib = MVM_get_bigint(b); \
-    mp_int *ic = MVM_get_bigint(c); \
+    mp_int *ia = get_bigint(a); \
+    mp_int *ib = get_bigint(b); \
+    mp_int *ic = get_bigint(c); \
     mp_##opname(ia, ib, ic); \
 }
 
 #define MVM_BIGINT_BINARY_OP_2(opname) \
 void MVM_bigint_##opname(MVMObject *c, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = MVM_get_bigint(a); \
-    mp_int *ib = MVM_get_bigint(b); \
-    mp_int *ic = MVM_get_bigint(c); \
+    mp_int *ia = get_bigint(a); \
+    mp_int *ib = get_bigint(b); \
+    mp_int *ic = get_bigint(c); \
     two_complement_bitop(ia, ib, ic, mp_##opname); \
 }
 
 #define MVM_BIGINT_COMPARE_OP(opname) \
 MVMint64 MVM_bigint_##opname(MVMObject *a, MVMObject *b) { \
-    mp_int *ia = MVM_get_bigint(a); \
-    mp_int *ib = MVM_get_bigint(b); \
+    mp_int *ia = get_bigint(a); \
+    mp_int *ib = get_bigint(b); \
     return (MVMint64) mp_##opname(ia, ib); \
 }
 
@@ -187,16 +187,16 @@ MVM_BIGINT_COMPARE_OP(cmp)
 
 
 void MVM_bigint_div(MVMObject *c, MVMObject *a, MVMObject *b) {
-    mp_int *ia = MVM_get_bigint(a);
-    mp_int *ib = MVM_get_bigint(b);
-    mp_int *ic = MVM_get_bigint(c);
+    mp_int *ia = get_bigint(a);
+    mp_int *ib = get_bigint(b);
+    mp_int *ic = get_bigint(c);
     mp_div(ia, ib, ic, NULL);
 }
 
 void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b) {
-    mp_int *base = MVM_get_bigint(a);
-    mp_int *exponent = MVM_get_bigint(b);
-    mp_int *ic = MVM_get_bigint(c);
+    mp_int *base = get_bigint(a);
+    mp_int *exponent = get_bigint(b);
+    mp_int *ic = get_bigint(c);
     mp_digit exponent_d = 0;
     int cmp = mp_cmp_d(exponent, 0);
     mp_init(ic);
@@ -235,42 +235,42 @@ void MVM_bigint_pow(MVMObject *c, MVMObject *a, MVMObject *b) {
 }
 
 void MVM_bigint_shl(MVMObject *b, MVMObject *a, MVMint64 n) {
-    mp_int *ia = MVM_get_bigint(a);
-    mp_int *ib = MVM_get_bigint(b);
+    mp_int *ia = get_bigint(a);
+    mp_int *ib = get_bigint(b);
     two_complement_shl(ib, ia, n);
 }
 
 void MVM_bigint_shr(MVMObject *b, MVMObject *a, MVMint64 n) {
-    mp_int *ia = MVM_get_bigint(a);
-    mp_int *ib = MVM_get_bigint(b);
+    mp_int *ia = get_bigint(a);
+    mp_int *ib = get_bigint(b);
     two_complement_shl(ib, ia, -n);
 }
 
 void MVM_bigint_not(MVMObject *b, MVMObject *a) {
-    mp_int *ia = MVM_get_bigint(a);
-    mp_int *ib = MVM_get_bigint(b);
+    mp_int *ia = get_bigint(a);
+    mp_int *ib = get_bigint(b);
     /* two's complement not: add 1 and negate */
     mp_add_d(ia, 1, ib);
     mp_neg(ib, ib);
 }
 
 void MVM_bigint_expmod(MVMObject *d, MVMObject *a, MVMObject *b, MVMObject *c) {
-    mp_int *ia = MVM_get_bigint(a);
-    mp_int *ib = MVM_get_bigint(b);
-    mp_int *ic = MVM_get_bigint(c);
-    mp_int *id = MVM_get_bigint(d);
+    mp_int *ia = get_bigint(a);
+    mp_int *ib = get_bigint(b);
+    mp_int *ic = get_bigint(c);
+    mp_int *id = get_bigint(d);
     mp_exptmod(ia, ib, ic, id);
 }
 
 void MVM_bigint_from_str(MVMObject *a, MVMuint8 *buf) {
-    mp_int *i = MVM_get_bigint(a);
+    mp_int *i = get_bigint(a);
     char   *c = (char *)buf;
     mp_read_radix(i, buf, 10);
 }
 
 /* XXXX: This feels wrongly factored and possibly GC-unsafe */
 MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
-    mp_int *i = MVM_get_bigint(a);
+    mp_int *i = get_bigint(a);
     int len;
     char *buf;
     MVMString *result;
@@ -283,19 +283,19 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
 }
 
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
-    mp_int *ia = MVM_get_bigint(a);
+    mp_int *ia = get_bigint(a);
     return mp_get_double(ia);
 }
 
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
-    mp_int *ia = MVM_get_bigint(a);
+    mp_int *ia = get_bigint(a);
     from_num(n, ia);
 }
 
 MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     MVMnum64 c;
-    mp_int *ia = MVM_get_bigint(a);
-    mp_int *ib = MVM_get_bigint(b);
+    mp_int *ia = get_bigint(a);
+    mp_int *ib = get_bigint(b);
 
     int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
     if (max_size > 1023) {
@@ -314,8 +314,8 @@ MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
 }
 
 void nqp_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
-    mp_int *rnd = MVM_get_bigint(a);
-    mp_int *max = MVM_get_bigint(b);
+    mp_int *rnd = get_bigint(a);
+    mp_int *max = get_bigint(b);
     mp_rand(rnd, USED(max) + 1);
     mp_mod(rnd, max, rnd);
 }
@@ -324,7 +324,7 @@ MVMint64 nqp_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
     /* mp_prime_is_prime returns True for 1, and I think
      * it's worth special-casing this particular number :-)
      */
-    mp_int *ia = MVM_get_bigint(a);
+    mp_int *ia = get_bigint(a);
     if (mp_cmp_d(ia, 1) == MP_EQ) {
         return 0;
     }
@@ -333,4 +333,79 @@ MVMint64 nqp_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
         mp_prime_is_prime(ia, b, &result);
         return result;
     }
+}
+
+MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag, MVMObject *type) {
+    MVMObject *result;
+    MVMint64 chars  = NUM_GRAPHS(str);
+    MVMuint16  neg  = 0;
+    MVMint64   ch;
+    mp_int zvalue;
+    mp_int zbase;
+    MVMObject *value_obj;
+    mp_int *value;
+    MVMObject *base_obj;
+    mp_int *base;
+    MVMObject *pos_obj;
+    MVMint64   pos  = -1;
+
+    if (radix > 36) {
+        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
+    }
+
+    mp_init(&zvalue);
+    mp_init(&zbase);
+    mp_set_int(&zbase, 1);
+
+    value_obj = MVM_repr_alloc_init(tc, type);
+    value = get_bigint(value_obj);
+
+    base_obj = MVM_repr_alloc_init(tc, type);
+    base = get_bigint(base_obj);
+    mp_set_int(base, 1);
+
+    ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+    if ((flag & 0x02) && (ch == '+' || ch == '-')) {
+        neg = (ch == '-');
+        offset++;
+        ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+    }
+
+   while (offset < chars) {
+        if (ch >= '0' && ch <= '9') ch = ch - '0';
+        else if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 10;
+        else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;
+        else break;
+        if (ch >= radix) break;
+        mp_mul_d(&zvalue, radix, &zvalue);
+        mp_add_d(&zvalue, ch, &zvalue);
+        mp_mul_d(&zbase, radix, &zbase);
+        offset++; pos = offset;
+        if (ch != 0 || !(flag & 0x04)) { mp_copy(&zvalue, value); mp_copy(&zbase, base); }
+        if (offset >= chars) break;
+        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        if (ch != '_') continue;
+        offset++;
+        if (offset >= chars) break;
+        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+    }
+
+    mp_clear(&zvalue);
+    mp_clear(&zbase);
+
+    pos_obj = MVM_repr_alloc_init(tc, type);
+    MVM_repr_set_int(tc, pos_obj, pos);
+
+    if (neg || flag & 0x01) {
+        mp_neg(value, value);
+    }
+
+    /* initialize the object */
+    result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+
+    MVM_repr_push_o(tc, result, value_obj);
+    MVM_repr_push_o(tc, result, base_obj);
+    MVM_repr_push_o(tc, result, pos_obj);
+
+    return result;
 }

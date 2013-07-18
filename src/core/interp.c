@@ -1764,6 +1764,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_radix_I:
+                        GET_REG(cur_op, 0).o = MVM_bigint_radix(tc, 
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
+                            GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64, GET_REG(cur_op, 10).o);
+                        cur_op += 12;
+                        break;
                     case MVM_OP_div_In: {
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
                         GET_REG(cur_op, 0).n64 = nqp_bigint_div_num(tc, a, b);

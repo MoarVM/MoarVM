@@ -30,3 +30,4 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a);
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n);
 MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
 void nqp_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag, MVMObject *type);
