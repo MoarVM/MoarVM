@@ -77,6 +77,9 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         "P6bigint representation cannot unbox to a native string");
 }
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
+    if (repr_id == MVM_REPR_ID_P6bigint)
+        return &((P6bigintBody *)data)->i;
+    
     MVM_exception_throw_adhoc(tc,
         "P6bigint representation cannot unbox to other types");
 }

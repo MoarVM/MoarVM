@@ -515,9 +515,20 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 }
 
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     data = real_data(data);
+    if (repr_data->unbox_slots) {
+        int i;
+        for (i = 0; i < repr_data->num_attributes; i++) {
+            if (repr_data->unbox_slots[i].repr_id == repr_id)
+                return (char *)data + repr_data->attribute_offsets[i];
+            else if (repr_data->unbox_slots[i].repr_id == 0)
+                break;
+        }
+    }
+    
     MVM_exception_throw_adhoc(tc,
-        "P6opaque: get_boxed_ref NYI");
+        "P6opaque: get_boxed_ref could not unbox for the given representation");
 }
 
 /* Gets the storage specification for this representation. */
@@ -542,7 +553,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
                cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
-               cur_init_slot, cur_mark_slot, cur_cleanup_slot,
+               cur_init_slot, cur_mark_slot, cur_cleanup_slot, cur_unbox_slot,
                unboxed_type, bits, i;
     MVMObject *info;
 
@@ -613,6 +624,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     cur_init_slot    = 0;
     cur_mark_slot    = 0;
     cur_cleanup_slot = 0;
+    cur_unbox_slot   = 0;
     while (mro_pos--) {
         /* Get info for the class at the current position. */
         MVMObject *class_info = MVM_repr_at_pos_o(tc, info, mro_pos);
@@ -710,6 +722,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                                 /* nothing, just suppress 'missing default' warning */
                                 break;
                         }
+                        
+                        /* Also list in the by-repr unbox list. */
+                        if (repr_data->unbox_slots == NULL)
+                            repr_data->unbox_slots = (P6opaqueBoxedTypeMap *)malloc(total_attrs * sizeof(P6opaqueBoxedTypeMap));
+                        repr_data->unbox_slots[cur_unbox_slot].repr_id = REPR(type)->ID;
+                        repr_data->unbox_slots[cur_unbox_slot].slot = i;
+                        cur_unbox_slot++;
                     }
                 }
             }
