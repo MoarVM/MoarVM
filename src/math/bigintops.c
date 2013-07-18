@@ -292,7 +292,7 @@ void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
     from_num(n, ia);
 }
 
-MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
+MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     MVMnum64 c;
     mp_int *ia = get_bigint(a);
     mp_int *ib = get_bigint(b);
@@ -313,14 +313,14 @@ MVMnum64 nqp_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     return c;
 }
 
-void nqp_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
+void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     mp_int *rnd = get_bigint(a);
     mp_int *max = get_bigint(b);
     mp_rand(rnd, USED(max) + 1);
     mp_mod(rnd, max, rnd);
 }
 
-MVMint64 nqp_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
+MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
     /* mp_prime_is_prime returns True for 1, and I think
      * it's worth special-casing this particular number :-)
      */
@@ -408,4 +408,15 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     MVM_repr_push_o(tc, result, pos_obj);
 
     return result;
+}
+
+/* returns 1 if bi is too large to fit into an INTVAL without loss of
+   information */
+MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *bi) {
+    mp_int *a = get_bigint(bi);
+    MVMint64 is_big = a->used > 1;
+    /* XXX somebody please check that on a 32 bit platform */
+    if ( sizeof(MVMint64) * 8 < DIGIT_BIT && is_big == 0 && DIGIT(a, 0) & ~0x7FFFFFFFUL)
+        is_big = 1;
+    return is_big;
 }

@@ -1696,7 +1696,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_isprime_I: {
                         MVMObject *a = GET_REG(cur_op, 2).o;
                         MVMint64 b = GET_REG(cur_op, 4).i64;
-                        GET_REG(cur_op, 0).i64 = nqp_bigint_is_prime(tc, a, b);
+                        GET_REG(cur_op, 0).i64 = MVM_bigint_is_prime(tc, a, b);
                         cur_op += 6;
                         break;
                     }
@@ -1704,7 +1704,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *max = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, type, {
                             MVMObject *rnd = MVM_repr_alloc_init(tc, type);
-                            nqp_bigint_rand(tc, rnd, max);
+                            MVM_bigint_rand(tc, rnd, max);
                             GET_REG(cur_op, 0).o = rnd;
                         });
                         cur_op += 6;
@@ -1756,6 +1756,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_isbig_I: {
+                        GET_REG(cur_op, 0).i64 = MVM_bigint_is_big(tc, GET_REG(cur_op, 2).o);
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_base_I: {
                         MVMObject *a = GET_REG(cur_op, 2).o;
                         MVMROOT(tc, a, {
@@ -1772,7 +1777,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_div_In: {
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
-                        GET_REG(cur_op, 0).n64 = nqp_bigint_div_num(tc, a, b);
+                        GET_REG(cur_op, 0).n64 = MVM_bigint_div_num(tc, a, b);
                         cur_op += 6;
                         break;
                     }
