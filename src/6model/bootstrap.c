@@ -545,7 +545,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_repr_initialize_registry(tc);
 
 #define create_stub_boot_type(tc, reprid, slot, makeboolspec, boolspec) do { \
-    MVMREPROps *repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_P6int); \
+    MVMREPROps *repr = MVM_repr_get_by_id(tc, reprid); \
     MVMObject *type = tc->instance->slot = repr->type_object_for(tc, NULL); \
     if (makeboolspec) { \
         MVMBoolificationSpec *bs; \
