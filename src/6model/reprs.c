@@ -218,76 +218,36 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
         add_default_ass_funcs(tc, repr);
 }
 
+#define repr_registrar(tc, name, init) \
+    register_repr((tc), MVM_string_ascii_decode_nt((tc), \
+    (tc)->instance->VMString, (name)), init((tc)))
+
 /* Initializes the representations registry, building up all of the various
  * representations. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {    
     /* Add all core representations. (If order changed, update reprs.h IDs.) */
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMString"),
-        MVMString_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "VMArray"),
-        MVMArray_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "VMHash"),
-        MVMHash_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMCFunction"),
-        MVMCFunction_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWREPR"),
-        MVMKnowHOWREPR_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6opaque"),
-        MVMP6opaque_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMCode"),
-        MVMCode_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMOSHandle"),
-        MVMOSHandle_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6int"),
-        P6int_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6num"),
-        P6num_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Uninstantiable"),
-        Uninstantiable_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "HashAttrStore"),
-        HashAttrStore_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWAttributeREPR"),
-        MVMKnowHOWAttributeREPR_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6str"),
-        P6str_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMThread"),
-        MVMThread_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "VMIter"),
-        MVMIter_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMContext"),
-        MVMContext_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "SCRef"),
-        MVMSCRef_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lexotic"),
-        MVMLexotic_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "MVMCallCapture"),
-        MVMCallCapture_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "P6bigint"),
-        P6bigint_initialize(tc));
-    register_repr(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NFA"),
-        MVMNFA_initialize(tc));
+    repr_registrar(tc, "MVMString", MVMString_initialize);
+    repr_registrar(tc, "VMArray", MVMArray_initialize);
+    repr_registrar(tc, "VMHash", MVMHash_initialize);
+    repr_registrar(tc, "MVMCFunction", MVMCFunction_initialize);
+    repr_registrar(tc, "KnowHOWREPR", MVMKnowHOWREPR_initialize);
+    repr_registrar(tc, "P6opaque", MVMP6opaque_initialize);
+    repr_registrar(tc, "MVMCode", MVMCode_initialize);
+    repr_registrar(tc, "MVMOSHandle", MVMOSHandle_initialize);
+    repr_registrar(tc, "P6int", P6int_initialize);
+    repr_registrar(tc, "P6num", P6num_initialize);
+    repr_registrar(tc, "Uninstantiable", Uninstantiable_initialize);
+    repr_registrar(tc, "HashAttrStore", HashAttrStore_initialize);
+    repr_registrar(tc, "KnowHOWAttributeREPR", MVMKnowHOWAttributeREPR_initialize);
+    repr_registrar(tc, "P6str", P6str_initialize);
+    repr_registrar(tc, "MVMThread", MVMThread_initialize);
+    repr_registrar(tc, "VMIter", MVMIter_initialize);
+    repr_registrar(tc, "MVMContext", MVMContext_initialize);
+    repr_registrar(tc, "SCRef", MVMSCRef_initialize);
+    repr_registrar(tc, "Lexotic", MVMLexotic_initialize);
+    repr_registrar(tc, "MVMCallCapture", MVMCallCapture_initialize);
+    repr_registrar(tc, "P6bigint", P6bigint_initialize);
+    repr_registrar(tc, "NFA", MVMNFA_initialize);
 }
 
 /* Get a representation's ID from its name. Note that the IDs may change so
