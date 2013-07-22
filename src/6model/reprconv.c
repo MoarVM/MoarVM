@@ -4,11 +4,15 @@
  * macros in the future, but hopefully the compiler is smart enough to inline
  * them anyway. */
 
+void MVM_repr_init(MVMThreadContext *tc, MVMObject *obj) {
+    if (REPR(obj)->initialize)
+        REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
 MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
     MVMObject *obj = REPR(type)->allocate(tc, STABLE(type));
     MVMROOT(tc, obj, {
-        if (REPR(obj)->initialize)
-            REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        MVM_repr_init(tc, obj);
     });
     return obj;
 }
@@ -22,6 +26,10 @@ MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj) {
         });
     });
     return res;
+}
+
+void MVM_repr_compose(MVMThreadContext *tc, MVMObject *type, MVMObject *obj) {
+    REPR(type)->compose(tc, STABLE(type), obj);
 }
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {

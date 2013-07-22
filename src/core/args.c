@@ -406,8 +406,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         /* XXX theoretically needs to handle native arrays I guess */
         switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
-                REPR(result)->pos_funcs->push(tc, STABLE(result), result,
-                    OBJECT_BODY(result), arg_info.arg, MVM_reg_obj);
+                MVM_repr_push_o(tc, result, arg_info.arg.o);
                 break;
             }
             case MVM_CALLSITE_ARG_INT:{
@@ -538,8 +537,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                     new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
                 
-                REPR(list)->pos_funcs->at_pos(tc, STABLE(list), list,
-                    OBJECT_BODY(list), i, new_args + new_arg_pos++, MVM_reg_obj);
+                (new_args + new_arg_pos++)->o = MVM_repr_at_pos_o(tc, list, i);
                 new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
             }
         }

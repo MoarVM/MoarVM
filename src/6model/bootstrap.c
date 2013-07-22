@@ -114,8 +114,7 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
 
     /* Add to method table. */
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
-    REPR(method_table)->ass_funcs->bind_key_boxed(tc, STABLE(method_table),
-        method_table, OBJECT_BODY(method_table), (MVMObject *)name, method);
+    MVM_repr_bind_key_boxed(tc, method_table, name, method);
 
     /* Return added method as result. */
     MVM_args_set_result_obj(tc, method, MVM_RETURN_CURRENT_FRAME);
@@ -208,43 +207,38 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
         MVMObject *attr_info = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
         MVMKnowHOWAttributeREPR *attribute = (MVMKnowHOWAttributeREPR *)
             MVM_repr_at_pos_o(tc, attributes, i);
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info);
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&attribute);
-        if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
-            MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
+        MVMROOT(tc, attr_info, {
+            MVMROOT(tc, attribute, {
+                if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
+                    MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
 
-        REPR(attr_info)->initialize(tc, STABLE(attr_info), attr_info,
-            OBJECT_BODY(attr_info));
-        REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
-            attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_name, (MVMObject *)attribute->body.name);
-        REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
-            attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type, attribute->body.type);
-        if (attribute->body.box_target) {
-            /* Merely having the key serves as a "yes". */
-            REPR(attr_info)->ass_funcs->bind_key_boxed(tc, STABLE(attr_info),
-                attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target, attr_info);
-        }
+                MVM_repr_init(tc, attr_info);
+                MVM_repr_bind_key_boxed(tc, attr_info, str_name, (MVMObject *)attribute->body.name);
+                MVM_repr_bind_key_boxed(tc, attr_info, str_type, attribute->body.type);
+                if (attribute->body.box_target) {
+                    /* Merely having the key serves as a "yes". */
+                    MVM_repr_bind_key_boxed(tc, attr_info, str_box_target, attr_info);
+                }
 
-        MVM_repr_push_o(tc, attr_info_list, attr_info);
-        MVM_gc_root_temp_pop_n(tc, 2);
+                MVM_repr_push_o(tc, attr_info_list, attr_info);
+            });
+        });
     }
 
     /* ...followed by a list of parents (none). */
     parent_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&parent_info);
-    REPR(parent_info)->initialize(tc, STABLE(parent_info), parent_info,
-        OBJECT_BODY(parent_info));
+    MVM_repr_init(tc, parent_info);
     MVM_repr_push_o(tc, type_info, parent_info);
 
     /* Finally, this all goes in a hash under the key 'attribute'. */
     repr_info_hash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info_hash);
-    REPR(repr_info_hash)->initialize(tc, STABLE(repr_info_hash), repr_info_hash, OBJECT_BODY(repr_info_hash));
-    REPR(repr_info_hash)->ass_funcs->bind_key_boxed(tc, STABLE(repr_info_hash),
-            repr_info_hash, OBJECT_BODY(repr_info_hash), (MVMObject *)str_attribute, repr_info);
+    MVM_repr_init(tc, repr_info_hash);
+    MVM_repr_bind_key_boxed(tc, repr_info_hash, str_attribute, repr_info);
 
     /* Compose the representation using it. */
-    REPR(type_obj)->compose(tc, STABLE(type_obj), repr_info_hash);
+    MVM_repr_compose(tc, type_obj, repr_info_hash);
 
     /* Clear temporary roots. */
     MVM_gc_root_temp_pop_n(tc, 10);

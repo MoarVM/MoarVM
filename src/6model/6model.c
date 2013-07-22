@@ -4,8 +4,7 @@
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache))
-        return REPR(cache)->ass_funcs->at_key_boxed(tc, STABLE(cache),
-            cache, OBJECT_BODY(cache), (MVMObject *)name);
+        return MVM_repr_at_key_boxed(tc, cache, name);
     return NULL;
 }
 
@@ -14,8 +13,7 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
 MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
-        MVMObject *meth = REPR(cache)->ass_funcs->at_key_boxed(tc, STABLE(cache),
-            cache, OBJECT_BODY(cache), (MVMObject *)name);
+        MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
         if (meth)
             return meth;
         else
@@ -31,8 +29,7 @@ MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMStri
 MVMint64 MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
-        MVMObject *meth = REPR(cache)->ass_funcs->at_key_boxed(tc, STABLE(cache),
-            cache, OBJECT_BODY(cache), (MVMObject *)name);
+        MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
         return meth ? 1 : 0;
     }
     return 0;
