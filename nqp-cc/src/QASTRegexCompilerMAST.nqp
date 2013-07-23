@@ -481,9 +481,11 @@ class QAST::MASTRegexCompiler {
         my @flags := [$Arg::obj, $Arg::int];
         my $op;
         my $meth := fresh_o();
+        release($meth, $MVM_reg_obj);
+        nqp::push(@ins, op('findmeth', $meth, %*REG<cur>, sval('!cursor_pass')));
         if $node.name {
             my $sname := fresh_s();
-            nqp::push(@ins, op('const_s', sval($node.name)));
+            nqp::push(@ins, op('const_s', $sname, sval($node.name)));
             nqp::push(@args, $sname);
             nqp::push(@flags, $Arg::str);
         }
@@ -492,12 +494,9 @@ class QAST::MASTRegexCompiler {
             nqp::push(@args, %*REG<one>);
             nqp::push(@flags, $Arg::named +| $Arg::int);
         }
-        release($meth, $MVM_reg_obj);
-        [
-            op('findmeth', $meth, %*REG<cur>, sval('!cursor_pass')),
-            call($meth, @flags, :result($meth), |@args),
-            op('return_o', %*REG<cur>)
-        ]
+        nqp::push(@ins, call($meth, @flags, :result($meth), |@args));
+        nqp::push(@ins, op('return_o', %*REG<cur>));
+        @ins
     }
     
     sub resolve_condition_op($kind, $negated) {
