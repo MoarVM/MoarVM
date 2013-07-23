@@ -549,7 +549,10 @@ class QAST::MASTRegexCompiler {
         nqp::push(@ins, op('const_i64', $maxreg, ival($max))) if $max > 1;
         my $ireg := fresh_i();
         
-        if $backtrack eq 'f' {
+        if $min == 0 && $max == 0 {
+            # Nothing to do, and nothing to backtrack into.
+        }
+        elsif $backtrack eq 'f' {
             my $seplabel := label($prefix ~ '_sep');
             nqp::push(@ins, op('set', $rep, %*REG<zero>));
             if $min < 1 {
