@@ -2825,6 +2825,35 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_gethllsym: {
+                        MVMObject *syms = tc->instance->hll_syms, *hash;
+                        MVMString *hll_name = GET_REG(cur_op, 2).s;
+                        if (apr_thread_mutex_lock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to lock hll syms");
+                        }
+                        hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                        if (!hash) {
+                            hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+                            syms = tc->instance->hll_syms;
+                            hll_name = tc->cur_frame->static_info->cu->hll_name;
+                            MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                            GET_REG(cur_op, 0).o = NULL;
+                        }
+                        else {
+                            MVMObject *op_hash = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 4).s);
+                            if (op_hash) {
+                                GET_REG(cur_op, 0).o = op_hash;
+                            }
+                            else {
+                                GET_REG(cur_op, 0).o = NULL;
+                            }
+                        }
+                        if (apr_thread_mutex_unlock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
+                            MVM_exception_throw_adhoc(tc, "Unable to unlock hll syms");
+                        }
+                        cur_op += 6;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_object, *(cur_op-1));

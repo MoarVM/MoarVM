@@ -440,6 +440,7 @@
 #define MVM_OP_attrinited 131
 #define MVM_OP_setcontspec 132
 #define MVM_OP_existspos 133
+#define MVM_OP_gethllsym 134
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
