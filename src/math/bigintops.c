@@ -76,7 +76,7 @@ static void from_num(MVMnum64 d, mp_int *a) {
     mp_shrink(a);
 }
 
-static mp_int * MVM_get_bigint(MVMThreadContext *tc, MVMObject *obj) {
+static mp_int * get_bigint(MVMThreadContext *tc, MVMObject *obj) {
     return (mp_int *)REPR(obj)->box_funcs->get_boxed_ref(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
 }
@@ -140,31 +140,31 @@ static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
 
 #define MVM_BIGINT_UNARY_OP(opname) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *source) { \
-    mp_int *ia = MVM_get_bigint(tc, source); \
-    mp_int *ib = MVM_get_bigint(tc, result); \
+    mp_int *ia = get_bigint(tc, source); \
+    mp_int *ib = get_bigint(tc, result); \
     mp_##opname(ia, ib); \
 }
 
 #define MVM_BIGINT_BINARY_OP(opname) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = MVM_get_bigint(tc, a); \
-    mp_int *ib = MVM_get_bigint(tc, b); \
-    mp_int *ic = MVM_get_bigint(tc, result); \
+    mp_int *ia = get_bigint(tc, a); \
+    mp_int *ib = get_bigint(tc, b); \
+    mp_int *ic = get_bigint(tc, result); \
     mp_##opname(ia, ib, ic); \
 }
 
 #define MVM_BIGINT_BINARY_OP_2(opname) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = MVM_get_bigint(tc, a); \
-    mp_int *ib = MVM_get_bigint(tc, b); \
-    mp_int *ic = MVM_get_bigint(tc, result); \
+    mp_int *ia = get_bigint(tc, a); \
+    mp_int *ib = get_bigint(tc, b); \
+    mp_int *ic = get_bigint(tc, result); \
     two_complement_bitop(ia, ib, ic, mp_##opname); \
 }
 
 #define MVM_BIGINT_COMPARE_OP(opname) \
 MVMint64 MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = MVM_get_bigint(tc, a); \
-    mp_int *ib = MVM_get_bigint(tc, b); \
+    mp_int *ia = get_bigint(tc, a); \
+    mp_int *ib = get_bigint(tc, b); \
     return (MVMint64) mp_##opname(ia, ib); \
 }
 
@@ -188,16 +188,16 @@ MVM_BIGINT_COMPARE_OP(cmp)
 
 
 void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
-    mp_int *ia = MVM_get_bigint(tc, a);
-    mp_int *ib = MVM_get_bigint(tc, b);
-    mp_int *ic = MVM_get_bigint(tc, result);
+    mp_int *ia = get_bigint(tc, a);
+    mp_int *ib = get_bigint(tc, b);
+    mp_int *ic = get_bigint(tc, result);
     mp_div(ia, ib, ic, NULL);
 }
 
 void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
-    mp_int *base        = MVM_get_bigint(tc, a);
-    mp_int *exponent    = MVM_get_bigint(tc, b);
-    mp_int *ic          = MVM_get_bigint(tc, result);
+    mp_int *base        = get_bigint(tc, a);
+    mp_int *exponent    = get_bigint(tc, b);
+    mp_int *ic          = get_bigint(tc, result);
     mp_digit exponent_d = 0;
     int cmp             = mp_cmp_d(exponent, 0);
     mp_init(ic);
@@ -236,41 +236,41 @@ void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
 }
 
 void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n) {
-    mp_int *ia = MVM_get_bigint(tc, a);
-    mp_int *ib = MVM_get_bigint(tc, result);
+    mp_int *ia = get_bigint(tc, a);
+    mp_int *ib = get_bigint(tc, result);
     two_complement_shl(ib, ia, n);
 }
 
 void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n) {
-    mp_int *ia = MVM_get_bigint(tc, a);
-    mp_int *ib = MVM_get_bigint(tc, result);
+    mp_int *ia = get_bigint(tc, a);
+    mp_int *ib = get_bigint(tc, result);
     two_complement_shl(ib, ia, -n);
 }
 
 void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a) {
-    mp_int *ia = MVM_get_bigint(tc, a);
-    mp_int *ib = MVM_get_bigint(tc, result);
+    mp_int *ia = get_bigint(tc, a);
+    mp_int *ib = get_bigint(tc, result);
     /* two's complement not: add 1 and negate */
     mp_add_d(ia, 1, ib);
     mp_neg(ib, ib);
 }
 
 void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b, MVMObject *c) {
-    mp_int *ia = MVM_get_bigint(tc, a);
-    mp_int *ib = MVM_get_bigint(tc, b);
-    mp_int *ic = MVM_get_bigint(tc, c);
-    mp_int *id = MVM_get_bigint(tc, result);
+    mp_int *ia = get_bigint(tc, a);
+    mp_int *ib = get_bigint(tc, b);
+    mp_int *ic = get_bigint(tc, c);
+    mp_int *id = get_bigint(tc, result);
     mp_exptmod(ia, ib, ic, id);
 }
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
-    mp_int *i = MVM_get_bigint(tc, a);
+    mp_int *i = get_bigint(tc, a);
     mp_read_radix(i, buf, 10);
 }
 
 /* XXXX: This feels wrongly factored and possibly GC-unsafe */
 MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
-    mp_int *i = MVM_get_bigint(tc, a);
+    mp_int *i = get_bigint(tc, a);
     int len;
     char *buf;
     MVMString *result;
@@ -283,19 +283,19 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
 }
 
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
-    mp_int *ia = MVM_get_bigint(tc, a);
+    mp_int *ia = get_bigint(tc, a);
     return mp_get_double(ia);
 }
 
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
-    mp_int *ia = MVM_get_bigint(tc, a);
+    mp_int *ia = get_bigint(tc, a);
     from_num(n, ia);
 }
 
 MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     MVMnum64 c;
-    mp_int *ia = MVM_get_bigint(tc, a);
-    mp_int *ib = MVM_get_bigint(tc, b);
+    mp_int *ia = get_bigint(tc, a);
+    mp_int *ib = get_bigint(tc, b);
 
     int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
     if (max_size > 1023) {
@@ -314,8 +314,8 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
 }
 
 void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
-    mp_int *rnd = MVM_get_bigint(tc, a);
-    mp_int *max = MVM_get_bigint(tc, b);
+    mp_int *rnd = get_bigint(tc, a);
+    mp_int *max = get_bigint(tc, b);
     mp_rand(rnd, USED(max) + 1);
     mp_mod(rnd, max, rnd);
 }
@@ -324,7 +324,7 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
     /* mp_prime_is_prime returns True for 1, and I think
      * it's worth special-casing this particular number :-)
      */
-    mp_int *ia = MVM_get_bigint(tc, a);
+    mp_int *ia = get_bigint(tc, a);
     if (mp_cmp_d(ia, 1) == MP_EQ) {
         return 0;
     }
@@ -358,10 +358,10 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     mp_set_int(&zbase, 1);
 
     value_obj = MVM_repr_alloc_init(tc, type);
-    value = MVM_get_bigint(tc, value_obj);
+    value = get_bigint(tc, value_obj);
 
     base_obj = MVM_repr_alloc_init(tc, type);
-    base = MVM_get_bigint(tc, base_obj);
+    base = get_bigint(tc, base_obj);
     mp_set_int(base, 1);
 
     ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
@@ -413,7 +413,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
 /* returns 1 if a is too large to fit into an INTVAL without loss of
    information */
 MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
-    mp_int *b = MVM_get_bigint(tc, a);
+    mp_int *b = get_bigint(tc, a);
     MVMint64 is_big = b->used > 1;
     /* XXX somebody please check that on a 32 bit platform */
     if ( sizeof(MVMint64) * 8 < DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)

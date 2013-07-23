@@ -2722,7 +2722,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_ctx: {
                         MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
                         ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, tc->cur_frame);
-                        GET_REG(cur_op, 0).o = (MVMObject *)ctx;
+                        GET_REG(cur_op, 0).o = ctx;
                         cur_op += 2;
                         break;
                     }
@@ -2735,7 +2735,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if ((frame = ((MVMContext *)this_ctx)->body.context->outer)) {
                             ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
                             ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
-                            GET_REG(cur_op, 0).o = (MVMObject *)ctx;
+                            GET_REG(cur_op, 0).o = ctx;
                         }
                         else {
                             GET_REG(cur_op, 0).o = NULL;
@@ -2762,7 +2762,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
                             MVM_exception_throw_adhoc(tc, "ctxlexpad needs an MVMContext");
                         }
-                        GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).o = this_ctx;
                         cur_op += 4;
                         break;
                     }
@@ -2835,18 +2835,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (!hash) {
                             hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
                             syms = tc->instance->hll_syms;
-                            hll_name = tc->cur_frame->static_info->cu->hll_name;
+                            hll_name = GET_REG(cur_op, 2).s;
                             MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
                             GET_REG(cur_op, 0).o = NULL;
                         }
                         else {
-                            MVMObject *op_hash = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 4).s);
-                            if (op_hash) {
-                                GET_REG(cur_op, 0).o = op_hash;
-                            }
-                            else {
-                                GET_REG(cur_op, 0).o = NULL;
-                            }
+                            GET_REG(cur_op, 0).o = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 4).s);
                         }
                         if (apr_thread_mutex_unlock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
                             MVM_exception_throw_adhoc(tc, "Unable to unlock hll syms");
