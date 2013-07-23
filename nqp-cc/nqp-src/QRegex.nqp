@@ -1145,13 +1145,11 @@ class NQPMatch is NQPCapture {
 }
 
 class NQPCursor does NQPCursorRole {
-    my $EMPTY_MATCH_LIST := nqp::list();
-    my $EMPTY_MATCH_HASH := nqp::hash();
     method MATCH() {
         my $match := nqp::getattr(self, NQPCursor, '$!match');
         unless nqp::istype($match, NQPMatch) || nqp::ishash($match) {
-            my $list := $EMPTY_MATCH_LIST;
-            my $hash := $EMPTY_MATCH_HASH;
+            my $list := nqp::list();
+            my $hash := nqp::hash();
             $match := nqp::create(NQPMatch);
             nqp::bindattr(self, NQPCursor, '$!match', $match);
             nqp::bindattr($match, NQPMatch, '$!cursor', self);
