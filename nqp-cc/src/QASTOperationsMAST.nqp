@@ -1312,6 +1312,34 @@ QAST::MASTOperations.add_core_moarop_mapping('rename', 'rename_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('copy', 'copy_f', 0);
 # QAST::MASTOperations.add_core_moarop_mapping('symlink', ?);
 # QAST::MASTOperations.add_core_moarop_mapping('link', ?);
+QAST::MASTOperations.add_core_op('sprintf', -> $qastcomp, $op {
+    my @operands := $op.list;
+    $qastcomp.as_mast(
+        QAST::Op.new(
+            :op('call'),
+            :returns(str),
+            QAST::Op.new(
+                :op('gethllsym'),
+                QAST::SVal.new( :value('nqp') ),
+                QAST::SVal.new( :value('sprintf') )
+            ),
+            |@operands )
+    );
+});
+QAST::MASTOperations.add_core_op('sprintfaddargumenthandler', -> $qastcomp, $op {
+    my @operands := $op.list;
+    $qastcomp.as_mast(
+        QAST::Op.new(
+            :op('call'),
+            :returns(str),
+            QAST::Op.new(
+                :op('gethllsym'),
+                QAST::SVal.new( :value('nqp') ),
+                QAST::SVal.new( :value('sprintfaddargumenthandler') )
+            ),
+            |@operands )
+    );
+});
 
 # terms
 QAST::MASTOperations.add_core_moarop_mapping('time_i', 'time_i');
