@@ -551,6 +551,10 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
     return MVM_string_substrings_equal_nocheck(tc, a, offset, bgraphs, b, 0);
 }
 
+MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
+    return MVM_string_equal_at(tc, MVM_string_lc(tc, a), MVM_string_lc(tc, b), offset);
+}
+
 /* Compares two strings for equality. */
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (NUM_GRAPHS(a) != NUM_GRAPHS(b))

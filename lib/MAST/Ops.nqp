@@ -1788,7 +1788,16 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
-            )
+            ),
+            'eqatic_s', nqp::hash(
+                'code', 52,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_int64
+                ]
+            ),
         ],
         [
             'sin_n', nqp::hash(

@@ -1392,6 +1392,12 @@ static MVMOpInfo MVM_op_info_string[] = {
         5,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_eqatic_s,
+        "eqatic_s",
+        4,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
 };
 static MVMOpInfo MVM_op_info_math[] = {
     {
@@ -3163,7 +3169,7 @@ static unsigned char MVM_op_banks = 8;
 static unsigned char MVM_opcounts_by_bank[] = {
     176,
     2,
-    52,
+    53,
     57,
     135,
     51,

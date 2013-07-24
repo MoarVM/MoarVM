@@ -447,10 +447,7 @@ class QAST::MASTRegexCompiler {
     
     method literal($node) {
         my $litconst := $node[0];
-        # XXX MUST create a special op variant for ignorecase.
-        #   until then, don't allow it at all.
-        nqp::die("regex literal can't handle subtype 'ignorecase' yet")
-            if $node.subtype eq 'ignorecase';
+        my $eq_op := $node.subtype eq 'ignorecase' ?? 'eqatic_s' !! 'eqat_s';
         my $s0 := fresh_s();
         my $i0 := fresh_i();
         my $cmpop := $node.negate ?? 'if_i' !! 'unless_i';
@@ -463,7 +460,7 @@ class QAST::MASTRegexCompiler {
             op('const_s', $s0, sval($litconst)),
             # also, consider making the op branch directly from the comparison
             # instead of storing an integer to a temporary register
-            op('eqat_s', $i0, %*REG<tgt>, $s0, %*REG<pos>),
+            op($eq_op, $i0, %*REG<tgt>, $s0, %*REG<pos>),
             op($cmpop, $i0, %*REG<fail>)
         ];
         unless $node.subtype eq 'zerowidth' {
