@@ -97,3 +97,5 @@ typedef enum {
     MVM_UNICODE_PROPERTY_XID_CONTINUE = 80,
     MVM_UNICODE_PROPERTY_XID_START = 81,
 } MVM_unicode_property_codes;
+
+MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code);
