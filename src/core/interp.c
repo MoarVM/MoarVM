@@ -1679,10 +1679,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, n, {
                             MVMObject *a = MVM_repr_alloc_init(tc, type);
-                            MVMROOT(tc, a, {
-                                MVM_bigint_from_num(tc, a, n);
-                                GET_REG(cur_op, 0).o = a;
-                            });
+                            MVM_bigint_from_num(tc, a, n);
+                            GET_REG(cur_op, 0).o = a;
                         });
                         cur_op += 6;
                         break;
