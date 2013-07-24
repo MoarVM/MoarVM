@@ -13,7 +13,8 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
 
 /* Macros related to rooting objects into the temporaries list, and
  * unrooting them afterwards. */
-#define MVMROOT(tc, obj_ref, block) \
+#define MVMROOT(tc, obj_ref, block) do {\
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref)); \
     block \
-    MVM_gc_root_temp_pop(tc);
+    MVM_gc_root_temp_pop(tc); \
+ } while(0)

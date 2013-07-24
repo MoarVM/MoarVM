@@ -17,20 +17,20 @@
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
     /* Points to the current opcode. */
     MVMuint8 *cur_op = NULL;
-    
+
     /* The current frame's bytecode start. */
     MVMuint8 *bytecode_start = NULL;
-    
+
     /* Points to the base of the current register set for the frame we
      * are presently in. */
     MVMRegister *reg_base = NULL;
-    
+
     /* Points to the current compilation unit. */
     MVMCompUnit *cu = NULL;
-    
+
     /* The current call site we're constructing. */
     MVMCallsite *cur_callsite = NULL;
-    
+
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
@@ -38,12 +38,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     tc->interp_bytecode_start = &bytecode_start;
     tc->interp_reg_base       = &reg_base;
     tc->interp_cu             = &cu;
-    
+
     /* With everything set up, do the initial invocation (exactly what this does
      * varies depending on if this is starting a new thread or is the top-level
      * program entry point). */
     initial_invoke(tc, invoke_data);
-    
+
     /* Enter runloop. */
     while (1) {
         /* Primary dispatch by op bank. */
@@ -715,7 +715,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         else { /* delve directly into the selected goto op */
                             cur_op = bytecode_start + GET_UI32(cur_op,
-                                input * (6 /* size of each goto op */) 
+                                input * (6 /* size of each goto op */)
                                 + (2 /* size of the goto instruction itself */));
                         }
                         GC_SYNC_POINT(tc);
@@ -724,12 +724,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_caller: {
                         MVMFrame *caller = tc->cur_frame;
                         MVMint64 depth = GET_REG(cur_op, 2).i64;
-                        
+
                         while (caller && depth-- > 0) /* keep the > 0. */
                             caller = caller->caller;
-                        
+
                         GET_REG(cur_op, 0).o = caller ? caller->code_ref : NULL;
-                        
+
                         cur_op += 4;
                         break;
                     }
@@ -886,18 +886,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         /* Create a new call capture object. */
                         MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
                         MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
-                        
+
                         /* Copy the arguments. */
                         MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
                         MVMRegister *args = malloc(arg_size);
                         memcpy(args, tc->cur_frame->params.args, arg_size);
-                        
+
                         /* Set up the call capture. */
                         cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
                         cc->body.apc  = malloc(sizeof(MVMArgProcContext));
                         memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
                         MVM_args_proc_init(tc, cc->body.apc, tc->cur_frame->params.callsite, args);
-                        
+
                         GET_REG(cur_op, 0).o = cc_obj;
                         cur_op += 2;
                         break;
@@ -1059,7 +1059,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* Development operations. */
             case MVM_OP_BANK_dev: {
                 switch (*(cur_op++)) {
@@ -1075,7 +1075,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* String operations. */
             case MVM_OP_BANK_string: {
                 switch (*(cur_op++)) {
@@ -1326,7 +1326,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 6;
                         break;
                     case MVM_OP_radix:
-                        GET_REG(cur_op, 0).o = MVM_radix(tc, 
+                        GET_REG(cur_op, 0).o = MVM_radix(tc,
                             GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
                             GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                         cur_op += 10;
@@ -1339,7 +1339,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* Math operations other than the primitives. */
             case MVM_OP_BANK_math: {
                 switch (*(cur_op++)) {
@@ -1770,7 +1770,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_radix_I:
-                        GET_REG(cur_op, 0).o = MVM_bigint_radix(tc, 
+                        GET_REG(cur_op, 0).o = MVM_bigint_radix(tc,
                             GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
                             GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64, GET_REG(cur_op, 10).o);
                         cur_op += 12;
@@ -1797,7 +1797,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* Object operations. */
             case MVM_OP_BANK_object: {
                 switch (*(cur_op++)) {
@@ -2833,10 +2833,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
-                            hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
-                            syms = tc->instance->hll_syms;
-                            hll_name = GET_REG(cur_op, 2).s;
-                            MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                            MVMROOT(tc, hll_name, {
+                                hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+                                /* must re-get syms in case it moved */
+                                syms = tc->instance->hll_syms;
+                                MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                            });
                             GET_REG(cur_op, 0).o = NULL;
                         }
                         else {
@@ -2856,7 +2858,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* IO operations. */
             case MVM_OP_BANK_io: {
                 switch (*(cur_op++)) {
@@ -3054,7 +3056,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* Process-wide and thread operations. */
             case MVM_OP_BANK_processthread: {
                 switch (*(cur_op++)) {
@@ -3144,7 +3146,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMString *filename = GET_REG(cur_op, 2).s;
                         GET_REG(cur_op, 0).s = filename;
                         cur_op += 4;
-                        
+
                         /* Set up return (really continuation after load) address
                          * and enter bytecode loading process. */
                         tc->cur_frame->return_address = cur_op;
@@ -3159,7 +3161,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* Serialization context related operations. */
             case MVM_OP_BANK_serialization: {
                 switch (*(cur_op++)) {
@@ -3269,7 +3271,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
             }
             break;
-            
+
             /* Dispatch to bank function. */
             default:
             {
