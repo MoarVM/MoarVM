@@ -280,16 +280,16 @@ MVMString * MVM_proc_getencoding(MVMThreadContext *tc) {
 /* XXX the internet says this may block... */
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
     MVMint64 result;
-    apr_generate_random_bytes((char *)&result, sizeof(MVMint64));
+    apr_generate_random_bytes((unsigned char *)&result, sizeof(MVMint64));
     return result;
 }
 
 /* extremely naively generates a number between 0 and 1 */
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
     MVMuint64 first, second;
-    apr_generate_random_bytes((char *)&first, sizeof(MVMuint64));
+    apr_generate_random_bytes((unsigned char *)&first, sizeof(MVMuint64));
     do {
-        apr_generate_random_bytes((char *)&second, sizeof(MVMuint64));
+        apr_generate_random_bytes((unsigned char *)&second, sizeof(MVMuint64));
     /* prevent division by zero in the 2**-128 chance both are 0 */
     } while (first == second);
     return first < second ? (MVMnum64)first / second : (MVMnum64)second / first;
