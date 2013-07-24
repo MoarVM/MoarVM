@@ -585,11 +585,11 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             
             HASH_ITER(hash_handle, body->hash_head, current, tmp) {
                 
-                if (new_arg_pos == new_args_size) {
-                    new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
+                if (new_arg_pos + 2 > new_args_size) {
+                    new_args = realloc(new_args, (new_args_size += 2) * sizeof(MVMRegister));
                 }
-                if (new_flag_pos == new_arg_flags_size) {
-                    new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
+                if (new_flag_pos + 2 > new_arg_flags_size) {
+                    new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size += 2) * sizeof(MVMCallsiteEntry));
                 }
                 
                 (new_args + new_arg_pos++)->s = (MVMString *)current->key;
