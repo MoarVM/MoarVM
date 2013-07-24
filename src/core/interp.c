@@ -1422,11 +1422,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_abs_I: {
                         MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, a, {
-                            MVMROOT(tc, type, {
-                                MVMObject *b = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_abs(tc, b, a);
-                                GET_REG(cur_op, 0).o = b;
-                            });
+                            MVMObject *b = MVM_repr_alloc_init(tc, type);
+                            MVM_bigint_abs(tc, b, a);
+                            GET_REG(cur_op, 0).o = b;
                         });
                         cur_op += 6;
                         break;
@@ -1434,11 +1432,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_neg_I: {
                         MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, a, {
-                            MVMROOT(tc, type, {
-                                MVMObject *b = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_neg(tc, b, a);
-                                GET_REG(cur_op, 0).o = b;
-                            });
+                            MVMObject *b = MVM_repr_alloc_init(tc, type);
+                            MVM_bigint_neg(tc, b, a);
+                            GET_REG(cur_op, 0).o = b;
                         });
                         cur_op += 6;
                         break;
@@ -1447,11 +1443,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_add(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_add(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1461,11 +1455,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_sub(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_sub(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1475,11 +1467,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_mul(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_mul(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1489,11 +1479,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_div(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_div(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1503,11 +1491,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_mod(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_mod(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1518,11 +1504,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
                                 MVMROOT(tc, c, {
-                                    MVMROOT(tc, type, {
-                                        MVMObject *d = MVM_repr_alloc_init(tc, type);
-                                        MVM_bigint_expmod(tc, d, a, b, c);
-                                        GET_REG(cur_op, 0).o = d;
-                                    });
+                                    MVMObject *d = MVM_repr_alloc_init(tc, type);
+                                    MVM_bigint_expmod(tc, d, a, b, c);
+                                    GET_REG(cur_op, 0).o = d;
                                 });
                             });
                         });
@@ -1533,11 +1517,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_gcd(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_gcd(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1547,11 +1529,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_lcm(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_lcm(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1561,11 +1541,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_or(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_or(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1575,11 +1553,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_xor(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_xor(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1589,11 +1565,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_and(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_and(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 8;
@@ -1602,11 +1576,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_bnot_I: {
                         MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, a, {
-                            MVMROOT(tc, type, {
-                                MVMObject *b = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_not(tc, b, a);
-                                GET_REG(cur_op, 0).o = b;
-                            });
+                            MVMObject *b = MVM_repr_alloc_init(tc, type);
+                            MVM_bigint_not(tc, b, a);
+                            GET_REG(cur_op, 0).o = b;
                         });
                         cur_op += 6;
                         break;
@@ -1615,11 +1587,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 6).o;
                         MVMint64 b = GET_REG(cur_op, 4).i64;
                         MVMROOT(tc, a, {
-                            MVMROOT(tc, type, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_shl(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
+                            MVMObject *c = MVM_repr_alloc_init(tc, type);
+                            MVM_bigint_shl(tc, c, a, b);
+                            GET_REG(cur_op, 0).o = c;
                         });
                         cur_op += 8;
                         break;
@@ -1628,11 +1598,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 6).o;
                         MVMint64 b = GET_REG(cur_op, 4).i64;
                         MVMROOT(tc, a, {
-                            MVMROOT(tc, type, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_shr(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
+                            MVMObject *c = MVM_repr_alloc_init(tc, type);
+                            MVM_bigint_shr(tc, c, a, b);
+                            GET_REG(cur_op, 0).o = c;
                         });
                         cur_op += 8;
                         break;
@@ -1641,11 +1609,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
                         MVMROOT(tc, a, {
                             MVMROOT(tc, b, {
-                                MVMROOT(tc, type, {
-                                    MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_pow(tc, c, a, b);
-                                    GET_REG(cur_op, 0).o = c;
-                                });
+                                MVMObject *c = MVM_repr_alloc_init(tc, type);
+                                MVM_bigint_pow(tc, c, a, b);
+                                GET_REG(cur_op, 0).o = c;
                             });
                         });
                         cur_op += 10;
@@ -1702,11 +1668,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_rand_I: {
                         MVMObject *max = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
-                        MVMROOT(tc, type, {
-                            MVMObject *rnd = MVM_repr_alloc_init(tc, type);
-                            MVM_bigint_rand(tc, rnd, max);
-                            GET_REG(cur_op, 0).o = rnd;
-                        });
+                        MVMObject *rnd = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_rand(tc, rnd, max);
+                        GET_REG(cur_op, 0).o = rnd;
                         cur_op += 6;
                         break;
                     }
@@ -1714,12 +1678,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMnum64 n = GET_REG(cur_op, 2).n64;
                         MVMObject *type = GET_REG(cur_op, 4).o;
                         MVMROOT(tc, n, {
-                            MVMROOT(tc, type, {
-                                MVMObject *a = MVM_repr_alloc_init(tc, type);
-                                MVMROOT(tc, a, {
-                                    MVM_bigint_from_num(tc, a, n);
-                                    GET_REG(cur_op, 0).o = a;
-                                });
+                            MVMObject *a = MVM_repr_alloc_init(tc, type);
+                            MVMROOT(tc, a, {
+                                MVM_bigint_from_num(tc, a, n);
+                                GET_REG(cur_op, 0).o = a;
                             });
                         });
                         cur_op += 6;
@@ -1728,17 +1690,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_coerce_sI: {
                         MVMString *s = GET_REG(cur_op, 2).s;
                         MVMObject *type = GET_REG(cur_op, 4).o;
-                        MVMROOT(tc, s, {
-                            MVMROOT(tc, type, {
-                                MVMObject *a = MVM_repr_alloc_init(tc, type);
-                                MVMROOT(tc, a, {
-                                    MVMuint8 *buf = MVM_string_ascii_encode(tc, s, NULL);
-                                    MVM_bigint_from_str(tc, a, buf);
-                                    free(buf);
-                                    GET_REG(cur_op, 0).o = a;
-                                });
-                            });
-                        });
+                        MVMuint8  *buf = MVM_string_ascii_encode(tc, s, NULL);
+                        MVMObject *a = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_from_str(tc, a, buf);
+                        free(buf);
+                        GET_REG(cur_op, 0).o = a;
                         cur_op += 6;
                         break;
                     }
