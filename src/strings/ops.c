@@ -696,7 +696,7 @@ MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc,
 }
 
 /* encodes an MVMString to a C buffer, dependent on the encoding type flag */
-char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
+unsigned char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_encode_substr(tc, s, output_size, start, length);
