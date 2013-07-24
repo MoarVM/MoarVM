@@ -202,20 +202,20 @@ void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     int cmp             = mp_cmp_d(exponent, 0);
     mp_init(ic);
 
-    if (((cmp == MP_EQ) || (MP_EQ == mp_cmp_d(base, 1)))) {
+    if ((cmp == MP_EQ) || (MP_EQ == mp_cmp_d(base, 1))) {
         mp_set_int(ic, 1);
     }
     else {
-        if ((cmp == MP_GT)) {
+        if (cmp == MP_GT) {
             exponent_d = mp_get_int(exponent);
             if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
                 cmp = mp_cmp_d(base, 0);
-                if (((MP_EQ == cmp) || (MP_EQ == mp_cmp_d(base, 1)))) {
+                if ((MP_EQ == cmp) || (MP_EQ == mp_cmp_d(base, 1))) {
                     mp_copy(base, ic);
                 }
                 else {
                     MVMnum64 ZERO = 0.0;
-                    if ((MP_GT == cmp)) {
+                    if (MP_GT == cmp) {
                         mp_set_int(ic, (MVMnum64)1.0 / ZERO);
                     }
                     else {
@@ -265,7 +265,7 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
     mp_int *i = get_bigint(tc, a);
-    mp_read_radix(i, buf, 10);
+    mp_read_radix(i, (const char *)buf, 10);
 }
 
 /* XXXX: This feels wrongly factored and possibly GC-unsafe */
