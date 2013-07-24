@@ -77,7 +77,7 @@ void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
 
 /* Pops temporary roots off the thread-local roots list. */
 void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
-    if (tc->num_temproots - n >= 0)
+    if ((MVMint32)tc->num_temproots - (MVMint32)n >= 0)
         tc->num_temproots -= n;
     else
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to pop insufficiently large temporary root stack");
