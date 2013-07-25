@@ -95,6 +95,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
 void MVM_string_say(MVMThreadContext *tc, MVMString *a);
 void MVM_string_print(MVMThreadContext *tc, MVMString *a);
 MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset);
+MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset);
 MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a, MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb);
 MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index);
 MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint);
@@ -106,6 +107,7 @@ unsigned char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input);
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input);
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);
+MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMString *s, MVMint64 offset, MVMint64 property_code, MVMint64 property_value_code);
 void MVM_string_flatten(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s);

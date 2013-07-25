@@ -1,5 +1,6 @@
 MVMString * MVM_proc_getenv(MVMThreadContext *tc, MVMString *var);
 void MVM_proc_setenv(MVMThreadContext *tc, MVMString *var, MVMString *value);
+void MVM_proc_delenv(MVMThreadContext *tc, MVMString *var);
 MVMint64 MVM_proc_nametogid(MVMThreadContext *tc, MVMString *name);
 MVMString * MVM_proc_gidtoname(MVMThreadContext *tc, MVMint64 groupid);
 MVMint64 MVM_proc_nametouid(MVMThreadContext *tc, MVMString *name);
