@@ -53,7 +53,7 @@ static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *
 
 static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject             *code   = MVM_frame_find_invokee(tc, data->fetch_code);
+    MVMObject             *code   = MVM_frame_find_invokee(tc, data->store_code);
 
     tc->cur_frame->return_value   = NULL;
     tc->cur_frame->return_type    = MVM_RETURN_VOID;
