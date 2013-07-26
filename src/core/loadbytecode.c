@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* Dummy, 0-arg callsite. */
-static MVMCallsite no_arg_callsite;
+static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
 
 /* Handles loading of bytecode, including triggering the deserialize and load
  * special frames. Takes place in two steps, with a callback between them which
@@ -25,11 +25,6 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* Otherwise, load from disk. */
     cu = MVM_cu_map_from_file(tc, MVM_string_utf8_encode_C_string(tc, filename));
     cu->filename = filename;
-    
-    /* Set up zero-arg callsite. */
-    no_arg_callsite.arg_flags = NULL;
-    no_arg_callsite.arg_count = 0;
-    no_arg_callsite.num_pos   = 0;
 
     /* If there's a deserialization frame, need to run that. */
     if (cu->deserialize_frame) {

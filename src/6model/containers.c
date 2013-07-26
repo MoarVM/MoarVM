@@ -17,23 +17,10 @@ typedef struct {
 } ContainerRegistry;
 
 /* Dummy, code pair fetch and store arg callsite. */
-static MVMuint8 arg_callsite_setup = 0;
-static MVMCallsite fetch_arg_callsite;
-static MVMCallsite store_arg_callsite;
-static MVMCallsiteEntry fecth_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsiteEntry fetch_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
 static MVMCallsiteEntry store_arg_flags[] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
-
-static void init_code_pair_arg_callsite() {
-    /* Set up invocant arg callsite. */
-    fetch_arg_callsite.arg_flags  = fecth_arg_flags;
-    fetch_arg_callsite.arg_count  = 1;
-    fetch_arg_callsite.num_pos    = 1;
-
-    store_arg_callsite.arg_flags  = store_arg_flags;
-    store_arg_callsite.arg_count  = 2;
-    store_arg_callsite.num_pos    = 2;
-    arg_callsite_setup = 1;
-}
+static MVMCallsite fetch_arg_callsite     = { fetch_arg_flags, 1, 1 };
+static MVMCallsite store_arg_callsite     = { store_arg_flags, 2, 2 };
 
 static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
@@ -43,10 +30,6 @@ static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *
     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
     tc->cur_frame->return_address = *(tc->interp_cur_op);
     tc->cur_frame->args[0].o      = cont;
-
-    if (!arg_callsite_setup) {
-        init_code_pair_arg_callsite();
-    }
 
     STABLE(code)->invoke(tc, code, &fetch_arg_callsite, tc->cur_frame->args);
 }
@@ -60,10 +43,6 @@ static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *ob
     tc->cur_frame->return_address = *(tc->interp_cur_op);
     tc->cur_frame->args[0].o      = cont;
     tc->cur_frame->args[1].o      = obj;
-
-    if (!arg_callsite_setup) {
-        init_code_pair_arg_callsite();
-    }
 
     STABLE(code)->invoke(tc, code, &store_arg_callsite, tc->cur_frame->args);
 }

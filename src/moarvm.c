@@ -117,10 +117,7 @@ static void string_consts(MVMThreadContext *tc) {
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Dummy, 0-arg callsite. */
-    static MVMCallsite no_arg_callsite;
-    no_arg_callsite.arg_flags = NULL;
-    no_arg_callsite.arg_count = 0;
-    no_arg_callsite.num_pos   = 0;
+    static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
     
     /* Create initial frame, which sets up all of the interpreter state also. */
     MVM_frame_invoke(tc, (MVMStaticFrame *)data, &no_arg_callsite, NULL, NULL, NULL);

@@ -5,20 +5,8 @@
 #endif
 
 /* Dummy, invocant-arg callsite. */
-static MVMCallsite inv_arg_callsite;
-static MVMuint8    obj_arg_flag;
-static MVMint8     inv_arg_callsite_setup;
-static MVMCallsite *get_inv_callsite() {
-    if (!inv_arg_callsite_setup) {
-        /* Set up invocant arg callsite. */
-        obj_arg_flag = MVM_CALLSITE_ARG_OBJ;
-        inv_arg_callsite.arg_flags = &obj_arg_flag;
-        inv_arg_callsite.arg_count = 1;
-        inv_arg_callsite.num_pos   = 1;
-        inv_arg_callsite_setup = 1;
-    }
-    return &inv_arg_callsite;
-}
+static MVMCallsiteEntry obj_arg_flags[]  = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite      inv_arg_callsite = { obj_arg_flags, 1, 1 };
 
 /* Special return structure for boolification handling. */
 typedef struct {
@@ -64,7 +52,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                         tc->cur_frame->special_return      = flip_return;
                         tc->cur_frame->special_return_data = res_reg;
                     }
-                    STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
                 }
                 else {
                     /* Need to set up special return hook. */
@@ -79,7 +67,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                     tc->cur_frame->return_type         = MVM_RETURN_INT;
                     tc->cur_frame->return_address      = *(tc->interp_cur_op);
                     tc->cur_frame->args[0].o = obj;
-                    STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
                     return;
                 }
                 break;
@@ -188,7 +176,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         tc->cur_frame->return_type    = MVM_RETURN_STR;
         tc->cur_frame->return_address = *(tc->interp_cur_op);
         tc->cur_frame->args[0].o = obj;
-        STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+        STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
         return;
     }
     
@@ -244,7 +232,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         tc->cur_frame->return_type    = MVM_RETURN_NUM;
         tc->cur_frame->return_address = *(tc->interp_cur_op);
         tc->cur_frame->args[0].o = obj;
-        STABLE(code)->invoke(tc, code, get_inv_callsite(), tc->cur_frame->args);
+        STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
         return;
     }
     
