@@ -855,7 +855,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_die: {
-                        MVM_exception_throw_adhoc(tc, "Died: %s", MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s));
+                        MVMObject *exObj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
+                        MVMException *ex = (MVMException *)exObj;
+                        ex->body.category = MVM_EX_CAT_CATCH;
+                        MVM_ASSIGN_REF(tc, exObj, ex->body.message, GET_REG(cur_op, 2).s); 
+                        MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, exObj, &GET_REG(cur_op, 0));
                         cur_op += 4;
                         break;
                     }

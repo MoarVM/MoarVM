@@ -114,8 +114,10 @@ static void unwind_to_frame(MVMThreadContext *tc, MVMFrame *target) {
 }
 
 /* Runs an exception handler (which really means updating interpreter state
- * so that when we return to the runloop, we're in the handler). */
-static void run_handler(MVMThreadContext *tc, LocatedHandler lh) {
+ * so that when we return to the runloop, we're in the handler). If there is
+ * an exception object already, it will be used; NULL can be passed if there
+ * is not one, meaning it will be created if needed. */
+static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *exobj) {
     switch (lh.handler->action) {
         case MVM_EX_ACTION_GOTO:
             unwind_to_frame(tc, lh.frame);
@@ -143,6 +145,19 @@ static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
     exit(1);
 }
 
+/* Panic over an unhandled exception object. */
+static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
+    /* If there's no message, fall back to category. */
+    if (!ex->body.message)
+        panic_unhandled_cat(tc, ex->body.category);
+
+    /* Otherwise, dump message and a backtrace. */
+    fprintf(stderr, "Unhandled exception: %s\n",
+        MVM_string_utf8_encode_C_string(tc, ex->body.message));
+    dump_backtrace(tc);
+    exit(1);
+}
+
 /* Throws an exception by category, searching for a handler according to
  * the specified mode. If the handler resumes, the resumption result will
  * be put into resume_result. Leaves the interpreter in a state where it
@@ -152,7 +167,26 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat);
     if (lh.frame == NULL)
         panic_unhandled_cat(tc, cat);
-    run_handler(tc, lh);
+    run_handler(tc, lh, NULL);
+}
+
+/* Throws the specified exception object, taking the category from it. If
+ * the handler resumes, the resumption result will be put into resume_result.
+ * Leaves the interpreter in a state where it will next run the instruction of
+ * the handler. If there is no handler, it will panic and exit with a backtrace. */
+void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result) {
+    LocatedHandler  lh;
+    MVMException   *ex;
+    
+    if (IS_CONCRETE(exObj) && REPR(exObj)->ID == MVM_REPR_ID_MVMException)
+        ex = (MVMException *)exObj;
+    else
+        MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
+    
+    lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category);
+    if (lh.frame == NULL)
+        panic_unhandled_ex(tc, ex);
+    run_handler(tc, lh, exObj);
 }
 
 /* Creates a new lexotic. */
@@ -187,7 +221,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFram
         LocatedHandler lh;
         lh.frame = f;
         lh.handler = h;
-        run_handler(tc, lh);
+        run_handler(tc, lh, NULL);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
