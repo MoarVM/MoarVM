@@ -1166,7 +1166,85 @@ QAST::MASTOperations.add_core_moarop_mapping('setmessage', 'bindexmessage', 1);
 QAST::MASTOperations.add_core_moarop_mapping('newexception', 'newexception');
 # XXX backtrace, backtracestrings
 QAST::MASTOperations.add_core_moarop_mapping('throw', 'throwdyn');
-# XXX rethrow, resume, handle
+# XXX rethrow, resume
+
+my %handler_names := nqp::hash(
+    'CATCH',   $HandlerCategory::catch,
+    'CONTROL', $HandlerCategory::control,
+    'NEXT',    $HandlerCategory::next,
+    'LAST',    $HandlerCategory::last,
+    'REDO',    $HandlerCategory::redo,
+    'TAKE',    $HandlerCategory::take,
+    'WARN',    $HandlerCategory::warn,
+    'PROCEED', $HandlerCategory::proceed,
+    'SUCCEED', $HandlerCategory::succeed,
+);
+QAST::MASTOperations.add_core_op('handle', -> $qastcomp, $op {
+    my @children := nqp::clone($op.list());
+    if @children == 0 {
+        nqp::die("The 'handle' op requires at least one child");
+    }
+    
+    # If there's exactly one child, then there's nothing protecting
+    # it; just compile it and we're done.
+    my $protected := @children.shift();
+    unless @children {
+        return $qastcomp.as_mast($protected);
+    }
+    
+    # Otherwise, we need to generate and install a handler block, which will
+    # decide that to do by category.
+    my $mask := 0;
+    my $hblock := QAST::Block.new(
+        QAST::Op.new(
+            :op('bind'),
+            QAST::Var.new( :name('__category__'), :scope('local'), :decl('var') ),
+            QAST::Op.new(
+                :op('getextype'),
+                QAST::Op.new( :op('exception') )
+            )));
+    my $push_target := $hblock;
+    for @children -> $type, $handler {
+        # Get the category mask.
+        unless nqp::existskey(%handler_names, $type) {
+            nqp::die("Invalid handler type '$type'");
+        }
+        my $cat_mask := %handler_names{$type};
+        
+        # Chain in this handler.
+        my $check := QAST::Op.new(
+            :op('if'),
+            QAST::Op.new(
+                :op('bitand_i'),
+                QAST::Var.new( :name('__category__'), :scope('local') ),
+                QAST::IVal.new( :value($cat_mask) )
+            ),
+            $handler
+        );
+        $push_target.push($check);
+        $push_target := $check;
+        
+        # Add to mask.
+        $mask := nqp::bitor_i($mask, $cat_mask);
+    }
+    
+    # Add a local and store the handler block into it.
+    my $hblocal := MAST::Local.new($*MAST_FRAME.add_local(NQPMu));
+    my $il      := nqp::list();
+    my $hbmast  := $qastcomp.as_mast($hblock, :want($MVM_reg_obj));
+    push_ilist($il, $hbmast);
+    push_op($il, 'set', $hblocal, $hbmast.result_reg);
+    $*REGALLOC.release_register($hbmast.result_reg, $MVM_reg_obj);
+    
+    # Wrap instructions to try up in a handler.
+    my $protil := $qastcomp.as_mast($protected, :want($MVM_reg_obj));
+    nqp::push($il, MAST::HandlerScope.new(
+        :instructions($protil.instructions), :block($hblocal),
+        :category_mask($mask), :action($HandlerAction::invoke_and_we'll_see)));
+    
+    # XXX Result not quite right here yet.
+    MAST::InstructionList.new($il, $protil.result_reg, $MVM_reg_obj)
+});
 
 # Control exception throwing.
 my %control_map := nqp::hash(
