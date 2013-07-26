@@ -187,6 +187,7 @@
 #define MVM_OP_floor_n 173
 #define MVM_OP_assign 174
 #define MVM_OP_assignunchecked 175
+#define MVM_OP_objprimspec 176
 
 /* Op name defines for bank dev. */
 #define MVM_OP_sleep 0

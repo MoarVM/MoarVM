@@ -1055,6 +1055,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         break;
                     }
+                    case MVM_OP_objprimspec: {
+                        MVMObject *type = GET_REG(cur_op, 2).o;
+                        MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+                        GET_REG(cur_op, 0).i64 = ss.boxed_primitive;
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));

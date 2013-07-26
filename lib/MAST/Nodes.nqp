@@ -94,7 +94,7 @@ class MAST::CompUnit is MAST::Node {
 }
 
 sub get_typename($type) {
-    ["obj","int","num","str"][pir::repr_get_primitive_type_spec__IP($type)]
+    ["obj","int","num","str"][nqp::objprimspec($type)]
 }
 
 # Represents a frame, which is a unit of invocation. This captures the

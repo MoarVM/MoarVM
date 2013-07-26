@@ -1338,7 +1338,14 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
-            )
+            ),
+            'objprimspec', nqp::hash(
+                'code', 176,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
         ],
         [
             'sleep', nqp::hash(
