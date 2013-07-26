@@ -11,6 +11,10 @@
 #define MVM_EX_CAT_LAST          16
 #define MVM_EX_CAT_RETURN        32
 #define MVM_EX_CAT_UNWIND        64
+#define MVM_EX_CAT_TAKE          128
+#define MVM_EX_CAT_WARN          256
+#define MVM_EX_CAT_SUCCEED       512
+#define MVM_EX_CAT_PROCEED       1024
 
 /* Ways to throw an exception. */
 #define MVM_EX_THROW_DYN         0
