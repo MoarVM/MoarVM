@@ -546,7 +546,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
 
     /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
      * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
-     * CallCapture, and BOOTIO types. */
+     * CallCapture, BOOTIO and BOOTException types. */
 #define create_stub_boot_type(tc, reprid, slot, makeboolspec, boolspec) do { \
     MVMREPROps *repr = MVM_repr_get_by_id(tc, reprid); \
     MVMObject *type = tc->instance->slot = repr->type_object_for(tc, NULL); \
@@ -572,6 +572,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_Lexotic, Lexotic, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCallCapture, CallCapture, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMOSHandle, boot_types->BOOTIO, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMException, boot_types->BOOTException, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
 
     /* Set up some strings. */
 #define string_creator(tc, variable, name) do { \
@@ -610,6 +611,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, Lexotic, "Lexotic");
     meta_objectifier(tc, CallCapture, "CallCapture");
     meta_objectifier(tc, boot_types->BOOTIO, "BOOTIO");
+    meta_objectifier(tc, boot_types->BOOTException, "BOOTException");
 
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);
