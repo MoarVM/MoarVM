@@ -490,20 +490,18 @@ class MAST::HandlerScope is MAST::Node {
     has $!goto_label;
     has $!block_local;
     
-    method new(:@instructions!, :$category_mask!, :$action!, :$goto, :$block) {
+    method new(:@instructions!, :$category_mask!, :$action!, :$goto!, :$block) {
         my $obj := nqp::create(self);
         nqp::bindattr($obj, MAST::HandlerScope, '@!instructions', @instructions);
         nqp::bindattr_i($obj, MAST::HandlerScope, '$!category_mask', $category_mask);
         nqp::bindattr_i($obj, MAST::HandlerScope, '$!action', $action);
-        if $action == $HandlerAction::unwind_and_goto || $action == $HandlerAction::unwind_and_goto_obj {
-            if nqp::istype($goto, MAST::Label) {
-                nqp::bindattr($obj, MAST::HandlerScope, '$!goto_label', $goto);
-            }
-            else {
-                nqp::die("Handler action unwind-and-goto needs a MAST::Label to go to");
-            }
+        if nqp::istype($goto, MAST::Label) {
+            nqp::bindattr($obj, MAST::HandlerScope, '$!goto_label', $goto);
         }
-        elsif $action == $HandlerAction::invoke_and_we'll_see {
+        else {
+            nqp::die("Handler needs a MAST::Label to unwind to");
+        }
+        if $action == $HandlerAction::invoke_and_we'll_see {
             if nqp::istype($block, MAST::Local) {
                 nqp::bindattr($obj, MAST::HandlerScope, '$!block_local', $block);
             }
@@ -511,7 +509,8 @@ class MAST::HandlerScope is MAST::Node {
                 nqp::die("Handler action invoke-and-we'll-see needs a MAST::Local to invoke");
             }
         }
-        else {
+        elsif $action != $HandlerAction::unwind_and_goto &&
+              $action != $HandlerAction::unwind_and_goto_obj {
             nqp::die("Unknown handler action");
         }
         $obj

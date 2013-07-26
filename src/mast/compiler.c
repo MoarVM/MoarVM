@@ -755,18 +755,18 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         ws->cur_frame->handlers[i].category_mask = (unsigned int)hs->category_mask;
         ws->cur_frame->handlers[i].action = (unsigned short)hs->action;
         
-        if (hs->action == HANDLER_UNWIND_GOTO || hs->action == HANDLER_UNWIND_GOTO_OBJ) {
-            /* Ensure we have a label. */
-            if (ISTYPE(vm, hs->goto_label, ws->types->Label)) {
-                ws->cur_frame->handlers[i].label = hs->goto_label;
-                ws->cur_frame->handlers[i].local = 0;
-            }
-            else {
-                cleanup_all(vm, ws);
-                DIE(vm, "MAST::Label required for HandlerScope goto");
-            }
+        /* Ensure we have a label. */
+        if (ISTYPE(vm, hs->goto_label, ws->types->Label)) {
+            ws->cur_frame->handlers[i].label = hs->goto_label;
+            ws->cur_frame->handlers[i].local = 0;
         }
-        else if (hs->action == HANDLER_INVOKE) {
+        else {
+            cleanup_all(vm, ws);
+            DIE(vm, "MAST::Label required for HandlerScope goto");
+        }
+        
+        /* May need a block also. */
+        if (hs->action == HANDLER_INVOKE) {
             if (ISTYPE(vm, hs->block_local, ws->types->Local)) {
                 MAST_Local *l = GET_Local(hs->block_local);
                 
@@ -789,7 +789,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 DIE(vm, "MAST::Local required for HandlerScope invoke action");
             }
         }
-        else {
+        else if (hs->action != HANDLER_UNWIND_GOTO && hs->action != HANDLER_UNWIND_GOTO_OBJ) {
             cleanup_all(vm, ws);
             DIE(vm, "Invalid action code for handler scope");
         }

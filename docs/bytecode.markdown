@@ -200,8 +200,9 @@ Next comes the handlers table. Each handler has an entry as follows:
     | block handler.                                          |
     |    16-bit unsigned integer                              |
     +---------------------------------------------------------+
-    | Handler address to go to. Offset from start of the      |
-    | frame's bytecode.                                       |
+    | Handler address to go to, or where to unwind to after   |
+    | an invoked handler. Offset from start of the frame's    |
+    | bytecode.                                               |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
 

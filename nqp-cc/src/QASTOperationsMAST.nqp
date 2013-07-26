@@ -1238,9 +1238,11 @@ QAST::MASTOperations.add_core_op('handle', -> $qastcomp, $op {
     
     # Wrap instructions to try up in a handler.
     my $protil := $qastcomp.as_mast($protected, :want($MVM_reg_obj));
+    my $endlbl := MAST::Label.new( :name($qastcomp.unique('handle_end_')) );
     nqp::push($il, MAST::HandlerScope.new(
-        :instructions($protil.instructions), :block($hblocal),
+        :instructions($protil.instructions), :goto($endlbl), :block($hblocal),
         :category_mask($mask), :action($HandlerAction::invoke_and_we'll_see)));
+    nqp::push($il, $endlbl);
     
     # XXX Result not quite right here yet.
     MAST::InstructionList.new($il, $protil.result_reg, $MVM_reg_obj)
