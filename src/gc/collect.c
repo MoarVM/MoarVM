@@ -82,6 +82,11 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
             GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from instance roots\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
         }
+        
+        /* Add per-thread state to worklist and process it. */
+        MVM_gc_root_add_tc_roots_to_worklist(tc, worklist);
+        GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from TC objects\n", worklist->items);
+        process_worklist(tc, worklist, &wtp, gen);
 
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist);

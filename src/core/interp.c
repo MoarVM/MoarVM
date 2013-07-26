@@ -839,6 +839,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 8;
                         break;
                     }
+                    case MVM_OP_exception:
+                        GET_REG(cur_op, 0).o = tc->active_handlers
+                            ? tc->active_handlers->ex_obj
+                            : NULL;
+                        cur_op += 2;
+                        break;
+                    case MVM_OP_getexcategory: {
+                        MVMObject *ex = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                            GET_REG(cur_op, 0).i64 = ((MVMException *)ex)->body.category;
+                        else
+                            MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException");
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_throwdyn: {
                         MVM_exception_throwobj(tc, MVM_EX_THROW_DYN,
                             GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0));

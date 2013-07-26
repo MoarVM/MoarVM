@@ -42,6 +42,21 @@ typedef struct _MVMFrameHandler {
     MVMuint32 goto_offset;
 } MVMFrameHandler;
 
+/* An active (currently executing) exception handler. */
+typedef struct _MVMActiveHandler {
+    /* The frame the handler was found in. */
+    struct _MVMFrame *frame;
+    
+    /* The handler information itself. */
+    MVMFrameHandler *handler;
+    
+    /* The exception object. */
+    MVMObject *ex_obj;
+    
+    /* The next active handler in the chain. */
+    struct _MVMActiveHandler *next_handler;
+} MVMActiveHandler;
+
 /* Exception related functions. */
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, union _MVMRegister *resume_result);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);

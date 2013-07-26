@@ -121,23 +121,38 @@ static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
  * an exception object already, it will be used; NULL can be passed if there
  * is not one, meaning it will be created if needed. */
 void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
-static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *exobj) {
+static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj) {
     switch (lh.handler->action) {
         case MVM_EX_ACTION_GOTO:
             unwind_to_frame(tc, lh.frame);
             *tc->interp_cur_op = *tc->interp_bytecode_start + lh.handler->goto_offset;
             break;
         case MVM_EX_ACTION_INVOKE: {
+            /* Create active handler record. */
+            MVMActiveHandler *ah = malloc(sizeof(MVMActiveHandler));
+            
             /* Find frame to invoke. */
             MVMObject *handler_code = MVM_frame_find_invokee(tc,
                 lh.frame->work[lh.handler->block_reg].o);
+            
+            /* Ensure we have an exception object. */
+            /* TODO: Can make one up. */
+            if (ex_obj == NULL)
+                MVM_panic(1, "Exception object creation NYI");
+            
+            /* Install active handler record. */
+            ah->frame = lh.frame;
+            ah->handler = lh.handler;
+            ah->ex_obj = ex_obj;
+            ah->next_handler = tc->active_handlers;
+            tc->active_handlers = ah;
             
             /* Set up special return to unwinding after running the
              * handler. */
             tc->cur_frame->return_value        = NULL;
             tc->cur_frame->return_type         = MVM_RETURN_VOID;
             tc->cur_frame->special_return      = unwind_after_handler;
-            tc->cur_frame->special_return_data = NULL;
+            tc->cur_frame->special_return_data = ah;
             
             /* Inovke the handler frame and return to runloop. */
             STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
@@ -151,8 +166,19 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *exob
 
 /* Unwinds after a handler. */
 void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
-    printf("unwind after handler NYI");
-    exit(1);
+    /* Get active handler; sanity check (though it's possible other cases
+     * should be supported). */
+    MVMActiveHandler *ah = (MVMActiveHandler *)sr_data;
+    if (tc->active_handlers != ah)
+        MVM_panic(1, "Trying to unwind from wrong handler");
+    tc->active_handlers = ah->next_handler;
+
+    /* Do the unwinding as needed. */
+    unwind_to_frame(tc, ah->frame);
+    *tc->interp_cur_op = *tc->interp_bytecode_start + ah->handler->goto_offset;
+
+    /* Clean up. */
+    free(ah);
 }
 
 /* Dumps a backtrace relative to the current frame to stderr. */

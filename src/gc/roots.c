@@ -49,6 +49,19 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
 }
 
+/* Adds anything that is a root thanks to being referenced by a thread,
+ * context, but that isn't permanent. */
+void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    /* Any active exception handlers. */
+    MVMActiveHandler *cur_ah = tc->active_handlers;
+    while (cur_ah != NULL) {
+        MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
+    }
+    
+    /* The usecapture object. */
+    MVM_gc_worklist_add(tc, worklist, &tc->cur_usecapture);
+}
+
 /* Pushes a temporary root onto the thread-local roots list. */
 void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Ensure the root is not null. */

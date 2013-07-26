@@ -83,6 +83,10 @@ typedef struct _MVMThreadContext {
      * used by that op. */
     struct _MVMObject *cur_usecapture;
     
+    /* Linked list of exception handlers that we're currently executing, topmost
+     * one first in the list. */
+    struct _MVMActiveHandler *active_handlers;
+    
     /* The VM instance that this thread belongs to. */
     struct _MVMInstance *instance;
     
