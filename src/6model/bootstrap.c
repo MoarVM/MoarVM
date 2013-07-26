@@ -544,6 +544,9 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
 
+    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
+     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
+     * CallCapture, and BOOTIO types. */
 #define create_stub_boot_type(tc, reprid, slot, makeboolspec, boolspec) do { \
     MVMREPROps *repr = MVM_repr_get_by_id(tc, reprid); \
     MVMObject *type = tc->instance->slot = repr->type_object_for(tc, NULL); \
@@ -555,31 +558,26 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
         type->st->boolification_spec = bs; \
     } \
 } while (0)
-
-    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
-     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
-     * CallCapture, and IO types. */
     create_stub_boot_type(tc, MVM_REPR_ID_P6int, boot_types->BOOTInt, 1, MVM_BOOL_MODE_UNBOX_INT);
     create_stub_boot_type(tc, MVM_REPR_ID_P6num, boot_types->BOOTNum, 1, MVM_BOOL_MODE_UNBOX_NUM);
     create_stub_boot_type(tc, MVM_REPR_ID_P6str, boot_types->BOOTStr, 1, MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMArray, boot_types->BOOTArray, 1, MVM_BOOL_MODE_HAS_ELEMS);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMHash, boot_types->BOOTHash, 0, MVM_BOOL_MODE_UNBOX_INT);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMCFunction, boot_types->BOOTCCode, 0, MVM_BOOL_MODE_UNBOX_INT);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMCode, boot_types->BOOTCode, 0, MVM_BOOL_MODE_UNBOX_INT);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMThread, boot_types->BOOTThread, 0, MVM_BOOL_MODE_UNBOX_INT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMHash, boot_types->BOOTHash, 0, MVM_BOOL_MODE_HAS_ELEMS);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMCFunction, boot_types->BOOTCCode, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMCode, boot_types->BOOTCode, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMThread, boot_types->BOOTThread, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMIter, boot_types->BOOTIter, 1, MVM_BOOL_MODE_ITER);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMContext, boot_types->BOOTContext, 0, MVM_BOOL_MODE_UNBOX_INT);
-    create_stub_boot_type(tc, MVM_REPR_ID_SCRef, SCRef, 0, MVM_BOOL_MODE_UNBOX_INT);
-    create_stub_boot_type(tc, MVM_REPR_ID_Lexotic, Lexotic, 0, MVM_BOOL_MODE_UNBOX_INT);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMCallCapture, CallCapture, 0, MVM_BOOL_MODE_UNBOX_INT);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMOSHandle, boot_types->BOOTIO, 0, MVM_BOOL_MODE_UNBOX_INT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMContext, boot_types->BOOTContext, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_SCRef, SCRef, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_Lexotic, Lexotic, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMCallCapture, CallCapture, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMOSHandle, boot_types->BOOTIO, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
 
+    /* Set up some strings. */
 #define string_creator(tc, variable, name) do { \
     variable = MVM_string_ascii_decode_nt((tc), (tc)->instance->VMString, (name)); \
     MVM_gc_root_add_permanent((tc), (MVMCollectable **)&(variable)); \
 } while (0)
-
-    /* Set up some strings. */
     string_creator(tc, str_repr, "repr");
     string_creator(tc, str_name, "name");
     string_creator(tc, str_anon, "<anon>");
@@ -592,12 +590,11 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
 
+    /* Give stub types meta-objects. */
 #define meta_objectifier(tc, slot, name) do { \
     add_meta_object((tc), (tc)->instance->slot, (name)); \
     MVM_gc_root_add_permanent((tc), (MVMCollectable **)&(tc)->instance->slot); \
 } while (0)
-
-    /* Give stub types meta-objects. */
     meta_objectifier(tc, VMString, "VMString");
     meta_objectifier(tc, boot_types->BOOTInt, "BOOTInt");
     meta_objectifier(tc, boot_types->BOOTNum, "BOOTNum");
