@@ -327,7 +327,7 @@ typedef struct _MVMREPROps_Positional {
         MVMObject *root, void *data, MVMuint64 count);
 
     /* Returns a true value of the specified index exists, and a false one if not. */
-    MVMuint64 (*exists_pos) (struct _MVMThreadContext *tc, MVMSTable *st,
+    MVMint64 (*exists_pos) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMint64 index);
 
     /* Pushes the specified value onto the array. */

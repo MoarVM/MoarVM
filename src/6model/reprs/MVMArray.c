@@ -357,7 +357,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     set_size_internal(tc, body, count, repr_data);
 }
 
-MVMuint64 exists_pos(struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
+MVMint64 exists_pos(struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
 
     /* Handle negative indexes. */
