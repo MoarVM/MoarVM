@@ -839,6 +839,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 8;
                         break;
                     }
+                    case MVM_OP_throwdyn: {
+                        MVM_exception_throwobj(tc, MVM_EX_THROW_DYN,
+                            GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0));
+                        break;
+                    }
+                    case MVM_OP_throwlex: {
+                        MVM_exception_throwobj(tc, MVM_EX_THROW_LEX,
+                            GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0));
+                        break;
+                    }
+                    case MVM_OP_throwlexotic: {
+                        MVM_exception_throwobj(tc, MVM_EX_THROW_LEXOTIC,
+                            GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0));
+                        break;
+                    }
                     case MVM_OP_throwcatdyn: {
                         MVM_exception_throwcat(tc, MVM_EX_THROW_DYN,
                             (MVMuint32)GET_I64(cur_op, 2), &GET_REG(cur_op, 0));
@@ -860,7 +875,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         ex->body.category = MVM_EX_CAT_CATCH;
                         MVM_ASSIGN_REF(tc, exObj, ex->body.message, GET_REG(cur_op, 2).s); 
                         MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, exObj, &GET_REG(cur_op, 0));
-                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_newlexotic: {
