@@ -1,6 +1,34 @@
 #include "moarvm.h"
 #include <stdarg.h>
 
+/* Maps ID of exception category to its name. */
+static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
+    switch (cat) {
+        case MVM_EX_CAT_CATCH:
+            return "catch";
+        case MVM_EX_CAT_CONTROL:
+            return "control";
+        case MVM_EX_CAT_NEXT:
+            return "next";
+        case MVM_EX_CAT_REDO:
+            return "redo";
+        case MVM_EX_CAT_LAST:
+            return "last";
+        case MVM_EX_CAT_RETURN:
+            return "return";
+        case MVM_EX_CAT_TAKE:
+            return "take";
+        case MVM_EX_CAT_WARN:
+            return "warn";
+        case MVM_EX_CAT_SUCCEED:
+            return "succeed";
+        case MVM_EX_CAT_PROCEED:
+            return "proceed";
+        default:
+            return "unknown";
+    }
+}
+
 /* Checks if an exception handler is already on the active handler stack,
  * so we don't re-trigger the same exception handler. */
 static MVMuint8 in_handler_stack(MVMThreadContext *tc, MVMFrameHandler *fh) {
@@ -98,10 +126,21 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh) {
     }
 }
 
+/* Dumps a backtrace relative to the current frame to stderr. */
+static void dump_backtrace(MVMThreadContext *tc) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    while (cur_frame != NULL) {
+        fprintf(stderr, "  in %s\n",
+            MVM_string_utf8_encode(tc, cur_frame->static_info->name, NULL));
+        cur_frame = cur_frame->caller;
+    }
+}
+
 /* Panic over an unhandled exception throw by category. */
 static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
-    /* XXX TODO: Backtrace, turn cat into something meaningful. */
-    MVM_panic(1, "No exception handler located (category %d)", cat);
+    fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
+    dump_backtrace(tc);
+    exit(1);
 }
 
 /* Throws an exception by category, searching for a handler according to
@@ -152,16 +191,6 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFram
     }
     else {
         MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
-    }
-}
-
-/* Dumps a backtrace relative to the current frame to stderr. */
-static void dump_backtrace(MVMThreadContext *tc) {
-    MVMFrame *cur_frame = tc->cur_frame;
-    while (cur_frame != NULL) {
-        fprintf(stderr, "  in %s\n",
-            MVM_string_utf8_encode(tc, cur_frame->static_info->name, NULL));
-        cur_frame = cur_frame->caller;
     }
 }
 
