@@ -113,19 +113,46 @@ static void unwind_to_frame(MVMThreadContext *tc, MVMFrame *target) {
             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
 }
 
+/* Dummy, 0-arg callsite for invoking handlers. */
+static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
+
 /* Runs an exception handler (which really means updating interpreter state
  * so that when we return to the runloop, we're in the handler). If there is
  * an exception object already, it will be used; NULL can be passed if there
  * is not one, meaning it will be created if needed. */
+void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *exobj) {
     switch (lh.handler->action) {
         case MVM_EX_ACTION_GOTO:
             unwind_to_frame(tc, lh.frame);
             *tc->interp_cur_op = *tc->interp_bytecode_start + lh.handler->goto_offset;
             break;
+        case MVM_EX_ACTION_INVOKE: {
+            /* Find frame to invoke. */
+            MVMObject *handler_code = MVM_frame_find_invokee(tc,
+                lh.frame->work[lh.handler->block_reg].o);
+            
+            /* Set up special return to unwinding after running the
+             * handler. */
+            tc->cur_frame->return_value        = NULL;
+            tc->cur_frame->return_type         = MVM_RETURN_VOID;
+            tc->cur_frame->special_return      = unwind_after_handler;
+            tc->cur_frame->special_return_data = NULL;
+            
+            /* Inovke the handler frame and return to runloop. */
+            STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
+                tc->cur_frame->args);
+            break;
+        }
         default:
             MVM_panic(1, "Unimplemented handler action");
     }
+}
+
+/* Unwinds after a handler. */
+void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
+    printf("unwind after handler NYI");
+    exit(1);
 }
 
 /* Dumps a backtrace relative to the current frame to stderr. */
