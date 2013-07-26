@@ -70,7 +70,7 @@ static void default_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *roo
 static void default_set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
-static void default_exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
+static MVMuint64 default_exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
     die_no_pos(tc, st->REPR->name);
 }
 static void default_push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
