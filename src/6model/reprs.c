@@ -248,6 +248,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     repr_registrar(tc, "MVMCallCapture", MVMCallCapture_initialize);
     repr_registrar(tc, "P6bigint", P6bigint_initialize);
     repr_registrar(tc, "NFA", MVMNFA_initialize);
+    repr_registrar(tc, "VMException", MVMException_initialize);
 }
 
 /* Get a representation's ID from its name. Note that the IDs may change so
