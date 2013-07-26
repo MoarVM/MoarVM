@@ -758,7 +758,6 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         /* Ensure we have a label. */
         if (ISTYPE(vm, hs->goto_label, ws->types->Label)) {
             ws->cur_frame->handlers[i].label = hs->goto_label;
-            ws->cur_frame->handlers[i].local = 0;
         }
         else {
             cleanup_all(vm, ws);
@@ -782,14 +781,16 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 
                 /* Stash local index. */
                 ws->cur_frame->handlers[i].local = (unsigned short)l->index;
-                ws->cur_frame->handlers[i].label = NULL;
             }
             else {
                 cleanup_all(vm, ws);
                 DIE(vm, "MAST::Local required for HandlerScope invoke action");
             }
         }
-        else if (hs->action != HANDLER_UNWIND_GOTO && hs->action != HANDLER_UNWIND_GOTO_OBJ) {
+        else if (hs->action == HANDLER_UNWIND_GOTO || hs->action == HANDLER_UNWIND_GOTO_OBJ) {
+            ws->cur_frame->handlers[i].local = 0;
+        }
+        else {
             cleanup_all(vm, ws);
             DIE(vm, "Invalid action code for handler scope");
         }
