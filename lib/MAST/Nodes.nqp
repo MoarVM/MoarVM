@@ -476,6 +476,10 @@ module HandlerCategory {
     our $last    := 16;
     our $return  := 32;
     our $unwind  := 64;
+    our $take    := 128;
+    our $warn    := 256;
+    our $succeed := 512;
+    our $proceed := 1024;
 }
 
 # A region with a handler.
