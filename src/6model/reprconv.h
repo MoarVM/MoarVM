@@ -31,3 +31,7 @@ MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj);
 void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMint64 val);
 void MVM_repr_set_num(MVMThreadContext *tc, MVMObject *obj, MVMnum64 val);
 void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val);
+
+MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val);
+MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 val);
+MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val);
