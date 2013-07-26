@@ -164,6 +164,8 @@ typedef STRING VMSTR;
 #define EXISTSKEY(vm, hash, k)      (VTABLE_exists_keyed_str(vm, hash, k))
 #define DELETEKEY(vm, hash, k)      (VTABLE_delete_keyed_str(vm, hash, k))
 #define EMPTY_STRING(vm)            (Parrot_str_new_constant(interp, ""))
+#define VM_STRING_IS_NULL(s)        STRING_IS_NULL(s)
+#define VM_OBJ_IS_NULL(o)           PMC_IS_NULL(o)
 
 /* Copies of MVM operand read/write/literal flags. */
 #define MVM_operand_literal     0
@@ -238,6 +240,11 @@ typedef enum {
 
 /* Type mappings. */
 #define MVMStorageSpec      storage_spec
+
+/* Constant mappings. */
+#define MVM_STORAGE_SPEC_BP_INT     STORAGE_SPEC_BP_INT
+#define MVM_STORAGE_SPEC_BP_NUM     STORAGE_SPEC_BP_NUM
+#define MVM_STORAGE_SPEC_BP_STR     STORAGE_SPEC_BP_STR
 
 /* Copy parrot's endianness */
 #ifdef PARROT_BIGENDIAN

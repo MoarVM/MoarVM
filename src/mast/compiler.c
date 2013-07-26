@@ -8,6 +8,7 @@
 #include "../../3rdparty/uthash.h"
 #else
 #include "moarvm.h"
+#include "nodes_moarvm.h"
 #endif
 
 /* Some sizes. */
@@ -279,15 +280,19 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
     MVMStorageSpec ss = REPR(type)->get_storage_spec(vm, STABLE(type));
     if (ss.inlineable) {
         switch (ss.boxed_primitive) {
-            case STORAGE_SPEC_BP_INT:
+            case MVM_STORAGE_SPEC_BP_INT:
                 switch (ss.bits) {
                     case 8:
                         return MVM_reg_int8;
                     case 16:
                         return MVM_reg_int16;
                     case 32:
+#ifdef PARROT_OPS_BUILD
                         /* XXX Parrot specific hack... */
                         return sizeof(INTVAL) == 4 ? MVM_reg_int64 : MVM_reg_int32;
+#else
+                        return MVM_reg_int32;
+#endif
                     case 64:
                         return MVM_reg_int64;
                     default:
@@ -295,7 +300,7 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
                         DIE(vm, "Invalid int size for local/lexical");
                 }
                 break;
-            case STORAGE_SPEC_BP_NUM:
+            case MVM_STORAGE_SPEC_BP_NUM:
                 switch (ss.bits) {
                     case 32:
                         return MVM_reg_num32;
@@ -306,7 +311,7 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
                         DIE(vm, "Invalid num size for local/lexical");
                 }
                 break;
-            case STORAGE_SPEC_BP_STR:
+            case MVM_STORAGE_SPEC_BP_STR:
                 return MVM_reg_str;
                 break;
             default:
@@ -1008,15 +1013,20 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
     
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
+#ifdef PARROT_OPS_BUILD
         /* Transcode string to UTF8. */
         STRING *utf8 = Parrot_str_change_encoding(interp,
             ATPOS_S(vm, ws->strings, i),
             Parrot_utf8_encoding_ptr->num);
-        
+        unsigned int bytelen = (unsigned int)Parrot_str_byte_length(interp, utf8);
+#else
+        MVMuint64 bytelen;
+        MVMuint8 *utf8 = MVM_string_utf8_encode(tc, ATPOS_S(vm, ws->strings, i), &bytelen);
+#endif
+
         /* Ensure we have space. */
-        unsigned int   bytelen = (unsigned int)Parrot_str_byte_length(interp, utf8);
-        unsigned short align   = bytelen & 3 ? 4 - (bytelen & 3) : 0;
-        unsigned int   need    = 4 + bytelen + align;
+        unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
+        unsigned int   need  = 4 + bytelen + align;
         if (heap_size + need >= heap_alloc) {
             heap_alloc = umax(heap_alloc * 2, heap_size + need);
             heap = (char *)realloc(heap, heap_alloc);
@@ -1027,7 +1037,12 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
         heap_size += 4;
         
         /* Write string. */
+#ifdef PARROT_OPS_BUILD
         memcpy(heap + heap_size, utf8->strstart, bytelen);
+#else
+        memcpy(heap + heap_size, utf8, bytelen);
+        free(utf8);
+#endif
         heap_size += bytelen;
         
         /* Add alignment. */
@@ -1048,7 +1063,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     unsigned int  hll_str_idx;
     
     /* Store HLL name string, if any. */
-    if (!STRING_IS_NULL(ws->cu->hll))
+    if (!VM_STRING_IS_NULL(ws->cu->hll))
         hll_str_idx = get_string_heap_index(vm, ws, ws->cu->hll);
     else
         hll_str_idx = get_string_heap_index(vm, ws, EMPTY_STRING(vm));
@@ -1116,15 +1131,15 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     
     /* Add HLL and special frame indexes. */
     write_int32(output, 72, hll_str_idx);
-    if (PMC_IS_NULL(ws->cu->main_frame))
+    if (VM_OBJ_IS_NULL(ws->cu->main_frame))
         write_int32(output, 76, 0);
     else
         write_int32(output, 76, 1 + get_frame_index(vm, ws, ws->cu->main_frame));
-    if (PMC_IS_NULL(ws->cu->load_frame))
+    if (VM_OBJ_IS_NULL(ws->cu->load_frame))
         write_int32(output, 80, 0);
     else
         write_int32(output, 80, 1 + get_frame_index(vm, ws, ws->cu->load_frame));
-    if (PMC_IS_NULL(ws->cu->deserialize_frame))
+    if (VM_OBJ_IS_NULL(ws->cu->deserialize_frame))
         write_int32(output, 84, 0);
     else
         write_int32(output, 84, 1 + get_frame_index(vm, ws, ws->cu->deserialize_frame));

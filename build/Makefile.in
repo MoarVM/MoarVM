@@ -304,7 +304,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/6model/reprs/P6bigint$(O) src/6model/reprs/NFA$(O) \
             src/6model/reprs/MVMException$(O) \
             src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) \
-            src/6model/serialization$(O) src/strings/ascii$(O) \
+            src/6model/serialization$(O) src/mast/compiler$(O) src/strings/ascii$(O) \
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
             src/strings/latin1$(O) src/strings/utf16$(O) src/math/bigintops$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
@@ -710,6 +710,8 @@ src/6model/sc$(O): src/6model/sc.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/sc$(O) src/6model/sc.c
 src/6model/serialization$(O): src/6model/serialization.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/serialization$(O) src/6model/serialization.c
+src/mast/compiler$(O): src/mast/compiler.c $(HEADERS) src/mast/nodes_moarvm.h
+	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/mast/compiler$(O) src/mast/compiler.c
 src/strings/ascii$(O): src/strings/ascii.c $(HEADERS)
 	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/ascii$(O) src/strings/ascii.c
 src/strings/utf8$(O): src/strings/utf8.c $(HEADERS)
