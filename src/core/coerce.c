@@ -5,8 +5,8 @@
 #endif
 
 /* Dummy, invocant-arg callsite. */
-static MVMCallsiteEntry obj_arg_flags[]  = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite      inv_arg_callsite = { obj_arg_flags, 1, 1 };
+static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1 };
 
 /* Special return structure for boolification handling. */
 typedef struct {
@@ -103,10 +103,10 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                 MVM_exception_throw_adhoc(tc, "Invalid boolification spec mode used");
         }
     }
-    
+
     if (flip)
         result = result ? 0 : 1;
-    
+
     if (res_reg) {
         res_reg->i64 = result;
     }
@@ -158,13 +158,13 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
     MVMObject *strmeth;
-    
+
     /* Handle null case. */
     if (!obj) {
         res_reg->s = tc->instance->str_consts->empty;
         return;
     }
-    
+
     /* Check if there is a Str method. */
     strmeth = MVM_6model_find_method_cache_only(tc, obj,
         tc->instance->str_consts->Str);
@@ -179,7 +179,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
         return;
     }
-    
+
     /* Otherwise, guess something appropriate. */
     if (!IS_CONCRETE(obj))
         res_reg->s = tc->instance->str_consts->empty;
@@ -214,13 +214,13 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
 
 void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
     MVMObject *nummeth;
-    
+
     /* Handle null case. */
     if (!obj) {
         res_reg->n64 = 0.0;
         return;
     }
-    
+
     /* Check if there is a Num method. */
     nummeth = MVM_6model_find_method_cache_only(tc, obj,
         tc->instance->str_consts->Num);
@@ -235,7 +235,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
         return;
     }
-    
+
     /* Otherwise, guess something appropriate. */
     if (!IS_CONCRETE(obj)) {
         res_reg->n64 = 0.0;
@@ -262,7 +262,7 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
     if (!obj || !IS_CONCRETE(obj)) {
         return 0;
     }
-        
+
     /* Otherwise, guess something appropriate. */
     else {
         MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
