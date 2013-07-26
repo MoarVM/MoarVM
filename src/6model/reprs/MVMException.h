@@ -7,13 +7,13 @@ typedef struct _MVMExceptionBody {
     MVMObject *payload;
     
     /* The exception category. */
-    MVMint64 category;
-    
-    /* Where was the exception thrown from? */
-    MVMFrame *origin;
+    MVMint32 category;
     
     /* Is the exception resumable? */
     MVMuint8 resumable;
+    
+    /* Where was the exception thrown from? */
+    MVMFrame *origin;
 } MVMExceptionBody;
 typedef struct _MVMException {
     MVMObject common;
