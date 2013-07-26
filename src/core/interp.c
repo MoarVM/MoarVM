@@ -2704,21 +2704,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                         cur_op += 6;
                         break;
-                    case MVM_OP_istype: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
-                        MVMint64 i, result = 0, elems = STABLE(obj)->type_check_cache_length;
-                        MVMObject **cache = STABLE(obj)->type_check_cache;
-                        if (cache)
-                            for (i = 0; i < elems; i++) {
-                                if (cache[i] == type) {
-                                    result = 1;
-                                    break;
-                                }
-                            }
-                        GET_REG(cur_op, 0).i64 = result;
+                    case MVM_OP_istype:
+                        /* XXX: Should not be cache_only, once the more sophisticated
+                         * checker is implemented. */
+                        GET_REG(cur_op, 0).i64 = MVM_6model_istype_cache_only(tc,
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                         cur_op += 6;
                         break;
-                    }
                     case MVM_OP_ctx: {
                         MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
                         ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, tc->cur_frame);

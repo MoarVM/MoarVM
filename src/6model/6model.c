@@ -35,6 +35,20 @@ MVMint64 MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *
     return 0;
 }
 
+/* Checks if an object has a given type, using the cache only. */
+MVMObject * MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type) {
+    MVMint64 i, result = 0, elems = STABLE(obj)->type_check_cache_length;
+    MVMObject **cache = STABLE(obj)->type_check_cache;
+    if (cache)
+        for (i = 0; i < elems; i++) {
+            if (cache[i] == type) {
+                result = 1;
+                break;
+            }
+        }
+    return result;
+}
+
 /* Default invoke function on STables; for non-invokable objects */
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
     MVM_exception_throw_adhoc(tc, "non-invokable object is non-invokable");

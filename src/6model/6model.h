@@ -504,4 +504,5 @@ typedef struct _MVMREPROps {
 MVMObject * MVM_6model_find_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
 MVMObject * MVM_6model_find_method_cache_only(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
 MVMint64 MVM_6model_can_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
+MVMObject * MVM_6model_istype_cache_only(struct _MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
 void MVM_6model_invoke_default(struct _MVMThreadContext *tc, MVMObject *invokee, struct _MVMCallsite *callsite, union _MVMRegister *args);
