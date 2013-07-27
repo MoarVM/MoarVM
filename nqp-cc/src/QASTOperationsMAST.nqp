@@ -1774,6 +1774,9 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
+QAST::MASTOperations.add_core_moarop_mapping('getenv', 'getenv');
+QAST::MASTOperations.add_core_moarop_mapping('setenv', 'setenv');
+QAST::MASTOperations.add_core_moarop_mapping('delenv', 'delenv');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
