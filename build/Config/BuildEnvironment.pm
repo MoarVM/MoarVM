@@ -59,7 +59,7 @@ my %TOOLCHAINS = (
                 llibs       => '',
 
                 # Optional settings
-                copt        => '/Ox /GL /ML',
+                copt        => '/Ox /GL',
                 cdebug      => '/Zi',
                 cinstrument => '',
                 lopt        => '/LTCG',
