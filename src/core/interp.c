@@ -3250,13 +3250,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_scwbdisable:
-                        /* TODO: Implement this. */
-                        GET_REG(cur_op, 0).o = NULL;
+                        GET_REG(cur_op, 0).i64 = ++tc->sc_wb_disable_depth;
                         cur_op += 2;
                         break;
                     case MVM_OP_scwbenable:
-                        /* TODO: Implement this. */
-                        GET_REG(cur_op, 0).o = NULL;
+                        GET_REG(cur_op, 0).i64 = --tc->sc_wb_disable_depth;
                         cur_op += 2;
                         break;
                     default: {
