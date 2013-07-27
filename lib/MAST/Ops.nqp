@@ -3845,7 +3845,7 @@ class MAST::Ops {
             'getenvhash', nqp::hash(
                 'code', 31,
                 'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_obj
+                    $MVM_operand_write_reg +| $MVM_operand_obj
                 ]
             )
         ],

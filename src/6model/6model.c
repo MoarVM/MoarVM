@@ -36,7 +36,7 @@ MVMint64 MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *
 }
 
 /* Checks if an object has a given type, using the cache only. */
-MVMObject * MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type) {
+MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type) {
     MVMint64 i, result = 0, elems = STABLE(obj)->type_check_cache_length;
     MVMObject **cache = STABLE(obj)->type_check_cache;
     if (cache)

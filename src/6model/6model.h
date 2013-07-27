@@ -59,7 +59,7 @@ typedef struct _MVMStorageSpec {
      * primitive type and can unbox, this says what primitive type
      * that they unbox to. */
     MVMuint16 boxed_primitive;
-    
+
     /* The types that this one can box/unbox to. */
     MVMuint16 can_box;
 } MVMStorageSpec;
@@ -84,19 +84,19 @@ typedef struct _MVMStorageSpec {
 typedef enum {
     /* Is a type object (and thus not a concrete instance). */
     MVM_CF_TYPE_OBJECT = 1,
-    
+
     /* Is an STable. */
     MVM_CF_STABLE = 2,
-    
+
     /* Has already been seen once in GC nursery. */
     MVM_CF_NURSERY_SEEN = 4,
 
     /* Has been promoted to the old generation. */
     MVM_CF_SECOND_GEN = 8,
-    
+
     /* Is shared - that is, more than one thread knows about it. */
     MVM_CF_SHARED = 16,
-    
+
     /* Has already been added to the gen2 aggregates pointing to nursery
      * objects list. */
     MVM_CF_IN_GEN2_ROOT_LIST = 32
@@ -115,13 +115,13 @@ typedef struct _MVMCollectable {
      * shared then it's whoever currently holds the mutex on it, or 0 if there
      * is no held mutex. */
     MVMuint32 owner;
-    
+
     /* Collectable flags (see MVMCollectableFlags). */
     MVMuint32 flags;
-    
+
     /* Forwarding pointer, for copying/compacting GC purposes. */
     struct _MVMCollectable *forwarder;
-    
+
     /* Pointer to the serialization context this collectable lives in, if any. */
     struct _MVMSerializationContext *sc;
 } MVMCollectable;
@@ -130,10 +130,10 @@ typedef struct _MVMCollectable {
 typedef struct _MVMObject {
     /* Commonalities that all collectable entities have. */
     MVMCollectable header;
-    
+
     /* The s-table for the object. */
     struct _MVMSTable *st;
-    
+
     /* Padding for 32-bit systems. */
 #if !defined(_M_X64) && !defined(__amd64__)
     MVMuint32 pad;
@@ -166,13 +166,13 @@ typedef struct {
 typedef struct _MVMSTable {
     /* Commonalities that all collectable entities have. */
     MVMCollectable header;
-    
+
     /* The representation operation table. */
     struct _MVMREPROps *REPR;
-    
+
     /* Any data specific to this type that the REPR wants to keep. */
     void *REPR_data;
-    
+
     /* The size of an object of this type in bytes, including the
      * header. */
     MVMuint32 size;
@@ -182,34 +182,34 @@ typedef struct _MVMSTable {
 
     /* The type-object. */
     MVMObject *WHAT;
-    
+
     /* By-name method dispatch cache. */
     MVMObject *method_cache;
 
     /* The computed v-table for static dispatch. */
     MVMObject **vtable;
-    
+
     /* Array of type objects. If this is set, then it is expected to contain
      * the type objects of all types that this type is equivalent to (e.g.
      * all the things it isa and all the things it does). */
     MVMObject **type_check_cache;
-    
+
     /* The length of the v-table. */
     MVMuint16 vtable_length;
-    
+
     /* The length of the type check cache. */
     MVMuint16 type_check_cache_length;
-    
+
     /* The type checking mode and method cache mode (see flags for this
      * above). */
     MVMuint16 mode_flags;
-    
+
     /* An ID solely for use in caches that last a VM instance. Thus it
      * should never, ever be serialized and you should NEVER make a
      * type directory based upon this ID. Otherwise you'll create memory
      * leaks for anonymous types, and other such screwups. */
     MVMuint64 type_cache_id;
-    
+
     /* Invocation handler. If something tries to invoke this object,
      * whatever hangs off this function pointer gets invoked to handle
      * the invocation. If it's a call into C code it may do stuff right
@@ -233,11 +233,11 @@ typedef struct _MVMSTable {
      * figure out how to invoke it. If not, it'll be null.
      */
     struct _MVMInvocationSpec *invocation_spec;
-    
+
     /* Information - if any - about how we can turn something of this type
      * into a boolean. */
     MVMBoolificationSpec *boolification_spec;
-    
+
     /* The underlying package stash. */
     MVMObject *WHO;
 } MVMSTable;
@@ -346,14 +346,14 @@ typedef struct _MVMREPROps_Positional {
      * the array so that the next element is element zero. */
     void (*shift) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, union _MVMRegister *value, MVMuint16 kind);
-    
+
     /* Splices the specified array into this one. Representations may optimize if
      * they know the type of the passed array, otherwise they should use the REPR
      * API. */
     void (*splice) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *target_array,
         MVMint64 offset, MVMuint64 elems);
-    
+
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
 } MVMREPROps_Positional;
@@ -403,7 +403,7 @@ typedef struct _MVMREPROps {
      * describe by the specified s-table. DATA points to the body. It
      * may recursively call initialize for any flattened objects. */
     void (*initialize) (struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
-    
+
     /* For the given type, copies the object data from the source memory
      * location to the destination one. Note that it may actually be more
      * involved than a straightforward bit of copying; what's important is
@@ -411,10 +411,10 @@ typedef struct _MVMREPROps {
      * call copy_to recursively on representations of any flattened objects
      * within its body. */
     void (*copy_to) (struct _MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest);
-    
+
     /* Attribute access REPR function table. */
     MVMREPROps_Attribute *attr_funcs;
-    
+
     /* Boxing REPR function table. */
     MVMREPROps_Boxing *box_funcs;
 
@@ -423,14 +423,14 @@ typedef struct _MVMREPROps {
 
     /* Associative indexing REPR function table. */
     MVMREPROps_Associative *ass_funcs;
-    
+
     /* Gets the number of elements, for any aggregate types. */
     MVMuint64 (*elems) (struct _MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data);
-    
+
     /* Gets the storage specification for this representation. */
     MVMStorageSpec (*get_storage_spec) (struct _MVMThreadContext *tc, MVMSTable *st);
-    
+
     /* Handles an object changing its type. The representation is responsible
      * for doing any changes to the underlying data structure, and may reject
      * changes that it's not willing to do (for example, a representation may
@@ -439,26 +439,26 @@ typedef struct _MVMREPROps {
      * out, the representation probably knows more about timing issues and
      * thread safety requirements. */
     void (*change_type) (struct _MVMThreadContext *tc, MVMObject *object, MVMObject *new_type);
-    
+
     /* Object serialization. Writes the object's body out using the passed
      * serialization writer. */
     void (*serialize) (struct _MVMThreadContext *tc, MVMSTable *st, void *data, struct _MVMSerializationWriter *writer);
-    
+
     /* Object deserialization. Reads the object's body in using the passed
      * serialization reader. */
     void (*deserialize) (struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, struct _MVMSerializationReader *reader);
-    
+
     /* REPR data serialization. Serializes the per-type representation data that
      * is attached to the supplied STable. */
     void (*serialize_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationWriter *writer);
-    
+
     /* REPR data deserialization. Deserializes the per-type representation data and
      * attaches it to the supplied STable. */
     void (*deserialize_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationReader *reader);
-    
+
     /* Deserialization of STable size. */
     void (*deserialize_stable_size) (struct _MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationReader *reader);
-    
+
     /* MoarVM-specific REPR API addition used to mark an object. This involves
      * adding all pointers it contains to the worklist. */
     void (*gc_mark) (struct _MVMThreadContext *tc, MVMSTable *st, void *data, struct _MVMGCWorklist *worklist);
@@ -475,18 +475,18 @@ typedef struct _MVMREPROps {
 
     /* MoarVM-specific REPR API addition used to free a REPR instance. */
     void (*gc_free_repr_data) (struct _MVMThreadContext *tc, MVMSTable *st);
-    
+
     /* Causes the representation to be composed. Composition involves
      * passing the representation information that it needs in order
      * to compute memory layout. */
     void (*compose) (struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *info);
-    
+
     /* The representation's name. */
     struct _MVMString *name;
 
     /* The representation's ID. */
     MVMuint32 ID;
-    
+
     /* Does this representation reference frames (either MVMStaticFrame or
      * MVMFrame)? */
     MVMuint32 refs_frames;
@@ -504,5 +504,5 @@ typedef struct _MVMREPROps {
 MVMObject * MVM_6model_find_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
 MVMObject * MVM_6model_find_method_cache_only(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
 MVMint64 MVM_6model_can_method(struct _MVMThreadContext *tc, MVMObject *obj, struct _MVMString *name);
-MVMObject * MVM_6model_istype_cache_only(struct _MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
+MVMint64 MVM_6model_istype_cache_only(struct _MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
 void MVM_6model_invoke_default(struct _MVMThreadContext *tc, MVMObject *invokee, struct _MVMCallsite *callsite, union _MVMRegister *args);

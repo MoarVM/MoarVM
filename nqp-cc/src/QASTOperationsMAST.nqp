@@ -1773,7 +1773,7 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 # process related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
-QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash', 0);
+QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
