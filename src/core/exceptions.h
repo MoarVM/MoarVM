@@ -58,6 +58,7 @@ typedef struct _MVMActiveHandler {
 } MVMActiveHandler;
 
 /* Exception related functions. */
+struct _MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, union _MVMRegister *resume_result);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
 struct _MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);

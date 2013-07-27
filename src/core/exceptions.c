@@ -181,6 +181,31 @@ void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     free(ah);
 }
 
+/* Returns the lines (backtrace) of an exception-object as an array. */
+MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj) {
+    MVMException *ex;
+    
+    if (IS_CONCRETE(exObj) && REPR(exObj)->ID == MVM_REPR_ID_MVMException)
+        ex = (MVMException *)exObj;
+    else
+        MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
+    
+    MVMFrame *cur_frame = (MVMFrame *)((MVMExceptionBody *)OBJECT_BODY(exObj))->origin;
+    MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&arr);
+
+    MVMROOT(tc, arr, {
+        while (cur_frame != NULL) {
+            MVMObject *pobj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStr);
+            MVM_repr_set_str(tc, pobj, cur_frame->static_info->name);
+            MVM_repr_push_o(tc, arr, pobj);
+            cur_frame = cur_frame->caller;
+        }
+    });
+
+    return arr;
+}
+
 /* Dumps a backtrace relative to the current frame to stderr. */
 static void dump_backtrace(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
@@ -239,6 +264,9 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exOb
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
+    
+    ((MVMExceptionBody *)OBJECT_BODY(exObj))->origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+
     run_handler(tc, lh, exObj);
 }
 
