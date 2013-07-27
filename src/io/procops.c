@@ -1,5 +1,7 @@
 #include "moarvm.h"
 
+/* MSVC compilers know about environ,
+ * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
 #ifndef WIN32
 #  ifdef __APPLE_CC__
 #    include <crt_externs.h>
