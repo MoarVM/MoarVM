@@ -845,6 +845,51 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             : NULL;
                         cur_op += 2;
                         break;
+                    case MVM_OP_bindexmessage: {
+                        MVMObject *ex = GET_REG(cur_op, 0).o;
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                            ((MVMException *)ex)->body.message = GET_REG(cur_op, 2).s;
+                        else
+                            MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException");
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_bindexpayload: {
+                        MVMObject *ex = GET_REG(cur_op, 0).o;
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                            ((MVMException *)ex)->body.payload = GET_REG(cur_op, 2).o;
+                        else
+                            MVM_exception_throw_adhoc(tc, "bindexpayload needs a VMException");
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_bindexcategory: {
+                        MVMObject *ex = GET_REG(cur_op, 0).o;
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                            ((MVMException *)ex)->body.category = GET_REG(cur_op, 2).i64;
+                        else
+                            MVM_exception_throw_adhoc(tc, "bindexcategory needs a VMException");
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_getexmessage: {
+                        MVMObject *ex = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                            GET_REG(cur_op, 0).s = ((MVMException *)ex)->body.message;
+                        else
+                            MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException");
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_getexpayload: {
+                        MVMObject *ex = GET_REG(cur_op, 2).o;
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                            GET_REG(cur_op, 0).o = ((MVMException *)ex)->body.payload;
+                        else
+                            MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException");
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_getexcategory: {
                         MVMObject *ex = GET_REG(cur_op, 2).o;
                         if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)

@@ -17,7 +17,7 @@ grammar HLL::Grammar {
         <term>
         <postfixish>*
     }
-    
+
     proto token term { <...> }
     proto token infix { <...> }
     proto token prefix { <...> }
@@ -124,14 +124,14 @@ grammar HLL::Grammar {
     token charnames { [<.ws><charname><.ws>]+ % ',' }
     token charspec {
         [
-        | '[' <charnames> ']' 
+        | '[' <charnames> ']'
         | \d+ [ _ \d+]*
         | <[ ?..Z ]>
         | <.panic: 'Unrecognized \\c character'>
         ]
     }
 
-=begin 
+=begin
 
 =item O(spec [, save])
 
@@ -169,12 +169,12 @@ Currently the only pairs recognized have the form C< :pair >,
 C< :!pair >, and C<< :pair<strval> >>.
 
 =end
-    
+
     # This lexical holds the hash cache. Right now we have one
     # cache for all grammars; eventually we may need a way to
     # separate them out by cursor type.
     my %ohash;
-    
+
     method O(str $spec, $save?) {
         # See if we've already created a Hash for the current
         # specification string -- if so, use that.
@@ -194,7 +194,7 @@ C< :!pair >, and C<< :pair<strval> >>.
                 }
                 elsif $s eq ':' { # Parse whatever comes next like a pair.
                     $pos++;
-                  
+
                     # If the pair is of the form :!name, then reverse the value
                     # and skip the exclamation mark.
                     my $value := 1;
@@ -278,7 +278,7 @@ of the match.
         @args.push('"');
         nqp::die(join('', @args))
     }
-    
+
     method FAILGOAL($goal, $dba?) {
         unless $dba {
             $dba := ~nqp::callercode();
@@ -299,7 +299,7 @@ position C<pos>.
     method peek_delimiters(str $target, int $pos) {
         # peek at the next character
         my str $start := nqp::substr($target, $pos, 1);
-    
+
         # colon, word and whitespace characters aren't valid delimiters
         if $start eq ':' {
             self.panic('Colons may not be used to delimit quoting constructs');
@@ -424,7 +424,7 @@ An operator precedence parser.
         my str $inassoc;
         my int $more_infix;
         my int $term_done;
-        
+
         while 1 {
             nqp::bindattr_i($here, $cursor_class, '$!pos', $pos);
             $termcur := $here."$termishrx"();
@@ -433,21 +433,21 @@ An operator precedence parser.
             return $here if $pos < 0;
 
             $termish := $termcur.MATCH();
-            
+
             # Interleave any prefix/postfix we might have found.
             %termOPER := $termish;
             %termOPER := nqp::atkey(%termOPER, 'OPER')
                 while nqp::existskey(%termOPER, 'OPER');
             @prefixish  := nqp::atkey(%termOPER, 'prefixish');
             @postfixish := nqp::atkey(%termOPER, 'postfixish');
- 
+
             unless nqp::isnull(@prefixish) || nqp::isnull(@postfixish) {
                 while @prefixish && @postfixish {
                     my %preO     := @prefixish[0]<OPER><O>;
                     my %postO    := @postfixish[nqp::elems(@postfixish)-1]<OPER><O>;
                     my $preprec  := nqp::ifnull(nqp::atkey(%preO, 'prec'), '');
                     my $postprec := nqp::ifnull(nqp::atkey(%postO, 'prec'), '');
-                    
+
                     if $postprec gt $preprec ||
                     $postprec eq $preprec && %postO<uassoc> eq 'right'
                     {
@@ -460,10 +460,10 @@ An operator precedence parser.
                 nqp::push(@opstack, nqp::shift(@prefixish)) while @prefixish;
                 nqp::push(@opstack, nqp::pop(@postfixish)) while @postfixish;
             }
-            nqp::deletekey($termish, 'prefixish');            
+            nqp::deletekey($termish, 'prefixish');
             nqp::deletekey($termish, 'postfixish');
             nqp::push(@termstack, nqp::atkey($termish, 'term'));
-        
+
             last if $noinfix;
 
             $more_infix := 1;
@@ -478,7 +478,7 @@ An operator precedence parser.
                     $term_done := 1;
                     last;
                 }
-        
+
                 # Next, try the infix itself.
                 nqp::bindattr_i($here, $cursor_class, '$!pos', $pos);
                 $infixcur := $here.infixish();
@@ -488,7 +488,7 @@ An operator precedence parser.
                     last;
                 }
                 $infix := $infixcur.MATCH();
-    
+
                 # We got an infix.
                 %inO := $infix<OPER><O>;
                 $termishrx := nqp::ifnull(nqp::atkey(%inO, 'nextterm'), 'termish');
@@ -499,9 +499,9 @@ An operator precedence parser.
                     $term_done := 1;
                     last;
                 }
-        
+
                 %inO<prec> := nqp::ifnull(nqp::atkey(%inO, 'sub'), nqp::atkey(%inO, 'prec'));
-                
+
                 while @opstack {
                     $opprec := ~@opstack[+@opstack-1]<OPER><O><prec>;
                     last unless $opprec gt $inprec;
@@ -517,7 +517,7 @@ An operator precedence parser.
                 }
             }
             last if $term_done;
-        
+
             # if equal precedence, use associativity to decide
             if $opprec eq $inprec {
                 $inassoc := nqp::atkey(%inO, 'assoc');
@@ -531,7 +531,7 @@ An operator precedence parser.
                     self.EXPR_reduce(@termstack, @opstack);
                 }
             }
-            
+
             nqp::push(@opstack, $infix); # The Shift
             nqp::bindattr_i($here, $cursor_class, '$!pos', $pos);
             $wscur := $here.ws();
@@ -539,7 +539,7 @@ An operator precedence parser.
             nqp::bindattr_i($here, $cursor_class, '$!pos', $pos);
             return $here if $pos < 0;
         }
-        
+
         self.EXPR_reduce(@termstack, @opstack) while @opstack;
         $pos := nqp::getattr_i($here, $cursor_class, '$!pos');
         $here := self.'!cursor_start_cur'();
@@ -550,9 +550,9 @@ An operator precedence parser.
         $here;
     }
 
-    method EXPR_reduce(@termstack, @opstack) { 
+    method EXPR_reduce(@termstack, @opstack) {
         my $op := nqp::pop(@opstack);
-        
+
         # Give it a fresh capture list, since we'll have assumed it has
         # no positional captures and not taken them.
         nqp::bindattr($op, NQPCapture, '@!array', nqp::list());
@@ -572,7 +572,7 @@ An operator precedence parser.
         elsif $opassoc eq 'list' {
             $sym := nqp::ifnull(nqp::atkey(%opOPER, 'sym'), '');
             nqp::unshift($op, nqp::pop(@termstack));
-            while @opstack {    
+            while @opstack {
                 last if $sym ne nqp::ifnull(
                     nqp::atkey(nqp::atkey(nqp::atpos(@opstack,
                         nqp::elems(@opstack) - 1), 'OPER'), 'sym'), '');
@@ -592,7 +592,7 @@ An operator precedence parser.
         self.'!reduce_with_match'('EXPR', $key, $op);
         nqp::push(@termstack, $op);
     }
-    
+
     method EXPR_nonassoc($cur, $op1, $op2) {
         $cur.panic('"' ~ $op1 ~ '" and "' ~ $op2 ~ '" are non-associative and require parens');
     }
@@ -610,7 +610,7 @@ An operator precedence parser.
         $cur."!cursor_pass"(self.pos());
         nqp::bindkey(%markhash, $markname, $cur);
     }
-    
+
     method MARKED(str $markname) {
         my %markhash := nqp::getattr(
             nqp::getattr(self, $cursor_class, '$!shared'),
@@ -653,7 +653,7 @@ class HLL::Actions {
             nqp::chr($ints.ast);
         }
     }
-    
+
     method CTXSAVE() {
         QAST::Stmts.new(
             QAST::Op.new(
@@ -679,7 +679,7 @@ class HLL::Actions {
                         QAST::Var.new( :name('ctxsave'), :scope('local')
                     )))))
     }
-   
+
     method SET_BLOCK_OUTER_CTX($block) {
         my $outer_ctx := %*COMPILING<%?OPTIONS><outer_ctx>;
         if nqp::defined($outer_ctx) {
@@ -762,7 +762,7 @@ class HLL::Actions {
                     $past := QAST::SVal.new( :value(~@words[0]) );
                 }
             }
-            else {            
+            else {
                 $/.CURSOR.panic("Can't form :w list from non-constant strings (yet)");
             }
         }
@@ -858,15 +858,15 @@ class HLL::Backend::MoarVM {
     method apply_transcodings($s, $transcode) {
         $s
     }
-    
+
     method config() {
         nqp::hash()
     }
-    
+
     method force_gc() {
         nqp::die("Cannot force GC on Moar backend yet");
     }
-    
+
     method name() {
         'moar'
     }
@@ -874,51 +874,51 @@ class HLL::Backend::MoarVM {
     method nqpevent($spec?) {
         # Doesn't do anything just yet
     }
-    
+
     method run_profiled($what) {
         nqp::die("No profiling support");
     }
-    
+
     method run_traced($level, $what) {
         nqp::die("No tracing support");
     }
-    
+
     method version_string() {
         "MoarVM"
     }
-    
+
     method stages() {
         'mast mbc moar'
     }
-    
+
     method is_precomp_stage($stage) {
         $stage eq 'mbc'
     }
-    
+
     method is_textual_stage($stage) {
         0
     }
-    
+
     method mast($qast, *%adverbs) {
         nqp::getcomp('qast').mast($qast);
     }
-    
+
     method mbc($jast, *%adverbs) {
         nqp::die("mbc NYI");
     }
-    
+
     method moar($cu, *%adverbs) {
         nqp::die("NYI");
     }
-    
+
     method is_compunit($cuish) {
         nqp::die("NYI");
     }
-    
+
     method compunit_mainline($cu) {
         nqp::die("NYI");
     }
-    
+
     method compunit_coderefs($cu) {
         nqp::die("NYI");
     }
@@ -947,10 +947,10 @@ class HLL::Compiler does HLL::Backend::Default {
     method BUILD() {
         # Backend is set to the default one, by default.
         $!backend    := self.default_backend();
-        
+
         # Default stages.
         @!stages     := nqp::split(' ', 'start parse ast ' ~ $!backend.stages());
-        
+
         # Command options and usage.
         @!cmdoptions := nqp::split(' ', 'e=s help|h target=s trace|t=s encoding=s output|o=s combine version|v show-config verbose-config|V stagestats=s? ll-exception rxtrace nqpevent=s profile profile-compile');
         $!usage := "This compiler is based on HLL::Compiler.\n\nOptions:\n";
@@ -959,7 +959,7 @@ class HLL::Compiler does HLL::Backend::Default {
         }
         %!config     := nqp::hash();
     }
-    
+
     method backend(*@value) {
         if @value {
             $!backend := @value[0];
@@ -1038,11 +1038,11 @@ class HLL::Compiler does HLL::Backend::Default {
 #            }
         }
     }
-    
+
     method interactive_result($value) {
         nqp::say(~$value)
     }
-    
+
     method interactive_exception($ex) {
         nqp::print(~$ex ~ "\n")
     }
@@ -1095,7 +1095,7 @@ class HLL::Compiler does HLL::Backend::Default {
         }
         @!stages;
     }
-    
+
     method parsegrammar(*@value) {
         if +@value {
             $!parsegrammar := @value[0];
@@ -1109,11 +1109,11 @@ class HLL::Compiler does HLL::Backend::Default {
         }
         $!parseactions;
     }
-    
+
     method interactive_banner() { '' }
-    
+
     method interactive_prompt() { '> ' }
-    
+
     method compiler_progname($value?) {
         if nqp::defined($value) {
             $!compiler_progname := $value;
@@ -1121,13 +1121,13 @@ class HLL::Compiler does HLL::Backend::Default {
         $!compiler_progname;
     }
 
-    
+
     method commandline_options(@value?) {
         if +@value {
             @!cmdoptions := @value;
         }
         @!cmdoptions;
-    }    
+    }
 
     method command_line(@args, *%adverbs) {
         my $program-name := @args[0];
@@ -1139,7 +1139,7 @@ class HLL::Compiler does HLL::Backend::Default {
             %adverbs{$_.key} := $_.value;
         }
         self.usage($program-name) if %adverbs<help>  || %adverbs<h>;
-        
+
         if $!backend.is_precomp_stage(%adverbs<target>) {
             %adverbs<precomp> := 1;
         }
@@ -1158,7 +1158,7 @@ class HLL::Compiler does HLL::Backend::Default {
         my $error;
         my $has_error := 0;
         my $target := nqp::lc(%adverbs<target>);
-#        try {
+        try {
             if nqp::defined(%adverbs<e>) {
                 $!user_progname := '-e';
                 my $?FILES := '-e';
@@ -1180,20 +1180,20 @@ class HLL::Compiler does HLL::Backend::Default {
                 nqp::printfh($fh, $result);
                 nqp::closefh($fh);
             }
-#            CATCH {
-#                $has_error := 1;
-#                $error     := $_;
-#            }
-#            CONTROL {
-#                if nqp::can(self, 'handle-control') {
-#                    self.handle-control($_);
-#                } else {
+            CATCH {
+                $has_error := 1;
+                $error     := $_;
+            }
+            CONTROL {
+                if nqp::can(self, 'handle-control') {
+                    self.handle-control($_);
+                } else {
 #                    nqp::rethrow($_);
-#                }
-#                $has_error := 1;
-#                $error     := $_;
-#            }
-#        }
+                }
+                $has_error := 1;
+                $error     := $_;
+            }
+        }
         if ($has_error) {
             if %adverbs<ll-exception> || !nqp::can(self, 'handle-exception') {
                 my $err := nqp::getstderr();
@@ -1216,14 +1216,14 @@ class HLL::Compiler does HLL::Backend::Default {
         $p.add-stopper('-e');
         $p.stop-after-first-arg;
         my $res;
-#        try {
+        try {
             $res := $p.parse(@args);
-#            CATCH {
-#                nqp::say($_);
-#                self.usage;
-#                nqp::exit(1);
-#            }
-#        }
+            CATCH {
+                nqp::say($_);
+                self.usage;
+                nqp::exit(1);
+            }
+        }
         if $res {
             %!cli-options   := $res.options();
             @!cli-arguments := $res.arguments();
@@ -1244,22 +1244,22 @@ class HLL::Compiler does HLL::Backend::Default {
         for @files -> $filename {
             my $err := 0;
             my $in-handle;
-#            try {
+            try {
                 $in-handle := nqp::open($filename, 'r');
-#                CATCH {
-#                    nqp::say("Could not open $filename. $_");
-#                    $err := 1;
-#                }
-#            }
+                CATCH {
+                    nqp::say("Could not open $filename. $_");
+                    $err := 1;
+                }
+            }
             nqp::exit(1) if $err;
-#            try {
+            try {
                 nqp::setencoding($in-handle, $encoding);
                 nqp::push(@codes, nqp::readallfh($in-handle));
                 nqp::closefh($in-handle);
-#                CATCH {
-#                    $err := "Error while reading from file: $_";
-#                }
-#            }
+                CATCH {
+                    $err := "Error while reading from file: $_";
+                }
+            }
             nqp::die($err) if $err;
         }
         my $code := join('', @codes);
@@ -1271,7 +1271,7 @@ class HLL::Compiler does HLL::Backend::Default {
             return self.dumper($r, $target, |%adverbs);
         }
     }
-    
+
     method exists_stage($stage) {
         my $found := 0;
         for self.stages() {
@@ -1317,7 +1317,7 @@ class HLL::Compiler does HLL::Backend::Default {
             my $diff := nqp::time_n() - $timestamp;
             if nqp::defined($stagestats) {
                 nqp::printfh($stderr, "Stage $_: $diff");
-#                nqp::printfh($stderr, nqp::sprintf("Stage %-11s: %7.3f", [$_, $diff]));
+                nqp::printfh($stderr, nqp::sprintf("Stage %-11s: %7.3f", [$_, $diff]));
                 $!backend.force_gc() if nqp::bitand_i($stagestats, 0x4);
                 nqp::printfh($stderr, $!backend.vmstat())
                     if nqp::bitand_i($stagestats, 0x2);
@@ -1329,7 +1329,7 @@ class HLL::Compiler does HLL::Backend::Default {
             }
             last if $_ eq $target;
         }
-        
+
         if %adverbs<compunit_ok> {
             return $result
         }
@@ -1400,7 +1400,7 @@ class HLL::Compiler does HLL::Backend::Default {
         }
         nqp::exit(0);
     }
-    
+
     method nqpevent(*@pos) {
         $!backend.nqpevent(|@pos)
     }
@@ -1466,7 +1466,7 @@ class HLL::Compiler does HLL::Backend::Default {
         }
         @actual_ns;
     }
-	
+
 	method lineof($target, int $pos, int :$cache = 0) {
 		my $linepos;
 		if $cache {
@@ -1498,7 +1498,7 @@ class HLL::Compiler does HLL::Backend::Default {
 				}
 			}
 		}
-		
+
 		# We have c<linepos>, so now we (binary) search the array
 		# for the largest element that is not greater than c<pos>.
 		my int $lo := 0;
@@ -1842,16 +1842,16 @@ class HLL::CommandLine::Parser {
 class HLL::World {
     # The serialization context that we're building.
     has $!sc;
-    
+
     # The handle for the context.
     has $!handle;
-    
+
     # Whether we're in pre-compilation mode.
     has $!precomp_mode;
-    
+
     # The number of code refs we've added to the code refs root so far.
     has $!num_code_refs;
-    
+
     # List of QAST blocks that map to the code refs table, for use in
     # building deserialization code.
     has $!code_ref_blocks;
@@ -1864,12 +1864,12 @@ class HLL::World {
     # List of QAST nodes specifying fixup tasks, either after deserialization
     # or between compile time and run time.
     has @!fixup_tasks;
-    
+
     # Address => slot mapping, so we can quickly look up existing objects
     # in the context.
     # XXX LEGACY
     has %!addr_to_slot;
-    
+
     method BUILD(:$handle!, :$description = '<unknown>') {
         # Initialize attributes.
         $!sc              := nqp::createsc($handle);
@@ -1881,11 +1881,11 @@ class HLL::World {
         $!num_code_refs   := 0;
         $!code_ref_blocks := [];
         nqp::scsetdesc($!sc, $description);
-        
+
         # Add to currently compiling SC stack.
 #        nqp::pushcompsc($!sc);
     }
-    
+
     # Gets the slot for a given object. Dies if it is not in the context.
     method slot_for_object($obj) {
         my $slot := %!addr_to_slot{nqp::where($obj)};
@@ -1903,7 +1903,7 @@ class HLL::World {
         %!addr_to_slot{nqp::where($obj)} := $idx;
         $idx
     }
-    
+
     # Adds a code reference to the root set of code refs.
     method add_root_code_ref($code_ref, $past_block) {
         my $code_ref_idx := $!num_code_refs;
@@ -1912,7 +1912,7 @@ class HLL::World {
         nqp::scsetcode($!sc, $code_ref_idx, $code_ref);
         $code_ref_idx
     }
-    
+
     # Updates a code reference in the root set.
     method update_root_code_ref($idx, $new_code_ref) {
         nqp::scsetcode($!sc, $idx, $new_code_ref);
@@ -1922,7 +1922,7 @@ class HLL::World {
     method is_precompilation_mode() {
         $!precomp_mode
     }
-    
+
     # Add an event that we want to run before deserialization or before any
     # other fixup.
     method add_load_dependency_task(:$deserialize_past, :$fixup_past) {
@@ -1933,7 +1933,7 @@ class HLL::World {
             @!load_dependency_tasks.push($fixup_past) if $fixup_past;
         }
     }
-    
+
     # Add an event that we need to run at fixup time (after deserialization of
     # between compilation and runtime).
     method add_fixup_task(:$deserialize_past, :$fixup_past) {
@@ -1944,26 +1944,26 @@ class HLL::World {
             @!fixup_tasks.push($fixup_past) if $fixup_past;
         }
     }
-    
+
     # Gets the built serialization context.
     method sc() {
         $!sc
     }
-    
+
     # Gets the SC handle.
     method handle() {
          $!handle
     }
-    
+
     method code_ref_blocks() {
         $!code_ref_blocks
     }
-    
+
     # Gets the list of load dependency tasks to do.
     method load_dependency_tasks() {
         @!load_dependency_tasks
     }
-    
+
     # Gets the list of tasks to do at fixup time.
     method fixup_tasks() {
         @!fixup_tasks
@@ -1980,9 +1980,9 @@ my module sprintf {
             :my $*ARGS_USED := 0;
             ^ <statement>* $
         }
-        
+
         method panic($msg) { nqp::die($msg) }
-        
+
         token statement {
             [
             | <?[%]> [ [ <directive> | <escape> ]
@@ -2005,9 +2005,9 @@ my module sprintf {
 
         proto token escape { <...> }
         token escape:sym<%> { '%' <flags>* <size>? <sym> }
-        
+
         token literal { <-[%]>+ }
-        
+
         token flags {
             | $<space> = ' '
             | $<plus>  = '+'
@@ -2015,7 +2015,7 @@ my module sprintf {
             | $<zero>  = '0'
             | $<hash>  = '#'
         }
-        
+
         token size {
             \d* | $<star>='*'
         }
@@ -2055,7 +2055,7 @@ my module sprintf {
                     return $handler.int($number_representation);
                 }
             }
-            
+
             my $result;
             if $number_representation > 0 {
                 $result := nqp::floor_n($number_representation);
@@ -2203,7 +2203,7 @@ my module sprintf {
                 } else {
                     $sci := $float ~ $e ~ '+' ~ ($exp < 10 ?? '0' !! '') ~ $exp;
                 }
-                
+
                 pad-with-sign($sign, $sci, $size, $pad);
             }
         }
@@ -2252,7 +2252,7 @@ my module sprintf {
             my $int := intify(next_argument());
             if $int < 0 {
                     my $err := nqp::getstderr();
-                    nqp::printfh($err, "negative value '" 
+                    nqp::printfh($err, "negative value '"
                                     ~ $int
                                     ~ "' for %u in sprintf");
                     $int := 0;
