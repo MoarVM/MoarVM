@@ -3053,6 +3053,12 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_getenvhash,
+        "getenvhash",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_serialization[] = {
     {
@@ -3179,7 +3185,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     57,
     135,
     51,
-    31,
+    32,
     17,
 };
 

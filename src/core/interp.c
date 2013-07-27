@@ -888,7 +888,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *exObj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
                         MVMException *ex = (MVMException *)exObj;
                         ex->body.category = MVM_EX_CAT_CATCH;
-                        MVM_ASSIGN_REF(tc, exObj, ex->body.message, GET_REG(cur_op, 2).s); 
+                        MVM_ASSIGN_REF(tc, exObj, ex->body.message, GET_REG(cur_op, 2).s);
                         MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, exObj, &GET_REG(cur_op, 0));
                         break;
                     }
@@ -3145,6 +3145,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_load_bytecode(tc, filename);
                         break;
                     }
+                    case MVM_OP_getenvhash:
+                        GET_REG(cur_op, 0).o = MVM_proc_getenvhash(tc);
+                        cur_op += 2;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_processthread, *(cur_op-1));

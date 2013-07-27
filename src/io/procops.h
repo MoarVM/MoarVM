@@ -1,3 +1,4 @@
+MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc);
 MVMString * MVM_proc_getenv(MVMThreadContext *tc, MVMString *var);
 void MVM_proc_setenv(MVMThreadContext *tc, MVMString *var, MVMString *value);
 void MVM_proc_delenv(MVMThreadContext *tc, MVMString *var);

@@ -54,12 +54,12 @@ my %TOOLCHAINS = (
                 couto       => '-Fo',
                 louto       => '-out:',
                 cmiscflags  => '/nologo -DWIN32',
-                lmiscflags  => '/nologo /NODEFAULTLIB kernel32.lib ws2_32.lib msvcrt.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib',
+                lmiscflags  => '/nologo /NODEFAULTLIB kernel32.lib ws2_32.lib mswsock.lib rpcrt4.lib oldnames.lib advapi32.lib shell32.lib libcmt.lib',
                 # XXXX: Why are libraries stuffed into lmiscflags above?
                 llibs       => '',
 
                 # Optional settings
-                copt        => '/Ox /GL',
+                copt        => '/Ox /GL /ML',
                 cdebug      => '/Zi',
                 cinstrument => '',
                 lopt        => '/LTCG',

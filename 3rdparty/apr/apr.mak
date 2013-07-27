@@ -2,32 +2,32 @@
 !IF "$(CFG)" == ""
 CFG=apr - Win32 Release
 !MESSAGE No configuration specified. Defaulting to apr - Win32 Release.
-!ENDIF 
+!ENDIF
 
 !IF "$(CFG)" != "apr - Win32 Release" && "$(CFG)" != "apr - Win32 Debug" && "$(CFG)" != "apr - Win32 Release9x" && "$(CFG)" != "apr - Win32 Debug9x" && "$(CFG)" != "apr - x64 Release" && "$(CFG)" != "apr - x64 Debug"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "apr.mak" CFG="apr - Win32 Release"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "apr - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - Win32 Release9x" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - Win32 Debug9x" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - x64 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "apr - x64 Debug" (based on "Win32 (x86) Static Library")
-!MESSAGE 
+!MESSAGE
 !ERROR An invalid configuration is specified.
-!ENDIF 
+!ENDIF
 
 !IF "$(OS)" == "Windows_NT"
 NULL=
-!ELSE 
+!ELSE
 NULL=nul
-!ENDIF 
+!ENDIF
 
 !IF  "$(CFG)" == "apr - Win32 Release"
 
@@ -119,45 +119,45 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 RSC=rc.exe
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc"
 BSC32_SBRS= \
-	
+
 LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -326,45 +326,45 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c 
+CPP_PROJ=/nologo /MTd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 RSC=rc.exe
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc"
 BSC32_SBRS= \
-	
+
 LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -533,45 +533,45 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 RSC=rc.exe
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc"
 BSC32_SBRS= \
-	
+
 LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -740,45 +740,45 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c 
+CPP_PROJ=/nologo /MTd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 RSC=rc.exe
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc"
 BSC32_SBRS= \
-	
+
 LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -947,45 +947,45 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 RSC=rc.exe
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc"
 BSC32_SBRS= \
-	
+
 LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -1154,45 +1154,45 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c 
+CPP_PROJ=/nologo /MTd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_STATIC" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(OUTDIR)\apr-1" /FD /EHsc /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 RSC=rc.exe
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\apr.bsc"
 BSC32_SBRS= \
-	
+
 LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib" 
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -1270,16 +1270,16 @@ LIB32_OBJS= \
   $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
 <<
 
-!ENDIF 
+!ENDIF
 
 
 !IF "$(NO_EXTERNAL_DEPS)" != "1"
 !IF EXISTS("apr.dep")
 !INCLUDE "apr.dep"
-!ELSE 
+!ELSE
 !MESSAGE Warning: cannot find "apr.dep"
-!ENDIF 
-!ENDIF 
+!ENDIF
+!ENDIF
 
 
 !IF "$(CFG)" == "apr - Win32 Release" || "$(CFG)" == "apr - Win32 Debug" || "$(CFG)" == "apr - Win32 Release9x" || "$(CFG)" == "apr - Win32 Debug9x" || "$(CFG)" == "apr - x64 Release" || "$(CFG)" == "apr - x64 Debug"
@@ -1711,69 +1711,69 @@ SOURCE=.\include\apr.hw
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "apr - Win32 Debug"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "apr - x64 Release"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "apr - x64 Debug"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ENDIF 
+<<
 
 
-!ENDIF 
+!ENDIF
+
+
+!ENDIF
 

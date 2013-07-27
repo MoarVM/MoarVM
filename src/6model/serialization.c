@@ -201,7 +201,7 @@ MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
                              const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN
-static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader, 
+static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
         const char *messageFormat, ...) {
     va_list args;
     if (reader->data)
@@ -306,7 +306,7 @@ static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *re
     *(reader->cur_read_offset) += 4;
     idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 4;
-    
+
     return MVM_sc_get_object(tc, locate_sc(tc, reader, sc_id), idx);
 }
 
@@ -326,7 +326,7 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
         MVM_repr_bind_pos_o(tc, result, i, read_ref_func(tc, reader));
-    
+
     return result;
 }
 
@@ -345,7 +345,7 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
         MVMString *key = read_str_func(tc, reader);
         MVM_repr_bind_key_boxed(tc, result, key, read_ref_func(tc, reader));
     }
-    
+
     /* Set the SC. */
     MVM_sc_set_obj_sc(tc, result, reader->root.sc);
 
@@ -368,13 +368,13 @@ static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *r
 /* Reading function for references. */
 MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result;
-    
+
     /* Read the discriminator. */
     short discrim;
     assert_can_read(tc, reader, 2);
     discrim = read_int16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 2;
-    
+
     /* Decide what to do based on it. */
     switch (discrim) {
         case REFVAR_NULL:
@@ -411,13 +411,13 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
 /* Reading function for STable references. */
 static MVMSTable * read_stable_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 sc_id, idx;
-    
+
     assert_can_read(tc, reader, 8);
     sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 4;
     idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 4;
-    
+
     return lookup_stable(tc, reader, sc_id, idx);
 }
 
@@ -433,7 +433,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     char   *prov_pos = data;
     char   *data_end = data + data_len;
     free(data_b64);
-    
+
     /* Ensure we got the data. */
     if (data == NULL)
         fail_deserialize(tc, reader,
@@ -466,7 +466,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (dependencies table overruns end of data)");
- 
+
     /* Get size and location of STables table. */
     reader->root.stables_table = data + read_int32(data, 12);
     reader->root.num_stables   = read_int32(data, 16);
@@ -487,7 +487,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (STables data starts after end of data)");
-            
+
     /* Get size and location of objects table. */
     reader->root.objects_table = data + read_int32(data, 24);
     reader->root.num_objects   = read_int32(data, 28);
@@ -498,7 +498,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (objects table overruns end of data)");
-            
+
     /* Get location of objects data. */
     reader->root.objects_data = data + read_int32(data, 32);
     if (reader->root.objects_data < prov_pos)
@@ -508,7 +508,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (objects data starts after end of data)");
-    
+
     /* Get size and location of closures table. */
     reader->root.closures_table = data + read_int32(data, 36);
     reader->root.num_closures   = read_int32(data, 40);
@@ -519,7 +519,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (Closures table overruns end of data)");
-    
+
     /* Get size and location of contexts table. */
     reader->root.contexts_table = data + read_int32(data, 44);
     reader->root.num_contexts   = read_int32(data, 48);
@@ -530,7 +530,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (contexts table overruns end of data)");
-    
+
     /* Get location of contexts data. */
     reader->root.contexts_data = data + read_int32(data, 52);
     if (reader->root.contexts_data < prov_pos)
@@ -551,7 +551,7 @@ static void check_and_disect_input(MVMThreadContext *tc,
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (repossessions table overruns end of data)");
-    
+
     /* Set reading limits for data chunks. */
     reader->stables_data_end = reader->root.objects_table;
     reader->objects_data_end = reader->root.closures_table;
@@ -588,15 +588,15 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
     for (i = 0; i < num_sts; i++) {
         /* Calculate location of STable's table row. */
         char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
-        
+
         /* Read in and look up representation. */
         MVMREPROps *repr = MVM_repr_get_by_name(tc,
             read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
-        
+
         /* Allocate and store stub STable. */
         MVMSTable *st = MVM_gc_allocate_stable(tc, repr, NULL);
         MVM_sc_set_stable(tc, reader->root.sc, i, st);
-        
+
         /* Set the STable's SC. */
         MVM_sc_set_stable_sc(tc, st, reader->root.sc);
     }
@@ -610,16 +610,16 @@ static void set_stable_sizes(MVMThreadContext *tc, MVMSerializationReader *reade
     for (i = 0; i < num_sts; i++) {
         /* Grab STable. */
         MVMSTable *st = MVM_sc_get_stable(tc, reader->root.sc, i);
-        
+
         /* Set STable read position, and set current read buffer to the
          * location of the REPR data. */
         char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
         reader->stables_data_offset = read_int32(st_table_row, 8);
-        
+
         reader->cur_read_buffer     = &(reader->root.stables_data);
         reader->cur_read_offset     = &(reader->stables_data_offset);
         reader->cur_read_end        = &(reader->stables_data_end);
-        
+
         if (st->REPR->deserialize_stable_size)
             st->REPR->deserialize_stable_size(tc, st, reader);
         else
@@ -637,7 +637,7 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
     for (i = 0; i < num_objs; i++) {
         /* Calculate location of object's table row. */
         char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
-        
+
         /* Resolve the STable. */
         MVMSTable *st = lookup_stable(tc, reader,
             read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
@@ -650,7 +650,7 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
         else
             obj = MVM_gc_allocate_type_object(tc, st);
         MVM_sc_set_object(tc, reader->root.sc, i, obj);
-        
+
         /* Set the object's SC. */
         MVM_sc_set_obj_sc(tc, obj, reader->root.sc);
     }
@@ -661,20 +661,20 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
 static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i) {
     /* Calculate location of closure's table row. */
     char *table_row = reader->root.closures_table + i * CLOSURES_TABLE_ENTRY_SIZE;
-    
+
     /* Resolve the reference to the static code object. */
     MVMuint32  static_sc_id = read_int32(table_row, 0);
     MVMuint32  static_idx   = read_int32(table_row, 4);
     MVMObject *static_code  = MVM_sc_get_code(tc,
         locate_sc(tc, reader, static_sc_id), static_idx);
-    
+
     /* Clone it and add it to the SC's code refs list. */
     MVMObject *closure = MVM_repr_clone(tc, static_code);
     MVM_repr_push_o(tc, reader->codes_list, closure);
-    
+
     /* Tag it as being in this SC. */
     MVM_sc_set_obj_sc(tc, closure, reader->root.sc);
-    
+
     /* See if there's a code object we need to attach. */
     if (read_int32(table_row, 12)) {
         MVMObject *obj = MVM_sc_get_object(tc,
@@ -689,10 +689,10 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
     MVMStaticFrame *sf;
     MVMFrame       *f;
     MVMint64        i, syms;
-    
+
     /* Calculate location of context's table row. */
     char *table_row = reader->root.contexts_table + row * CONTEXTS_TABLE_ENTRY_SIZE;
-    
+
     /* Resolve the reference to the static code object this context is for. */
     MVMuint32  static_sc_id = read_int32(table_row, 0);
     MVMuint32  static_idx   = read_int32(table_row, 4);
@@ -702,13 +702,13 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
     /* Create context. */
     sf = ((MVMCode *)static_code)->body.sf;
     f  = MVM_frame_create_context_only(tc, sf, static_code);
-    
+
     /* Set context data read position, and set current read buffer to the correct thing. */
     reader->contexts_data_offset = read_int32(table_row, 8);
     reader->cur_read_buffer      = &(reader->root.contexts_data);
     reader->cur_read_offset      = &(reader->contexts_data_offset);
     reader->cur_read_end         = &(reader->contexts_data_end);
-    
+
     /* Deserialize lexicals. */
     syms = reader->read_int(tc, reader);
     for (i = 0; i < syms; i++) {
@@ -728,7 +728,7 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
                 lex->o = reader->read_ref(tc, reader);
         }
     }
-    
+
     /* Put context into contexts array (will be attached in a later pass). */
     reader->contexts[row] = f;
 }
@@ -753,18 +753,18 @@ static void attach_context_outer(MVMThreadContext *tc, MVMSerializationReader *r
 static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMSTable *st) {
     /* Calculate location of STable's table row. */
     char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
-    
+
     /* Set STable read position, and set current read buffer to the correct thing. */
     reader->stables_data_offset = read_int32(st_table_row, 4);
     reader->cur_read_buffer     = &(reader->root.stables_data);
     reader->cur_read_offset     = &(reader->stables_data_offset);
     reader->cur_read_end        = &(reader->stables_data_end);
-    
+
     /* Read the HOW, WHAT and WHO. */
     MVM_ASSIGN_REF(tc, st, st->HOW, read_obj_ref(tc, reader));
     MVM_ASSIGN_REF(tc, st, st->WHAT, read_obj_ref(tc, reader));
     MVM_ASSIGN_REF(tc, st, st->WHO, read_ref_func(tc, reader));
-    
+
     /* Method cache and v-table. */
     MVM_ASSIGN_REF(tc, st, st->method_cache, read_ref_func(tc, reader));
     st->vtable_length = read_int_func(tc, reader);
@@ -772,7 +772,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         st->vtable = (MVMObject **)malloc(st->vtable_length * sizeof(MVMObject *));
     for (i = 0; i < st->vtable_length; i++)
         MVM_ASSIGN_REF(tc, st, st->vtable[i], read_ref_func(tc, reader));
-    
+
     /* Type check cache. */
     st->type_check_cache_length = read_int_func(tc, reader);
     if (st->type_check_cache_length > 0) {
@@ -780,10 +780,10 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         for (i = 0; i < st->type_check_cache_length; i++)
             MVM_ASSIGN_REF(tc, st, st->type_check_cache[i], read_ref_func(tc, reader));
     }
-    
+
     /* Mode flags. */
     st->mode_flags = read_int_func(tc, reader);
-    
+
     /* Boolification spec. */
     if (read_int_func(tc, reader)) {
         st->boolification_spec = (MVMBoolificationSpec *)malloc(sizeof(MVMBoolificationSpec));
@@ -795,7 +795,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     if (read_int_func(tc, reader)) {
         fail_deserialize(tc, reader, "Container spec deserialization NYI");
     }
-    
+
     /* Invocation spec. */
     if (read_int_func(tc, reader)) {
         fail_deserialize(tc, reader, "Invocation spec deserialization NYI");
@@ -812,12 +812,12 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
     if (IS_CONCRETE(obj)) {
         /* Calculate location of object's table row. */
         char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
-        
+
         /* Set current read buffer to the correct thing. */
         reader->cur_read_buffer = &(reader->root.objects_data);
         reader->cur_read_offset = &(reader->objects_data_offset);
         reader->cur_read_end    = &(reader->objects_data_end);
-        
+
         /* Delegate to its deserialization REPR function. */
         reader->objects_data_offset = read_int32(obj_table_row, 8);
         if (REPR(obj)->deserialize)
@@ -832,16 +832,16 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
 void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext *sc,
-        MVMObject *string_heap, MVMObject *codes_static, 
+        MVMObject *string_heap, MVMObject *codes_static,
         MVMObject *repo_conflicts, MVMString *data) {
     MVMint32 scodes, i;
-    
+
     /* Allocate and set up reader. */
     MVMSerializationReader *reader = malloc(sizeof(MVMSerializationReader));
     memset(reader, 0, sizeof(MVMSerializationReader));
     reader->root.sc          = sc;
     reader->root.string_heap = string_heap;
-    
+
     /* Put reader functions in place. */
     reader->read_int        = read_int_func;
     reader->read_int32      = read_int32_func;
@@ -850,38 +850,38 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->read_str        = read_str_func;
     reader->read_ref        = read_ref_func;
     reader->read_stable_ref = read_stable_ref_func;
-    
+
     /* Put code root list into SC. We'll end up mutating it, but that's
      * probably fine. */
     MVM_sc_set_code_list(tc, sc, codes_static);
     reader->codes_list = codes_static;
     scodes = (MVMint32)MVM_repr_elems(tc, codes_static);
-    
+
     /* TODO: Mark all the static code refs we've been provided with as static. */
-    
+
     /* During deserialization, we allocate directly in generation 2. This
      * is because these objects are almost certainly going to be long lived,
      * but also because if we know that we won't end up moving the objects
      * we are working on during a deserialization run, it's a bunch easier
      * to have those partially constructed objects floating around. */
     MVM_gc_allocate_gen2_default_set(tc);
-    
+
     /* Read header and disect the data into its parts. */
     check_and_disect_input(tc, reader, data);
-    
+
     /* Resolve the SCs in the dependencies table. */
     resolve_dependencies(tc, reader);
-    
+
     /* TODO: repossessing objects and STables. */
-    
+
     /* Stub allocate all STables, and then have the appropriate REPRs do
      * the required size calculations. */
     stub_stables(tc, reader);
     set_stable_sizes(tc, reader);
-    
+
     /* Stub allocate all objects. */
     stub_objects(tc, reader);
-    
+
     /* Deserialize closures, deserialize contexts, then attach outers. */
     reader->contexts = malloc(reader->root.num_contexts * sizeof(MVMFrame *));
     for (i = 0; i < reader->root.num_closures; i++)
@@ -897,7 +897,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Fully deserialize STables, along with their representation data. */
     for (i = 0; i < reader->root.num_stables; i++)
         deserialize_stable(tc, reader, i, MVM_sc_get_stable(tc, sc, i));
-    
+
     /* Finish deserializing objects. */
     for (i = 0; i < reader->root.num_objects; i++)
         deserialize_object(tc, reader, i, MVM_sc_get_object(tc, sc, i));
@@ -908,7 +908,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     if (reader->contexts)
         free(reader->contexts);
     free(reader);
-    
+
     /* Restore normal GC allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
 }
@@ -937,5 +937,5 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
 
     /* Free the C-string and put result into a new string. */
     free(cstr);
-    return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, output, 40, MVM_encoding_type_utf8);
+    return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, output, 40, MVM_encoding_type_ascii);
 }

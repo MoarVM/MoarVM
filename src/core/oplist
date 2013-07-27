@@ -518,6 +518,7 @@ BANK 6 processthread
 0x1C    time_n              w(num64)
 0x1D    exit                r(int64)
 0x1E    loadbytecode        w(str) r(str)
+0x1F    getenvhash			r(obj)
 
 BANK 7 serialization
 0x00    sha1                w(str) r(str)

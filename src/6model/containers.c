@@ -110,21 +110,20 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
 }
 
 static MVMContainerConfigurer * initialize_code_pair_spec(MVMThreadContext *tc) {
-    MVMContainerConfigurer *cc = malloc(sizeof(MVMContainerConfigurer));
+    MVMContainerConfigurer *cc      = malloc(sizeof(MVMContainerConfigurer));
 
-    code_pair_spec        = malloc(sizeof(MVMContainerSpec));
-    code_pair_spec->name  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair");
-    code_pair_spec->fetch = code_pair_fetch;
-    code_pair_spec->store = code_pair_store;
-
+    code_pair_spec                  = malloc(sizeof(MVMContainerSpec));
+    code_pair_spec->name            = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair");
+    code_pair_spec->fetch           = code_pair_fetch;
+    code_pair_spec->store           = code_pair_store;
     code_pair_spec->store_unchecked = code_pair_store;
     code_pair_spec->gc_mark_data    = code_pair_gc_mark_data;
     code_pair_spec->gc_free_data    = code_pair_gc_free_data;
     code_pair_spec->serialize       = code_pair_serialize;
     code_pair_spec->deserialize     = code_pair_deserialize;
 
-    cc->set_container_spec       = code_pair_set_container_spec;
-    cc->configure_container_spec = code_pair_configure_container_spec;
+    cc->set_container_spec          = code_pair_set_container_spec;
+    cc->configure_container_spec    = code_pair_configure_container_spec;
 
     return cc;
 }

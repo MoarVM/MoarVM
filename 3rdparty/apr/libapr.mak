@@ -2,32 +2,32 @@
 !IF "$(CFG)" == ""
 CFG=libapr - Win32 Release
 !MESSAGE No configuration specified. Defaulting to libapr - Win32 Release.
-!ENDIF 
+!ENDIF
 
 !IF "$(CFG)" != "libapr - Win32 Release" && "$(CFG)" != "libapr - Win32 Debug" && "$(CFG)" != "libapr - Win32 Release9x" && "$(CFG)" != "libapr - Win32 Debug9x" && "$(CFG)" != "libapr - x64 Release" && "$(CFG)" != "libapr - x64 Debug"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "libapr.mak" CFG="libapr - Win32 Release"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "libapr - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - Win32 Release9x" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - Win32 Debug9x" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - x64 Release" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "libapr - x64 Debug" (based on "Win32 (x86) Dynamic-Link Library")
-!MESSAGE 
+!MESSAGE
 !ERROR An invalid configuration is specified.
-!ENDIF 
+!ENDIF
 
 !IF "$(OS)" == "Windows_NT"
 NULL=
-!ELSE 
+!ELSE
 NULL=nul
-!ENDIF 
+!ENDIF
 
 !IF  "$(CFG)" == "libapr - Win32 Release"
 
@@ -124,48 +124,48 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c 
+CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 MTL=midl.exe
-MTL_PROJ=/nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL" 
+MTL_PROJ=/nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL"
 RSC=rc.exe
-RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "NDEBUG" /d "APR_VERSION_ONLY" 
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "NDEBUG" /d "APR_VERSION_ONLY"
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 /opt:ref 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 /opt:ref
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -353,48 +353,48 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c 
+CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 MTL=midl.exe
-MTL_PROJ=/nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL" 
+MTL_PROJ=/nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL"
 RSC=rc.exe
-RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "_DEBUG" /d "APR_VERSION_ONLY" 
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "_DEBUG" /d "APR_VERSION_ONLY"
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -582,48 +582,48 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c 
+CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 MTL=midl.exe
-MTL_PROJ=/nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL" 
+MTL_PROJ=/nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL"
 RSC=rc.exe
-RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "NDEBUG" /d "APR_VERSION_ONLY" 
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "NDEBUG" /d "APR_VERSION_ONLY"
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 /opt:ref 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 /opt:ref
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -811,48 +811,48 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c 
+CPP_PROJ=/nologo /MTd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 MTL=midl.exe
-MTL_PROJ=/nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL" 
+MTL_PROJ=/nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL"
 RSC=rc.exe
-RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "_DEBUG" /d "APR_VERSION_ONLY" 
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "_DEBUG" /d "APR_VERSION_ONLY"
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -1040,48 +1040,48 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 MTL=midl.exe
-MTL_PROJ=/nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL" 
+MTL_PROJ=/nologo /D "NDEBUG" /mktyplib203 /o /win32 "NUL"
 RSC=rc.exe
-RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "NDEBUG" /d "APR_VERSION_ONLY" 
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "NDEBUG" /d "APR_VERSION_ONLY"
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X64 /opt:ref 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X64 /opt:ref
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -1269,48 +1269,48 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c 
+CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) $< 
+   $(CPP_PROJ) $<
 <<
 
 MTL=midl.exe
-MTL_PROJ=/nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL" 
+MTL_PROJ=/nologo /D "_DEBUG" /mktyplib203 /o /win32 "NUL"
 RSC=rc.exe
-RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "_DEBUG" /d "APR_VERSION_ONLY" 
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)\libapr.res" /i "./include" /d "_DEBUG" /d "APR_VERSION_ONLY"
 BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc" 
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X64 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X64
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
@@ -1402,16 +1402,16 @@ OutDir=.\x64\Debug
    if exist .\x64\Debug\libapr-1.dll.manifest mt.exe -manifest .\x64\Debug\libapr-1.dll.manifest -outputresource:.\x64\Debug\libapr-1.dll;2
 	echo Helper for Post-build step > "$(DS_POSTBUILD_DEP)"
 
-!ENDIF 
+!ENDIF
 
 
 !IF "$(NO_EXTERNAL_DEPS)" != "1"
 !IF EXISTS("libapr.dep")
 !INCLUDE "libapr.dep"
-!ELSE 
+!ELSE
 !MESSAGE Warning: cannot find "libapr.dep"
-!ENDIF 
-!ENDIF 
+!ENDIF
+!ENDIF
 
 
 !IF "$(CFG)" == "libapr - Win32 Release" || "$(CFG)" == "libapr - Win32 Debug" || "$(CFG)" == "libapr - Win32 Release9x" || "$(CFG)" == "libapr - Win32 Debug9x" || "$(CFG)" == "libapr - x64 Release" || "$(CFG)" == "libapr - x64 Debug"
@@ -1843,68 +1843,68 @@ SOURCE=.\include\apr.hw
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "libapr - Win32 Debug"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "libapr - x64 Release"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
+
 
 !ELSEIF  "$(CFG)" == "libapr - x64 Debug"
 
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
+	<<tempfile.bat
+	@echo off
 	type .\include\apr.hw > .\include\apr.h
-<< 
-	
+<<
 
-!ENDIF 
+
+!ENDIF
 
 SOURCE=.\libapr.rc
 
@@ -1913,5 +1913,5 @@ SOURCE=.\libapr.rc
 
 
 
-!ENDIF 
+!ENDIF
 

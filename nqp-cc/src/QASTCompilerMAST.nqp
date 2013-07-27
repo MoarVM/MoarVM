@@ -36,7 +36,7 @@ class QAST::MASTCompiler {
         has @!nums;
         has @!strs;
         has %!released_indexes;
-        
+
         method new($frame) {
             my $obj := nqp::create(self);
             nqp::bindattr($obj, RegAlloc, '$!frame', $frame);
@@ -47,12 +47,12 @@ class QAST::MASTCompiler {
             nqp::bindattr($obj, RegAlloc, '%!released_indexes', {});
             $obj
         }
-        
+
         method fresh_i() { self.fresh_register($MVM_reg_int64) }
         method fresh_n() { self.fresh_register($MVM_reg_num64) }
         method fresh_s() { self.fresh_register($MVM_reg_str) }
         method fresh_o() { self.fresh_register($MVM_reg_obj) }
-        
+
         # QAST::Vars need entirely new MAST::Locals all to themselves,
         # so a Local can't be a non-Var for the first half of a block and
         # then a Var the second half, but then control returns to the first half
@@ -66,7 +66,7 @@ class QAST::MASTCompiler {
             elsif $kind == $MVM_reg_str   { @arr := @!strs; $type := str }
             elsif $kind == $MVM_reg_obj   { @arr := @!objs; $type := NQPMu }
             else { nqp::die("unhandled reg kind $kind") }
-            
+
             my $reg;
             if nqp::elems(@arr) && !$new {
                 $reg := nqp::pop(@arr);
@@ -77,12 +77,12 @@ class QAST::MASTCompiler {
             }
             $reg
         }
-        
+
         method release_i($reg) { self.release_register($reg, $MVM_reg_int64) }
         method release_n($reg) { self.release_register($reg, $MVM_reg_num64) }
         method release_s($reg) { self.release_register($reg, $MVM_reg_str) }
         method release_o($reg) { self.release_register($reg, $MVM_reg_obj) }
-        
+
         method release_register($reg, $kind, $force = 0) {
             return 1 if $kind == $MVM_reg_void || !$force && $*BLOCK.is_var($reg)
                 || nqp::existskey(%!released_indexes, $reg.index);
@@ -94,7 +94,7 @@ class QAST::MASTCompiler {
             nqp::die("unhandled reg kind $kind");
         }
     }
-    
+
     # Holds information about the QAST::Block we're currently compiling.
     my class BlockInfo {
         has $!qast;                 # The QAST::Block
@@ -109,26 +109,26 @@ class QAST::MASTCompiler {
         has $!compiler;             # The QAST::MASTCompiler
         has @!params;               # List of QAST::Var param nodes
         has $!return_kind;          # kind of return, tracked while emitting
-        
+
         method new($qast, $outer, $compiler) {
             my $obj := nqp::create(self);
             $obj.BUILD($qast, $outer, $compiler);
             $obj
         }
-        
+
         method BUILD($qast, $outer, $compiler) {
             $!qast := $qast;
             $!outer := $outer;
             $!compiler := $compiler;
             %!local_names_by_index := nqp::hash();
-            %!locals := nqp::hash(); 
+            %!locals := nqp::hash();
             %!local_kinds := nqp::hash();
             %!lexicals := nqp::hash();
             %!lexical_kinds := nqp::hash();
             %!lexical_params := nqp::hash();
             @!params := nqp::list()
         }
-        
+
         method add_param($var) {
             @!params[+@!params] := $var;
             if $var.scope eq 'local' {
@@ -141,7 +141,7 @@ class QAST::MASTCompiler {
                 [$res_kind, $res_reg]
             }
         }
-        
+
         method add_lexical($var, :$is_static, :$is_cont, :$is_state) {
             my $type := $var.returns;
             my $kind := $!compiler.type_to_register_kind($type);
@@ -158,7 +158,7 @@ class QAST::MASTCompiler {
             }
             $kind;
         }
-        
+
         method register_lexical($var, $index, $outer, $kind) {
             my $name := $var.name;
             # not entirely sure whether this check should go here or in add_lexical
@@ -170,7 +170,7 @@ class QAST::MASTCompiler {
             %!lexical_kinds{$name} := $kind;
             $lex;
         }
-        
+
         method register_local($var) {
             my $name := $var.name;
             my $temporary := ?$*INSTMT;
@@ -189,12 +189,12 @@ class QAST::MASTCompiler {
             }
             $local;
         }
-        
+
         # returns whether a MAST::Local is a variable in this block
         method is_var($local) {
             nqp::existskey(%!local_names_by_index, $local.index)
         }
-        
+
         method return_kind(*@value) {
             if @value {
                 nqp::die("inconsistent immediate block return type")
@@ -204,7 +204,7 @@ class QAST::MASTCompiler {
             }
             $!return_kind
         }
-        
+
         method release_temp($name) {
             my $local := %!locals{$name};
             my $index := $local.index();
@@ -214,7 +214,7 @@ class QAST::MASTCompiler {
             nqp::deletekey(%!locals, $name);
             nqp::deletekey(%!local_kinds, $name);
         }
-        
+
         method qast() { $!qast }
         method outer() { $!outer }
         method lexical($name) { %!lexicals{$name} }
@@ -225,7 +225,7 @@ class QAST::MASTCompiler {
         method lexical_kinds() { %!lexical_kinds }
         method params() { @!params }
         method lexical_param($name) { %!lexical_params{$name} }
-        
+
         method resolve_lexical($name) {
             my $block := self;
             my $out := 0;
@@ -238,24 +238,24 @@ class QAST::MASTCompiler {
             nqp::die("could not resolve lexical $name");
         }
     }
-    
+
     our $serno := 0;
     method unique($prefix = '') { $prefix ~ $serno++ }
-    
+
     method to_mast($qast) {
         my $*MAST_COMPUNIT := MAST::CompUnit.new();
-        
+
         # map a QAST::Block's cuid to the MAST::Frame we
         # created for it, so we can find the Frame later
         # when we encounter the Block again in a call.
         my %*MAST_FRAMES := nqp::hash();
-        
+
         my $*QASTCOMPILER := self;
         self.as_mast($qast);
-        
+
         $*MAST_COMPUNIT
     }
-    
+
     method coerce($res, $desired) {
         my $got := $res.result_kind;
         if $got != $desired {
@@ -263,7 +263,7 @@ class QAST::MASTCompiler {
         }
         $res
     }
-    
+
     # Expects that the value in need of coercing has already been
     # obtained. Produces instructions to coerce it.
     method coercion($res, $desired) {
@@ -330,7 +330,7 @@ class QAST::MASTCompiler {
         }
         MAST::InstructionList.new($il, $reg, $desired)
     }
-    
+
     proto method as_mast($qast, :$want) {
         my $*WANT;
         if nqp::defined($want) {
@@ -346,7 +346,7 @@ class QAST::MASTCompiler {
             {*}
         }
     }
-    
+
     my @return_opnames := [
         'return',
         'return_i',
@@ -358,11 +358,11 @@ class QAST::MASTCompiler {
         'return_s',
         'return_o'
     ];
-    
+
     my @type_initials := [
         '', 'i', 'i', 'i', 'i', 'n', 'n', 's', 'o'
     ];
-    
+
     my @attr_opnames := [
         '',
         'attr_i',
@@ -374,11 +374,11 @@ class QAST::MASTCompiler {
         'attr_s',
         'attr_o'
     ];
-    
+
     my @kind_to_op_slot := [
         0, 0, 0, 0, 0, 1, 1, 2, 3
     ];
-    
+
     my @param_opnames := [
         'param_rp_i',
         'param_rp_n',
@@ -397,11 +397,11 @@ class QAST::MASTCompiler {
         'param_on_s',
         'param_on_o'
     ];
-    
+
     my @return_types := [ NQPMu, int, int, int, int, num, num, str, NQPMu ];
-    
+
     method register_kind_to_type($kind) { @return_types[$kind] }
-    
+
     multi method as_mast(QAST::CompUnit $cu, :$want) {
         # Set HLL.
         my $*HLL := '';
@@ -409,21 +409,21 @@ class QAST::MASTCompiler {
             $*HLL := $cu.hll;
             $*MAST_COMPUNIT.hll($*HLL);
         }
-        if (pir::new__Ps('Env')<MVMCCDEBUG>) { say($cu.dump); }
-        
+        if (nqp::getenvhash()<MVMCCDEBUG>) { say($cu.dump); }
+
         # Should have a single child which is the outer block.
         if +@($cu) != 1 || !nqp::istype($cu[0], QAST::Block) {
             nqp::die("QAST::CompUnit should have one child that is a QAST::Block");
         }
-        
+
         # Hash mapping blocks with static lexicals to an array of arrays. Each
         # of the sub-arrays has the form [$name, $value, $flags], where flags
         # are 0 = static lex, 1 = container, 2 = state container.
         my %*BLOCK_LEX_VALUES;
-        
+
         # Compile the block.
         self.as_mast($cu[0]);
-        
+
         # If we are in compilation mode, or have pre-deserialization or
         # post-deserialization tasks, handle those. Overall, the process
         # is to desugar this into simpler QAST nodes, then compile those.
@@ -437,29 +437,29 @@ class QAST::MASTCompiler {
             # Create a block into which we'll install all of the other
             # pieces.
             my $block := QAST::Block.new( :blocktype('raw') );
-            
+
             # Add pre-deserialization tasks, each as a QAST::Stmt.
             for @pre_des {
                 $block.push(QAST::Stmt.new($_));
             }
-            
+
             # If we need to do deserialization, emit code for that.
             if $comp_mode {
                 $block.push(self.deserialization_code($cu.sc(), $cu.code_ref_blocks(),
                     $cu.repo_conflict_resolver()));
             }
-            
+
             # Add post-deserialization tasks.
             for @post_des {
                 $block.push(QAST::Stmt.new($_));
             }
-            
+
             # Compile to MAST and register this block as the deserialization
             # handler.
             self.as_mast($block);
             $*MAST_COMPUNIT.deserialize_frame(%*MAST_FRAMES{$block.cuid});
         }
-        
+
         # Compile and include load-time logic, if any.
         if nqp::defined($cu.load) {
             my $load_block := QAST::Block.new(
@@ -469,7 +469,7 @@ class QAST::MASTCompiler {
             self.as_mast($load_block);
             $*MAST_COMPUNIT.load_frame(%*MAST_FRAMES{$load_block.cuid});
         }
-        
+
         # Compile and include main-time logic, if any, and then add a Java
         # main that will lead to its invocation.
         if nqp::defined($cu.main) {
@@ -481,15 +481,15 @@ class QAST::MASTCompiler {
             $*MAST_COMPUNIT.main_frame(%*MAST_FRAMES{$main_block.cuid});
         }
     }
-    
+
     method deserialization_code($sc, @code_ref_blocks, $repo_conf_res) {
         # Serialize it.
         my $sh := nqp::list_s();
         my $serialized := nqp::serialize($sc, $sh);
-        
+
         # Now it's serialized, pop this SC off the compiling SC stack.
         nqp::popcompsc();
-        
+
         # String heap QAST.
         my $sh_ast := QAST::Op.new( :op('list_s') );
         my $sh_elems := nqp::elems($sh);
@@ -500,10 +500,10 @@ class QAST::MASTCompiler {
                 !! QAST::SVal.new( :value($sh[$i]) ));
             $i := $i + 1;
         }
-        
+
         # Code references.
         my $cr_past := QAST::Op.new( :op('list_b'), |@code_ref_blocks );
-        
+
         # Handle repossession conflict resolution code, if any.
         if $repo_conf_res {
             $repo_conf_res.push(QAST::Var.new( :name('conflicts'), :scope('local') ));
@@ -514,7 +514,7 @@ class QAST::MASTCompiler {
                 QAST::SVal.new( :value('Repossession conflicts occurred during deserialization') )
             );
         }
-        
+
         # Overall deserialization QAST.
         QAST::Stmts.new(
             QAST::Op.new(
@@ -550,37 +550,37 @@ class QAST::MASTCompiler {
             )
         )
     }
-    
+
     multi method as_mast(QAST::Block $node, :$want) {
         my $outer_frame := try $*MAST_FRAME;
-        
+
         # Create an empty frame and add it to the compilation unit.
         my $frame := MAST::Frame.new(
             :name($node.name || self.unique('frame_name_')),
             :cuuid(self.unique('frame_cuuid_')));
-        
+
         $*MAST_COMPUNIT.add_frame($frame);
         my $outer;
         try $outer   := $*BLOCK;
         my $block    := BlockInfo.new($node, (nqp::defined($outer) ?? $outer !! NQPMu), self);
         my $cuid     := $node.cuid();
-        
+
         # stash the frame by the block's cuid so other references
         # by this block can find it.
         %*MAST_FRAMES{$cuid} := $frame;
-        
+
         # set the outer if it exists
         $frame.set_outer($outer_frame)
             if $outer_frame && $outer_frame ~~ MAST::Frame;
-        
+
         # Compile all the substatements.
         my $ins;
         {
             my $*BINDVAL := 0;
-            
+
             # Create a register allocator for this frame.
             my $*REGALLOC := RegAlloc.new($frame);
-            
+
             # when we enter a QAST::Stmt, the contextual will be cloned, and the locals of
             # newly declared QAST::Vars of local scope inside the Stmt will be stashed here,
             # so they can be released at the end of the QAST::Stmt in which they were
@@ -588,31 +588,31 @@ class QAST::MASTCompiler {
             # still enforced.
             my %*STMTTEMPS := nqp::hash();
             my $*INSTMT := 0;
-            
+
             my $*BLOCK := $block;
             my $*MAST_FRAME := $frame;
-            
+
             $ins := self.compile_all_the_stmts(@($node));
-            
+
             # Add to instructions list for this block.
             nqp::splice($frame.instructions, $ins.instructions, +$frame.instructions, 0);
-            
+
             $block.return_kind($ins.result_kind);
             # generate a return statement
             # get the return op name
             my $ret_op := @return_opnames[$ins.result_kind];
             my @ret_args := nqp::list();
-            
+
             # provide the return arg register if needed
             nqp::push(@ret_args, $ins.result_reg) unless $ret_op eq 'return';
-            
+
             # fixup the end of this frame's instruction list with the return
             push_op($frame.instructions, $ret_op, |@ret_args);
-            
+
             # build up the frame prologue
             my @pre := nqp::list();
             my $param_index := 0;
-            
+
             # Analyze parameters to get count of required/optional and make sure
             # all is in order.
             my int $pos_required := 0;
@@ -644,28 +644,28 @@ class QAST::MASTCompiler {
                     $pos_required++;
                 }
             }
-            
-            # check the arity 
+
+            # check the arity
             push_op(@pre, 'checkarity',
                 MAST::IVal.new( :size(16), :value($pos_required)),
                 MAST::IVal.new( :size(16), :value($pos_slurpy ?? -1 !! $pos_required + $pos_optional)));
-            
+
             # build up instructions to bind the params
             for $block.params -> $var {
-                
+
                 my $scope := $var.scope;
                 nqp::die("Param scope must be 'local' or 'lexical'")
                     if $scope ne 'lexical' && $scope ne 'local';
-                
+
                 my $param_kind := self.type_to_register_kind($var.returns // NQPMu);
                 my $opslot := @kind_to_op_slot[$param_kind];
-                
+
                 my $opname_index := ($var.named ?? 8 !! 0) + ($var.default ?? 4 !! 0) + $opslot;
                 my $opname := @param_opnames[$opname_index];
-                
+
                 # what will be put in the value register
                 my $val;
-                
+
                 if $var.slurpy {
                     if $var.named {
                         $opname := "param_sn";
@@ -680,35 +680,35 @@ class QAST::MASTCompiler {
                 else { # positional
                     $val := MAST::IVal.new( :size(16), :value($param_index));
                 }
-                
+
                 # the variable register
                 my $valreg := $scope eq 'lexical'
                     ?? $block.lexical_param($var.name)
                     !! $block.local($var.name);
-                
+
                 # NQP->QAST always provides a default value for optional NQP params
                 # even if no default initializer expression is provided.
                 if $var.default {
                     # generate end label to skip initialization code
                     my $endlbl := MAST::Label.new( :name(self.unique('param') ~ '_end') );
-                    
+
                     # generate default initialization code. Could also be
                     # wrapped in another QAST::Block.
                     my $default_mast := self.as_mast($var.default, :want($param_kind));
-                    
+
                 #    nqp::die("default initialization result type doesn't match the param type")
                 #        unless $default_mast.result_kind == $param_kind;
-                    
+
                     # emit param grabbing op
                     push_op(@pre, $opname, $valreg, $val, $endlbl);
-                    
+
                     # emit default initialization code
                     push_ilist(@pre, $default_mast);
-                    
+
                     # put the initialization result in the variable register
                     push_op(@pre, 'set', $valreg, $default_mast.result_reg);
                     $*REGALLOC.release_register($default_mast.result_reg, $default_mast.result_kind);
-                    
+
                     # end label to skip initialization code
                     nqp::push(@pre, $endlbl);
                 }
@@ -724,17 +724,17 @@ class QAST::MASTCompiler {
                     # emit param grabbing op
                     push_op(@pre, $opname, $valreg, $val);
                 }
-                
+
                 if $scope eq 'lexical' {
                     # emit the op to bind the lexical to the result register
                     push_op(@pre, 'bindlex', $block.lexical($var.name), $valreg);
                 }
                 $param_index++;
             }
-            
+
             nqp::splice($frame.instructions, @pre, 0, 0);
         }
-        
+
         if $node.blocktype eq 'immediate' {
             return self.as_mast(
                 QAST::Op.new( :op('call'),
@@ -756,14 +756,14 @@ class QAST::MASTCompiler {
             MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void)
         }
     }
-    
+
     multi method as_mast(QAST::Stmts $node, :$want) {
         my $resultchild := $node.resultchild;
         nqp::die("resultchild out of range")
             if (nqp::defined($resultchild) && $resultchild >= +@($node));
         self.compile_all_the_stmts(@($node), $resultchild)
     }
-    
+
     multi method as_mast(QAST::Stmt $node, :$want) {
         my $resultchild := $node.resultchild;
         my %stmt_temps := nqp::clone(%*STMTTEMPS); # guaranteed to be initialized
@@ -771,7 +771,7 @@ class QAST::MASTCompiler {
         {
             my %*STMTTEMPS := %stmt_temps;
             my $*INSTMT := 1;
-            
+
             nqp::die("resultchild out of range")
                 if (nqp::defined($resultchild) && $resultchild >= +@($node));
             $result := self.compile_all_the_stmts(@($node), $resultchild);
@@ -783,7 +783,7 @@ class QAST::MASTCompiler {
         }
         $result
     }
-    
+
     # This takes any node that is a statement list of some kind and compiles
     # all of the statements within it.
     method compile_all_the_stmts(@stmts, $resultchild?, :$want) {
@@ -797,7 +797,7 @@ class QAST::MASTCompiler {
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
             if $result_count == $resultchild || $resultchild == -1
-                    && $result_count == $last_stmt_num 
+                    && $result_count == $last_stmt_num
                     && nqp::defined($want) {
                 $last_stmt := self.as_mast($_, :want($want));
             }
@@ -820,11 +820,11 @@ class QAST::MASTCompiler {
             MAST::InstructionList.new(@all_ins, $*REGALLOC.fresh_o(), $MVM_reg_obj);
         }
     }
-    
+
     multi method as_mast(QAST::Op $node, :$want) {
         QAST::MASTOperations.compile_op(self, $*HLL, $node)
     }
-    
+
     multi method as_mast(QAST::VM $node, :$want) {
         if $node.supports('moar') {
             return nqp::defined($want)
@@ -852,22 +852,22 @@ class QAST::MASTCompiler {
             nqp::die("To compile on the MoarVM backend, QAST::VM must have an alternative 'moar' or 'moarop'");
         }
     }
-    
+
     sub check_kinds($a, $b) {
         nqp::die("register types $a and $b don't match") unless $a == $b;
     }
-    
+
     my @lex_n_opnames := [
         'lex_ni',
         'lex_nn',
         'lex_ns',
         'lex_no'
     ];
-    
+
     multi method as_mast(QAST::Var $node, :$want) {
         self.compile_var($node)
     }
-    
+
     multi method as_mast(QAST::VarWithFallback $node, :$want) {
         my $var_res := self.compile_var($node);
         if $*BINDVAL || $var_res.result_kind != $MVM_reg_obj {
@@ -876,12 +876,12 @@ class QAST::MASTCompiler {
         else {
             my $il := nqp::list();
             push_ilist($il, $var_res);
-            
+
             my $fallback_if_nonnull := MAST::Label.new(:name($node.unique('fallback_if_nonnull')));
             my $fallback_end := MAST::Label.new(:name($node.unique('fallback_end')));
             my $res_reg := $*REGALLOC.fresh_o();
             push_op($il, 'ifnonnull', $var_res.result_reg, $fallback_if_nonnull);
-            
+
             my $fallback_res := self.as_mast($node.fallback, :want($MVM_reg_obj));
             push_ilist($il, $fallback_res);
             push_op($il, 'set', $res_reg, $fallback_res.result_reg);
@@ -891,18 +891,18 @@ class QAST::MASTCompiler {
             nqp::push($il, $fallback_end);
             $*REGALLOC.release_register($var_res.result_reg, $MVM_reg_obj);
             $*REGALLOC.release_register($fallback_res.result_reg, $MVM_reg_obj);
-            
+
             MAST::InstructionList.new($il, $res_reg, $MVM_reg_obj)
         }
     }
-    
+
     method compile_var($node, :$want) {
         my $scope := $node.scope;
         my $decl  := $node.decl;
-        
+
         my $res_reg;
         my $res_kind;
-        
+
         # Handle any declarations; after this, we call through to the
         # lookup code.
         if $decl {
@@ -954,7 +954,7 @@ class QAST::MASTCompiler {
                 nqp::die("Don't understand declaration type '$decl'");
             }
         }
-        
+
         # Now go by scope.
         my $name := $node.name;
         my @ins;
@@ -1056,18 +1056,18 @@ class QAST::MASTCompiler {
             if +@args != 2 {
                 nqp::die("An attribute lookup needs an object and a class handle");
             }
-            
+
             # Compile object and handle.
             my $obj := self.as_mast_clear_bindval(@args[0], :want($MVM_reg_obj));
             my $han := self.as_mast_clear_bindval(@args[1], :want($MVM_reg_obj));
             push_ilist(@ins, $obj);
             push_ilist(@ins, $han);
-            
+
             # Go by whether it's a bind or lookup.
             my $kind := self.type_to_register_kind($node.returns);
             if $*BINDVAL {
                 my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($kind));
-                
+
                 push_ilist(@ins, $valmast);
                 push_op(@ins, 'bind' ~ @attr_opnames[$kind], $obj.result_reg,
                     $han.result_reg, MAST::SVal.new( :value($name) ), $valmast.result_reg,
@@ -1076,7 +1076,7 @@ class QAST::MASTCompiler {
                 $res_kind := $valmast.result_kind;
             }
             else {
-                
+
                 $res_reg := $*REGALLOC.fresh_register($kind);
                 $res_kind := $kind;
                 push_op(@ins, 'get' ~ @attr_opnames[$kind], $res_reg, $obj.result_reg,
@@ -1099,25 +1099,25 @@ class QAST::MASTCompiler {
         else {
             nqp::die("QAST::Var with scope '$scope' NYI");
         }
-        
+
         MAST::InstructionList.new(@ins, $res_reg, $res_kind)
     }
-    
+
     multi method as_mast(MAST::InstructionList $ilist, :$want) {
         $ilist
     }
-    
+
     multi method as_mast(MAST::Node $node, :$want) {
         MAST::InstructionList.new([$node], MAST::VOID, $MVM_reg_void)
     }
-    
+
     method as_mast_clear_bindval($node, :$want) {
         my $*BINDVAL := 0;
         nqp::defined($want) ?? self.as_mast($node, :$want) !! self.as_mast($node)
     }
-    
+
     proto method as_mast_constant($qast) { * }
-    
+
     multi method as_mast_constant(QAST::IVal $iv) {
         MAST::IVal.new( :value($iv.value) )
     }
@@ -1130,7 +1130,7 @@ class QAST::MASTCompiler {
     multi method as_mast_constant(QAST::Node $qast) {
         nqp::die("expected QAST constant; didn't get one");
     }
-    
+
     multi method as_mast(QAST::IVal $iv, :$want) {
         my $reg := $*REGALLOC.fresh_i();
         MAST::InstructionList.new(
@@ -1142,7 +1142,7 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_int64)
     }
-    
+
     multi method as_mast(QAST::NVal $nv, :$want) {
         my $reg := $*REGALLOC.fresh_n();
         MAST::InstructionList.new(
@@ -1154,7 +1154,7 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_num64)
     }
-    
+
     sub const_s($val) {
         my $reg := $*REGALLOC.fresh_s();
         MAST::InstructionList.new(
@@ -1166,7 +1166,7 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_str)
     }
-    
+
     multi method as_mast(QAST::SVal $sv, :$want) {
         const_s($sv.value)
     }
@@ -1177,7 +1177,7 @@ class QAST::MASTCompiler {
         my $frame := %*MAST_FRAMES{$cuid};
         nqp::die("QAST::Block with cuid $cuid has not appeared")
             unless $frame && $frame ~~ MAST::Frame;
-        
+
         my $reg := $*REGALLOC.fresh_o();
         MAST::InstructionList.new(
             [MAST::Op.new(
@@ -1188,7 +1188,7 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_obj)
     }
-    
+
     multi method as_mast(QAST::WVal $node, :$want) {
         my $val    := $node.value;
         my $sc     := nqp::getobjsc($val);
@@ -1206,32 +1206,34 @@ class QAST::MASTCompiler {
             $reg,
             $MVM_reg_obj)
     }
-    
+
     multi method as_mast(QAST::Regex $node, :$want) {
         nqp::defined($want)
             ?? QAST::MASTRegexCompiler.new().as_mast($node, :want($want))
             !! QAST::MASTRegexCompiler.new().as_mast($node)
     }
-    
+
     multi method as_mast($unknown, :$want) {
-        my $name := 'null';
-        try $name := nqp::isnull($unknown) || nqp::isnull($unknown.HOW) ?? nqp::die('fail') !! $unknown.HOW.name($unknown);
-        $name := pir::typeof__SP($unknown) unless nqp::isnull($unknown) || $name ne 'null';
-        nqp::die("Unknown QAST node type $name");
+        nqp::die("Unknown QAST node type " ~ $unknown.HOW.name($unknown));
+
+        #my $name := 'null';
+        #try $name := nqp::isnull($unknown) || nqp::isnull($unknown.HOW) ?? nqp::die('fail') !! $unknown.HOW.name($unknown);
+        #$name := pir::typeof__SP($unknown) unless nqp::isnull($unknown) || $name ne 'null';
+        #nqp::die("Unknown QAST node type $name");
     }
-    
+
     method annotated($ilist, $file, $line) {
         MAST::InstructionList.new([
             MAST::Annotated.new(:file($file), :line($line),
                 :instructions($ilist.instructions))],
             $ilist.result_reg, $ilist.result_kind)
     }
-    
+
     my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
     method type_to_register_kind($type) {
-        @prim_to_reg[pir::repr_get_primitive_type_spec__IP($type)]
+        @prim_to_reg[nqp::objprimspec($type)]
     }
-    
+
     method operations() {
         QAST::MASTOperations
     }
@@ -1246,7 +1248,7 @@ sub push_op(@dest, $op, *@args) {
     }
     $op := $op.name if nqp::istype($op, QAST::Op);
     nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
-    
+
     nqp::push(@dest, MAST::Op.new(
         :bank(nqp::substr($bank, 1)), :op($op),
         |@args

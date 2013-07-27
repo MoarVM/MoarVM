@@ -529,6 +529,7 @@
 #define MVM_OP_time_n 28
 #define MVM_OP_exit 29
 #define MVM_OP_loadbytecode 30
+#define MVM_OP_getenvhash 31
 
 /* Op name defines for bank serialization. */
 #define MVM_OP_sha1 0
