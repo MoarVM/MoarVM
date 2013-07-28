@@ -930,11 +930,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_die: {
-                        MVMObject *exObj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
-                        MVMException *ex = (MVMException *)exObj;
+                        MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
+                        MVMException *ex = (MVMException *)ex_obj;
                         ex->body.category = MVM_EX_CAT_CATCH;
-                        MVM_ASSIGN_REF(tc, exObj, ex->body.message, GET_REG(cur_op, 2).s);
-                        MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, exObj, &GET_REG(cur_op, 0));
+                        MVM_ASSIGN_REF(tc, ex_obj, ex->body.message, GET_REG(cur_op, 2).s);
+                        MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, &GET_REG(cur_op, 0));
                         break;
                     }
                     case MVM_OP_newlexotic: {

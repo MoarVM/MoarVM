@@ -182,13 +182,13 @@ void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
 }
 
 /* Returns the lines (backtrace) of an exception-object as an array. */
-MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj) {
+MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVMException *ex;
     MVMFrame *cur_frame;
     MVMObject *arr;
 
-    if (IS_CONCRETE(exObj) && REPR(exObj)->ID == MVM_REPR_ID_MVMException)
-        ex = (MVMException *)exObj;
+    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+        ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
 
@@ -253,12 +253,12 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
  * the handler resumes, the resumption result will be put into resume_result.
  * Leaves the interpreter in a state where it will next run the instruction of
  * the handler. If there is no handler, it will panic and exit with a backtrace. */
-void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result) {
+void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_obj, MVMRegister *resume_result) {
     LocatedHandler  lh;
     MVMException   *ex;
 
-    if (IS_CONCRETE(exObj) && REPR(exObj)->ID == MVM_REPR_ID_MVMException)
-        ex = (MVMException *)exObj;
+    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+        ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
 
@@ -268,7 +268,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exOb
 
     ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
 
-    run_handler(tc, lh, exObj);
+    run_handler(tc, lh, ex_obj);
 }
 
 /* Creates a new lexotic. */
