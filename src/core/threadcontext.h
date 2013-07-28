@@ -148,6 +148,9 @@ typedef struct _MVMThreadContext {
     /* Serialization context write barrier disabled depth (anything non-zero
      * means disabled). */
     MVMint32           sc_wb_disable_depth;
+
+    /* Any serialization contexts we are compiling. */
+    struct _MVMObject     *compiling_scs;
 } MVMThreadContext;
 
 MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);

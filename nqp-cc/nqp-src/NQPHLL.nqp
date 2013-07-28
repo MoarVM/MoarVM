@@ -1197,9 +1197,9 @@ class HLL::Compiler does HLL::Backend::Default {
         if ($has_error) {
             if %adverbs<ll-exception> || !nqp::can(self, 'handle-exception') {
                 my $err := nqp::getstderr();
-#                nqp::printfh($err, nqp::getmessage($error));
+                nqp::printfh($err, nqp::getmessage($error));
                 nqp::printfh($err, "\n");
-#                nqp::printfh($err, nqp::join("\n", nqp::backtracestrings($error)));
+                nqp::printfh($err, nqp::join("\n", nqp::backtracestrings($error)));
                 nqp::exit(1);
             } else {
                 self.handle-exception($error);
@@ -1883,7 +1883,7 @@ class HLL::World {
         nqp::scsetdesc($!sc, $description);
 
         # Add to currently compiling SC stack.
-#        nqp::pushcompsc($!sc);
+        nqp::pushcompsc($!sc);
     }
 
     # Gets the slot for a given object. Dies if it is not in the context.

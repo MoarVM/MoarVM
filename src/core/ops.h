@@ -550,5 +550,7 @@
 #define MVM_OP_wval_wide 14
 #define MVM_OP_scwbdisable 15
 #define MVM_OP_scwbenable 16
+#define MVM_OP_pushcompsc 17
+#define MVM_OP_popcompsc 18
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);

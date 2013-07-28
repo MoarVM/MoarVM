@@ -1352,7 +1352,7 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
-            ),
+            )
         ],
         [
             'sleep', nqp::hash(
@@ -3983,6 +3983,19 @@ class MAST::Ops {
             ),
             'scwbenable', nqp::hash(
                 'code', 16,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'pushcompsc', nqp::hash(
+                'code', 17,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'popcompsc', nqp::hash(
+                'code', 18,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
                 ]

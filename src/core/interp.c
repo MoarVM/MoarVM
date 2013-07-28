@@ -3306,6 +3306,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).i64 = --tc->sc_wb_disable_depth;
                         cur_op += 2;
                         break;
+                    case MVM_OP_pushcompsc: {
+                        MVMObject *sc  = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc, "Can only push an SCRef with pushcompsc");
+
+                        if (!tc->compiling_scs) {
+                            MVMROOT(tc, sc, {
+                                tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+                            });
+                        }
+                        MVM_repr_push_o(tc, tc->compiling_scs, sc);
+                        GET_REG(cur_op, 0).o = sc;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_popcompsc: {
+                        MVMObject * const scs = tc->compiling_scs;
+                        if (MVM_repr_elems(tc, scs) == 0)
+                            MVM_exception_throw_adhoc(tc, "No current compiling SC");
+
+                        REPR(scs)->pos_funcs->pop(tc, STABLE(scs), scs,
+                            OBJECT_BODY(scs), &GET_REG(cur_op, 0), MVM_reg_obj);
+                        cur_op += 2;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_serialization, *(cur_op-1));

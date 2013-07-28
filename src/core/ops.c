@@ -3169,6 +3169,18 @@ static MVMOpInfo MVM_op_info_serialization[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_pushcompsc,
+        "pushcompsc",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_popcompsc,
+        "popcompsc",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
 };
 
 static MVMOpInfo *MVM_op_info[] = {
@@ -3192,7 +3204,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     135,
     51,
     32,
-    17,
+    19,
 };
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {
