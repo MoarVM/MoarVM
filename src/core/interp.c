@@ -1798,10 +1798,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_coerce_Is: {
-                        MVMObject *a = GET_REG(cur_op, 2).o;
-                        MVMROOT(tc, a, {
-                            GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, a, 10);
-                        });
+                        GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, GET_REG(cur_op, 2).o, 10);
                         cur_op += 4;
                         break;
                     }
@@ -1811,10 +1808,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_base_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o;
-                        MVMROOT(tc, a, {
-                            GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, a, GET_REG(cur_op, 4).i64);
-                        });
+                        GET_REG(cur_op, 0).s = MVM_bigint_to_str(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                         cur_op += 6;
                         break;
                     }
@@ -2388,10 +2382,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *value = GET_REG(cur_op, 2).o;
                         MVMROOT(tc, value, {
                             MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                            MVMROOT(tc, cloned, {
-                                REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                                GET_REG(cur_op, 0).o = cloned;
-                            });
+                            REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                            GET_REG(cur_op, 0).o = cloned;
                         });
                         cur_op += 4;
                         break;
