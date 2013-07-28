@@ -75,7 +75,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     LocatedHandler lh;
     lh.frame = NULL;
     lh.handler = NULL;
-    
+
     if (mode == MVM_EX_THROW_LEXOTIC) {
         while (f != NULL) {
             lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat);
@@ -130,30 +130,30 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         case MVM_EX_ACTION_INVOKE: {
             /* Create active handler record. */
             MVMActiveHandler *ah = malloc(sizeof(MVMActiveHandler));
-            
+
             /* Find frame to invoke. */
             MVMObject *handler_code = MVM_frame_find_invokee(tc,
                 lh.frame->work[lh.handler->block_reg].o);
-            
+
             /* Ensure we have an exception object. */
             /* TODO: Can make one up. */
             if (ex_obj == NULL)
                 MVM_panic(1, "Exception object creation NYI");
-            
+
             /* Install active handler record. */
             ah->frame = lh.frame;
             ah->handler = lh.handler;
             ah->ex_obj = ex_obj;
             ah->next_handler = tc->active_handlers;
             tc->active_handlers = ah;
-            
+
             /* Set up special return to unwinding after running the
              * handler. */
             tc->cur_frame->return_value        = NULL;
             tc->cur_frame->return_type         = MVM_RETURN_VOID;
             tc->cur_frame->special_return      = unwind_after_handler;
             tc->cur_frame->special_return_data = ah;
-            
+
             /* Inovke the handler frame and return to runloop. */
             STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
                 tc->cur_frame->args);
@@ -184,15 +184,16 @@ void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
 /* Returns the lines (backtrace) of an exception-object as an array. */
 MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj) {
     MVMException *ex;
-    
+    MVMFrame *cur_frame;
+    MVMObject *arr;
+
     if (IS_CONCRETE(exObj) && REPR(exObj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)exObj;
     else
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
-    
-    MVMFrame *cur_frame = (MVMFrame *)((MVMExceptionBody *)OBJECT_BODY(exObj))->origin;
-    MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&arr);
+
+    cur_frame = ex->body.origin;
+    arr = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
 
     MVMROOT(tc, arr, {
         while (cur_frame != NULL) {
@@ -255,17 +256,17 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result) {
     LocatedHandler  lh;
     MVMException   *ex;
-    
+
     if (IS_CONCRETE(exObj) && REPR(exObj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)exObj;
     else
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
-    
+
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
-    
-    ((MVMExceptionBody *)OBJECT_BODY(exObj))->origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+
+    ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
 
     run_handler(tc, lh, exObj);
 }
@@ -273,7 +274,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exOb
 /* Creates a new lexotic. */
 MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     MVMLexotic *lexotic;
-    
+
     /* Locate handler associated with the specified label. */
     MVMStaticFrame *sf = tc->cur_frame->static_info;
     MVMFrameHandler *h = NULL;
@@ -287,12 +288,12 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     }
     if (h == NULL)
         MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
-    
+
     /* Allocate lexotic object and set it up. */
     lexotic = (MVMLexotic *)MVM_repr_alloc_init(tc, tc->instance->Lexotic);
     lexotic->body.handler = h;
     lexotic->body.frame = MVM_frame_inc_ref(tc, tc->cur_frame);
-    
+
     return (MVMObject *)lexotic;
 }
 
@@ -350,17 +351,17 @@ void MVM_exception_throw_apr_error(MVMThreadContext *tc, apr_status_t code, cons
     int offset;
     va_list args;
     va_start(args, messageFormat);
-    
+
     /* inject the supplied formatted string */
     offset = vsprintf(error_string, messageFormat, args);
     va_end(args);
-    
+
     /* append the apr error */
     apr_strerror(code, error_string + offset, 512 - offset);
     fwrite(error_string, 1, strlen(error_string), stderr);
     fwrite("\n", 1, 1, stderr);
     free(error_string);
-    
+
     dump_backtrace(tc);
     exit(1);
 }
