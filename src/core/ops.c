@@ -3172,8 +3172,8 @@ static MVMOpInfo MVM_op_info_serialization[] = {
     {
         MVM_OP_pushcompsc,
         "pushcompsc",
-        2,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_popcompsc,

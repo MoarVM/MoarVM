@@ -168,7 +168,7 @@ sub op_constants(@banks) {
                             take "            '$op.name()', nqp::hash(";
                             take "                'code', $op.code(),";
                             take "                'operands', [";
-                            take "                    $operands";
+                            take "                    $operands" if $operands;
                             take "                ]";
                             take "            )";
                         };

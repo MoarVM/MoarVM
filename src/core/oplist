@@ -539,5 +539,5 @@ BANK 7 serialization
 0x0E    wval_wide           w(obj) int16 int64
 0x0F    scwbdisable         w(obj)
 0x10    scwbenable          w(obj)
-0x11    pushcompsc          w(obj) r(obj)
+0x11    pushcompsc          r(obj)
 0x12    popcompsc           w(obj)
