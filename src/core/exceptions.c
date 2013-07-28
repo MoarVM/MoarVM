@@ -120,7 +120,7 @@ static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
  * so that when we return to the runloop, we're in the handler). If there is
  * an exception object already, it will be used; NULL can be passed if there
  * is not one, meaning it will be created if needed. */
-void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
+static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj) {
     switch (lh.handler->action) {
         case MVM_EX_ACTION_GOTO:
@@ -165,7 +165,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 }
 
 /* Unwinds after a handler. */
-void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
+static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     /* Get active handler; sanity check (though it's possible other cases
      * should be supported). */
     MVMActiveHandler *ah = (MVMActiveHandler *)sr_data;
