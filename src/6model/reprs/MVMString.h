@@ -15,24 +15,24 @@ typedef struct _MVMStrand {
     union {
         /* The offset to compare the desired index against. */
         MVMStringIndex compare_offset;
-        
+
         /* total length */
         MVMStringIndex graphs;
     };
-    
+
     /* The string to which this strand refers. */
     struct _MVMString *string;
-    
+
     union {
         /* The offset into the referred string. The length
             is calculated by subtracting the compare_offset
             from the compare_offset of the next entry. */
         MVMStringIndex string_offset;
-        
+
         /* on the last strand row, it's the depth of the tree. */
         MVMStringIndex strand_depth;
     };
-    
+
     /* repeat count. currently unused. */
     /* MVMStringIndex repeat_count; */
 } MVMStrand;
@@ -48,11 +48,11 @@ typedef struct _MVMStringBody {
     union {
         /* Array of the codepoints in a string. */
         MVMCodepoint32 *int32s;
-        
+
         /* An optimization so strings containing only codepoints
             that fit in 8 bits can take up only 1 byte each */
         MVMCodepoint8 *uint8s;
-        
+
         /* For a rope, An array of MVMStrand, each representing a
             segment of the string, up to the last one, which
             represents the end of the string and has values
@@ -61,11 +61,11 @@ typedef struct _MVMStringBody {
             compare_offset=0, and lower/higher_index=midpoint of
             strand array. */
         MVMStrand *strands;
-        
+
         /* generic pointer for the union */
         void *storage;
     };
-    
+
     union {
         /* The number of graphemes that make up the string
             (and in turn, the length of data in terms of the
@@ -74,12 +74,12 @@ typedef struct _MVMStringBody {
         /* for ropes, the number of strands */
         MVMStrandIndex num_strands;
     };
-    
+
     /* The number of codepoints the string is
         made up of were it not in NFG form. Lazily populated and cached.
      */
     MVMStringIndex codes;
-    
+
     /* Lowest 2 bits: type of string: int32, uint8, or Rope. */
     MVMuint8 flags;
 } MVMStringBody;

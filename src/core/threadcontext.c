@@ -5,16 +5,16 @@
  * MoarVM per thread. */
 MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     MVMThreadContext *tc = calloc(1, sizeof(MVMThreadContext));
-    
+
     /* Associate with VM instance. */
     tc->instance = instance;
-    
+
     /* Set up GC nursery. */
     tc->nursery_fromspace   = calloc(1, MVM_NURSERY_SIZE);
     tc->nursery_tospace     = calloc(1, MVM_NURSERY_SIZE);
     tc->nursery_alloc       = tc->nursery_tospace;
     tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
-    
+
     /* Set up temporary root handling. */
     tc->num_temproots   = 0;
     tc->alloc_temproots = 16;
@@ -29,7 +29,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->gen2 = MVM_gc_gen2_create(instance);
 
     /* Set up table of per-static-frame chains. */
-    /* XXX For non-first threads, make them start with the size of the 
+    /* XXX For non-first threads, make them start with the size of the
        main thread's table. or, look into lazily initializing this. */
     tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
     tc->frame_pool_table = calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
@@ -38,7 +38,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
      * special handling in initial thread as this runs before bootstrap). */
     if (instance->CallCapture)
         tc->cur_usecapture = MVM_repr_alloc_init(tc, instance->CallCapture);
-    
+
     return tc;
 }
 
@@ -51,14 +51,14 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* Free the nursery. */
     free(tc->nursery_fromspace);
     free(tc->nursery_tospace);
-    
+
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
-    
+
     /* Free the threads work container */
     if (tc->gc_work)
         free(tc->gc_work);
-    
+
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));
     free(tc);

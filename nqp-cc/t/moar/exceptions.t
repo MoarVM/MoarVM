@@ -11,9 +11,9 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $l_loop := label('loop');
         my $l_next := label('next');
         my $l_end  := label('end');
-        
+
         op(@ins, 'const_i64', $r0, ival(0));
-        
+
         my @loop_ins;
         nqp::push(@loop_ins, $l_loop);
         op(@loop_ins, 'inc_i', $r0);
@@ -25,7 +25,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@loop_ins, 'coerce_is', $r2, $r0);
         op(@loop_ins, 'say', $r2);
         op(@loop_ins, 'goto', $l_loop);
-        
+
         nqp::push(@ins, MAST::HandlerScope.new(
             :instructions(@loop_ins),
             :category_mask($HandlerCategory::last),
@@ -48,7 +48,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             my $r2 := local($frame, NQPMu);
             my $r3 := local($frame, str);
             my $l_next := label('next');
-            
+
             my @ins := $frame.instructions;
             op(@ins, 'checkarity', ival(1), ival(1));
             op(@ins, 'param_rp_i', $r0, ival(0));
@@ -59,26 +59,26 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             nqp::push(@ins, $l_next);
             op(@ins, 'coerce_is', $r3, $r0);
             op(@ins, 'say', $r3);
-            
+
             return $frame;
         }
-        
+
         my $callee := callee();
         my $r0 := local($frame, int);
         my $r1 := local($frame, NQPMu);
         my $r2 := local($frame, str);
         my $l_loop := label('loop');
         my $l_end  := label('end');
-        
+
         op(@ins, 'const_i64', $r0, ival(0));
         op(@ins, 'getcode', $r1, $callee);
-        
+
         my @loop_ins;
         nqp::push(@loop_ins, $l_loop);
         op(@loop_ins, 'inc_i', $r0);
         call(@loop_ins, $r1, [$Arg::int], $r0);
         op(@loop_ins, 'goto', $l_loop);
-        
+
         nqp::push(@ins, MAST::HandlerScope.new(
             :instructions(@loop_ins),
             :category_mask($HandlerCategory::last),
@@ -89,7 +89,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r2, sval('At program end'));
         op(@ins, 'say', $r2);
         op(@ins, 'return');
-        
+
         $cu.add_frame($callee);
     },
     "1\n2\n3\nAt program end\n",

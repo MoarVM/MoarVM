@@ -7,17 +7,17 @@ static void append_string(char **out, MVMuint32 *size,
     MVMuint32 len;
     va_list args;
     va_start(args, str);
-    
+
     vsnprintf(string, line_length, str, args);
     va_end(args);
-    
+
     len = strlen(string);
     if (*length + len > *size) {
         while (*length + len > *size)
             *size = *size * 2;
         *out = realloc(*out, *size);
     }
-    
+
     memcpy(*out + *length, string, len);
     *length = *length + len;
     free(string);
@@ -63,13 +63,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     char *o = calloc(sizeof(char) * s, 1);
     char ***frame_lexicals = malloc(sizeof(char **) * cu->num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
-    
+
     a("\nMoarVM dump of binary compilation unit:\n\n");
-    
+
     for (k = 0; k < cu->num_callsites; k++) {
         MVMCallsite *callsite = cu->callsites[k];
         MVMuint16 arg_count = callsite->arg_count;
-        
+
         a("  Callsite_%u :\n", k);
         a("    num_pos: %d\n", callsite->num_pos);
         a("    arg_count: %u\n", arg_count);
@@ -95,13 +95,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             a("\n");
         }
     }
-    
+
     for (k = 0; k < cu->num_frames; k++) {
         MVMStaticFrame *frame = cu->frames[k];
         MVMLexicalHashEntry *current, *tmp;
         char **lexicals = malloc(sizeof(char *) * frame->num_lexicals);
         frame_lexicals[k] = lexicals;
-        
+
         HASH_ITER(hash_handle, frame->lexical_names, current, tmp) {
             name->body.int32s = (MVMint32 *)current->hash_handle.key;
             name->body.graphs = (MVMuint32)current->hash_handle.keylen / sizeof(MVMCodepoint32);
@@ -123,13 +123,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             if (cu->frames[j] == frame->outer)
                 a("    outer : Frame_%u\n", j);
         }
-        
+
         for (j = 0; j < frame->num_locals; j++) {
             if (!j)
             a("    Locals :\n");
             a("  %6u: loc_%u_%s\n", j, j, get_typename(frame->local_types[j]));
         }
-        
+
         for (j = 0; j < frame->num_lexicals; j++) {
             if (!j)
             a("    Lexicals :\n");
@@ -137,7 +137,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
         a("    Instructions :\n");
         {
-    
+
     /* mostly stolen from validation.c */
     MVMStaticFrame *static_frame = frame;
     MVMuint32 bytecode_size = static_frame->bytecode_size;
@@ -165,29 +165,29 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     char *oP = o;
     char *tmpstr;
     while (cur_op < bytecode_end - 1) {
-        
+
         /* allocate a line buffer */
         s = 200;
         l = 0;
         o = calloc(sizeof(char) * s, 1);
-        
+
         lineloc = cur_op - bytecode_start;
         /* mark that this line starts at this point in the bytestream */
         linelocs[lineno] = lineloc;
         /* mark that this point in the bytestream is an op boundary */
         labels[lineloc] |= MVM_val_op_boundary;
-        
+
         bank_num = *(cur_op++);
         op_num = *(cur_op++);
         op_info = MVM_op_get_op((unsigned char)bank_num, (unsigned char)op_num);
         a("%-12s ", op_info->name);
-        
+
         for (i = 0; i < op_info->num_operands; i++) {
             if (i) a(", ");
             op_flags = op_info->operands[i];
             op_rw   = op_flags & MVM_operand_rw_mask;
             op_type = op_flags & MVM_operand_type_mask;
-            
+
             if (op_rw == MVM_operand_literal) {
                 switch (op_type) {
                     case MVM_operand_int8:
@@ -234,7 +234,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                     case MVM_operand_ins:
                         operand_size = 4;
                         /* luckily all the ins operands are at the end
-                        of op operands, so I can wait to resolve the label 
+                        of op operands, so I can wait to resolve the label
                         to the end. */
                         labels[GET_UI32(cur_op, 0)] |= MVM_val_branch_target;
                         jumps[lineno] = GET_UI32(cur_op, 0);
@@ -254,11 +254,11 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                 /* lexical operand */
                 MVMuint16 idx, frames, m;
                 MVMStaticFrame *applicable_frame = static_frame;
-                
+
                 operand_size = 4;
                 idx = GET_UI16(cur_op, 0);
                 frames = GET_UI16(cur_op, 2);
-                
+
                 m = frames;
                 while (m > 0) {
                     applicable_frame = applicable_frame->outer;
@@ -282,7 +282,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         MVMuint32 line_number = 0;
         MVMuint32 label_number = 1;
         MVMuint32 *annotations = calloc(lineno, sizeof(MVMuint32));
-        
+
         for (; byte_offset < bytecode_size; byte_offset++) {
             if (labels[byte_offset] & MVM_val_branch_target) {
                 /* found a byte_offset where a label should be.
@@ -294,7 +294,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         o = oP;
         l = lP;
         s = sP;
-        
+
         i = 0;
         /* resolve annotation line numbers */
         for (j = 0; j < frame->num_annotations; j++) {
@@ -306,7 +306,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                 }
             }
         }
-        
+
         for (j = 0; j < lineno; j++) {
             if (annotations[j]) {
                 tmpstr = MVM_string_utf8_encode_C_string(
@@ -333,7 +333,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         free(labels);
         free(annotations);
     }
-    
+
         }
     }
     for (k = 0; k < cu->num_frames; k++) {

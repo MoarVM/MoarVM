@@ -83,7 +83,7 @@ typedef struct _MVMConcatState {
 #define MVM_CCLASS_PUNCTUATION  1024
 #define MVM_CCLASS_ALPHANUMERIC 2048
 #define MVM_CCLASS_NEWLINE      4096
-#define MVM_CCLASS_WORD         8192    
+#define MVM_CCLASS_WORD         8192
 
 MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);

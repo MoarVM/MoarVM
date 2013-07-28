@@ -8,14 +8,14 @@ static MVMREPROps *this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st;
     MVMObject *obj;
-    
+
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMString);
     });
-    
+
     return st->WHAT;
 }
 

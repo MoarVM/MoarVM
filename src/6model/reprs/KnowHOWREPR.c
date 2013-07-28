@@ -13,7 +13,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMKnowHOWREPR);
     });
-    
+
     return st->WHAT;
 }
 
@@ -27,21 +27,21 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMObject *methods, *attributes;
     MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
     MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
-    
+
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTHash);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&root);
-    
+
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&methods);
     MVM_ASSIGN_REF(tc, root, ((MVMKnowHOWREPR *)root)->body.methods, methods);
     REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
-    
+
     attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
     MVM_ASSIGN_REF(tc, root, ((MVMKnowHOWREPR *)root)->body.attributes, attributes);
     REPR(attributes)->initialize(tc, STABLE(attributes), attributes, OBJECT_BODY(attributes));
-    
+
     MVM_gc_root_temp_pop_n(tc, 5);
 }
 

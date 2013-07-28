@@ -2,7 +2,7 @@
   + Add a make realclean to cross compiler Makefile to nuke debug files
 * WIP: gcc warnings cleanup
   + WIP: -Wall
-    - DONE: -Wparentheses 
+    - DONE: -Wparentheses
     - DONE: -Wreturn-type
       . All are in src/6model/reprs.c, because of exception-throwing stubs; may
         have to explicitly ignore this using the second (granular) method of:

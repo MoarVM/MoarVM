@@ -12,7 +12,7 @@ sub make_thread_type($frame) {
     my $how  := local($frame, NQPMu);
     my $type := local($frame, NQPMu);
     my $meth := local($frame, NQPMu);
-    
+
     # Create the type.
     op(@ins, 'const_s', $name, sval('TestThreadType'));
     op(@ins, 'const_s', $repr, sval('MVMThread'));
@@ -20,12 +20,12 @@ sub make_thread_type($frame) {
     op(@ins, 'findmeth', $meth, $how, sval('new_type'));
     call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
         $how, sval('name'), $name, sval('repr'), $repr, :result($type));
-        
+
     # Compose.
     op(@ins, 'gethow', $how, $type);
     op(@ins, 'findmeth', $meth, $how, sval('compose'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj], $how, $type, :result($type));
-    
+
     $type
 }
 
@@ -40,16 +40,16 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         }
 
         my $type := make_thread_type($frame);
-        
+
         my $thread_code := thread_code();
         $cu.add_frame($thread_code);
-        
+
         my $code   := local($frame, NQPMu);
         my $thread := local($frame, NQPMu);
         my $str    := local($frame, str);
         my $time   := local($frame, int);
         my $c      := const($frame, ival($num_threads));
-        
+
         op(@ins, 'getcode', $code, $thread_code);
         nqp::push(@ins, label('loop'));
         op(@ins, 'newthread', $thread, $code, $type);

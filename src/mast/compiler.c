@@ -21,7 +21,7 @@
 typedef struct {
     /* callsite ID */
     unsigned short callsite_id;
-    
+
     /* the uthash hash handle. */
     UT_hash_handle hash_handle;
 } CallsiteReuseEntry;
@@ -30,19 +30,19 @@ typedef struct {
 typedef struct {
     /* Offset of start of protected region from frame start. */
     unsigned int start_offset;
-    
+
     /* Offset of end of protected region, exclusive, from frame start. */
     unsigned int end_offset;
-    
+
     /* Exception categry mask. */
     unsigned int category_mask;
-    
+
     /* Handler action. */
     unsigned short action;
-    
+
     /* Local holding block to invoke, if invokey handler. */
     unsigned short local;
-    
+
     /* Label, which will need resolving. */
     MASTNode *label;
 } FrameHandler;
@@ -56,35 +56,35 @@ typedef struct {
 typedef struct {
     /* Position of start of bytecode. */
     unsigned int bytecode_start;
-    
+
     /* Position of start of frame entry. */
     unsigned int frame_start;
-    
+
     /* Types of locals, along with the number of them we have. */
     unsigned short *local_types;
     unsigned int num_locals;
-    
+
     /* Types of lexicals, along with the number of them we have. */
     unsigned short *lexical_types;
     unsigned int num_lexicals;
-    
+
     /* Number of annotations. */
     unsigned int num_annotations;
-    
+
     /* Number of handlers */
     unsigned int num_handlers;
-    
+
     /* Labels that we have seen and know the address of. Hash of name to
      * index. */
     MASTNode *known_labels;
-    
+
     /* Labels that are currently unresolved, that we need to fix up. Hash
      * of name to a list of positions needing a fixup. */
     MASTNode *labels_to_resolve;
-    
+
     /* Hash for callsite descriptor strings to callsite IDs */
     CallsiteReuseEntry *callsite_reuse_head;
-    
+
     /* Handlers list. */
     FrameHandler *handlers;
 } FrameState;
@@ -93,40 +93,40 @@ typedef struct {
 typedef struct {
     /* The set of node types. */
     MASTNodeTypes *types;
-    
+
     /* The current frame and frame count. */
     FrameState   *cur_frame;
     unsigned int  num_frames;
-    
+
     /* String heap and seen hash mapping known strings to indexes. */
     MASTNode *strings;
     MASTNode *seen_strings;
-    
+
     /* The SC dependencies segment; we know the size up front. */
     char         *scdep_seg;
     unsigned int  scdep_bytes;
-    
+
     /* The frame segment. */
     char         *frame_seg;
     unsigned int  frame_pos;
     unsigned int  frame_alloc;
-    
+
     /* The callsite segment and number of callsites. */
     char         *callsite_seg;
     unsigned int  callsite_pos;
     unsigned int  callsite_alloc;
     unsigned int  num_callsites;
-    
+
     /* The bytecode segment. */
     char         *bytecode_seg;
     unsigned int  bytecode_pos;
     unsigned int  bytecode_alloc;
-    
+
     /* The annotation segment. */
     char         *annotation_seg;
     unsigned int  annotation_pos;
     unsigned int  annotation_alloc;
-    
+
     /* Current instruction info */
     MVMOpInfo    *current_op_info;
 
@@ -138,7 +138,7 @@ typedef struct {
 
     /* Zero-based index of current operand */
     unsigned int  current_operand_idx;
-    
+
     /* The compilation unit we're compiling. */
     MAST_CompUnit *cu;
 } WriterState;
@@ -216,23 +216,23 @@ void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsi
 /* Cleans up all allocated memory related to a frame. */
 void cleanup_frame(VM, FrameState *fs) {
     CallsiteReuseEntry *current, *tmp;
-    
+
     if (fs->local_types)
         free(fs->local_types);
     if (fs->lexical_types)
         free(fs->lexical_types);
     if (fs->handlers)
         free(fs->handlers);
-    
+
     /* the macros already check for null */
     HASH_ITER(hash_handle, fs->callsite_reuse_head, current, tmp)
         if (current != fs->callsite_reuse_head)
             free(current);
-    
+
     HASH_CLEAR(hash_handle, fs->callsite_reuse_head);
     if (fs->callsite_reuse_head)
         free(fs->callsite_reuse_head);
-    
+
     free(fs);
 }
 
@@ -444,13 +444,13 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
         /* The operand node had best be a MAST::Local. */
         if (ISTYPE(vm, operand, ws->types->Local)) {
             MAST_Local *l = GET_Local(operand);
-            
+
             /* Ensure it's within the set of known locals. */
             if (l->index >= ws->cur_frame->num_locals) {
                 cleanup_all(vm, ws);
                 DIE(vm, "MAST::Local index out of range");
             }
-            
+
             /* Check the type matches. */
             local_type = ws->cur_frame->local_types[l->index];
             if (op_type != local_type << 3 && op_type != MVM_operand_type_var) {
@@ -465,7 +465,7 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
                     name, current_operand_idx,
                     local_type, (op_type >> 3));
             }
-            
+
             /* Write the operand type. */
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
             write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->index);
@@ -514,7 +514,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     unsigned short i;
     CallsiteReuseEntry *entry = NULL;
     unsigned char *identifier = (unsigned char *)malloc(elems);
-    
+
     for (i = 0; i < elems; i++)
         identifier[i] = (unsigned char)ATPOS_I(vm, flags, i);
     HASH_FIND(hash_handle, ws->cur_frame->callsite_reuse_head, identifier, elems, entry);
@@ -525,7 +525,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     entry = (CallsiteReuseEntry *)malloc(sizeof(CallsiteReuseEntry));
     entry->callsite_id = (unsigned short)ws->num_callsites;
     HASH_ADD_KEYPTR(hash_handle, ws->cur_frame->callsite_reuse_head, identifier, elems, entry);
-    
+
     /* Emit callsite; be sure to pad if there's uneven number of flags. */
     ensure_space(vm, &ws->callsite_seg, &ws->callsite_alloc, ws->callsite_pos,
         2 + elems + align);
@@ -536,7 +536,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
             (unsigned char)ATPOS_I(vm, flags, i));
     if (align)
         write_int8(ws->callsite_seg, ws->callsite_pos++, 0);
-    
+
     return (unsigned short)ws->num_callsites++;
 }
 
@@ -548,7 +548,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         MAST_Op   *o = GET_Op(node);
         MVMOpInfo *info;
         int        i;
-        
+
         /* Look up opcode and get argument info. */
         unsigned char bank = (unsigned char)o->bank;
         unsigned char op   = (unsigned char)o->op;
@@ -557,7 +557,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             DIE(vm, "Invalid op bank %d specified in instruction %d", bank, op);
         ws->current_op_info = info;
         ws->current_operand_idx = 0;
-        
+
         /* Ensure argument count matches up. */
         if (ELEMS(vm, o->operands) != info->num_operands) {
             unsigned int  current_frame_idx = ws->current_frame_idx;
@@ -568,12 +568,12 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 current_frame_idx, current_ins_idx, name,
                 ELEMS(vm, o->operands), info->num_operands);
         }
-        
+
         /* Write bank and opcode. */
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, bank);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, op);
-        
+
         /* Write operands. */
         for (i = 0; i < info->num_operands; i++)
             compile_operand(vm, ws, info->operands[i], ATPOS(vm, o->operands, i));
@@ -587,7 +587,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             DIE(vm, "Duplicate label");
         }
         BINDKEY_I(vm, ws->cur_frame->known_labels, l->name, offset);
-        
+
         /* Resolve any existing usages. */
         if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
             MASTNode *res_list   = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
@@ -605,7 +605,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         unsigned char call_op  = MVM_OP_invoke_v;
         unsigned char res_type = 0;
         unsigned short num_flags, num_args, flag_pos, arg_pos;
-        
+
         /* Emit callsite (may re-use existing one) and emit loading of it. */
         unsigned short callsite_id = get_callsite_id(vm, ws, c->flags);
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
@@ -613,11 +613,11 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_prepargs);
         write_int16(ws->bytecode_seg, ws->bytecode_pos, callsite_id);
         ws->bytecode_pos += 2;
-        
+
         /* for errors */
         ws->current_op_info = MVM_op_get_op(MVM_OP_BANK_primitives, MVM_OP_prepargs);
         ws->current_operand_idx = 0;
-        
+
         /* Set up args. */
         num_flags = (unsigned short)ELEMS(vm, c->flags);
         num_args = (unsigned short)ELEMS(vm, c->args);
@@ -637,7 +637,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             else if (flag & MVM_CALLSITE_ARG_FLAT) {
                 /* don't need to do anything special */
             }
-            
+
             /* Now go by flag type. */
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
             write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
@@ -673,20 +673,20 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 cleanup_all(vm, ws);
                 DIE(vm, "Unhandled arg type");
             }
-            
+
             arg_pos++;
         }
-        
+
         /* Select operation based on return type. */
         if (ISTYPE(vm, c->result, ws->types->Local)) {
             MAST_Local *l = GET_Local(c->result);
-            
+
             /* Ensure it's within the set of known locals. */
             if (l->index >= ws->cur_frame->num_locals) {
                 cleanup_all(vm, ws);
                 DIE(vm, "MAST::Local index out of range");
             }
-            
+
             /* Go by type. */
             switch (ws->cur_frame->local_types[l->index]) {
                 case MVM_reg_int64:
@@ -710,7 +710,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                     DIE(vm, "Invalid MAST::Local type for return value");
             }
         }
-        
+
         /* Emit the invocation op. */
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
@@ -724,14 +724,14 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         unsigned int i;
         unsigned int num_ins = ELEMS(vm, a->instructions);
         unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
-        
+
         ensure_space(vm, &ws->annotation_seg, &ws->annotation_alloc, ws->annotation_pos, 10);
         write_int32(ws->annotation_seg, ws->annotation_pos, offset);
         write_int16(ws->annotation_seg, ws->annotation_pos + 4, get_string_heap_index(vm, ws, a->file));
         write_int32(ws->annotation_seg, ws->annotation_pos + 6, (unsigned int)a->line);
         ws->annotation_pos += 10;
         ws->cur_frame->num_annotations++;
-        
+
         for (i = 0; i < num_ins; i++)
             compile_instruction(vm, ws, ATPOS(vm, a->instructions, i));
     }
@@ -745,7 +745,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         for (i = 0; i < num_ins; i++)
             compile_instruction(vm, ws, ATPOS(vm, hs->instructions, i));
         end = ws->bytecode_pos - ws->cur_frame->bytecode_start;
-        
+
         ws->cur_frame->num_handlers++;
         if (ws->cur_frame->handlers)
             ws->cur_frame->handlers = (FrameHandler *)realloc(ws->cur_frame->handlers,
@@ -759,7 +759,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         ws->cur_frame->handlers[i].end_offset = end;
         ws->cur_frame->handlers[i].category_mask = (unsigned int)hs->category_mask;
         ws->cur_frame->handlers[i].action = (unsigned short)hs->action;
-        
+
         /* Ensure we have a label. */
         if (ISTYPE(vm, hs->goto_label, ws->types->Label)) {
             ws->cur_frame->handlers[i].label = hs->goto_label;
@@ -768,12 +768,12 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             cleanup_all(vm, ws);
             DIE(vm, "MAST::Label required for HandlerScope goto");
         }
-        
+
         /* May need a block also. */
         if (hs->action == HANDLER_INVOKE) {
             if (ISTYPE(vm, hs->block_local, ws->types->Local)) {
                 MAST_Local *l = GET_Local(hs->block_local);
-                
+
                 /* Ensure it's within the set of known locals and an object. */
                 if (l->index >= ws->cur_frame->num_locals) {
                     cleanup_all(vm, ws);
@@ -783,7 +783,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                     cleanup_all(vm, ws);
                     DIE(vm, "MAST::Local for HandlerScope must be an object");
                 }
-                
+
                 /* Stash local index. */
                 ws->cur_frame->handlers[i].local = (unsigned short)l->index;
             }
@@ -813,45 +813,45 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     FrameState  *fs;
     unsigned int i, num_ins, instructions_start;
     MASTNode *last_inst = NULL;
-    
+
     /* Ensure we have a node of the right type. */
     if (!ISTYPE(vm, node, ws->types->Frame)) {
         cleanup_all(vm, ws);
         DIE(vm, "Child of CompUnit must be a Frame");
     }
     f = GET_Frame(node);
-    
+
     /* Allocate frame state. */
     fs = ws->cur_frame    = (FrameState *)malloc(sizeof(FrameState));
     fs->bytecode_start    = ws->bytecode_pos;
     fs->frame_start       = ws->frame_pos;
     fs->known_labels      = NEWHASH(vm);
     fs->labels_to_resolve = NEWHASH(vm);
-    
+
     /* Count locals and lexicals. */
     fs->num_locals   = ELEMS(vm, f->local_types);
     fs->num_lexicals = ELEMS(vm, f->lexical_types);
-    
+
     if (fs->num_locals > (1 << 16)) {
         cleanup_all(vm, ws);
         DIE(vm, "Too many locals in this frame.");
     }
-    
+
     if (ELEMS(vm, f->lexical_names) != fs->num_lexicals) {
         cleanup_all(vm, ws);
         DIE(vm, "Lexical types list and lexical names list have unequal length");
     }
-    
+
     /* initialize number of annotation */
     fs->num_annotations = 0;
-    
+
     /* initialize number of handlers and handlers pointer */
     fs->num_handlers = 0;
     fs->handlers = NULL;
-    
+
     /* initialize callsite reuse cache */
     fs->callsite_reuse_head = NULL;
-    
+
     /* Ensure space is available to write frame entry, and write the
      * header, apart from the bytecode length, which we'll fill in
      * later. */
@@ -865,7 +865,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         get_string_heap_index(vm, ws, f->cuuid));
     write_int16(ws->frame_seg, ws->frame_pos + 18,
         get_string_heap_index(vm, ws, f->name));
-    
+
     /* Handle outer. The current index means "no outer". */
     if (ISTYPE(vm, f->outer, ws->types->Frame)) {
         unsigned short i, found, num_frames;
@@ -886,13 +886,13 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     else {
         write_int16(ws->frame_seg, ws->frame_pos + 20, idx);
     }
-    
+
     write_int32(ws->frame_seg, ws->frame_pos + 22, ws->annotation_pos);
     write_int32(ws->frame_seg, ws->frame_pos + 26, 0); /* number of annotation; fill in later */
     write_int32(ws->frame_seg, ws->frame_pos + 30, 0); /* number of handlers; fill in later */
-    
+
     ws->frame_pos += FRAME_HEADER_SIZE;
-    
+
     /* Write locals, as well as collecting our own array of type info. */
     fs->local_types = (short unsigned int *)malloc(sizeof(unsigned short) * fs->num_locals);
     for (i = 0; i < fs->num_locals; i++) {
@@ -922,7 +922,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     num_ins = ELEMS(vm, f->instructions);
     for (i = 0; i < num_ins; i++)
         compile_instruction(vm, ws, last_inst = ATPOS(vm, f->instructions, i));
-    
+
     /* fixup frames that don't have a return instruction, so
      * we don't have to check against bytecode length every
      * time through the runloop. */
@@ -938,16 +938,16 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
         write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_return);
     }
-    
+
     /* Fill in bytecode length. */
     write_int32(ws->frame_seg, fs->frame_start + 4, ws->bytecode_pos - instructions_start);
-    
+
     /* Fill in number of annotations. */
     write_int32(ws->frame_seg, fs->frame_start + 26, fs->num_annotations);
-    
+
     /* Fill in number of handlers. */
     write_int32(ws->frame_seg, fs->frame_start + 30, fs->num_handlers);
-    
+
     /* Write handlers. */
     ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
         FRAME_HANDLER_SIZE * fs->num_handlers);
@@ -978,17 +978,17 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         }
         ws->frame_pos += 4;
     }
-    
+
     /* Any leftover labels? */
     if (HASHELEMS(vm, fs->labels_to_resolve)) {
         cleanup_all(vm, ws);
         DIE(vm, "Frame has unresolved labels");
     }
-    
+
     /* Free the frame state. */
     cleanup_frame(vm, fs);
     ws->cur_frame = NULL;
-    
+
     /* Increment frame count. */
     ws->num_frames++;
 }
@@ -998,19 +998,19 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
 char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
     char         *heap;
     unsigned int  i, num_strings, heap_size, heap_alloc;
-    
+
     /* If we've nothing to do, just return immediately. */
     num_strings = ELEMS(vm, ws->strings);
     if (num_strings == 0) {
         *string_heap_size = 0;
         return NULL;
     }
-    
+
     /* Allocate heap starting point (just a guess). */
     heap_size = 0;
     heap_alloc = num_strings * 32;
     heap = (char *)malloc(heap_alloc);
-    
+
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
 #ifdef PARROT_OPS_BUILD
@@ -1031,11 +1031,11 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
             heap_alloc = umax(heap_alloc * 2, heap_size + need);
             heap = (char *)realloc(heap, heap_alloc);
         }
-        
+
         /* Write byte length into heap. */
         write_int32(heap, heap_size, bytelen);
         heap_size += 4;
-        
+
         /* Write string. */
 #ifdef PARROT_OPS_BUILD
         memcpy(heap + heap_size, utf8->strstart, bytelen);
@@ -1044,11 +1044,11 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
         free(utf8);
 #endif
         heap_size += bytelen;
-        
+
         /* Add alignment. */
         heap_size += align;
     }
-    
+
     *string_heap_size = heap_size;
     return heap;
 }
@@ -1061,16 +1061,16 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     unsigned int  string_heap_size;
     char         *string_heap;
     unsigned int  hll_str_idx;
-    
+
     /* Store HLL name string, if any. */
     if (!VM_STRING_IS_NULL(ws->cu->hll))
         hll_str_idx = get_string_heap_index(vm, ws, ws->cu->hll);
     else
         hll_str_idx = get_string_heap_index(vm, ws, EMPTY_STRING(vm));
-    
+
     /* Build string heap. */
     string_heap = form_string_heap(vm, ws, &string_heap_size);
-    
+
     /* Work out total size. */
     size += HEADER_SIZE;
     size += string_heap_size;
@@ -1079,34 +1079,34 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     size += ws->callsite_pos;
     size += ws->bytecode_pos;
     size += ws->annotation_pos;
-    
+
     /* Allocate space for the bytecode output. */
     output = (char *)malloc(size);
     memset(output, 0, size);
-    
+
     /* Generate start of header. */
     memcpy(output, "MOARVM\r\n", 8);
     write_int32(output, 8, BYTECODE_VERSION);
     pos += HEADER_SIZE;
-    
+
     /* Add SC dependencies section and its header entries. */
     write_int32(output, 12, pos);
     write_int32(output, 16, ELEMS(vm, ws->cu->sc_handles));
     memcpy(output + pos, ws->scdep_seg, ws->scdep_bytes);
     pos += ws->scdep_bytes;
-    
+
     /* Add frames section and its header entries. */
     write_int32(output, 20, pos);
     write_int32(output, 24, ws->num_frames);
     memcpy(output + pos, ws->frame_seg, ws->frame_pos);
     pos += ws->frame_pos;
-    
+
     /* Add callsites section and its header entries. */
     write_int32(output, 28, pos);
     write_int32(output, 32, ws->num_callsites);
     memcpy(output + pos, ws->callsite_seg, ws->callsite_pos);
     pos += ws->callsite_pos;
-    
+
     /* Add strings heap section and its header entries. */
     write_int32(output, 40, pos);
     write_int32(output, 44, ELEMS(vm, ws->strings));
@@ -1116,19 +1116,19 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         free(string_heap);
         string_heap = NULL;
     }
-    
+
     /* Add bytecode section and its header entries (offset, length). */
     write_int32(output, 56, pos);
     write_int32(output, 60, ws->bytecode_pos);
     memcpy(output + pos, ws->bytecode_seg, ws->bytecode_pos);
     pos += ws->bytecode_pos;
-    
+
     /* Add annotation section and its header entries (offset, length). */
     write_int32(output, 64, pos);
     write_int32(output, 68, ws->annotation_pos);
     memcpy(output + pos, ws->annotation_seg, ws->annotation_pos);
     pos += ws->annotation_pos;
-    
+
     /* Add HLL and special frame indexes. */
     write_int32(output, 72, hll_str_idx);
     if (VM_OBJ_IS_NULL(ws->cu->main_frame))
@@ -1143,11 +1143,11 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         write_int32(output, 84, 0);
     else
         write_int32(output, 84, 1 + get_frame_index(vm, ws, ws->cu->deserialize_frame));
-    
+
     /* Sanity...should never fail. */
     if (pos != size)
         DIE(vm, "Bytecode generated did not match expected size");
-    
+
     *bytecode_size = size;
     return output;
 }
@@ -1159,12 +1159,12 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     char           *bytecode;
     unsigned short  i, num_depscs, num_frames;
     unsigned int    bytecode_size;
-    
+
     /* Ensure we have a compilation unit. */
     if (!ISTYPE(vm, node, types->CompUnit))
         DIE(vm, "Top-level MAST node must be a CompUnit");
     cu = GET_CompUnit(node);
-    
+
     /* Initialize the writer state structure. */
     ws = (WriterState *)malloc(sizeof(WriterState));
     ws->types            = types;
@@ -1189,25 +1189,25 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
     ws->cu               = cu;
     ws->current_frame_idx= 0;
-    
+
     /* Store each of the dependent SCs. */
     num_depscs = ELEMS(vm, ws->cu->sc_handles);
     for (i = 0; i < num_depscs; i++)
         write_int32(ws->scdep_seg, i * SC_DEP_SIZE,
             get_string_heap_index(vm, ws,
                 ATPOS_S(vm, ws->cu->sc_handles, i)));
-    
+
     /* Visit and compile each of the frames. */
     num_frames = (unsigned short)ELEMS(vm, cu->frames);
     for (i = 0; i < num_frames; i++)
         compile_frame(vm, ws, ATPOS(vm, cu->frames, i), ws->current_frame_idx = i);
-    
+
     /* Join all the pieces into a bytecode file. */
     bytecode = form_bytecode_output(vm, ws, &bytecode_size);
-    
+
     /* Cleanup and hand back result. */
     cleanup_all(vm, ws);
-    
+
     *size = bytecode_size;
     return bytecode;
 }

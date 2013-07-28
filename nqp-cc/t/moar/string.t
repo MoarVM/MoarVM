@@ -432,13 +432,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     my $separator := const($frame, sval("\n"));
     my $arr := local($frame, NQPMu);
     op(@ins, 'split', $arr, $separator, $input_str);
-    
+
     my $elems := local($frame, int);
     my $str := local($frame, str);
     op(@ins, 'elems', $elems, $arr);
     op(@ins, 'coerce_is', $str, $elems);
     op(@ins, 'say', $str);
-    
+
     my $item_o := local($frame, NQPMu);
     my $item := local($frame, str);
     op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(5)));
@@ -455,13 +455,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     my $separator := const($frame, sval(""));
     my $arr := local($frame, NQPMu);
     op(@ins, 'split', $arr, $separator, $input_str);
-    
+
     my $elems := local($frame, int);
     my $str := local($frame, str);
     op(@ins, 'elems', $elems, $arr);
     op(@ins, 'coerce_is', $str, $elems);
     op(@ins, 'say', $str);
-    
+
     my $item_o := local($frame, NQPMu);
     my $item := local($frame, str);
     op(@ins, 'atpos_o', $item_o, $arr, const($frame, ival(0)));
@@ -478,13 +478,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     my $separator := const($frame, sval("\n"));
     my $arr := local($frame, NQPMu);
     op(@ins, 'split', $arr, $separator, $input_str);
-    
+
     my $elems := local($frame, int);
     my $str := local($frame, str);
     op(@ins, 'elems', $elems, $arr);
     op(@ins, 'coerce_is', $str, $elems);
     op(@ins, 'say', $str);
-    
+
     op(@ins, 'return');
 }, "0\n", "string split empty input");
 

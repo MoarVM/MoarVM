@@ -29,10 +29,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'return');
             return $i_frame;
         }
-        
+
         my $inner := inner();
         $cu.add_frame($inner);
-        
+
         my $r0 := local($frame, NQPMu);
         my $r1 := local($frame, str);
         my $lex := lexical($frame, str, '$lex');
@@ -52,7 +52,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         sub counter_factory() {
             my $f_frame := MAST::Frame.new();
             $f_frame.set_outer($frame);
-            
+
             sub counter_closure() {
                 my $c_frame := MAST::Frame.new();
                 $c_frame.set_outer($f_frame);
@@ -64,10 +64,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
                 op(@ins, 'return_i', $r0);
                 return $c_frame;
             }
-        
+
             my $c_frame := counter_closure();
             $cu.add_frame($c_frame);
-            
+
             my @ins := $f_frame.instructions;
             my $count := lexical($f_frame, int, '$count');
             my $r0 := local($f_frame, int);
@@ -79,10 +79,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'return_o', $r1);
             return $f_frame;
         }
-        
+
         my $f_frame := counter_factory();
         $cu.add_frame($f_frame);
-        
+
         my $c0 := local($frame, NQPMu);
         my $c1 := local($frame, NQPMu);
         my $r0 := local($frame, NQPMu);
@@ -148,10 +148,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'return');
             return $i_frame;
         }
-        
+
         my $inner := inner();
         $cu.add_frame($inner);
-        
+
         my $r0 := local($frame, NQPMu);
         my $r1 := local($frame, str);
         my $lex := lexical($frame, str, '$nom');

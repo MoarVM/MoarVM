@@ -39,7 +39,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add a method, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -67,7 +67,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Try calling the method.
                 QAST::Op.new(
                     :op('callmethod'), :name('get_beer'), :returns(str),
@@ -111,7 +111,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Get the name of the type.
                 QAST::Op.new(
                     :op('say'),
@@ -159,7 +159,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Try to make an instance, and report survival.
                 QAST::Op.new(
                     :op('bind'),
@@ -208,7 +208,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -234,7 +234,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Create a new instance.
                 QAST::Op.new(
                     :op('bind'),
@@ -244,7 +244,7 @@ qast_test(
                         QAST::Var.new( :name('type'), :scope('local') )
                     )
                 ),
-                
+
                 # Store something in the attribute.
                 QAST::Op.new(
                     :op('bindattr'),
@@ -278,7 +278,7 @@ qast_test(
     },
     "2\n",
     "Reference type attribute works");
-    
+
 qast_test(
     -> {
         my $block := QAST::Block.new(
@@ -292,7 +292,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -318,7 +318,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Create a new instance.
                 QAST::Op.new(
                     :op('bind'),
@@ -328,7 +328,7 @@ qast_test(
                         QAST::Var.new( :name('type'), :scope('local') )
                     )
                 ),
-                
+
                 # Store something in the attribute.
                 QAST::Op.new(
                     :op('bind'),
@@ -377,7 +377,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -403,7 +403,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Create a new instance.
                 QAST::Op.new(
                     :op('bind'),
@@ -413,7 +413,7 @@ qast_test(
                         QAST::Var.new( :name('type'), :scope('local') )
                     )
                 ),
-                
+
                 # Store something in the attribute.
                 QAST::Op.new(
                     :op('bindattr_i'),
@@ -455,7 +455,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -481,7 +481,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Create a new instance.
                 QAST::Op.new(
                     :op('bind'),
@@ -491,7 +491,7 @@ qast_test(
                         QAST::Var.new( :name('type'), :scope('local') )
                     )
                 ),
-                
+
                 # Store something in the attribute.
                 QAST::Op.new(
                     :op('bind'),
@@ -534,7 +534,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -560,7 +560,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Create a new instance.
                 QAST::Op.new(
                     :op('bind'),
@@ -570,7 +570,7 @@ qast_test(
                         QAST::Var.new( :name('type'), :scope('local') )
                     )
                 ),
-                
+
                 # Store something in the attribute.
                 QAST::Op.new(
                     :op('bindattr_n'),
@@ -612,7 +612,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -638,7 +638,7 @@ qast_test(
                     QAST::Var.new( :name('how'), :scope('local') ),
                     QAST::Var.new( :name('type'), :scope('local') )
                 ),
-                
+
                 # Create a new instance.
                 QAST::Op.new(
                     :op('bind'),
@@ -648,7 +648,7 @@ qast_test(
                         QAST::Var.new( :name('type'), :scope('local') )
                     )
                 ),
-                
+
                 # Store something in the attribute.
                 QAST::Op.new(
                     :op('bindattr_s'),
@@ -731,7 +731,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -793,7 +793,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -855,7 +855,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, and compose it.
                 QAST::Op.new(
                     :op('bind'),
@@ -970,7 +970,7 @@ qast_test(
                         QAST::Op.new( :op('knowhow') )
                     )
                 ),
-                
+
                 # Get its HOW, add an attribute, set boolification mode
                 # and compose it.
                 QAST::Op.new(
@@ -1033,7 +1033,7 @@ qast_test(
                             QAST::SVal.new( :value('Stilton') ),
                             QAST::Var.new( :name('type'), :scope('local') )
                         ))),
-                
+
                 # isfalse
                 QAST::Op.new(
                     :op('say'),

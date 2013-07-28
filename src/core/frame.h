@@ -2,7 +2,7 @@
 typedef struct _MVMLexicalHashEntry {
     /* index of the lexical entry. */
     MVMuint32 value;
-    
+
     /* the uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
 } MVMLexicalHashEntry;
@@ -11,19 +11,19 @@ typedef struct _MVMLexicalHashEntry {
 typedef struct _MVMStaticFrame {
     /* The start of the stream of bytecode for this routine. */
     MVMuint8 *bytecode;
-    
+
     /* The compilation unit this frame belongs to. */
     struct _MVMCompUnit *cu;
-    
+
     /* The list of local types. */
     MVMuint16 *local_types;
-    
+
     /* The list of lexical types. */
     MVMuint16 *lexical_types;
-    
+
     /* Lexicals name map. */
     MVMLexicalHashEntry *lexical_names;/* The environment for this frame, which lives beyond its execution. */
-     
+
     /* Defaults for lexicals upon new frame creation. */
     MVMRegister *static_env;
 
@@ -32,43 +32,43 @@ typedef struct _MVMStaticFrame {
 
     /* The size in bytes to allocate for the lexical environment. */
     MVMuint32 env_size;
-    
+
     /* The size in bytes to allocate for the work and arguments area. */
     MVMuint32 work_size;
 
     /* The size of the bytecode. */
     MVMuint32 bytecode_size;
-    
+
     /* Count of locals. */
     MVMuint32 num_locals;
-    
+
     /* Count of lexicals. */
     MVMuint32 num_lexicals;
-    
+
     /* The frame of the prior invocation of this static frame. */
     struct _MVMFrame *prior_invocation;
-    
+
     /* The number of exception handlers this frame has. */
     MVMuint32 num_handlers;
-    
+
     /* Frame exception handlers information. */
     MVMFrameHandler *handlers;
-    
+
     /* The compilation unit unique ID of this frame. */
     struct _MVMString *cuuid;
-    
+
     /* The name of this frame. */
     struct _MVMString *name;
-    
+
     /* This frame's static outer frame. */
     struct _MVMStaticFrame *outer;
-    
+
     /* GC run sequence number that we last saw static this frame during. */
     MVMuint32 gc_seq_number;
-    
+
     /* Index into each threadcontext's table of frame pools. */
     MVMuint32 pool_index;
-    
+
     /* Annotation details */
     MVMuint32 num_annotations;
     MVMuint8 *annotations;
@@ -92,7 +92,7 @@ typedef struct _MVMFrame {
     /* The temporary work space for this frame. After a call is over, this
      * can be freed up. Must be NULLed out when this happens. */
     MVMRegister *work;
-    
+
     /* The args buffer. Actually a pointer into an area inside of *work, to
      * decrease number of allocations. */
     MVMRegister *args;
@@ -115,23 +115,23 @@ typedef struct _MVMFrame {
 
     /* Reference count for the frame. */
     MVMuint32 ref_count;
-    
+
     /* Address of the next op to execute if we return to this frame. */
     MVMuint8 *return_address;
-    
+
     /* The register we should store the return value in, if any. */
     MVMRegister *return_value;
-    
+
     /* The type of return value that is expected. */
     MVMReturnType return_type;
-    
+
     /* If we want to invoke a special handler upon a return to this
      * frame, this function pointer is set. */
     MVMSpecialReturn special_return;
-    
+
     /* Data slot for the special return handler function. */
     void *special_return_data;
-    
+
     /* GC run sequence number that we last saw this frame during. */
     MVMuint32 gc_seq_number;
 } MVMFrame;
@@ -143,17 +143,17 @@ typedef struct _MVMInvocationSpec {
      * Class handle where we find the attribute to invoke.
      */
     struct _MVMObject *class_handle;
-    
+
     /*
      * Attribute name where we find the attribute to invoke.
      */
     struct _MVMString *attr_name;
-    
+
     /*
      * Attribute lookup hint used in gradual typing.
      */
     MVMint64 hint;
-    
+
     /*
      * Thing that handles invocation.
      */

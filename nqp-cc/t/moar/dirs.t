@@ -15,17 +15,17 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $str := local($frame, str);
         op(@ins, 'mkdir', $r0, $r3);
         op(@ins, 'chdir', $r0);
-        
+
         # create 3 files
         nqp::push(@ins, $loop);
         op(@ins, 'dec_i', $counter);
         op(@ins, 'concat_s', $r1, $r1, const($frame, sval("_")));
         op(@ins, 'spew', const($frame, sval("foo")), $r1, $r4);
         op(@ins, 'if_i', $counter, $loop);
-        
+
         my $dh := local($frame, NQPMu);
         op(@ins, 'open_dir', $dh, const($frame, sval(".")), $r2);
-        
+
         my $loop2 := label('loop2');
         my $done := label('done');
         nqp::push(@ins, $loop2);
@@ -40,7 +40,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'inc_i', $counter);
         op(@ins, 'delete_f', $r1);
         op(@ins, 'goto', $loop2);
-        
+
         nqp::push(@ins, $done);
         op(@ins, 'close_dir', $dh);
         op(@ins, 'coerce_is', $str, $counter);

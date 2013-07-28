@@ -48,12 +48,12 @@ typedef struct {
      * representation, this is the s-table of the type of that attribute. NULL
      * for attributes that are just reference types. */
     MVMSTable **flattened_stables;
-    
+
     /* Instantiated objects are just a blank piece of memory that needs to
      * be set up. However, in some cases we'd like them to magically turn in
      * to some container type. */
     MVMObject **auto_viv_values;
-    
+
     /* Flags if we are MI or not. */
     MVMuint16 mi;
 
@@ -65,13 +65,13 @@ typedef struct {
 
     /* Slot to delegate to when we need to unbox to a native string. */
     MVMint16 unbox_str_slot;
-    
+
     /* If we have any other boxings, this maps repr ID to slot. */
     P6opaqueBoxedTypeMap *unbox_slots;
-    
+
     /* Slot containing object to delegate for positional things. */
     MVMint16 pos_del_slot;
-    
+
     /* Slot containing object to delegate for associative things. */
     MVMint16 ass_del_slot;
 
@@ -87,11 +87,11 @@ typedef struct {
     /* Slots holding flattened objects that need another REPR to initialize
      * them; terminated with -1. */
     MVMint16 *initialize_slots;
-    
+
     /* Slots holding flattened objects that need another REPR to mark them;
      * terminated with -1. */
     MVMint16 *gc_mark_slots;
-    
+
     /* Slots holding flattened objects that need another REPR to clean them;
      * terminated with -1. */
     MVMint16 *gc_cleanup_slots;

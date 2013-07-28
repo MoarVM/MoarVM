@@ -19,7 +19,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st;
     MVMObject *obj;
-    
+
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
@@ -27,7 +27,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         st->invoke = invoke_handler;
         st->size = sizeof(MVMCode);
     });
-    
+
     return st->WHAT;
 }
 

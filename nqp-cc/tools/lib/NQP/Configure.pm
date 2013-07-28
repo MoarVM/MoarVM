@@ -5,9 +5,9 @@ use Cwd;
 
 use base qw(Exporter);
 our @EXPORT_OK = qw(sorry slurp system_or_die
-                    cmp_rev 
+                    cmp_rev
                     read_parrot_config read_config
-                    fill_template_file fill_template_text 
+                    fill_template_file fill_template_text
                     git_checkout
                     verify_install
                     gen_nqp gen_parrot);
@@ -123,7 +123,7 @@ sub read_parrot_config {
         .end
 END
     close($CONFIG_PIR);
-    
+
     for my $file (@parrot_config_src) {
         no warnings;
         if ($file =~ /.pir$/ && open my $PARROT_CONFIG, '<', $file) {
@@ -208,7 +208,7 @@ sub git_checkout {
 
     if ($checkout) {
         system_or_die('git', 'checkout', $checkout);
-        system_or_die('git', 'pull') 
+        system_or_die('git', 'pull')
             if slurp('.git/HEAD') =~ /^ref:/;
     }
 

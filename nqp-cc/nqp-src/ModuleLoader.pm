@@ -1,10 +1,10 @@
 knowhow ModuleLoader {
     my %modules_loaded;
     my %settings_loaded;
-    
+
     method search_path($explicit_path) {
         my @search_paths;
-        
+
         # Put any explicitly specified path on the start of the list.
         my $explicit;
         # XXX TODO: Exceptions.
@@ -12,18 +12,18 @@ knowhow ModuleLoader {
         if !nqp::isnull($explicit) && nqp::defined($explicit) {
             nqp::push(@search_paths, $explicit);
         }
-        
+
         # Add CWD.
         nqp::push(@search_paths, '.');
-    
+
         @search_paths
     }
-    
+
     method ctxsave() {
         $*MAIN_CTX := nqp::ctxcaller(nqp::ctx());
         $*CTXSAVE := 0;
     }
-    
+
     method load_module($module_name, *@global_merge_target) {
         # If we didn't already do so, load the module and capture
         # its mainline. Otherwise, we already loaded it so go on
@@ -62,10 +62,10 @@ knowhow ModuleLoader {
 
         $module_ctx;
     }
-    
+
     # XXX This is a really dumb and minimalistic GLOBAL merger.
     # For a much more complete one, see sorear++'s work in
-    # Niecza. This one will likely evolve towards that, but for 
+    # Niecza. This one will likely evolve towards that, but for
     # now I just need something that's just good enough for the
     # immediate needs of NQP bootstrapping.
     my $stub_how := 'KnowHOW';
@@ -121,10 +121,10 @@ knowhow ModuleLoader {
             }
         }
     }
-    
+
     method load_setting($setting_name) {
         my $setting;
-        
+
         if $setting_name ne 'NULL' {
             # Add path prefix and .setting suffix.
             my $path := "$setting_name.setting.moarvm";
@@ -148,10 +148,10 @@ knowhow ModuleLoader {
                 }
                 %settings_loaded{$path} := $*MAIN_CTX;
             }
-            
+
             $setting := %settings_loaded{$path};
         }
-        
+
         $setting;
     }
 }

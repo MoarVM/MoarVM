@@ -8,7 +8,7 @@ use Text::ParseWords;
 use Getopt::Long;
 use Cwd;
 use lib "tools/lib";
-use NQP::Configure qw(sorry slurp cmp_rev gen_nqp read_config 
+use NQP::Configure qw(sorry slurp cmp_rev gen_nqp read_config
                       fill_template_text fill_template_file
                       system_or_die verify_install);
 
@@ -71,7 +71,7 @@ MAIN: {
 
     my %nqp_config;
     if ($with_nqp) {
-        %nqp_config = read_config($with_nqp) 
+        %nqp_config = read_config($with_nqp)
             or push @errors, "Unable to read configuration from $with_nqp.";
     }
     else {
@@ -90,14 +90,14 @@ MAIN: {
         push @errors, verify_install([ @NQP::Configure::required_parrot_files,
                                        @NQP::Configure::required_nqp_files ],
                                      %config);
-        push @errors, 
+        push @errors,
           "(Perhaps you need to 'make install', 'make install-dev',",
           "or install the 'devel' package for NQP or Parrot?)"
           if @errors;
     }
 
     if (@errors && !defined $gen_nqp) {
-        push @errors, 
+        push @errors,
           "\nTo automatically clone (git) and build a copy of NQP $nqp_want,",
           "try re-running Configure.pl with the '--gen-nqp' or '--gen-parrot'",
           "options.  Or, use '--with-nqp=' or '--with-parrot=' to explicitly",

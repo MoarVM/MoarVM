@@ -52,7 +52,7 @@ is(nqp::sprintf('%% %% %%', []), '% % %', '%% escape' );
 my $knowhow := nqp::knowhow().new_type(:name('TestBigInt'), :repr("P6bigint"));
 my $large-positive-int := nqp::pow_I(nqp::box_i(33, $knowhow), nqp::box_i(21, $knowhow), $knowhow, $knowhow);
 my $large-negative-int := nqp::fromnum_I(-nqp::pow_n(2.42, 42), $knowhow);
-    
+
 is(nqp::sprintf('<%6s>', [12]), '<    12>', 'right-justified %s with space padding');
 is(nqp::sprintf('<%6%>', []), '<     %>', 'right-justified %% with space padding');
 is(nqp::sprintf('<%06s>', ['hi']), '<0000hi>', 'right-justified %s with 0-padding');
@@ -284,7 +284,7 @@ is(nqp::sprintf('%17.3g', [2.718281828459e+11]), '         2.72e+11', '%17.3g 2.
 is(nqp::sprintf('%17.3e', [2.718281828459e+12]), '        2.718e+12', '%17.3e 2.718281828459e+12');
 is(nqp::sprintf('%17.3f', [2.718281828459e+12]), '2718281828459.000', '%17.3f 2.718281828459e+12');
 is(nqp::sprintf('%17.3g', [2.718281828459e+12]), '         2.72e+12', '%17.3g 2.718281828459e+12');
-                                                  
+
 is(nqp::sprintf('%17.3g', [3.000000000000e-12]), '            3e-12', '%17.3g 3.000000000000e-12');
 is(nqp::sprintf('%17.3g', [3.000000000000e-11]), '            3e-11', '%17.3g 3.000000000000e-11');
 is(nqp::sprintf('%17.3g', [3.000000000000e-10]), '            3e-10', '%17.3g 3.000000000000e-10');

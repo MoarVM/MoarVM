@@ -3,19 +3,19 @@
 typedef struct _MVMHashEntry {
     /* key object (must be MVMString REPR) */
     MVMObject *key;
-    
+
     /* value object */
     MVMObject *value;
-    
+
     /* the uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
 } MVMHashEntry;
 
 typedef struct _MVMHashBody {
-    
+
     /* uthash updates this pointer directly. */
     MVMHashEntry *hash_head;
-    
+
 } MVMHashBody;
 typedef struct _MVMHash {
     MVMObject common;

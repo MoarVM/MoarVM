@@ -3,13 +3,13 @@
 typedef struct _MVMArrayBody {
     /* number of elements (from user's point of view) */
     MVMuint64   elems;
-    
+
     /* slot index of first element */
     MVMuint64   start;
-    
+
     /* size of slots array */
     MVMuint64   ssize;
-    
+
     /* slot array; union of various types of storage we may have. */
     union {
         MVMObject **o;
@@ -45,7 +45,7 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc);
 typedef struct {
     /* The size of each element. */
     size_t elem_size;
-    
+
     /* What type of slots we have. */
     MVMuint8 slot_type;
 } MVMArrayREPRData;

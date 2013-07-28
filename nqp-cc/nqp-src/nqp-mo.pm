@@ -10,26 +10,26 @@ my knowhow Archetypes {
     # Can this serve as a nominal type? Implies memoizability
     # amongst other things.
     has $!nominal;
-    
+
     # If it's not nominal, does it know how to provide a nominal
     # type part of itself?
     has $!nominalizable;
-    
+
     # Can this be inherited from?
     has $!inheritable;
-    
+
     # If it's not inheritable, does it know how to produce something
     # that is?
     has $!inheritalizable;
-    
+
     # Can this be composed (either with flattening composition, or used
     # as a mixin)?
     has $!composable;
-    
+
     # If it's not composable, does it know how to produce something
     # that is?
     has $!composalizable;
-    
+
     # Is it generic, in the sense of "we don't know what type this is
     # yet"? Note that a parametric type would not be generic - even if
     # it has missing parts, it defines a type. A type variable is generic,
@@ -37,27 +37,27 @@ my knowhow Archetypes {
     # delayed) reification. In some contexts, an unresolved generic is
     # fatal.
     has $!generic;
-    
+
     # Is it a parametric type - that is, it has missing bits that need
     # to be filled out before it can be used? Unlike generic, something
     # that is parametric does define a type - though we may need the gaps
     # filled it before it's useful in some way.
     has $!parametric;
-    
+
     method new(:$nominal, :$inheritable, :$composable, :$parametric) {
         my $arch := nqp::create(self);
         $arch.BUILD(:nominal($nominal), :inheritable($inheritable),
             :composable($composable), :parametric($parametric));
         $arch
     }
-    
+
     method BUILD(:$nominal, :$inheritable, :$composable, :$parametric) {
         $!nominal := $nominal;
         $!inheritable := $inheritable;
         $!composable := $composable;
         $!parametric := $parametric;
     }
-    
+
     method nominal() { nqp::ifnull($!nominal, 0) }
     method nominalizable() { nqp::ifnull($!nominalizable, 0) }
     method inheritable() { nqp::ifnull($!inheritable, 0) }
@@ -316,7 +316,7 @@ knowhow NQPConcreteRoleHOW {
     method roles($obj) {
         @!roles
     }
-    
+
     method role_typecheck_list($obj) {
         @!role_typecheck_list
     }
@@ -400,12 +400,12 @@ knowhow RoleToClassApplier {
 knowhow NQPCurriedRoleHOW {
     has $!curried_role;
     has @!pos_args;
-    
+
     my $archetypes := Archetypes.new( :nominal(1), :composable(1), :parametric(1) );
     method archetypes() {
         $archetypes
     }
-    
+
     method new(:$curried_role!, :@pos_args!) {
         my $obj := nqp::create(self);
         $obj.BUILD(:$curried_role, :@pos_args);
@@ -416,20 +416,20 @@ knowhow NQPCurriedRoleHOW {
         $!curried_role := $curried_role;
         @!pos_args := @pos_args;
     }
-    
+
     method new_type($curried_role!, *@pos_args) {
         my $meta := self.new(:curried_role($curried_role), :pos_args(@pos_args));
         nqp::newtype($meta, 'Uninstantiable');
     }
-    
+
     method specialize($obj, $class_arg) {
         $!curried_role.HOW.specialize($!curried_role, $class_arg, |@!pos_args);
     }
-    
+
     method name($obj) {
         $!curried_role.HOW.name($!curried_role)
     }
-    
+
     method curried_role($obj) {
         $!curried_role
     }
@@ -495,7 +495,7 @@ knowhow NQPParametricRoleHOW {
         my $metarole := self.new(:name($name));
         nqp::setwho(nqp::newtype($metarole, 'Uninstantiable'), {});
     }
-    
+
     method set_body_block($obj, $body_block) {
         $!body_block := $body_block;
     }
@@ -551,7 +551,7 @@ knowhow NQPParametricRoleHOW {
     method parametric($obj) {
         1
     }
-    
+
     # Curries this parametric role with arguments.
     method curry($obj, *@args) {
         NQPCurriedRoleHOW.new_type($obj, |@args)
@@ -667,22 +667,22 @@ knowhow NQPClassHOW {
 
     # Full list of roles that we do.
     has @!done;
-    
+
     # Cached values, which are thrown away if the class changes.
     has %!caches;
 
     # Parrot-specific vtable mapping hash. Maps vtable name to method.
 #    has %!parrot_vtable_mapping;
 #	has %!parrot_vtable_handler_mapping;
-    
+
     # Call tracing.
     has $!trace;
     has $!trace_depth;
-    
+
     # Build plan.
     has @!BUILDALLPLAN;
     has @!BUILDPLAN;
-    
+
     my $archetypes := Archetypes.new( :nominal(1), :inheritable(1) );
     method archetypes() {
         $archetypes
@@ -777,11 +777,11 @@ knowhow NQPClassHOW {
         }
         nqp::push(@!parents, $parent);
     }
-    
+
     method set_default_parent($obj, $parent) {
         $!default_parent := $parent;
     }
-    
+
     # Changes the object's parent. Conditions: it has exactly one parent, and that
     # parent has no attributes, and nor does the new one.
     method reparent($obj, $new_parent) {
@@ -873,26 +873,26 @@ knowhow NQPClassHOW {
         # Install Parrot v-table mapping.
 #        self.publish_parrot_vtable_mapping($obj);
 #		self.publish_parrot_vtablee_handler_mapping($obj);
-        
+
         # Create BUILDPLAN.
         self.create_BUILDPLAN($obj);
-        
+
         # Compose the representation.
         unless $!composed {
             self.compose_repr($obj);
         }
-        
+
         # Mark as composed.
         $!composed := 1;
 
         $obj
     }
-    
+
     method compose_repr($obj) {
         # Use any attribute information to produce attribute protocol
         # data. The protocol consists of an array...
         my @repr_info;
-        
+
         # ...which contains an array per MRO entry...
         for @!mro -> $type_obj {
             my @type_info;
@@ -900,7 +900,7 @@ knowhow NQPClassHOW {
 
             # ...which in turn contains the current type in the MRO...
             nqp::push(@type_info, $type_obj);
-        
+
             # ...then an array of hashes per attribute...
             my @attrs;
             nqp::push(@type_info, @attrs);
@@ -923,11 +923,11 @@ knowhow NQPClassHOW {
                 }
                 nqp::push(@attrs, %attr_info);
             }
-        
+
             # ...followed by a list of immediate parents.
             nqp::push(@type_info, $type_obj.HOW.parents($type_obj, :local));
         }
-        
+
         # Compose the representation using it.
         my $info := nqp::hash();
         $info<attribute> := @repr_info;
@@ -1085,7 +1085,7 @@ knowhow NQPClassHOW {
         for @!done { nqp::push(@tc, $_); }
         nqp::settypecache($obj, @tc)
     }
-    
+
     sub reverse(@in) {
         my @out;
         for @in { nqp::unshift(@out, $_) }
@@ -1147,7 +1147,7 @@ knowhow NQPClassHOW {
 #            pir::stable_publish_vtable_handler_mapping__0PP($obj, %mapping);
 #        }
 #    }
-    
+
     # Creates the plan for building up the object. This works
     # out what we'll need to do up front, so we can just zip
     # through the "todo list" each time we need to make an object.
@@ -1162,7 +1162,7 @@ knowhow NQPClassHOW {
         # First, we'll create the build plan for just this class.
         my @plan;
         my @attrs := $obj.HOW.attributes($obj, :local(1));
-        
+
         # Does it have its own BUILD?
         my $build := $obj.HOW.method_table($obj)<BUILD>;
         if nqp::defined($build) {
@@ -1181,7 +1181,7 @@ knowhow NQPClassHOW {
                 nqp::push(@plan, [$sigop, $obj, $name, $attr_name]);
             }
         }
-        
+
         # Check if there's any default values to put in place.
         for @attrs {
             if nqp::can($_, 'build') {
@@ -1191,10 +1191,10 @@ knowhow NQPClassHOW {
                 }
             }
         }
-        
+
         # Install plan for this class.
         @!BUILDPLAN := @plan;
-        
+
         # Now create the full plan by getting the MRO, and working from
         # least derived to most derived, copying the plans.
         my @all_plan;
@@ -1209,11 +1209,11 @@ knowhow NQPClassHOW {
         }
         @!BUILDALLPLAN := @all_plan;
     }
-    
+
     method BUILDPLAN($obj) {
         @!BUILDPLAN
     }
-    
+
     method BUILDALLPLAN($obj) {
         @!BUILDALLPLAN
     }
@@ -1225,7 +1225,7 @@ knowhow NQPClassHOW {
     method parents($obj, :$local = 0) {
         $local ?? @!parents !! @!mro
     }
-    
+
     method mro($obj) {
         @!mro
     }
@@ -1337,7 +1337,7 @@ knowhow NQPClassHOW {
             if nqp::existskey(%meths, $name) {
                 my $found := %meths{$name};
                 return $!trace && !$no_trace && nqp::substr($name, 0, 1) ne '!' ??
-                    -> *@pos, *%named { 
+                    -> *@pos, *%named {
                         nqp::say(nqp::x('  ', $!trace_depth) ~ "Calling $name");
                         $!trace_depth := $!trace_depth + 1;
                         my $result := $found(|@pos, |%named);
@@ -1359,11 +1359,11 @@ knowhow NQPClassHOW {
             %!caches{$key} !!
             (%!caches{$key} := $value_generator())
     }
-    
-    
+
+
     ##
     ## Mix-ins
-    ## 
+    ##
     has @!mixin_cache;
     method mixin($obj, $role) {
         # See if we mixed in before.
@@ -1378,19 +1378,19 @@ knowhow NQPClassHOW {
                 }
             }
         }
-        
+
         # Create and cache mixin-type if needed.
         unless $found {
             # Work out a type name for the post-mixed-in role.
             my $new_name := self.name($obj) ~ '+{' ~ $role.HOW.name($role) ~ '}';
-            
+
             # Create new type, derive it from ourself and then add
             # all the roles we're mixing it.
             $new_type := self.new_type(:name($new_name), :repr($obj.REPR));
             $new_type.HOW.add_parent($new_type, $obj.WHAT);
             $new_type.HOW.add_role($new_type, $role);
             $new_type.HOW.compose($new_type);
-            
+
             # Store the type.
             nqp::scwbdisable();
             @!mixin_cache := [] if nqp::isnull(@!mixin_cache);
@@ -1399,14 +1399,14 @@ knowhow NQPClassHOW {
             nqp::scwbenable();
             1;
         }
-        
+
         # If the original object was concrete, change its type by calling a
         # low level op. Otherwise, we just return the new type object
         nqp::isconcrete($obj) ??
             nqp::rebless($obj, $new_type) !!
             $new_type
     }
-    
+
     ##
     ## Tracing
     ##
@@ -1430,7 +1430,7 @@ knowhow NQPNativeHOW {
     method archetypes() {
         $archetypes
     }
-    
+
     method new(:$name) {
         my $obj := nqp::create(self);
         $obj.BUILD(:name($name));
@@ -1506,11 +1506,11 @@ knowhow NQPAttribute {
     method type() {
         $!has_type ?? $!type !! nqp::null()
     }
-    
+
     method has_accessor() {
         0
     }
-    
+
     method build_closure() {
         0
     }
@@ -1518,23 +1518,23 @@ knowhow NQPAttribute {
     method box_target() {
         !nqp::isnull($!box_target) && $!box_target ?? 1 !! 0
     }
-    
+
     method auto_viv_container() {
         $!has_default ?? $!default !! nqp::null()
     }
-    
+
     method set_positional_delegate($value) {
         $!positional_delegate := $value;
     }
-    
+
     method set_associative_delegate($value) {
         $!associative_delegate := $value;
     }
-    
+
     method positional_delegate() {
         !nqp::isnull($!positional_delegate) && $!positional_delegate ?? 1 !! 0
     }
-    
+
     method associative_delegate() {
         !nqp::isnull($!associative_delegate) && $!associative_delegate ?? 1 !! 0
     }
@@ -1548,7 +1548,7 @@ knowhow NQPAttribute {
 knowhow NQPModuleHOW {
     has $!name;
     has $!composed;
-    
+
     my $archetypes := Archetypes.new( );
     method archetypes() {
         $archetypes
@@ -1589,7 +1589,7 @@ knowhow NQPModuleHOW {
         nqp::setmethcacheauth($obj, 1);
         $!composed := 1;
     }
-    
+
     method find_method($obj, $name, *%opts) {
         nqp::null()
     }

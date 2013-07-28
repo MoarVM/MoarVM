@@ -13,7 +13,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(P6num);
     });
-    
+
     return st->WHAT;
 }
 

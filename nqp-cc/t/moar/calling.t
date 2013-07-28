@@ -139,7 +139,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
     },
     "MOO MOO\n",
     "call returning str");
-    
+
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, NQPMu);
         my $r1 := local($frame, NQPMu);

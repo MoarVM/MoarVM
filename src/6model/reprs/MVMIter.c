@@ -8,14 +8,14 @@ static MVMREPROps *this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st;
     MVMObject *obj;
-    
+
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMIter);
     });
-    
+
     return st->WHAT;
 }
 
@@ -156,7 +156,7 @@ MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     this_repr->copy_to = copy_to;
     this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec; 
+    this_repr->get_storage_spec = get_storage_spec;
     this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
     this_repr->pos_funcs->at_pos = at_pos;
     this_repr->pos_funcs->bind_pos = bind_pos;

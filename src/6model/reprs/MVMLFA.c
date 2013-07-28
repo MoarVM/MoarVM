@@ -71,7 +71,7 @@ static AO_t MVM_LFA_acquire_read_barrier(MVMThreadContext *tc, MVMLFA *lfa) {
  * the previous one) if requested */
 static MVMLFA * MVM_LFA_next_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *lfa, MVMuint8 get_read_handle) {
     MVMLFA *new_lfa = (MVMLFA *)MVM_ATOMIC_GET(&lfa->next_lfa);
-    /* if we found an lfa to the right and a read handle was 
+    /* if we found an lfa to the right and a read handle was
      * required, try to get one. This always succeeds
      * since we already have a handle on lfa, and nothing will
      * try to recycle or free something to the right of one
@@ -88,7 +88,7 @@ static MVMLFA * MVM_LFA_next_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLF
 static MVMLFA * MVM_LFA_prev_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *lfa) {
     MVMLFA *new_lfa, *first_lfa = (MVMLFA *)MVM_VOLATILE_GET(&lfa->prev_lfa);
     new_lfa = first_lfa;
-    
+
     if (!new_lfa)
         /* don't bother doing anything if it's already NULL.
          * Also, this ensures no one tries to get a read
@@ -96,18 +96,18 @@ static MVMLFA * MVM_LFA_prev_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLF
          * prev_refcount eventually (quickly!?) drops to zero
          * permanently. */
         return NULL;
-    
+
     /* explicitly denote that the previous pointer we obtained
      * cannot be trusted to still be valid, since we didn't
      * assert a read barrier yet. */
     new_lfa = NULL;
-    
+
     /* signal to any reaper threads that we're about to
      * dereference (and then obtain a handle on) the prev.
      * This prevents them from reaping what we dereference.
      * Basically a handle on the pointer prev_lfa. */
     MVM_LFA_acquire_read_barrier(tc, lfa);
-    
+
     /* read it again in case it was nulled.  This ensures that
      * the read barrier we just asserted pertains to the correct
      * value, since the previous lfa is guaranteed not to be
@@ -115,7 +115,7 @@ static MVMLFA * MVM_LFA_prev_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLF
     if (new_lfa = (MVMLFA *)MVM_VOLATILE_GET(&lfa->prev_lfa)) {
         /* get a read handle. */
         MVM_LFA_acquire_read_handle(tc, new_lfa);
-        
+
         /* we're done trying no matter what happened */
         if (MVM_LFA_release_read_barrier(tc, lfa) == 1
         /* if we were the last to decrement it, then prev_lfa
@@ -133,7 +133,7 @@ static MVMLFA * MVM_LFA_prev_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLF
          * have a lock on it. */
         MVM_LFA_release_read_barrier(tc, lfa);
     }
-    
+
     return new_lfa;
 }
 
@@ -151,10 +151,10 @@ static MVMLFA * MVM_LFA_newest_lfa(MVMThreadContext *tc, MVMLFArray *toparr) {
     /* read lfa again */
     second_lfa = MVM_LFARRAY_LFA(toparr);
     second_odd = ((uintptr_t)second_lfa & 1) ? 1 : 0;
-    
+
     /* if the oddness changed */
     if (first_odd != second_odd) {
-        /* also grab the other lock; we need to hold on to 
+        /* also grab the other lock; we need to hold on to
          * the first one too until we get the other one. */
         MVM_ATOMIC_INCR(second_odd
             ? &toparr->body.odd_refcount
@@ -171,7 +171,7 @@ static MVMLFA * MVM_LFA_newest_lfa(MVMThreadContext *tc, MVMLFArray *toparr) {
     lfa = (MVMLFA *)CLEAR_LOW2(second_lfa);
     /* get the desired read handle */
     MVM_LFA_acquire_read_handle(tc, lfa);
-    
+
     /* discard our locks on the references. */
     MVM_ATOMIC_DECR(first_odd
         ? &toparr->body.odd_refcount
@@ -185,32 +185,32 @@ static MVMLFA * MVM_LFA_newest_lfa(MVMThreadContext *tc, MVMLFArray *toparr) {
 }
 
 static AO_t MVM_LFA_attempt_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *lfa, MVMLFA *new_lfa, MVMuint64 idx) {
-    
+
     /* spin if the last one is still in the process of
      * queueing. */
     /* while (MVM_ATOMIC_GET(&lfa->next_lfa) == 1); */
-    
+
     if (MVM_CAS(&lfa->next_lfa, NULL, new_lfa)) {
         void *addr;
         /* our new transaction won! */
-        
+
         /* see the notes in MVMLFArray.h for gory details. */
-        
+
         /* now we need to atomically/safely update the head
          * lfa pointer on the main array object. */
-        
+
         /* no one else can possibly be modifying this value
          * since we're the one staging the transaction,
          * so we don't need a volatile read. */
         AO_t even = ((uintptr_t)toparr->body.lfa) & 1 ? 0 : 1;
-        
+
         /* for help_check_promote below */
         MVM_LFA_acquire_read_handle(tc, new_lfa);
-        
+
         /* put the new lfa reference in place, flipping its
          * lowest bit */
         MVM_ATOMIC_SET(&toparr->body.lfa, ((uintptr_t)new_lfa | even));
-        
+
         /* this should be a very short wait; old reader threads
          * (of ->lfa) just need to be scheduled, read a pointer,
          * increment an offset of a dereference of it,
@@ -223,21 +223,21 @@ static AO_t MVM_LFA_attempt_lfa(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA
         addr = even
             ? &toparr->body.even_refcount
             : &toparr->body.odd_refcount;
-        
+
         while (MVM_VOLATILE_GET(addr));
-        
-        /* clear the way for additional transactions. It is 
-         * crucial to wait until any/all threads have finished 
-         * getting their read handles on the last head lfa 
+
+        /* clear the way for additional transactions. It is
+         * crucial to wait until any/all threads have finished
+         * getting their read handles on the last head lfa
          * because if we don't, the lfa could be completed and
          * reaped out from under them before they have a chance
          * to dereference, thus giving them a bad pointer. */
         MVM_ATOMIC_SET(&new_lfa->next_lfa, NULL);
-        
+
         /* now do our transaction */
      //   MVM_LFA_help_and_cleanup(tc, toparr, lfa, new_lfa, idx);
         /* this function released any read handles */
-        
+
         /* signal success */
         return 1;
     }
@@ -250,7 +250,7 @@ static MVMObject * MVM_LFA_apply_transaction(MVMThreadContext *tc, MVMLFArray *t
 /* get the most recent value at a particular index from a LFArray,
  * helping catch up that slot in its transactions if necessary;
  * returns the value and sets lfa_out to the lfa in which the value
- * was found, so put can write there.  lfa_out is guaranteed to be 
+ * was found, so put can write there.  lfa_out is guaranteed to be
  * the last lfa in the chain extremely recently before returning.
  * Finding the proper index and
  * table from which to grab the value is tricky. The general strategy
@@ -260,12 +260,12 @@ static MVMObject * MVM_LFA_apply_transaction(MVMThreadContext *tc, MVMLFArray *t
  * copied to the slot in question, then work forwards from there to
  * make sure we didn't skip over the value while it was being copied
  * and hit its tombstone in a prior lfa, helping copy the chain if
- * we find a value in either case. We have to help it copy all the 
+ * we find a value in either case. We have to help it copy all the
  * way to the end, since the index could disappear and reappear from
  * the table in the course of the chain since we read the last lfa in
  * the chain. */
 MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *start_lfa, MVMLFA **lfa_out, MVMuint64 idx, MVMuint8 moving_right) {
-    
+
     /* save the idx to orig_idx */
     MVMuint64 orig_idx = idx, new_idx;
     MVMLFA *lfa, *n, *m, *orig_lfa;
@@ -273,7 +273,7 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
     /* moving_right == 0 means start off moving left;
      * 1 means moving right left of the orig_lfa;
      * 2 means moving right at or past the orig_lfa-> */
-    
+
   start:
     /* if we were passed an lfa to start in, we know the lfa contains
      * the index, and we want to move right from there, so don't traverse
@@ -281,21 +281,21 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
     if (start_lfa != NULL)
         /* the lfa we've been passed already has a read handle */
         orig_lfa = lfa = start_lfa;
-    
+
     else { /* single-threaded path */
         lfa = MVM_LFA_newest_lfa(tc, toparr);
-        
+
         /* traverse the lfa chain to the newest, store in lfa. We
          * will almost always be at the end already, the only time
          * we won't is between the time a new lfa CAS's itself to the
-         * right of the newest one and the time it updates lfa of 
+         * right of the newest one and the time it updates lfa of
          * toparr. */
         while (n = MVM_LFA_next_lfa(tc, toparr, lfa, 1))
             lfa = n;
-        
+
         /* stash the original lfa */
         orig_lfa = lfa;
-        
+
         /* check whether the requested index exists in the range - 1 */
         if (idx >= lfa->elems) {
             moving_right = 2;
@@ -318,7 +318,7 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
             } while (idx >= lfa->elems);
         }
     }
-    
+
     /* the index fits within the range of this lfa-> */
     /* Loop, reading the current value in the prescribed slot,
      * traversing in the prescribed direction, default first left to
@@ -326,14 +326,14 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
      * right again in case it appeared in the table later. */
     while (1) {
         MVMuint8 is_prime;
-        /* read the value in the slot - 
+        /* read the value in the slot -
          * If it's done, read and use the value read from slots. */
-        
+
         /* if the transaction is not complete for this index in
          * this lfa, either move left or complete the transaction. */
         if (!MVM_LFA_ISDONE(lfa)) {
             /* single-threaded never does this */
-            /* if we're moving left, we're still hunting for the 
+            /* if we're moving left, we're still hunting for the
              * leftmost incomplete lfa */
             if (moving_right == 0)
                 /* go ahead and try to move left in case the non-done
@@ -346,7 +346,7 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
         }
         else /* single-threaded path */
             V = MVM_LFA_SLOT(lfa, idx);
-        
+
         /* if the value is NULL, copying hasn't reached this slot
          * or a specified transaction hasn't yet been applied to the
          * slot, so go backwards in the lfa chain */
@@ -355,15 +355,15 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
             if (moving_right != 0)
                 /* try to move right since we found a NULL */
                 goto move_right_continue;
-            
+
             /* we're moving left; try to move left to find
              * a non-NULL. */
             goto move_left;
         }
-        
+
         /* if the value is tombstone, read next_lfa again,
-         * and if next_lfa is not NULL, try again in the new table. 
-         * Otherwise, return NULL, because if 
+         * and if next_lfa is not NULL, try again in the new table.
+         * Otherwise, return NULL, because if
          * a tombstone is there, any copying or erasing for that slot
          * in this table has definitely already been accomplished.
          * This is guaranteed because all copying transactions on the
@@ -372,17 +372,17 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
          * the table. */
         if (MVM_LFH_IS_TOMBSTONE(tc, V))
             goto move_right; /* single threaded never does this */
-        
+
         /* consider re-enabling the following section after discussion
          * with experts. */
         goto skip_2;
-        
+
         is_prime = MVM_LFH_ISPRIME(tc, V);
         /* if the value is a prime, copying for this slot has started;
          * help copy the slot, then try again in the new table. Reset
          * the idx to orig_idx if we're moving right past the orig.
          * Or, assignment to the slot is occuring. */
-         
+
         /* traverse all the way to the right to make sure there isn't
          * a start-changing transaction pending */
         /* cache the first lookup to the right */
@@ -404,12 +404,12 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
                      * sections of the chain */
                     goto restart;
             } while (m = MVM_LFA_next_lfa(tc, toparr, m, 0));
-        
+
         /* if it was prime, it's an assignment or copying
          * transaction here, so just return the value unprimed. */
         if (is_prime)
             V = (MVMObject *)CLEAR_LOW2(V);
-        
+
       skip_2:
         /* V is the value that was [to be] in the requested slot
          * at the time of the request. There may be later transactions
@@ -418,11 +418,11 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
          * could cause big delays in returning values if the traverser
          * is continually chasing the end of the transaction chain.
          * Even if it's prime, return it like that. */
-        
+
         /* return the value */
         goto done;
-        
-        
+
+
       move_left:
     /* read the prev_lfa */
         if (!(n = MVM_LFA_prev_lfa(tc, toparr, lfa)))
@@ -434,13 +434,13 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
             /* the index slot must exist in this table since we
              * already checked it. */
             goto move_right_begin;
-        
+
     /* if prev_lfa wasn't NULL, we need to keep traversing them
      * backwards until we find the earliest one that could contain
      * the value that would eventually end up in the desired slot.
      * So, adjust our index (if necessary) to where it would have
      * been copied from the prev_lfa, to new_idx: */
-        
+
         /* remember, n is the one to the left, the older one */
         if (n->start != lfa->start) {
             /* if start moved left (from lfa to n) or rolled back..
@@ -484,9 +484,9 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
             MVM_LFA_release_lfa(tc, n);
             n = NULL;
         }
-        
+
         /* fall through to move_right_begin */
-        
+
     /* If not, we've found the left boundary of what
      * could affect the desired slot, so set the moving-right flag
      * and try again in the same current table (not the prev_lfa
@@ -496,11 +496,11 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
         /* This should take us to the apply_transaction then
          * move right, unless it completes before then. */
         continue;
-                
+
       move_right:
         if (moving_right == 0)
             moving_right = 1; /* at least */
-            
+
       move_right_continue:
         if (!(n = MVM_LFA_next_lfa(tc, toparr, lfa, 1)))
             /* single-threaded: n is always NULL */
@@ -508,7 +508,7 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
              * definitely no value in this index... */
             V = NULL;
             goto done; /* single-threaded path! */
-        
+
         /* mark that we've passed the orig lfa, so don't
          * apply copy offsets from now on; always reset
          * to orig_idx */
@@ -541,7 +541,7 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
                 else
                     idx++;
             }
-            
+
             /* if the newer lfa is a splice, */
             else if (MVM_LFA_ISSPLICE(n)) {
                 MVMuint64 arr_length = (MVMuint64)
@@ -587,7 +587,7 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
   restart:
     if (!moving_right)
         moving_right = (lfa == orig_lfa) ? 2 : 1;
-    
+
     /* release any read handles we obtained */
     if (moving_right == 2) {
         /* we have only one read handle */
@@ -606,12 +606,12 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
     moving_right = 0;
     idx = orig_idx;
     goto start;
-    
+
   done:
     *lfa_out = lfa;
     /* take an additional read handle on this lfa for the caller */
     MVM_LFA_acquire_read_handle(tc, lfa);
-    
+
     /* release any read handles we obtained */
     if (moving_right == 2)
         /* we have only one read handle */
@@ -622,7 +622,7 @@ MVMObject * MVM_LFA_get_slot(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *s
             MVM_LFA_release_read_handle(tc, lfa);
             lfa = n;
         }
-    
+
     return V;
 }
 
@@ -655,7 +655,7 @@ static MVMObject * MVM_LFA_put_if_match(MVMThreadContext *tc, MVMLFArray *toparr
     MVMObject *V;
     MVMLFA *new_lfa = NULL;
     MVMuint8 new_slots = 0;
-    
+
     while (1) {
         /* find the last lfa in the chain, and the value in it for that
          * index, if any. Get slot catches up all previous transactions
@@ -665,29 +665,29 @@ static MVMObject * MVM_LFA_put_if_match(MVMThreadContext *tc, MVMLFArray *toparr
         /* if lfa is non-null, we have a read handle on it */
         V = MVM_LFA_get_slot(tc, toparr, lfa, &lfa, idx, (lfa ? 2 : 0));
         /* this returned an lfa with a read handle on it. */
-        
+
         /* if the index fits within the existing elements range, just
          * assign it. See note on "ABA problem" above. */
         if (!unshift && idx < lfa->elems) {
             /* if there's no work to do, don't do any work */
             if (putval == V
             /* Do we care about expected-Value at all? */
-            || !MVM_LFH_IS_NO_MATCH_OLD(tc, expVal) && 
+            || !MVM_LFH_IS_NO_MATCH_OLD(tc, expVal) &&
             V != expVal && /* No instant match already? */
             (!MVM_LFH_IS_MATCH_ANY(tc, expVal) ||
-                MVM_LFH_IS_TOMBSTONE(tc, V) || 
-                V == NULL) && 
+                MVM_LFH_IS_TOMBSTONE(tc, V) ||
+                V == NULL) &&
                 /* Match on null/TOMBSTONE combo */
-            !(V == NULL && MVM_LFH_IS_TOMBSTONE(tc, expVal)) && 
+            !(V == NULL && MVM_LFH_IS_TOMBSTONE(tc, expVal)) &&
             (expVal == NULL) ) {
                 /* MSW - I took out the original .equals comparison since
                  * it doesn't make sense in moar/p6 land.
                  * Eventually support repr-provided equals */
                 goto done;
             }
-            
+
             if (MVM_CAS(&MVM_LFA_SLOT_LOC(lfa, idx), V, putval)) {
-                /* CAS succeeded, if there was a copier also trying to 
+                /* CAS succeeded, if there was a copier also trying to
                  * put a prime here, we beat them, and
                  * they'll have to use the new value. */
                 *success = 1;
@@ -703,7 +703,7 @@ static MVMObject * MVM_LFA_put_if_match(MVMThreadContext *tc, MVMLFArray *toparr
                 V = NULL;
                 goto done;
             }
-            
+
             /* we will need a new lfa transaction record, since we need
              * to extend the represented array's range. */
             new_lfa = new_lfa ? new_lfa : MVM_LFA_acquire_lfa(tc);
@@ -720,7 +720,7 @@ static MVMObject * MVM_LFA_put_if_match(MVMThreadContext *tc, MVMLFArray *toparr
              * one are done getting read handles on it */
             new_lfa->next_lfa = (MVMLFA *)1;
             new_lfa->refcount = 1;
-            
+
             /* if it will fit in the existing backing array */
             if (!unshift && idx < lfa->ssize
             || unshift && lfa->elems < lfa->ssize) {
@@ -880,7 +880,7 @@ MVMuint64 MVM_LFA_elems(MVMThreadContext *tc, MVMLFArray *toparr) {
 
 /* set_elems */
 void MVM_LFA_set_elems(MVMThreadContext *tc, MVMLFArray *root, MVMuint64 count) {
-    
+
 }
 
 /* splice - injects an array into another array at a certain point,
@@ -902,26 +902,26 @@ void MVM_LFA_splice(MVMThreadContext *tc, MVMLFArray *toparr, MVMObject *from, M
     MVMObject *nah = NULL;
     MVMuint64 from_elems = REPR(from)->pos_funcs->elems(
         tc, STABLE(from), from, OBJECT_BODY(from));
-    
+
     new_lfa = MVM_LFA_acquire_lfa(tc);
-    
+
     new_lfa->copy_item = from;
     new_lfa->copy_start = offset;
     new_lfa->copy_count = count;
-    
+
     while (1) {
         lfa = MVM_LFA_newest_lfa(tc, toparr);
-        
+
         new_lfa->start = lfa->start;
         new_lfa->prev_lfa = lfa;
-        
+
         new_lfa->elems = offset >= lfa->elems
             /* the insertion point is at or past the end of the array,
              * so count is really irrelevant; just assume it's
              * replacing NULLs. */
             ? offset + from_elems
             : lfa->elems - count + from_elems;
-        
+
         new_lfa->ssize = lfa->ssize;
         if (new_lfa->elems > new_lfa->ssize) {
             /* ugh; need to grow the array *and* splice */
@@ -937,7 +937,7 @@ void MVM_LFA_splice(MVMThreadContext *tc, MVMLFArray *toparr, MVMObject *from, M
         /* mark it as a splice */
         new_lfa->slots = (MVMObject **)(
             (uintptr_t)new_lfa->slots | 2);
-        
+
         /* attempt the cas */
         if (MVM_LFA_attempt_lfa(tc, toparr, lfa, new_lfa, new_lfa->elems - 1))
             return;
@@ -947,11 +947,11 @@ void MVM_LFA_splice(MVMThreadContext *tc, MVMLFArray *toparr, MVMObject *from, M
 /* Apply the current LFA's transaction(s) enough to get the value at the given
  * index. */
 static MVMObject * MVM_LFA_apply_transaction(MVMThreadContext *tc, MVMLFArray *toparr, MVMLFA *lfa, MVMuint64 idx) {
-    
+
     /* Get a handle on the previous lfa, if there is one. */
     MVMLFA *prev = MVM_LFA_prev_lfa(tc, toparr, lfa);
     MVMObject *copy_item;
-    
+
     if (prev) {
         /* if the storage size changed */
         if (prev->ssize != lfa->ssize) {
@@ -961,10 +961,10 @@ static MVMObject * MVM_LFA_apply_transaction(MVMThreadContext *tc, MVMLFArray *t
             MVMuint64 MIN_COPY_WORK = oldlen < 1024 ? oldlen : 1024;
             /* Still needing to copy? */
             while ((MVMuint64)MVM_VOLATILE_GET(&lfa->copy_done) < oldlen) {
-                
+
                 if (panic_start == MVM_HIGHEST1) {
                     copy_index = (MVMint64)MVM_VOLATILE_GET(&lfa->copy_index);
-                    
+
                     while (copy_index <= (oldlen<<1)
                     && !MVM_CAS(&lfa->copy_index,
                             copy_index, copy_index + MIN_COPY_WORK))
@@ -992,13 +992,13 @@ static MVMObject * MVM_LFA_apply_transaction(MVMThreadContext *tc, MVMLFArray *t
             /* splice operation, which involves one, possibly two,
              * (if the replaced span is a different size from the
              * replacement span), different range copies. */
-            
+
         }
         else if (copy_item = (MVMObject *)MVM_VOLATILE_GET(&lfa->copy_item)) {
             /* it's an operation that assigns an item, like a push
              * or unshift. */
-            
-            
+
+
         }
     }
 }

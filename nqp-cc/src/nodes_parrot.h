@@ -216,24 +216,24 @@ typedef struct _MVMOpInfo {
 typedef enum {
     /* Argument is an object. */
     MVM_CALLSITE_ARG_OBJ = 1,
-    
+
     /* Argument is a native integer, signed. */
     MVM_CALLSITE_ARG_INT = 2,
-    
+
     /* Argument is a native floating point number. */
     MVM_CALLSITE_ARG_NUM = 4,
-    
+
     /* Argument is a native NFG string (MVMString REPR). */
     MVM_CALLSITE_ARG_STR = 8,
-    
+
     /* Argument is named; in this case, there are two entries in
      * the argument list, the first a MVMString naming the arg and
      * after that the arg. */
     MVM_CALLSITE_ARG_NAMED = 32,
-    
+
     /* Argument is flattened. What this means is up to the target. */
     MVM_CALLSITE_ARG_FLAT = 64,
-    
+
     /* Argument is flattened and named. */
     MVM_CALLSITE_ARG_FLAT_NAMED = 128
 } MVMCallsiteFlags;

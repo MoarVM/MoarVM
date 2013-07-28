@@ -24,7 +24,7 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say(opcode_defines(@banks));
     $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);');
     $hf.close;
-    
+
     # Generate C file
     my $cf = open("src/core/ops.c", :w);
     $cf.say('#ifdef PARROT_OPS_BUILD');
@@ -45,7 +45,7 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('    return &MVM_op_info[bank][op];');
     $cf.say('}');
     $cf.close;
-    
+
     # Generate NQP Ops file.
     my $nf = open("lib/MAST/Ops.nqp", :w);
     $nf.say("# This file is generated from $file by tools/update_ops.p6.");
@@ -53,7 +53,7 @@ sub MAIN($file = "src/core/oplist") {
     $nf.say(bank_constants(@banks));
     $nf.say(op_constants(@banks));
     $nf.close;
-    
+
     say "Wrote ops.h, ops.c, and Ops.nqp";
 }
 

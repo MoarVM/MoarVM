@@ -35,7 +35,7 @@ my knowhow NQPRoutine {
     has $!dispatch_cache;
     has $!dispatch_order;
     has $!clone_callback;
-    
+
     # Adds a multi-dispatch candidate.
     method add_dispatchee($code) {
         nqp::scwbdisable();
@@ -44,31 +44,31 @@ my knowhow NQPRoutine {
         nqp::push($!dispatchees, $code);
         nqp::scwbenable();
     }
-    
+
     # Checks if this code object is a dispatcher.
     method is_dispatcher() {
         nqp::defined($!dispatchees)
     }
-    
+
     # Derives a new dispatcher.
     method derive_dispatcher() {
         # Clone the underlying VM code ref.
         my $do  := nqp::clone($!do);
-        
+
         # Clone and attach the code object.
         my $der := nqp::clone(self);
         nqp::bindattr($der, NQPRoutine, '$!do', $do);
         nqp::bindattr($der, NQPRoutine, '$!dispatchees', nqp::clone($!dispatchees));
         nqp::setcodeobj($do, $der);
-        
+
         # If needed, arrange for a fixup of the cloned code-ref.
         unless nqp::isnull($!clone_callback) {
             $!clone_callback($!do, $do, $der);
         }
-        
+
         $der
     }
-    
+
     # Checks if one type is narrower than the other.
     sub is_narrower_type($a, $b) {
         # If one of the types is null, then we know that's automatically
@@ -77,7 +77,7 @@ my knowhow NQPRoutine {
         elsif nqp::isnull($a) || nqp::isnull($b) { 0 }
         else { nqp::istype($a, $b) }
     }
-    
+
     # Sorts the dispatchees. Puts nulls between groups that are of equal weight.
     # The most specific group comes first.
     my $SLURPY_ARITY      := nqp::bitshiftl_i(1, 30);
@@ -85,7 +85,7 @@ my knowhow NQPRoutine {
     my $EDGE_REMOVED      := -2;
     my $DEFINED_ONLY      := 1;
     my $UNDEFINED_ONLY    := 2;
-    method sort_dispatchees() {        
+    method sort_dispatchees() {
         # Takes two candidates and determines if the first one is narrower than the
         # second. Returns a true value if they are.
         sub is_narrower(%a, %b) {
@@ -168,7 +168,7 @@ my knowhow NQPRoutine {
                 nqp::push(%info<types>, @types_list[$j]);
                 nqp::push(%info<definednesses>, @definedness_list[$j]);
                 %info<num_types>++;
-                
+
                 $j++;
             }
 
@@ -237,17 +237,17 @@ my knowhow NQPRoutine {
                 }
                 $i++;
             }
-            
+
             # Add gap between groups.
             nqp::push(@result, nqp::null());
         }
-        
+
         # Add final null sentinel.
         nqp::push(@result, nqp::null());
 
         return @result;
     }
-    
+
     method dispatch($capture) {
         # Count arguments.
         my $num_args := nqp::captureposelems($capture);
@@ -272,7 +272,7 @@ my knowhow NQPRoutine {
         my $cur_candidate;
         while 1 {
             $cur_candidate := @candidates[$cur_idx];
-            
+
             if nqp::isnull($cur_candidate) {
                 # If we have some possible candidate(s), we're done in this loop.
                 if nqp::elems(@possibles) {
@@ -348,32 +348,32 @@ my knowhow NQPRoutine {
             nqp::die("Ambiguous dispatch to multi '" ~ self.name ~ "'.")
         }
     }
-    
+
     method clone() {
         # Clone the underlying VM code ref.
         my $do  := nqp::clone($!do);
-        
+
         # Clone and attach the code object.
         my $der := nqp::clone(self);
         nqp::bindattr($der, NQPRoutine, '$!do', $do);
         nqp::setcodeobj($do, $der);
-        
+
         # If needed, arrange for a fixup of the cloned code-ref.
         unless nqp::isnull($!clone_callback) {
             $!clone_callback($!do, $do, $der);
         }
-        
+
         $der
     }
-    
+
     method !set_name($name) {
         nqp::setcodename($!do, $name);
     }
-    
+
     method name() {
         nqp::getcodename($!do)
     }
-    
+
     method signature() { $!signature }
 }
 nqp::setinvokespec(NQPRoutine, NQPRoutine, '$!do', nqp::null);
@@ -448,17 +448,17 @@ my knowhow NQPRegex {
     method clone() {
         # Clone the underlying VM code ref.
         my $do  := nqp::clone($!do);
-        
+
         # Clone and attach the code object.
         my $der := nqp::clone(self);
         nqp::bindattr($der, NQPRegex, '$!do', $do);
         nqp::setcodeobj($do, $der);
-        
+
         # If needed, arrange for a fixup of the cloned code-ref.
         unless nqp::isnull($!clone_callback) {
             $!clone_callback($!do, $do, $der);
         }
-        
+
         $der
     }
     my $nfa_type;
@@ -499,7 +499,7 @@ my class NQPMu {
         $instance.BUILDALL(|%attributes);
         $instance
     }
-    
+
     method BUILDALL(NQPMu:D $self: *%attrinit) {
         # Get the build plan.
         my $build_plan := self.HOW.BUILDALLPLAN(self);
@@ -609,7 +609,7 @@ my class NQPCapture {
         @!array := nqp::list();
         %!hash := nqp::hash();
     }
-    
+
     method list() { @!array }
 
     method hash() { %!hash }
@@ -766,7 +766,7 @@ sub ok($condition, $desc?) {
         print($todo_reason);
     }
     print("\n");
-    
+
     $condition ?? 1 !! 0
 }
 

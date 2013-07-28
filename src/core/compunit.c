@@ -24,13 +24,13 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
             APR_READ | APR_BINARY, APR_OS_DEFAULT, pool)) != APR_SUCCESS) {
         apr_pool_destroy(pool);
         MVM_exception_throw_apr_error(tc, apr_return_status, "While trying to open '%s': ", filename);
-    } 	
+    }
     if ((apr_return_status = apr_mmap_create(&mmap_handle, file_handle, 0,
             stat_info.size, APR_MMAP_READ, pool)) != APR_SUCCESS) {
         apr_pool_destroy(pool);
         MVM_exception_throw_apr_error(tc, apr_return_status, "Could not map file into memory '%s': ", filename);
     }
-    
+
     /* close the filehandle. */
     apr_file_close(file_handle);
 
@@ -40,17 +40,17 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     cu->pool       = pool;
     cu->data_start = (MVMuint8 *)mmap_handle->mm;
     cu->data_size  = (MVMuint32)mmap_handle->size;
-    
+
     /* Process the input. */
     MVM_bytecode_unpack(tc, cu);
 
     /* Resolve HLL config. */
     cu->hll_config = MVM_hll_get_config_for(tc, cu->hll_name);
-    
+
     /* Add the compilation unit to the head of the unit linked lists. */
     do {
         cu->next_compunit = tc->instance->head_compunit;
     } while (!MVM_cas(&tc->instance->head_compunit, cu->next_compunit, cu));
-    
+
     return cu;
 }

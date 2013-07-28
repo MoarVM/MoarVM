@@ -19,14 +19,14 @@ sub primes($upto) {
         my $LOOP := label('LOOP');
         my $NEXT := label('NEXT');
         my $OK := label('OK');
-        
+
         op(@ins, 'say', $str);
         op(@ins, 'const_i64', $i8, ival($upto));
         op(@ins, 'coerce_is', $str, $i8);
         op(@ins, 'say', $str);
         op(@ins, 'const_s', $str, sval(" is: "));
         op(@ins, 'say', $str);
-        
+
     nqp::push(@ins, $REDO);
         op(@ins, 'set', $i3, $two);
         op(@ins, 'div_i', $i4, $i1, $two);
@@ -50,7 +50,7 @@ sub primes($upto) {
         op(@ins, 'say', $str);
         op(@ins, 'coerce_is', $str, $i7);
         op(@ins, 'say', $str);
-        
+
     },
     "",
     "prime generation iterative", 1);

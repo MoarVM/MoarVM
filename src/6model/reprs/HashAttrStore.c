@@ -13,7 +13,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(HashAttrStore);
     });
-    
+
     return st->WHAT;
 }
 
@@ -25,7 +25,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     HashAttrStoreBody *body = (HashAttrStoreBody *)data;
-    
+
     /* this must be initialized to NULL */
     body->hash_head = NULL;
 }
@@ -39,7 +39,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     HashAttrStoreBody *src_body  = (HashAttrStoreBody *)src;
     HashAttrStoreBody *dest_body = (HashAttrStoreBody *)dest;
     MVMHashEntry *current, *tmp;
-    
+
     /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
         size_t klen;
@@ -48,7 +48,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         new_entry->key = current->key;
         new_entry->value = current->value;
         extract_key(tc, &kdata, &klen, current->key);
-        
+
         HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
     }
 }
@@ -57,7 +57,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     HashAttrStoreBody *body = (HashAttrStoreBody *)data;
     MVMHashEntry *current, *tmp;
-    
+
     HASH_ITER(hash_handle, body->hash_head, current, tmp) {
         MVM_gc_worklist_add(tc, worklist, &current->key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
@@ -68,7 +68,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     HashAttrStore *h = (HashAttrStore *)obj;
     MVMHashEntry *current, *tmp;
-    
+
     /* The macros already check for null. Also, must not delete the head
      * node until after calling clear, or we look into freed memory. */
     HASH_ITER(hash_handle, h->body.hash_head, current, tmp) {
@@ -107,7 +107,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     size_t klen;
     if (kind == MVM_reg_obj) {
         extract_key(tc, &kdata, &klen, (MVMObject *)name);
-        
+
         /* first check whether we must update the old entry. */
         HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
         if (!entry) {
@@ -130,7 +130,7 @@ static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, vo
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
-    
+
     extract_key(tc, &kdata, &klen, (MVMObject *)name);
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
     return entry != NULL;

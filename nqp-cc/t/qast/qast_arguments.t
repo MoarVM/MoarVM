@@ -88,7 +88,7 @@ qast_test(
     },
     "42\n",
     "Integer arguments and return value");
-    
+
 qast_test(
     -> {
         my $block := QAST::Block.new(
@@ -179,7 +179,7 @@ qast_test(
     },
     "Hola\nHi\n",
     "Optional string named parameter");
-    
+
 qast_test(
     -> {
         my $block := QAST::Block.new(

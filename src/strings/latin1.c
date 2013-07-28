@@ -134,10 +134,10 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
         MVMObject *result_type, MVMuint8 *latin1, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
-    
+
     result->body.codes  = bytes;
     result->body.graphs = bytes;
-    
+
     result->body.int32s = malloc(sizeof(MVMint32) * bytes);
     for (i = 0; i < bytes; i++)
         /* actually decode like Windows-1252, since that is mostly a superset,
@@ -158,13 +158,13 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t i;
-    
+
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
     if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
-    
+
     result = malloc(length + 1);
     for (i = 0; i < length; i++) {
         MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);

@@ -12,7 +12,7 @@ sub fibsub() {
     my $two := const($frame, ival(2));
     my @ins := $frame.instructions;
     my $skip_return := label('1');
-    
+
     op(@ins, 'checkarity', ival(1), ival(1));
     op(@ins, 'param_rp_i', $r0, ival(0));
     op(@ins, 'lt_i', $r1, $r0, $two);
@@ -24,11 +24,11 @@ sub fibsub() {
     op(@ins, 'dec_i', $r2);
     op(@ins, 'dec_i', $r1);
     op(@ins, 'dec_i', $r1);
-    
+
     op(@ins, 'getcode', $r3, $frame);
     call(@ins, $r3, [$Arg::int], $r1, :result($r1));
     call(@ins, $r3, [$Arg::int], $r2, :result($r2));
-    
+
     op(@ins, 'add_i', $r2, $r1, $r2);
     op(@ins, 'return_i', $r2);
     return $frame;
@@ -38,7 +38,7 @@ sub runfib($n) {
 
     mast_frame_output_is(-> $frame, @ins, $cu {
         my $fibsub := fibsub();
-        
+
         my $r0 := const($frame, ival($n));
         my $r3 := local($frame, NQPMu);
         my $str := local($frame, str);

@@ -20,7 +20,7 @@ MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodep
 MVMCodepoint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint32 case_) {
     MVMint32 changes_index = MVM_unicode_get_property_value(tc,
         codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
-    
+
     if (changes_index) {
         MVMCodepoint32 result = case_changes[changes_index][case_];
         if (result == 0) return codepoint;
@@ -34,7 +34,7 @@ static MVMUnicodeNameHashEntry *property_codes_by_names_aliases;
 
 void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
-    
+
     while (num_names--) {
         MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
         entry->name = (char *)unicode_property_keypairs[num_names].name;
@@ -100,10 +100,10 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
     MVMuint64 size;
     unsigned char *cname = MVM_string_ascii_encode(tc, name, &size);
     MVMUnicodeNameHashEntry *result;
-    
+
     if (property_code < 0 || property_code >= MVMNUMPROPERTYCODES)
         return 0;
-    
+
     if (!unicode_property_values_hashes) {
         generate_unicode_property_values_hashes(tc);
     }

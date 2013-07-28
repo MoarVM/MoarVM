@@ -17,15 +17,15 @@ class HLL::Backend::MoarVM {
     method apply_transcodings($s, $transcode) {
         $s
     }
-    
+
     method config() {
         nqp::hash()
     }
-    
+
     method force_gc() {
         nqp::die("Cannot force GC on MoarVM backend yet");
     }
-    
+
     method name() {
         'moar'
     }
@@ -33,27 +33,27 @@ class HLL::Backend::MoarVM {
     method nqpevent($spec?) {
         # Doesn't do anything just yet
     }
-    
+
     method run_profiled($what) {
         nqp::die("No profiling support on MoarVM");
     }
-    
+
     method run_traced($level, $what) {
         nqp::die("No tracing support on MoarVM");
     }
-    
+
     method version_string() {
         "MoarVM"
     }
-    
+
     method stages() {
         'mast mbc moar'
     }
-    
+
     method mast($qast, *%adverbs) {
         QAST::MASTCompiler.to_mast($qast);
     }
-    
+
     method mbc($mast, *%adverbs) {
         my $output := %adverbs<output> || 'temp.moarvm';
         MAST::Compiler.compile($mast, $output);
@@ -62,7 +62,7 @@ class HLL::Backend::MoarVM {
             nqp::exit(0);
         }
     }
-    
+
     method moar($class, *%adverbs) {
         -> {
 #?if parrot
@@ -81,20 +81,20 @@ class HLL::Backend::MoarVM {
             }
         }
     }
-    
+
     method is_precomp_stage($stage) {
         # Currently, everything is pre-comp since we're a cross-compiler.
         1
     }
-    
+
     method is_textual_stage($stage) {
         0
     }
-    
+
     method is_compunit($cuish) {
         !pir::isa__IPs($cuish, 'String')
     }
-    
+
     method compunit_mainline($cuish) {
         $cuish
     }
@@ -105,7 +105,7 @@ sub MAIN(*@ARGS) {
     my $nqpcomp-orig := nqp::getcomp('nqp');
     my $nqpcomp-cc   := nqp::clone($nqpcomp-orig);
     $nqpcomp-cc.language('nqp-cc');
-    
+
     # Set backend and run.
     $nqpcomp-cc.backend(HLL::Backend::MoarVM);
     $nqpcomp-cc.command_line(@ARGS, :stable-sc(1),
@@ -282,7 +282,7 @@ sub push_op(@dest, $op, *@args) {
         $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
     }
     nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
-    
+
     nqp::push(@dest, MAST::Op.new(
         :bank(nqp::substr($bank, 1)), :op($op),
         |@args

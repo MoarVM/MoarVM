@@ -41,7 +41,7 @@ qast_test(
                 QAST::Op.new(
                     :op('list'),
                     QAST::Op.new(
-                        :op('list'), 
+                        :op('list'),
                         QAST::Op.new( :op('list') ),
                         QAST::Op.new( :op('list') ),
                         QAST::Op.new( :op('list') )
@@ -69,7 +69,7 @@ qast_test(
                 QAST::Var.new( :name('l'), :scope('local') ),
                 QAST::IVal.new( :value(1) ),
                 QAST::Op.new(
-                    :op('list'), 
+                    :op('list'),
                     QAST::Op.new( :op('list') ),
                     QAST::Op.new( :op('list') )
                 )),
@@ -365,7 +365,7 @@ qast_test(
                             QAST::Op.new( :op('bootstr') )
                        )
                     ))),
-            
+
             # Use it to get values.
             QAST::Op.new(
                 :op('say'),
@@ -395,7 +395,7 @@ qast_test(
                         :op('shift'),
                         QAST::Var.new( :name('it'), :scope('local') )
                     ))),
-            
+
             # Check it's now empty (false).
             QAST::Op.new(
                 :op('say'),
@@ -438,7 +438,7 @@ qast_test(
                             QAST::Op.new( :op('bootint') )
                        )
                     ))),
-            
+
             # Add up values.
             QAST::Op.new(
                 :op('say'),
@@ -467,7 +467,7 @@ qast_test(
                                 QAST::Var.new( :name('it'), :scope('local') )
                     )))
                )),
-            
+
             # Check it's now empty (false).
             QAST::Op.new(
                 :op('say'),
@@ -615,7 +615,7 @@ qast_test(
                 QAST::Op.new(
                     :op('list'),
                     QAST::Op.new(
-                        :op('list'), 
+                        :op('list'),
                         QAST::Op.new( :op('list') ),
                         QAST::Op.new( :op('list') ),
                         QAST::Op.new( :op('list') )
@@ -646,7 +646,7 @@ qast_test(
                     QAST::IVal.new( :value(1) )
                 ),
                 QAST::Op.new(
-                    :op('list'), 
+                    :op('list'),
                     QAST::Op.new( :op('list') ),
                     QAST::Op.new( :op('list') )
                 )),

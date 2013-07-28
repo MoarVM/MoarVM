@@ -179,22 +179,22 @@ static void add_default_ass_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
 static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *repr) {
     /* Allocate an ID. */
     MVMuint32 ID = tc->instance->num_reprs;
-    
+
     /* Allocate a hash entry for the name-to-ID.
         Could one day be unified with MVMREPROps, I suppose. */
     MVMREPRHashEntry *entry = calloc(sizeof(MVMREPRHashEntry), 1);
     entry->value = ID;
-    
+
     /* Bump the repr count */
     tc->instance->num_reprs++;
-    
+
     /* Stash ID and name. */
     repr->ID = ID;
     repr->name = name;
-    
+
     /* Name should become a permanent GC root. */
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&repr->name);
-    
+
     /* Enter into registry. */
     if (tc->instance->repr_registry)
         tc->instance->repr_registry = realloc(tc->instance->repr_registry,
@@ -204,7 +204,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     tc->instance->repr_registry[ID] = repr;
     MVM_string_flatten(tc, name);
     MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
-    
+
     /* Add default "not implemented" function table implementations. */
     if (!repr->elems)
         repr->elems = default_elems;
@@ -224,7 +224,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
 
 /* Initializes the representations registry, building up all of the various
  * representations. */
-void MVM_repr_initialize_registry(MVMThreadContext *tc) {    
+void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     /* Add all core representations. (If order changed, update reprs.h IDs.) */
     repr_registrar(tc, "MVMString", MVMString_initialize);
     repr_registrar(tc, "VMArray", MVMArray_initialize);
@@ -255,10 +255,10 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
  * it's best not to store references to them in e.g. the bytecode stream. */
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
     MVMREPRHashEntry *entry;
-    
+
     MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->repr_name_to_id_hash, name, entry)
-    
+
     if (entry == NULL)
         MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",
             MVM_string_utf8_encode_C_string(tc, name));

@@ -21,10 +21,10 @@ typedef struct {
      * primitive type and can unbox, this says what primitive type
      * that they unbox to. */
     INTVAL boxed_primitive;
-    
+
     /* The types that this one can box/unbox to. */
     INTVAL can_box;
-    
+
     /* For ints, whether it's an usigned value. */
     INTVAL is_unsigned;
 } storage_spec;

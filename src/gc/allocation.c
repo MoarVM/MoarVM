@@ -9,12 +9,12 @@
  * trigger a GC run if there is not enough. */
 void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     void *allocated;
-    
+
     /* Before an allocation is a GC safe-point and thus a good GC sync point
      * also; check if we've been signalled to collect. */
     if (tc->gc_status)
         MVM_gc_enter_from_interrupt(tc);
-    
+
     /* Guard against 0-byte allocation. */
     if (size > 0) {
         /* Do a GC run if this allocation won't fit in what we have
@@ -29,7 +29,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
                 MVM_panic(MVM_exitcode_gcalloc, "Attempt to allocate more than the maximum nursery size");
             MVM_gc_enter_from_allocator(tc);
         }
-        
+
         /* Allocate (just bump the pointer). */
         allocated = tc->nursery_alloc;
         tc->nursery_alloc = (char *)tc->nursery_alloc + size;
@@ -37,7 +37,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     else {
         MVM_panic(MVM_exitcode_gcalloc, "Cannot allocate 0 bytes of memory in the nursery");
     }
-    
+
     return allocated;
 }
 

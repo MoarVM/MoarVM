@@ -4,7 +4,7 @@ use warnings;
 
 sub configure {
     my %config = @_;
-    
+
     if ($^O =~ /MSWin32/) {
         if ($config{'make'} eq 'nmake') {
             if (`cl 2>&1` =~ /x86/) {

@@ -31,7 +31,7 @@ typedef struct _MVMNFABody {
     MVMint64         *num_state_edges;
     MVMNFAStateInfo **states;
 } MVMNFABody;
- 
+
 typedef struct _MVMNFA {
     MVMObject common;
     MVMNFABody body;

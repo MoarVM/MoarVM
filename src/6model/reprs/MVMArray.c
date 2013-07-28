@@ -13,13 +13,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable        *st;
     MVMObject        *obj;
     MVMArrayREPRData *repr_data;
-    
+
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMArray);
-        
+
         repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
         repr_data->slot_type = MVM_ARRAY_OBJ;
         repr_data->elem_size = sizeof(MVMObject *);
@@ -110,14 +110,14 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
-    
+
     /* Handle negative indexes. */
     if (index < 0) {
         index += body->elems;
         if (index < 0)
             MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
     }
-    
+
     /* Go by type. */
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
@@ -243,10 +243,10 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
     if (n == elems)
         return;
 
-    /* if there aren't enough slots at the end, shift off empty slots 
+    /* if there aren't enough slots at the end, shift off empty slots
      * from the beginning first */
     if (start > 0 && n + start > ssize) {
-        if (elems > 0) 
+        if (elems > 0)
             memmove(slots,
                 (char *)slots + start * repr_data->elem_size,
                 elems * repr_data->elem_size);
@@ -256,7 +256,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
     }
 
     body->elems = n;
-    if (n <= ssize) { 
+    if (n <= ssize) {
         /* we already have n slots available, we can just return */
         return;
     }
@@ -289,7 +289,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
-    
+
     /* Handle negative indexes and resizing if needed. */
     if (index < 0) {
         index += body->elems;
@@ -364,7 +364,7 @@ MVMint64 exists_pos(struct _MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     if (index < 0) {
         index += body->elems;
     }
-    
+
     if (index < 0 || index >= body->elems) {
         return 0;
     }
@@ -498,7 +498,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
             elems * repr_data->elem_size);
         body->start = n;
         body->elems = elems;
-        
+
         /* clear out beginning elements */
         zero_slots(tc, body, 0, n, repr_data->slot_type);
     }
@@ -725,7 +725,7 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
-    
+
     MVMObject *info = REPR(info_hash)->ass_funcs->at_key_boxed(tc, STABLE(info_hash),
         info_hash, OBJECT_BODY(info_hash), (MVMObject *)str_array);
     if (info != NULL) {
@@ -811,7 +811,7 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     this_repr->copy_to = copy_to;
     this_repr->gc_mark = gc_mark;
     this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec; 
+    this_repr->get_storage_spec = get_storage_spec;
     this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
     this_repr->pos_funcs->at_pos = at_pos;
     this_repr->pos_funcs->bind_pos = bind_pos;

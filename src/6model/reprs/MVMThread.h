@@ -10,21 +10,21 @@ typedef enum {
 
 typedef struct _MVMThreadBody {
     MVMThreadContext *tc;
-    
+
     /* handle to the invokee of this thread, so that if
      * the GC runs while a thread is starting, it initializes
      * with the correct reference if the code object is moved. */
     MVMObject *invokee;
-    
+
     apr_thread_t *apr_thread;
     apr_pool_t *apr_pool;
-    
+
     /* next in tc's threads list */
     struct _MVMThread *next;
-    
+
     /* MVMThreadStages */
     AO_t stage;
-    
+
     /* child currently spawning, so GC can steal it */
     struct _MVMThread *new_child;
 } MVMThreadBody;

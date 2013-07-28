@@ -76,7 +76,7 @@ class MAST::Ops {
             'no_op', nqp::hash(
                 'code', 0,
                 'operands', [
-                    
+
                 ]
             ),
             'goto', nqp::hash(
@@ -371,7 +371,7 @@ class MAST::Ops {
             'return', nqp::hash(
                 'code', 43,
                 'operands', [
-                    
+
                 ]
             ),
             'const_i8', nqp::hash(
@@ -2622,7 +2622,7 @@ class MAST::Ops {
             '__INVALID_1__', nqp::hash(
                 'code', 47,
                 'operands', [
-                    
+
                 ]
             ),
             'setelemspos', nqp::hash(
@@ -3777,13 +3777,13 @@ class MAST::Ops {
             'detach', nqp::hash(
                 'code', 19,
                 'operands', [
-                    
+
                 ]
             ),
             'daemonize', nqp::hash(
                 'code', 20,
                 'operands', [
-                    
+
                 ]
             ),
             'chdir', nqp::hash(

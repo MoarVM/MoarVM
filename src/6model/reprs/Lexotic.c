@@ -7,14 +7,14 @@ static MVMREPROps *this_repr;
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
     if (IS_CONCRETE(invokee)) {
         MVMLexotic *lex = (MVMLexotic *)invokee;
-        
+
         /* Get argument and set as result. */
         MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
         MVM_args_proc_init(tc, &arg_ctx, callsite, args);
         MVM_ASSIGN_REF(tc, invokee, lex->body.result,
             MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o);
         MVM_args_proc_cleanup(tc, &arg_ctx);
-        
+
         /* Unwind to the lexotic handler. */
         MVM_exception_gotolexotic(tc, lex->body.handler, lex->body.frame);
     }
@@ -28,7 +28,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st;
     MVMObject *obj;
-    
+
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
@@ -36,7 +36,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         st->invoke = invoke_handler;
         st->size = sizeof(MVMLexotic);
     });
-    
+
     return st->WHAT;
 }
 

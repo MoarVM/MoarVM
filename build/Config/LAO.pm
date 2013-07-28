@@ -4,7 +4,7 @@ use warnings;
 
 sub configure {
     my %config = @_;
-    
+
     if ($^O =~ /MSWin32/) {
         return (%config,
             # libatomic_ops is headers-only on Windows \q/

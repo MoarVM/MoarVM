@@ -39,21 +39,21 @@ my $*COERCE_ARGS_OBJ := 0;
 sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx) is export {
     # Create frame
     my $frame := MAST::Frame.new();
-    
+
     # Wrap in a compilation unit.
     my $comp_unit := MAST::CompUnit.new();
     $comp_unit.add_frame($frame);
-    
+
     # fill with instructions
     $frame_filler($frame, $frame.instructions, $comp_unit);
-    
+
     mast_output_is($comp_unit, $expected, $desc, $timeit, timeit => $timeit, approx => $approx);
 }
 
 sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) is export {
-    
+
     my $desc_file := $DEBUG ?? nqp::join('', match($desc, /(\w | ' ')+/, :global)) !! '';
-    
+
     # Compile it.
     if $DEBUG {
         my $fh := pir::new__Ps('FileHandle');
@@ -70,7 +70,7 @@ sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) is export {
     pir::spawnw__Is("$moarvm --dump temp.moarvm > $quote$desc_file.mvmdump$quote") if $DEBUG;
     pir::spawnw__Is("$moarvm temp.moarvm foobar foobaz > temp.output");
     my $end := nqp::time_n();
-    
+
     # Read it and check it is OK.
     my $output := slurp('temp.output');
     $output := subst($output, /\r\n/, "\n", :global);
@@ -81,7 +81,7 @@ sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) is export {
         say("GOT:\n$output");
         say("EXPECTED:\n$expected");
     }
-    
+
     pir::spawnw__Is("$del temp.moarvm");
     pir::spawnw__Is("$del temp.output");
 }

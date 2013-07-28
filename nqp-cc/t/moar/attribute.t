@@ -10,7 +10,7 @@ sub simple_type_from_repr($frame, $name_str, $repr_str) {
     my $how  := local($frame, NQPMu);
     my $type := local($frame, NQPMu);
     my $meth := local($frame, NQPMu);
-    
+
     # Create the type.
     op(@ins, 'const_s', $name, sval($name_str));
     op(@ins, 'const_s', $repr, sval($repr_str));
@@ -18,12 +18,12 @@ sub simple_type_from_repr($frame, $name_str, $repr_str) {
     op(@ins, 'findmeth', $meth, $how, sval('new_type'));
     call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
         $how, sval('name'), $name, sval('repr'), $repr, :result($type));
-        
+
     # Compose.
     op(@ins, 'gethow', $how, $type);
     op(@ins, 'findmeth', $meth, $how, sval('compose'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj], $how, $type, :result($type));
-    
+
     $type
 }
 
@@ -34,13 +34,13 @@ sub obj_with_attr($frame, $attr_type) {
     my $type := local($frame, NQPMu);
     my $meth := local($frame, NQPMu);
     my $attr := local($frame, NQPMu);
-    
+
     # Create the type.
     op(@ins, 'const_s', $name, sval('ObjAttrType'));
     op(@ins, 'knowhow', $how);
     op(@ins, 'findmeth', $meth, $how, sval('new_type'));
     call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str], $how, sval('name'), $name, :result($type));
-    
+
     # Add an attribute.
     op(@ins, 'gethow', $how, $type);
     op(@ins, 'knowhowattr', $attr);
@@ -50,11 +50,11 @@ sub obj_with_attr($frame, $attr_type) {
         $attr, sval('name'), $name, sval('type'), $attr_type, :result($attr));
     op(@ins, 'findmeth', $meth, $how, sval('add_attribute'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj, $Arg::obj], $how, $type, $attr, :result($attr));
-    
+
     # Compose.
     op(@ins, 'findmeth', $meth, $how, sval('compose'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj], $how, $type, :result($type));
-    
+
     $type
 }
 
@@ -82,15 +82,15 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $got := local($frame, NQPMu);
         my $res := local($frame, int);
         my $str := local($frame, str);
-        
+
         # Create an instance.
         op(@ins, 'create', $ins, $type);
-        
+
         # Create another instance to serve as a test object and store it.
         op(@ins, 'create', $exp, $type);
         op(@ins, 'const_s', $name, sval('$!foo'));
         op(@ins, 'bindattrs_o', $ins, $type, $name, $exp);
-        
+
         # Look it up again and compare it.
         op(@ins, 'getattrs_o', $got, $ins, $type, $name);
         op(@ins, 'eqaddr', $res, $got, $exp);
@@ -112,12 +112,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 
         # Create an instance.
         op(@ins, 'create', $ins, $type);
-        
+
         # Set value.
         op(@ins, 'const_i64', $exp, ival(987));
         op(@ins, 'const_s', $name, sval('$!foo'));
         op(@ins, 'bindattrs_i', $ins, $type, $name, $exp);
-        
+
         # Look it up again and output it.
         op(@ins, 'getattrs_i', $got, $ins, $type, $name);
         op(@ins, 'coerce_is', $str, $got);
@@ -135,15 +135,15 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $exp := local($frame, num);
         my $got := local($frame, num);
         my $str := local($frame, str);
-        
+
         # Create an instance.
         op(@ins, 'create', $ins, $type);
-        
+
         # Set value.
         op(@ins, 'const_n64', $exp, nval(46.7));
         op(@ins, 'const_s', $name, sval('$!foo'));
         op(@ins, 'bindattrs_n', $ins, $type, $name, $exp);
-        
+
         # Look it up again and output it.
         op(@ins, 'getattrs_n', $got, $ins, $type, $name);
         op(@ins, 'coerce_ns', $str, $got);
@@ -160,15 +160,15 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $name := local($frame, str);
         my $exp := local($frame, str);
         my $got := local($frame, str);
-        
+
         # Create an instance.
         op(@ins, 'create', $ins, $type);
-        
+
         # Set value.
         op(@ins, 'const_s', $exp, sval("omg a kangaroo"));
         op(@ins, 'const_s', $name, sval('$!foo'));
         op(@ins, 'bindattrs_s', $ins, $type, $name, $exp);
-        
+
         # Look it up again and output it.
         op(@ins, 'getattrs_s', $got, $ins, $type, $name);
         op(@ins, 'say', $got);

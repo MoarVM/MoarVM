@@ -21,8 +21,8 @@ my $empty_fates := nqp::nfarunproto($empty,"foo",0);
 ok(nqp::elems($empty_fates) == 0,"an empty nfa matches no fates");
 
 {
-  # the target state of a FATE transition is ignore so we can pass anything  
-  my $simple := nqp::nfafromstatelist([[11],[$EDGE_CODEPOINT,102,2],[$EDGE_CODEPOINT,111,3],[$EDGE_CODEPOINT,111,4],[$EDGE_FATE,11,666]],NFAType); 
+  # the target state of a FATE transition is ignore so we can pass anything
+  my $simple := nqp::nfafromstatelist([[11],[$EDGE_CODEPOINT,102,2],[$EDGE_CODEPOINT,111,3],[$EDGE_CODEPOINT,111,4],[$EDGE_FATE,11,666]],NFAType);
 
   my $matching := nqp::nfarunproto($simple,"foo",0);
   ok(nqp::elems($matching) == 1,"we can match a simple string");

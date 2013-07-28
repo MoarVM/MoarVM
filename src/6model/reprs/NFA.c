@@ -8,14 +8,14 @@ static MVMREPROps *this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st;
     MVMObject *obj;
-    
+
     st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
         obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMNFA);
     });
-    
+
     return st->WHAT;
 }
 
@@ -36,13 +36,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMNFABody *lb = (MVMNFABody *)data;
-    
+
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMNFA *nfa = (MVMNFA *)obj;
-    
+
 }
 
 /* Gets the storage specification for this representation. */
@@ -87,16 +87,16 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     MVMObject  *nfa_obj;
     MVMNFABody *nfa;
     MVMint64    i, j, num_states;
-    
+
     MVMROOT(tc, states, {
     MVMROOT(tc, nfa_type, {
         /* Create NFA object. */
         nfa_obj = MVM_repr_alloc_init(tc, nfa_type);
         nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
-        
+
         /* The first state entry is the fates list. */
         nfa->fates = MVM_repr_at_pos_o(tc, states, 0);
-        
+
         /* Go over the rest and convert to the NFA. */
         num_states = MVM_repr_elems(tc, states) - 1;
         nfa->num_states = num_states;
@@ -113,16 +113,16 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
             nfa->num_state_edges[i] = edges;
             if (edges > 0)
                 nfa->states[i] = malloc(edges * sizeof(MVMNFAStateInfo));
-            
+
             for (j = 0; j < elems; j += 3) {
                 MVMint64 act = MVM_coerce_simple_intify(tc,
                     MVM_repr_at_pos_o(tc, edge_info, j));
                 MVMint64 to  = MVM_coerce_simple_intify(tc,
                     MVM_repr_at_pos_o(tc, edge_info, j + 2));
-                
+
                 nfa->states[i][cur_edge].act = act;
                 nfa->states[i][cur_edge].to = to;
-                
+
                 switch (act) {
                 case MVM_NFA_EDGE_FATE:
                 case MVM_NFA_EDGE_CODEPOINT:
@@ -148,13 +148,13 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                     break;
                 }
                 }
-                
+
                 cur_edge++;
             }
         }
     });
     });
-    
+
     return nfa_obj;
 }
 
@@ -179,7 +179,7 @@ static MVMint64 quicksort(MVMint64 *arr, MVMint64 elements) {
                 while (arr[L] <= piv && L < R)
                     L++;
                 if (L < R)
-                    arr[R--]  =arr[L]; 
+                    arr[R--]  =arr[L];
             }
             arr[L] = piv;
             beg[i+1] = L + 1;
@@ -187,7 +187,7 @@ static MVMint64 quicksort(MVMint64 *arr, MVMint64 elements) {
             end[i++] = L;
         }
         else {
-            i--; 
+            i--;
         }
     }
     return 1;
@@ -202,19 +202,19 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     MVMint64  numnext = 0;
     MVMint64 *done, *fates, *curst, *nextst;
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates;
-    
+
     /* Allocate "done states", "current states" and "next states" arrays. */
     num_states = nfa->num_states;
     done   = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
     curst  = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
     nextst = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
     memset(done, 0, (num_states + 1) * sizeof(MVMint64));
-    
+
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
     fates = (MVMint64 *)malloc(sizeof(MVMint64) * fate_arr_len);
     total_fates = 0;
-    
+
     nextst[numnext++] = 1;
     while (numnext && offset <= eos) {
         /* Swap next and current */
@@ -223,27 +223,27 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         nextst  = temp;
         numcur  = numnext;
         numnext = 0;
-        
+
         /* Save how many fates we have before this position is considered. */
         prev_fates = total_fates;
-        
+
         while (numcur) {
             MVMNFAStateInfo *edge_info;
             MVMint64         edge_info_elems;
-            
+
             MVMint64 st = curst[--numcur];
             if (st <= num_states) {
                 if (done[st] == gen)
                     continue;
                 done[st] = gen;
             }
-            
+
             edge_info = nfa->states[st - 1];
             edge_info_elems = nfa->num_state_edges[st - 1];
             for (i = 0; i < edge_info_elems; i++) {
                 MVMint64 act = edge_info[i].act;
                 MVMint64 to  = edge_info[i].to;
-                
+
                 if (act == MVM_NFA_EDGE_FATE) {
                     /* Crossed a fate edge. Check if we already saw this, and
                      * if so bump the entry we already saw. */
@@ -325,11 +325,11 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
             }
         }
-        
+
         /* Move to next character and generation. */
         offset++;
         gen++;
-        
+
         /* If we got multiple fates at this offset, sort them by the
          * declaration order (represented by the fate number). In the
          * future, we'll want to factor in longest literal prefix too. */
@@ -345,7 +345,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     free(done);
     free(curst);
     free(nextst);
-    
+
     *total_fates_out = total_fates;
     return fates;
 }
@@ -356,13 +356,13 @@ MVMObject * MVM_nfa_run_proto(MVMThreadContext *tc, MVMObject *nfa, MVMString *t
     /* Run the NFA. */
     MVMint64  total_fates, i;
     MVMint64 *fates = nqp_nfa_run(tc, (MVMNFABody *)OBJECT_BODY(nfa), target, offset, &total_fates);
-    
+
     /* Copy results into an integer array. */
     MVMObject *fateres = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIntArray);
     for (i = 0; i < total_fates; i++)
         MVM_repr_bind_pos_i(tc, fateres, i, fates[i]);
     free(fates);
-    
+
     return fateres;
 }
 
@@ -375,7 +375,7 @@ void MVM_nfa_run_alt(MVMThreadContext *tc, MVMObject *nfa, MVMString *target,
     /* Run the NFA. */
     MVMint64  total_fates, i;
     MVMint64 *fates = nqp_nfa_run(tc, (MVMNFABody *)OBJECT_BODY(nfa), target, offset, &total_fates);
-    
+
     /* Push the results onto the bstack. */
     MVMint64 caps = cstack && IS_CONCRETE(cstack)
         ? MVM_repr_elems(tc, cstack)

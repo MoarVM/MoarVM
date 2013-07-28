@@ -6,10 +6,10 @@
 typedef struct _MVMIterBody {
     /* whether hash or array */
     MVMuint32 mode;
-    
+
     /* array or hash being iterated */
     MVMObject *target;
-    
+
     /* next hash item to give or next array index */
     union {
         struct {

@@ -10,7 +10,7 @@ sub make_thread_type($frame) {
     my $how  := local($frame, NQPMu);
     my $type := local($frame, NQPMu);
     my $meth := local($frame, NQPMu);
-    
+
     # Create the type.
     op(@ins, 'const_s', $name, sval('TestThreadType'));
     op(@ins, 'const_s', $repr, sval('MVMThread'));
@@ -18,12 +18,12 @@ sub make_thread_type($frame) {
     op(@ins, 'findmeth', $meth, $how, sval('new_type'));
     call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
         $how, sval('name'), $name, sval('repr'), $repr, :result($type));
-        
+
     # Compose.
     op(@ins, 'gethow', $how, $type);
     op(@ins, 'findmeth', $meth, $how, sval('compose'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj], $how, $type, :result($type));
-    
+
     $type
 }
 
@@ -44,15 +44,15 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         }
 
         my $type := make_thread_type($frame);
-        
+
         my $thread_code := thread_code();
         $cu.add_frame($thread_code);
-        
+
         my $code   := local($frame, NQPMu);
         my $thread := local($frame, NQPMu);
         my $str    := local($frame, str);
         my $time   := local($frame, int);
-        
+
         op(@ins, 'const_s', $str, sval('Before thread'));
         op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
@@ -86,16 +86,16 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         }
 
         my $type := make_thread_type($frame);
-        
+
         my $thread_code := thread_code();
         $cu.add_frame($thread_code);
-        
+
         my $code   := local($frame, NQPMu);
         my $thread := local($frame, NQPMu);
         my $str    := local($frame, str);
         my $time   := local($frame, int);
         my $lex := lexical($frame, str, '$lex');
-        
+
         op(@ins, 'const_s', $str, sval('Lexical from outer'));
         op(@ins, 'bindlex', $lex, $str);
         op(@ins, 'const_s', $str, sval('Before thread'));
@@ -128,15 +128,15 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         }
 
         my $type := make_thread_type($frame);
-        
+
         my $thread_code := thread_code();
         $cu.add_frame($thread_code);
-        
+
         my $code   := local($frame, NQPMu);
         my $thread := local($frame, NQPMu);
         my $str    := local($frame, str);
         my $time   := local($frame, int);
-        
+
         op(@ins, 'const_s', $str, sval('Before thread'));
         op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
@@ -161,16 +161,16 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         }
 
         my $type := make_thread_type($frame);
-        
+
         my $thread_code := thread_code();
         $cu.add_frame($thread_code);
-        
+
         my $code    := local($frame, NQPMu);
         my $thread1 := local($frame, NQPMu);
         my $thread2 := local($frame, NQPMu);
         my $str     := local($frame, str);
         my $time    := local($frame, int);
-        
+
         op(@ins, 'const_s', $str, sval('Before new threads'));
         op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
@@ -206,10 +206,10 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         }
 
         my $type := make_thread_type($frame);
-        
+
         my $thread_code := thread_code();
         $cu.add_frame($thread_code);
-        
+
         my $code    := local($frame, NQPMu);
         my $thread1 := local($frame, NQPMu);
         my $thread2 := local($frame, NQPMu);
@@ -217,7 +217,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $thread4 := local($frame, NQPMu);
         my $str     := local($frame, str);
         my $time    := local($frame, int);
-        
+
         op(@ins, 'const_s', $str, sval('Before new threads'));
         op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
@@ -271,12 +271,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'return');
             return $frame;
         }
-        
+
         my $type := make_thread_type($frame);
-        
+
         my $thread_code := thread_code();
         $cu.add_frame($thread_code);
-        
+
         my $code    := local($frame, NQPMu);
         my $thread1 := local($frame, NQPMu);
         my $thread2 := local($frame, NQPMu);
@@ -284,7 +284,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $thread4 := local($frame, NQPMu);
         my $str     := local($frame, str);
         my $time    := local($frame, int);
-        
+
         op(@ins, 'const_s', $str, sval('Before new threads'));
         op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);

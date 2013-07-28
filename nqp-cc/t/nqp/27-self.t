@@ -24,7 +24,7 @@ class Foo {
     };
 
     method quat() {
-        for 2,3 -> $a { 
+        for 2,3 -> $a {
             ok($a + $!abc, 'Can access attribute within lexical block');
         }
     }

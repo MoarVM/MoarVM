@@ -11,7 +11,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_s', $r0, sval('In first (but not main) frame'));
         op(@ins, 'say', $r0);
         op(@ins, 'return');
-        
+
         # Create calling frame.
         my $main_frame := MAST::Frame.new();
         my @main_ins := $main_frame.instructions;
@@ -28,7 +28,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@main_ins, 'say', $main_r0);
         op(@main_ins, 'return');
         $cu.add_frame($main_frame);
-        
+
         # Mark frame as main one.
         $cu.main_frame($main_frame);
     },

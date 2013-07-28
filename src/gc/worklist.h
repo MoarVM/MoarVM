@@ -17,10 +17,10 @@ typedef struct _MVMGCWorklist {
      * collectables (yes, two levels of indirection, since we need to
      * update addresses in copying/moving algorithms.) */
     MVMCollectable ***list;
-    
+
     /* The number of items on the worklist. */
     MVMuint32 items;
-    
+
     /* The number of items the work list is allocated to hold. */
     MVMuint32 alloc;
 } MVMGCWorklist;

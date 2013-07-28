@@ -2,7 +2,7 @@
 typedef struct _MVMKnowHOWAttributeREPRBody {
     /* The attribute's name. */
     MVMString *name;
-    
+
     /* The attribute's type. */
     MVMObject *type;
 

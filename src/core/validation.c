@@ -34,7 +34,7 @@ static void throw_past_end(MVMThreadContext *tc, MVMuint8 *labels) {
 
 /* Validate that a static frame's bytecode is executable by the interpreter */
 void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
-    
+
     MVMCompUnit *cu = static_frame->cu;
     MVMuint32 bytecode_size = static_frame->bytecode_size;
     MVMuint8 *bytecode_start = static_frame->bytecode;
@@ -57,9 +57,9 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     unsigned char op_flags;
     MVMuint32 operand_type_var;
     MVMint64 num_jumplist_labels = 0;
-    
+
     memset(labels, 0, bytecode_size);
-    
+
     /* printf("bytecode_size %d cur_op %d bytecode_end %d difference %d", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op)); */
     while (cur_op < bytecode_end - 1) {
         labels[cur_op - bytecode_start] |= MVM_val_op_boundary;
@@ -116,7 +116,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                                 operand_target, cu->num_callsites);
                         }
                         break;
-                        
+
                     case MVM_operand_coderef:
                         operand_size = 2;
                         if (cur_op + operand_size > bytecode_end)
@@ -129,7 +129,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                                 operand_target, cu->num_frames);
                         }
                         break; /* reset to 0 */
-                    
+
                     case MVM_operand_str:
                         operand_size = 2;
                         if (cur_op + operand_size > bytecode_end)
@@ -142,7 +142,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                                 operand_target, cu->num_strings - 1);
                         }
                         break;
-                        
+
                     case MVM_operand_ins:
                         operand_size = 4;
                         if (cur_op + operand_size > bytecode_end)
@@ -156,7 +156,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         }
                         labels[branch_target] |= MVM_val_branch_target;
                         break;
-                    
+
                     case MVM_operand_obj:
                     case MVM_operand_type_var:
                         cleanup_all(tc, labels);
@@ -257,7 +257,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
         MVM_exception_throw_adhoc(tc,
             "jumplist op must be followed by an additional %d goto ops", num_jumplist_labels);
     }
-    
+
     /* check that all the branches and gotos have valid op boundary destinations */
     for (i = 0; i < bytecode_size; i++) {
         if (labels[i] & MVM_val_branch_target && !(labels[i] & MVM_val_op_boundary)) {

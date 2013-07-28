@@ -13,7 +13,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMSerializationContext);
     });
-    
+
     return st->WHAT;
 }
 
@@ -34,18 +34,18 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
     MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
     MVMObject *root_objects, *root_codes;
-    
+
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&root);
-    
+
     root_objects = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_ASSIGN_REF(tc, root, sc->root_objects, root_objects);
     REPR(root_objects)->initialize(tc, STABLE(root_objects), root_objects, OBJECT_BODY(root_objects));
-    
+
     root_codes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_ASSIGN_REF(tc, root, sc->root_codes, root_codes);
     REPR(root_codes)->initialize(tc, STABLE(root_codes), root_codes, OBJECT_BODY(root_codes));
-    
+
     MVM_gc_root_temp_pop_n(tc, 2);
 }
 
@@ -58,12 +58,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *sc = ((MVMSerializationContextBody **)data)[0];
     MVMuint64 i;
-    
+
     MVM_gc_worklist_add(tc, worklist, &sc->handle);
     MVM_gc_worklist_add(tc, worklist, &sc->description);
     MVM_gc_worklist_add(tc, worklist, &sc->root_objects);
     MVM_gc_worklist_add(tc, worklist, &sc->root_codes);
-    
+
     for (i = 0; i < sc->num_stables; i++)
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
 
@@ -81,7 +81,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     HASH_DELETE(hash_handle, tc->instance->sc_weakhash, sc->body);
     if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
         MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
-    
+
     /* Free manually managed STable list memory and body. */
     if (sc->body->root_stables)
         free(sc->body->root_stables);

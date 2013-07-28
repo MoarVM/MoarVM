@@ -6,7 +6,7 @@ from http://unicode.org/copyright.html#Exhibit1 on 2012-07-20:
 
 COPYRIGHT AND PERMISSION NOTICE
 
-Copyright ?1991-2012 Unicode, Inc. All rights reserved. Distributed 
+Copyright ?1991-2012 Unicode, Inc. All rights reserved. Distributed
 under the Terms of Use in http://www.unicode.org/copyright.html.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -33367,12 +33367,12 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
-    
+
     if (codepoint_row == -1) /* non-existent codepoint; XXX should throw? */
         return 0;
-    
+
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
-    
+
     switch (switch_val) {
         case 0: return 0;
         case MVM_UNICODE_PROPERTY_DECOMP_SPEC:
@@ -33706,11 +33706,11 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
 static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint) {
 
     MVMint32 plane = codepoint >> 16;
-    
+
     if (codepoint < 0) {
         MVM_exception_throw_adhoc(tc, "should eventually be unreachable");
     }
-    
+
     if (plane == 0) {
         if (codepoint >= 0x3406) { /* <CJK Ideograph Extension A> */
             if (codepoint >= 0x67D2) { /* <CJK Ideograph> */
@@ -33966,7 +33966,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
             }
         }
         else {
-            return codepoint - 0; /* the fast path */ 
+            return codepoint - 0; /* the fast path */
         }
     }
     else {

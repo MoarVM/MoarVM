@@ -56,7 +56,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $sleepms := local($frame, int);
         my $func := local($frame, NQPMu);
         my $callee := callee();
-        
+
         op(@ins, 'const_i64', $divisor, ival(1 *1000 *1000));
         op(@ins, 'const_i64', $counter, ival(10 *1000 *1000));
         op(@ins, 'const_i64', $sleepms, ival(2000 *1000)); # microseconds
@@ -84,7 +84,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, int);
         my $func := local($frame, NQPMu);
         my $callee := recursive();
-        
+
         op(@ins, 'const_i64', $r0, ival(10 *1000 *1000));
         op(@ins, 'getcode', $func, $callee);
         call(@ins, $func, [$Arg::int], $r0, :result($r0));

@@ -5,15 +5,15 @@
 # Composed or mixed in to any node that also has a compile-time known value.
 role QAST::CompileTimeValue {
     has $!compile_time_value;
-    
+
     method has_compile_time_value() {
         1
     }
-    
+
     method compile_time_value() {
         $!compile_time_value
     }
-    
+
     method set_compile_time_value($value) {
         $!compile_time_value := $value
     }
@@ -23,7 +23,7 @@ role QAST::CompileTimeValue {
 role QAST::SpecialArg {
     has str $!named;
     has int $!flat;
-    
+
     method named(*@value) {
         $!named := @value[0] if @value;
         !nqp::isnull_s($!named) ?? $!named !! ""
@@ -38,7 +38,7 @@ class QAST::Node {
 
     # For annotations.
     has %!hash is associative_delegate;
-    
+
     has $!node;
     has $!returns;
     has int $!arity;
@@ -56,7 +56,7 @@ class QAST::Node {
     method node(*@value)       { $!node := @value[0] if @value; $!node }
     method returns(*@value)    { $!returns := @value[0] if @value; $!returns }
     method arity(*@value)      { $!arity := @value[0] if @value; $!arity }
-    
+
     method named(*@value) {
         if @value {
             self.HOW.mixin(self, QAST::SpecialArg);
@@ -75,23 +75,23 @@ class QAST::Node {
             0
         }
     }
-    
+
     method has_compile_time_value() {
         0
     }
-    
+
     method set_compile_time_value($value) {
         self.HOW.mixin(self, QAST::CompileTimeValue);
         self.set_compile_time_value($value);
     }
-    
+
     method hash()          { %!hash }
     method list()          { @!array }
     method pop()           { nqp::pop(@!array) }
     method push($value)    { nqp::push(@!array, $value) }
     method shift()         { nqp::shift(@!array) }
     method unshift($value) { nqp::unshift(@!array, $value) }
-    
+
     my %uniques;
     method unique($prefix) {
         my $id := nqp::existskey(%uniques, $prefix) ??
@@ -99,13 +99,13 @@ class QAST::Node {
             (%uniques{$prefix} := 1);
         $prefix ~ '_' ~ $id
     }
-    
+
     method shallow_clone() {
         my $clone := nqp::clone(self);
         nqp::bindattr($clone, QAST::Node, '@!array', nqp::clone(@!array));
         $clone
     }
-    
+
     method substitute_inline_placeholders(@fillers) {
         nqp::die(self.HOW.name(self) ~ " does not support inlining");
     }
@@ -168,7 +168,7 @@ class QAST::Regex is QAST::Node {
     }
     method subtype(*@value)   {
         $!subtype := @value[0] if @value;
-        !nqp::isnull_s($!subtype) ?? $!subtype !! "" 
+        !nqp::isnull_s($!subtype) ?? $!subtype !! ""
     }
     method backtrack(*@value) {
         $!backtrack := @value[0] if @value;
@@ -184,7 +184,7 @@ class QAST::Regex is QAST::Node {
 class QAST::IVal is QAST::Node {
     has int $!value;
     method value(*@value) { $!value := @value[0] if @value; $!value }
-    
+
     method substitute_inline_placeholders(@fillers) {
         self
     }
@@ -199,7 +199,7 @@ class QAST::IVal is QAST::Node {
 class QAST::NVal is QAST::Node {
     has num $!value;
     method value(*@value) { $!value := @value[0] if @value; $!value }
-    
+
     method substitute_inline_placeholders(@fillers) {
         self
     }
@@ -214,7 +214,7 @@ class QAST::NVal is QAST::Node {
 class QAST::SVal is QAST::Node {
     has str $!value;
     method value(*@value) { $!value := @value[0] if @value; $!value }
-    
+
     method substitute_inline_placeholders(@fillers) {
         self
     }
@@ -245,7 +245,7 @@ class QAST::WVal is QAST::Node does QAST::CompileTimeValue {
             ?? self.set_compile_time_value(@value[0])
             !! self.compile_time_value()
     }
-    
+
     method substitute_inline_placeholders(@fillers) {
         self
     }
@@ -266,11 +266,11 @@ class QAST::Want is QAST::Node {
             ?? self[0].has_compile_time_value()
             !! 0
     }
-    
+
     method compile_time_value() {
         self[0].compile_time_value()
     }
-    
+
     method substitute_inline_placeholders(@fillers) {
         my $result := self.shallow_clone();
         my $i := 0;
@@ -301,7 +301,7 @@ class QAST::Var is QAST::Node {
     has str $!decl;
     has int $!slurpy;
     has $!default;
-    
+
     method name(*@value) {
         $!name := @value[0] if @value;
         !nqp::isnull_s($!name) ?? $!name !! ""
@@ -316,7 +316,7 @@ class QAST::Var is QAST::Node {
     }
     method slurpy(*@value)  { $!slurpy := @value[0] if @value; $!slurpy }
     method default(*@value) { $!default := @value[0] if @value; $!default }
-    
+
     method substitute_inline_placeholders(@fillers) {
         self
     }
@@ -343,7 +343,7 @@ class QAST::Op is QAST::Node {
     has str $!name;
     has str $!op;
     has str $!childorder;
-    
+
     method name(*@value) {
         $!name := @value[0] if @value;
         nqp::isnull_s($!name) ?? "" !! $!name
@@ -356,7 +356,7 @@ class QAST::Op is QAST::Node {
         $!childorder := @value[0] if @value;
         nqp::isnull_s($!childorder) ?? "" !! $!childorder
     }
-    
+
     method substitute_inline_placeholders(@fillers) {
         my $result := self.shallow_clone();
         my $i := 0;
@@ -389,7 +389,7 @@ class QAST::Op is QAST::Node {
 
 class QAST::VM is QAST::Node {
     has %!alternatives;
-    
+
     method new(*@children, *%alternatives) {
         my $obj := nqp::create(self);
         nqp::bindattr($obj, QAST::Node, '@!array', @children);
@@ -397,11 +397,11 @@ class QAST::VM is QAST::Node {
         nqp::bindattr($obj, QAST::VM, '%!alternatives', %alternatives);
         $obj
     }
-    
-    method supports($option) {  
+
+    method supports($option) {
         nqp::existskey(%!alternatives, $option)
     }
-    
+
     method alternative($option) {
         nqp::atkey(%!alternatives, $option)
     }
@@ -412,7 +412,7 @@ class QAST::Stmts is QAST::Node {
     has $!resultchild;
 
     method resultchild(*@value) { $!resultchild := @value[0] if @value; $!resultchild }
-    
+
     method substitute_inline_placeholders(@fillers) {
         my $result := self.shallow_clone();
         my $i := 0;
@@ -445,7 +445,7 @@ class QAST::Stmt is QAST::Node {
     has $!resultchild;
 
     method resultchild(*@value) { $!resultchild := @value[0] if @value; $!resultchild }
-    
+
     method substitute_inline_placeholders(@fillers) {
         my $result := self.shallow_clone();
         my $i := 0;
@@ -467,7 +467,7 @@ class QAST::Stmt is QAST::Node {
         }
         $result
     }
-    
+
     method dump_extra_node_info() {
         nqp::defined($!resultchild) ?? ":resultchild($!resultchild))" !! ''
     }
@@ -480,7 +480,7 @@ class QAST::Block is QAST::Node {
     has int $!custom_args;
     has str $!cuid;
     has %!symbol;
-    
+
     method name(*@value) {
         $!name := @value[0] if @value;
         nqp::isnull_s($!name) ?? "" !! $!name
@@ -490,10 +490,10 @@ class QAST::Block is QAST::Node {
         nqp::isnull_s($!blocktype) ?? "" !! $!blocktype
     }
     method custom_args(*@value) { $!custom_args := @value[0] if @value; $!custom_args }
-    
+
     my $cur_cuid := 0;
     my $cuid_suffix := ~nqp::time_n();
-    
+
     method cuid(*@value) {
         if @value {
             # Set ID if we are provided one.
@@ -520,7 +520,7 @@ class QAST::Block is QAST::Node {
         }
         %!symbol{$name}
     }
-    
+
     method symtable() {
         %!symbol := nqp::hash() if nqp::isnull(%!symbol);
         %!symbol
@@ -555,13 +555,13 @@ class QAST::Unquote is QAST::Node {
 class QAST::CompUnit is QAST::Node {
     # The serialization context for the compilation unit.
     has $!sc;
-    
+
     # Code reference block list for the serialization context.
     has $!code_ref_blocks;
-    
+
     # Are we in compilation mode?
     has int $!compilation_mode;
-    
+
     # Tasks we should run prior to deserialization (or, in the non-precompiled
     # case, just before everything else in this compilation unit).
     has @!pre_deserialize;
@@ -569,25 +569,25 @@ class QAST::CompUnit is QAST::Node {
     # Tasks we should run after deserialization (or, in the non-precompiled
     # case, right after the pre-deserialize tasks).
     has @!post_deserialize;
-    
+
     # Call to the repossession conflict resolution mechanism, to be invoked
     # on deserialization.
     has $!repo_conflict_resolver;
-    
+
     # The HLL name.
     has $!hll;
-    
+
     # What to run at the point the compilation unit is loaded.
     has $!load;
-    
+
     # What to run if this is the main entry point.
     has $!main;
-    
+
     method sc(*@value)       { $!sc := @value[0] if @value; $!sc }
     method hll(*@value)      { $!hll := @value[0] if @value; $!hll }
     method load(*@value)     { $!load := @value[0] if @value; $!load }
     method main(*@value)     { $!main := @value[0] if @value; $!main }
-    
+
     method compilation_mode(*@value) {
         $!compilation_mode := @value[0] if @value; $!compilation_mode
     }
@@ -612,11 +612,11 @@ class QAST::CompUnit is QAST::Node {
 # inlining where one of the arguments to the inlined routine was used.
 class QAST::InlinePlaceholder is QAST::Node {
     has int $!position;
-    
+
     method position(*@value) {
         @value ?? ($!position := @value[0]) !! $!position
     }
-    
+
     method substitute_inline_placeholders(@fillers) {
         if $!position < +@fillers {
             my $result := @fillers[$!position];

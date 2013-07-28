@@ -10,7 +10,7 @@ sub simple_type_from_repr($frame, $name_str, $repr_str) {
     my $how  := local($frame, NQPMu);
     my $type := local($frame, NQPMu);
     my $meth := local($frame, NQPMu);
-    
+
     # Create the type.
     op(@ins, 'const_s', $name, sval($name_str));
     op(@ins, 'const_s', $repr, sval($repr_str));
@@ -18,12 +18,12 @@ sub simple_type_from_repr($frame, $name_str, $repr_str) {
     op(@ins, 'findmeth', $meth, $how, sval('new_type'));
     call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
         $how, sval('name'), $name, sval('repr'), $repr, :result($type));
-        
+
     # Compose.
     op(@ins, 'gethow', $how, $type);
     op(@ins, 'findmeth', $meth, $how, sval('compose'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj], $how, $type, :result($type));
-    
+
     $type
 }
 
@@ -44,7 +44,7 @@ sub array_type($frame) {
 sub boxing_type($frame, $name_str) {
     # Create the unboxed type.
     my $ntype := simple_type_from_repr($frame, nqp::lc($name_str), 'P6' ~ nqp::lc($name_str));
-    
+
     my @ins := $frame.instructions;
     my $name := local($frame, str);
     my $bt   := local($frame, int);
@@ -52,13 +52,13 @@ sub boxing_type($frame, $name_str) {
     my $type := local($frame, NQPMu);
     my $meth := local($frame, NQPMu);
     my $attr := local($frame, NQPMu);
-    
+
     # Create the type.
     op(@ins, 'const_s', $name, sval($name_str));
     op(@ins, 'knowhow', $how);
     op(@ins, 'findmeth', $meth, $how, sval('new_type'));
     call(@ins, $meth, [$Arg::obj, $Arg::named +| $Arg::str], $how, sval('name'), $name, :result($type));
-    
+
     # Add an attribute.
     op(@ins, 'gethow', $how, $type);
     op(@ins, 'knowhowattr', $attr);
@@ -69,11 +69,11 @@ sub boxing_type($frame, $name_str) {
         $attr, sval('name'), $name, sval('type'), $ntype, sval('box_target'), $bt, :result($attr));
     op(@ins, 'findmeth', $meth, $how, sval('add_attribute'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj, $Arg::obj], $how, $type, $attr, :result($attr));
-    
+
     # Compose.
     op(@ins, 'findmeth', $meth, $how, sval('compose'));
     call(@ins, $meth, [$Arg::obj, $Arg::obj], $how, $type, :result($type));
-    
+
     $type
 }
 
@@ -95,7 +95,7 @@ sub _bench($arr_size_opt, $iter_opt) {
         my $boxed_zero := local($frame, NQPMu);
         my $zero := const($frame, ival(0));
         my $one := const($frame, ival(1));
-        
+
         my $max_index := const($frame, ival($arr_size_opt - 1));
         my $y_index := const($frame, ival(0));
         my $z_index := local($frame, int);
@@ -107,16 +107,16 @@ sub _bench($arr_size_opt, $iter_opt) {
         my $i3 := local($frame, int);
         my $i4 := local($frame, int);
         my $str := local($frame, str);
-        
+
         op(@ins, 'const_i64', $arr_size, ival($arr_size_opt));
         op(@ins, 'create', $arr_1, $arr_type);
         op(@ins, 'create', $arr_2, $arr_type);
         op(@ins, 'setelemspos', $arr_1, $arr_size);
         op(@ins, 'setelemspos', $arr_2, $arr_size);
-        
+
         op(@ins, 'time_i', $start_time);
         op(@ins, 'box_i', $boxed_zero, $zero, $int_type);
-        
+
     nqp::push(@ins, $X_LOOP);
         op(@ins, 'ge_i', $i0, $x_index, $arr_size);
         op(@ins, 'if_i', $i0, $X_DONE);
@@ -127,12 +127,12 @@ sub _bench($arr_size_opt, $iter_opt) {
         op(@ins, 'inc_i', $value);
         op(@ins, 'goto', $X_LOOP);
     nqp::push(@ins, $X_DONE);
-        
+
         op(@ins, 'time_i', $end_time);
         op(@ins, 'sub_i', $i3, $end_time, $start_time);
         op(@ins, 'coerce_is', $str, $i3);
         op(@ins, 'say', $str);
-        
+
     nqp::push(@ins, $Y_LOOP);
         op(@ins, 'ge_i', $i0, $y_index, $iterations);
         op(@ins, 'if_i', $i0, $Y_DONE);
@@ -150,11 +150,11 @@ sub _bench($arr_size_opt, $iter_opt) {
         op(@ins, 'dec_i', $z_index);
         op(@ins, 'goto', $Z_LOOP);
     nqp::push(@ins, $Z_DONE);
-        
+
         op(@ins, 'inc_i', $y_index);
         op(@ins, 'goto', $Y_LOOP);
     nqp::push(@ins, $Y_DONE);
-        
+
         op(@ins, 'time_i', $end_time);
         op(@ins, 'sub_i', $i3, $end_time, $start_time);
         op(@ins, 'coerce_is', $str, $i3);

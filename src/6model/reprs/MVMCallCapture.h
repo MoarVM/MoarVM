@@ -8,7 +8,7 @@ typedef struct _MVMCallCaptureBody {
     /* Argument processing context. For use mode, it points to the context of
      * the frame in question. For save mode, we allocate a fresh one. */
     MVMArgProcContext *apc;
-    
+
     /* Use or save mode? */
     MVMuint8 mode;
 } MVMCallCaptureBody;

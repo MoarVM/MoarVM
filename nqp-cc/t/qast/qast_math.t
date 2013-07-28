@@ -139,7 +139,7 @@ qast_test(
     },
     "210\n",
     "lcm_i works");
-    
+
 qast_test(
     -> {
         my $block := QAST::Block.new(

@@ -4,7 +4,7 @@
 
 // Copyright (c) 2008-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
 // See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for details.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -12,10 +12,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject
  * to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -46,7 +46,7 @@ static const MVMuint8 utf8d[] = {
   12, 0,12,12,12,12,12, 0,12, 0,12,12, 12,24,12,12,12,12,12,24,12,24,12,12,
   12,12,12,12,12,12,12,24,12,12,12,12, 12,24,12,12,12,12,12,12,12,24,12,12,
   12,12,12,12,12,12,12,36,12,36,12,12, 12,36,12,12,12,12,12,36,12,36,12,12,
-  12,36,12,12,12,12,12,12,12,12,12,12, 
+  12,36,12,12,12,12,12,12,12,12,12,12,
 };
 
 static MVMint32
@@ -101,12 +101,12 @@ enum
 
 static unsigned classify(MVMCodepoint32 cp)
 {
-    /* removing these two lines 
+    /* removing these two lines
     12:06 <not_gerd> if you want to encode NUL as a zero-byte
                  (as in proper UTF-8), you need to delete the
                  first 2 lines of classify()
-    
-    if(cp == 0) 
+
+    if(cp == 0)
         return CP_CHAR | U8_DOUBLE;*/
 
     if(cp <= 0x7F)
@@ -188,7 +188,7 @@ static void *utf8_encode(void *bytes, MVMCodepoint32 cp)
 
 #define UTF8_MAXINC 32 * 1024 * 1024
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
- * a result of the specified type. The type must have the MVMString REPR. 
+ * a result of the specified type. The type must have the MVMString REPR.
  * Only bring in the raw codepoints for now. */
 MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type, const char *utf8, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -202,14 +202,14 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     const char *orig_utf8;
     MVMint32 line;
     MVMint32 col;
-    
+
     if (bytes >= 3 && utf8[0] == 0xEF && utf8[1] == 0xBB && utf8[0xBF]) {
         /* disregard UTF-8 BOM if it's present */
         utf8 += 3; bytes -= 3;
     }
     orig_bytes = bytes;
     orig_utf8 = utf8;
-    
+
     for (; bytes; ++utf8, --bytes) {
         switch(decode_utf8_byte(&state, &codepoint, *utf8)) {
         case UTF8_ACCEPT: /* got a codepoint */
@@ -255,16 +255,16 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     }
     if (state != UTF8_ACCEPT)
         MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
-    
+
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
      * memory */
     result->body.int32s = buffer;
-    
+
     /* XXX set codes */
     result->body.flags = MVM_STRING_TYPE_INT32;
     result->body.graphs = count; /* XXX Ignore combining chars for now. */
-    
+
     return result;
 }
 
@@ -277,30 +277,30 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     MVMuint8 *arr;
     size_t i = start;
     MVMStringIndex strgraphs = NUM_GRAPHS(str);
-    
+
     if (length == -1)
         length = strgraphs;
-    
+
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
     if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
-    
+
     /* give it two spaces for padding in case `say` wants to append a \r\n or \n */
     result = malloc(sizeof(MVMint32) * length + 2);
     arr = result;
-    
+
     memset(result, 0, sizeof(MVMint32) * length);
     while (i < length && (arr = utf8_encode(arr, MVM_string_get_codepoint_at_nocheck(tc, str, i++))));
     if (!arr)
         MVM_exception_throw_adhoc(tc,
             "Error encoding UTF-8 string near grapheme position %d with codepoint %d",
                 i - 1, MVM_string_get_codepoint_at_nocheck(tc, str, i-1));
-    
+
     if (output_size)
         *output_size = (MVMuint64)(arr ? arr - result : 0);
-    
+
     return result;
 }
 

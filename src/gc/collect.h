@@ -15,7 +15,7 @@ typedef enum {
 
     /* Everything except the instance-wide roots. */
     MVMGCWhatToDo_NoInstance = 1,
-    
+
     /* Only process the in-tray of work given by other threads. */
     MVMGCWhatToDo_InTray = 2
 } MVMGCWhatToDo;
@@ -24,7 +24,7 @@ typedef enum {
 typedef enum {
     /* Only the nursery. */
     MVMGCGenerations_Nursery = 0,
-    
+
     /* Both the nursery and generation 2. */
     MVMGCGenerations_Both = 1
 } MVMGCGenerations;

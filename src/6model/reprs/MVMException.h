@@ -2,16 +2,16 @@
 typedef struct _MVMExceptionBody {
     /* The exception message. */
     MVMString *message;
-    
+
     /* The payload (object thrown with the exception). */
     MVMObject *payload;
-    
+
     /* The exception category. */
     MVMint32 category;
-    
+
     /* Is the exception resumable? */
     MVMuint8 resumable;
-    
+
     /* Where was the exception thrown from? */
     MVMFrame *origin;
 } MVMExceptionBody;

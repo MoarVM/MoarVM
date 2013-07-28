@@ -86,7 +86,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $l3 := label('l3');
         op(@ins, 'const_n64', $r0, nval(0.0));
         op(@ins, 'const_n64', $r1, nval(1.0));
-        
+
         # unless 0 don't say 1
         op(@ins, 'unless_n', $r0, $l0);
         op(@ins, 'coerce_ns', $r2, $r1);
@@ -94,7 +94,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         nqp::push(@ins, $l0);
         op(@ins, 'coerce_ns', $r2, $r0);
         op(@ins, 'say', $r2);
-        
+
         # unless 1 don't say 1
         op(@ins, 'unless_n', $r1, $l1);
         op(@ins, 'coerce_ns', $r2, $r1);
@@ -102,7 +102,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         nqp::push(@ins, $l1);
         op(@ins, 'coerce_ns', $r2, $r0);
         op(@ins, 'say', $r2);
-        
+
         # if 0 don't say 1
         op(@ins, 'if_n', $r0, $l2);
         op(@ins, 'coerce_ns', $r2, $r1);
@@ -110,7 +110,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         nqp::push(@ins, $l2);
         op(@ins, 'coerce_ns', $r2, $r0);
         op(@ins, 'say', $r2);
-        
+
         # if 1 don't say 1
         op(@ins, 'if_n', $r1, $l3);
         op(@ins, 'coerce_ns', $r2, $r1);
@@ -118,7 +118,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         nqp::push(@ins, $l3);
         op(@ins, 'coerce_ns', $r2, $r0);
         op(@ins, 'say', $r2);
-        
+
         op(@ins, 'return');
     },
     "0\n1\n0\n1\n0\n0\n",

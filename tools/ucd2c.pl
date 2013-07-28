@@ -34,7 +34,7 @@ my $bitfield_cell_bitwidth = 32;
 sub progress($);
 sub main {
     $db_sections->{'AAA_header'} = header();
-    
+
     # Load all the things
     UnicodeData(
         derived_property('BidiClass', 'Bidi_Class', {}, 0),
@@ -82,7 +82,7 @@ sub main {
     break_property('Sentence', 'Sentence_Break');
   skip_most:
     break_property('Word', 'Word_Break');
-    
+
     # Allocate all the things
     progress "done.\nallocating bitfield...";
     my $allocated_properties = allocate_bitfield();
@@ -102,7 +102,7 @@ sub main {
     emit_names_hash_builder();
     emit_unicode_property_keypairs();
     emit_unicode_property_value_keypairs();
-    
+
     print "done!";
     write_file('src/strings/unicode_db.c', join_sections($db_sections));
     write_file('src/strings/unicode_gen.h', join_sections($h_sections));
@@ -153,7 +153,7 @@ sub join_sections {
     $content
 }
 sub apply_to_range {
-    # apply a function to a range of codepoints. The starting and 
+    # apply a function to a range of codepoints. The starting and
     # ending codepoint of the range need not exist; the function will
     # be applied to all/any in between.
     my $range = shift;
@@ -338,7 +338,7 @@ sub compute_properties {
                 # loop until we fill all the words, starting with the most
                 # significant byte portion.
                 while ($x + 1) {
-                    
+
                     $point->{bytes}->[
                         $word_offset - $x
                     ] |=
@@ -359,7 +359,7 @@ sub compute_properties {
 }
 sub emit_binary_search_algorithm {
     # $extents is arrayref to the heads of the gaps, spans, and
-    # normal stretches of codepoints. $first and $last are the 
+    # normal stretches of codepoints. $first and $last are the
     # indexes into $extents we're supposed to subdivide.
     # protocol: start output with a newline; don't end with a newline or indent
     my ($extents, $first, $mid, $last, $indent) = @_;
@@ -412,7 +412,7 @@ sub emit_codepoints_and_planes {
     $first_point->{fate_offset} = $code_offset;
     add_extent $extents, $first_point;
     my $span_length = 0;
-    
+
     # a bunch of spaghetti code.  Yes.
     for my $plane (@$planes) {
         for my $point (@{$plane->{points}}) {
@@ -520,11 +520,11 @@ sub emit_codepoint_row_lookup {
     }
     my $out = "static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint) {\n
     MVMint32 plane = codepoint >> 16;
-    
+
     if (codepoint < 0) {
         MVM_exception_throw_adhoc(tc, \"should eventually be unreachable\");
     }
-    
+
     if (plane == 0) {"
     .emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ")."
     }
@@ -611,12 +611,12 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
-    
+
     if (codepoint_row == -1) /* non-existent codepoint; XXX should throw? */
         return 0;
-    
+
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
-    
+
     switch (switch_val) {
         case 0: return 0;";
     for my $prop (@$allocated) {
@@ -865,7 +865,7 @@ from http://unicode.org/copyright.html#Exhibit1 on 2012-07-20:
 
 COPYRIGHT AND PERMISSION NOTICE
 
-Copyright ?1991-2012 Unicode, Inc. All rights reserved. Distributed 
+Copyright ?1991-2012 Unicode, Inc. All rights reserved. Distributed
 under the Terms of Use in http://www.unicode.org/copyright.html.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -932,7 +932,7 @@ sub UnicodeData {
         my ($code_str, $name, $gencat, $ccclass, $bidiclass, $decmpspec,
             $num1, $num2, $num3, $bidimirrored, $u1name, $isocomment,
             $suc, $slc, $stc) = split ';';
-        
+
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
         my $point = {
@@ -984,7 +984,7 @@ sub UnicodeData {
                 }
                 $new->{code_str} = $code_str;
                 push @{$plane->{points}}, $new;
-                $points_by_hex->{$new->{code_str}} = $points_by_code->{$new->{code}} = 
+                $points_by_hex->{$new->{code_str}} = $points_by_code->{$new->{code}} =
                     $current = $current->{next_point} = $new;
             }
             $last_point = $current;
@@ -992,7 +992,7 @@ sub UnicodeData {
         }
         push @{$plane->{points}}, $point;
         $points_by_hex->{$code_str} = $points_by_code->{$code} = $point;
-        
+
         if ($last_point) {
             $last_point = $last_point->{next_point} = $point;
         }
@@ -1068,12 +1068,12 @@ sub DerivedNormalizationProps {
         elsif (exists $trinary->{$property_name}) {
             $value = $trinary_values->{$value};
         }
-        
+
         #elsif ($property_name eq 'NFKC_Casefold') { # XXX see how this differs from CaseFolding.txt
         #    my @parts = split ' ', $value;
         #    $value = \@parts;
         # }
-        
+
         else {
             return; # deprecated
         }

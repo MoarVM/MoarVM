@@ -191,7 +191,7 @@ XXX TODO: Finish this up. :-)
                     if !in_handler_stack(HSTACK, h)
                         return h
         return NULL
-    
+
     search_for_handler_from(f, mode, cat)
         if mode == LEXOTIC
             while f != NULL
@@ -212,7 +212,7 @@ XXX TODO: Finish this up. :-)
                         f_maybe = f_maybe.outer
                     f = f_maybe
     return NULL
-        
+
     run_handler(h, target_scope)
         if h.mode == 0
             unwind_to(target_scope)
@@ -241,18 +241,18 @@ XXX TODO: Finish this up. :-)
         note "Unahndled exception: " + obj.message
         note backtrace(scope)
         exit 1
-    
+
     panic_unhandled_cat(scope, cat):
         note "Unahndled exception of category " + category_name(cat)
         note backtrace(scope)
         exit 1
-        
+
     throw(mode):
         (h, target_scope) = search_for_handler_from(SCOPE, mode, CAT)
         if h == NULL
             panic_unhandled_cat(SCOPE, CAT)
         run_handler_(h, target_scope, obj)
-        
+
     throwcat(mode):
         (h, target_scope) = search_for_handler_from(SCOPE, mode, CAT)
         if h == NULL

@@ -3,24 +3,24 @@
 typedef enum {
     /* Argument is an object. */
     MVM_CALLSITE_ARG_OBJ = 1,
-    
+
     /* Argument is a native integer, signed. */
     MVM_CALLSITE_ARG_INT = 2,
-    
+
     /* Argument is a native floating point number. */
     MVM_CALLSITE_ARG_NUM = 4,
-    
+
     /* Argument is a native NFG string (MVMString REPR). */
     MVM_CALLSITE_ARG_STR = 8,
-    
+
     /* Argument is named; in this case, there are two entries in
      * the argument list, the first a MVMString naming the arg and
      * after that the arg. */
     MVM_CALLSITE_ARG_NAMED = 32,
-    
+
     /* Argument is flattened. What this means is up to the target. */
     MVM_CALLSITE_ARG_FLAT = 64,
-    
+
     /* Argument is flattened and named. */
     MVM_CALLSITE_ARG_FLAT_NAMED = 128
 } MVMCallsiteFlags;
@@ -35,14 +35,14 @@ typedef MVMuint8 MVMCallsiteEntry;
 typedef struct _MVMCallsite {
     /* The set of flags. */
     MVMCallsiteEntry *arg_flags;
-    
+
     /* The total argument count (including 2 for each
      * named arg). */
     MVMuint16 arg_count;
-    
+
     /* Number of positionals. */
     MVMuint16 num_pos;
-    
+
     /* whether it has a flattening arg. */
     MVMuint8 has_flattening;
 } MVMCallsite;
@@ -53,23 +53,23 @@ typedef struct _MVMCallsite {
 typedef struct _MVMArgProcContext {
     /* The callsite we're processing. */
     MVMCallsite *callsite;
-    
+
     /* The set of flags. */
     MVMCallsiteEntry *arg_flags;
-    
+
     /* The arguments. */
     union _MVMRegister *args;
-    
-    /* Bytemap of indexes of used nameds, so the 
+
+    /* Bytemap of indexes of used nameds, so the
      * named slurpy knows which ones not to grab.
      * XXX cache and free this at the proper times. */
     MVMuint8 *named_used;
     MVMuint16 named_used_size;
-    
+
     /* The total argument count (including 2 for each
      * named arg). */
     MVMuint16 arg_count;
-    
+
     /* Number of positionals. */
     MVMuint16 num_pos;
 } MVMArgProcContext;
@@ -78,16 +78,16 @@ typedef struct _MVMArgProcContext {
 typedef enum {
     /* Argument is an object. */
     MVM_RETURN_VOID = 0,
-    
+
     /* Argument is an object. */
     MVM_RETURN_OBJ = 1,
-    
+
     /* Argument is a native integer, signed. */
     MVM_RETURN_INT = 2,
-    
+
     /* Argument is a native floating point number. */
     MVM_RETURN_NUM = 4,
-    
+
     /* Argument is a native NFG string (MVMString REPR). */
     MVM_RETURN_STR = 8,
 } MVMReturnType;

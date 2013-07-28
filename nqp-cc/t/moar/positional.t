@@ -280,31 +280,31 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $offset := local($frame, int);
         my $count := local($frame, int);
         my $str := local($frame, str);
-        
+
         # First array.
         op(@ins, 'create', $a1, $at);
         op(@ins, 'create', $a1_0, $at);
         op(@ins, 'create', $a1_1, $at);
         op(@ins, 'push_o', $a1, $a1_0);
         op(@ins, 'push_o', $a1, $a1_1);
-        
+
         # Second array.
         op(@ins, 'create', $a2, $at);
         op(@ins, 'create', $a2_0, $at);
         op(@ins, 'create', $a2_1, $at);
         op(@ins, 'push_o', $a2, $a2_0);
         op(@ins, 'push_o', $a2, $a2_1);
-        
+
         # Splice second into middle of first.
         op(@ins, 'const_i64', $offset, ival(1));
         op(@ins, 'const_i64', $count, ival(0));
         op(@ins, 'splice', $a1, $a2, $offset, $count);
-        
+
         # Emit elements.
         op(@ins, 'elems', $i, $a1);
         op(@ins, 'coerce_is', $str, $i);
         op(@ins, 'say', $str);
-        
+
         # Check they are the expected values.
         op(@ins, 'shift_o', $t, $a1);
         op(@ins, 'eqaddr', $i, $t, $a1_0);
@@ -322,7 +322,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'eqaddr', $i, $t, $a1_1);
         op(@ins, 'coerce_is', $str, $i);
         op(@ins, 'say', $str);
-        
+
         op(@ins, 'return');
     },
     "4\n1\n1\n1\n1\n",

@@ -11,18 +11,18 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $ignored := const($frame, sval(""));
         my $io_repr := const($frame, sval('MVMOSHandle'));
         my $TestIOname := const($frame, sval('TestIO'));
-        
+
         op(@ins, 'knowhow', $KnowHOW);
         op(@ins, 'findmeth', $new_type_method, $KnowHOW, sval('new_type'));
-        
+
         call(@ins, $new_type_method,
             [$Arg::obj, $Arg::named +| $Arg::str, $Arg::named +| $Arg::str],
             $KnowHOW,
             sval("repr"), $io_repr,
             sval("name"), $TestIOname,
             :result($type_object));
-            
-        
+
+
         op(@ins, 'say', const($frame, sval("alive")));
         op(@ins, 'return');
     },

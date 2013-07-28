@@ -84,19 +84,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r0, ival(23));
         op(@ins, 'const_i64', $r1, ival(23));
         op(@ins, 'const_i64', $r2, ival(555));
-        
+
         op(@ins, 'eq_i', $r3, $r0, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'eq_i', $r3, $r1, $r2);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'eq_i', $r3, $r2, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'return');
     },
     "1\n0\n0\n",
@@ -111,19 +111,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r0, ival(23));
         op(@ins, 'const_i64', $r1, ival(23));
         op(@ins, 'const_i64', $r2, ival(555));
-        
+
         op(@ins, 'ne_i', $r3, $r0, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'ne_i', $r3, $r1, $r2);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'ne_i', $r3, $r2, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'return');
     },
     "0\n1\n1\n",
@@ -138,19 +138,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r0, ival(23));
         op(@ins, 'const_i64', $r1, ival(23));
         op(@ins, 'const_i64', $r2, ival(555));
-        
+
         op(@ins, 'lt_i', $r3, $r0, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'lt_i', $r3, $r1, $r2);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'lt_i', $r3, $r2, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'return');
     },
     "0\n1\n0\n",
@@ -165,19 +165,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r0, ival(23));
         op(@ins, 'const_i64', $r1, ival(23));
         op(@ins, 'const_i64', $r2, ival(555));
-        
+
         op(@ins, 'le_i', $r3, $r0, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'le_i', $r3, $r1, $r2);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'le_i', $r3, $r2, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'return');
     },
     "1\n1\n0\n",
@@ -192,19 +192,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r0, ival(23));
         op(@ins, 'const_i64', $r1, ival(23));
         op(@ins, 'const_i64', $r2, ival(555));
-        
+
         op(@ins, 'gt_i', $r3, $r0, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'gt_i', $r3, $r1, $r2);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'gt_i', $r3, $r2, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'return');
     },
     "0\n0\n1\n",
@@ -219,19 +219,19 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'const_i64', $r0, ival(23));
         op(@ins, 'const_i64', $r1, ival(23));
         op(@ins, 'const_i64', $r2, ival(555));
-        
+
         op(@ins, 'ge_i', $r3, $r0, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'ge_i', $r3, $r1, $r2);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'ge_i', $r3, $r2, $r1);
         op(@ins, 'coerce_is', $r4, $r3);
         op(@ins, 'say', $r4);
-        
+
         op(@ins, 'return');
     },
     "1\n0\n1\n",

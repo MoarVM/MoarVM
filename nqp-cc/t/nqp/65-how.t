@@ -33,9 +33,9 @@ ok($baz.HOW.attributes($baz)[0].name == '$!baz_attr',"we can add an attribute");
 class Descendant is Bar {
 }
 
-my $d := Descendant.new(); 
+my $d := Descendant.new();
 # Descendant being in parents seems suspicious
 ok(nqp::elems($d.HOW.parents($d)) >= 3); # Descendant, Foo, Bar, NQPMu
-ok(nqp::elems($d.HOW.parents($d,:local(1))) == 1,'right number of local parents'); 
+ok(nqp::elems($d.HOW.parents($d,:local(1))) == 1,'right number of local parents');
 my $local_parents := $d.HOW.parents($d,:local(1));
 ok($local_parents[0].HOW.name($local_parents[0]) eq 'Bar','we can get the name of a parent');

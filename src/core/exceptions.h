@@ -25,19 +25,19 @@
 typedef struct _MVMFrameHandler {
     /* Start offset into the frame's bytecode for the handler, inclusive. */
     MVMuint32 start_offset;
-    
+
     /* End offset into the frame's bytecode for the handler, exclusive. */
     MVMuint32 end_offset;
-    
+
     /* Category mask. */
     MVMuint32 category_mask;
-    
+
     /* The kind of handler it is. */
     MVMuint16 action;
-    
+
     /* Register containing block to invoke, for invokey handlers. */
     MVMuint16 block_reg;
-    
+
     /* Offset into the frame's bytecode of the handler, for goto handlers. */
     MVMuint32 goto_offset;
 } MVMFrameHandler;
@@ -46,13 +46,13 @@ typedef struct _MVMFrameHandler {
 typedef struct _MVMActiveHandler {
     /* The frame the handler was found in. */
     struct _MVMFrame *frame;
-    
+
     /* The handler information itself. */
     MVMFrameHandler *handler;
-    
+
     /* The exception object. */
     MVMObject *ex_obj;
-    
+
     /* The next active handler in the chain. */
     struct _MVMActiveHandler *next_handler;
 } MVMActiveHandler;

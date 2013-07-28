@@ -131,7 +131,7 @@ class World { # NQP snippet
 
 # at *compile-time* of the compilation unit surrounding the INIT block
 # we assume we are in, inject the symbol into the innermost World outside of
-# us. 
+# us.
 
 method extop_compile($fqon, $addr, $sig) {
     my $cu := self.current_compunit;
@@ -154,25 +154,25 @@ core/bytecode.c excerpt - nqp::extop_install:
 #include "moarvm.h"
 
 typedef struct _MVMExtOpRecord {
-    
+
     /* name of the op, including namespace:: prefix */
     MVMString *opname;
-    
+
     /* string representing signature */
     MVMString *signature;
-    
+
     /* the function pointer (see below for signature/macro) */
     MVMCustomOp *function_ptr;
-    
+
     /* number of bytes the interpreter should advance the cur_op pointer */
     MVMint32 op_size;
-    
+
     /* (speculative/future) function pointer to the code in C
         that the JIT can call to generate an AST for the
         operation, for super-ultra-awesome optimization
         possibilities (when pigs fly! ;) */
     /* MVMCustomOpJITtoMAST * jittomast_ptr; */
-    
+
     /* so the record can be in a hash too (so a compiler or JIT
         can access the upper code at runtime in order to inline
         or optimize stuff) */
@@ -182,24 +182,24 @@ typedef struct _MVMExtOpRecord {
 /* Resolve the function pointer and nstall the op at runtime. */
 void MVM_bytecode_extop_install(MVMThreadContext *tc, MVMObject *library,
         MVMString *opname, MVMString *funcname, MVMString *signature) {
-    
+
     /* TODO: protect with a mutex */
     /* must also grab thread creation mutex b/c we have to
        update the tc->interp_customops pointer of all the threads */
-    
+
     MVMCustomOp *function_ptr = NULL;
     MVMExtOpRecord *customops, *customop;
     MVMuint16 opidx = tc->instance->nextcustomop++;
     void *kdata;
     size_t klen;
-    
+
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, opname, "bad String");
     HASH_FIND(hash_handle, tc->instance->customops_hash, kdata, klen, customop);
     if (customop)
         MVM_panic(tc, "already installed custom op by this name");
-    
+
     customops = tc->instance->customops;
-    
+
     if (customops == NULL) {
         customops = tc->instance->customops =
             calloc( sizeof(MVMExtOpRecord),
@@ -212,17 +212,17 @@ void MVM_bytecode_extop_install(MVMThreadContext *tc, MVMObject *library,
         memset(tc->instance->customops + tc->instance->customops_size/2,
             0, tc->instance->customops_size / 2 * sizeof(MVMExtOpRecord));
     }
-    
+
     customop = customops + opidx;
     customop->opname = opname;
     customop->signature = signature;
     customop->op_size = MVM_bytecode_extop_compute_opsize(tc, signature);
-    
+
     /* use the NativeCall API directly to grab the function pointer
        using the cached library object */
     customop->function_ptr =
         MVM_nativecall_function_ptr(tc, library, funcname);
-    
+
     /* the name strings should always be in a string heap already,
        so don't need GC root */
     HASH_ADD_KEYPTR(hash_handle, tc->instance->customops_hash, kdata, klen,

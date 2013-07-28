@@ -6,7 +6,7 @@
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     MVMObject   *sc;
     MVMCompUnit *cur_cu;
-    
+
     /* Allocate. */
     MVMROOT(tc, handle, {
         sc = REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
@@ -15,7 +15,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
 
             /* Set handle. */
             MVM_ASSIGN_REF(tc, sc, ((MVMSerializationContext *)sc)->body->handle, handle);
-            
+
             /* Add to weak lookup hash. */
             if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
                 MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
@@ -42,7 +42,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             }
         });
     });
-    
+
     return sc;
 }
 

@@ -58,7 +58,7 @@ qast_test(
     },
     "larva\n",
     "lc");
-    
+
 qast_test(
     -> {
         my $block := QAST::Block.new(
@@ -98,7 +98,7 @@ qast_test(
     },
     "booberry\n",
     "concat");
-    
+
 qast_test(
     -> {
         my $block := QAST::Block.new(

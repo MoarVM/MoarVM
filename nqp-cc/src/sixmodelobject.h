@@ -37,27 +37,27 @@ typedef struct {
 typedef struct {
     /* Fetches a value out of a container. Used for decontainerization. */
     PMC * (*fetch) (PARROT_INTERP, PMC *cont);
-    
+
     /* Stores a value in a container. Used for assignment. */
     void (*store) (PARROT_INTERP, PMC *cont, PMC *obj);
-    
+
     /* Stores a value in a container, without any checking of it (this
      * assumes an optimizer or something else already did it). Used for
      * assignment. */
     void (*store_unchecked) (PARROT_INTERP, PMC *cont, PMC *obj);
-    
+
     /* Name of this container specification. */
     STRING *name;
-    
+
     /* Marks container data, if any. */
     void (*gc_mark_data) (PARROT_INTERP, STable *st);
 
     /* Frees container data, if any. */
     void (*gc_free_data) (PARROT_INTERP, STable *st);
-    
+
     /* Serializes the container data, if any. */
     void (*serialize) (PARROT_INTERP, STable *st, SerializationWriter *writer);
-    
+
     /* Deserializes the container data, if any. */
     void (*deserialize) (PARROT_INTERP, STable *st, SerializationReader *reader);
 } ContainerSpec;
@@ -65,9 +65,9 @@ typedef struct {
 /* A container configurer knows how to attach a certain type of container
  * to an STable and configure it. */
 typedef struct {
-    /* Sets this container spec in place for the specified STable. */ 
+    /* Sets this container spec in place for the specified STable. */
     void (*set_container_spec) (PARROT_INTERP, STable *st);
-    
+
     /* Configures the container spec with the specified info. */
     void (*configure_container_spec) (PARROT_INTERP, STable *st, PMC *config);
 } ContainerConfigurer;
@@ -139,7 +139,7 @@ typedef struct SixModel_REPROps REPROps;
 struct SixModel_STable {
     /* The representation operation table. */
     REPROps *REPR;
-    
+
     /* Any data specific to this type that the REPR wants to keep. */
     void *REPR_data;
 
@@ -171,7 +171,7 @@ struct SixModel_STable {
 
     /* The length of the type check cache. */
     INTVAL type_check_cache_length;
-    
+
     /* The type checking mode and method cache mode (see flags for this
      * above). */
     INTVAL mode_flags;
@@ -181,27 +181,27 @@ struct SixModel_STable {
      * type directory based upon this ID. Otherwise you'll create memory
      * leaks for anonymous types, and other such screwups. */
     INTVAL type_cache_id;
-    
+
     /* If this is a container, then this contains information needed in
      * order to fetch the value in it or assign a value to it. If not,
      * it'll be null, which can be taken as a "not a container" indication. */
     ContainerSpec *container_spec;
-    
+
     /* Data that the container spec may need to function. */
     /* Any data specific to this type that the REPR wants to keep. */
     void *container_data;
-    
+
     /* If this is invokable, then this contains information needed to
      * figure out how to invoke it. If not, it'll be null. */
     InvocationSpec *invocation_spec;
-    
+
     /* Information - if any - about how we can turn something of this type
      * into a boolean. */
     BoolificationSpec *boolification_spec;
-    
+
     /* The underlying package stash. */
     PMC *WHO;
-    
+
     /* Serialization context that this s-table belongs to. */
     PMC *sc;
 
@@ -211,13 +211,13 @@ struct SixModel_STable {
 
 	/* Parrot-specific set of v-table to object method mappings. */
 	AttributeIdentifier *parrot_vtable_handler_mapping;
-    
+
     /* The PMC that wraps this s-table. */
     PMC *stable_pmc;
-    
+
     /* The HLL that this type is owned by, if any. */
     INTVAL hll_owner;
-    
+
     /* The role that the type plays in the HLL, if any. */
     INTVAL hll_role;
 };
@@ -245,7 +245,7 @@ typedef struct SixModel_REPROps_Attribute {
         PMC *class_handle, STRING *name, INTVAL hint, NativeValue *value);
 
     /* Binds the given object value to the specified attribute. If it's
-     * a reference type attribute, this just simply sets the value in 
+     * a reference type attribute, this just simply sets the value in
      * place. If instead it's some other flattened in representation, then
      * the value should be a boxed form of the data to store.*/
     void (*bind_attribute_boxed) (PARROT_INTERP, STable *st, void *data,
@@ -310,32 +310,32 @@ typedef struct SixModel_REPROps_Positional {
     /* Binds the object at the specified address into the array at the specified index.
      * For arrays of non-reference types, expects a compatible type. */
     void (*bind_pos_boxed) (PARROT_INTERP, STable *st, void *data, INTVAL index, PMC *obj);
-    
+
     /* Pushes an object. */
     void (*push_boxed) (PARROT_INTERP, STable *st, void *data, PMC *obj);
-    
+
     /* Pops an object. */
     PMC * (*pop_boxed) (PARROT_INTERP, STable *st, void *data);
-    
+
     /* Unshifts an object. */
     void (*unshift_boxed) (PARROT_INTERP, STable *st, void *data, PMC *obj);
-    
+
     /* Shifts an object. */
     PMC * (*shift_boxed) (PARROT_INTERP, STable *st, void *data);
-    
+
     /* Gets the STable representing the declared element type. */
     STable * (*get_elem_stable) (PARROT_INTERP, STable *st);
 } REPROps_Positional;
 typedef struct SixModel_REPROps_Associative {
     /* Gets the value at the specified key. */
     PMC * (*at_key_boxed) (PARROT_INTERP, STable *st, void *data, STRING *key);
-    
+
     /* Binds a value to the specified key. */
     void (*bind_key_boxed) (PARROT_INTERP, STable *st, void *data, STRING *key, PMC *value);
-    
+
     /* Checks if the specified key exists. */
     INTVAL (*exists_key) (PARROT_INTERP, STable *st, void *data, STRING *key);
-    
+
     /* Deletes the specified key. */
     void (*delete_key) (PARROT_INTERP, STable *st, void *data, STRING *key);
 } REPROps_Associative;
@@ -358,7 +358,7 @@ struct SixModel_REPROps {
      * describe by the specified s-table. DATA points to the body. It
      * may recursively call initialize for any flattened objects. */
     void (*initialize) (PARROT_INTERP, STable *st, void *data);
-    
+
     /* For the given type, copies the object data from the source memory
      * location to the destination one. Note that it may actually be more
      * involved than a straightforward bit of copying; what's important is
@@ -369,7 +369,7 @@ struct SixModel_REPROps {
 
     /* Attribute access REPR function table. */
     struct SixModel_REPROps_Attribute *attr_funcs;
-    
+
     /* Boxing REPR function table. */
     struct SixModel_REPROps_Boxing *box_funcs;
 
@@ -378,13 +378,13 @@ struct SixModel_REPROps {
 
     /* Associative REPR function table. */
     struct SixModel_REPROps_Associative *ass_funcs;
-    
+
     /* Gets the number of elements, if it's relevant. */
     INTVAL (*elems) (PARROT_INTERP, STable *st, void *data);
-    
+
     /* Gets the storage specification for this representation. */
     storage_spec (*get_storage_spec) (PARROT_INTERP, STable *st);
-    
+
     /* Handles an object changing its type. The representation is responsible
      * for doing any changes to the underlying data structure, and may reject
      * changes that it's not willing to do (for example, a representation may
@@ -393,23 +393,23 @@ struct SixModel_REPROps {
      * out, the representation probably knows more about timing issues and
      * thread safety requirements. */
     void (*change_type) (PARROT_INTERP, PMC *Object, PMC *NewType);
-    
+
     /* Object serialization. Writes the objects body out using the passed
      * serialization writer. */
     void (*serialize) (PARROT_INTERP, STable *st, void *data, SerializationWriter *writer);
-    
+
     /* Object deserialization. Reads the objects body in using the passed
      * serialization reader. */
     void (*deserialize) (PARROT_INTERP, STable *st, void *data, SerializationReader *reader);
-    
+
     /* REPR data serialization. Seserializes the per-type representation data that
      * is attached to the supplied STable. */
     void (*serialize_repr_data) (PARROT_INTERP, STable *st, SerializationWriter *writer);
-    
+
     /* REPR data deserialization. Deserializes the per-type representation data and
      * attaches it to the supplied STable. */
     void (*deserialize_repr_data) (PARROT_INTERP, STable *st, SerializationReader *reader);
-    
+
     /* This Parrot-specific addition to the API is used to mark an object. */
     void (*gc_mark) (PARROT_INTERP, STable *st, void *data);
 
@@ -425,10 +425,10 @@ struct SixModel_REPROps {
 
     /* This Parrot-specific addition to the API is used to free a REPR instance. */
     void (*gc_free_repr_data) (PARROT_INTERP, STable *st);
-    
+
     /* The representation's ID. */
     INTVAL ID;
-    
+
     /* The representation's name. */
     STRING *name;
 };

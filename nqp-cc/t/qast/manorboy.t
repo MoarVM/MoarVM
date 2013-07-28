@@ -22,11 +22,11 @@ sub lex($name) {
 
 my $i := 1;
 while $i <= $test_depth {
-    
+
     my $Ksub := QAST::Block.new(
         lex('$n')
     );
-    
+
     my $K := QAST::Block.new(
         lex_param('$n', int),
         $Ksub,
@@ -34,7 +34,7 @@ while $i <= $test_depth {
             :moarop('takeclosure'),
             QAST::BVal.new( :value($Ksub) ) )
     );
-    
+
     my $Bsub := QAST::Block.new(
         QAST::Op.new(
             :op('bind'),
@@ -53,7 +53,7 @@ while $i <= $test_depth {
             lex('$x3'),
             lex('$x4') )
     );
-    
+
     my $A := QAST::Block.new(
         lex_param('$k', int),
         lex_param('$x1', NQPMu),
@@ -88,14 +88,14 @@ while $i <= $test_depth {
                 :op('call'), :returns(int),
                 lex('&B') ) )
     );
-    
+
     sub Kcall($val) {
         QAST::Op.new(
             :op('call'),
             lex('&K'),
             QAST::IVal.new( :value($val) ) )
     }
-    
+
     my $main := QAST::Block.new(
         QAST::Var.new( :name('&K'), :scope('lexical'), :decl('var') ),
         QAST::Var.new( :name('&A'), :scope('lexical'), :decl('var') ),
@@ -121,26 +121,26 @@ while $i <= $test_depth {
 					QAST::IVal.new( :value($i) ), # <-- here is the loop variable
 					Kcall(1), Kcall(-1), Kcall(-1), Kcall(1), Kcall(0) ) ) )
     );
-    
+
     my $expected := @answers[$i];
     qast_output_is($main, "$expected\n", "Knuth man or boy $i");
     $i++;
 }
 
 # The equivalent (known working) perlesque code, for reference:
-# 
+#
 # sub A(int $k, r_int $x1, r_int $x2, r_int $x3, r_int $x4, r_int $x5 --> int) {
 #   my r_int &B = sub (--> int) { $k = $k - 1; return A($k, &B, $x1, $x2, $x3, $x4) };
 #   if ($k <= 0) { return $x4() + $x5() }
 #   return &B()
 # }
-# 
+#
 # sub K(int $n --> r_int) { return sub (--> int) { return $n } }
-# 
+#
 # loop (my $i = 1; $i <= $test_depth ; $i = $i + 1 ) {
 #   my $result = A($i, K(1), K(-1), K(-1), K(1), K(0) );
 #   my $expected = $answers[$i];
 #   if ($result != $expected) { say("not ok # got " ~ $result ~ " but expected " ~ $expected) }
 #   else { say("ok " ~ $i ~ " # Knuth's man_or_boy test at starting value " ~ $i ~ " got " ~ $result) }
 # }
-# 
+#

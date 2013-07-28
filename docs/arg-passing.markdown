@@ -75,7 +75,7 @@ There is only one chunk of memory available to store the arguments. Thus a
 call like:
 
     foo(bar(42))
-    
+
 Will have to store the result of bar(42) in a register, then prepargs..call
 for foo(...) afterwards.
 

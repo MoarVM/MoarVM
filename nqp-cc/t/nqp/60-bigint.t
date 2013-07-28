@@ -109,7 +109,7 @@ my $n := nqp::div_In(
 ok(nqp::abs_n($n - 19.6430286394751) < 1e-10, 'div_In with big numbers');
 
 my $maxRand := nqp::fromstr_I('10000000000000000000000000000000000000000', $bi_type);
-my $rand := nqp::rand_I($maxRand, $bi_type); 
+my $rand := nqp::rand_I($maxRand, $bi_type);
 ok(nqp::isle_I(box(0), $rand) && nqp::islt_I($rand, $maxRand), 'nqp::rand_I');
 
 ok(nqp::isprime_I(box(-4), 1) == 0, 'is -4 prime');
