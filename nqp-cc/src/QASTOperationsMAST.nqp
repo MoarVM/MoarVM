@@ -1649,7 +1649,7 @@ QAST::MASTOperations.add_core_moarop_mapping('shift', 'shift_o');
 QAST::MASTOperations.add_core_moarop_mapping('shift_i', 'shift_i');
 QAST::MASTOperations.add_core_moarop_mapping('shift_n', 'shift_n');
 QAST::MASTOperations.add_core_moarop_mapping('shift_s', 'shift_s');
-QAST::MASTOperations.add_core_moarop_mapping('splice', 'splice', 0);
+QAST::MASTOperations.add_core_moarop_mapping('splice', 'splice');
 QAST::MASTOperations.add_core_moarop_mapping('islist', 'islist');
 QAST::MASTOperations.add_core_moarop_mapping('ishash', 'ishash');
 QAST::MASTOperations.add_core_moarop_mapping('iterator', 'iter');
