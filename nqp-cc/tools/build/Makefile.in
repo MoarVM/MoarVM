@@ -70,7 +70,7 @@ CROSSCOMPILE    = $(NQP) nqp-moar-cc.nqp --target=mbc --setting=NQPCOREMoar --no
 # The cross-compilation of NQP to Moar; we also build Parrot versions of the
 # things being cross-compiled.
 NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm QASTNodesMoar.moarvm QRegexMoar.moarvm NQPHLLMoar.moarvm \
-             MASTOps.moarvm MASTNodes.moarvm
+             MASTOps.moarvm MASTNodes.moarvm QASTRegexCompilerMAST.moarvm
 NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir QASTNodesMoar.pir QRegexMoar.pir NQPHLLMoar.pir
 
 CLEANUPS = \
@@ -176,6 +176,9 @@ MASTOps.moarvm: ../lib/MAST/Ops.nqp MASTNodes.pbc NQPCOREMoar.setting.moarvm MAS
 
 MASTNodes.moarvm: ../lib/MAST/Nodes.nqp NQPCOREMoar.setting.moarvm MASTNodes.pbc
 	$(CROSSCOMPILE) ../lib/MAST/Nodes.nqp
+
+QASTRegexCompilerMAST.moarvm: NQPCOREMoar.setting.moarvm
+	$(CROSSCOMPILE) src/QASTRegexCompilerMAST.nqp
 
 ## testing
 
