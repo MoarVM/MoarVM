@@ -377,7 +377,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
 
         instance->clargs = clargs;
 
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)instance->clargs);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->clargs);
     }
     return instance->clargs;
 }
