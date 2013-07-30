@@ -364,7 +364,13 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     }
 
 #else /* !MVM_HAS_READLINE */
-#  ifndef WIN32
+#  ifdef WIN32
+    /* XXX: really should use MVM_string_printfh once it's there. */
+    MVM_string_print(tc, prompt);
+
+    return_str = MVM_file_readline_fh(tc, oshandle);
+
+#  else   /* !WIN32 */
     {
         char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
 
@@ -385,16 +391,7 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
             free(line);
         }
     }
-
-#  else   /* !WIN32 */
-
-    /* XXX: really should use MVM_string_printfh once it's there. */
-    MVM_string_print(tc, prompt);
-
-    return_str = MVM_file_readline_fh(tc, oshandle);
-
 #  endif  /* WIN32 */
-
 #endif /* MVM_HAS_READLINE */
 
     return return_str;
