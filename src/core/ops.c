@@ -2873,6 +2873,12 @@ static MVMOpInfo MVM_op_info_io[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_readlineintfh,
+        "readlineintfh",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 static MVMOpInfo MVM_op_info_processthread[] = {
     {
@@ -3202,7 +3208,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     53,
     57,
     135,
-    51,
+    52,
     32,
     19,
 };

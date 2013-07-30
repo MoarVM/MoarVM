@@ -336,6 +336,70 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     return result;
 }
 
+/* reads a line from a filehandle. */
+MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt) {
+    MVMString *return_str = NULL;
+    MVMOSHandle *handle;
+    char *line;
+
+
+    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
+
+#ifdef MVM_HAS_READLINE
+    {
+        char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
+
+        line = readline(prompt_str);
+
+        free(prompt_str);
+
+        if (line) {
+            if (*line)
+                add_history(line);
+
+            return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+
+            free(line);
+        }
+    }
+
+#else /* !MVM_HAS_READLINE */
+#  ifndef WIN32
+    {
+        char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
+
+        linenoiseHistoryLoad("~/.bash_history");
+
+        line = linenoise(prompt_str);
+
+        free(prompt_str);
+
+        if (line) {
+            if (*line) {
+                linenoiseHistoryAdd(line);
+                linenoiseHistorySave("~/.bash_history");
+            }
+
+            return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+
+            free(line);
+        }
+    }
+
+#  else   /* !WIN32 */
+
+    /* XXX: really should use MVM_string_printfh once it's there. */
+    MVM_string_print(tc, prompt);
+
+    return_str = MVM_file_readline_fh(tc, oshandle);
+
+#  endif  /* WIN32 */
+
+#endif /* MVM_HAS_READLINE */
+
+    return return_str;
+}
+
 /* reads a string from a filehandle. */
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;

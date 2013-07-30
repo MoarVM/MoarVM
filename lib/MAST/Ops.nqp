@@ -3641,6 +3641,14 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
+            ),
+            'readlineintfh', nqp::hash(
+                'code', 51,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_str,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_str
+                ]
             )
         ],
         [
