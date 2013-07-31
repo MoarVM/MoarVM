@@ -47,10 +47,6 @@
  *
  * Todo list:
  * - Filter bogus Ctrl+<char> combinations.
- * - Win32 support
- *
- * Bloat:
- * - History search like Ctrl+r in readline?
  *
  * List of escape sequences used by this program, we do everything just
  * with three sequences. In order to be so cheap we may have some
@@ -115,7 +111,7 @@
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
-static char *unsupported_term[] = {"dumb","cons25",NULL};
+static const char *unsupported_term[] = {"dumb","cons25",NULL};
 static linenoiseCompletionCallback *completionCallback = NULL;
 
 #ifndef WIN32
@@ -128,6 +124,12 @@ static int atexit_registered = 0; /* Register atexit just 1 time. */
 static int history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int history_len = 0;
 char **history = NULL;
+
+/* for ctrl-r */
+static char        *search_buf = NULL;
+static unsigned int search_buf_is_cached = 0;
+static unsigned int search_pos = -1;
+
 
 /* The linenoiseState structure represents the state during line editing.
  * We pass this state to functions implementing specific editing
@@ -148,6 +150,9 @@ struct linenoiseState {
 
 static void linenoiseAtExit(void);
 int linenoiseHistoryAdd(const char *line);
+void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data);
+int linenoiseHistorySearch(char *str);
+
 static void refreshLine(struct linenoiseState *l);
 
 #ifdef WIN32
@@ -188,6 +193,9 @@ static int win32read(char *c) {
                         return 1;
                     case 'H':
                         *c = 8;
+                        return 1;
+                    case 'R': /* ctrl-r, history search */
+                        *c = 18;
                         return 1;
                     case 'T':
                         *c = 20;
@@ -490,9 +498,9 @@ void linenoiseSetCompletionCallback(linenoiseCompletionCallback *fn) {
  * understand example. */
 void linenoiseAddCompletion(linenoiseCompletions *lc, char *str) {
     size_t len = strlen(str);
-    char *copy = malloc(len+1);
+    char *copy = (char*)malloc(len+1);
     memcpy(copy,str,len+1);
-    lc->cvec = realloc(lc->cvec,sizeof(char*)*(lc->len+1));
+    lc->cvec = (char**)realloc(lc->cvec,sizeof(char*)*(lc->len+1));
     lc->cvec[lc->len++] = copy;
 }
 
@@ -846,6 +854,12 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
             if (c == 0) continue;
         }
 
+        /* Only keep searching buf if it's ctrl-r, destroy otherwise */
+        if (c != 18) {
+            search_buf_is_cached = 0;
+            search_pos = -1;
+        }
+
         switch(c) {
         case 13:    /* enter */
             history_len--;
@@ -879,6 +893,19 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
                 return -1;
             }
             break;
+        case 18: {   /* ctrl-r, search the history */
+            int h_pos;
+
+            if(!search_buf_is_cached)
+                linenoiseHistoryCacheSearchBuf(&search_buf, buf);
+
+            if ((h_pos = linenoiseHistorySearch(search_buf)) != -1) {
+                strcpy(buf, history[h_pos]);
+                l.len = l.pos = strlen(buf);
+                refreshLine(&l);
+            }
+            break;
+        }
         case 20:    /* ctrl-t, swaps current character with previous. */
             if (l.pos > 0 && l.pos < l.len) {
                 int aux = buf[l.pos-1];
@@ -910,6 +937,14 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
             } else if (seq[0] == 91 && seq[1] == 67) {
                 /* Right arrow */
                 linenoiseEditMoveRight(&l);
+            } else if (seq[0] == 79 && seq[1] == 72) {
+                /* Home button */
+                l.pos = 0;
+                refreshLine(&l);
+            } else if (seq[0] == 79 && seq[1] == 70) {
+                /* End button */
+                l.pos = l.len;
+                refreshLine(&l);
             } else if (seq[0] == 91 && (seq[1] == 65 || seq[1] == 66)) {
                 /* Up and Down arrows */
                 linenoiseEditHistoryNext(&l,
@@ -1034,6 +1069,8 @@ static void linenoiseAtExit(void) {
 #else
     disableRawMode(STDIN_FILENO);
 #endif
+    if(search_buf)
+        free(search_buf);
     freeHistory();
 }
 
@@ -1043,7 +1080,7 @@ int linenoiseHistoryAdd(const char *line) {
 
     if (history_max_len == 0) return 0;
     if (history == NULL) {
-        history = malloc(sizeof(char*)*history_max_len);
+        history = (char**)malloc(sizeof(char*)*history_max_len);
         if (history == NULL) return 0;
         memset(history,0,(sizeof(char*)*history_max_len));
     }
@@ -1054,6 +1091,10 @@ int linenoiseHistoryAdd(const char *line) {
         memmove(history,history+1,sizeof(char*)*(history_max_len-1));
         history_len--;
     }
+
+    //do not insert duplicate lines into history
+    if (history_len > 0 && !strcmp(line, history[history_len - 1]))
+        return 0;
     history[history_len] = linecopy;
     history_len++;
     return 1;
@@ -1064,14 +1105,14 @@ int linenoiseHistoryAdd(const char *line) {
  * just the latest 'len' elements if the new history length value is smaller
  * than the amount of items already inside the history. */
 int linenoiseHistorySetMaxLen(int len) {
-    char **new;
+    char **new_history;
 
     if (len < 1) return 0;
     if (history) {
         int tocopy = history_len;
 
-        new = malloc(sizeof(char*)*len);
-        if (new == NULL) return 0;
+        new_history = (char**)malloc(sizeof(char*)*len);
+        if (new_history == NULL) return 0;
 
         /* If we can't copy everything, free the elements we'll not use. */
         if (len < tocopy) {
@@ -1080,10 +1121,10 @@ int linenoiseHistorySetMaxLen(int len) {
             for (j = 0; j < tocopy-len; j++) free(history[j]);
             tocopy = len;
         }
-        memset(new,0,sizeof(char*)*len);
-        memcpy(new,history+(history_len-tocopy), sizeof(char*)*tocopy);
+        memset(new_history,0,sizeof(char*)*len);
+        memcpy(new_history,history+(history_len-tocopy), sizeof(char*)*tocopy);
         free(history);
-        history = new;
+        history = new_history;
     }
     history_max_len = len;
     if (history_len > history_max_len)
@@ -1129,4 +1170,32 @@ int linenoiseHistoryLoad(char *filename) {
     }
     fclose(fp);
     return 0;
+}
+
+void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data) {
+    if (*cache)
+        free(*cache);
+
+    *cache = strdup(buf_data);
+
+    search_buf_is_cached = 1;
+}
+
+int linenoiseHistorySearch(char *str) {
+    int i;
+
+    if (str == NULL)
+        return -1;
+
+    for (i = (search_pos == -1 ? history_len - 1 : search_pos); i >= 0; i--) {
+        if (strstr(history[i], str) != NULL) {
+            search_pos = i - 1;
+            return i;
+        }
+    }
+
+    /* if it's end, search from start again */
+    search_pos = -1 ;
+
+    return -1;
 }
