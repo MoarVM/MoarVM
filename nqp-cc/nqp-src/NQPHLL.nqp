@@ -1002,40 +1002,40 @@ class HLL::Compiler does HLL::Backend::Default {
             last if nqp::eoffh($stdin);
 
             my $prompt := self.interactive_prompt // '> ';
-#            my $code := nqp::readlineintfh($stdin, ~$prompt);
-#            if nqp::isnull($code) || !nqp::defined($code) {
-#                nqp::print("\n");
-#                last;
-#            }
+            my $code := nqp::readlineintfh($stdin, ~$prompt);
+            if nqp::isnull($code) || !nqp::defined($code) {
+                nqp::print("\n");
+                last;
+            }
 
             # Set the current position of stdout for autoprinting control
             my $*AUTOPRINTPOS := nqp::tellfh(nqp::getstdout());
             my $*CTXSAVE := self;
             my $*MAIN_CTX;
 
-#            if $code {
-#                $code := $code ~ "\n";
-#                my $output;
-#                {
-#                    $output := self.eval($code, :outer_ctx($save_ctx), |%adverbs);
-#                    CATCH {
-#                        self.interactive_exception($!);
-#                        next;
-#                    }
-#                };
-#                if nqp::defined($*MAIN_CTX) {
-#                    $save_ctx := $*MAIN_CTX;
-#                }
-#                next if nqp::isnull($output);
-#
-#                if !$target {
-#                    self.autoprint($output);
-#                } elsif $!backend.is_textual_stage($target) {
-#                   nqp::say($output);
-#                } else {
-#                   self.dumper($output, $target, |%adverbs);
-#                }
-#            }
+            if $code {
+                $code := $code ~ "\n";
+                my $output;
+                {
+                    $output := self.eval($code, :outer_ctx($save_ctx), |%adverbs);
+                    CATCH {
+                        self.interactive_exception($!);
+                        next;
+                    }
+                };
+                if nqp::defined($*MAIN_CTX) {
+                    $save_ctx := $*MAIN_CTX;
+                }
+                next if nqp::isnull($output);
+
+                if !$target {
+                    self.autoprint($output);
+                } elsif $!backend.is_textual_stage($target) {
+                   nqp::say($output);
+                } else {
+                   self.dumper($output, $target, |%adverbs);
+                }
+            }
         }
     }
 
