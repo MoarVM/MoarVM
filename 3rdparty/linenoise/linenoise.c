@@ -150,8 +150,8 @@ struct linenoiseState {
 
 static void linenoiseAtExit(void);
 int linenoiseHistoryAdd(const char *line);
-void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data);
-int linenoiseHistorySearch(char *str);
+static void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data);
+static int linenoiseHistorySearch(char *str);
 
 static void refreshLine(struct linenoiseState *l);
 
@@ -1172,7 +1172,7 @@ int linenoiseHistoryLoad(char *filename) {
     return 0;
 }
 
-void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data) {
+static void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data) {
     if (*cache)
         free(*cache);
 
@@ -1181,7 +1181,7 @@ void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data) {
     search_buf_is_cached = 1;
 }
 
-int linenoiseHistorySearch(char *str) {
+static int linenoiseHistorySearch(char *str) {
     int i;
 
     if (str == NULL)
