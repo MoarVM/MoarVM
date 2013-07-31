@@ -1,7 +1,7 @@
 # Compiler configuration
 CC       = @cc@
 CFLAGS   = @cflags@
-CINCLUDE = -I3rdparty/apr/include -I3rdparty/libatomic_ops/src -I3rdparty/libtommath/ -I3rdparty/sha1/ -Isrc -I3rdparty
+CINCLUDE = -I3rdparty/apr/include -I3rdparty/libatomic_ops/src -I3rdparty/libtommath -I3rdparty/sha1 -Isrc -I3rdparty -I3rdparty/linenoise
 LD       = @link@
 LDFLAGS  = @ldflags@
 LLIBS    = @llibs@
@@ -29,6 +29,9 @@ BUILD_LAO_LIB = @lao_whether_build@
 
 # sha1 related
 SHA1_LIB = 3rdparty/sha1/sha1$(O)
+
+# linenoise related
+LINENOISE_LIB = 3rdparty/linenoise/linenoise$(O)
 
 # libtommath related
 TOM = 3rdparty/libtommath/bn
@@ -283,7 +286,7 @@ LIBTOMMATH_SOURCE = $(TOM)core.c \
         $(TOM)_s_mp_sub.c \
 
 # Various collections of libraries, objects and sources.
-THIRDPARTY_LIBS = $(APR_LIB) $(BUILD_LAO_LIB) $(SHA1_LIB)
+THIRDPARTY_LIBS = $(APR_LIB) $(BUILD_LAO_LIB) $(SHA1_LIB) $(LINENOISE_LIB)
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
             src/core/bytecodedump$(O) src/core/threads$(O) src/core/ops$(O) src/core/hll$(O) \
@@ -346,6 +349,10 @@ $(LAO_LIB):
 # sha1
 $(SHA1_LIB): 3rdparty/sha1/sha1.h
 	cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) -I. $(CFLAGS) sha1.c
+
+# linenoise
+$(LINENOISE_LIB): 3rdparty/linenoise/linenoise.h
+	cd 3rdparty/linenoise && $(CC) -c $(COUTO)linenoise$(O) -I. $(CFLAGS) linenoise.c
 
 test:
 	@echo "Please build nqp-cc and run the tests in there"

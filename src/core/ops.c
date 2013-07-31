@@ -2874,8 +2874,8 @@ static MVMOpInfo MVM_op_info_io[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_readlineintfh,
-        "readlineintfh",
+        MVM_OP_readlineint_fh,
+        "readlineint_fh",
         3,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },

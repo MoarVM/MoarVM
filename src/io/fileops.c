@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include "linenoise.h"
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
@@ -364,17 +365,10 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     }
 
 #else /* !MVM_HAS_READLINE */
-#  ifdef WIN32
-    /* XXX: really should use MVM_string_printfh once it's there. */
-    MVM_string_print(tc, prompt);
-
-    return_str = MVM_file_readline_fh(tc, oshandle);
-
-#  else   /* !WIN32 */
     {
         char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
 
-        linenoiseHistoryLoad("~/.bash_history");
+        linenoiseHistoryLoad("history.txt");
 
         line = linenoise(prompt_str);
 
@@ -383,7 +377,7 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
         if (line) {
             if (*line) {
                 linenoiseHistoryAdd(line);
-                linenoiseHistorySave("~/.bash_history");
+                linenoiseHistorySave("history.txt");
             }
 
             return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
@@ -391,7 +385,6 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
             free(line);
         }
     }
-#  endif  /* WIN32 */
 #endif /* MVM_HAS_READLINE */
 
     return return_str;

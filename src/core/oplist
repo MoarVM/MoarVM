@@ -486,7 +486,7 @@ BANK 5 io
 0x30    tell_fh             w(int64) r(obj)
 0x31    stat                w(int64) r(str) r(int64)
 0x32    readline_fh         w(str) r(obj)
-0x33    readlineintfh       w(str) r(obj) r(str)
+0x33    readlineint_fh       w(str) r(obj) r(str)
 
 BANK 6 processthread
 0x00    getenv              w(str) r(str)
