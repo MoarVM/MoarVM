@@ -355,7 +355,7 @@ static int enableRawMode(int fd) {
         }
 
         GetConsoleMode(hIn, &consolemode);
-        SetConsoleMode(hIn, ENABLE_PROCESSED_INPUT);
+        SetConsoleMode(hIn, ENABLE_LINE_INPUT);
 
         /* Cleanup them at exit */
         atexit(linenoiseAtExit);
@@ -867,6 +867,7 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
             return (int)l.len;
         case 3:     /* ctrl-c */
             errno = EAGAIN;
+            exit(0);
             return -1;
         case 127:   /* backspace */
 #ifdef WIN32
