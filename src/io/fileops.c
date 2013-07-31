@@ -342,48 +342,37 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     MVMString *return_str = NULL;
     MVMOSHandle *handle;
     char *line;
-
+    char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
 
     verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
 
 #ifdef MVM_HAS_READLINE
-    {
-        char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
+    line = readline(prompt_str);
 
-        line = readline(prompt_str);
+    free(prompt_str);
 
-        free(prompt_str);
+    if (line) {
+        if (*line)
+            add_history(line);
 
-        if (line) {
-            if (*line)
-                add_history(line);
+        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
 
-            return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
-
-            free(line);
-        }
+        free(line);
     }
 
 #else /* !MVM_HAS_READLINE */
-    {
-        char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
+    line = linenoise(prompt_str);
 
-        linenoiseHistoryLoad("history.txt");
+    free(prompt_str);
 
-        line = linenoise(prompt_str);
-
-        free(prompt_str);
-
-        if (line) {
-            if (*line) {
-                linenoiseHistoryAdd(line);
-                linenoiseHistorySave("history.txt");
-            }
-
-            return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
-
-            free(line);
+    if (line) {
+        if (*line) {
+            linenoiseHistoryAdd(line);
         }
+
+        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+
+        free(line);
     }
 #endif /* MVM_HAS_READLINE */
 

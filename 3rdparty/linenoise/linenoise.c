@@ -155,9 +155,9 @@ static void refreshLine(struct linenoiseState *l);
   #define STDIN_FILENO (_fileno(stdin))
 #endif
 
-HANDLE hOut;
-HANDLE hIn;
-DWORD consolemode;
+static HANDLE hOut;
+static HANDLE hIn;
+static DWORD consolemode;
 
 static int win32read(char *c) {
 
@@ -172,13 +172,12 @@ static int win32read(char *c) {
         if (b.EventType == KEY_EVENT && b.Event.KeyEvent.bKeyDown) {
 
             e = b.Event.KeyEvent;
-            *c = b.Event.KeyEvent.uChar.AsciiChar;
+            *c = e.wVirtualKeyCode;
 
             //if (e.dwControlKeyState & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) {
                 /* Alt+key ignored */
             //} else
             if (e.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) {
-
                 /* Ctrl+Key */
                 switch (*c) {
                     case 'D':
@@ -221,8 +220,7 @@ static int win32read(char *c) {
 
                 /* Other Ctrl+KEYs ignored */
             } else {
-
-                switch (e.wVirtualKeyCode) {
+                switch (*c) {
 
                     case VK_ESCAPE: /* ignore - send ctrl-c, will return -1 */
                         *c = 3;
@@ -255,7 +253,7 @@ static int win32read(char *c) {
                         *c = 127;
                         return 1;
                     default:
-                        if (*c) return 1;
+                        if (*c = e.uChar.AsciiChar) return 1;
                 }
             }
         }
@@ -687,7 +685,7 @@ int linenoiseEditInsert(struct linenoiseState *l, int c) {
 #ifdef WIN32
                 if (!WriteConsole(hOut, &c, 1, &foo, NULL)) return -1;
 #else
-                if (write(fd,&c,1) == -1) return -1;
+                if (write(l->fd,&c,1) == -1) return -1;
 #endif
             } else {
                 refreshLine(l);
