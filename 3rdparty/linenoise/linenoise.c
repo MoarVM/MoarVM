@@ -127,7 +127,6 @@ char **history = NULL;
 
 /* for ctrl-r */
 static char        *search_buf = NULL;
-static unsigned int search_buf_is_cached = 0;
 static unsigned int search_pos = -1;
 
 
@@ -455,7 +454,11 @@ static int completeLine(struct linenoiseState *ls) {
                 refreshLine(ls);
             }
 
+#ifdef WIN32
+            nread = win32read(&c);
+#else
             nread = read(ls->fd,&c,1);
+#endif
             if (nread <= 0) {
                 freeCompletions(&lc);
                 return -1;
@@ -854,10 +857,17 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
             if (c == 0) continue;
         }
 
-        /* Only keep searching buf if it's ctrl-r, destroy otherwise */
-        if (c != 18) {
-            search_buf_is_cached = 0;
-            search_pos = -1;
+        /* Only keep searching buf if it's ctrl-r, or ctrl-r and then press tab, destroy otherwise */
+        if (search_buf) {
+            if (c == 9) {
+                /* do nothing, continue */
+
+                /* printf("catched tab\n"); */
+            } else if (c != 18) {
+                free(search_buf);
+                search_buf = NULL;
+                search_pos = -1;
+            }
         }
 
         switch(c) {
@@ -897,10 +907,20 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
         case 18: {   /* ctrl-r, search the history */
             int h_pos;
 
-            if(!search_buf_is_cached)
+            if(!search_buf)
                 linenoiseHistoryCacheSearchBuf(&search_buf, buf);
 
             if ((h_pos = linenoiseHistorySearch(search_buf)) != -1) {
+                strcpy(buf, history[h_pos]);
+                l.len = l.pos = strlen(buf);
+                refreshLine(&l);
+            }
+            break;
+        }
+        case 9: {
+            int h_pos;
+
+            if (search_buf && (h_pos = linenoiseHistorySearch(search_buf)) != -1) {
                 strcpy(buf, history[h_pos]);
                 l.len = l.pos = strlen(buf);
                 refreshLine(&l);
@@ -1178,8 +1198,6 @@ static void linenoiseHistoryCacheSearchBuf(char **cache, char *buf_data) {
         free(*cache);
 
     *cache = strdup(buf_data);
-
-    search_buf_is_cached = 1;
 }
 
 static int linenoiseHistorySearch(char *str) {
