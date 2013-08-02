@@ -223,6 +223,9 @@ static int win32read(char *c) {
                     case 'E': /* ctrl+e, go to the end of the line */
                         *c = 5;
                         return 1;
+                    case 'L': /* ctrl+l, clear screen */
+                        *c = 12;
+                        return 1;
                 }
 
                 /* Other Ctrl+KEYs ignored */
@@ -278,6 +281,50 @@ char *strdup(const char *s) {
     return p;
 }
 #endif /*   __STRICT_ANSI__   */
+
+
+/* ======================= Clear Screen API for Windows ====================== */
+
+/* see http://support.microsoft.com/kb/99261 */
+
+/* Standard error macro for reporting API errors */
+ #define PERR(bSuccess, api) if(!(bSuccess)) \
+    printf("%s:Error %d from %s on line %d\n", __FILE__, GetLastError(), api, __LINE__);
+
+ void cls( HANDLE hConsole )
+ {
+    COORD coordScreen = { 0, 0 };    /* here's where we'll home the
+                                        cursor */
+    BOOL bSuccess;
+    DWORD cCharsWritten;
+    CONSOLE_SCREEN_BUFFER_INFO csbi; /* to get buffer info */
+    DWORD dwConSize;                 /* number of character cells in
+                                        the current buffer */
+
+    /* get the number of character cells in the current buffer */
+    bSuccess = GetConsoleScreenBufferInfo( hConsole, &csbi );
+    PERR( bSuccess, "GetConsoleScreenBufferInfo" );
+    dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
+
+    /* fill the entire screen with blanks */
+    bSuccess = FillConsoleOutputCharacter( hConsole, (TCHAR) ' ',
+       dwConSize, coordScreen, &cCharsWritten );
+    PERR( bSuccess, "FillConsoleOutputCharacter" );
+
+    /* get the current text attribute */
+    bSuccess = GetConsoleScreenBufferInfo( hConsole, &csbi );
+    PERR( bSuccess, "ConsoleScreenBufferInfo" );
+
+    /* now set the buffer's attributes accordingly */
+    bSuccess = FillConsoleOutputAttribute( hConsole, csbi.wAttributes,
+       dwConSize, coordScreen, &cCharsWritten );
+    PERR( bSuccess, "FillConsoleOutputAttribute" );
+
+    /* put the cursor at (0, 0) */
+    bSuccess = SetConsoleCursorPosition( hConsole, coordScreen );
+    PERR( bSuccess, "SetConsoleCursorPosition" );
+    return;
+}
 
 #endif /*   WIN32    */
 
@@ -399,9 +446,13 @@ static int getColumns(void) {
 
 /* Clear the screen. Used to handle ctrl+l */
 void linenoiseClearScreen(void) {
+#ifdef WIN32
+    cls(hOut);
+#else
     if (write(STDIN_FILENO,"\x1b[H\x1b[2J",7) <= 0) {
         /* nothing to do, just to avoid warning. */
     }
+#endif
 }
 
 /* Beep, used for completion when there is nothing to complete or when all
