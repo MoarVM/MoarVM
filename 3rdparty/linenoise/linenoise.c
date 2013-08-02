@@ -226,6 +226,9 @@ static int win32read(char *c) {
                     case 'L': /* ctrl+l, clear screen */
                         *c = 12;
                         return 1;
+                    case 'W': /* ctrl+w, delete previous word */
+                        *c = 23;
+                        return 1;
                 }
 
                 /* Other Ctrl+KEYs ignored */
