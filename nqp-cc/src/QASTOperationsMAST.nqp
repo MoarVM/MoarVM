@@ -87,12 +87,8 @@ class QAST::MASTOperations {
     # Compiles an operation to MAST.
     method compile_op($qastcomp, $hll, $op) {
         my $name := $op.op;
-        if $hll {
-            if %hll_ops{$hll} && %hll_ops{$hll}{$name} -> $mapper {
-                return $mapper($qastcomp, $op);
-            }
-        }
-        if %core_ops{$name} -> $mapper {
+        if ($hll && %hll_ops{$hll} && %hll_ops{$hll}{$name})
+                || %core_ops{$name} -> $mapper {
             return $mapper($qastcomp, $op);
         }
         nqp::die("No registered operation handler for '$name'");
@@ -325,7 +321,7 @@ class QAST::MASTOperations {
     # Generates instructions to box the result in reg.
     method box($qastcomp, $hll, $type, $reg) {
         if $type == $MVM_reg_void {
-            nqp::die("cannot box a void register");
+            return $qastcomp.as_mast(QAST::IVal.new( :value(1) ));
         }
         (%hll_box{$hll}{$type} // %hll_box{''}{$type})($qastcomp, $reg)
     }
