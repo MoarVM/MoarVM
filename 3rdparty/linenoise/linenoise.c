@@ -96,6 +96,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -103,10 +104,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include "linenoise.h"
+
 #ifdef WIN32
-  #include <windows.h>
-  #define snprintf _snprintf
-  #define __NOTUSED(V) ((void) V)
+#include <windows.h>
+#define snprintf _snprintf
+#define __NOTUSED(V) ((void) V)
 #endif
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -275,23 +277,12 @@ static int win32read(char *c) {
     return -1; /* Makes compiler happy */
 }
 
-#ifdef __STRICT_ANSI__
-char *strdup(const char *s) {
-    size_t l = strlen(s)+1;
-    char *p = malloc(l);
-
-    memcpy(p,s,l);
-    return p;
-}
-#endif /*   __STRICT_ANSI__   */
-
-
 /* ======================= Clear Screen API for Windows ====================== */
 
 /* see http://support.microsoft.com/kb/99261 */
 
 /* Standard error macro for reporting API errors */
- #define PERR(bSuccess, api) if(!(bSuccess)) \
+#define PERR(bSuccess, api) if(!(bSuccess)) \
     printf("%s:Error %d from %s on line %d\n", __FILE__, GetLastError(), api, __LINE__);
 
  void cls( HANDLE hConsole )
@@ -306,28 +297,48 @@ char *strdup(const char *s) {
 
     /* get the number of character cells in the current buffer */
     bSuccess = GetConsoleScreenBufferInfo( hConsole, &csbi );
+#ifdef LN_DEBUG
     PERR( bSuccess, "GetConsoleScreenBufferInfo" );
+#endif
     dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
 
     /* fill the entire screen with blanks */
     bSuccess = FillConsoleOutputCharacter( hConsole, (TCHAR) ' ',
        dwConSize, coordScreen, &cCharsWritten );
+#ifdef LN_DEBUG
     PERR( bSuccess, "FillConsoleOutputCharacter" );
+#endif
 
     /* get the current text attribute */
     bSuccess = GetConsoleScreenBufferInfo( hConsole, &csbi );
+#ifdef LN_DEBUG
     PERR( bSuccess, "ConsoleScreenBufferInfo" );
+#endif
 
     /* now set the buffer's attributes accordingly */
     bSuccess = FillConsoleOutputAttribute( hConsole, csbi.wAttributes,
        dwConSize, coordScreen, &cCharsWritten );
+#ifdef LN_DEBUG
     PERR( bSuccess, "FillConsoleOutputAttribute" );
+#endif
 
     /* put the cursor at (0, 0) */
     bSuccess = SetConsoleCursorPosition( hConsole, coordScreen );
+#ifdef LN_DEBUG
     PERR( bSuccess, "SetConsoleCursorPosition" );
+#endif
     return;
 }
+
+#ifdef __STRICT_ANSI__
+char *strdup(const char *s) {
+    size_t l = strlen(s)+1;
+    char *p = malloc(l);
+
+    memcpy(p,s,l);
+    return p;
+}
+#endif /*   __STRICT_ANSI__   */
 
 #endif /*   WIN32    */
 
