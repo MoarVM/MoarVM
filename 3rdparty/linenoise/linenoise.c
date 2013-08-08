@@ -158,7 +158,7 @@ static void refreshLine(struct linenoiseState *l);
 
 #ifdef WIN32
 #ifndef STDIN_FILENO
-  #define STDIN_FILENO (_fileno(stdin))
+#define STDIN_FILENO (_fileno(stdin))
 #endif
 
 static HANDLE hOut;
@@ -265,7 +265,7 @@ static int win32read(char *c) {
                         *c = 8;
                         return 1;
                     case VK_DELETE:
-                        *c = 127;
+                        *c = 4;
                         return 1;
                     default:
                         if (*c = e.uChar.AsciiChar) return 1;
@@ -923,16 +923,10 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
         }
 
         /* Only keep searching buf if it's ctrl-r, or ctrl-r and then press tab, destroy otherwise */
-        if (search_buf) {
-            if (c == 9) {
-                /* do nothing, continue */
-
-                /* printf("catched tab\n"); */
-            } else if (c != 18) {
-                free(search_buf);
-                search_buf = NULL;
-                search_pos = -1;
-            }
+        if (search_buf && c != 9 && c != 18) {
+            free(search_buf);
+            search_buf = NULL;
+            search_pos = -1;
         }
 
         switch(c) {
@@ -945,21 +939,10 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
             exit(0);
             return -1;
         case 127:   /* backspace */
-#ifdef WIN32
-            /* delete in WIN32*/
-            /* win32read() will send 127 for DEL and 8 for BS and Ctrl-H */
-            if (l.pos < l.len && l.len > 0) {
-                memmove(buf+l.pos,buf+l.pos+1,l.len-l.pos);
-                l.len--;
-                buf[l.len] = '\0';
-                refreshLine(&l);
-            }
-            break;
-#endif
         case 8:     /* ctrl-h */
             linenoiseEditBackspace(&l);
             break;
-        case 4:     /* ctrl-d, remove char at right of cursor, or of the
+        case 4:     /* delete, ctrl-d, remove char at right of cursor, or of the
                        line is empty, act as end-of-file. */
             if (l.len > 0) {
                 linenoiseEditDelete(&l);
@@ -982,7 +965,7 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
             }
             break;
         }
-        case 9: {
+        case 9: {   /* tab */
             int h_pos;
 
             if (search_buf && (h_pos = linenoiseHistorySearch(search_buf)) != -1) {
