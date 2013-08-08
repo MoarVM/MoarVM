@@ -107,6 +107,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <io.h>
+#define isatty _isatty
 #define snprintf _snprintf
 #define __NOTUSED(V) ((void) V)
 #endif
