@@ -187,49 +187,21 @@ static int win32read(char *c) {
                 /* Ctrl+Key */
                 switch (*c) {
                     case 'D':
-                        *c = 4;
-                        return 1;
                     case 'C':
-                        *c = 3;
-                        return 1;
                     case 'H':
-                        *c = 8;
-                        return 1;
                     case 'R': /* ctrl-r, history search */
-                        *c = 18;
-                        return 1;
                     case 'T':
-                        *c = 20;
-                        return 1;
                     case 'B': /* ctrl-b, left_arrow */
-                        *c = 2;
-                        return 1;
                     case 'F': /* ctrl-f right_arrow*/
-                        *c = 6;
-                        return 1;
                     case 'P': /* ctrl-p up_arrow*/
-                        *c = 16;
-                        return 1;
                     case 'N': /* ctrl-n down_arrow*/
-                        *c = 14;
-                        return 1;
                     case 'U': /* Ctrl+u, delete the whole line. */
-                        *c = 21;
-                        return 1;
                     case 'K': /* Ctrl+k, delete from current to end of line. */
-                        *c = 11;
-                        return 1;
                     case 'A': /* Ctrl+a, go to the start of the line */
-                        *c = 1;
-                        return 1;
                     case 'E': /* ctrl+e, go to the end of the line */
-                        *c = 5;
-                        return 1;
                     case 'L': /* ctrl+l, clear screen */
-                        *c = 12;
-                        return 1;
                     case 'W': /* ctrl+w, delete previous word */
-                        *c = 23;
+                        *c = *c - 'A' + 1;
                         return 1;
                 }
 
