@@ -91,7 +91,7 @@
  *
  */
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -105,7 +105,7 @@
 #include <sys/types.h>
 #include "linenoise.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #define snprintf _snprintf
 #define __NOTUSED(V) ((void) V)
@@ -116,7 +116,7 @@
 static const char *unsupported_term[] = {"dumb","cons25",NULL};
 static linenoiseCompletionCallback *completionCallback = NULL;
 
-#ifndef WIN32
+#ifndef _WIN32
 static struct termios orig_termios; /* In order to restore at exit.*/
 #endif
 
@@ -156,7 +156,7 @@ static int linenoiseHistorySearch(char *str);
 
 static void refreshLine(struct linenoiseState *l);
 
-#ifdef WIN32
+#ifdef _WIN32
 #ifndef STDIN_FILENO
 #define STDIN_FILENO (_fileno(stdin))
 #endif
@@ -312,7 +312,7 @@ static char *strdup(const char *s) {
 }
 #endif /*   __STRICT_ANSI__   */
 
-#endif /*   WIN32    */
+#endif /*   _WIN32    */
 
 /* ======================= Low level terminal handling ====================== */
 
@@ -324,7 +324,7 @@ void linenoiseSetMultiLine(int ml) {
 /* Return true if the terminal name is in the list of terminals we know are
  * not able to understand basic escape sequences. */
 static int isUnsupportedTerm(void) {
-#ifndef WIN32
+#ifndef _WIN32
     char *term = getenv("TERM");
     int j;
 
@@ -337,7 +337,7 @@ static int isUnsupportedTerm(void) {
 
 /* Raw mode: 1960 magic shit. */
 static int enableRawMode(int fd) {
-#ifndef WIN32
+#ifndef _WIN32
     struct termios raw;
 
     if (!isatty(STDIN_FILENO)) goto fatal;
@@ -404,7 +404,7 @@ fatal:
 }
 
 static void disableRawMode(int fd) {
-#ifdef WIN32
+#ifdef _WIN32
     __NOTUSED(fd);
     rawmode = 0;
 #else
@@ -417,7 +417,7 @@ static void disableRawMode(int fd) {
 /* Try to get the number of columns in the current terminal, or assume 80
  * if it fails. */
 static int getColumns(void) {
-#ifdef WIN32
+#ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO b;
 
     if (!GetConsoleScreenBufferInfo(hOut, &b)) return 80;
@@ -432,7 +432,7 @@ static int getColumns(void) {
 
 /* Clear the screen. Used to handle ctrl+l */
 void linenoiseClearScreen(void) {
-#ifdef WIN32
+#ifdef _WIN32
     cls(hOut);
 #else
     if (write(STDIN_FILENO,"\x1b[H\x1b[2J",7) <= 0) {
@@ -491,7 +491,7 @@ static int completeLine(struct linenoiseState *ls) {
                 refreshLine(ls);
             }
 
-#ifdef WIN32
+#ifdef _WIN32
             nread = win32read(&c);
 #else
             nread = read(ls->fd,&c,1);
@@ -552,7 +552,7 @@ void linenoiseAddCompletion(linenoiseCompletions *lc, char *str) {
  * cursor position, and number of columns of the terminal. */
 static void refreshSingleLine(struct linenoiseState *l) {
     char seq[64];
-#ifdef WIN32
+#ifdef _WIN32
     DWORD pl, bl, w;
     CONSOLE_SCREEN_BUFFER_INFO b;
     COORD coord;
@@ -572,7 +572,7 @@ static void refreshSingleLine(struct linenoiseState *l) {
         len--;
     }
 
-#ifdef WIN32
+#ifdef _WIN32
     __NOTUSED(seq);
     __NOTUSED(fd);
 
@@ -718,7 +718,7 @@ static void refreshLine(struct linenoiseState *l) {
  *
  * On error writing to the terminal -1 is returned, otherwise 0. */
 static int linenoiseEditInsert(struct linenoiseState *l, int c) {
-#ifdef WIN32
+#ifdef _WIN32
     DWORD foo;
 #endif
     if (l->len < l->buflen) {
@@ -730,7 +730,7 @@ static int linenoiseEditInsert(struct linenoiseState *l, int c) {
             if ((!mlmode && l->plen+l->len < l->cols) /* || mlmode */) {
                 /* Avoid a full update of the line in the
                  * trivial case. */
-#ifdef WIN32
+#ifdef _WIN32
                 if (!WriteConsole(hOut, &c, 1, &foo, NULL)) return -1;
 #else
                 if (write(l->fd,&c,1) == -1) return -1;
@@ -841,7 +841,7 @@ static void linenoiseEditDeletePrevWord(struct linenoiseState *l) {
 static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
 {
     struct linenoiseState l;
-#ifdef WIN32
+#ifdef _WIN32
     DWORD foo;
 #endif
 
@@ -866,7 +866,7 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
      * initially is just an empty string. */
     linenoiseHistoryAdd("");
 
-#ifdef WIN32
+#ifdef _WIN32
     if (!WriteConsole(hOut, prompt, (DWORD)l.plen, &foo, NULL)) return -1;
 #else
     if (write(fd,prompt,l.plen) == -1) return -1;
@@ -876,7 +876,7 @@ static int linenoiseEdit(int fd, char *buf, size_t buflen, const char *prompt)
         int nread;
         char seq[2], seq2[2];
 
-#ifdef WIN32
+#ifdef _WIN32
         nread = win32read(&c);
 #else
         nread = read(fd,&c,1);
@@ -1103,7 +1103,7 @@ static void freeHistory(void) {
 
 /* At exit we'll try to fix the terminal to the initial conditions. */
 static void linenoiseAtExit(void) {
-#ifdef WIN32
+#ifdef _WIN32
     SetConsoleMode(hIn, consolemode);
     CloseHandle(hOut);
     CloseHandle(hIn);
@@ -1176,7 +1176,7 @@ int linenoiseHistorySetMaxLen(int len) {
 /* Save the history in the specified file. On success 0 is returned
  * otherwise -1 is returned. */
 int linenoiseHistorySave(char *filename) {
-#ifdef WIN32
+#ifdef _WIN32
     FILE *fp = fopen(filename,"wb");
 #else
     FILE *fp = fopen(filename,"w");
