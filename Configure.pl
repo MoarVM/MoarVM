@@ -11,11 +11,13 @@ my %SHELLS = (
     posix => {
         cat => 'cat',
         rm  => 'rm -f',
+        cp  => 'cp',
     },
 
     win32 => {
         cat => 'type',
         rm  => 'del',
+        cp  => 'copy',
     },
 );
 
@@ -114,21 +116,19 @@ my %COMPILERS = (
 
 my %SYSTEMS = (
     generic => [ qw( posix gnu gcc ), {} ],
-
     linux   => [ qw( posix gnu gcc ), {} ],
-
     darwin  => [ qw( posix gnu clang ), {} ],
-
     freebsd => [ qw( posix gnu clang ), {} ],
 
     cygwin  => [ qw( posix gnu gcc ), {
         exe => '.exe',
     } ],
 
-    win32   => [ qw( win32 msvc cl ), {
+    win32 => [ qw( win32 msvc cl ), {
         exe  => '.exe',
         defs => [ 'WIN32' ],
         libs => [ qw( ws2_32 mswsock rpcrt4 ) ],
+        thirdparty => [ '3rdparty/apr/apr-1' ],
     } ],
 
     mingw32 => [ qw( win32 gnu gcc ), {
@@ -193,6 +193,7 @@ sub cross_setup {
     $defaults{cc}        = $cc;
     $defaults{exe}       = $host->[3]->{exe};
     $defaults{defs}      = $host->[3]->{defs};
+    $defaults{libs}      = $host->[3]->{libs};
     $defaults{crossconf} = $crossconf;
 }
 
@@ -326,6 +327,15 @@ $config{defs}      //= [];
 $config{libs}      //= [ qw( m pthread ) ];
 $config{crossconf} //= '';
 
+$config{thirdparty} //= [ qw(
+    3rdparty/libatomic_ops/src/libatomic_ops
+    3rdparty/apr/.libs/libapr-1
+) ];
+
+$config{thirdpartylibs} //= join ' ',
+    "3rdparty/sha1/sha1$config{obj}",
+    map { "$_$config{lib}" } @{$config{thirdparty}};
+
 $config{ld}           //= $config{cc};
 $config{ldout}        //= $config{ccout};
 $config{ldmiscflags}  //= $config{ccmiscflags};
@@ -355,6 +365,8 @@ print "OK\n",
     "        compile: $config{cc} $config{cflags}\n",
     "           link: $config{ld} $config{ldflags}\n",
     "           libs: $config{ldlibs}\n",
+    "       3rdparty: " . join("\n". ' ' x 17,
+        split / /, $config{thirdpartylibs}) . "\n",
     "           make: $config{make}\n";
 
 open my $listfile, '<', 'gen.list'

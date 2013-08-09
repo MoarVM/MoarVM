@@ -18,17 +18,12 @@ RM   = @rm@
 CAT  = @cat@
 
 # APR related
-APR_LIB = @apr_lib@
-APR_BUILD_LINE = @apr_build_line@
+APR_LIB = #@ aprlib@
+APR_BUILD_LINE = #@ aprbuildline@
 
 # libatomic_ops related
-LAO_LIB = @lao_lib@
-LAO_BUILD_LINE = @lao_build_line@
-# the following will be the same as LAO_LIB if it's to be built, otherwise blank
-BUILD_LAO_LIB = @lao_whether_build@
-
-# sha1 related
-SHA1_LIB = 3rdparty/sha1/sha1$(O)
+LAO_LIB = #@ laolib@
+LAO_BUILD_LINE = #@ laobuildline@
 
 # libtommath related
 TOM = 3rdparty/libtommath/bn
@@ -283,7 +278,7 @@ LIBTOMMATH_SOURCE = $(TOM)core.c \
         $(TOM)_s_mp_sub.c \
 
 # Various collections of libraries, objects and sources.
-THIRDPARTY_LIBS = $(APR_LIB) $(BUILD_LAO_LIB) $(SHA1_LIB)
+THIRDPARTY_LIBS = @thirdpartylibs@
 CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
             src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
             src/core/bytecodedump$(O) src/core/threads$(O) src/core/ops$(O) src/core/hll$(O) \
@@ -344,7 +339,7 @@ $(LAO_LIB):
 	$(LAO_BUILD_LINE)
 
 # sha1
-$(SHA1_LIB): 3rdparty/sha1/sha1.h
+3rdparty/sha1/sha1$(O): 3rdparty/sha1/sha1.h
 	cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) -I. $(CFLAGS) sha1.c
 
 test:
@@ -357,247 +352,247 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 
 # libtommath
 $(TOM)core$(O): $(TOM)core.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bncore$(O) -I. $(CFLAGS) bncore.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bncore$(O) -I. $(CFLAGS) bncore.c
 $(TOM)_error$(O): $(TOM)_error.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_error$(O) -I. $(CFLAGS) bn_error.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_error$(O) -I. $(CFLAGS) bn_error.c
 $(TOM)_fast_mp_invmod$(O): $(TOM)_fast_mp_invmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_mp_invmod$(O) -I. $(CFLAGS) bn_fast_mp_invmod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_fast_mp_invmod$(O) -I. $(CFLAGS) bn_fast_mp_invmod.c
 $(TOM)_fast_mp_montgomery_reduce$(O): $(TOM)_fast_mp_montgomery_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_mp_montgomery_reduce$(O) -I. $(CFLAGS) bn_fast_mp_montgomery_reduce.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_fast_mp_montgomery_reduce$(O) -I. $(CFLAGS) bn_fast_mp_montgomery_reduce.c
 $(TOM)_fast_s_mp_mul_digs$(O): $(TOM)_fast_s_mp_mul_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_s_mp_mul_digs$(O) -I. $(CFLAGS) bn_fast_s_mp_mul_digs.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_fast_s_mp_mul_digs$(O) -I. $(CFLAGS) bn_fast_s_mp_mul_digs.c
 $(TOM)_fast_s_mp_mul_high_digs$(O): $(TOM)_fast_s_mp_mul_high_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_s_mp_mul_high_digs$(O) -I. $(CFLAGS) bn_fast_s_mp_mul_high_digs.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_fast_s_mp_mul_high_digs$(O) -I. $(CFLAGS) bn_fast_s_mp_mul_high_digs.c
 $(TOM)_fast_s_mp_sqr$(O): $(TOM)_fast_s_mp_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_s_mp_sqr$(O) -I. $(CFLAGS) bn_fast_s_mp_sqr.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_fast_s_mp_sqr$(O) -I. $(CFLAGS) bn_fast_s_mp_sqr.c
 $(TOM)_mp_2expt$(O): $(TOM)_mp_2expt.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_2expt$(O) -I. $(CFLAGS) bn_mp_2expt.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_2expt$(O) -I. $(CFLAGS) bn_mp_2expt.c
 $(TOM)_mp_abs$(O): $(TOM)_mp_abs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_abs$(O) -I. $(CFLAGS) bn_mp_abs.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_abs$(O) -I. $(CFLAGS) bn_mp_abs.c
 $(TOM)_mp_add$(O): $(TOM)_mp_add.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_add$(O) -I. $(CFLAGS) bn_mp_add.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_add$(O) -I. $(CFLAGS) bn_mp_add.c
 $(TOM)_mp_add_d$(O): $(TOM)_mp_add_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_add_d$(O) -I. $(CFLAGS) bn_mp_add_d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_add_d$(O) -I. $(CFLAGS) bn_mp_add_d.c
 $(TOM)_mp_addmod$(O): $(TOM)_mp_addmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_addmod$(O) -I. $(CFLAGS) bn_mp_addmod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_addmod$(O) -I. $(CFLAGS) bn_mp_addmod.c
 $(TOM)_mp_and$(O): $(TOM)_mp_and.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_and$(O) -I. $(CFLAGS) bn_mp_and.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_and$(O) -I. $(CFLAGS) bn_mp_and.c
 $(TOM)_mp_clamp$(O): $(TOM)_mp_clamp.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_clamp$(O) -I. $(CFLAGS) bn_mp_clamp.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_clamp$(O) -I. $(CFLAGS) bn_mp_clamp.c
 $(TOM)_mp_clear$(O): $(TOM)_mp_clear.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_clear$(O) -I. $(CFLAGS) bn_mp_clear.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_clear$(O) -I. $(CFLAGS) bn_mp_clear.c
 $(TOM)_mp_clear_multi$(O): $(TOM)_mp_clear_multi.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_clear_multi$(O) -I. $(CFLAGS) bn_mp_clear_multi.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_clear_multi$(O) -I. $(CFLAGS) bn_mp_clear_multi.c
 $(TOM)_mp_cmp$(O): $(TOM)_mp_cmp.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cmp$(O) -I. $(CFLAGS) bn_mp_cmp.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_cmp$(O) -I. $(CFLAGS) bn_mp_cmp.c
 $(TOM)_mp_cmp_d$(O): $(TOM)_mp_cmp_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cmp_d$(O) -I. $(CFLAGS) bn_mp_cmp_d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_cmp_d$(O) -I. $(CFLAGS) bn_mp_cmp_d.c
 $(TOM)_mp_cmp_mag$(O): $(TOM)_mp_cmp_mag.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cmp_mag$(O) -I. $(CFLAGS) bn_mp_cmp_mag.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_cmp_mag$(O) -I. $(CFLAGS) bn_mp_cmp_mag.c
 $(TOM)_mp_cnt_lsb$(O): $(TOM)_mp_cnt_lsb.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cnt_lsb$(O) -I. $(CFLAGS) bn_mp_cnt_lsb.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_cnt_lsb$(O) -I. $(CFLAGS) bn_mp_cnt_lsb.c
 $(TOM)_mp_copy$(O): $(TOM)_mp_copy.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_copy$(O) -I. $(CFLAGS) bn_mp_copy.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_copy$(O) -I. $(CFLAGS) bn_mp_copy.c
 $(TOM)_mp_count_bits$(O): $(TOM)_mp_count_bits.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_count_bits$(O) -I. $(CFLAGS) bn_mp_count_bits.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_count_bits$(O) -I. $(CFLAGS) bn_mp_count_bits.c
 $(TOM)_mp_div_2$(O): $(TOM)_mp_div_2.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_2$(O) -I. $(CFLAGS) bn_mp_div_2.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_div_2$(O) -I. $(CFLAGS) bn_mp_div_2.c
 $(TOM)_mp_div_2d$(O): $(TOM)_mp_div_2d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_2d$(O) -I. $(CFLAGS) bn_mp_div_2d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_div_2d$(O) -I. $(CFLAGS) bn_mp_div_2d.c
 $(TOM)_mp_div_3$(O): $(TOM)_mp_div_3.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_3$(O) -I. $(CFLAGS) bn_mp_div_3.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_div_3$(O) -I. $(CFLAGS) bn_mp_div_3.c
 $(TOM)_mp_div$(O): $(TOM)_mp_div.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div$(O) -I. $(CFLAGS) bn_mp_div.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_div$(O) -I. $(CFLAGS) bn_mp_div.c
 $(TOM)_mp_div_d$(O): $(TOM)_mp_div_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_d$(O) -I. $(CFLAGS) bn_mp_div_d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_div_d$(O) -I. $(CFLAGS) bn_mp_div_d.c
 $(TOM)_mp_dr_is_modulus$(O): $(TOM)_mp_dr_is_modulus.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_dr_is_modulus$(O) -I. $(CFLAGS) bn_mp_dr_is_modulus.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_dr_is_modulus$(O) -I. $(CFLAGS) bn_mp_dr_is_modulus.c
 $(TOM)_mp_dr_reduce$(O): $(TOM)_mp_dr_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_dr_reduce$(O) -I. $(CFLAGS) bn_mp_dr_reduce.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_dr_reduce$(O) -I. $(CFLAGS) bn_mp_dr_reduce.c
 $(TOM)_mp_dr_setup$(O): $(TOM)_mp_dr_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_dr_setup$(O) -I. $(CFLAGS) bn_mp_dr_setup.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_dr_setup$(O) -I. $(CFLAGS) bn_mp_dr_setup.c
 $(TOM)_mp_exch$(O): $(TOM)_mp_exch.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exch$(O) -I. $(CFLAGS) bn_mp_exch.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_exch$(O) -I. $(CFLAGS) bn_mp_exch.c
 $(TOM)_mp_expt_d$(O): $(TOM)_mp_expt_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_expt_d$(O) -I. $(CFLAGS) bn_mp_expt_d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_expt_d$(O) -I. $(CFLAGS) bn_mp_expt_d.c
 $(TOM)_mp_exptmod$(O): $(TOM)_mp_exptmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exptmod$(O) -I. $(CFLAGS) bn_mp_exptmod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_exptmod$(O) -I. $(CFLAGS) bn_mp_exptmod.c
 $(TOM)_mp_exptmod_fast$(O): $(TOM)_mp_exptmod_fast.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exptmod_fast$(O) -I. $(CFLAGS) bn_mp_exptmod_fast.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_exptmod_fast$(O) -I. $(CFLAGS) bn_mp_exptmod_fast.c
 $(TOM)_mp_exteuclid$(O): $(TOM)_mp_exteuclid.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exteuclid$(O) -I. $(CFLAGS) bn_mp_exteuclid.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_exteuclid$(O) -I. $(CFLAGS) bn_mp_exteuclid.c
 $(TOM)_mp_fread$(O): $(TOM)_mp_fread.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_fread$(O) -I. $(CFLAGS) bn_mp_fread.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_fread$(O) -I. $(CFLAGS) bn_mp_fread.c
 $(TOM)_mp_fwrite$(O): $(TOM)_mp_fwrite.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_fwrite$(O) -I. $(CFLAGS) bn_mp_fwrite.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_fwrite$(O) -I. $(CFLAGS) bn_mp_fwrite.c
 $(TOM)_mp_gcd$(O): $(TOM)_mp_gcd.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_gcd$(O) -I. $(CFLAGS) bn_mp_gcd.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_gcd$(O) -I. $(CFLAGS) bn_mp_gcd.c
 $(TOM)_mp_get_int$(O): $(TOM)_mp_get_int.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_get_int$(O) -I. $(CFLAGS) bn_mp_get_int.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_get_int$(O) -I. $(CFLAGS) bn_mp_get_int.c
 $(TOM)_mp_get_long$(O): $(TOM)_mp_get_long.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_get_long$(O) -I. $(CFLAGS) bn_mp_get_long.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_get_long$(O) -I. $(CFLAGS) bn_mp_get_long.c
 $(TOM)_mp_grow$(O): $(TOM)_mp_grow.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_grow$(O) -I. $(CFLAGS) bn_mp_grow.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_grow$(O) -I. $(CFLAGS) bn_mp_grow.c
 $(TOM)_mp_init$(O): $(TOM)_mp_init.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init$(O) -I. $(CFLAGS) bn_mp_init.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_init$(O) -I. $(CFLAGS) bn_mp_init.c
 $(TOM)_mp_init_copy$(O): $(TOM)_mp_init_copy.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_copy$(O) -I. $(CFLAGS) bn_mp_init_copy.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_init_copy$(O) -I. $(CFLAGS) bn_mp_init_copy.c
 $(TOM)_mp_init_multi$(O): $(TOM)_mp_init_multi.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_multi$(O) -I. $(CFLAGS) bn_mp_init_multi.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_init_multi$(O) -I. $(CFLAGS) bn_mp_init_multi.c
 $(TOM)_mp_init_set$(O): $(TOM)_mp_init_set.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_set$(O) -I. $(CFLAGS) bn_mp_init_set.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_init_set$(O) -I. $(CFLAGS) bn_mp_init_set.c
 $(TOM)_mp_init_set_int$(O): $(TOM)_mp_init_set_int.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_set_int$(O) -I. $(CFLAGS) bn_mp_init_set_int.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_init_set_int$(O) -I. $(CFLAGS) bn_mp_init_set_int.c
 $(TOM)_mp_init_size$(O): $(TOM)_mp_init_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_size$(O) -I. $(CFLAGS) bn_mp_init_size.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_init_size$(O) -I. $(CFLAGS) bn_mp_init_size.c
 $(TOM)_mp_invmod$(O): $(TOM)_mp_invmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_invmod$(O) -I. $(CFLAGS) bn_mp_invmod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_invmod$(O) -I. $(CFLAGS) bn_mp_invmod.c
 $(TOM)_mp_invmod_slow$(O): $(TOM)_mp_invmod_slow.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_invmod_slow$(O) -I. $(CFLAGS) bn_mp_invmod_slow.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_invmod_slow$(O) -I. $(CFLAGS) bn_mp_invmod_slow.c
 $(TOM)_mp_is_square$(O): $(TOM)_mp_is_square.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_is_square$(O) -I. $(CFLAGS) bn_mp_is_square.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_is_square$(O) -I. $(CFLAGS) bn_mp_is_square.c
 $(TOM)_mp_jacobi$(O): $(TOM)_mp_jacobi.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_jacobi$(O) -I. $(CFLAGS) bn_mp_jacobi.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_jacobi$(O) -I. $(CFLAGS) bn_mp_jacobi.c
 $(TOM)_mp_karatsuba_mul$(O): $(TOM)_mp_karatsuba_mul.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_karatsuba_mul$(O) -I. $(CFLAGS) bn_mp_karatsuba_mul.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_karatsuba_mul$(O) -I. $(CFLAGS) bn_mp_karatsuba_mul.c
 $(TOM)_mp_karatsuba_sqr$(O): $(TOM)_mp_karatsuba_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_karatsuba_sqr$(O) -I. $(CFLAGS) bn_mp_karatsuba_sqr.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_karatsuba_sqr$(O) -I. $(CFLAGS) bn_mp_karatsuba_sqr.c
 $(TOM)_mp_lcm$(O): $(TOM)_mp_lcm.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_lcm$(O) -I. $(CFLAGS) bn_mp_lcm.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_lcm$(O) -I. $(CFLAGS) bn_mp_lcm.c
 $(TOM)_mp_lshd$(O): $(TOM)_mp_lshd.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_lshd$(O) -I. $(CFLAGS) bn_mp_lshd.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_lshd$(O) -I. $(CFLAGS) bn_mp_lshd.c
 $(TOM)_mp_mod_2d$(O): $(TOM)_mp_mod_2d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mod_2d$(O) -I. $(CFLAGS) bn_mp_mod_2d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mod_2d$(O) -I. $(CFLAGS) bn_mp_mod_2d.c
 $(TOM)_mp_mod$(O): $(TOM)_mp_mod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mod$(O) -I. $(CFLAGS) bn_mp_mod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mod$(O) -I. $(CFLAGS) bn_mp_mod.c
 $(TOM)_mp_mod_d$(O): $(TOM)_mp_mod_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mod_d$(O) -I. $(CFLAGS) bn_mp_mod_d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mod_d$(O) -I. $(CFLAGS) bn_mp_mod_d.c
 $(TOM)_mp_montgomery_calc_normalization$(O): $(TOM)_mp_montgomery_calc_normalization.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_montgomery_calc_normalization$(O) -I. $(CFLAGS) bn_mp_montgomery_calc_normalization.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_montgomery_calc_normalization$(O) -I. $(CFLAGS) bn_mp_montgomery_calc_normalization.c
 $(TOM)_mp_montgomery_reduce$(O): $(TOM)_mp_montgomery_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_montgomery_reduce$(O) -I. $(CFLAGS) bn_mp_montgomery_reduce.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_montgomery_reduce$(O) -I. $(CFLAGS) bn_mp_montgomery_reduce.c
 $(TOM)_mp_montgomery_setup$(O): $(TOM)_mp_montgomery_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_montgomery_setup$(O) -I. $(CFLAGS) bn_mp_montgomery_setup.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_montgomery_setup$(O) -I. $(CFLAGS) bn_mp_montgomery_setup.c
 $(TOM)_mp_mul_2$(O): $(TOM)_mp_mul_2.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul_2$(O) -I. $(CFLAGS) bn_mp_mul_2.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mul_2$(O) -I. $(CFLAGS) bn_mp_mul_2.c
 $(TOM)_mp_mul_2d$(O): $(TOM)_mp_mul_2d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul_2d$(O) -I. $(CFLAGS) bn_mp_mul_2d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mul_2d$(O) -I. $(CFLAGS) bn_mp_mul_2d.c
 $(TOM)_mp_mul$(O): $(TOM)_mp_mul.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul$(O) -I. $(CFLAGS) bn_mp_mul.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mul$(O) -I. $(CFLAGS) bn_mp_mul.c
 $(TOM)_mp_mul_d$(O): $(TOM)_mp_mul_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul_d$(O) -I. $(CFLAGS) bn_mp_mul_d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mul_d$(O) -I. $(CFLAGS) bn_mp_mul_d.c
 $(TOM)_mp_mulmod$(O): $(TOM)_mp_mulmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mulmod$(O) -I. $(CFLAGS) bn_mp_mulmod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_mulmod$(O) -I. $(CFLAGS) bn_mp_mulmod.c
 $(TOM)_mp_neg$(O): $(TOM)_mp_neg.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_neg$(O) -I. $(CFLAGS) bn_mp_neg.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_neg$(O) -I. $(CFLAGS) bn_mp_neg.c
 $(TOM)_mp_n_root$(O): $(TOM)_mp_n_root.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_n_root$(O) -I. $(CFLAGS) bn_mp_n_root.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_n_root$(O) -I. $(CFLAGS) bn_mp_n_root.c
 $(TOM)_mp_or$(O): $(TOM)_mp_or.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_or$(O) -I. $(CFLAGS) bn_mp_or.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_or$(O) -I. $(CFLAGS) bn_mp_or.c
 $(TOM)_mp_prime_fermat$(O): $(TOM)_mp_prime_fermat.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_fermat$(O) -I. $(CFLAGS) bn_mp_prime_fermat.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_prime_fermat$(O) -I. $(CFLAGS) bn_mp_prime_fermat.c
 $(TOM)_mp_prime_is_divisible$(O): $(TOM)_mp_prime_is_divisible.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_is_divisible$(O) -I. $(CFLAGS) bn_mp_prime_is_divisible.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_prime_is_divisible$(O) -I. $(CFLAGS) bn_mp_prime_is_divisible.c
 $(TOM)_mp_prime_is_prime$(O): $(TOM)_mp_prime_is_prime.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_is_prime$(O) -I. $(CFLAGS) bn_mp_prime_is_prime.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_prime_is_prime$(O) -I. $(CFLAGS) bn_mp_prime_is_prime.c
 $(TOM)_mp_prime_miller_rabin$(O): $(TOM)_mp_prime_miller_rabin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_miller_rabin$(O) -I. $(CFLAGS) bn_mp_prime_miller_rabin.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_prime_miller_rabin$(O) -I. $(CFLAGS) bn_mp_prime_miller_rabin.c
 $(TOM)_mp_prime_next_prime$(O): $(TOM)_mp_prime_next_prime.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_next_prime$(O) -I. $(CFLAGS) bn_mp_prime_next_prime.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_prime_next_prime$(O) -I. $(CFLAGS) bn_mp_prime_next_prime.c
 $(TOM)_mp_prime_rabin_miller_trials$(O): $(TOM)_mp_prime_rabin_miller_trials.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_rabin_miller_trials$(O) -I. $(CFLAGS) bn_mp_prime_rabin_miller_trials.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_prime_rabin_miller_trials$(O) -I. $(CFLAGS) bn_mp_prime_rabin_miller_trials.c
 $(TOM)_mp_prime_random_ex$(O): $(TOM)_mp_prime_random_ex.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_random_ex$(O) -I. $(CFLAGS) bn_mp_prime_random_ex.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_prime_random_ex$(O) -I. $(CFLAGS) bn_mp_prime_random_ex.c
 $(TOM)_mp_radix_size$(O): $(TOM)_mp_radix_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_radix_size$(O) -I. $(CFLAGS) bn_mp_radix_size.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_radix_size$(O) -I. $(CFLAGS) bn_mp_radix_size.c
 $(TOM)_mp_radix_smap$(O): $(TOM)_mp_radix_smap.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_radix_smap$(O) -I. $(CFLAGS) bn_mp_radix_smap.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_radix_smap$(O) -I. $(CFLAGS) bn_mp_radix_smap.c
 $(TOM)_mp_rand$(O): $(TOM)_mp_rand.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_rand$(O) -I. $(CFLAGS) bn_mp_rand.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_rand$(O) -I. $(CFLAGS) bn_mp_rand.c
 $(TOM)_mp_read_radix$(O): $(TOM)_mp_read_radix.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_read_radix$(O) -I. $(CFLAGS) bn_mp_read_radix.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_read_radix$(O) -I. $(CFLAGS) bn_mp_read_radix.c
 $(TOM)_mp_read_signed_bin$(O): $(TOM)_mp_read_signed_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_read_signed_bin$(O) -I. $(CFLAGS) bn_mp_read_signed_bin.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_read_signed_bin$(O) -I. $(CFLAGS) bn_mp_read_signed_bin.c
 $(TOM)_mp_read_unsigned_bin$(O): $(TOM)_mp_read_unsigned_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_read_unsigned_bin$(O) -I. $(CFLAGS) bn_mp_read_unsigned_bin.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_read_unsigned_bin$(O) -I. $(CFLAGS) bn_mp_read_unsigned_bin.c
 $(TOM)_mp_reduce_2k$(O): $(TOM)_mp_reduce_2k.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k$(O) -I. $(CFLAGS) bn_mp_reduce_2k.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce_2k$(O) -I. $(CFLAGS) bn_mp_reduce_2k.c
 $(TOM)_mp_reduce_2k_l$(O): $(TOM)_mp_reduce_2k_l.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k_l$(O) -I. $(CFLAGS) bn_mp_reduce_2k_l.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce_2k_l$(O) -I. $(CFLAGS) bn_mp_reduce_2k_l.c
 $(TOM)_mp_reduce_2k_setup$(O): $(TOM)_mp_reduce_2k_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k_setup$(O) -I. $(CFLAGS) bn_mp_reduce_2k_setup.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce_2k_setup$(O) -I. $(CFLAGS) bn_mp_reduce_2k_setup.c
 $(TOM)_mp_reduce_2k_setup_l$(O): $(TOM)_mp_reduce_2k_setup_l.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k_setup_l$(O) -I. $(CFLAGS) bn_mp_reduce_2k_setup_l.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce_2k_setup_l$(O) -I. $(CFLAGS) bn_mp_reduce_2k_setup_l.c
 $(TOM)_mp_reduce$(O): $(TOM)_mp_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce$(O) -I. $(CFLAGS) bn_mp_reduce.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce$(O) -I. $(CFLAGS) bn_mp_reduce.c
 $(TOM)_mp_reduce_is_2k$(O): $(TOM)_mp_reduce_is_2k.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_is_2k$(O) -I. $(CFLAGS) bn_mp_reduce_is_2k.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce_is_2k$(O) -I. $(CFLAGS) bn_mp_reduce_is_2k.c
 $(TOM)_mp_reduce_is_2k_l$(O): $(TOM)_mp_reduce_is_2k_l.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_is_2k_l$(O) -I. $(CFLAGS) bn_mp_reduce_is_2k_l.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce_is_2k_l$(O) -I. $(CFLAGS) bn_mp_reduce_is_2k_l.c
 $(TOM)_mp_reduce_setup$(O): $(TOM)_mp_reduce_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_setup$(O) -I. $(CFLAGS) bn_mp_reduce_setup.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_reduce_setup$(O) -I. $(CFLAGS) bn_mp_reduce_setup.c
 $(TOM)_mp_rshd$(O): $(TOM)_mp_rshd.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_rshd$(O) -I. $(CFLAGS) bn_mp_rshd.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_rshd$(O) -I. $(CFLAGS) bn_mp_rshd.c
 $(TOM)_mp_set$(O): $(TOM)_mp_set.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_set$(O) -I. $(CFLAGS) bn_mp_set.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_set$(O) -I. $(CFLAGS) bn_mp_set.c
 $(TOM)_mp_set_int$(O): $(TOM)_mp_set_int.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_set_int$(O) -I. $(CFLAGS) bn_mp_set_int.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_set_int$(O) -I. $(CFLAGS) bn_mp_set_int.c
 $(TOM)_mp_set_long$(O): $(TOM)_mp_set_long.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_set_long$(O) -I. $(CFLAGS) bn_mp_set_long.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_set_long$(O) -I. $(CFLAGS) bn_mp_set_long.c
 $(TOM)_mp_shrink$(O): $(TOM)_mp_shrink.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_shrink$(O) -I. $(CFLAGS) bn_mp_shrink.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_shrink$(O) -I. $(CFLAGS) bn_mp_shrink.c
 $(TOM)_mp_signed_bin_size$(O): $(TOM)_mp_signed_bin_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_signed_bin_size$(O) -I. $(CFLAGS) bn_mp_signed_bin_size.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_signed_bin_size$(O) -I. $(CFLAGS) bn_mp_signed_bin_size.c
 $(TOM)_mp_sqr$(O): $(TOM)_mp_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sqr$(O) -I. $(CFLAGS) bn_mp_sqr.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_sqr$(O) -I. $(CFLAGS) bn_mp_sqr.c
 $(TOM)_mp_sqrmod$(O): $(TOM)_mp_sqrmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sqrmod$(O) -I. $(CFLAGS) bn_mp_sqrmod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_sqrmod$(O) -I. $(CFLAGS) bn_mp_sqrmod.c
 $(TOM)_mp_sqrt$(O): $(TOM)_mp_sqrt.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sqrt$(O) -I. $(CFLAGS) bn_mp_sqrt.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_sqrt$(O) -I. $(CFLAGS) bn_mp_sqrt.c
 $(TOM)_mp_sub$(O): $(TOM)_mp_sub.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sub$(O) -I. $(CFLAGS) bn_mp_sub.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_sub$(O) -I. $(CFLAGS) bn_mp_sub.c
 $(TOM)_mp_sub_d$(O): $(TOM)_mp_sub_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sub_d$(O) -I. $(CFLAGS) bn_mp_sub_d.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_sub_d$(O) -I. $(CFLAGS) bn_mp_sub_d.c
 $(TOM)_mp_submod$(O): $(TOM)_mp_submod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_submod$(O) -I. $(CFLAGS) bn_mp_submod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_submod$(O) -I. $(CFLAGS) bn_mp_submod.c
 $(TOM)_mp_toom_mul$(O): $(TOM)_mp_toom_mul.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toom_mul$(O) -I. $(CFLAGS) bn_mp_toom_mul.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_toom_mul$(O) -I. $(CFLAGS) bn_mp_toom_mul.c
 $(TOM)_mp_toom_sqr$(O): $(TOM)_mp_toom_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toom_sqr$(O) -I. $(CFLAGS) bn_mp_toom_sqr.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_toom_sqr$(O) -I. $(CFLAGS) bn_mp_toom_sqr.c
 $(TOM)_mp_toradix$(O): $(TOM)_mp_toradix.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toradix$(O) -I. $(CFLAGS) bn_mp_toradix.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_toradix$(O) -I. $(CFLAGS) bn_mp_toradix.c
 $(TOM)_mp_toradix_n$(O): $(TOM)_mp_toradix_n.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toradix_n$(O) -I. $(CFLAGS) bn_mp_toradix_n.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_toradix_n$(O) -I. $(CFLAGS) bn_mp_toradix_n.c
 $(TOM)_mp_to_signed_bin$(O): $(TOM)_mp_to_signed_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_signed_bin$(O) -I. $(CFLAGS) bn_mp_to_signed_bin.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_to_signed_bin$(O) -I. $(CFLAGS) bn_mp_to_signed_bin.c
 $(TOM)_mp_to_signed_bin_n$(O): $(TOM)_mp_to_signed_bin_n.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_signed_bin_n$(O) -I. $(CFLAGS) bn_mp_to_signed_bin_n.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_to_signed_bin_n$(O) -I. $(CFLAGS) bn_mp_to_signed_bin_n.c
 $(TOM)_mp_to_unsigned_bin$(O): $(TOM)_mp_to_unsigned_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_unsigned_bin$(O) -I. $(CFLAGS) bn_mp_to_unsigned_bin.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_to_unsigned_bin$(O) -I. $(CFLAGS) bn_mp_to_unsigned_bin.c
 $(TOM)_mp_to_unsigned_bin_n$(O): $(TOM)_mp_to_unsigned_bin_n.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_unsigned_bin_n$(O) -I. $(CFLAGS) bn_mp_to_unsigned_bin_n.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_to_unsigned_bin_n$(O) -I. $(CFLAGS) bn_mp_to_unsigned_bin_n.c
 $(TOM)_mp_unsigned_bin_size$(O): $(TOM)_mp_unsigned_bin_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_unsigned_bin_size$(O) -I. $(CFLAGS) bn_mp_unsigned_bin_size.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_unsigned_bin_size$(O) -I. $(CFLAGS) bn_mp_unsigned_bin_size.c
 $(TOM)_mp_xor$(O): $(TOM)_mp_xor.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_xor$(O) -I. $(CFLAGS) bn_mp_xor.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_xor$(O) -I. $(CFLAGS) bn_mp_xor.c
 $(TOM)_mp_zero$(O): $(TOM)_mp_zero.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_zero$(O) -I. $(CFLAGS) bn_mp_zero.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_mp_zero$(O) -I. $(CFLAGS) bn_mp_zero.c
 $(TOM)_prime_tab$(O): $(TOM)_prime_tab.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_prime_tab$(O) -I. $(CFLAGS) bn_prime_tab.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_prime_tab$(O) -I. $(CFLAGS) bn_prime_tab.c
 $(TOM)_reverse$(O): $(TOM)_reverse.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_reverse$(O) -I. $(CFLAGS) bn_reverse.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_reverse$(O) -I. $(CFLAGS) bn_reverse.c
 $(TOM)_s_mp_add$(O): $(TOM)_s_mp_add.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_add$(O) -I. $(CFLAGS) bn_s_mp_add.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_s_mp_add$(O) -I. $(CFLAGS) bn_s_mp_add.c
 $(TOM)_s_mp_exptmod$(O): $(TOM)_s_mp_exptmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_exptmod$(O) -I. $(CFLAGS) bn_s_mp_exptmod.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_s_mp_exptmod$(O) -I. $(CFLAGS) bn_s_mp_exptmod.c
 $(TOM)_s_mp_mul_digs$(O): $(TOM)_s_mp_mul_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_mul_digs$(O) -I. $(CFLAGS) bn_s_mp_mul_digs.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_s_mp_mul_digs$(O) -I. $(CFLAGS) bn_s_mp_mul_digs.c
 $(TOM)_s_mp_mul_high_digs$(O): $(TOM)_s_mp_mul_high_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_mul_high_digs$(O) -I. $(CFLAGS) bn_s_mp_mul_high_digs.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_s_mp_mul_high_digs$(O) -I. $(CFLAGS) bn_s_mp_mul_high_digs.c
 $(TOM)_s_mp_sqr$(O): $(TOM)_s_mp_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_sqr$(O) -I. $(CFLAGS) bn_s_mp_sqr.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_s_mp_sqr$(O) -I. $(CFLAGS) bn_s_mp_sqr.c
 $(TOM)_s_mp_sub$(O): $(TOM)_s_mp_sub.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_sub$(O) -I. $(CFLAGS) bn_s_mp_sub.c
+	cd 3rdparty/libtommath && $(CC) -c $(COUTO)bn_s_mp_sub$(O) -I. $(CFLAGS) bn_s_mp_sub.c
 
 # VM core compilation.
 src/core/args$(O): src/core/args.c $(HEADERS)
