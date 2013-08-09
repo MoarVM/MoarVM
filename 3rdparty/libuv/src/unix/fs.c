@@ -191,6 +191,35 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
     return pread(req->file, req->buf, req->len, req->off);
 }
 
+static int uv__fs_mkdir_p(char *pathname, mode_t mode) {
+  ssize_t r;
+  size_t len = strlen(pathname);
+
+  while ((len > 0) && (pathname[len - 1] == '/'))
+    len--;
+
+  pathname[len] = '\0';
+
+  r = mkdir(pathname, mode);
+
+  if (r == -1 && errno == ENOENT) {
+    char *ch = strrchr(pathname, '/');
+
+    if (ch) *ch = '\0';
+
+    r = uv__fs_mkdir_p(pathname, mode);
+
+    if (ch) *ch = '/';
+
+    if(r == 0) {
+      r = mkdir(pathname, mode);
+    }
+  }
+
+  pathname[len] = '/';
+
+  return r;
+}
 
 static int uv__fs_readdir_filter(const struct dirent* dent) {
   return strcmp(dent->d_name, ".") != 0 && strcmp(dent->d_name, "..") != 0;
@@ -625,6 +654,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(LSTAT, uv__fs_lstat(req->path, &req->statbuf));
     X(LINK, link(req->path, req->new_path));
     X(MKDIR, mkdir(req->path, req->mode));
+    X(MKDIR_P, uv__fs_mkdir_p((char *)req->path, req->mode));
     X(OPEN, open(req->path, req->flags, req->mode));
     X(READ, uv__fs_read(req));
     X(READDIR, uv__fs_readdir(req));
@@ -808,6 +838,16 @@ int uv_fs_mkdir(uv_loop_t* loop,
   POST;
 }
 
+int uv_fs_mkdir_p(uv_loop_t* loop,
+                uv_fs_t* req,
+                const char* path,
+                int mode,
+                uv_fs_cb cb) {
+  INIT(MKDIR_P);
+  PATH;
+  req->mode = mode;
+  POST;
+}
 
 int uv_fs_open(uv_loop_t* loop,
                uv_fs_t* req,

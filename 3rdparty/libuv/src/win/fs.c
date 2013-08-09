@@ -287,7 +287,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
            (w_target[4] >= L'a' && w_target[4] <= L'z')) &&
           w_target[5] == L':' &&
           (w_target_len == 6 || w_target[6] == L'\\')) {
-        /* \??\«drive»:\ */
+        /* \??\«drive?\ */
         w_target += 4;
         w_target_len -= 4;
 
@@ -312,7 +312,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
     w_target_len = reparse_data->MountPointReparseBuffer.SubstituteNameLength /
         sizeof(WCHAR);
 
-    /* Only treat junctions that look like \??\«drive»:\ as symlink. */
+    /* Only treat junctions that look like \??\«drive?\ as symlink. */
     /* Junctions can also be used as mount points, like \??\Volume{«guid»}, */
     /* but that's confusing for programs since they wouldn't be able to */
     /* actually understand such a path when returned by uv_readlink(). */
@@ -694,6 +694,41 @@ void fs__mkdir(uv_fs_t* req) {
   SET_REQ_RESULT(req, result);
 }
 
+static int fs___mkdir_p(wchar_t *pathname) {
+  size_t r;
+  size_t len = wcslen(pathname);
+
+  while ((len > 0) && (pathname[len - 1] == '/'))
+    len--;
+
+  pathname[len] = '\0';
+
+  r = _wmkdir(pathname);
+
+  if (r == -1 && errno == ENOENT) {
+    wchar_t *ch = wcsrchr(pathname, '/');
+
+    if (ch) *ch = '\0';
+
+    r = fs___mkdir_p(pathname);
+
+    if (ch) *ch = '/';
+
+    if(r == 0) {
+      r = _wmkdir(pathname);
+    }
+  }
+
+  pathname[len] = '/';
+
+  return r;
+}
+
+void fs__mkdir_p(uv_fs_t* req) {
+  /* TODO: use req->mode. */
+  int result = fs___mkdir_p(req->pathw);
+  SET_REQ_RESULT(req, result);
+}
 
 void fs__readdir(uv_fs_t* req) {
   WCHAR* pathw = req->pathw;
@@ -1448,6 +1483,7 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     XX(UNLINK, unlink)
     XX(RMDIR, rmdir)
     XX(MKDIR, mkdir)
+    XX(MKDIR_P, mkdir_p)
     XX(RENAME, rename)
     XX(READDIR, readdir)
     XX(LINK, link)
@@ -1583,6 +1619,27 @@ int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
   }
 }
 
+int uv_fs_mkdir_p(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
+    uv_fs_cb cb) {
+  int err;
+
+  uv_fs_req_init(loop, req, UV_FS_MKDIR, cb);
+
+  err = fs__capture_path(loop, req, path, NULL, cb != NULL);
+  if (err) {
+    return uv_translate_sys_error(err);
+  }
+
+  req->mode = mode;
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  } else {
+    fs__mkdir_p(req);
+    return req->result;
+  }
+}
 
 int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
   int err;
