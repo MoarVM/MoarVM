@@ -161,6 +161,11 @@ APR_DECLARE_DATA int errno;
 #endif
 #endif
 
+#ifdef __MINGW64__
+#undef APR_OFF_T_STRFN
+#define APR_OFF_T_STRFN _strtoi64
+#endif
+
 /* used to check for DWORD overflow in 64bit compiles */
 #define APR_DWORD_MAX 0xFFFFFFFFUL
 

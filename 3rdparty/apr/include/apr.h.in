@@ -126,6 +126,10 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+#ifdef __MINGW64__
+#undef WIN32_LEAN_AND_MEAN
+#endif
+
 #ifndef _WIN32_WINNT
 /* Restrict the server to a subset of Windows XP header files by default
  */
