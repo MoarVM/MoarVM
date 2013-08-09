@@ -9,15 +9,15 @@ use Pod::Usage;
 
 my %SHELLS = (
     posix => {
+        sh  => 'sh',
         cat => 'cat',
         rm  => 'rm -f',
-        cp  => 'cp',
     },
 
     win32 => {
+        sh  => 'cmd',
         cat => 'type',
         rm  => 'del',
-        cp  => 'copy',
     },
 );
 
@@ -46,6 +46,17 @@ my %TOOLCHAINS = (
         ldout => '/out:',
         obj   => '.obj',
         lib   => '.lib',
+
+        thirdparty => [ qw(
+            3rdparty/apr/x64/LibR/apr-1
+        ) ],
+
+        # header only, no need to build anything
+        laobuildline => '',
+
+        # for now, hardcode 64-bit version
+        aprlib => '3rdparty/apr/x64/LibR/apr-1.lib',
+        aprbuildline => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
     },
 );
 
@@ -98,13 +109,13 @@ my %COMPILERS = (
         cc => 'cl',
         ld => 'link',
 
-        ccmiscflags  => '/nologo',
+        ccmiscflags  => '/nologo /MT',
         ccwarnflags  => '',
         ccoptiflags  => '/Ox /GL',
         ccdebugflags => '/Zi',
         ccinstflags  => '',
 
-        ldmiscflags => '/nologo /MT',
+        ldmiscflags => '/nologo',
         ldoptiflags  => '/LTCG',
         lddebugflags => '/debug',
         ldinstflags  => '/Profile',
@@ -127,8 +138,7 @@ my %SYSTEMS = (
     win32 => [ qw( win32 msvc cl ), {
         exe  => '.exe',
         defs => [ 'WIN32' ],
-        libs => [ qw( ws2_32 mswsock rpcrt4 ) ],
-        thirdparty => [ '3rdparty/apr/apr-1' ],
+        libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 ) ],
     } ],
 
     mingw32 => [ qw( win32 gnu gcc ), {
@@ -276,6 +286,9 @@ sub generate {
             s/@\Q$key\E@/$config{$key}/;
         }
 
+        s/(\w)\/(\w|\*)/$1\\$2/g
+            if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
+
         print $destfile $_;
     }
 
@@ -327,15 +340,6 @@ $config{defs}      //= [];
 $config{libs}      //= [ qw( m pthread ) ];
 $config{crossconf} //= '';
 
-$config{thirdparty} //= [ qw(
-    3rdparty/libatomic_ops/src/libatomic_ops
-    3rdparty/apr/.libs/libapr-1
-) ];
-
-$config{thirdpartylibs} //= join ' ',
-    "3rdparty/sha1/sha1$config{obj}",
-    map { "$_$config{lib}" } @{$config{thirdparty}};
-
 $config{ld}           //= $config{cc};
 $config{ldout}        //= $config{ccout};
 $config{ldmiscflags}  //= $config{ccmiscflags};
@@ -360,6 +364,22 @@ push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} //= join ' ', @ldflags;
+
+$config{thirdparty} //= [ qw(
+    3rdparty/libatomic_ops/libatomic_ops
+    3rdparty/apr/libapr-1
+) ];
+
+$config{thirdpartylibs} //= join ' ',
+    "3rdparty/sha1/sha1$config{obj}",
+    map { "$_$config{lib}" } @{$config{thirdparty}};
+
+$config{laobuildline} //=
+    "cd 3rdparty/libatomic_ops && ./configure $config{crossconf} && \$(MAKE)";
+
+$config{aprlib} //= "3rdparty/apr/.libs/libapr-1$config{lib}";
+$config{aprbuildline} //=
+    "cd 3rdparty/apr && ./configure --disable-shared $config{crossconf} && \$(MAKE)";
 
 print "OK\n",
     "        compile: $config{cc} $config{cflags}\n",
