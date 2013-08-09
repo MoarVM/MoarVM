@@ -49,14 +49,12 @@ my %TOOLCHAINS = (
 
         # for now, hardcode 64-bit version
         thirdparty => [ qw(
-            3rdparty/apr/x64/LibR/apr-1
+            3rdparty/sha1/sha1.obj
+            3rdparty/apr/x64/LibR/apr-1.lib
         ) ],
 
         aprlib => '3rdparty/apr/x64/LibR/apr-1.lib',
         aprbuildline => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
-
-        # header only, no need to build anything
-        laobuildline => '',
     },
 );
 
@@ -125,33 +123,23 @@ my %COMPILERS = (
     },
 );
 
+my %WIN32 = (
+    exe  => '.exe',
+    defs => [ 'WIN32' ],
+    libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 ) ],
+
+    # header only, no need to build anything
+    laobuildline => '',
+);
+
 my %SYSTEMS = (
     generic => [ qw( posix gnu gcc ), {} ],
     linux   => [ qw( posix gnu gcc ), {} ],
     darwin  => [ qw( posix gnu clang ), {} ],
     freebsd => [ qw( posix gnu clang ), {} ],
-
-    cygwin  => [ qw( posix gnu gcc ), {
-        exe => '.exe',
-    } ],
-
-    win32 => [ qw( win32 msvc cl ), {
-        exe  => '.exe',
-        defs => [ 'WIN32' ],
-        libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 ) ],
-    } ],
-
-    mingw32 => [ qw( win32 gnu gcc ), {
-        exe  => '.exe',
-        defs => [ 'WIN32' ],
-        libs => [ qw( ws2_32 mswsock rpcrt4 ) ],
-        make => 'gmake',
-
-        thirdparty => [ '3rdparty/apr/.libs/libapr-1' ],
-
-         # header only, no need to build anything
-        laobuildline => '',
-    } ],
+    cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
+    win32   => [ qw( win32 msvc cl ), { %WIN32 } ],
+    mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
 );
 
 my %args;
@@ -272,6 +260,20 @@ sub native_setup {
     }
 }
 
+sub configure {
+    my ($_) = @_;
+
+    while (/@(\w+)@/) {
+        my $key = $1;
+        return (undef, "unknown configuration key '$key'")
+            unless exists $config{$key};
+
+        s/@\Q$key\E@/$config{$key}/;
+    }
+
+    return $_;
+}
+
 sub generate {
     my ($dest, $src) = @_;
 
@@ -281,14 +283,10 @@ sub generate {
     open my $destfile, '>', $dest or die $!;
 
     while (<$srcfile>) {
-        while (/@(\w+)@/) {
-            my $key = $1;
-            unless (exists $config{$key}) {
-                print "FAIL\n";
-                die "    unknown configuration key '$key'\n";
-            }
-
-            s/@\Q$key\E@/$config{$key}/;
+        my ($_, $error) = configure $_;
+        unless (defined $_) {
+            print "FAIL\n";
+            die "    $error\n";
         }
 
         s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
@@ -370,29 +368,24 @@ push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} //= join ' ', @ldflags;
 
-$config{thirdparty} //= [ qw(
-    3rdparty/libatomic_ops/src/libatomic_ops
-    3rdparty/apr/.libs/libapr-1
-) ];
+$config{shalib} //= '3rdparty/sha1/sha1@obj@';
 
-$config{thirdpartylibs} //= join ' ',
-    "3rdparty/sha1/sha1$config{obj}",
-    map { "$_$config{lib}" } @{$config{thirdparty}};
+$config{laolib} //= '3rdparty/libatomic_ops/src/libatomic_ops@lib@';
+$config{laobuildline} //= 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)';
 
-$config{laolib} //= "3rdparty/libatomic_ops/src/libatomic_ops$config{lib}";
-$config{laobuildline} //=
-    "cd 3rdparty/libatomic_ops && ./configure $config{crossconf} && \$(MAKE)";
+$config{aprlib} //= '3rdparty/apr/.libs/libapr-1@lib@';
+$config{aprbuildline} //= 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)';
 
-$config{aprlib} //= "3rdparty/apr/.libs/libapr-1$config{lib}";
-$config{aprbuildline} //=
-    "cd 3rdparty/apr && ./configure --disable-shared $config{crossconf} && \$(MAKE)";
+$config{thirdparty} //= [ @config{ qw( shalib laolib aprlib ) } ];
+$config{thirdpartylibs} //=
+    join ' ', map { configure $_ } @{$config{thirdparty}};
 
 print "OK\n",
     "        compile: $config{cc} $config{cflags}\n",
     "           link: $config{ld} $config{ldflags}\n",
     "           libs: $config{ldlibs}\n",
     "       3rdparty: " . join("\n". ' ' x 17,
-        split / /, $config{thirdpartylibs}) . "\n",
+        map { configure $_ } @{$config{thirdparty}}) . "\n",
     "           make: $config{make}\n";
 
 open my $listfile, '<', 'gen.list'
