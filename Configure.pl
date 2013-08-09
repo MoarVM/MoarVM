@@ -27,8 +27,10 @@ my %TOOLCHAINS = (
         ccout => '-o',
         ccinc => '-I',
         ccdef => '-D',
+        cclib => '-l%s',
         ldout => undef,
         obj   => '.o',
+        lib   => '.a',
     },
 
     msvc => {
@@ -38,8 +40,10 @@ my %TOOLCHAINS = (
         ccout => '/Fo',
         ccinc => '/I',
         ccdef => '/D',
+        cclib => '%s.lib',
         ldout => '/out:',
         obj   => '.obj',
+        lib   => '.lib',
     },
 );
 
@@ -50,7 +54,7 @@ my %COMPILERS = (
         cc => 'gcc',
         ld => undef,
 
-        ccmiscflags  => '',
+        ccmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE',
         ccwarnflags  => '-Wall -Wextra',
         ccoptiflags  => '-O3',
         ccdebugflags => '-g',
@@ -98,7 +102,7 @@ my %COMPILERS = (
         ccdebugflags => '/Zi',
         ccinstflags  => '',
 
-        ldmiscflags => '/nologo',
+        ldmiscflags => '/nologo /MT',
         ldoptiflags  => '/LTCG',
         lddebugflags => '/debug',
         ldinstflags  => '/Profile',
@@ -124,11 +128,13 @@ my %SYSTEMS = (
     win32   => [ qw( win32 msvc cl ), {
         exe  => '.exe',
         defs => [ 'WIN32' ],
+        libs => [ qw( ws2_32 mswsock rpcrt4 ) ],
     } ],
 
     mingw32 => [ qw( win32 gnu gcc ), {
         exe  => '.exe',
         defs => [ 'WIN32' ],
+        libs => [ qw( ws2_32 mswsock rpcrt4 ) ],
         make => 'gmake',
     } ],
 );
@@ -147,26 +153,29 @@ sub dots {
 sub cross_setup {
     my ($build, $host) = @_;
 
-    print dots "Detecting cross build environment";
+    print dots "Configuring cross build environment";
 
     unless (defined $build && defined $host) {
         print "FAIL\n";
-        die "Both --build and --host need to be specified\n";
+        die "    both --build and --host need to be specified\n";
     }
 
-    my $cc = "$host-gcc";
+    my $cc        = "$host-gcc";
+    my $crossconf = "--build=$build --host=$host";
 
     for (\$build, \$host) {
         if ($$_ =~ /-(\w+)$/) {
             $$_ = $1;
             if (!exists $SYSTEMS{$1}) {
-                warn "    unknown OS '$1' - assuming GNU userland\n";
+                print "FAIL\n";
+                warn "    unknown OS '$1'\n";
+                print dots "    assuming GNU userland";
                 $$_ = 'generic';
             }
         }
         else {
             print "FAIL\n";
-            die "Failed to parse triple '$$_'\n"
+            die "    failed to parse triple '$$_'\n"
         }
     }
 
@@ -181,15 +190,16 @@ sub cross_setup {
     @defaults{ keys %$toolchain } = values %$toolchain;
     @defaults{ keys %$compiler }  = values %$compiler;
 
-    $defaults{cc}   = $cc;
-    $defaults{exe}  = $host->[3]->{exe};
-    $defaults{defs} = $host->[3]->{defs};
+    $defaults{cc}        = $cc;
+    $defaults{exe}       = $host->[3]->{exe};
+    $defaults{defs}      = $host->[3]->{defs};
+    $defaults{crossconf} = $crossconf;
 }
 
 sub native_setup {
     my ($os) = @_;
 
-    print dots "Detecting native build environment";
+    print dots "Configuring native build environment";
 
     if (!exists $SYSTEMS{$os}) {
         print "FAIL\n";
@@ -236,9 +246,12 @@ sub native_setup {
             unless exists $COMPILERS{$compiler};
 
         $compiler  = $COMPILERS{$compiler};
-        $toolchain = $TOOLCHAINS{ $compiler->{-toolchain} };
 
-        @defaults{ keys %$toolchain } = values %$toolchain;
+        unless (exists $args{toolchain}) {
+            $toolchain = $TOOLCHAINS{ $compiler->{-toolchain} };
+            @defaults{ keys %$toolchain } = values %$toolchain;
+        }
+
         @defaults{ keys %$compiler }  = values %$compiler;
     }
 }
@@ -308,8 +321,10 @@ for (keys %defaults) {
     $config{$_} //= $defaults{$_};
 }
 
-$config{exe}  //= '';
-$config{defs} //= [];
+$config{exe}       //= '';
+$config{defs}      //= [];
+$config{libs}      //= [ qw( m pthread ) ];
+$config{crossconf} //= '';
 
 $config{ld}           //= $config{cc};
 $config{ldout}        //= $config{ccout};
@@ -317,6 +332,10 @@ $config{ldmiscflags}  //= $config{ccmiscflags};
 $config{ldoptiflags}  //= $config{ccoptiflags};
 $config{lddebugflags} //= $config{ccdebugflags};
 $config{ldinstflags}  //= $config{ccinstflags};
+
+$config{ldlibs} = join ' ', map {
+    sprintf $config{cclib}, $_;
+} @{$config{libs}};
 
 my @cflags = ($config{ccmiscflags});
 push @cflags, $config{ccoptiflags}  if $args{optimize};
@@ -332,7 +351,11 @@ push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} //= join ' ', @ldflags;
 
-print "OK\n";
+print "OK\n",
+    "        compile: $config{cc} $config{cflags}\n",
+    "           link: $config{ld} $config{ldflags}\n",
+    "           libs: $config{ldlibs}\n",
+    "           make: $config{make}\n";
 
 open my $listfile, '<', 'gen.list'
     or die $!;
@@ -350,6 +373,8 @@ while (<$listfile>) {
 }
 
 close $listfile;
+
+print "\nConfiguration successful. Type '$config{'make'}' to build.\n";
 
 __END__
 

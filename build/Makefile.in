@@ -1,16 +1,16 @@
 # Compiler configuration
 CC       = @cc@
 CFLAGS   = @cflags@
-CINCLUDE = -I3rdparty/apr/include -I3rdparty/libatomic_ops/src -I3rdparty/libtommath/ -I3rdparty/sha1/ -Isrc -I3rdparty
-LD       = @link@
+CINCLUDE = @ccinc@3rdparty/apr/include @ccinc@3rdparty/libatomic_ops/src @ccinc@3rdparty/libtommath/ @ccinc@3rdparty/sha1/ @ccinc@src @ccinc@3rdparty
+LD       = @ld@
 LDFLAGS  = @ldflags@
-LLIBS    = @llibs@
-COUTO    = @couto@
-LOUTO    = @louto@
+LDLIBS   = @ldlibs@
+COUTO    = @ccout@
+LOUTO    = @ldout@
 
 # File extensions
 EXE = @exe@
-O   = @o@
+O   = @obj@
 
 # Tool configuration
 MAKE = @make@
@@ -332,7 +332,7 @@ HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/thread
 
 # Main target
 moarvm$(EXE): $(THIRDPARTY_LIBS) $(LIBTOMMATH_BIN) $(CORE_OBJS) $(MAIN_OBJ)
-	$(LD) $(LOUTO)moarvm$(EXE) $(LDFLAGS) $(CORE_OBJS) $(MAIN_OBJ) $(LIBTOMMATH_BIN) $(THIRDPARTY_LIBS) $(LLIBS)
+	$(LD) $(LOUTO)moarvm$(EXE) $(LDFLAGS) $(CORE_OBJS) $(MAIN_OBJ) $(LIBTOMMATH_BIN) $(THIRDPARTY_LIBS) $(LDLIBS)
 
 # APR
 $(APR_LIB):
