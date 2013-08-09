@@ -366,8 +366,8 @@ push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} //= join ' ', @ldflags;
 
 $config{thirdparty} //= [ qw(
-    3rdparty/libatomic_ops/libatomic_ops
-    3rdparty/apr/libapr-1
+    3rdparty/libatomic_ops/src/libatomic_ops
+    3rdparty/apr/.libs/libapr-1
 ) ];
 
 $config{thirdpartylibs} //= join ' ',
