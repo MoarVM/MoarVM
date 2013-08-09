@@ -22,7 +22,7 @@ APR_LIB = @aprlib@
 APR_BUILD_LINE = @aprbuildline@
 
 # libatomic_ops related
-LAO_LIB = 3rdparty/libatomic_ops/src/libatomic_ops@lib@
+LAO_LIB = @laolib@
 LAO_BUILD_LINE = @laobuildline@
 
 # libtommath related

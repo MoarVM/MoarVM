@@ -47,16 +47,16 @@ my %TOOLCHAINS = (
         obj   => '.obj',
         lib   => '.lib',
 
+        # for now, hardcode 64-bit version
         thirdparty => [ qw(
             3rdparty/apr/x64/LibR/apr-1
         ) ],
 
-        # header only, no need to build anything
-        laobuildline => '',
-
-        # for now, hardcode 64-bit version
         aprlib => '3rdparty/apr/x64/LibR/apr-1.lib',
         aprbuildline => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
+
+        # header only, no need to build anything
+        laobuildline => '',
     },
 );
 
@@ -146,6 +146,11 @@ my %SYSTEMS = (
         defs => [ 'WIN32' ],
         libs => [ qw( ws2_32 mswsock rpcrt4 ) ],
         make => 'gmake',
+
+        thirdparty => [ '3rdparty/apr/.libs/libapr-1' ],
+
+         # header only, no need to build anything
+        laobuildline => '',
     } ],
 );
 
@@ -286,7 +291,7 @@ sub generate {
             s/@\Q$key\E@/$config{$key}/;
         }
 
-        s/(\w)\/(\w|\*)/$1\\$2/g
+        s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
             if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
 
         print $destfile $_;
@@ -374,6 +379,7 @@ $config{thirdpartylibs} //= join ' ',
     "3rdparty/sha1/sha1$config{obj}",
     map { "$_$config{lib}" } @{$config{thirdparty}};
 
+$config{laolib} //= "3rdparty/libatomic_ops/src/libatomic_ops$config{lib}";
 $config{laobuildline} //=
     "cd 3rdparty/libatomic_ops && ./configure $config{crossconf} && \$(MAKE)";
 
