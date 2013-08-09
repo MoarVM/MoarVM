@@ -3,88 +3,368 @@
 use 5.010;
 use strict;
 use warnings;
+
 use Getopt::Long;
 use Pod::Usage;
 
-use lib 'build';
-use Config::BuildEnvironment;
-use Config::APR;
-use Config::LAO;
-use Config::Generate;
+my %SHELLS = (
+    posix => {
+        cat => 'cat',
+        rm  => 'rm -f',
+    },
 
+    win32 => {
+        cat => 'type',
+        rm  => 'del',
+    },
+);
 
-my %opts;
-GetOptions(\%opts, 'help|?', 'debug!', 'optimize!', 'instrument!', 'clang!');
-pod2usage(1) if $opts{help};
+my %TOOLCHAINS = (
+    gnu => {
+        -compiler => 'gcc',
 
-print "Welcome to MoarVM!\n\n";
+        make  => 'make',
+        ccout => '-o',
+        ccinc => '-I',
+        ccdef => '-D',
+        ldout => undef,
+        obj   => '.o',
+    },
 
-print dots("Checking master build settings ...");
-$opts{debug}      //= 0 + !$opts{optimize};
-$opts{optimize}   //= 0 + !$opts{debug};
-$opts{clang}      //= 0;
-$opts{instrument} //= 0;
-print " OK\n    (debug: " . _yn($opts{debug})
-    . ", optimize: "      . _yn($opts{optimize})
-    . ", instrument: "    . _yn($opts{instrument})
-    . ", clang: "         . _yn($opts{clang}) . ")\n";
+    msvc => {
+        -compiler => 'cl',
 
-print dots("Trying to figure out how to build on your system ...");
-my %config = Config::BuildEnvironment::detect(\%opts);
-if (!$config{'excuse'}) {
-    print " OK\n    (OS: $config{'os'}, Compiler: $config{'cc'}, Linker: $config{'link'})\n";
-}
-else {
-    print " FAILED\n";
-    die "    Sorry, I'm not sure how to build on this platform:\n    $config{'excuse'}\n";
-}
+        make  => 'nmake',
+        ccout => '/Fo',
+        ccinc => '/I',
+        ccdef => '/D',
+        ldout => '/out:',
+        obj   => '.obj',
+    },
+);
 
-print dots("Configuring APR ...");
-%config = Config::APR::configure(%config);
-check_excuse();
+my %COMPILERS = (
+    gcc => {
+        -toolchain => 'gnu',
 
-print dots("Configuring libatomic_ops ...");
-%config = Config::LAO::configure(%config);
-check_excuse();
+        cc => 'gcc',
+        ld => undef,
 
-print dots("Generating config.h ...");
-Config::Generate::file('build/config.h.in', 'src/gen/config.h', %config);
-print " OK\n";
+        ccmiscflags  => '',
+        ccwarnflags  => '-Wall -Wextra',
+        ccoptiflags  => '-O3',
+        ccdebugflags => '-g',
+        ccinstflags  => '',
 
-print dots("Generating Makefile ...");
-Config::Generate::file('build/Makefile.in', 'Makefile', %config);
-print " OK\n";
+        ldmiscflags  => '',
+        ldoptiflags  => undef,
+        lddebugflags => undef,
+        ldinstflags  => undef,
 
-print "\nConfiguration successful. Type '$config{'make'}' to build.\n";
+        noreturnspecifier => '',
+        noreturnattribute => '__attribute__((noreturn))',
+    },
 
+    clang => {
+        -toolchain => 'gnu',
+
+        cc => 'clang',
+        ld => undef,
+
+        ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
+        ccwarnflags  => '-Weverything',
+        ccoptiflags  =>  '-O3',
+        ccdebugflags => '-g',
+        ccinstflags  => '-fsanitize=address',
+
+        ldmiscflags  => '',
+        ldoptiflags  => undef,
+        lddebugflags => undef,
+        ldinstflags  => undef,
+
+        noreturnspecifier => '',
+        noreturnattribute => '__attribute__((noreturn))',
+    },
+
+    cl => {
+        -toolchain => 'msvc',
+
+        cc => 'cl',
+        ld => 'link',
+
+        ccmiscflags  => '/nologo',
+        ccwarnflags  => '',
+        ccoptiflags  => '/Ox /GL',
+        ccdebugflags => '/Zi',
+        ccinstflags  => '',
+
+        ldmiscflags => '/nologo',
+        ldoptiflags  => '/LTCG',
+        lddebugflags => '/debug',
+        ldinstflags  => '/Profile',
+
+        noreturnspecifier => '__declspec(noreturn)',
+        noreturnattribute => '',
+    },
+);
+
+my %SYSTEMS = (
+    generic => [ qw( posix gnu gcc ), {} ],
+
+    linux   => [ qw( posix gnu gcc ), {} ],
+
+    darwin  => [ qw( posix gnu clang ), {} ],
+
+    freebsd => [ qw( posix gnu clang ), {} ],
+
+    cygwin  => [ qw( posix gnu gcc ), {
+        exe => '.exe',
+    } ],
+
+    win32   => [ qw( win32 msvc cl ), {
+        exe  => '.exe',
+        defs => [ 'WIN32' ],
+    } ],
+
+    mingw32 => [ qw( win32 gnu gcc ), {
+        exe  => '.exe',
+        defs => [ 'WIN32' ],
+        make => 'gmake',
+    } ],
+);
+
+my %args;
+my %defaults;
+my %config;
 
 sub dots {
     my $message = shift;
-    my $length  = shift || 55;
+    my $length = shift || 55;
 
-    return $message . '.' x ($length - length $message);
+    return "$message ". '.' x ($length - length $message) . ' ';
 }
 
-sub _yn {
-    return $_[0] ? 'YES' : 'no';
-}
+sub cross_setup {
+    my ($build, $host) = @_;
 
-sub check_excuse {
-    if (!$config{'excuse'}) {
-        print " OK\n";
+    print dots "Detecting cross build environment";
+
+    unless (defined $build && defined $host) {
+        print "FAIL\n";
+        die "Both --build and --host need to be specified\n";
     }
-    else {
-        print " FAILED\n";
-        die "    $config{'excuse'}\n";
+
+    my $cc = "$host-gcc";
+
+    for (\$build, \$host) {
+        if ($$_ =~ /-(\w+)$/) {
+            $$_ = $1;
+            if (!exists $SYSTEMS{$1}) {
+                warn "    unknown OS '$1' - assuming GNU userland\n";
+                $$_ = 'generic';
+            }
+        }
+        else {
+            print "FAIL\n";
+            die "Failed to parse triple '$$_'\n"
+        }
+    }
+
+    $build = $SYSTEMS{$build};
+    $host  = $SYSTEMS{$host};
+
+    my $shell     = $SHELLS{ $build->[0] };
+    my $toolchain = $TOOLCHAINS{gnu};
+    my $compiler  = $COMPILERS{gcc};
+
+    @defaults{ keys %$shell }     = values %$shell;
+    @defaults{ keys %$toolchain } = values %$toolchain;
+    @defaults{ keys %$compiler }  = values %$compiler;
+
+    $defaults{cc}   = $cc;
+    $defaults{exe}  = $host->[3]->{exe};
+    $defaults{defs} = $host->[3]->{defs};
+}
+
+sub native_setup {
+    my ($os) = @_;
+
+    print dots "Detecting native build environment";
+
+    if (!exists $SYSTEMS{$os}) {
+        print "FAIL\n";
+        warn "    unknown OS '$os'\n";
+        print dots "    assuming GNU userland";
+        $os = 'generic';
+    }
+
+    my ($shell, $toolchain, $compiler, $overrides) = @{$SYSTEMS{$os}};
+
+    $shell     = $SHELLS{$shell};
+    $toolchain = $TOOLCHAINS{$toolchain};
+    $compiler  = $COMPILERS{$compiler};
+
+    @defaults{ keys %$shell }     = values %$shell;
+    @defaults{ keys %$toolchain } = values %$toolchain;
+    @defaults{ keys %$compiler }  = values %$compiler;
+    @defaults{ keys %$overrides } = values %$overrides;
+
+    if (exists $args{shell}) {
+        $shell = $args{shell};
+        die "    unsupported shell $shell\n"
+            unless exists $SHELLS{$shell};
+
+        $shell = $SHELLS{$shell};
+        @defaults{ keys %$shell } = values %$shell;
+    }
+
+    if (exists $args{toolchain}) {
+        $toolchain = $args{toolchain};
+        die "    unsupported toolchain $toolchain\n"
+            unless exists $TOOLCHAINS{$toolchain};
+
+        $toolchain = $TOOLCHAINS{$toolchain};
+        $compiler  = $COMPILERS{ $toolchain->{-compiler} };
+
+        @defaults{ keys %$toolchain } = values %$toolchain;
+        @defaults{ keys %$compiler }  = values %$compiler;
+    }
+
+    if (exists $args{compiler}) {
+        $compiler = $args{compiler};
+        die "    unsupported compiler $compiler\n"
+            unless exists $COMPILERS{$compiler};
+
+        $compiler  = $COMPILERS{$compiler};
+        $toolchain = $TOOLCHAINS{ $compiler->{-toolchain} };
+
+        @defaults{ keys %$toolchain } = values %$toolchain;
+        @defaults{ keys %$compiler }  = values %$compiler;
     }
 }
+
+sub generate {
+    my ($dest, $src) = @_;
+
+    print dots "Generating $dest";
+
+    open my $srcfile, '<', $src or die $!;
+    open my $destfile, '>', $dest or die $!;
+
+    while (<$srcfile>) {
+        while (/@(\w+)@/) {
+            my $key = $1;
+            unless (exists $config{$key}) {
+                print "FAIL\n";
+                die "    unknown configuration key '$key'\n";
+            }
+
+            s/@\Q$key\E@/$config{$key}/;
+        }
+
+        print $destfile $_;
+    }
+
+    close $srcfile;
+    close $destfile;
+
+    print "OK\n";
+}
+
+my $fail = !GetOptions(\%args, qw(
+    help|?
+    debug! optimize! instrument!
+    os=s shell=s toolchain=s compiler=s
+    cc=s ld=s make=s
+    build=s host=s
+));
+
+die "See --help for further information\n"
+    if $fail;
+
+pod2usage(1)
+    if $args{help};
+
+print "Welcome to MoarVM!\n\n";
+
+$args{debug}      //= 0 + !$args{optimize};
+$args{optimize}   //= 0 + !$args{debug};
+$args{instrument} //= 0;
+
+if (exists $args{build} || exists $args{host}) {
+    cross_setup $args{build}, $args{host};
+}
+else {
+    native_setup $args{os} // {
+        'MSWin32' => 'win32'
+    }->{$^O} // $^O;
+}
+
+my @keys = qw( cc ld make );
+@config{@keys} = @args{@keys};
+
+for (keys %defaults) {
+    next if /^-/;
+    $config{$_} //= $defaults{$_};
+}
+
+$config{exe}  //= '';
+$config{defs} //= [];
+
+$config{ld}           //= $config{cc};
+$config{ldout}        //= $config{ccout};
+$config{ldmiscflags}  //= $config{ccmiscflags};
+$config{ldoptiflags}  //= $config{ccoptiflags};
+$config{lddebugflags} //= $config{ccdebugflags};
+$config{ldinstflags}  //= $config{ccinstflags};
+
+my @cflags = ($config{ccmiscflags});
+push @cflags, $config{ccoptiflags}  if $args{optimize};
+push @cflags, $config{ccdebugflags} if $args{debug};
+push @cflags, $config{ccinstflags}  if $args{instrument};
+push @cflags, $config{ccwarnflags};
+push @cflags, map { "$config{ccdef}$_" } @{$config{defs}};
+$config{cflags} //= join ' ', @cflags;
+
+my @ldflags = ($config{ldmiscflags});
+push @ldflags, $config{ldoptiflags}  if $args{optimize};
+push @ldflags, $config{lddebugflags} if $args{debug};
+push @ldflags, $config{ldinstflags}  if $args{instrument};
+$config{ldflags} //= join ' ', @ldflags;
+
+print "OK\n";
+
+open my $listfile, '<', 'gen.list'
+    or die $!;
+
+my $target;
+while (<$listfile>) {
+    s/^\s+|\s+$//;
+    next if /^#|^$/;
+
+    $target = $_, next
+        unless defined $target;
+
+    generate $target, $_;
+    $target = undef;
+}
+
+close $listfile;
 
 __END__
 
 =head1 SYNOPSIS
 
-    ./Configure.pl [-?|--help]
-    ./Configure.pl [--debug] [--optimize] [--instrument]
+    ./Configure.pl -?|--help
+
+    ./Configure.pl [--os <os>] [--shell <shell>]
+                   [--toolchain <toolchain>] [--compiler <compiler>]
+                   [--cc <cc>] [--ld <ld>] [--make <make>]
+                   [--debug] [--optimize] [--instrument]
+
+    ./Configure.pl --build <build-triple> --host <host-triple>
+                   [--cc <cc>] [--ld <ld>] [--make <make>]
+                   [--debug] [--optimize] [--instrument]
 
 =head1 OPTIONS
 
@@ -112,5 +392,7 @@ defaults to the opposite of C<--debug>.
 
 Turn on extra instrumentation flags during compile and link; for example,
 turns on Address Sanitizer when compiling with F<clang>.  Defaults to off.
+
+=item TODO
 
 =back
