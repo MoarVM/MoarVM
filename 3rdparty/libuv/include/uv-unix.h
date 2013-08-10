@@ -330,4 +330,6 @@ typedef struct {
   uv_fs_event_cb cb;                                                          \
   UV_PLATFORM_FS_EVENT_FIELDS                                                 \
 
+#define uv_thread_yield pthread_yield
+
 #endif /* UV_UNIX_H */
