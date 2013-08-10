@@ -71,7 +71,7 @@ my %TOOLCHAINS = (
         ldout => undef,
 
         arflags => 'rcs',
-        arout   => '-o',
+        arout   => '',
 
         obj => '.o',
         lib => 'lib%s.a',
@@ -406,6 +406,7 @@ sub cross_setup {
         unless defined $build && defined $host;
 
     my $cc        = "$host-gcc";
+    my $ar        = "$host-ar";
     my $crossconf = "--build=$build --host=$host";
 
     for (\$build, \$host) {
@@ -431,6 +432,7 @@ sub cross_setup {
     set_defaults($shell, $toolchain, $compiler, $overrides);
 
     $defaults{cc}        = $cc;
+    $defaults{ar}        = $ar;
     $defaults{crossconf} = $crossconf;
 }
 
