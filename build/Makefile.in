@@ -178,3 +178,14 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 
 @shalib@: @shaobjects@
 	@sharule@
+
+clean:
+	$(RM) $(OBJECTS) src/strings/unicode.c
+	@clean@
+	@aprclean@
+	@laoclean@
+	@tomclean@
+	@shaclean@
+
+realclean: clean
+	$(RM) moarvm@exe@ Makefile

@@ -7,27 +7,31 @@ use warnings;
 use Getopt::Long;
 use Pod::Usage;
 
+my $NAME = 'moarvm';
+
 my %APR = (
-    path => '3rdparty/apr/.libs',
-    name => 'apr-1',
-    rule => 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)',
+    name  => 'apr-1',
+    path  => '3rdparty/apr/.libs',
+    rule  => 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)',
+    clean => '-cd 3rdparty/apr && $(MAKE) distclean',
 );
 
 my %LAO = (
-    path => '3rdparty/libatomic_ops/src',
-    name => 'atomic_ops',
-    rule => 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)',
+    name  => 'atomic_ops',
+    path  => '3rdparty/libatomic_ops/src',
+    rule  => 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)',
+    clean => '-cd 3rdparty/libatomic_ops && $(MAKE)',
 );
 
 my %SHA = (
-    path => '3rdparty/sha1',
     name => 'sha1',
+    path => '3rdparty/sha1',
     src  => [ '3rdparty/sha1' ],
 );
 
 my %TOM = (
-    path => '3rdparty/libtommath',
     name => 'tommath',
+    path => '3rdparty/libtommath',
     src  => [ '3rdparty/libtommath' ],
 );
 
@@ -75,6 +79,8 @@ my %TOOLCHAINS = (
 
         obj => '.o',
         lib => 'lib%s.a',
+
+        -auxfiles => [],
     },
 
     msvc => {
@@ -97,10 +103,13 @@ my %TOOLCHAINS = (
         obj => '.obj',
         lib => '%s.lib',
 
+        -auxfiles => [ qw( %s.ilk %s.pdb vc100.pdb ) ],
+
         -thirdparty => {
             apr => {
                 %APR,
-                rule => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
+                rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
+                clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
             },
         },
     },
@@ -257,6 +266,13 @@ push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} = join ' ', @ldflags;
 
+my @auxfiles = @{ $defaults{-auxfiles} };
+if (@auxfiles) {
+    $config{clean} = '$(RM) ' . join ' ',
+        map { sprintf $_, $NAME } @auxfiles;
+}
+else { $config{clean} = '@:' }
+
 print "OK\n";
 
 # something of a hack, but works for now
@@ -268,8 +284,9 @@ if ($config{cc} eq 'cl') {
             print "YES\n";
             $defaults{-thirdparty}->{apr} = {
                 %APR,
-                path => '3rdparty/apr/x64/LibR',
-                rule => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
+                path  => '3rdparty/apr/x64/LibR',
+                rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
+                clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" clean',
             };
         }
         else { print "NO\n" }
@@ -294,25 +311,34 @@ my $thirdparty = $defaults{-thirdparty};
 
 for (keys %$thirdparty) {
     my $current = $thirdparty->{$_};
+
     if (defined $current) {
         my $lib = sprintf "%s/$config{lib}",
             $current->{path},
             $current->{name};
 
-        $config{"${_}lib"}  = $lib;
-        $config{"${_}rule"} = $current->{rule} // do {
+        $config{"${_}lib"} = $lib;
+
+        if (exists $current->{rule}) {
+            $config{"${_}rule"}  = $current->{rule};
+            $config{"${_}clean"} = $current->{clean};
+        }
+        else {
             my @sources = map { glob "$_/*.c" } @{ $current->{src} };
             my $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
+            my $globs   = join ' ', map { $_ . '/*@obj@' } @{ $current->{src} };
 
             $config{"${_}objects"} = $objects;
-            '$(AR) $(ARFLAGS) @arout@$@ ' . $objects;
-        };
+            $config{"${_}rule"}    = '$(AR) $(ARFLAGS) @arout@$@ ' . $globs;
+            $config{"${_}clean"}   = "\$(RM) $lib $globs";
+        }
 
         push @thirdpartylibs, $config{"${_}lib"};
     }
     else {
-        $config{"${_}lib"}  = "__${_}__";
-        $config{"${_}rule"} = '';
+        $config{"${_}lib"}   = "__${_}__";
+        $config{"${_}rule"}  = '@:';
+        $config{"${_}clean"} = '@:';
     }
 }
 
