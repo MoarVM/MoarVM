@@ -300,6 +300,7 @@ typedef struct {
   void* buf;                                                                  \
   size_t len;                                                                 \
   off_t off;                                                                  \
+  int whence;                                                                  \
   uv_uid_t uid;                                                               \
   uv_gid_t gid;                                                               \
   double atime;                                                               \

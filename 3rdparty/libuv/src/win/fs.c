@@ -287,7 +287,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
            (w_target[4] >= L'a' && w_target[4] <= L'z')) &&
           w_target[5] == L':' &&
           (w_target_len == 6 || w_target[6] == L'\\')) {
-        /* \??\«drive?\ */
+        /* \??\«drive»\ */
         w_target += 4;
         w_target_len -= 4;
 
@@ -312,7 +312,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
     w_target_len = reparse_data->MountPointReparseBuffer.SubstituteNameLength /
         sizeof(WCHAR);
 
-    /* Only treat junctions that look like \??\«drive?\ as symlink. */
+    /* Only treat junctions that look like \??\«drive»\ as symlink. */
     /* Junctions can also be used as mount points, like \??\Volume{«guid»}, */
     /* but that's confusing for programs since they wouldn't be able to */
     /* actually understand such a path when returned by uv_readlink(). */
@@ -613,6 +613,17 @@ void fs__write(uv_fs_t* req) {
   }
 }
 
+void fs__seek(uv_fs_t* req) {
+  ssize_t r;
+
+  r = (ssize_t)_lseeki64(req->fd, req->offset, req->origin);
+
+  if ( r == -1) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+  } else {
+    SET_REQ_RESULT(req, r);
+  }
+}
 
 void fs__rmdir(uv_fs_t* req) {
   int result = _wrmdir(req->pathw);
@@ -698,7 +709,7 @@ static int fs___mkdir_p(wchar_t *pathname) {
   size_t r;
   size_t len = wcslen(pathname);
 
-  while ((len > 0) && (pathname[len - 1] == '/'))
+  while ((len > 0) && (IS_SLASH(pathname[len - 1])))
     len--;
 
   pathname[len] = '\0';
@@ -706,13 +717,16 @@ static int fs___mkdir_p(wchar_t *pathname) {
   r = _wmkdir(pathname);
 
   if (r == -1 && errno == ENOENT) {
-    wchar_t *ch = wcsrchr(pathname, '/');
+    size_t _len = len;
 
-    if (ch) *ch = '\0';
+    while ((_len > 0) && (IS_SLASH(pathname[_len - 1])))
+      len--;
+
+    pathname[_len] = '\0';
 
     r = fs___mkdir_p(pathname);
 
-    if (ch) *ch = '/';
+    pathname[_len] = '/';
 
     if(r == 0) {
       r = _wmkdir(pathname);
@@ -1469,6 +1483,7 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     XX(CLOSE, close)
     XX(READ, read)
     XX(WRITE, write)
+    XX(SEEK, seek)
     XX(SENDFILE, sendfile)
     XX(STAT, stat)
     XX(LSTAT, lstat)
@@ -1575,6 +1590,22 @@ int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file fd, const void* buf,
   }
 }
 
+int uv_fs_seek(uv_loop_t* loop, uv_fs_t* req, uv_file fd,
+    int64_t offset, int origin, uv_fs_cb cb) {
+  uv_fs_req_init(loop, req, UV_FS_SEEK, cb);
+
+  req->fd = fd;
+  req->offset = offset;
+  req->origin = origin;
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  } else {
+    fs__seek(req);
+    return req->result;
+  }
+}
 
 int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     uv_fs_cb cb) {

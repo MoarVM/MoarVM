@@ -1581,6 +1581,7 @@ typedef enum {
   UV_FS_CLOSE,
   UV_FS_READ,
   UV_FS_WRITE,
+  UV_FS_SEEK,
   UV_FS_SENDFILE,
   UV_FS_STAT,
   UV_FS_LSTAT,
@@ -1628,6 +1629,9 @@ UV_EXTERN int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path,
 
 UV_EXTERN int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file,
     void* buf, size_t length, int64_t offset, uv_fs_cb cb);
+
+UV_EXTERN int uv_fs_seek(uv_loop_t* loop, uv_fs_t* req, uv_file file,
+    int64_t offset, int origin, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     uv_fs_cb cb);

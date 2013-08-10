@@ -205,11 +205,15 @@ static int uv__fs_mkdir_p(char *pathname, mode_t mode) {
   if (r == -1 && errno == ENOENT) {
     char *ch = strrchr(pathname, '/');
 
-    if (ch) *ch = '\0';
+    if (ch) {
+      *ch = '\0';
 
-    r = uv__fs_mkdir_p(pathname, mode);
+      r = uv__fs_mkdir_p(pathname, mode);
 
-    if (ch) *ch = '/';
+      *ch = '/';
+    } else {
+      r = uv__fs_mkdir_p(pathname, mode);
+    }
 
     if(r == 0) {
       r = mkdir(pathname, mode);
@@ -667,6 +671,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(UNLINK, unlink(req->path));
     X(UTIME, uv__fs_utime(req));
     X(WRITE, uv__fs_write(req));
+    X(SEEK, lseek64(req->file, req->off, req->whence));
     default: abort();
     }
 
@@ -990,6 +995,18 @@ int uv_fs_write(uv_loop_t* loop,
   POST;
 }
 
+int uv_fs_seek(uv_loop_t* loop,
+                uv_fs_t* req,
+                uv_file file,
+                int64_t off,
+                int whence,
+                uv_fs_cb cb) {
+  INIT(SEEK);
+  req->file = file;
+  req->off = off;
+  req->whence = whence;
+  POST;
+}
 
 void uv_fs_req_cleanup(uv_fs_t* req) {
   free((void*) req->path);

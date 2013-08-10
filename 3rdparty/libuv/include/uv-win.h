@@ -552,6 +552,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
       void* buf;                                                              \
       size_t length;                                                          \
       int64_t offset;                                                         \
+      int origin;                                                             \
     };                                                                        \
     struct {                                                                  \
       double atime;                                                           \
