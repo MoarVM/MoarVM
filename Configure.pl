@@ -7,21 +7,38 @@ use warnings;
 use Getopt::Long;
 use Pod::Usage;
 
+my %APR = (
+    path => '3rdparty/apr/.libs',
+    name => 'apr-1',
+    rule => 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)',
+);
+
+my %LAO = (
+    path => '3rdparty/libatomic_ops/src',
+    name => 'atomic_ops',
+    rule => 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)',
+);
+
+my %SHA = (
+    path => '3rdparty/sha1',
+    name => 'sha1',
+    src  => [ '3rdparty/sha1' ],
+);
+
+my %TOM = (
+    path => '3rdparty/libtommath',
+    name => 'tommath',
+    src  => [ '3rdparty/libtommath' ],
+);
+
+my %UV = ();
+
 my %THIRDPARTY = (
-    apr => {
-        lib  => '3rdparty/apr/.libs/libapr-1@lib@',
-        rule => 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)',
-    },
-
-    lao => {
-        lib  => '3rdparty/libatomic_ops/src/libatomic_ops@lib@',
-        rule => 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)',
-    },
-
-    sha => {
-        lib  => '3rdparty/sha1/sha1@obj@',
-        rule => 'cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) $(CFLAGS) sha1.c',
-    },
+    apr => { %APR },
+    lao => { %LAO },
+    tom => { %TOM },
+    sha => { %SHA },
+#    uv  => { %UV },
 );
 
 my %SHELLS = (
@@ -42,31 +59,47 @@ my %TOOLCHAINS = (
     gnu => {
         -compiler => 'gcc',
 
-        make  => 'make',
-        ccout => '-o',
-        ccinc => '-I',
-        ccdef => '-D',
-        cclib => '-l%s',
+        make => 'make',
+        ar   => 'ar',
+
+        ccswitch => '-c',
+        ccout    => '-o',
+        ccinc    => '-I',
+        ccdef    => '-D',
+        cclib    => '-l%s',
+
         ldout => undef,
-        obj   => '.o',
-        lib   => '.a',
+
+        arflags => 'rcs',
+        arout   => '-o',
+
+        obj => '.o',
+        lib => 'lib%s.a',
     },
 
     msvc => {
         -compiler => 'cl',
 
-        make  => 'nmake',
-        ccout => '/Fo',
-        ccinc => '/I',
-        ccdef => '/D',
-        cclib => '%s.lib',
+        make => 'nmake',
+        ar   => 'lib',
+
+        ccswitch => '/c',
+        ccout    => '/Fo',
+        ccinc    => '/I',
+        ccdef    => '/D',
+        cclib    => '%s.lib',
+
         ldout => '/out:',
-        obj   => '.obj',
-        lib   => '.lib',
+
+        arflags => '/nologo',
+        arout   => '/out:',
+
+        obj => '.obj',
+        lib => '%s.lib',
 
         -thirdparty => {
             apr => {
-                lib  => '3rdparty/apr/LibR/apr-1.lib',
+                %APR,
                 rule => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
             },
         },
@@ -128,7 +161,7 @@ my %COMPILERS = (
         ccdebugflags => '/Zi',
         ccinstflags  => '',
 
-        ldmiscflags => '/nologo',
+        ldmiscflags  => '/nologo',
         ldoptiflags  => '/LTCG',
         lddebugflags => '/debug',
         ldinstflags  => '/Profile',
@@ -234,7 +267,8 @@ if ($config{cc} eq 'cl') {
         if ($msg =~ /x64/) {
             print "YES\n";
             $defaults{-thirdparty}->{apr} = {
-                lib  => '3rdparty/apr/x64/LibR/apr-1.lib',
+                %APR,
+                path => '3rdparty/apr/x64/LibR',
                 rule => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
             };
         }
@@ -246,21 +280,39 @@ if ($config{cc} eq 'cl') {
     }
 }
 
+print "\n", <<TERM, "\n";
+      make: $config{make}
+   compile: $config{cc} $config{cflags}
+      link: $config{ld} $config{ldflags}
+      libs: $config{ldlibs}
+TERM
+
 print dots('Configuring 3rdparty libs');
 
 my @thirdpartylibs;
 my $thirdparty = $defaults{-thirdparty};
 
 for (keys %$thirdparty) {
-    if (defined $thirdparty->{$_}) {
-        my $lib = $thirdparty->{$_}->{lib};
-        $config{"${_}lib"} //= $lib;
-        $config{"${_}buildline"} //= $thirdparty->{$_}->{rule};
-        push @thirdpartylibs, configure($lib);
+    my $current = $thirdparty->{$_};
+    if (defined $current) {
+        my $lib = sprintf "%s/$config{lib}",
+            $current->{path},
+            $current->{name};
+
+        $config{"${_}lib"}  = $lib;
+        $config{"${_}rule"} = $current->{rule} // do {
+            my @sources = map { glob "$_/*.c" } @{ $current->{src} };
+            my $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
+
+            $config{"${_}objects"} = $objects;
+            '$(AR) $(ARFLAGS) @arout@$@ ' . $objects;
+        };
+
+        push @thirdpartylibs, $config{"${_}lib"};
     }
     else {
-        $config{"${_}lib"} //= "__${_}__";
-        $config{"${_}buildline"} //= '';
+        $config{"${_}lib"}  = "__${_}__";
+        $config{"${_}rule"} = '';
     }
 }
 
@@ -269,15 +321,8 @@ my $thirdpartylibs = join "\n" . ' ' x 12, @thirdpartylibs;
 
 print "OK\n";
 
-print <<TERM;
-
-     shell: $config{sh}
-      make: $config{make}
-   compile: $config{cc} $config{cflags}
-      link: $config{ld} $config{ldflags}
-      libs: $config{ldlibs}
+print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
-
 TERM
 
 open my $listfile, '<', 'gen.list'
