@@ -587,3 +587,4 @@ int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
 #define UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS
 
 #define uv_thread_yield SwitchToThread
+#define uv_thread_exit(retval) ExitThread(0)

@@ -331,5 +331,6 @@ typedef struct {
   UV_PLATFORM_FS_EVENT_FIELDS                                                 \
 
 #define uv_thread_yield pthread_yield
+#define uv_thread_exit(retval) pthread_exit(NULL)
 
 #endif /* UV_UNIX_H */
