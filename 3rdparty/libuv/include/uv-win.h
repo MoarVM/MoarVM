@@ -588,3 +588,10 @@ int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
 
 #define uv_thread_yield SwitchToThread
 #define uv_thread_exit(retval) ExitThread(0)
+
+#define uv_fs_getstdin(loop, req, cb) uv_fs_open(loop, req, NULL,            \
+        STD_INPUT_HANDLE, 0, cb)
+#define uv_fs_getstdout(loop, req, cb) uv_fs_open(loop, req, NULL,           \
+        STD_OUTPUT_HANDLE, 0, cb)
+#define uv_fs_getstderr(loop, req, cb) uv_fs_open(loop, req, NULL,           \
+        STD_ERROR_HANDLE, 0, cb)

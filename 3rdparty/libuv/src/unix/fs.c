@@ -547,6 +547,7 @@ static ssize_t uv__fs_flush(uv_fs_t* req) {
   ssize_t r;
   ssize_t written = 0;
 
+  const uv_file file = req->file;
   char* const buf = req->buf;
   const ssize_t len = req->len;
 
@@ -558,7 +559,7 @@ static ssize_t uv__fs_flush(uv_fs_t* req) {
   pthread_mutex_lock(&lock);
 #endif
   do {
-    r = write(req->file, buf + written, len - written);
+    r = write(file, buf + written, len - written);
 
     if (r)
       written += r;
@@ -940,6 +941,14 @@ int uv_fs_open(uv_loop_t* loop,
   POST;
 }
 
+int uv_fs_getstd(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 uv_file file,
+                 uv_fs_cb cb) {
+  INIT(GETSTD);
+  req->file = file;
+  POST;
+}
 
 int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
                uv_file file,
