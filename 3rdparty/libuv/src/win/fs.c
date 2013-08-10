@@ -624,8 +624,8 @@ void fs__unlock(uv_fs_t* req) {
 
 void fs__write(uv_fs_t* req) {
   int fd = req->fd;
-  size_t length = req->length;
-  int64_t offset = req->offset;
+  const size_t length = req->length;
+  const int64_t offset = req->offset;
   HANDLE handle;
   OVERLAPPED overlapped, *overlapped_ptr;
   LARGE_INTEGER offset_;
@@ -661,6 +661,55 @@ void fs__write(uv_fs_t* req) {
   } else {
     SET_REQ_WIN32_ERROR(req, GetLastError());
   }
+}
+
+void fs__flush(uv_fs_t* req) {
+  int fd = req->fd;
+  const size_t length = req->length;
+  const int64_t offset = req->offset;
+  char *buffer = req->buf;
+  ssize_t left = length;
+  HANDLE handle;
+  OVERLAPPED overlapped, *overlapped_ptr;
+  LARGE_INTEGER offset_;
+  DWORD bytes;
+
+  VERIFY_FD(fd, req);
+
+  handle = (HANDLE) _get_osfhandle(fd);
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_RESULT(req, -1);
+    return;
+  }
+
+  if (length > INT_MAX) {
+    SET_REQ_WIN32_ERROR(req, ERROR_INSUFFICIENT_BUFFER);
+    return;
+  }
+
+  if (offset != -1) {
+    memset(&overlapped, 0, sizeof overlapped);
+
+    offset_.QuadPart = offset;
+    overlapped.Offset = offset_.LowPart;
+    overlapped.OffsetHigh = offset_.HighPart;
+
+    overlapped_ptr = &overlapped;
+  } else {
+    overlapped_ptr = NULL;
+  }
+
+  do {
+    if (WriteFile(handle, buffer, left, &bytes, overlapped_ptr)) {
+      buffer += bytes;
+      left   -= bytes;
+    } else {
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+      return;
+    }
+  } while (left > 0);
+
+  SET_REQ_RESULT(req, length);
 }
 
 void fs__seek(uv_fs_t* req) {
@@ -1533,6 +1582,7 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     XX(CLOSE, close)
     XX(READ, read)
     XX(WRITE, write)
+    XX(FLUSH, flush)
     XX(LOCK, lock)
     XX(UNLOCK, unlock)
     XX(SEEK, seek)
@@ -1668,6 +1718,18 @@ int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file fd, const void* buf,
     return 0;
   } else {
     fs__write(req);
+    return req->result;
+  }
+}
+
+int uv_fs_flush(uv_loop_t* loop, uv_fs_t* req, uv_fs_cb cb) {
+  uv_fs_req_init(loop, req, UV_FS_FLUSH, cb);
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  } else {
+    fs__flush(req);
     return req->result;
   }
 }
