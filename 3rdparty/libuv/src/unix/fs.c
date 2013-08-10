@@ -203,17 +203,16 @@ static int uv__fs_mkdir_p(char *pathname, mode_t mode) {
   r = mkdir(pathname, mode);
 
   if (r == -1 && errno == ENOENT) {
-    char *ch = strrchr(pathname, '/');
+    size_t _len = len;
 
-    if (ch) {
-      *ch = '\0';
+    while ((_len > 0) && (pathname[_len - 1]) == '/')
+      _len--;
 
-      r = uv__fs_mkdir_p(pathname, mode);
+    pathname[_len] = '\0';
 
-      *ch = '/';
-    } else {
-      r = uv__fs_mkdir_p(pathname, mode);
-    }
+    r = uv__fs_mkdir_p(pathname, mode);
+
+    pathname[_len] = '/';
 
     if(r == 0) {
       r = mkdir(pathname, mode);
@@ -542,6 +541,47 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
   return r;
 }
 
+static size_t uv__fs_lock(uv_fs_t* req) {
+  int flags = req->flags;
+  struct flock l;
+
+  ssize_t r;
+  int fc;
+
+  l.l_whence = SEEK_SET;
+  l.l_start = 0;
+  l.l_len = 0;
+
+  if ((flags & UV_FS_FLOCK_TYPEMASK) == UV_FS_FLOCK_SHARED)
+    l.l_type = F_RDLCK;
+  else
+    l.l_type = F_WRLCK;
+
+  fc = (flags & UV_FS_FLOCK_NONBLOCK) ? F_SETLK : F_SETLKW;
+
+  do {
+    r = fcntl(req->file, fc, &l);
+  } while (r == -1 && errno == EINTR);
+
+  return r;
+}
+
+static size_t uv__fs_unlock(uv_fs_t* req) {
+  struct flock l;
+  ssize_t r;
+
+  l.l_whence = SEEK_SET;
+  l.l_start = 0;
+  l.l_len = 0;
+  l.l_type = F_UNLCK;
+
+  do {
+    r = fcntl(req->file, F_SETLKW, &l);
+  } while (r == -1 && errno == EINTR);
+
+  return r;
+}
+
 static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_dev = src->st_dev;
   dst->st_mode = src->st_mode;
@@ -672,6 +712,8 @@ static void uv__fs_work(struct uv__work* w) {
     X(UTIME, uv__fs_utime(req));
     X(WRITE, uv__fs_write(req));
     X(SEEK, lseek64(req->file, req->off, req->whence));
+    X(LOCK, uv__fs_lock(req));
+    X(UNLOCK, uv__fs_unlock(req));
     default: abort();
     }
 
@@ -1005,6 +1047,26 @@ int uv_fs_seek(uv_loop_t* loop,
   req->file = file;
   req->off = off;
   req->whence = whence;
+  POST;
+}
+
+int uv_fs_lock(uv_loop_t* loop,
+                uv_fs_t* req,
+                uv_file file,
+                int flags,
+                uv_fs_cb cb) {
+  INIT(LOCK);
+  req->file = file;
+  req->flags = flags;
+  POST;
+}
+
+int uv_fs_unlock(uv_loop_t* loop,
+                uv_fs_t* req,
+                uv_file file,
+                uv_fs_cb cb) {
+  INIT(UNLOCK);
+  req->file = file;
   POST;
 }
 

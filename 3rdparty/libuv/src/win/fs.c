@@ -571,6 +571,56 @@ void fs__read(uv_fs_t* req) {
   }
 }
 
+void fs__lock(uv_fs_t* req) {
+  const DWORD len = 0xffffffff;
+  HANDLE handle;
+  OVERLAPPED offset;
+
+  int fd = req->fd;
+  int flags = req->flags;
+
+  VERIFY_FD(fd, req);
+
+  handle = (HANDLE) _get_osfhandle(fd);
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_RESULT(req, -1);
+    return;
+  }
+
+  flags = ((flags & UV_FS_FLOCK_NONBLOCK) ? LOCKFILE_FAIL_IMMEDIATELY : 0)
+          + ((flags & UV_FS_FLOCK_TYPEMASK) == UV_FS_FLOCK_SHARED
+                                       ? 0 : LOCKFILE_EXCLUSIVE_LOCK);
+
+  memset (&offset, 0, sizeof(offset));
+  if (LockFileEx(handle, flags, 0, len, len, &offset)) {
+    SET_REQ_RESULT(req, 0);
+  } else {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+  }
+}
+
+void fs__unlock(uv_fs_t* req) {
+  const DWORD len = 0xffffffff;
+  HANDLE handle;
+  OVERLAPPED offset;
+
+  int fd = req->fd;
+
+  VERIFY_FD(fd, req);
+
+  handle = (HANDLE) _get_osfhandle(fd);
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_RESULT(req, -1);
+    return;
+  }
+
+  memset (&offset, 0, sizeof(offset));
+  if (UnlockFileEx(handle, 0, len, len, &offset)) {
+    SET_REQ_RESULT(req, 0);
+  } else {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+  }
+}
 
 void fs__write(uv_fs_t* req) {
   int fd = req->fd;
@@ -618,7 +668,7 @@ void fs__seek(uv_fs_t* req) {
 
   r = (ssize_t)_lseeki64(req->fd, req->offset, req->origin);
 
-  if ( r == -1) {
+  if (r == -1) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
   } else {
     SET_REQ_RESULT(req, r);
@@ -720,7 +770,7 @@ static int fs___mkdir_p(wchar_t *pathname) {
     size_t _len = len;
 
     while ((_len > 0) && (IS_SLASH(pathname[_len - 1])))
-      len--;
+      _len--;
 
     pathname[_len] = '\0';
 
@@ -1483,6 +1533,8 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     XX(CLOSE, close)
     XX(READ, read)
     XX(WRITE, write)
+    XX(LOCK, lock)
+    XX(UNLOCK, unlock)
     XX(SEEK, seek)
     XX(SENDFILE, sendfile)
     XX(STAT, stat)
@@ -1571,6 +1623,36 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
   }
 }
 
+UV_EXTERN int uv_fs_lock(uv_loop_t* loop, uv_fs_t* req, uv_file fd,
+    int flags, uv_fs_cb cb) {
+  uv_fs_req_init(loop, req, UV_FS_LOCK, cb);
+
+  req->fd = fd;
+  req->flags = flags;
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  } else {
+    fs__lock(req);
+    return req->result;
+  }
+}
+
+UV_EXTERN int uv_fs_unlock(uv_loop_t* loop, uv_fs_t* req, uv_file fd,
+    uv_fs_cb cb) {
+  uv_fs_req_init(loop, req, UV_FS_UNLOCK, cb);
+
+  req->fd = fd;
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  } else {
+    fs__unlock(req);
+    return req->result;
+  }
+}
 
 int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file fd, const void* buf,
     size_t length, int64_t offset, uv_fs_cb cb) {
