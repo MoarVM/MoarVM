@@ -287,7 +287,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
            (w_target[4] >= L'a' && w_target[4] <= L'z')) &&
           w_target[5] == L':' &&
           (w_target_len == 6 || w_target[6] == L'\\')) {
-        /* \??\«drive»\ */
+        /* \??\«drive»:\ */
         w_target += 4;
         w_target_len -= 4;
 
@@ -312,7 +312,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
     w_target_len = reparse_data->MountPointReparseBuffer.SubstituteNameLength /
         sizeof(WCHAR);
 
-    /* Only treat junctions that look like \??\«drive»\ as symlink. */
+    /* Only treat junctions that look like \??\«drive»:\ as symlink. */
     /* Junctions can also be used as mount points, like \??\Volume{«guid»}, */
     /* but that's confusing for programs since they wouldn't be able to */
     /* actually understand such a path when returned by uv_readlink(). */
