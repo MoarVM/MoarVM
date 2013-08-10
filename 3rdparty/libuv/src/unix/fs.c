@@ -730,6 +730,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(LINK, link(req->path, req->new_path));
     X(MKDIR, mkdir(req->path, req->mode));
     X(MKDIR_P, uv__fs_mkdir_p((char *)req->path, req->mode));
+    X(GETSTD, req->file);
     X(OPEN, open(req->path, req->flags, req->mode));
     X(READ, uv__fs_read(req));
     X(READDIR, uv__fs_readdir(req));
