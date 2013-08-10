@@ -7,6 +7,23 @@ use warnings;
 use Getopt::Long;
 use Pod::Usage;
 
+my %THIRDPARTY = (
+    apr => {
+        lib  => '3rdparty/apr/.libs/libapr-1@lib@',
+        rule => 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)',
+    },
+
+    lao => {
+        lib  => '3rdparty/libatomic_ops/src/libatomic_ops@lib@',
+        rule => 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)',
+    },
+
+    sha => {
+        lib  => '3rdparty/sha1/sha1@obj@',
+        rule => 'cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) $(CFLAGS) sha1.c',
+    },
+);
+
 my %SHELLS = (
     posix => {
         sh  => 'sh',
@@ -47,14 +64,12 @@ my %TOOLCHAINS = (
         obj   => '.obj',
         lib   => '.lib',
 
-        # for now, hardcode 64-bit version
-        thirdparty => [ qw(
-            3rdparty/sha1/sha1.obj
-            3rdparty/apr/x64/LibR/apr-1.lib
-        ) ],
-
-        aprlib => '3rdparty/apr/x64/LibR/apr-1.lib',
-        aprbuildline => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
+        -thirdparty => {
+            apr => {
+                lib  => '3rdparty/apr/LibR/apr-1.lib',
+                rule => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
+            },
+        },
     },
 );
 
@@ -129,7 +144,7 @@ my %WIN32 = (
     libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 ) ],
 
     # header only, no need to build anything
-    laobuildline => '',
+    -thirdparty => { lao => undef },
 );
 
 my %SYSTEMS = (
@@ -146,174 +161,15 @@ my %args;
 my %defaults;
 my %config;
 
-sub dots {
-    my $message = shift;
-    my $length = shift || 55;
-
-    return "$message ". '.' x ($length - length $message) . ' ';
-}
-
-sub cross_setup {
-    my ($build, $host) = @_;
-
-    print dots "Configuring cross build environment";
-
-    unless (defined $build && defined $host) {
-        print "FAIL\n";
-        die "    both --build and --host need to be specified\n";
-    }
-
-    my $cc        = "$host-gcc";
-    my $crossconf = "--build=$build --host=$host";
-
-    for (\$build, \$host) {
-        if ($$_ =~ /-(\w+)$/) {
-            $$_ = $1;
-            if (!exists $SYSTEMS{$1}) {
-                print "FAIL\n";
-                warn "    unknown OS '$1'\n";
-                print dots "    assuming GNU userland";
-                $$_ = 'generic';
-            }
-        }
-        else {
-            print "FAIL\n";
-            die "    failed to parse triple '$$_'\n"
-        }
-    }
-
-    $build = $SYSTEMS{$build};
-    $host  = $SYSTEMS{$host};
-
-    my $shell     = $SHELLS{ $build->[0] };
-    my $toolchain = $TOOLCHAINS{gnu};
-    my $compiler  = $COMPILERS{gcc};
-
-    @defaults{ keys %$shell }     = values %$shell;
-    @defaults{ keys %$toolchain } = values %$toolchain;
-    @defaults{ keys %$compiler }  = values %$compiler;
-
-    $defaults{cc}        = $cc;
-    $defaults{exe}       = $host->[3]->{exe};
-    $defaults{defs}      = $host->[3]->{defs};
-    $defaults{libs}      = $host->[3]->{libs};
-    $defaults{crossconf} = $crossconf;
-}
-
-sub native_setup {
-    my ($os) = @_;
-
-    print dots "Configuring native build environment";
-
-    if (!exists $SYSTEMS{$os}) {
-        print "FAIL\n";
-        warn "    unknown OS '$os'\n";
-        print dots "    assuming GNU userland";
-        $os = 'generic';
-    }
-
-    my ($shell, $toolchain, $compiler, $overrides) = @{$SYSTEMS{$os}};
-
-    $shell     = $SHELLS{$shell};
-    $toolchain = $TOOLCHAINS{$toolchain};
-    $compiler  = $COMPILERS{$compiler};
-
-    @defaults{ keys %$shell }     = values %$shell;
-    @defaults{ keys %$toolchain } = values %$toolchain;
-    @defaults{ keys %$compiler }  = values %$compiler;
-    @defaults{ keys %$overrides } = values %$overrides;
-
-    if (exists $args{shell}) {
-        $shell = $args{shell};
-        die "    unsupported shell $shell\n"
-            unless exists $SHELLS{$shell};
-
-        $shell = $SHELLS{$shell};
-        @defaults{ keys %$shell } = values %$shell;
-    }
-
-    if (exists $args{toolchain}) {
-        $toolchain = $args{toolchain};
-        die "    unsupported toolchain $toolchain\n"
-            unless exists $TOOLCHAINS{$toolchain};
-
-        $toolchain = $TOOLCHAINS{$toolchain};
-        $compiler  = $COMPILERS{ $toolchain->{-compiler} };
-
-        @defaults{ keys %$toolchain } = values %$toolchain;
-        @defaults{ keys %$compiler }  = values %$compiler;
-    }
-
-    if (exists $args{compiler}) {
-        $compiler = $args{compiler};
-        die "    unsupported compiler $compiler\n"
-            unless exists $COMPILERS{$compiler};
-
-        $compiler  = $COMPILERS{$compiler};
-
-        unless (exists $args{toolchain}) {
-            $toolchain = $TOOLCHAINS{ $compiler->{-toolchain} };
-            @defaults{ keys %$toolchain } = values %$toolchain;
-        }
-
-        @defaults{ keys %$compiler }  = values %$compiler;
-    }
-}
-
-sub configure {
-    my ($_) = @_;
-
-    while (/@(\w+)@/) {
-        my $key = $1;
-        return (undef, "unknown configuration key '$key'")
-            unless exists $config{$key};
-
-        s/@\Q$key\E@/$config{$key}/;
-    }
-
-    return $_;
-}
-
-sub generate {
-    my ($dest, $src) = @_;
-
-    print dots "Generating $dest";
-
-    open my $srcfile, '<', $src or die $!;
-    open my $destfile, '>', $dest or die $!;
-
-    while (<$srcfile>) {
-        my ($_, $error) = configure $_;
-        unless (defined $_) {
-            print "FAIL\n";
-            die "    $error\n";
-        }
-
-        s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
-            if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
-
-        print $destfile $_;
-    }
-
-    close $srcfile;
-    close $destfile;
-
-    print "OK\n";
-}
-
-my $fail = !GetOptions(\%args, qw(
+GetOptions(\%args, qw(
     help|?
     debug! optimize! instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     build=s host=s
-));
+)) or die "See --help for further information\n";
 
-die "See --help for further information\n"
-    if $fail;
-
-pod2usage(1)
-    if $args{help};
+pod2usage(1) if $args{help};
 
 print "Welcome to MoarVM!\n\n";
 
@@ -322,12 +178,12 @@ $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
 
 if (exists $args{build} || exists $args{host}) {
-    cross_setup $args{build}, $args{host};
+    cross_setup($args{build}, $args{host});
 }
 else {
-    native_setup $args{os} // {
+    native_setup($args{os} // {
         'MSWin32' => 'win32'
-    }->{$^O} // $^O;
+    }->{$^O} // $^O);
 }
 
 my @keys = qw( cc ld make );
@@ -360,36 +216,72 @@ push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, map { "$config{ccdef}$_" } @{$config{defs}};
-$config{cflags} //= join ' ', @cflags;
+$config{cflags} = join ' ', @cflags;
 
 my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
-$config{ldflags} //= join ' ', @ldflags;
+$config{ldflags} = join ' ', @ldflags;
 
-$config{shalib} //= '3rdparty/sha1/sha1@obj@';
+print "OK\n";
 
-$config{laolib} //= '3rdparty/libatomic_ops/src/libatomic_ops@lib@';
-$config{laobuildline} //= 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)';
+# something of a hack, but works for now
+if ($config{cc} eq 'cl') {
+    print dots('    auto-detecting x64 toolchain');
+    my $msg = `cl 2>&1`;
+    if (defined $msg) {
+        if ($msg =~ /x64/) {
+            print "YES\n";
+            $defaults{-thirdparty}->{apr} = {
+                lib  => '3rdparty/apr/x64/LibR/apr-1.lib',
+                rule => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
+            };
+        }
+        else { print "NO\n" }
+    }
+    else {
+        softfail("could not run 'cl'");
+        print dots('    assuming x86'), "OK\n";
+    }
+}
 
-$config{aprlib} //= '3rdparty/apr/.libs/libapr-1@lib@';
-$config{aprbuildline} //= 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)';
+print dots('Configuring 3rdparty libs');
 
-$config{thirdparty} //= [ @config{ qw( shalib laolib aprlib ) } ];
-$config{thirdpartylibs} //=
-    join ' ', map { configure $_ } @{$config{thirdparty}};
+my @thirdpartylibs;
+my $thirdparty = $defaults{-thirdparty};
 
-print "OK\n",
-    "        compile: $config{cc} $config{cflags}\n",
-    "           link: $config{ld} $config{ldflags}\n",
-    "           libs: $config{ldlibs}\n",
-    "       3rdparty: " . join("\n". ' ' x 17,
-        map { configure $_ } @{$config{thirdparty}}) . "\n",
-    "           make: $config{make}\n";
+for (keys %$thirdparty) {
+    if (defined $thirdparty->{$_}) {
+        my $lib = $thirdparty->{$_}->{lib};
+        $config{"${_}lib"} //= $lib;
+        $config{"${_}buildline"} //= $thirdparty->{$_}->{rule};
+        push @thirdpartylibs, configure($lib);
+    }
+    else {
+        $config{"${_}lib"} //= "__${_}__";
+        $config{"${_}buildline"} //= '';
+    }
+}
+
+$config{thirdpartylibs} = join ' ', @thirdpartylibs;
+my $thirdpartylibs = join "\n" . ' ' x 12, @thirdpartylibs;
+
+print "OK\n";
+
+print <<TERM;
+
+     shell: $config{sh}
+      make: $config{make}
+   compile: $config{cc} $config{cflags}
+      link: $config{ld} $config{ldflags}
+      libs: $config{ldlibs}
+  3rdparty: $thirdpartylibs
+
+TERM
 
 open my $listfile, '<', 'gen.list'
-    or die $!;
+    or hardfail($!);
 
 my $target;
 while (<$listfile>) {
@@ -399,13 +291,169 @@ while (<$listfile>) {
     $target = $_, next
         unless defined $target;
 
-    generate $target, $_;
+    generate($target, $_);
     $target = undef;
 }
 
 close $listfile;
 
 print "\nConfiguration successful. Type '$config{'make'}' to build.\n";
+exit;
+
+sub native_setup {
+    my ($os) = @_;
+
+    print dots("Configuring native build environment");
+
+    if (!exists $SYSTEMS{$os}) {
+        softfail("unknown OS '$os'");
+        print dots("    assuming GNU userland");
+        $os = 'generic';
+    }
+
+    my ($shell, $toolchain, $compiler, $overrides) = @{$SYSTEMS{$os}};
+    $shell     = $SHELLS{$shell};
+    $toolchain = $TOOLCHAINS{$toolchain};
+    $compiler  = $COMPILERS{$compiler};
+    set_defaults($shell, $toolchain, $compiler, $overrides);
+
+    if (exists $args{shell}) {
+        $shell = $args{shell};
+        hardfail("unsupported shell '$shell'")
+            unless exists $SHELLS{$shell};
+
+        $shell = $SHELLS{$shell};
+        set_defaults($shell);
+    }
+
+    if (exists $args{toolchain}) {
+        $toolchain = $args{toolchain};
+        hardfail("unsupported toolchain '$toolchain'")
+            unless exists $TOOLCHAINS{$toolchain};
+
+        $toolchain = $TOOLCHAINS{$toolchain};
+        $compiler  = $COMPILERS{ $toolchain->{-compiler} };
+        set_defaults($toolchain, $compiler);
+    }
+
+    if (exists $args{compiler}) {
+        $compiler = $args{compiler};
+        hardfail("unsupported compiler '$compiler'")
+            unless exists $COMPILERS{$compiler};
+
+        $compiler  = $COMPILERS{$compiler};
+
+        unless (exists $args{toolchain}) {
+            $toolchain = $TOOLCHAINS{ $compiler->{-toolchain} };
+            set_defaults($toolchain);
+        }
+
+        set_defaults($compiler);
+    }
+}
+
+sub cross_setup {
+    my ($build, $host) = @_;
+
+    print dots("Configuring cross build environment");
+
+    hardfail("both --build and --host need to be specified")
+        unless defined $build && defined $host;
+
+    my $cc        = "$host-gcc";
+    my $crossconf = "--build=$build --host=$host";
+
+    for (\$build, \$host) {
+        if ($$_ =~ /-(\w+)$/) {
+            $$_ = $1;
+            if (!exists $SYSTEMS{$1}) {
+                softfail("unknown OS '$1'");
+                print dots("    assuming GNU userland");
+                $$_ = 'generic';
+            }
+        }
+        else { hardfail("failed to parse triple '$$_'") }
+    }
+
+    $build = $SYSTEMS{$build};
+    $host  = $SYSTEMS{$host};
+
+    my $shell     = $SHELLS{ $build->[0] };
+    my $toolchain = $TOOLCHAINS{gnu};
+    my $compiler  = $COMPILERS{gcc};
+    my $overrides = $host->[3];
+
+    set_defaults($shell, $toolchain, $compiler, $overrides);
+
+    $defaults{cc}        = $cc;
+    $defaults{crossconf} = $crossconf;
+}
+
+sub set_defaults {
+    my $thirdparty = $defaults{-thirdparty} // \%THIRDPARTY;
+    @defaults{ keys %$_ } = values %$_ for @_;
+    $defaults{-thirdparty} = {
+        %$thirdparty, map{ %{ $_->{-thirdparty} // {} } } @_
+    };
+}
+
+sub configure {
+    my ($_) = @_;
+
+    while (/@(\w+)@/) {
+        my $key = $1;
+        return (undef, "unknown configuration key '$key'")
+            unless exists $config{$key};
+
+        s/@\Q$key\E@/$config{$key}/;
+    }
+
+    return $_;
+}
+
+sub generate {
+    my ($dest, $src) = @_;
+
+    print dots("Generating $dest");
+
+    open my $srcfile, '<', $src or hardfail($!);
+    open my $destfile, '>', $dest or hardfail($!);
+
+    while (<$srcfile>) {
+        my ($_, $error) = configure($_);
+        hardfail($error)
+            unless defined $_;
+
+        s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
+            if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
+
+        print $destfile $_;
+    }
+
+    close $srcfile;
+    close $destfile;
+
+    print "OK\n";
+}
+
+sub dots {
+    my $message = shift;
+    my $length = shift || 55;
+
+    return "$message ". '.' x ($length - length $message) . ' ';
+}
+
+sub hardfail {
+    my ($msg) = @_;
+    print "FAIL\n";
+    die "    $msg\n";
+}
+
+sub softfail {
+    my ($msg) = @_;
+    print "FAIL\n";
+    warn "    $msg\n";
+}
 
 __END__
 

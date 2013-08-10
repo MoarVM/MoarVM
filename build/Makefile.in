@@ -25,6 +25,10 @@ APR_BUILD_LINE = @aprbuildline@
 LAO_LIB = @laolib@
 LAO_BUILD_LINE = @laobuildline@
 
+# SHA1 related
+SHA_LIB = @shalib@
+SHA_BUILD_LINE = @shabuildline@
+
 # libtommath related
 TOM = 3rdparty/libtommath/bn
 
@@ -339,8 +343,8 @@ $(LAO_LIB):
 	$(LAO_BUILD_LINE)
 
 # sha1
-3rdparty/sha1/sha1$(O): 3rdparty/sha1/sha1.h
-	cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) -I. $(CFLAGS) sha1.c
+$(SHA_LIB): 3rdparty/sha1/sha1.h
+	$(SHA_BUILD_LINE)
 
 test:
 	@echo "Please build nqp-cc and run the tests in there"
