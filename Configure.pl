@@ -326,7 +326,7 @@ print "\n", <<TERM, "\n";
 TERM
 
 open my $listfile, '<', 'gen.list'
-    or hardfail($!);
+    or die "gen.list: $!\n";
 
 my $target;
 while (<$listfile>) {
