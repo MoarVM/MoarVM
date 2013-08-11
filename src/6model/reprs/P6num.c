@@ -11,7 +11,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(P6num);
+        st->size = sizeof(MVMP6num);
     });
 
     return st->WHAT;
@@ -24,8 +24,8 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    P6numBody *src_body  = (P6numBody *)src;
-    P6numBody *dest_body = (P6numBody *)dest;
+    MVMP6numBody *src_body  = (MVMP6numBody *)src;
+    MVMP6numBody *dest_body = (MVMP6numBody *)dest;
     dest_body->value = src_body->value;
 }
 
@@ -38,10 +38,10 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         "P6num representation cannot unbox to a native int");
 }
 static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
-    ((P6numBody *)data)->value = value;
+    ((MVMP6numBody *)data)->value = value;
 }
 static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    return ((P6numBody *)data)->value;
+    return ((MVMP6numBody *)data)->value;
 }
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVM_exception_throw_adhoc(tc,
@@ -73,15 +73,15 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(P6num);
+    st->size = sizeof(MVMP6num);
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    ((P6numBody *)data)->value = reader->read_num(tc, reader);
+    ((MVMP6numBody *)data)->value = reader->read_num(tc, reader);
 }
 
 /* Initializes the representation. */
-MVMREPROps * P6num_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
     this_repr->type_object_for = type_object_for;

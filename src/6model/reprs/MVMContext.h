@@ -1,11 +1,11 @@
 /* Representation for a context in the VM. Holds an MVMFrame. */
-typedef struct _MVMContextBody {
+struct MVMContextBody {
     MVMFrame *context;
-} MVMContextBody;
-typedef struct _MVMContext {
+};
+struct MVMContext {
     MVMObject common;
     MVMContextBody body;
-} MVMContext;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMContext_initialize(MVMThreadContext *tc);

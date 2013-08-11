@@ -1,11 +1,11 @@
 /* Representation used by P6 native strings. */
-typedef struct _P6strBody {
+struct MVMP6strBody {
     MVMString *value;
-} P6strBody;
-typedef struct _P6str {
+};
+struct MVMP6str {
     MVMObject common;
-    P6strBody body;
-} P6str;
+    MVMP6strBody body;
+};
 
 /* Function for REPR setup. */
-MVMREPROps * P6str_initialize(MVMThreadContext *tc);
+MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc);

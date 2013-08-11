@@ -2,10 +2,10 @@
 #define MVMNUMUNICODEEXTENTS 85
 
 
-typedef struct _MVMUnicodeNamedValue {
+struct MVMUnicodeNamedValue {
     const char *name;
     MVMint32 value;
-} MVMUnicodeNamedValue;
+};
 #define num_unicode_property_keypairs 287
 
 #define MVMCODEPOINTNAMESCOUNT 43833

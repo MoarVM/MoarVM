@@ -1,7 +1,7 @@
 /* Representation used by Uninstantiables. */
-typedef struct _Uninstantiable {
+struct MVMUninstantiable {
     MVMObject common;
-} Uninstantiable;
+};
 
 /* Function for REPR setup. */
-MVMREPROps * Uninstantiable_initialize(MVMThreadContext *tc);
+MVMREPROps * MVMUninstantiable_initialize(MVMThreadContext *tc);

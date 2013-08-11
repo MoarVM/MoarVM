@@ -1,5 +1,5 @@
 /* Represents the objects for a particular size class. */
-typedef struct _MVMGen2SizeClass {
+struct MVMGen2SizeClass {
     /* Each page holds a certain number of collectables. We know
      * nothing of the size statically, so we'll work in bytes. */
     char **pages;
@@ -20,10 +20,10 @@ typedef struct _MVMGen2SizeClass {
 
     /* The number of pages allocated. */
     MVMuint32 num_pages;
-} MVMGen2SizeClass;
+};
 
 /* An "instance" of the fixed size allocator. */
-typedef struct _MVMGen2Allocator {
+struct MVMGen2Allocator {
     /* Size classes for the fixed size allocator. Each one represents
      * a bunch of objects of the same size. The allocated sizes are
      * rounded and then one of these buckets is used, unless it is
@@ -39,7 +39,7 @@ typedef struct _MVMGen2Allocator {
 
     /* The amount of space allocated in the overflow array. */
     MVMuint32        alloc_overflows;
-} MVMGen2Allocator;
+};
 
 /* The number of bits we discard from the requested size when binning
  * the allocation request into a size class. For example, if this is

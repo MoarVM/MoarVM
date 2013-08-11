@@ -45,9 +45,7 @@ typedef enum {
 #define MVMFramePoolLengthLimit         64
 
 /* Information associated with an executing thread. */
-struct _MVMInstance;
-struct _MVMConcatState;
-typedef struct _MVMThreadContext {
+struct MVMThreadContext {
     /* The current allocation pointer, where the next object to be allocated
      * should be placed. */
     void *nursery_alloc;
@@ -69,26 +67,26 @@ typedef struct _MVMThreadContext {
 
     /* Pointer to where the interpreter's base of the current register
      * set is stored. */
-    union _MVMRegister **interp_reg_base;
+    MVMRegister **interp_reg_base;
 
     /* Pointer to where the interpreter's current compilation unit pointer
      * is stored. */
-    struct _MVMCompUnit **interp_cu;
+    MVMCompUnit **interp_cu;
 
     /* The frame we're currently executing. */
-    struct _MVMFrame *cur_frame;
+    MVMFrame *cur_frame;
 
     /* The usecapture op can, without allocating, have a way to talk about the
      * arguments of the current call. This is the (pre-thread) object that is
      * used by that op. */
-    struct _MVMObject *cur_usecapture;
+    MVMObject *cur_usecapture;
 
     /* Linked list of exception handlers that we're currently executing, topmost
      * one first in the list. */
-    struct _MVMActiveHandler *active_handlers;
+    MVMActiveHandler *active_handlers;
 
     /* The VM instance that this thread belongs to. */
-    struct _MVMInstance *instance;
+    MVMInstance *instance;
 
     /* Start of fromspace, the place we're copying objects from during a
      * copying collection or processing dead objects that need to do extra
@@ -100,16 +98,16 @@ typedef struct _MVMThreadContext {
     void *nursery_tospace;
 
     /* The second GC generation allocator. */
-    struct _MVMGen2Allocator *gen2;
+    MVMGen2Allocator *gen2;
 
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
 
     /* Thread object representing the thread. */
-    struct _MVMThread *thread_obj;
+    MVMThread *thread_obj;
 
     /* The frame lying at the base of the current thread. */
-    struct _MVMFrame *thread_entry_frame;
+    MVMFrame *thread_entry_frame;
 
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change
@@ -128,19 +126,19 @@ typedef struct _MVMThreadContext {
     MVMCollectable      **gen2roots;
 
     /* The GC's cross-thread in-tray of processing work. */
-    struct _MVMGCPassedWork *gc_in_tray;
+    MVMGCPassedWork *gc_in_tray;
 
     /* The GC's thread-local "sent items" list, by next_by_sender. */
-    struct _MVMGCPassedWork *gc_sent_items;
-    struct _MVMGCPassedWork *gc_next_to_check;
+    MVMGCPassedWork *gc_sent_items;
+    MVMGCPassedWork *gc_next_to_check;
 
     /* threads to process this gc run. */
-    struct _MVMWorkThread   *gc_work;
+    MVMWorkThread   *gc_work;
     MVMuint32                gc_work_size;
     MVMuint32                gc_work_count;
 
     /* Pool table of chains of frames for each static frame. */
-    struct _MVMFrame **frame_pool_table;
+    MVMFrame **frame_pool_table;
 
     /* Size of the pool table, so it can grow on demand. */
     MVMuint32          frame_pool_table_size;
@@ -150,8 +148,8 @@ typedef struct _MVMThreadContext {
     MVMint32           sc_wb_disable_depth;
 
     /* Any serialization contexts we are compiling. */
-    struct _MVMObject     *compiling_scs;
-} MVMThreadContext;
+    MVMObject     *compiling_scs;
+};
 
-MVMThreadContext * MVM_tc_create(struct _MVMInstance *instance);
+MVMThreadContext * MVM_tc_create(MVMInstance *instance);
 void MVM_tc_destroy(MVMThreadContext *tc);

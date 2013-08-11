@@ -10,9 +10,9 @@
     }
 
 /* Different views of a register. */
-typedef union _MVMRegister {
+union MVMRegister {
     MVMObject         *o;
-    struct _MVMString *s;
+    MVMString *s;
     MVMint8            i8;
     MVMuint8           ui8;
     MVMint16           i16;
@@ -23,18 +23,18 @@ typedef union _MVMRegister {
     MVMuint64          ui64;
     MVMnum32           n32;
     MVMnum64           n64;
-} MVMRegister;
+};
 
 /* Most operands an operation will have. */
 #define MVM_MAX_OPERANDS 8
 
 /* Information about an opcode. */
-typedef struct _MVMOpInfo {
+struct MVMOpInfo {
     MVMuint8    opcode;
     const char *name;
     MVMuint8    num_operands;
     MVMuint8    operands[MVM_MAX_OPERANDS];
-} MVMOpInfo;
+};
 
 /* Operand read/write/literal flags. */
 #define MVM_operand_literal     0

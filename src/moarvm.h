@@ -22,6 +22,9 @@
 /* needs to be after config.h */
 #include <uthash.h>
 
+/* forward declarations */
+#include "types.h"
+
 /* Headers for APIs for various other data structures and APIs. */
 #include "6model/6model.h"
 #include "core/threadcontext.h"

@@ -11,7 +11,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(P6str);
+        st->size = sizeof(MVMP6str);
     });
 
     return st->WHAT;
@@ -24,8 +24,8 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    P6strBody *src_body  = (P6strBody *)src;
-    P6strBody *dest_body = (P6strBody *)dest;
+    MVMP6strBody *src_body  = (MVMP6strBody *)src;
+    MVMP6strBody *dest_body = (MVMP6strBody *)dest;
     MVM_ASSIGN_REF(tc, dest_root, dest_body->value, src_body->value);
 }
 
@@ -46,10 +46,10 @@ static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         "P6str representation cannot unbox to a native num");
 }
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
-    MVM_ASSIGN_REF(tc, root, ((P6strBody *)data)->value, value);
+    MVM_ASSIGN_REF(tc, root, ((MVMP6strBody *)data)->value, value);
 }
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    return ((P6strBody *)data)->value;
+    return ((MVMP6strBody *)data)->value;
 }
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     MVM_exception_throw_adhoc(tc,
@@ -72,21 +72,21 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVM_gc_worklist_add(tc, worklist, &((P6strBody *)data)->value);
+    MVM_gc_worklist_add(tc, worklist, &((MVMP6strBody *)data)->value);
 }
 
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(P6str);
+    st->size = sizeof(MVMP6str);
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    MVM_ASSIGN_REF(tc, root, ((P6strBody *)data)->value,
+    MVM_ASSIGN_REF(tc, root, ((MVMP6strBody *)data)->value,
         reader->read_str(tc, reader));
 }
 
 /* Initializes the representation. */
-MVMREPROps * P6str_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
     this_repr->type_object_for = type_object_for;

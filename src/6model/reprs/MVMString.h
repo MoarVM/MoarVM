@@ -1,6 +1,5 @@
 /* Representation used by VM-level strings. */
 
-struct _MVMStringBody;
 typedef MVMuint32 MVMStrandIndex;
 typedef MVMint32 MVMCodepoint32;
 /* 8-bit-only (optimization) strings don't have synthetics
@@ -11,7 +10,7 @@ typedef MVMuint8 MVMCodepoint8;
 typedef MVMuint64 MVMStringIndex;
 
 /* An entry in the strands table of a rope. */
-typedef struct _MVMStrand {
+struct MVMStrand {
     union {
         /* The offset to compare the desired index against. */
         MVMStringIndex compare_offset;
@@ -21,7 +20,7 @@ typedef struct _MVMStrand {
     };
 
     /* The string to which this strand refers. */
-    struct _MVMString *string;
+    MVMString *string;
 
     union {
         /* The offset into the referred string. The length
@@ -35,14 +34,14 @@ typedef struct _MVMStrand {
 
     /* repeat count. currently unused. */
     /* MVMStringIndex repeat_count; */
-} MVMStrand;
+};
 
 #define MVM_STRING_TYPE_INT32 0
 #define MVM_STRING_TYPE_UINT8 1
 #define MVM_STRING_TYPE_ROPE 2
 #define MVM_STRING_TYPE_MASK 3
 
-typedef struct _MVMStringBody {
+struct MVMStringBody {
     /* The string data (signed integer or unsigned char array
         of graphemes or strands). */
     union {
@@ -82,11 +81,11 @@ typedef struct _MVMStringBody {
 
     /* Lowest 2 bits: type of string: int32, uint8, or Rope. */
     MVMuint8 flags;
-} MVMStringBody;
-typedef struct _MVMString {
+};
+struct MVMString {
     MVMObject common;
     MVMStringBody body;
-} MVMString;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMString_initialize(MVMThreadContext *tc);
