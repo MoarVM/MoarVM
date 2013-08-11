@@ -1,14 +1,14 @@
 #include "tommath.h"
 
 /* Representation used by P6 Ints. */
-typedef struct _P6bigintBody {
+struct MVMP6bigintBody {
     /* Big integer storage slot. */
     mp_int i;
-} P6bigintBody;
-typedef struct _P6bigint {
+};
+struct MVMP6bigint {
     MVMObject common;
-    P6bigintBody body;
-} P6bigint;
+    MVMP6bigintBody body;
+};
 
 /* Function for REPR setup. */
-MVMREPROps * P6bigint_initialize(MVMThreadContext *tc);
+MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc);

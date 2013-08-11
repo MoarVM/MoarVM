@@ -66,9 +66,9 @@ typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
 /* whether the rope is composed of only one segment of another string */
 #define IS_ONE_STRING_ROPE(str) (IS_ROPE((str)) && (str)->body.num_strands == 1)
 
-typedef struct _MVMConcatState {
+struct MVMConcatState {
     MVMuint32 some_state;
-} MVMConcatState;
+};
 
 /* Character class constants (map to nqp::const::CCLASS_* values). */
 #define MVM_CCLASS_ANY          65535

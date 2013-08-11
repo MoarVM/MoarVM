@@ -3,7 +3,7 @@
 #define MVM_ITER_MODE_ARRAY 0
 #define MVM_ITER_MODE_HASH 1
 
-typedef struct _MVMIterBody {
+struct MVMIterBody {
     /* whether hash or array */
     MVMuint32 mode;
 
@@ -21,11 +21,11 @@ typedef struct _MVMIterBody {
             MVMint64 limit;
         } array_state;
     };
-} MVMIterBody;
-typedef struct _MVMIter {
+};
+struct MVMIter {
     MVMObject common;
     MVMIterBody body;
-} MVMIter;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMIter_initialize(MVMThreadContext *tc);

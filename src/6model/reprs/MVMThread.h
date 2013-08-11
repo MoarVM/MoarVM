@@ -8,7 +8,7 @@ typedef enum {
     MVM_thread_stage_destroyed = 5
 } MVMThreadStages;
 
-typedef struct _MVMThreadBody {
+struct MVMThreadBody {
     MVMThreadContext *tc;
 
     /* handle to the invokee of this thread, so that if
@@ -20,18 +20,18 @@ typedef struct _MVMThreadBody {
     apr_pool_t *apr_pool;
 
     /* next in tc's threads list */
-    struct _MVMThread *next;
+    MVMThread *next;
 
     /* MVMThreadStages */
     AO_t stage;
 
     /* child currently spawning, so GC can steal it */
-    struct _MVMThread *new_child;
-} MVMThreadBody;
-typedef struct _MVMThread {
+    MVMThread *new_child;
+};
+struct MVMThread {
     MVMObject common;
     MVMThreadBody body;
-} MVMThread;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMThread_initialize(MVMThreadContext *tc);

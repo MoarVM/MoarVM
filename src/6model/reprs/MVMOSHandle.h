@@ -1,5 +1,5 @@
 /* Representation used by VM-level OS handles. */
-typedef struct _MVMOSHandleBody {
+struct MVMOSHandleBody {
     /* see MVMOSHandleTypes */
     MVMuint8 handle_type;
     MVMuint8 encoding_type;
@@ -11,11 +11,11 @@ typedef struct _MVMOSHandleBody {
         apr_socket_t *socket;
     };
 
-} MVMOSHandleBody;
-typedef struct _MVMOSHandle {
+};
+struct MVMOSHandle {
     MVMObject common;
     MVMOSHandleBody body;
-} MVMOSHandle;
+};
 
 typedef enum {
     MVM_OSHANDLE_UNINIT = 0,

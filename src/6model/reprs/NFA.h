@@ -11,7 +11,7 @@
 #define MVM_NFA_EDGE_CODEPOINT_I_NEG   10
 
 /* State entry. */
-typedef struct {
+struct MVMNFAStateInfo {
     MVMint64 act;
     MVMint64 to;
     union {
@@ -22,20 +22,20 @@ typedef struct {
             MVMCodepoint32 lc;
         } uclc;
     } arg;
-} MVMNFAStateInfo;
+};
 
 /* Body of an NFA. */
-typedef struct _MVMNFABody {
+struct MVMNFABody {
     MVMObject        *fates;
     MVMint64          num_states;
     MVMint64         *num_state_edges;
     MVMNFAStateInfo **states;
-} MVMNFABody;
+};
 
-typedef struct _MVMNFA {
+struct MVMNFA {
     MVMObject common;
     MVMNFABody body;
-} MVMNFA;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMNFA_initialize(MVMThreadContext *tc);

@@ -1,12 +1,12 @@
 /* Representation used by P6 nums. */
-typedef struct _P6numBody {
+struct MVMP6numBody {
     /* Float storage slot. */
     MVMnum64 value;
-} P6numBody;
-typedef struct _P6num {
+};
+struct MVMP6num {
     MVMObject common;
-    P6numBody body;
-} P6num;
+    MVMP6numBody body;
+};
 
 /* Function for REPR setup. */
-MVMREPROps * P6num_initialize(MVMThreadContext *tc);
+MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc);

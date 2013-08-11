@@ -3,7 +3,7 @@
  * of container object (like Perl 6's Scalar) or it may be a reference to a
  * native lexical or object field. The function table determines the way it
  * behaves. */
-typedef struct _MVMContainerSpec {
+struct MVMContainerSpec {
     /* Fetches a value out of a container. Used for decontainerization. */
     void (*fetch) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 
@@ -19,27 +19,27 @@ typedef struct _MVMContainerSpec {
     MVMString *name;
 
     /* Marks container data, if any. */
-    void (*gc_mark_data) (MVMThreadContext *tc, MVMSTable *st, struct _MVMGCWorklist *worklist);
+    void (*gc_mark_data) (MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist);
 
     /* Frees container data, if any. */
     void (*gc_free_data) (MVMThreadContext *tc, MVMSTable *st);
 
     /* Serializes the container data, if any. */
-    void (*serialize) (MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationWriter *writer);
+    void (*serialize) (MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer);
 
     /* Deserializes the container data, if any. */
-    void (*deserialize) (MVMThreadContext *tc, MVMSTable *st, struct _MVMSerializationReader *reader);
-} MVMContainerSpec;
+    void (*deserialize) (MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader);
+};
 
 /* A container configurer knows how to attach a certain type of container
  * to an STable and configure it. */
-typedef struct _MVMContainerConfigurer{
+struct MVMContainerConfigurer {
     /* Sets this container spec in place for the specified STable. */
     void (*set_container_spec) (MVMThreadContext *tc, MVMSTable *st);
 
     /* Configures the container spec with the specified info. */
     void (*configure_container_spec) (MVMThreadContext *tc, MVMSTable *st, MVMObject *config);
-} MVMContainerConfigurer;
+};
 
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, MVMContainerConfigurer *configurer);
 MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
