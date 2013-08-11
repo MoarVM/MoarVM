@@ -22,7 +22,7 @@
 #define MVM_EX_THROW_LEXOTIC     2
 
 /* Information associated with an exception handler. */
-typedef struct _MVMFrameHandler {
+struct MVMFrameHandler {
     /* Start offset into the frame's bytecode for the handler, inclusive. */
     MVMuint32 start_offset;
 
@@ -40,12 +40,12 @@ typedef struct _MVMFrameHandler {
 
     /* Offset into the frame's bytecode of the handler, for goto handlers. */
     MVMuint32 goto_offset;
-} MVMFrameHandler;
+};
 
 /* An active (currently executing) exception handler. */
-typedef struct _MVMActiveHandler {
+struct MVMActiveHandler {
     /* The frame the handler was found in. */
-    struct _MVMFrame *frame;
+    MVMFrame *frame;
 
     /* The handler information itself. */
     MVMFrameHandler *handler;
@@ -54,15 +54,15 @@ typedef struct _MVMActiveHandler {
     MVMObject *ex_obj;
 
     /* The next active handler in the chain. */
-    struct _MVMActiveHandler *next_handler;
-} MVMActiveHandler;
+    MVMActiveHandler *next_handler;
+};
 
 /* Exception related functions. */
-struct _MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
-void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, union _MVMRegister *resume_result);
+MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
+void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
-struct _MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);
-void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, struct _MVMFrame *f);
+MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);
+void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFrame *f);
 MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) MVM_NO_RETURN_GCC;

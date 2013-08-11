@@ -11,7 +11,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(P6bigint);
+        st->size = sizeof(MVMP6bigint);
     });
 
     return st->WHAT;
@@ -24,20 +24,20 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    P6bigintBody *body = (P6bigintBody *)data;
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     mp_init(&body->i);
     mp_zero(&body->i);
 }
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    P6bigintBody *src_body = (P6bigintBody *)src;
-    P6bigintBody *dest_body = (P6bigintBody *)dest;
+    MVMP6bigintBody *src_body = (MVMP6bigintBody *)src;
+    MVMP6bigintBody *dest_body = (MVMP6bigintBody *)dest;
     mp_init_copy(&dest_body->i, &src_body->i);
 }
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
-    mp_int *i = &((P6bigintBody *)data)->i;
+    mp_int *i = &((MVMP6bigintBody *)data)->i;
     if (value >= 0) {
         mp_set_long(i, value);
     }
@@ -48,7 +48,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 }
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMint64 ret;
-    mp_int *i = &((P6bigintBody *)data)->i;
+    mp_int *i = &((MVMP6bigintBody *)data)->i;
     if (MP_LT == mp_cmp_d(i, 0)) {
         mp_neg(i, i);
         ret = mp_get_long(i);
@@ -78,7 +78,7 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 }
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     if (repr_id == MVM_REPR_ID_P6bigint)
-        return &((P6bigintBody *)data)->i;
+        return &((MVMP6bigintBody *)data)->i;
 
     MVM_exception_throw_adhoc(tc,
         "P6bigint representation cannot unbox to other types");
@@ -100,7 +100,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 /* Initializes the representation. */
-MVMREPROps * P6bigint_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
     this_repr->type_object_for = type_object_for;

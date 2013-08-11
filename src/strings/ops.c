@@ -74,9 +74,9 @@ MVMuint8 MVM_string_traverse_substring(MVMThreadContext *tc, MVMString *a, MVMSt
 }
 
 /* stack record created with each invocation of the string descent. */
-typedef struct _MVMCompareCursor {
+typedef struct CompareCursor {
     MVMString *string; /* string into which descended */
-    struct _MVMCompareCursor *parent; /* parent cursor */
+    struct CompareCursor *parent; /* parent cursor */
     MVMint16 *gaps; /* number of gaps can ascend */
     MVMStringIndex string_idx; /* in string, not strand */
     MVMStringIndex end_idx; /* index past last codepoint needed */
@@ -84,15 +84,15 @@ typedef struct _MVMCompareCursor {
     MVMuint8 owns_buffer; /* whether it owns the last buffer.
             for ropes, whether it's uninitialized. */
     MVMuint8 isa; /* whether it's from string tree a */
-} MVMCompareCursor;
+} CompareCursor;
 
-typedef struct _MVMCompareDescentState {
-    MVMCompareCursor *cursora, *cursorb; /* cursors */
+typedef struct {
+    CompareCursor *cursora, *cursorb; /* cursors */
     MVMCodepoint32 *int32s; /* last physical string's buffer */
     MVMCodepoint8 *uint8s; /* last physical string's buffer */
     MVMStringIndex available; /* number of codepoints in the buffer */
     MVMStringIndex needed; /* number of codepoints still needed */
-} MVMCompareDescentState;
+} CompareDescentState;
 
 /* uses the computed binary search table to find the strand containing the index */
 static MVMStrandIndex find_strand_index(MVMString *s, MVMStringIndex index) {
@@ -165,12 +165,12 @@ continue;
  * with codepoints from the other buffer. If different, set result nonzero and
  * it will fast return. Otherwise, reset buffer indexes
  * to zero. Loop if `needed` for the current string is nonzero. */
-static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
-        MVMuint8 *result, MVMCompareCursor *orig) {
+static void compare_descend(MVMThreadContext *tc, CompareDescentState *st,
+        MVMuint8 *result, CompareCursor *orig) {
     /* while we still need to compare some things */
     while (st->needed) {
         /* pick a tree from which to get more characters. */
-        MVMCompareCursor *c = st->cursora->owns_buffer ? st->cursorb : st->cursora;
+        CompareCursor *c = st->cursora->owns_buffer ? st->cursorb : st->cursora;
 
         if (*c->gaps) {
             (*c->gaps)--;
@@ -212,7 +212,7 @@ static void compare_descend(MVMThreadContext *tc, MVMCompareDescentState *st,
                 c->string_idx += child_length;
                 c->strand_idx++;
                 {
-                    MVMCompareCursor child = { strand->string, c, c->gaps, child_idx,
+                    CompareCursor child = { strand->string, c, c->gaps, child_idx,
                         child_end_idx, 0, IS_ROPE(strand->string), c->isa };
                     if (c->isa) { st->cursora = &child; } else { st->cursorb = &child; }
                     compare_descend(tc, st, result, &child);
@@ -232,10 +232,10 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
     MVMint16 gapsa = 0, gapsb = 0;
     MVMuint8 result = 0;
-    MVMCompareCursor
+    CompareCursor
         cursora = { a, NULL, &gapsa, starta, starta + length, 0, IS_ROPE(a), 1 },
         cursorb = { b, NULL, &gapsb, startb, startb + length, 0, IS_ROPE(b), 0 };
-    MVMCompareDescentState st = { &cursora, &cursorb, NULL, NULL, 0, length };
+    CompareDescentState st = { &cursora, &cursorb, NULL, NULL, 0, length };
 
     compare_descend(tc, &st, &result, &cursora);
     return result ? result - 1 : 1;
@@ -605,7 +605,7 @@ MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMin
     return -1;
 }
 
-typedef struct _MVMCaseChangeState {
+typedef struct MVMCaseChangeState {
     MVMString *dest;
     MVMStringIndex size;
     MVMint32 case_change_type;
@@ -869,7 +869,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     return result;
 }
 
-typedef struct _MVMCharAtState {
+typedef struct MVMCharAtState {
     MVMCodepoint32 search;
     MVMStringIndex result;
 } MVMCharAtState;

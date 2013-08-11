@@ -1,13 +1,13 @@
 /* Representation used by HashAttrStore. */
- typedef struct _HashAttrStoreBody {
+struct MVMHashAttrStoreBody {
     /* The head of the hash, or null if the hash is empty.
      * The UT_HASH macros update this pointer directly. */
     MVMHashEntry *hash_head;
-} HashAttrStoreBody;
-typedef struct _HashAttrStore {
+};
+struct MVMHashAttrStore {
     MVMObject common;
-    HashAttrStoreBody body;
-} HashAttrStore;
+    MVMHashAttrStoreBody body;
+};
 
 /* Function for REPR setup. */
-MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc);
+MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc);

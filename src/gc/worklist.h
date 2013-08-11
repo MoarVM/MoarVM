@@ -12,7 +12,7 @@
  * on these issues, but for now this is probably less bad than some of the
  * other options.
  */
-typedef struct _MVMGCWorklist {
+struct MVMGCWorklist {
     /* The worklist itself. An array of addresses which hold pointers to
      * collectables (yes, two levels of indirection, since we need to
      * update addresses in copying/moving algorithms.) */
@@ -23,7 +23,7 @@ typedef struct _MVMGCWorklist {
 
     /* The number of items the work list is allocated to hold. */
     MVMuint32 alloc;
-} MVMGCWorklist;
+};
 
 /* Some macros for doing stuff fast with worklists, defined to look like
  * functions since perhaps they become them in the future if needed. */

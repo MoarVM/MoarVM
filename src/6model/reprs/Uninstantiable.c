@@ -11,7 +11,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(Uninstantiable);
+        st->size = sizeof(MVMUninstantiable);
     });
 
     return st->WHAT;
@@ -54,11 +54,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(Uninstantiable);
+    st->size = sizeof(MVMUninstantiable);
 }
 
 /* Initializes the representation. */
-MVMREPROps * Uninstantiable_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMUninstantiable_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
     this_repr->type_object_for = type_object_for;
