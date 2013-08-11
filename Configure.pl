@@ -7,7 +7,8 @@ use warnings;
 use Getopt::Long;
 use Pod::Usage;
 
-my $NAME = 'moarvm';
+my $NAME    = 'moarvm';
+my $GENLIST = 'build/gen.list';
 
 my %APR = (
     name  => 'apr-1',
@@ -351,8 +352,8 @@ print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
 TERM
 
-open my $listfile, '<', 'gen.list'
-    or die "gen.list: $!\n";
+open my $listfile, '<', $GENLIST
+    or die "$GENLIST: $!\n";
 
 my $target;
 while (<$listfile>) {
