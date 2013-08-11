@@ -104,7 +104,7 @@ my %TOOLCHAINS = (
         obj => '.obj',
         lib => '%s.lib',
 
-        -auxfiles => [ qw( %s.ilk %s.pdb vc100.pdb ) ],
+        -auxfiles => [ qw( @name@.ilk @name@.pdb vc100.pdb ) ],
 
         -thirdparty => {
             apr => {
@@ -229,6 +229,8 @@ else {
     }->{$^O} // $^O);
 }
 
+$config{name} = $NAME;
+
 my @keys = qw( cc ld make );
 @config{@keys} = @args{@keys};
 
@@ -268,11 +270,7 @@ push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} = join ' ', @ldflags;
 
 my @auxfiles = @{ $defaults{-auxfiles} };
-if (@auxfiles) {
-    $config{clean} = '$(RM) ' . join ' ',
-        map { sprintf $_, $NAME } @auxfiles;
-}
-else { $config{clean} = '@:' }
+$config{clean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
 
