@@ -137,11 +137,11 @@
 
 #define _getch          getcharacter
 
-#define SIZEOF_SHORT    2
-#define SIZEOF_INT      4
-#define SIZEOF_LONGLONG 8
-#define SIZEOF_CHAR     1
-#define SIZEOF_SSIZE_T  SIZEOF_INT
+#define SIZEOF_SHORT     2
+#define SIZEOF_INT       4
+#define SIZEOF_LONG_LONG 8
+#define SIZEOF_CHAR      1
+#define SIZEOF_SSIZE_T   SIZEOF_INT
 
 void netware_pool_proc_cleanup();
 

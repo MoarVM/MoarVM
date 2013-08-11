@@ -125,7 +125,7 @@ typedef void (Sigfunc)(int);
 
 #define SIZEOF_SHORT           2
 #define SIZEOF_INT             4
-#define SIZEOF_LONGLONG        8
+#define SIZEOF_LONG_LONG       8
 #define SIZEOF_CHAR            1
 #define SIZEOF_SSIZE_T         SIZEOF_INT
 
@@ -159,6 +159,11 @@ APR_DECLARE_DATA int errno;
 #else
 #define APR_OFF_T_STRFN         strtoi
 #endif
+#endif
+
+#ifdef __MINGW64__
+#undef APR_OFF_T_STRFN
+#define APR_OFF_T_STRFN _strtoi64
 #endif
 
 /* used to check for DWORD overflow in 64bit compiles */

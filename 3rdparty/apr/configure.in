@@ -1609,7 +1609,7 @@ elif test "$ac_cv_sizeof_long_long" = "8"; then
     int64_value="long long"
     long_value="long long"
     int64_strfn="strtoll"
-elif test "$ac_cv_sizeof_longlong" = "8"; then
+elif test "$ac_cv_sizeof_long_long" = "8"; then
     int64_literal='#define APR_INT64_C(val) (val##LL)'
     uint64_literal='#define APR_UINT64_C(val) (val##ULL)'
     int64_t_fmt='#define APR_INT64_T_FMT "qd"'
@@ -1755,6 +1755,9 @@ elif test "$ac_cv_sizeof_ssize_t" = "$ac_cv_sizeof_int"; then
 elif test "$ac_cv_sizeof_ssize_t" = "$ac_cv_sizeof_long"; then
     ssize_t_fmt="ld"
     AC_MSG_RESULT(%ld)
+elif test "$ac_cv_sizeof_ssize_t" = "$ac_cv_sizeof_long_long"; then
+    ssize_t_fmt="lld"
+    AC_MSG_RESULT(%lld)
 else
     AC_ERROR([could not determine the proper format for apr_ssize_t])
 fi
@@ -1767,11 +1770,14 @@ AC_MSG_CHECKING([which format to use for apr_size_t])
 if test -n "$size_t_fmt"; then
     AC_MSG_RESULT(%$size_t_fmt)
 elif test "$ac_cv_sizeof_size_t" = "$ac_cv_sizeof_int"; then
-    size_t_fmt="d"
-    AC_MSG_RESULT(%d)
+    size_t_fmt="u"
+    AC_MSG_RESULT(%u)
 elif test "$ac_cv_sizeof_size_t" = "$ac_cv_sizeof_long"; then
-    size_t_fmt="ld"
-    AC_MSG_RESULT(%ld)
+    size_t_fmt="lu"
+    AC_MSG_RESULT(%lu)
+elif test "$ac_cv_sizeof_size_t" = "$ac_cv_sizeof_long_long"; then
+    size_t_fmt="llu"
+    AC_MSG_RESULT(%llu)
 else
     AC_ERROR([could not determine the proper format for apr_size_t])
 fi

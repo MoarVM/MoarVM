@@ -23380,7 +23380,7 @@ elif test "$ac_cv_sizeof_long_long" = "8"; then
     int64_value="long long"
     long_value="long long"
     int64_strfn="strtoll"
-elif test "$ac_cv_sizeof_longlong" = "8"; then
+elif test "$ac_cv_sizeof_long_long" = "8"; then
     int64_literal='#define APR_INT64_C(val) (val##LL)'
     uint64_literal='#define APR_UINT64_C(val) (val##ULL)'
     int64_t_fmt='#define APR_INT64_T_FMT "qd"'
@@ -23757,6 +23757,10 @@ elif test "$ac_cv_sizeof_ssize_t" = "$ac_cv_sizeof_long"; then
     ssize_t_fmt="ld"
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: %ld" >&5
 $as_echo "%ld" >&6; }
+elif test "$ac_cv_sizeof_ssize_t" = "$ac_cv_sizeof_long_long"; then
+    ssize_t_fmt="lld"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: %lld" >&5
+$as_echo "%lld" >&6; }
 else
     as_fn_error $? "could not determine the proper format for apr_ssize_t" "$LINENO" 5
 fi
@@ -23808,13 +23812,17 @@ if test -n "$size_t_fmt"; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: %$size_t_fmt" >&5
 $as_echo "%$size_t_fmt" >&6; }
 elif test "$ac_cv_sizeof_size_t" = "$ac_cv_sizeof_int"; then
-    size_t_fmt="d"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: %d" >&5
-$as_echo "%d" >&6; }
+    size_t_fmt="u"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: %u" >&5
+$as_echo "%u" >&6; }
 elif test "$ac_cv_sizeof_size_t" = "$ac_cv_sizeof_long"; then
-    size_t_fmt="ld"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: %ld" >&5
-$as_echo "%ld" >&6; }
+    size_t_fmt="lu"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: %lu" >&5
+$as_echo "%lu" >&6; }
+elif test "$ac_cv_sizeof_size_t" = "$ac_cv_sizeof_long_long"; then
+    size_t_fmt="llu"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: %llu" >&5
+$as_echo "%llu" >&6; }
 else
     as_fn_error $? "could not determine the proper format for apr_size_t" "$LINENO" 5
 fi

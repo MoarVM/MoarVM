@@ -44,6 +44,8 @@ src/gen/
 *.obj
 *.exe
 *.o
+*.a
+*.lib
 *.pdb
 *.suo
 *.ilk
