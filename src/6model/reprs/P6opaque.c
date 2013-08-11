@@ -57,7 +57,7 @@ static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data,
 static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMObject *class_key, MVMString *name) {
     MVMint64 slot = -1;
     if (repr_data->name_to_index_mapping) {
-        P6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             if (cur_map_entry->class_key == class_key) {
                 MVMint16 i;
@@ -186,7 +186,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     }
 
     if (repr_data->name_to_index_mapping) {
-        P6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             MVMint16 i;
             for (i = 0; i < cur_map_entry->num_attrs; i++) {
@@ -203,7 +203,7 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
 
     if (repr_data->name_to_index_mapping) {
-        P6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             free(cur_map_entry->names);
             free(cur_map_entry->slots);
@@ -604,11 +604,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         memset(repr_data->flattened_stables, 0, total_attrs * sizeof(MVMSTable *));
         memset(repr_data->auto_viv_values, 0, total_attrs * sizeof(MVMObject *));
     }
-    repr_data->name_to_index_mapping = malloc((mro_count + 1) * sizeof(P6opaqueNameMap));
+    repr_data->name_to_index_mapping = malloc((mro_count + 1) * sizeof(MVMP6opaqueNameMap));
     repr_data->initialize_slots      = malloc((total_attrs + 1) * sizeof(MVMuint16));
     repr_data->gc_mark_slots         = malloc((total_attrs + 1) * sizeof(MVMuint16));
     repr_data->gc_cleanup_slots      = malloc((total_attrs + 1) * sizeof(MVMuint16));
-    memset(repr_data->name_to_index_mapping, 0, (mro_count + 1) * sizeof(P6opaqueNameMap));
+    memset(repr_data->name_to_index_mapping, 0, (mro_count + 1) * sizeof(MVMP6opaqueNameMap));
 
     /* -1 indicates no unboxing possible for a type. */
     repr_data->unbox_int_slot = -1;
@@ -632,7 +632,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMObject *attr_list = MVM_repr_at_pos_o(tc, class_info, 1);
 
         /* Set up name map entry. */
-        P6opaqueNameMap *name_map = &repr_data->name_to_index_mapping[cur_type];
+        MVMP6opaqueNameMap *name_map = &repr_data->name_to_index_mapping[cur_type];
         num_attrs = REPR(attr_list)->elems(tc, STABLE(attr_list),
             attr_list, OBJECT_BODY(attr_list));
         name_map->class_key = type_obj;
@@ -725,7 +725,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
                         /* Also list in the by-repr unbox list. */
                         if (repr_data->unbox_slots == NULL)
-                            repr_data->unbox_slots = (P6opaqueBoxedTypeMap *)malloc(total_attrs * sizeof(P6opaqueBoxedTypeMap));
+                            repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)malloc(total_attrs * sizeof(MVMP6opaqueBoxedTypeMap));
                         repr_data->unbox_slots[cur_unbox_slot].repr_id = REPR(type)->ID;
                         repr_data->unbox_slots[cur_unbox_slot].slot = i;
                         cur_unbox_slot++;
@@ -821,7 +821,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->unbox_str_slot = reader->read_int(tc, reader);
 
     if (reader->read_int(tc, reader)) {
-        repr_data->unbox_slots = (P6opaqueBoxedTypeMap *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(P6opaqueBoxedTypeMap));
+        repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMP6opaqueBoxedTypeMap));
         for (i = 0; i < repr_data->num_attributes; i++) {
             repr_data->unbox_slots[i].repr_id = reader->read_int(tc, reader);
             repr_data->unbox_slots[i].slot = reader->read_int(tc, reader);
@@ -829,8 +829,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     }
 
     num_classes = (MVMuint16)reader->read_int(tc, reader);
-    repr_data->name_to_index_mapping = (P6opaqueNameMap *)malloc((num_classes + 1) * sizeof(P6opaqueNameMap));
-    memset(repr_data->name_to_index_mapping, 0, (num_classes + 1) * sizeof(P6opaqueNameMap));
+    repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)malloc((num_classes + 1) * sizeof(MVMP6opaqueNameMap));
+    memset(repr_data->name_to_index_mapping, 0, (num_classes + 1) * sizeof(MVMP6opaqueNameMap));
     for (i = 0; i < num_classes; i++) {
         MVMint32 num_attrs = 0;
         MVM_ASSIGN_REF(tc, st, repr_data->name_to_index_mapping[i].class_key,
@@ -919,7 +919,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
     MVMP6opaqueREPRData *cur_repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
     MVMP6opaqueREPRData *new_repr_data = (MVMP6opaqueREPRData *)STABLE(new_type)->REPR_data;
-    P6opaqueNameMap *cur_map_entry, *new_map_entry;
+    MVMP6opaqueNameMap *cur_map_entry, *new_map_entry;
 
     /* Ensure we don't have a type object. */
     if (!IS_CONCRETE(obj))

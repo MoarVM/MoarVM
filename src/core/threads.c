@@ -1,20 +1,20 @@
 #include "moarvm.h"
 
 /* Temporary structure for passing data to thread start. */
-struct _MVMThreadStart {
+typedef struct {
     MVMThreadContext *tc;
     MVMFrame         *caller;
     /* was formerly the MVMCode invokee representing the object, but now
      * it is the MVMThread (which in turns has a handle to the invokee). */
     MVMObject        *thread_obj;
     MVMCallsite       no_arg_callsite;
-};
+} ThreadStart;
 
 /* This callback is passed to the interpreter code. It takes care of making
  * the initial invocation of the thread code. */
 static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     /* The passed data is simply the code object to invoke. */
-    struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
+    ThreadStart *ts = (ThreadStart *)data;
     MVMThread *thread = (MVMThread *)ts->thread_obj;
     MVMObject *invokee = thread->body.invokee;
 
@@ -36,7 +36,7 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
 
 /* This callback handles starting execution of a thread. */
 static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
-    struct _MVMThreadStart *ts = (struct _MVMThreadStart *)data;
+    ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
     /* Set the current frame in the thread to be the initial caller;
@@ -76,7 +76,7 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
 MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject *result_type) {
     int apr_return_status;
     apr_threadattr_t *thread_attr;
-    struct _MVMThreadStart *ts;
+    ThreadStart *ts;
     MVMObject *child_obj;
 
     /* Create a thread object to wrap it up in. */
@@ -104,7 +104,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
          * started, and there's no promises that the thread won't start before
          * the code creating the thread returns. The count is decremented when
          * the thread is done. */
-        ts = malloc(sizeof(struct _MVMThreadStart));
+        ts = malloc(sizeof(ThreadStart));
         ts->tc = child_tc;
         ts->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
         ts->thread_obj = child_obj;

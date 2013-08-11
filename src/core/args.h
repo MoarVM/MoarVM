@@ -32,7 +32,7 @@ typedef MVMuint8 MVMCallsiteEntry;
  * does not contain the values; this is the *statically known* things
  * about the callsite and is immutable. It describes how to process
  * the callsite memory buffer. */
-typedef struct _MVMCallsite {
+struct MVMCallsite {
     /* The set of flags. */
     MVMCallsiteEntry *arg_flags;
 
@@ -45,12 +45,12 @@ typedef struct _MVMCallsite {
 
     /* whether it has a flattening arg. */
     MVMuint8 has_flattening;
-} MVMCallsite;
+};
 
 /* Argument processing context. */
 /* adding these additional fields to MVMFrame adds only 12 bytes
  * (arg_flags, arg_count, and num_pos). */
-typedef struct _MVMArgProcContext {
+struct MVMArgProcContext {
     /* The callsite we're processing. */
     MVMCallsite *callsite;
 
@@ -58,7 +58,7 @@ typedef struct _MVMArgProcContext {
     MVMCallsiteEntry *arg_flags;
 
     /* The arguments. */
-    union _MVMRegister *args;
+    MVMRegister *args;
 
     /* Bytemap of indexes of used nameds, so the
      * named slurpy knows which ones not to grab.
@@ -72,7 +72,7 @@ typedef struct _MVMArgProcContext {
 
     /* Number of positionals. */
     MVMuint16 num_pos;
-} MVMArgProcContext;
+};
 
 /* Expected return type flags. */
 typedef enum {
@@ -93,14 +93,14 @@ typedef enum {
 } MVMReturnType;
 
 /* Struct used for returning information about an argument. */
-typedef struct _MVMArgInfo {
-    union _MVMRegister arg;
+struct MVMArgInfo {
+    MVMRegister arg;
     MVMCallsiteEntry   flags;
     MVMuint8           exists;
-} MVMArgInfo;
+};
 
 /* Argument processing context handling. */
-void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, union _MVMRegister *args);
+void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args);
 void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);
@@ -113,17 +113,17 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
 MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos);
 
 /* Argument access by name. */
-MVMArgInfo MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
-MVMArgInfo MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
-MVMArgInfo MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
-MVMArgInfo MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, struct _MVMString *name, MVMuint8 required);
+MVMArgInfo MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required);
+MVMArgInfo MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required);
+MVMArgInfo MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required);
+MVMArgInfo MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required);
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Result setting. */
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless);
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless);
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless);
-void MVM_args_set_result_str(MVMThreadContext *tc, struct _MVMString *result, MVMint32 frameless);
+void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless);
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless);
 
 /* Result setting frame constants. */

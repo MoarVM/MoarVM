@@ -2,12 +2,12 @@
  * It contains the declarative objects for the compilation unit, and
  * they are serialized if code is pre-compiled. */
 
-typedef struct _MVMSerializationContextBody {
+struct MVMSerializationContextBody {
     /* The handle of this SC. */
-    struct _MVMString *handle;
+    MVMString *handle;
 
     /* Description (probably the file name) if any. */
-    struct _MVMString *description;
+    MVMString *description;
 
     /* The root set of objects that live in this SC. */
     MVMObject *root_objects;
@@ -23,20 +23,20 @@ typedef struct _MVMSerializationContextBody {
     /* XXX Repossession info. */
 
     /* Backlink to the (memory-managed) SC itself. */
-    struct _MVMSerializationContext *sc;
+    MVMSerializationContext *sc;
 
     /* Inline handle to the SCs hash (in MVMInstance). */
     UT_hash_handle hash_handle;
-} MVMSerializationContextBody;
+};
 
-typedef struct _MVMSerializationContext {
+struct MVMSerializationContext {
     /* Normal header. */
     MVMObject common;
 
     /* Body is a level of indirection away to ease memory management of the
      * weak hash. */
     MVMSerializationContextBody *body;
-} MVMSerializationContext;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc);

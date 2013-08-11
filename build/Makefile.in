@@ -83,6 +83,7 @@ OBJECTS = src/main@obj@ \
           src/moarvm@obj@
 
 HEADERS = src/moarvm.h \
+          src/types.h \
           src/6model/6model.h \
           src/core/instance.h \
           src/core/threadcontext.h \

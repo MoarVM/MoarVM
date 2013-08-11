@@ -2,7 +2,7 @@
  * off this. In read mode, we don't do much besides populate and then
  * read this. In write mode, however, the tables and data chunks will be
  * filled out and grown as needed. */
-typedef struct {
+struct MVMSerializationRoot {
     /* The version of the serialization format. */
     MVMint32 version;
 
@@ -46,11 +46,11 @@ typedef struct {
 
     /* Array of STRINGs. */
     MVMObject *string_heap;
-} MVMSerializationRoot;
+};
 
 /* Represents the serialization reader and the various functions available
  * on it. */
-typedef struct _MVMSerializationReader {
+struct MVMSerializationReader {
     /* Serialization root data. */
     MVMSerializationRoot root;
 
@@ -76,13 +76,13 @@ typedef struct _MVMSerializationReader {
     char     **cur_read_end;
 
     /* Various reading functions. */
-    MVMint64    (*read_int)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMint32    (*read_int32) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMint16    (*read_int16) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMnum64    (*read_num)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMString * (*read_str)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMObject * (*read_ref)   (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
-    MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, struct _MVMSerializationReader *reader);
+    MVMint64    (*read_int)   (MVMThreadContext *tc, MVMSerializationReader *reader);
+    MVMint32    (*read_int32) (MVMThreadContext *tc, MVMSerializationReader *reader);
+    MVMint16    (*read_int16) (MVMThreadContext *tc, MVMSerializationReader *reader);
+    MVMnum64    (*read_num)   (MVMThreadContext *tc, MVMSerializationReader *reader);
+    MVMString * (*read_str)   (MVMThreadContext *tc, MVMSerializationReader *reader);
+    MVMObject * (*read_ref)   (MVMThreadContext *tc, MVMSerializationReader *reader);
+    MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, MVMSerializationReader *reader);
 
     /* List of code objects (static first, then all the closures). */
     MVMObject *codes_list;
@@ -92,23 +92,23 @@ typedef struct _MVMSerializationReader {
 
     /* The data, which we'll want to free after deserialization. */
     char *data;
-} MVMSerializationReader;
+};
 
 /* Represents the serialization writer and the various functions available
  * on it. */
-typedef struct _MVMSerializationWriter {
+struct MVMSerializationWriter {
     /* Serialization root data. */
     MVMSerializationRoot root;
 
     /* Much more todo here... */
 
     /* Various writing functions. */
-    void (*write_int) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMint64 value);
-    void (*write_num) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMnum64 value);
-    void (*write_str) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMString *value);
-    void (*write_ref) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMObject *value);
-    void (*write_stable_ref) (MVMThreadContext *tc, struct _MVMSerializationWriter *writer, MVMSTable *st);
-} MVMSerializationWriter;
+    void (*write_int) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
+    void (*write_num) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
+    void (*write_str) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
+    void (*write_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *value);
+    void (*write_stable_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st);
+};
 
 /* Core serialize and deserialize functions. */
 void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext *sc,

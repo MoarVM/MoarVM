@@ -1,12 +1,12 @@
 /* Representation used by P6 native ints. */
-typedef struct _P6intBody {
+struct MVMP6intBody {
     /* Integer storage slot. */
     MVMint64 value;
-} P6intBody;
-typedef struct _P6int {
+};
+struct MVMP6int {
     MVMObject common;
-    P6intBody body;
-} P6int;
+    MVMP6intBody body;
+};
 
 /* Function for REPR setup. */
-MVMREPROps * P6int_initialize(MVMThreadContext *tc);
+MVMREPROps * MVMP6int_initialize(MVMThreadContext *tc);
