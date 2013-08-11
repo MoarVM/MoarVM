@@ -180,7 +180,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	@sharule@
 
 clean:
-	$(RM) $(OBJECTS) src/strings/unicode.c
+	$(RM) $(OBJECTS)
 	@clean@
 	@aprclean@
 	@laoclean@
@@ -188,4 +188,5 @@ clean:
 	@shaclean@
 
 realclean: clean
-	$(RM) moarvm@exe@ Makefile
+	$(RM) moarvm@exe@
+	$(RM) Makefile src/gen/config.h src/strings/unicode.c
