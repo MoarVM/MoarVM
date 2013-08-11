@@ -817,31 +817,31 @@ static int fs___mkdir_p(wchar_t *pathname) {
   size_t r;
   size_t len = wcslen(pathname);
 
-  while ((len > 0) && (IS_SLASH(pathname[len - 1])))
+  while (len > 0 && IS_SLASH(pathname[len - 1]))
     len--;
 
-  pathname[len] = '\0';
+  pathname[len] = L'\0';
 
   r = _wmkdir(pathname);
 
   if (r == -1 && errno == ENOENT) {
     size_t _len = len;
 
-    while ((_len > 0) && (IS_SLASH(pathname[_len - 1])))
+    while (_len > 0 && IS_SLASH(pathname[_len - 1]))
       _len--;
 
-    pathname[_len] = '\0';
+    pathname[_len] = L'\0';
 
     r = fs___mkdir_p(pathname);
 
-    pathname[_len] = '/';
+    pathname[_len] = L'/';
 
     if(r == 0) {
       r = _wmkdir(pathname);
     }
   }
 
-  pathname[len] = '/';
+  pathname[len] = L'/';
 
   return r;
 }

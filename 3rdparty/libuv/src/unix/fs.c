@@ -195,7 +195,7 @@ static int uv__fs_mkdir_p(char *pathname, mode_t mode) {
   ssize_t r;
   size_t len = strlen(pathname);
 
-  while ((len > 0) && (pathname[len - 1] == '/'))
+  while ((len > 0) && (pathname[len - 1] == L'/'))
     len--;
 
   pathname[len] = '\0';
@@ -205,21 +205,21 @@ static int uv__fs_mkdir_p(char *pathname, mode_t mode) {
   if (r == -1 && errno == ENOENT) {
     size_t _len = len;
 
-    while ((_len > 0) && (pathname[_len - 1]) == '/')
+    while ((_len > 0) && (pathname[_len - 1]) == L'/')
       _len--;
 
-    pathname[_len] = '\0';
+    pathname[_len] = L'\0';
 
     r = uv__fs_mkdir_p(pathname, mode);
 
-    pathname[_len] = '/';
+    pathname[_len] = L'/';
 
     if(r == 0) {
       r = mkdir(pathname, mode);
     }
   }
 
-  pathname[len] = '/';
+  pathname[len] = L'/';
 
   return r;
 }
