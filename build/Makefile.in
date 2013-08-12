@@ -197,6 +197,13 @@ UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd.c \
              3rdparty/libuv/src/unix/kqueue.c \
              $(UV_UNIX)
 
+UV_DARWIN = 3rdparty/libuv/src/unix/darwin.c \
+            3rdparty/libuv/src/unix/darwin-proctitle.c \
+            3rdparty/libuv/src/unix/fsevents.c \
+            3rdparty/libuv/src/unix/kqueue.c \
+            3rdparty/libuv/src/unix/proctitle.c \
+            $(UV_UNIX)
+
 UV_OBJECTS = @uvobjects@
 
 TOM_OBJECTS = @tomobjects@

@@ -270,10 +270,18 @@ my %FREEBSD = (
     },
 );
 
+my %DARWIN = (
+    defs => [ '_DARWIN_USE_64_BIT_INODE=1' ],
+
+    -thirdparty => {
+        uv => { %UV, objects => '$(UV_DARWIN)' },
+    },
+);
+
 my %SYSTEMS = (
     generic => [ qw( posix gnu gcc ), {} ],
     linux   => [ qw( posix gnu gcc ), { %LINUX } ],
-    darwin  => [ qw( posix gnu clang ), {} ],
+    darwin  => [ qw( posix gnu clang ), { %DARWIN } ],
     openbsd => [ qw( posix gnu gcc ), { %OPENBSD} ],
     netbsd  => [ qw( posix gnu gcc ), { %NETBSD } ],
     freebsd => [ qw( posix gnu clang ), { %FREEBSD } ],
