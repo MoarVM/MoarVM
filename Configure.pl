@@ -13,14 +13,14 @@ my $GENLIST = 'build/gen.list';
 my %APR = (
     name  => 'apr-1',
     path  => '3rdparty/apr/.libs',
-    rule  => 'cd 3rdparty/apr && ./configure --disable-shared @crossconf@ && $(MAKE)',
+    rule  => 'cd 3rdparty/apr && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure --disable-shared @crossconf@ && $(MAKE)',
     clean => '-cd 3rdparty/apr && $(MAKE) distclean',
 );
 
 my %LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomic_ops/src',
-    rule  => 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)',
+    rule  => 'cd 3rdparty/libatomic_ops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && $(MAKE)',
     clean => '-cd 3rdparty/libatomic_ops && $(MAKE) distclean',
 );
 
@@ -45,7 +45,7 @@ my %LN = (
 my %DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
-    rule  => 'cd 3rdparty/dyncall && ./configure2 && $(MAKE) -f Makefile CC=\'@cc@\'',
+    rule  => 'cd 3rdparty/dyncall &&  ./configure2 && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile',
     clean => '-cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
 );
 
