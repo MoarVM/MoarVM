@@ -182,7 +182,20 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
 UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
            3rdparty/libuv/src/unix/linux-inotify@obj@ \
            3rdparty/libuv/src/unix/linux-syscalls@obj@ \
-           3rdparty/libuv/src/unix/proctitle@obj@
+           3rdparty/libuv/src/unix/proctitle@obj@ \
+           $(UV_UNIX)
+
+UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd.c \
+             3rdparty/libuv/src/unix/kqueue.c \
+             $(UV_UNIX)
+
+UV_NETBSD = 3rdparty/libuv/src/unix/netbsd.c \
+            3rdparty/libuv/src/unix/kqueue.c \
+            $(UV_UNIX)
+
+UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd.c \
+             3rdparty/libuv/src/unix/kqueue.c \
+             $(UV_UNIX)
 
 UV_OBJECTS = @uvobjects@
 

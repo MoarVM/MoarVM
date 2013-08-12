@@ -248,15 +248,35 @@ my %WIN32 = (
 
 my %LINUX = (
     -thirdparty => {
-        uv => { %UV, objects => '$(UV_UNIX) $(UV_LINUX)' },
-    }
+        uv => { %UV, objects => '$(UV_LINUX)' },
+    },
+);
+
+my %OPENBSD = (
+    -thirdparty => {
+        uv => { %UV, objects => '$(UV_OPENBSD)' },
+    },
+);
+
+my %NETBSD = (
+    -thirdparty => {
+        uv => { %UV, objects => '$(UV_NETBSD)' },
+    },
+);
+
+my %FREEBSD = (
+    -thirdparty => {
+        uv => { %UV, objects => '$(UV_FREEBSD)' },
+    },
 );
 
 my %SYSTEMS = (
     generic => [ qw( posix gnu gcc ), {} ],
     linux   => [ qw( posix gnu gcc ), { %LINUX } ],
     darwin  => [ qw( posix gnu clang ), {} ],
-    freebsd => [ qw( posix gnu clang ), {} ],
+    openbsd => [ qw( posix gnu gcc ), { %OPENBSD} ],
+    netbsd  => [ qw( posix gnu gcc ), { %NETBSD } ],
+    freebsd => [ qw( posix gnu clang ), { %FREEBSD } ],
     cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
     win32   => [ qw( win32 msvc cl ), { %WIN32 } ],
     mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
