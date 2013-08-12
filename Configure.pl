@@ -255,6 +255,7 @@ my %SYSTEMS = (
     mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
 );
 
+my $fail = 0;
 my %args;
 my %defaults;
 my %config;
@@ -402,7 +403,8 @@ for (keys %$thirdparty) {
         $clean   = sprintf '-$(RM) %s %s', $lib, $globs;
     }
     else {
-        hardfail("no idea how to build '$lib'");
+        softfail("no idea how to build '$lib'");
+        print dots('    continuing anyway');
     }
 
     @config{@keys} = ($lib, $objects // '', $rule // '@:', $clean // '@:');
@@ -436,8 +438,21 @@ while (<$listfile>) {
 
 close $listfile;
 
-print "\nConfiguration successful. Type '$config{'make'}' to build.\n";
-exit;
+if ($fail) {
+    print "\n", <<TERM;
+Configuration FAIL. You can try to salvage the generated Makefile.
+TERM
+
+    exit 1;
+}
+else {
+    print "\n", <<TERM;
+Configuration SUCCESS. Type '$config{'make'}' to build.
+TERM
+
+    exit 0;
+}
+
 
 sub native_setup {
     my ($os) = @_;
@@ -586,12 +601,14 @@ sub dots {
 
 sub hardfail {
     my ($msg) = @_;
+    $fail = 1;
     print "FAIL\n";
     die "    $msg\n";
 }
 
 sub softfail {
     my ($msg) = @_;
+    $fail = 1;
     print "FAIL\n";
     warn "    $msg\n";
 }
