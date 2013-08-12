@@ -45,28 +45,25 @@ my %LN = (
 my %DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
-    rule  => '@:',
-    clean => '@:',
+    # no default rule to make dyncall (yet)
 );
 
 my %DCB = (
     name  => 'dyncallback_s',
     path  => '3rdparty/dyncall/dyncallback',
-    rule  => '@:',
-    clean => '@:',
+    dummy => 1,
 );
 
 my %DL = (
     name  => 'dynload_s',
     path  => '3rdparty/dyncall/dynload',
-    rule  => '@:',
-    clean => '@:',
+    dummy => 1,
 );
 
 my %UV = (
     name => 'uv',
     path => '3rdparty/libuv',
-    src  => [],
+    # no default rule to make libuv
 );
 
 my %THIRDPARTY = (
@@ -236,16 +233,21 @@ my %WIN32 = (
         lao => undef,
 
         uv => {
-            name => 'uv',
-            path => '3rdparty/libuv',
-            src  => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
+            %UV,
+            src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
         },
     },
 );
 
+my %LINUX = (
+    -thirdparty => {
+        uv => { %UV, objects => '$(UV_UNIX) $(UV_LINUX)' },
+    }
+);
+
 my %SYSTEMS = (
     generic => [ qw( posix gnu gcc ), {} ],
-    linux   => [ qw( posix gnu gcc ), {} ],
+    linux   => [ qw( posix gnu gcc ), { %LINUX } ],
     darwin  => [ qw( posix gnu clang ), {} ],
     freebsd => [ qw( posix gnu clang ), {} ],
     cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
@@ -366,37 +368,46 @@ my $thirdparty = $defaults{-thirdparty};
 
 for (keys %$thirdparty) {
     my $current = $thirdparty->{$_};
+    my @keys = ( "${_}lib", "${_}objects", "${_}rule", "${_}clean");
 
-    if (defined $current) {
-        my $lib = sprintf "%s/$config{lib}",
-            $current->{path},
-            $current->{name};
+    unless (defined $current) {
+        @config{@keys} = ("__${_}__", '', '@:', '@:');
+        next;
+    }
 
-        $config{"${_}lib"} = $lib;
+    my ($lib, $objects, $rule, $clean);
 
-        if (exists $current->{rule}) {
-            $config{"${_}rule"}    = $current->{rule};
-            $config{"${_}clean"}   = $current->{clean};
-            $config{"${_}objects"} = '';
-        }
-        else {
-            my @sources = map { glob "$_/*.c" } @{ $current->{src} };
-            my $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
-            my $globs   = join ' ', map { $_ . '/*@obj@' } @{ $current->{src} };
+    $lib = sprintf "%s/$config{lib}",
+        $current->{path},
+        $current->{name};
 
-            $config{"${_}rule"}    = '$(AR) $(ARFLAGS) @arout@$@ ' . $globs;
-            $config{"${_}clean"}   = "-\$(RM) $lib $globs";
-            $config{"${_}objects"} = $objects;
-        }
+    if (exists $current->{dummy}) {
+        $clean = sprintf '-$(RM) %s', $lib;
+    }
+    elsif (exists $current->{objects}) {
+        $objects = $current->{objects};
+        $rule    = sprintf '$(AR) $(ARFLAGS) @arout@$@ @%sobjects@', $_;
+        $clean   = sprintf '-$(RM) @%slib@ @%sobjects@', $_, $_;
+    }
+    elsif (exists $current->{rule}) {
+        $rule  = $current->{rule};
+        $clean = $current->{clean};
+    }
+    elsif (exists $current->{src}) {
+        my @sources = map { glob "$_/*.c" } @{ $current->{src} };
+        my $globs   = join ' ', map { $_ . '/*@obj@' } @{ $current->{src} };
 
-        push @thirdpartylibs, $config{"${_}lib"};
+        $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
+        $rule    = sprintf '$(AR) $(ARFLAGS) @arout@$@ %s', $globs;
+        $clean   = sprintf '-$(RM) %s %s', $lib, $globs;
     }
     else {
-        $config{"${_}lib"}     = "__${_}__";
-        $config{"${_}rule"}    = '@:';
-        $config{"${_}clean"}   = '@:';
-        $config{"${_}objects"} = '';
+        hardfail("no idea how to build '$lib'");
     }
+
+    @config{@keys} = ($lib, $objects // '', $rule // '@:', $clean // '@:');
+
+    push @thirdpartylibs, $config{"${_}lib"};
 }
 
 $config{thirdpartylibs} = join ' ', @thirdpartylibs;

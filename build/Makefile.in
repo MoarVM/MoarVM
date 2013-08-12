@@ -8,6 +8,7 @@ CAT  = @cat@
 CFLAGS    = @cflags@
 CINCLUDES = @ccinc@3rdparty/apr/include \
             @ccinc@3rdparty/libuv/include \
+            @ccinc@3rdparty/libuv/src \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@3rdparty/libtommath \
             @ccinc@3rdparty/sha1 \
@@ -154,10 +155,45 @@ HEADERS = src/moarvm.h \
           src/gen/config.h \
           3rdparty/apr/include/apr.h
 
+UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
+          3rdparty/libuv/src/inet@obj@ \
+          3rdparty/libuv/src/uv-common@obj@ \
+          3rdparty/libuv/src/version@obj@ \
+          3rdparty/libuv/src/unix/async@obj@ \
+          3rdparty/libuv/src/unix/core@obj@ \
+          3rdparty/libuv/src/unix/dl@obj@ \
+          3rdparty/libuv/src/unix/fs@obj@ \
+          3rdparty/libuv/src/unix/getaddrinfo@obj@ \
+          3rdparty/libuv/src/unix/internal.h \
+          3rdparty/libuv/src/unix/loop-watcher@obj@ \
+          3rdparty/libuv/src/unix/loop@obj@ \
+          3rdparty/libuv/src/unix/pipe@obj@ \
+          3rdparty/libuv/src/unix/poll@obj@ \
+          3rdparty/libuv/src/unix/process@obj@ \
+          3rdparty/libuv/src/unix/signal@obj@ \
+          3rdparty/libuv/src/unix/stream@obj@ \
+          3rdparty/libuv/src/unix/tcp@obj@ \
+          3rdparty/libuv/src/unix/thread@obj@ \
+          3rdparty/libuv/src/unix/threadpool@obj@ \
+          3rdparty/libuv/src/unix/timer@obj@ \
+          3rdparty/libuv/src/unix/tty@obj@ \
+          3rdparty/libuv/src/unix/udp@obj@
+
+UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
+           3rdparty/libuv/src/unix/linux-inotify@obj@ \
+           3rdparty/libuv/src/unix/linux-syscalls@obj@ \
+           3rdparty/libuv/src/unix/proctitle@obj@
+
 .SUFFIXES: .c @obj@
 
 moarvm@exe@: $(OBJECTS) @thirdpartylibs@
 	$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
+
+apr: @aprlib@
+
+libuv: @uvlib@
+
+dyncall: @dclib@
 
 $(OBJECTS): $(HEADERS)
 
