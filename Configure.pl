@@ -63,7 +63,11 @@ my %DL = (
     clean => '@:',
 );
 
-my %UV = ();
+my %UV = (
+    name => 'uv',
+    path => '3rdparty/libuv',
+    src  => [],
+);
 
 my %THIRDPARTY = (
     apr => { %APR },
@@ -74,7 +78,7 @@ my %THIRDPARTY = (
     dc  => { %DC },
     dcb => { %DCB },
     dl  => { %DL },
-#    uv  => { %UV },
+    uv  => { %UV },
 );
 
 my %SHELLS = (
@@ -142,6 +146,11 @@ my %TOOLCHAINS = (
                 %APR,
                 rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
+            },
+
+            uv => {
+                %UV,
+                src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
             },
 
             dc => {

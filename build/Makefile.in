@@ -7,6 +7,7 @@ CAT  = @cat@
 
 CFLAGS    = @cflags@
 CINCLUDES = @ccinc@3rdparty/apr/include \
+            @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@3rdparty/libtommath \
             @ccinc@3rdparty/sha1 \
@@ -172,6 +173,9 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 @aprlib@:
 	@aprrule@
 
+@uvlib@: @uvobjects@
+	@uvrule@
+
 @laolib@:
 	@laorule@
 
@@ -193,6 +197,7 @@ clean:
 	-$(RM) $(OBJECTS)
 	@clean@
 	@aprclean@
+	@uvclean@
 	@laoclean@
 	@tomclean@
 	@shaclean@
