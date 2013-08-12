@@ -277,7 +277,7 @@ push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} = join ' ', @ldflags;
 
 my @auxfiles = @{ $defaults{-auxfiles} };
-$config{clean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
+$config{clean} = @auxfiles ? '-$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
 
@@ -336,7 +336,7 @@ for (keys %$thirdparty) {
 
             $config{"${_}objects"} = $objects;
             $config{"${_}rule"}    = '$(AR) $(ARFLAGS) @arout@$@ ' . $globs;
-            $config{"${_}clean"}   = "\$(RM) $lib $globs";
+            $config{"${_}clean"}   = "-\$(RM) $lib $globs";
         }
 
         push @thirdpartylibs, $config{"${_}lib"};
@@ -349,7 +349,7 @@ for (keys %$thirdparty) {
 }
 
 $config{thirdpartylibs} = join ' ', @thirdpartylibs;
-my $thirdpartylibs = join "\n" . ' ' x 12, @thirdpartylibs;
+my $thirdpartylibs = join "\n" . ' ' x 12, sort @thirdpartylibs;
 
 print "OK\n";
 

@@ -185,7 +185,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	@lnrule@
 
 clean:
-	$(RM) $(OBJECTS)
+	-$(RM) $(OBJECTS)
 	@clean@
 	@aprclean@
 	@laoclean@
@@ -194,5 +194,5 @@ clean:
 	@lnclean@
 
 realclean: clean
-	$(RM) moarvm@exe@
-	$(RM) Makefile src/gen/config.h src/strings/unicode.c
+	-$(RM) moarvm@exe@
+	-$(RM) Makefile src/gen/config.h src/strings/unicode.c
