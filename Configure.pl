@@ -21,7 +21,7 @@ my %LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomic_ops/src',
     rule  => 'cd 3rdparty/libatomic_ops && ./configure @crossconf@ && $(MAKE)',
-    clean => '-cd 3rdparty/libatomic_ops && $(MAKE)',
+    clean => '-cd 3rdparty/libatomic_ops && $(MAKE) distclean',
 );
 
 my %SHA = (
@@ -148,11 +148,6 @@ my %TOOLCHAINS = (
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
             },
 
-            uv => {
-                %UV,
-                src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
-            },
-
             dc => {
                 %DC,
                 name  => 'libdyncall_s',
@@ -236,8 +231,16 @@ my %WIN32 = (
     defs => [ 'WIN32' ],
     libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 ) ],
 
-    # header only, no need to build anything
-    -thirdparty => { lao => undef },
+    -thirdparty => {
+        # header only, no need to build anything
+        lao => undef,
+
+        uv => {
+            name => 'uv',
+            path => '3rdparty/libuv',
+            src  => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
+        },
+    },
 );
 
 my %SYSTEMS = (
@@ -372,25 +375,27 @@ for (keys %$thirdparty) {
         $config{"${_}lib"} = $lib;
 
         if (exists $current->{rule}) {
-            $config{"${_}rule"}  = $current->{rule};
-            $config{"${_}clean"} = $current->{clean};
+            $config{"${_}rule"}    = $current->{rule};
+            $config{"${_}clean"}   = $current->{clean};
+            $config{"${_}objects"} = '';
         }
         else {
             my @sources = map { glob "$_/*.c" } @{ $current->{src} };
             my $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
             my $globs   = join ' ', map { $_ . '/*@obj@' } @{ $current->{src} };
 
-            $config{"${_}objects"} = $objects;
             $config{"${_}rule"}    = '$(AR) $(ARFLAGS) @arout@$@ ' . $globs;
             $config{"${_}clean"}   = "-\$(RM) $lib $globs";
+            $config{"${_}objects"} = $objects;
         }
 
         push @thirdpartylibs, $config{"${_}lib"};
     }
     else {
-        $config{"${_}lib"}   = "__${_}__";
-        $config{"${_}rule"}  = '@:';
-        $config{"${_}clean"} = '@:';
+        $config{"${_}lib"}     = "__${_}__";
+        $config{"${_}rule"}    = '@:';
+        $config{"${_}clean"}   = '@:';
+        $config{"${_}objects"} = '';
     }
 }
 
