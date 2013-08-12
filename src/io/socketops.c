@@ -255,28 +255,3 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
 
     return result;
 }
-
-MVMString * MVM_socket_hostname(MVMThreadContext *tc) {
-    MVMString *result;
-    apr_status_t rv;
-    char *hostname = (char *)malloc(APRMAXHOSTLEN + 1);
-    apr_pool_t *tmp_pool;
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "hostname failed to create pool: ");
-    }
-
-    if ((rv = apr_gethostname(hostname, APRMAXHOSTLEN + 1, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        free(hostname);
-        MVM_exception_throw_apr_error(tc, rv, "hostname failed: ");
-    }
-
-    result = MVM_string_utf8_decode(tc, tc->instance->VMString, hostname, strlen(hostname));
-
-    apr_pool_destroy(tmp_pool);
-    free(hostname);
-
-    return result;
-}
