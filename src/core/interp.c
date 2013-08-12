@@ -3049,10 +3049,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 4).i64);
                         cur_op += 6;
                         break;
-                    case MVM_OP_hostname:
-                        GET_REG(cur_op, 0).s = MVM_socket_hostname(tc);
-                        cur_op += 2;
-                        break;
                     case MVM_OP_setencoding:
                         MVM_file_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                         cur_op += 4;

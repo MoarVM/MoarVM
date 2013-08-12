@@ -486,17 +486,16 @@
 #define MVM_OP_recv_sks 37
 #define MVM_OP_recv_skbuf 38
 #define MVM_OP_getaddr_sk 39
-#define MVM_OP_hostname 40
-#define MVM_OP_nametoaddr 41
-#define MVM_OP_addrtoname 42
-#define MVM_OP_porttosvc 43
-#define MVM_OP_setencoding 44
-#define MVM_OP_print 45
-#define MVM_OP_say 46
-#define MVM_OP_readall_fh 47
-#define MVM_OP_tell_fh 48
-#define MVM_OP_stat 49
-#define MVM_OP_readline_fh 50
+#define MVM_OP_nametoaddr 40
+#define MVM_OP_addrtoname 41
+#define MVM_OP_porttosvc 42
+#define MVM_OP_setencoding 43
+#define MVM_OP_print 44
+#define MVM_OP_say 45
+#define MVM_OP_readall_fh 46
+#define MVM_OP_tell_fh 47
+#define MVM_OP_stat 48
+#define MVM_OP_readline_fh 49
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_procshell 1

@@ -2808,12 +2808,6 @@ static MVMOpInfo MVM_op_info_io[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_hostname,
-        "hostname",
-        1,
-        { MVM_operand_write_reg | MVM_operand_str }
-    },
-    {
         MVM_OP_nametoaddr,
         "nametoaddr",
         2,
@@ -3130,7 +3124,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     53,
     57,
     135,
-    51,
+    50,
     20,
     19,
 };

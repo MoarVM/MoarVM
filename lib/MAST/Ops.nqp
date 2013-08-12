@@ -3567,68 +3567,62 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
-            'hostname', nqp::hash(
-                'code', 40,
-                'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_str
-                ]
-            ),
             'nametoaddr', nqp::hash(
-                'code', 41,
+                'code', 40,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'addrtoname', nqp::hash(
-                'code', 42,
+                'code', 41,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'porttosvc', nqp::hash(
-                'code', 43,
+                'code', 42,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_int64
                 ]
             ),
             'setencoding', nqp::hash(
-                'code', 44,
+                'code', 43,
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'print', nqp::hash(
-                'code', 45,
+                'code', 44,
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'say', nqp::hash(
-                'code', 46,
+                'code', 45,
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             ),
             'readall_fh', nqp::hash(
-                'code', 47,
+                'code', 46,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
             'tell_fh', nqp::hash(
-                'code', 48,
+                'code', 47,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             ),
             'stat', nqp::hash(
-                'code', 49,
+                'code', 48,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_int64,
                     $MVM_operand_read_reg +| $MVM_operand_str,
@@ -3636,7 +3630,7 @@ class MAST::Ops {
                 ]
             ),
             'readline_fh', nqp::hash(
-                'code', 50,
+                'code', 49,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_obj
