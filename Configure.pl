@@ -36,6 +36,12 @@ my %TOM = (
     src  => [ '3rdparty/libtommath' ],
 );
 
+my %LN = (
+    name => 'linenoise',
+    path => '3rdparty/linenoise',
+    src  => [ '3rdparty/linenoise' ],
+);
+
 my %UV = ();
 
 my %THIRDPARTY = (
@@ -43,6 +49,7 @@ my %THIRDPARTY = (
     lao => { %LAO },
     tom => { %TOM },
     sha => { %SHA },
+    ln  => { %LN },
 #    uv  => { %UV },
 );
 
