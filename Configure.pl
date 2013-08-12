@@ -61,10 +61,16 @@ my %DL = (
     dummy => 1,
 );
 
-my %UV = (
+my %UVDUMMY = (
     name => 'uv',
     path => '3rdparty/libuv',
     # no default rule to make libuv
+);
+
+my %UV = (
+    %UVDUMMY,
+    rule  => '$(AR) $(ARFLAGS) @arout@$@ $(UV_OBJECTS)',
+    clean => '-$(RM) @uvlib@ $(UV_OBJECTS)',
 );
 
 my %THIRDPARTY = (
@@ -76,7 +82,7 @@ my %THIRDPARTY = (
     dc  => { %DC },
     dcb => { %DCB },
     dl  => { %DL },
-    uv  => { %UV },
+    uv  => { %UVDUMMY },
 );
 
 my %SHELLS = (

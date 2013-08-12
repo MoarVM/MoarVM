@@ -184,6 +184,10 @@ UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
            3rdparty/libuv/src/unix/linux-syscalls@obj@ \
            3rdparty/libuv/src/unix/proctitle@obj@
 
+UV_OBJECTS = @uvobjects@
+
+TOM_OBJECTS = @tomobjects@
+
 .SUFFIXES: .c @obj@
 
 moarvm@exe@: $(OBJECTS) @thirdpartylibs@
@@ -215,7 +219,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 @laolib@:
 	@laorule@
 
-@tomlib@: @tomobjects@
+@tomlib@: $(TOM_OBJECTS)
 	@tomrule@
 
 @shalib@: @shaobjects@
