@@ -2,7 +2,7 @@
 
 /* MSVC compilers know about environ,
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
-#ifndef WIN32
+#ifndef _WIN32
 #  ifdef __APPLE_CC__
 #    include <crt_externs.h>
 #    define environ (*_NSGetEnviron())
@@ -12,6 +12,42 @@ extern char **environ;
 #endif
 
 #define POOL(tc) (*(tc->interp_cu))->pool
+
+#ifdef _WIN32
+static wchar_t * ANSIToUnicode(const char *str)
+{
+     const int          len = MultiByteToWideChar( CP_ACP, 0, str,-1, NULL,0 );
+     wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
+
+     memset(result, 0, len * sizeof(wchar_t));
+
+     MultiByteToWideChar(CP_ACP, 0, str, -1, (LPWSTR)result, len);
+
+     return result;
+}
+
+static char * UnicodeToUTF8(const wchar_t *str)
+{
+     const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
+     char * const result = (char *)calloc(len, sizeof(char));
+
+     memset(result, 0, len * sizeof(char));
+
+     WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
+
+     return result;
+}
+
+static char* ANSIToUTF8(const char* str)
+{
+    wchar_t * const wstr = ANSIToUnicode(str);
+    char  * const result = UnicodeToUTF8(wstr);
+
+    free(wstr);
+    return result;
+}
+
+#endif
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     static MVMObject *env_hash;
@@ -27,16 +63,21 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
 
         while ((env = environ[pos++]) != NULL) {
-#ifndef WIN32
+#ifndef _WIN32
             MVMString *str  = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, env, strlen(env), MVM_encoding_type_utf8);
 #else
-            /* Can't use MVM_encoding_type_utf8 if it's in GBK encoding environment, otherwise it will exit directly. */
-            MVMString *str  = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, env, strlen(env), MVM_encoding_type_latin1);
+            char * const _env = ANSIToUTF8(env);
+            MVMString *str  = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, _env, strlen(_env), MVM_encoding_type_utf8);
+
 #endif
+
             MVMuint32 index = MVM_string_index(tc, str, needle, 0);
 
             MVMString *key, *val;
 
+#ifdef _WIN32
+            free(_env);
+#endif
             MVM_gc_root_temp_push(tc, (MVMCollectable **)&str);
 
             key  = MVM_string_substring(tc, str, 0, index);
