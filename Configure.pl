@@ -45,7 +45,8 @@ my %LN = (
 my %DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
-    # no default rule to make dyncall (yet)
+    rule  => 'cd 3rdparty/dyncall && ./configure2 && $(MAKE) -f Makefile CC=\'@cc@\'',
+    clean => '-cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
 );
 
 my %DCB = (
@@ -256,6 +257,7 @@ my %SYSTEMS = (
 );
 
 my $fail = 0;
+
 my %args;
 my %defaults;
 my %config;
