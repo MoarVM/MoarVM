@@ -42,6 +42,27 @@ my %LN = (
     src  => [ '3rdparty/linenoise' ],
 );
 
+my %DC = (
+    name  => 'dyncall_s',
+    path  => '3rdparty/dyncall/dyncall',
+    rule  => '@:',
+    clean => '@:',
+);
+
+my %DCB = (
+    name  => 'dyncallback_s',
+    path  => '3rdparty/dyncall/dyncallback',
+    rule  => '@:',
+    clean => '@:',
+);
+
+my %DL = (
+    name  => 'dynload_s',
+    path  => '3rdparty/dyncall/dynload',
+    rule  => '@:',
+    clean => '@:',
+);
+
 my %UV = ();
 
 my %THIRDPARTY = (
@@ -50,6 +71,9 @@ my %THIRDPARTY = (
     tom => { %TOM },
     sha => { %SHA },
     ln  => { %LN },
+    dc  => { %DC },
+    dcb => { %DCB },
+    dl  => { %DL },
 #    uv  => { %UV },
 );
 
@@ -119,6 +143,16 @@ my %TOOLCHAINS = (
                 rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
             },
+
+            dc => {
+                %DC,
+                name  => 'libdyncall_s',
+                rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
+                clean => '-$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
+            },
+
+            dcb => { %DCB, name => 'libdyncallback_s' },
+            dl  => { %DL, name => 'libdynload_s' },
         },
     },
 );
@@ -294,6 +328,9 @@ if ($config{cc} eq 'cl') {
                 rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" clean',
             };
+
+            $defaults{-thirdparty}->{dc}->{rule} =
+                'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
         }
         else { print "NO\n" }
     }

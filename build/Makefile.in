@@ -184,6 +184,11 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 @lnlib@: @lnobjects@
 	@lnrule@
 
+@dclib@:
+	@dcrule@
+
+@dcblib@ @dllib@: @dclib@
+
 clean:
 	-$(RM) $(OBJECTS)
 	@clean@
@@ -192,6 +197,7 @@ clean:
 	@tomclean@
 	@shaclean@
 	@lnclean@
+	@dcclean@
 
 realclean: clean
 	-$(RM) moarvm@exe@
