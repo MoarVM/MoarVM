@@ -1,0 +1,134 @@
+This file lists big/noteworthy changes, only...
+
+Version 0.7
+architecture:
+  o added subproject: portasm - portable (GNU AS,+Apple and MASM) assembly framework  
+  o added subproject: autovar - predefined macro framework (was dyncall_macros.h)
+  o added support for sparc (32-bit) (tested on linux/debian,openbsd,solaris)
+  o added support for sparc (64-bit) (tested on linux/debian,openbsd,solaris)
+  o added support for Solaris and SunPro compiler for i386, x86_64, sparc and sparc64
+  o improved auto-detection via preprocessor defines
+dyncall updates:
+  o uses portasm (GNU,Apple,Microsoft) common sources for x86,x64,ppc32,arm32_arm
+  o bug fixes for x64/win64 calling convention
+  o added support for mingw32-w64 on x64
+  o improved cdecl x86 calling convention: stack always 16 byte aligned
+  o updated API and initial support for structs (for x86/AMD64)
+  o initial support for syscalls on x86, added x86 int80h linux/bsd
+  o added Minix port (stable)
+  o optimized vector buffer for small type pushing
+  o minor fix for amd64/sysv: alignment to 32-byte
+  o bug fix for ppc32/sysv: ellipsis calls work now
+  o updated API, introduced DC_CALL_C_ELLIPSIS_VARARGS
+  o changed interface: dcMode does not reset internally anymore
+dyncallback updates:
+  o uses portasm for x86,x64
+  o added Solaris/x86/sunpro port (stable)
+  o added Minix port (unstable)
+  o updates source, uses relative includes
+dynload updates:
+  o fixes for missing includes (dyncall_alloc.h)
+  o fixes for self-resolving symbols on windows
+  o removed Dbghelf.lib dependency
+  o bug fixes for cygwin/x86
+  o fixes for beos/haiku
+  o no dependencies to libdyncall sources.
+buildsys additions:
+  o added zero-config (BSD,GNU,SUN) make files (Makefile.embedded)
+  o added in/out-of-source configure2 w/ (BSD,GNU) make files (Makefile.generic')
+  o added bootstrap lua script (download/build) 
+  o Nmakefile: more tests included (resolve_self)
+  o improved cross-compilation for iOS (upgrade to 4.3 sdk)
+  o darwin 8.0 support
+  o added 'install' support for Makefile.embedded
+buildsys/gmake updates:
+  o added support for msvc/x64 tool-chain
+  o default settings for build-dir changed to '.'
+  o cleanup: removed top-level Make{Prolog,Epilog,Rules} files and updated all sub-projects and tests
+  o added support for DESTDIR staging installation
+  o added support for manual page installation
+buildsys/cmake updates:
+  o updated find module scripts (see cmake/Modules)
+  o added support for using dyncall as sub-project (via *Config.cmake files)
+    see details in README.CMake
+  o fixes for msvc and ml
+  o fixes for CPack
+  o fixes for universal builds on Mac OS X
+  o supports SunPro with *.S files.
+  o added experimental 'dynMake' portable make-based build-system (not stable, yet)
+documentation updates:
+  o added dyncallback documentation
+  o updated dyncall documentation 
+  o minor updates
+tests:
+  o added flexible test suite for calls (call_suite) based on Lua and C
+  o added syscall test
+  o updates to resolve-self test (adding additional link flags to export symbols)
+  o improved dir name portability (renamed plain_c++ -> plain_cxx) 
+  o renamed *.cpp -> *.cc files (OpenBSD/Sun make has no implicit rules for cpp)
+
+Version 0.6
+building:
+  o new build systems: CMake and Plan9's mk
+  o buildsys/gmake tool chain update: pcc and iphone sdk
+  o x64 bugfix: added "-fPIC" even for static libs
+dynload updates: 
+  o enum symbols update: Mach-O and Win64 (thanks Olivier)
+  o numerous convenience changes to dynload interface (thanks Olivier)
+  o added support for resolving application images itself
+dyncall updates:
+  o new platform support: arm/iphone (armv6), x86/Plan9
+  o new mips calling conventions: oabi, n64 (both endian models)
+  o cleanup: unexported functions in MASM files, b/c export not needed (thanks Olivier)
+  o interface update: added error reporting facility 'dcGetError'
+  o bugfix for ppc32/sysv: ellipsis calls were broken
+  o interface update: added new abstract mode for ellipsis calls (DC_CALL_C_ELLIPSIS) 
+docs:
+  o comprehensive update
+tests:
+  o plain: split "plain" test up in C and C++ part
+  o callbacksuite: added multiple configuration support for callback_suite
+
+Version 0.5
+o renamed arm9 stuff to arm32
+o added non-EABI ABI for arm32 (before, EABI was the default implementation)
+o added dyncallback support for x64/windows (thanks Olivier), x64/darwin, arm32/arm, arm32/thumb
+o synced documentation again with current state of the source (lots of small changes)
+o updated ruby binding to current state of signature string (still some features missing, though)
+o added a couple of new options to configure scripts (e.g. prefix-bd, new targets, etc.)
+o darwin universal binary support
+o added new tests callback_plain and calback_suite
+o added Haiku/BeOS support
+
+Version 0.4
+o added 'doc' makefile target for coherency and ease of use
+o fixed nmake buildfiles and configure.bat (were out of date and wrong)
+o test suite clean up (GNUmake, BSDmake):
+  target "config" modified, phony without dependencies to other builds
+o bugfix: GNU fastcall calling convention for float and double arguments
+  was wrong. no skip of register.
+o update: x86win32* suite tests are built on cygwin now, added total result output
+o signature types change:
+  C Strings: 'S' -> 'Z'
+  long: 'l' -> 'j'
+  long long: 'L' -> 'l'
+  added unsigned integer type signature characters: upper case encoding  
+o added: callbacks component (support only for some platforms ATM)
+o added: test cases for alloc_wx, thunk
+o updated Documentation
+
+Version 0.3
+o added Linux PPC32 support
+o added ARM THUMB mode support
+o cosmetic changes, documentation updated
+o bugfix: on cygwin exported C symbols in GNU as are prefixed with '_' now.
+o removed scons build support
+
+Version 0.2
+o added scons build support
+o configure variables all prefix CONFIG_* now
+o configure variable INSTALL_DIR changed to INSTALL_PREFIX
+o configure (shell version) option "--prefix" changed to "--prefix=<path>"
+
+Version 0.1:
+o initial release

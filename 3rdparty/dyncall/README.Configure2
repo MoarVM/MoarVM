@@ -1,0 +1,26 @@
+Some experiences with configure2 and Makefile.generic
+
+NetBSD/FreeBSD:
+  
+  Embedded
+    Default NetBSD make:
+      make -f Makefile.generic 
+      (cd test ; LDFLAGS=-lm make -f Makefile.generic)
+
+  Configure:
+    in-source:
+      ./configure2
+      make
+      make install DESTDIR=/tmp
+    Out-of-source:
+      mkdir build
+      cd build
+      ../configure2 
+      make
+           
+OpenBSD:
+  Embedded
+    Default OpenBSD make:
+      make -f Makefile.generic
+      (cd test ; LDFLAGS=-lm make -f Makefile.generic all-c)
+  

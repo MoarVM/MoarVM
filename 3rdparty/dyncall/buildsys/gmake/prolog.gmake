@@ -1,0 +1,77 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2009 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+GMAKE_TOP ?= $(TOP)/buildsys/gmake
+
+
+# default rule 
+
+.PHONY: default build
+default: build
+
+
+# config settings
+
+ifeq ($(wildcard $(TOP)/ConfigVars),)
+$(error File 'ConfigVars' not found at top directory. Run 'configure' - or, if you use CMake, run 'make -f Makefile' please.)
+else
+include $(TOP)/ConfigVars
+endif
+
+# project settings 
+
+#-include $(TOP)/ProjectVars
+
+ 
+# setup BUILD_* from CONFIG_* variables
+
+BUILD_HOST ?= $(CONFIG_HOST)
+BUILD_OS ?= $(CONFIG_OS)
+BUILD_ARCH ?= $(CONFIG_ARCH)
+BUILD_TOOL ?= $(CONFIG_TOOL)
+BUILD_ASM ?= $(CONFIG_ASM)
+BUILD_CONFIG ?= $(CONFIG_CONFIG)
+
+# setup INSTALL_* from CONFIG_* variables
+
+INSTALL_PREFIX ?= $(CONFIG_PREFIX)
+
+ifdef CONFIG_BUILDPREFIX
+	BUILD_DIR ?= $(CONFIG_BUILDPREFIX)
+else
+	BUILD_DIR ?= build_out/$(BUILD_HOST)_$(BUILD_ARCH)_$(BUILD_TOOL)_$(BUILD_CONFIG)
+endif
+
+
+
+# setup BUILD_<key>_<value> conditional variables
+
+BUILD_HOST_$(BUILD_HOST)=1
+BUILD_OS_$(BUILD_OS)=1
+BUILD_ARCH_$(BUILD_ARCH)=1
+BUILD_TOOL_$(BUILD_TOOL)=1
+BUILD_ASM_$(BUILD_ASM)=1
+BUILD_CONFIG_$(BUILD_CONFIG)=1
+
+
+# setup build directory
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+

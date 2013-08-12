@@ -1,0 +1,40 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2009 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+#	dyncall bsdmake build system
+#	osx.bsdmake
+# REVISION
+# 2009/03/23  dadler
+#  * overload LINK_LIB_CMD (from unix) to use darwin's "libtool"
+#  * added "universal build support"
+
+
+
+DLL_SUFFIX	= .dylib
+as_FLAGS	=
+
+LINK_DLL_CMD	= $(CXX) -o $(.TARGET) -dynamiclib $(LDFLAGS) $(.ALLSRC) $(LIBS)
+#LINK_DLL_CMD	= $(LD) -o $(.TARGET) -dylib $(LDFLAGS) $(.ALLSRC) $(LIBS)
+LINK_LIB_CMD	= libtool -static -o $(.TARGET) $(.ALLSRC)
+
+.if $(BUILD_ARCH) == "universal"
+TARGET_ARCH	= -arch i386 -arch ppc -arch x86_64
+TARGET_MACH     = $(TARGET_ARCH)
+.endif
+

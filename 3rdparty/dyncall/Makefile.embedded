@@ -1,0 +1,40 @@
+MAKEFILE = Makefile.embedded
+MAKE_CMD = ${MAKE} -f ${MAKEFILE} 
+all:
+	cd dynload ; ${MAKE_CMD}
+	cd dyncall ; ${MAKE_CMD}
+	cd dyncallback ; ${MAKE_CMD}
+tests: 
+	cd test ; ${MAKE_CMD} 
+clean:
+	cd dynload     ; ${MAKE_CMD} clean
+	cd dyncall     ; ${MAKE_CMD} clean
+	cd dyncallback ; ${MAKE_CMD} clean
+	cd test        ; ${MAKE_CMD} clean
+install:
+	cd dynload     ; ${MAKE_CMD} install
+	cd dyncall     ; ${MAKE_CMD} install
+	cd dyncallback ; ${MAKE_CMD} install
+bsd:
+	${MAKE_CMD} all
+linux:
+	${MAKE_CMD} all
+linux64:
+	CFLAGS="${CFLAGS} -m64" ASFLAGS="${ASFLAGS} -m64" ${MAKE_CMD} all
+minix-gcc:
+	cd dyncall	; CC=gcc CFLAGS= ${MAKE_CMD} 
+	cd dyncallback	; CC=gcc CFLAGS= ${MAKE_CMD} 
+osx:
+	${MAKE_CMD} all
+osx-universal:
+	CFLAGS="${CFLAGS} -arch i386 -arch x86_64 -arch ppc" ASFLAGS="${ASFLAGS} -arch i386 -arch x86_64 -arch ppc" AR="libtool" ARFLAGS="-static -o" ${MAKE_CMD} all
+sun:
+	CFLAGS="${CFLAGS}" ${MAKE_CMD} all
+sun-64bit:
+	CFLAGS="${CFLAGS} -m64" ASFLAGS="${ASFLAGS} -m64" ${MAKE_CMD} all
+sun-gcc:
+	CC=gcc CFLAGS="${CFLAGS} -fPIC" ${MAKE_CMD} all
+sun-gcc-64bit:
+	CC=gcc CFLAGS="${CFLAGS} -m64" ASFLAGS="${ASFLAGS} -m64" ${MAKE_CMD} all
+
+.PHONY: all tests clean install bsd linux linux64 minix-gcc osx osx-universal sun sun-64bit sun-gcc sun-gcc-64bit

@@ -1,0 +1,60 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2009 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+TARGET_LIB = libdyncall_s.a
+
+OBJS = \
+	dyncall.o \
+	dyncall_vector.o \
+	dyncall_callf.o \
+	dyncall_callvm_mips_eabi.o \
+	dyncall_mips_eabi.o
+
+HEADERS = \
+	dyncall_macros.h \
+	dyncall_config.h \
+	dyncall_types.h \
+	dyncall_signature.h \
+	dyncall_value.h \
+	dyncall_callf.h \
+	dyncall.h
+
+PSPSDK = $(shell psp-config --pspsdk-path)
+include $(PSPSDK)/lib/build.mak
+
+# pspsdk make fix
+#
+# As pspsdk sets AS=psp-gcc, dyncall_mips_eabi.s would be assembled to executable using psp-gcc, the '-c' option is missing.
+# workarounds:
+#  1. modify ASFLAGS += -c ( psp-gcc assembles into object format )
+#  2. redefine AS = psp-as ( $(COMPILE.s) is defined as $(AS) $(ASFLAGS) $(TARGET_ARCH) )
+#  3. rename dyncall_mips_eabi.s to dyncall_mips_eabi.S ( $(COMPILE.S) uses '-c' )
+#
+
+ASFLAGS += -c
+
+# installation
+#
+.PHONY: install
+INSTALL_PREFIX = $(shell psp-config --psp-prefix)
+install: all
+	mkdir -p $(INSTALL_PREFIX)/include $(INSTALL_PREFIX)/lib
+	cp $(HEADERS) $(INSTALL_PREFIX)/include
+	cp libdyncall_s.a $(INSTALL_PREFIX)/lib
+

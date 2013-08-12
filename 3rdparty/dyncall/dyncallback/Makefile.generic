@@ -1,0 +1,37 @@
+SRCTOP ?= ..
+SRCDIR ?= .
+BLDDIR ?= ${SRCDIR}
+LIBNAME = dyncallback
+OBJS = dyncall_alloc_wx.o dyncall_args.o dyncall_callback.o dyncall_callback_arch.o dyncall_thunk.o
+HEADERS = dyncall_thunk.h dyncall_thunk_x86.h dyncall_thunk_ppc32.h dyncall_thunk_x64.h dyncall_thunk_arm32_arm.h dyncall_thunk_arm32_thumb.h dyncall_args.h dyncall_callback.h
+CFLAGS += -I${SRCTOP}/dyncall 
+
+LIB = lib${LIBNAME}_s.a
+
+all: ${LIB}
+
+.PHONY: all clean install
+
+RM      ?= rm -f
+AR      ?= ar
+MKLIB	?= ${AR} rcs
+MKDIR	?= mkdir
+INSTALL	?= install -p
+
+${LIB}: ${OBJS}
+	${MKLIB} ${LIB} ${OBJS}
+
+clean:
+	${RM} ${OBJS} ${LIB}
+
+DESTDIR     ?= /usr/local
+INSTALL_TOP ?= ${DESTDIR}
+INSTALL_INC ?= ${INSTALL_TOP}/include
+INSTALL_LIB ?= ${INSTALL_TOP}/lib
+
+install:
+	${MKDIR} -p ${INSTALL_INC}
+	cd ${SRCDIR} ; ${INSTALL} ${HEADERS}   ${INSTALL_INC} 
+	${MKDIR} -p ${INSTALL_LIB}
+	cd ${BLDDIR} ; ${INSTALL} ${LIB} ${INSTALL_LIB}
+

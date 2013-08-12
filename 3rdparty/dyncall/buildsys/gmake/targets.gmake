@@ -1,0 +1,104 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2009 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+# --- autos -------------------------------------------------------------------
+#
+# auto-generated files are generated first.
+#
+
+ifdef AUTOS
+TARGETS	+= $(AUTOS)
+endif
+
+# --- objects -----------------------------------------------------------------
+
+OBJ_SUFFIX ?= .o
+OBJS += $(foreach X,$(UNITS),$(BUILD_DIR)/$X$(OBJ_SUFFIX))
+
+# --- build application -------------------------------------------------------
+
+ifdef TARGET_APP
+APP_FILE	 = $(BUILD_DIR)/$(TARGET_APP)$(APP_SUFFIX)
+TARGETS		+= $(APP_FILE)
+$(APP_FILE): $(OBJS)
+build-target: $(BUILD_DIR)
+endif
+
+# --- dynamic libraries -------------------------------------------------------
+
+ifdef TARGET_DLL
+DLL_FILE	= $(BUILD_DIR)/$(DLL_PREFIX)$(TARGET_DLL)$(DLL_SUFFIX)
+TARGETS		+= $(DLL_FILE)
+$(DLL_FILE): $(OBJS)
+build-target: $(BUILD_DIR)
+endif
+
+# --- static library ----------------------------------------------------------
+
+ifdef TARGET_LIB
+LIB_NAME	= $(LIB_PREFIX)$(TARGET_LIB)_s$(LIB_SUFFIX)
+LIB_FILE	= $(BUILD_DIR)/$(LIB_NAME)
+TARGETS		+= $(LIB_FILE)
+$(LIB_FILE): $(OBJS)
+build-target: $(BUILD_DIR)
+endif
+
+# --- test --------------------------------------------------------------------
+
+ifdef TEST_DIRS
+.PHONY: test test-dirs $(TEST_DIRS)
+test-dirs: $(TEST_DIRS)
+$(TEST_DIRS):
+	$(MAKE_COMMAND) -C $@ $(MAKECMDGOALS)
+test: test-dirs
+endif
+
+# --- sub-directories ---------------------------------------------------------
+
+.PHONY: dirs extra-dirs $(DIRS) $(EXTRA_DIRS)
+
+dirs: $(DIRS)
+ifdef DIRS
+$(DIRS): 
+	$(MAKE_COMMAND) -C $@ $(MAKECMDGOALS)
+endif
+
+extra-dirs: $(EXTRA_DIRS)
+ifdef EXTRA_DIRS
+$(EXTRA_DIRS):
+	$(MAKE_COMMAND) -C $@ $(MAKECMDGOALS)
+endif
+
+# --- clean -------------------------------------------------------------------
+
+.PHONY: clean
+clean: dirs extra-dirs
+	$(RM) $(OBJS) $(TARGETS)
+
+# auto-dependency: add OBJS:.o=.d to list of $(RM) args.
+
+# --- install -----------------------------------------------------------------
+
+include $(GMAKE_TOP)/install.gmake
+
+# --- all --------------------------------------------------------------------
+
+.PHONY: all
+all: build
+

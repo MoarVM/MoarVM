@@ -1,0 +1,91 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2011 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+#//////////////////////////////////////////////////////////////////////////////
+# GNU Make Buildsystem
+# Microsoft Visual C++
+#//////////////////////////////////////////////////////////////////////////////
+
+OBJ_SUFFIX	 = .obj
+LIB_SUFFIX	 = .lib
+
+ifdef BUILD_ARCH_x64
+AS		 = ml64 
+else
+AS		 = ml 
+endif
+
+# --- build configuration -----------------------------------------------------
+
+include $(GMAKE_TOP)/tool/msvc_$(BUILD_CONFIG).gmake
+
+# --- assemble to coff --------------------------------------------------------
+
+$(BUILD_DIR)/%.obj: %.asm
+	$(AS) /nologo /c $(ASFLAGS) /Fo$@ $<
+
+# --- C++ Compiler flags ------------------------------------------------------
+
+ifeq ("$(CXX_EXCEPTIONS)","0")
+CXXFLAGS	+= /EHs-c-
+else
+CXXFLAGS	+= /EHsc
+endif
+
+ifeq ("$(CXX_RTTI)","0")
+CXXFLAGS	+= /GR-
+endif
+
+# --- compile C ---------------------------------------------------------------
+
+$(BUILD_DIR)/%.obj: %.c
+	cl $< /nologo /c $(CPPFLAGS) $(CFLAGS) /Fo$@ 
+
+
+# --- compile C++ -------------------------------------------------------------
+
+$(BUILD_DIR)/%.obj: %.cpp
+	cl $< /nologo /c $(CPPFLAGS) $(CXXFLAGS) /Fo$@ 
+
+$(BUILD_DIR)/%.obj: %.cc
+	cl $< /nologo /c $(CPPFLAGS) $(CXXFLAGS) /Fo$@ 
+
+
+# --- Link flags --------------------------------------------------------------
+
+LDFLAGS += $(foreach X,$(LINK_DIRS),/LIBPATH:$X)
+LDFLAGS += $(foreach X,$(LINK_LIBS),$X.lib)
+
+# --- build static library ----------------------------------------------------
+
+$(BUILD_DIR)/%.lib: 
+	lib /OUT:$@ /NOLOGO $(LDFLAGS) $(LDLIBS) $^
+
+# --- build dynamic linked library --------------------------------------------
+
+$(BUILD_DIR)/%.dll: 
+	link /OUT:$@ /NOLOGO /DLL $(LDFLAGS) $(LDLIBS) $^
+#	link /OUT:$@ /NOLOGO /MACHINE:X86 /DLL $(LDFLAGS) $(LDLIBS) $^
+
+# --- build executable --------------------------------------------------------
+
+$(BUILD_DIR)/%.exe: 
+	link /OUT:$@ /NOLOGO $(LDFLAGS) $(LDLIBS) $^
+#	link /OUT:$@ /NOLOGO /MACHINE:x86 $(LDFLAGS) $(LDLIBS) $^
+

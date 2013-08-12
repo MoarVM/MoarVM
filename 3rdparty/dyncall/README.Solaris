@@ -1,0 +1,69 @@
+Notes on DynCall and Solaris
+============================
+
+Current Status of Solaris Architectures:
+
+i386      : ok.
+AMD64     : builds fine. could not execute test on my solaris vm.
+SPARC     : no dyncallback support.
+SPARC64   : bugs in dyncall (see BUGS), no dyncallback support.
+
+Supported Compilers: SunPro C/C++ compiler and GCC.
+Supported Build-Systems: Makefile.embedded and CMake.
+
+Details
+=======
+It has been ported and tested for x86 and sparc32/64 on Solaris 10/X86 
+using the SunPro compiler suite and sun's make.
+It cross-builds for amd64 just fine, but the tests could not
+be executed so far.
+We use 'Makefile.embedded' for sun make (and GNU and BSD as well)
+and zero configuration.
+
+
+Build with SUN make and compilers from sun
+--------------------------------------
+  $ make -f Makefile.embedded sun                
+  $ (cd test; make -f Makefile.embedded sun) 
+
+
+Compile for 64-bit
+------------------
+  $ make -f Makefile.embedded sun-64bit
+  $ (cd test; make -f Makefile.embedded sun-64bit)
+
+
+Build with GNU C compiler
+-------------------------
+  $ make -f Makefile.embedded sun-gcc
+  $ (cd test; make -f Makefile.embedded sun-gcc)
+ 
+
+Build with Sun make and gcc for sparc64
+---------------------------------------
+  $ make -f Makefile.embedded sun-gcc-64bit
+  $ (cd test; make -f Makefile.embedded sun-gcc-64bit)
+
+
+NOTE: There are still issues with the sparc64 port on Solaris.
+
+
+Build with CMake, Sun make and SunPro for sparc64
+-------------------------------------------------
+  $ cmake -DCMAKE_C_FLAGS=-m64 -DCMAKE_ASM_FLAGS=-m64 -DCMAKE_CXX_FLAGS=-m64 .
+  $ make
+
+Installation
+------------
+  $ make -f Makefile.embedded PREFIX=<some/prefix> install
+
+
+Tested Platforms
+----------------
+
+x86/amd64: 
+  using Solaris 10 using SunPro Tools
+
+sparc 32/64 bit:
+  SunOS 5.1 using SunPro and GCC on a Sun Fire V440 via developer account (thanks to gwdg.de!)
+

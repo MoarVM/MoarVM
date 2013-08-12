@@ -1,0 +1,34 @@
+The build system supports universal binaries (including static libraries).
+In addition, the desired SDK can be choosen.
+
+Configure switches related to Mac OS X:
+  
+  Operating System:
+    --target-macosx (auto-detect)
+  
+  SDK:
+    --with-macosxsdk=<version> (auto-detect)
+  
+  Architecture:
+    --target-universal (default)
+    --target-x86
+    --target-x64
+    --target-ppc32
+  
+  Tool:
+    --tool-gcc (default)
+    --tool-llvm-gcc  
+
+
+Configure and Build for host platform:
+
+  ./configure
+  make
+  sudo make install
+
+
+Compile for Mac OS X 10.4u:
+
+  configure --target-macosx --with-macosxsdk=10.4u --target-ppc32
+
+

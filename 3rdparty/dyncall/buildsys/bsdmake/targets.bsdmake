@@ -1,0 +1,65 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2009 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+#	dyncall bsdmake build system
+#	targets.bsdmake
+# REVISION
+# 2009/03/23
+#	dadler: Added UNITS variable, makes MODS deprecated
+
+
+# Create a list of .o files to make.
+
+OBJS_ != echo $(UNITS) | sed s/[[:\>:]]/$(OBJ_SUFFIX)/g
+OBJS += $(OBJS_)
+# Deprecated:
+OBJS2_ != echo $(MODS) | sed s/[[:\>:]]/$(OBJ_SUFFIX)/g
+OBJS += $(OBJS2_)
+
+
+# applications
+
+.if defined(APP)
+APP_FILE	= $(APP_PREFIX)$(APP)$(APP_SUFFIX)
+TARGETS		+= $(APP_FILE)
+$(APP_FILE): $(OBJS) .SILENT
+	echo Linking $(.TARGET)...
+	$(LINK_APP_CMD)
+.endif
+
+# dynamic libraries
+
+.if defined(DLL)
+DLL_FILE	= $(DLL_PREFIX)$(DLL)$(DLL_SUFFIX)
+TARGETS		+= $(DLL_FILE) 
+$(DLL_FILE): $(OBJS) .SILENT
+	echo Linking $(.TARGET)...
+	$(LINK_DLL_CMD)
+.endif
+
+# library
+
+.if defined(LIBRARY)
+LIB_FILE	= $(LIB_PREFIX)$(LIBRARY)$(LIB_SUFFIX)
+TARGETS		+= $(LIB_FILE)
+$(LIB_FILE): $(OBJS) .SILENT
+	echo Creating archive $(.TARGET)...
+	$(LINK_LIB_CMD)
+.endif
+

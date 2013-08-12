@@ -1,0 +1,18 @@
+cross-compile for PSP using PSP-SDK
+===================================
+
+configure:
+
+  ./configure --prefix=<path> --target-psp
+  .\configure.bat /prefix <path> /target-psp
+
+
+build:
+  
+  make -f Makefile.psp
+
+
+install:
+
+  make -f Makefile.psp install
+

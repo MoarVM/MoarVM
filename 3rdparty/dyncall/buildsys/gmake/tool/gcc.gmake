@@ -1,0 +1,167 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2011 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+#//////////////////////////////////////////////////////////////////////////////
+# GNU Make Buildsystem
+# GNU Compiler Collection configuration
+#//////////////////////////////////////////////////////////////////////////////
+
+CC	?= gcc
+CXX	?= g++
+AR	?= ar
+AS	?= as
+LD	?= ld
+
+OBJ_SUFFIX	= .o
+LIB_PREFIX	= lib
+LIB_SUFFIX	= .a
+
+# --- build configuration -----------------------------------------------------
+
+include $(GMAKE_TOP)/tool/gcc_$(BUILD_CONFIG).gmake
+
+ifdef BUILD_ARCH_arm32_thumb
+ASFLAGS  += -mthumb -mthumb-interwork
+CFLAGS   += -mthumb -mthumb-interwork
+CXXFLAGS += -mthumb -mthumb-interwork
+LDFLAGS  += -mthumb -mthumb-interwork
+endif
+
+# --- Assemble ----------------------------------------------------------------
+
+$(BUILD_DIR)/%.o: %.s
+	$(COMPILE.s) $(OUTPUT_OPTION) $<
+
+$(BUILD_DIR)/%.o: %.S
+	$(COMPILE.S) $(OUTPUT_OPTION) $<
+
+#	auto-dependency: disabled, due to problems when including *.d files, see targets.gmake for details 
+#	$(CC) -MM -MT $@ $(CPPFLAGS) $< > $(BUILD_DIR)/$*.d
+
+# ---Compile flags ------------------------------------------------------------
+
+ifndef COMPILE_PIC
+ifndef TARGET_APP
+ifdef BUILD_ARCH_x64
+COMPILE_PIC = 1
+endif
+endif
+endif
+
+ifeq ("$(COMPILE_PIC)","1")
+CXXFLAGS	+= -fPIC
+CFLAGS		+= -fPIC
+endif
+
+# --- C++ Compiler flags ------------------------------------------------------
+
+ifeq ("$(CXX_EXCEPTIONS)","0")
+CXXFLAGS	+= -fno-exceptions
+endif
+
+ifeq ("$(CXX_RTTI)","0")
+CXXFLAGS	+= -fno-rtti
+endif
+
+# --- Compile C ---------------------------------------------------------------
+
+$(BUILD_DIR)/%.o: %.c
+	$(COMPILE.c) $< $(OUTPUT_OPTION)
+
+#	$(CC) -MM -MT $@ $(CPPFLAGS) $(CFLAGS) $< > $(BUILD_DIR)/$*.d
+
+# --- Compile C++ -------------------------------------------------------------
+
+$(BUILD_DIR)/%.o: %.cpp
+	$(COMPILE.cpp) $< $(OUTPUT_OPTION)
+
+$(BUILD_DIR)/%.o: %.cc
+	$(COMPILE.cpp) $< $(OUTPUT_OPTION)
+
+#	$(CXX) -MM -MT $@ $(CPPFLAGS) $(CXXFLAGS) $< > $(BUILD_DIR)/$*.d
+
+# --- static library ----------------------------------------------------------
+
+LIBTOOL_STATIC ?= $(RM) $@ ; $(AR) -rcs $@ $^ 
+
+$(BUILD_DIR)/%.a:
+	$(LIBTOOL_STATIC)
+
+# --- dynamic library ---------------------------------------------------------
+
+ifdef LINK_DIRS
+LDFLAGS +=$(foreach X,$(LINK_DIRS),-L$X)
+endif
+
+ifdef LINK_LIBS
+LDLIBS	+=$(foreach X,$(LINK_LIBS),-l$X)
+endif
+
+# --- Build executable --------------------------------------------------------
+
+LINK	?= "c"
+LINKCMD	?= $(CC)
+
+ifeq ("$(LINK)","c++")
+LINKCMD=$(CXX)
+endif
+
+ifeq ("$(LINK)","c")
+LINKCMD=$(CC)
+endif
+
+# --- Build dynamic library ---------------------------------------------------
+
+DLL_SUFFIX ?= .so
+
+ifdef BUILD_OS_windows
+ifdef DLL_IMPORTLIB
+TARGETS += $(LIB_FILE)
+$(BUILD_DIR)/lib%.a $(BUILD_DIR)/%.dll:
+	$(LINKCMD) -shared $^ -Wl,--out-implib,$(BUILD_DIR)/lib$(*F).a $(LDFLAGS) $(TARGET_ARCH) $(LDLIBS) $(OUTPUT_OPTION)
+else
+$(BUILD_DIR)/%.dll:
+	$(LINKCMD) -shared $^ $(LDFLAGS) $(TARGET_ARCH) $(LDLIBS) $(OUTPUT_OPTION)
+endif
+endif
+
+$(BUILD_DIR)/%.so:
+	$(LINKCMD) -shared $^ $(LDFLAGS) $(TARGET_ARCH) $(LDLIBS) $(OUTPUT_OPTION)
+
+$(BUILD_DIR)/lib%.dylib:
+	$(LINKCMD) -dynamiclib $^ $(LDFLAGS) $(TARGET_ARCH) $(LDLIBS) $(OUTPUT_OPTION)
+
+# --- cross compile -----------------------------------------------------------
+
+ifdef BUILD_HOST_cygwin
+ifdef BUILD_OS_windows
+TARGET_ARCH += -mno-cygwin
+endif
+endif
+
+# --- last rule ---------------------------------------------------------------
+
+$(BUILD_DIR)/%$(APP_SUFFIX):
+	$(LINKCMD) $^ $(LDFLAGS) $(TARGET_ARCH) $(LDLIBS) $(OUTPUT_OPTION) 
+
+# --- Dependencies ------------------------------------------------------------
+
+# -include $(OBJS:.o=.d)
+
+
