@@ -1807,7 +1807,7 @@ int uv_fs_mkdir_p(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
     uv_fs_cb cb) {
   int err;
 
-  uv_fs_req_init(loop, req, UV_FS_MKDIR, cb);
+  uv_fs_req_init(loop, req, UV_FS_MKDIR_P, cb);
 
   err = fs__capture_path(loop, req, path, NULL, cb != NULL);
   if (err) {
