@@ -39,6 +39,7 @@ Makefile
 3rdparty/libatomic_ops/src/stamp-h1
 3rdparty/libatomic_ops/tests/.deps/
 3rdparty/libatomic_ops/tests/list_atomic.i
+3rdparty/dyncall/ConfigVars
 src/gen/
 *.la
 *.obj
