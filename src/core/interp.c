@@ -3093,50 +3093,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             /* Process-wide and thread operations. */
             case MVM_OP_BANK_processthread: {
                 switch (*(cur_op++)) {
-                    case MVM_OP_getenv:
-                        GET_REG(cur_op, 0).s = MVM_proc_getenv(tc, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_setenv:
-                        MVM_proc_setenv(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_delenv:
-                        MVM_proc_delenv(tc, GET_REG(cur_op, 0).s);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_nametogid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_nametogid(tc, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_gidtoname:
-                        GET_REG(cur_op, 0).s = MVM_proc_gidtoname(tc, GET_REG(cur_op, 2).i64);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_nametouid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_nametouid(tc, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_uidtoname:
-                        GET_REG(cur_op, 0).s = MVM_proc_uidtoname(tc, GET_REG(cur_op, 2).i64);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_getusername:
-                        GET_REG(cur_op, 0).s = MVM_proc_getusername(tc);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_getuid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_getuid(tc);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_getgid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_getgid(tc);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_gethomedir:
-                        GET_REG(cur_op, 0).s = MVM_proc_gethomedir(tc);
-                        cur_op += 2;
-                        break;
                     case MVM_OP_chdir:
                         MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;
