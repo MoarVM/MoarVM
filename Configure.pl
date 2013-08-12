@@ -384,26 +384,26 @@ for (keys %$thirdparty) {
         $current->{path},
         $current->{name};
 
+    $rule  = $current->{rule};
+    $clean = $current->{clean};
+
     if (exists $current->{dummy}) {
-        $clean = sprintf '-$(RM) %s', $lib;
+        $clean //= sprintf '-$(RM) %s', $lib;
     }
     elsif (exists $current->{objects}) {
         $objects = $current->{objects};
-        $rule    = sprintf '$(AR) $(ARFLAGS) @arout@$@ @%sobjects@', $_;
-        $clean   = sprintf '-$(RM) @%slib@ @%sobjects@', $_, $_;
-    }
-    elsif (exists $current->{rule}) {
-        $rule  = $current->{rule};
-        $clean = $current->{clean};
+        $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ @%sobjects@', $_;
+        $clean //= sprintf '-$(RM) @%slib@ @%sobjects@', $_, $_;
     }
     elsif (exists $current->{src}) {
         my @sources = map { glob "$_/*.c" } @{ $current->{src} };
         my $globs   = join ' ', map { $_ . '/*@obj@' } @{ $current->{src} };
 
         $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
-        $rule    = sprintf '$(AR) $(ARFLAGS) @arout@$@ %s', $globs;
-        $clean   = sprintf '-$(RM) %s %s', $lib, $globs;
+        $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ %s', $globs;
+        $clean //= sprintf '-$(RM) %s %s', $lib, $globs;
     }
+    elsif (exists $current->{rule}) {}
     else {
         softfail("no idea how to build '$lib'");
         print dots('    continuing anyway');
