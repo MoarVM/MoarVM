@@ -14,14 +14,14 @@ extern char **environ;
 #define POOL(tc) (*(tc->interp_cu))->pool
 
 #ifdef _WIN32
-static wchar_t * ANSIToUnicode(const char *str)
+static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 {
-     const int          len = MultiByteToWideChar( CP_ACP, 0, str,-1, NULL,0 );
+     const int          len = MultiByteToWideChar(acp, 0, str,-1, NULL,0);
      wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
 
      memset(result, 0, len * sizeof(wchar_t));
 
-     MultiByteToWideChar(CP_ACP, 0, str, -1, (LPWSTR)result, len);
+     MultiByteToWideChar(acp, 0, str, -1, (LPWSTR)result, len);
 
      return result;
 }
@@ -38,9 +38,9 @@ static char * UnicodeToUTF8(const wchar_t *str)
      return result;
 }
 
-static char* ANSIToUTF8(const char* str)
+static char* ANSIToUTF8(MVMuint16 acp, const char* str)
 {
-    wchar_t * const wstr = ANSIToUnicode(str);
+    wchar_t * const wstr = ANSIToUnicode(acp, str);
     char  * const result = UnicodeToUTF8(wstr);
 
     free(wstr);
@@ -53,6 +53,9 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     static MVMObject *env_hash;
 
     if (!env_hash) {
+#ifdef _WIN32
+        MVMuint16     acp = GetACP(); /* We should get ACP at runtime. */
+#endif
         MVMuint32     pos = 0;
         MVMString *needle = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "=", 1, MVM_encoding_type_ascii);
         char      *env;
@@ -64,10 +67,10 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
         while ((env = environ[pos++]) != NULL) {
 #ifndef _WIN32
-            MVMString *str  = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, env, strlen(env), MVM_encoding_type_utf8);
+            MVMString    *str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, env, strlen(env), MVM_encoding_type_utf8);
 #else
-            char * const _env = ANSIToUTF8(env);
-            MVMString *str  = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, _env, strlen(_env), MVM_encoding_type_utf8);
+            char * const _env = ANSIToUTF8(acp, env);
+            MVMString    *str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, _env, strlen(_env), MVM_encoding_type_utf8);
 
 #endif
 
