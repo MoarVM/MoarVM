@@ -488,26 +488,26 @@ BANK 5 io
 0x32    readlineint_fh       w(str) r(obj) r(str)
 
 BANK 6 processthread
-0x01    procshell           w(obj) r(str)
-0x02    procshellbg         w(obj) r(str)
-0x03    procrun             w(obj) r(str)
-0x04    procrunbg           w(obj) r(str)
-0x05    prockill            r(int64) r(int64)
-0x06    procwait            w(int64) r(int64)
-0x07    procalive           w(int64) r(int64)
-0x08    detach
-0x09    daemonize
-0x0A    chdir               r(str)
-0x0B    rand_i              w(int64)
-0x0C    rand_n              w(num64)
-0x0D    time_i              w(int64)
-0x0E    clargs              w(obj)
-0x0F    newthread           w(obj) r(obj) r(obj)
-0x10    jointhread          r(obj)
-0x11    time_n              w(num64)
-0x12    exit                r(int64)
-0x13    loadbytecode        w(str) r(str)
-0x14    getenvhash          w(obj)
+0x00    procshell           w(obj) r(str)
+0x01    procshellbg         w(obj) r(str)
+0x02    procrun             w(obj) r(str)
+0x03    procrunbg           w(obj) r(str)
+0x04    prockill            r(int64) r(int64)
+0x05    procwait            w(int64) r(int64)
+0x06    procalive           w(int64) r(int64)
+0x07    detach
+0x08    daemonize
+0x09    chdir               r(str)
+0x0A    rand_i              w(int64)
+0x0B    rand_n              w(num64)
+0x0C    time_i              w(int64)
+0x0D    clargs              w(obj)
+0x0E    newthread           w(obj) r(obj) r(obj)
+0x0F    jointhread          r(obj)
+0x10    time_n              w(num64)
+0x11    exit                r(int64)
+0x12    loadbytecode        w(str) r(str)
+0x13    getenvhash          w(obj)
 
 BANK 7 serialization
 0x00    sha1                w(str) r(str)
