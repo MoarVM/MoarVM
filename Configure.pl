@@ -662,29 +662,68 @@ __END__
 
 =over 4
 
-Except for C<-?|--help>, any option can be explicitly turned off by
-preceding it with C<no->, as in C<--no-optimize>.
+=item -?
 
-=item -?|--help
+=item --help
 
 Show this help information.
 
 =item --debug
 
-Turn on debugging flags during compile and link.  If C<--optimize> is not
+=item --no-debug
+
+Toggle debugging flags during compile and link.  If C<--optimize> is not
 explicitly set, debug defaults to on, and optimize defaults to off.
 
 =item --optimize
 
-Turn on optimization flags during compile and link.  If C<--debug> is not
+=item --no-optimize
+
+Toggle optimization flags during compile and link.  If C<--debug> is not
 explicitly set, turning this on defaults debugging off; otherwise this
 defaults to the opposite of C<--debug>.
 
 =item --instrument
 
-Turn on extra instrumentation flags during compile and link; for example,
-turns on Address Sanitizer when compiling with F<clang>.  Defaults to off.
+=item --no-instrument
 
-=item TODO
+Toggle extra instrumentation flags during compile and link; for example,
+turns on Address Sanitizer when compiling with C<clang>.  Defaults to off.
+
+=item --os <os>
+
+If not explicitly set, the operating system is provided by the Perl
+runtime.  In case of unknown operating systems, a GNU userland is assumed.
+
+=item --shell <shell>
+
+Currently supported shells are C<posix> and C<win32>.
+
+=item --toolchain <toolchain>
+
+Currently supported toolchains are C<gnu> and C<msvc>.
+
+=item --compiler <compiler>
+
+Currently supported compilers are C<gcc>, C<clang> and C<cl>.
+
+=item --cc <cc>
+
+Explicitly sets the compiler without affecting other configuration
+options.
+
+=item --ld <ld>
+
+Explicitly sets the linker without affecting other configuration
+options.
+
+=item --make <make>
+
+Explicitly sets the make tool without affecting other configuration
+options.
+
+=item --build <build-triple> --host <host-triple>
+
+Sets up cross-compilation.
 
 =back
