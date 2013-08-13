@@ -164,7 +164,6 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/unix/dl@obj@ \
           3rdparty/libuv/src/unix/fs@obj@ \
           3rdparty/libuv/src/unix/getaddrinfo@obj@ \
-          3rdparty/libuv/src/unix/internal.h \
           3rdparty/libuv/src/unix/loop-watcher@obj@ \
           3rdparty/libuv/src/unix/loop@obj@ \
           3rdparty/libuv/src/unix/pipe@obj@ \
