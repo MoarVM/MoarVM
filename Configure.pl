@@ -292,7 +292,7 @@ my %SYSTEMS = (
     mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
 );
 
-my $fail = 0;
+my $failed = 0;
 
 my %args;
 my %defaults;
@@ -476,21 +476,14 @@ while (<$listfile>) {
 
 close $listfile;
 
-if ($fail) {
-    print "\n", <<TERM;
+
+print "\n", $failed ? <<TERM1 : <<TERM2;
 Configuration FAIL. You can try to salvage the generated Makefile.
-TERM
-
-    exit 1;
-}
-else {
-    print "\n", <<TERM;
+TERM1
 Configuration SUCCESS. Type '$config{'make'}' to build.
-TERM
+TERM2
 
-    exit 0;
-}
-
+exit $failed;
 
 sub native_setup {
     my ($os) = @_;
@@ -637,19 +630,18 @@ sub dots {
     return "$message ". '.' x ($length - length $message) . ' ';
 }
 
-sub hardfail {
-    my ($msg) = @_;
-    $fail = 1;
-    print "FAIL\n";
-    die "    $msg\n";
-}
-
 sub softfail {
     my ($msg) = @_;
-    $fail = 1;
+    $failed = 1;
     print "FAIL\n";
     warn "    $msg\n";
 }
+
+sub hardfail {
+    softfail(@_);
+    die "\nConfiguration PANIC. A Makefile could not be generated.\n";
+}
+
 
 __END__
 
