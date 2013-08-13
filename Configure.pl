@@ -271,7 +271,9 @@ my %FREEBSD = (
 );
 
 my %DARWIN = (
-    defs => [ '_DARWIN_USE_64_BIT_INODE=1' ],
+    cclib  => '-framework %s',
+    defs   => [ '_DARWIN_USE_64_BIT_INODE=1' ],
+    libs   => [ qw( ApplicationServices CoreServices Foundation ) ],
 
     -thirdparty => {
         uv => { %UV, objects => '$(UV_DARWIN)' },
