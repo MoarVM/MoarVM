@@ -498,26 +498,26 @@
 #define MVM_OP_readline_fh 49
 
 /* Op name defines for bank processthread. */
-#define MVM_OP_procshell 1
-#define MVM_OP_procshellbg 2
-#define MVM_OP_procrun 3
-#define MVM_OP_procrunbg 4
-#define MVM_OP_prockill 5
-#define MVM_OP_procwait 6
-#define MVM_OP_procalive 7
-#define MVM_OP_detach 8
-#define MVM_OP_daemonize 9
-#define MVM_OP_chdir 10
-#define MVM_OP_rand_i 11
-#define MVM_OP_rand_n 12
-#define MVM_OP_time_i 13
-#define MVM_OP_clargs 14
-#define MVM_OP_newthread 15
-#define MVM_OP_jointhread 16
-#define MVM_OP_time_n 17
-#define MVM_OP_exit 18
-#define MVM_OP_loadbytecode 19
-#define MVM_OP_getenvhash 20
+#define MVM_OP_procshell 0
+#define MVM_OP_procshellbg 1
+#define MVM_OP_procrun 2
+#define MVM_OP_procrunbg 3
+#define MVM_OP_prockill 4
+#define MVM_OP_procwait 5
+#define MVM_OP_procalive 6
+#define MVM_OP_detach 7
+#define MVM_OP_daemonize 8
+#define MVM_OP_chdir 9
+#define MVM_OP_rand_i 10
+#define MVM_OP_rand_n 11
+#define MVM_OP_time_i 12
+#define MVM_OP_clargs 13
+#define MVM_OP_newthread 14
+#define MVM_OP_jointhread 15
+#define MVM_OP_time_n 16
+#define MVM_OP_exit 17
+#define MVM_OP_loadbytecode 18
+#define MVM_OP_getenvhash 19
 
 /* Op name defines for bank serialization. */
 #define MVM_OP_sha1 0
