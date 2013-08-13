@@ -35,7 +35,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         tc->cur_frame->special_return      = run_load;
         tc->cur_frame->special_return_data = cu;
 
-        /* Inovke the deserialization frame and return to the runloop. */
+        /* Invoke the deserialization frame and return to the runloop. */
         MVM_frame_invoke(tc, cu->deserialize_frame, &no_arg_callsite,
             NULL, NULL, NULL);
     }
