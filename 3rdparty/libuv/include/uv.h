@@ -1577,7 +1577,6 @@ UV_EXTERN void uv_free_interface_addresses(uv_interface_address_t* addresses,
 typedef enum {
   UV_FS_UNKNOWN = -1,
   UV_FS_CUSTOM,
-  UV_FS_GETSTD,
   UV_FS_OPEN,
   UV_FS_CLOSE,
   UV_FS_READ,

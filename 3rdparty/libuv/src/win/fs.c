@@ -396,14 +396,6 @@ void fs__open(uv_fs_t* req) {
   int result, current_umask;
   int flags = req->file_flags;
 
-  if (flags == STD_INPUT_HANDLE
-    || flags == STD_OUTPUT_HANDLE
-    || flags == STD_ERROR_HANDLE) {
-    file = GetStdHandle(flags);
-    flags = _O_APPEND;
-    goto result;
-  }
-
   /* Obtain the active umask. umask() never fails and returns the previous */
   /* umask. */
   current_umask = umask(0);
@@ -516,8 +508,7 @@ void fs__open(uv_fs_t* req) {
     }
     return;
   }
-result:
-  result = _open_osfhandle((intptr_t) file, flags);
+
 end:
   SET_REQ_RESULT(req, result);
 }
