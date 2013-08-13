@@ -185,23 +185,23 @@ UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
            3rdparty/libuv/src/unix/proctitle@obj@ \
            $(UV_UNIX)
 
-UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd.c \
-             3rdparty/libuv/src/unix/kqueue.c \
+UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd@obj@ \
+             3rdparty/libuv/src/unix/kqueue@obj@ \
              $(UV_UNIX)
 
-UV_NETBSD = 3rdparty/libuv/src/unix/netbsd.c \
-            3rdparty/libuv/src/unix/kqueue.c \
+UV_NETBSD = 3rdparty/libuv/src/unix/netbsd@obj@ \
+            3rdparty/libuv/src/unix/kqueue@obj@ \
             $(UV_UNIX)
 
-UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd.c \
-             3rdparty/libuv/src/unix/kqueue.c \
+UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd@obj@ \
+             3rdparty/libuv/src/unix/kqueue@obj@ \
              $(UV_UNIX)
 
-UV_DARWIN = 3rdparty/libuv/src/unix/darwin.c \
-            3rdparty/libuv/src/unix/darwin-proctitle.c \
-            3rdparty/libuv/src/unix/fsevents.c \
-            3rdparty/libuv/src/unix/kqueue.c \
-            3rdparty/libuv/src/unix/proctitle.c \
+UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
+            3rdparty/libuv/src/unix/darwin-proctitle@obj@ \
+            3rdparty/libuv/src/unix/fsevents@obj@ \
+            3rdparty/libuv/src/unix/kqueue@obj@ \
+            3rdparty/libuv/src/unix/proctitle@obj@ \
             $(UV_UNIX)
 
 UV_OBJECTS = @uvobjects@
