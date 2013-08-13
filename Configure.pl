@@ -194,7 +194,7 @@ my %COMPILERS = (
         ld => undef,
 
         ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-        ccwarnflags  => '-Weverything',
+        ccwarnflags  => '', #'-Weverything',
         ccoptiflags  =>  '-O3',
         ccdebugflags => '-g',
         ccinstflags  => '-fsanitize=address',
