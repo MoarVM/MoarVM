@@ -10,6 +10,8 @@ use Pod::Usage;
 my $NAME    = 'moarvm';
 my $GENLIST = 'build/gen.list';
 
+# 3rdparty library configuration
+
 my %APR = (
     name  => 'apr-1',
     path  => '3rdparty/apr/.libs',
@@ -52,25 +54,28 @@ my %DC = (
 my %DCB = (
     name  => 'dyncallback_s',
     path  => '3rdparty/dyncall/dyncallback',
-    dummy => 1,
+    dummy => 1, # created as part of dyncall build
 );
 
 my %DL = (
     name  => 'dynload_s',
     path  => '3rdparty/dyncall/dynload',
-    dummy => 1,
+    dummy => 1, # created as part of dyncall build
 );
 
 my %UVDUMMY = (
     name => 'uv',
     path => '3rdparty/libuv',
-    # no default rule to make libuv
+    # no default rule
+    # building libuv is always OS-specific
 );
 
 my %UV = (
     %UVDUMMY,
     rule  => '$(AR) $(ARFLAGS) @arout@$@ $(UV_OBJECTS)',
     clean => '-$(RM) @uvlib@ $(UV_OBJECTS)',
+    # actually insufficient to build libuv
+    # the OS needs to provide a C<src> or C<objects> setting
 );
 
 my %THIRDPARTY = (
@@ -85,6 +90,9 @@ my %THIRDPARTY = (
     uv  => { %UVDUMMY },
 );
 
+# shell configuration
+# selected by C<--shell>
+
 my %SHELLS = (
     posix => {
         sh  => 'sh',
@@ -98,6 +106,9 @@ my %SHELLS = (
         rm  => 'del',
     },
 );
+
+# toolchain configuration
+# selected by C<--toolchain>
 
 my %TOOLCHAINS = (
     gnu => {
@@ -165,6 +176,9 @@ my %TOOLCHAINS = (
     },
 );
 
+# compiler configuration
+# selected by C<--compiler>
+
 my %COMPILERS = (
     gcc => {
         -toolchain => 'gnu',
@@ -230,6 +244,9 @@ my %COMPILERS = (
     },
 );
 
+# OS configuration
+# selected by C<--os> or taken from C<$^O>
+
 my %WIN32 = (
     exe  => '.exe',
     defs => [ 'WIN32' ],
@@ -292,6 +309,8 @@ my %SYSTEMS = (
     mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
 );
 
+# configuration logic
+
 my $failed = 0;
 
 my %args;
@@ -310,10 +329,12 @@ pod2usage(1) if $args{help};
 
 print "Welcome to MoarVM!\n\n";
 
+# fiddle with flags
 $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
 
+# fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
     cross_setup($args{build}, $args{host});
 }
@@ -325,6 +346,7 @@ else {
 
 $config{name} = $NAME;
 
+# set options that take priority over all others
 my @keys = qw( cc ld make );
 @config{@keys} = @args{@keys};
 
@@ -333,11 +355,13 @@ for (keys %defaults) {
     $config{$_} //= $defaults{$_};
 }
 
+# misc defaults
 $config{exe}       //= '';
 $config{defs}      //= [];
 $config{libs}      //= [ qw( m pthread ) ];
 $config{crossconf} //= '';
 
+# assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};
 $config{ldout}        //= $config{ccout};
 $config{ldmiscflags}  //= $config{ccmiscflags};
@@ -345,10 +369,12 @@ $config{ldoptiflags}  //= $config{ccoptiflags};
 $config{lddebugflags} //= $config{ccdebugflags};
 $config{ldinstflags}  //= $config{ccinstflags};
 
+# mangle OS library names
 $config{ldlibs} = join ' ', map {
     sprintf $config{ldarg}, $_;
 } @{$config{libs}};
 
+# generate CFLAGS
 my @cflags = ($config{ccmiscflags});
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
@@ -357,17 +383,20 @@ push @cflags, $config{ccwarnflags};
 push @cflags, map { "$config{ccdef}$_" } @{$config{defs}};
 $config{cflags} = join ' ', @cflags;
 
+# generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} = join ' ', @ldflags;
 
+# some toolchains generate garbage
 my @auxfiles = @{ $defaults{-auxfiles} };
 $config{clean} = @auxfiles ? '-$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
 
+# detect x64 on Windows so we can build the correct APR version
 # something of a hack, but works for now
 if ($config{cc} eq 'cl') {
     print dots('    auto-detecting x64 toolchain');
@@ -393,6 +422,7 @@ if ($config{cc} eq 'cl') {
     }
 }
 
+# dump configuration
 print "\n", <<TERM, "\n";
       make: $config{make}
    compile: $config{cc} $config{cflags}
@@ -409,6 +439,7 @@ for (keys %$thirdparty) {
     my $current = $thirdparty->{$_};
     my @keys = ( "${_}lib", "${_}objects", "${_}rule", "${_}clean");
 
+    # don't build the library (libatomic_ops can be header-only)
     unless (defined $current) {
         @config{@keys} = ("__${_}__", '', '@:', '@:');
         next;
@@ -420,17 +451,25 @@ for (keys %$thirdparty) {
         $current->{path},
         $current->{name};
 
+    # C<rule> and C<build> can be used to augment all build types
     $rule  = $current->{rule};
     $clean = $current->{clean};
 
+    # select type of build
+
+     # dummy build - nothing to do
     if (exists $current->{dummy}) {
         $clean //= sprintf '-$(RM) %s', $lib;
     }
+
+    # use explicit object list
     elsif (exists $current->{objects}) {
         $objects = $current->{objects};
         $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ @%sobjects@', $_;
         $clean //= sprintf '-$(RM) @%slib@ @%sobjects@', $_, $_;
     }
+
+    # find *.c files and build objects for those
     elsif (exists $current->{src}) {
         my @sources = map { glob "$_/*.c" } @{ $current->{src} };
         my $globs   = join ' ', map { $_ . '/*@obj@' } @{ $current->{src} };
@@ -439,7 +478,11 @@ for (keys %$thirdparty) {
         $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ %s', $globs;
         $clean //= sprintf '-$(RM) %s %s', $lib, $globs;
     }
+
+    # use an explicit rule (which has already been set)
     elsif (exists $current->{rule}) {}
+
+    # give up
     else {
         softfail("no idea how to build '$lib'");
         print dots('    continuing anyway');
@@ -455,9 +498,12 @@ my $thirdpartylibs = join "\n" . ' ' x 12, sort @thirdpartylibs;
 
 print "OK\n";
 
+# dump 3rdparty libs we need to build
 print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
 TERM
+
+# read list of files to generate
 
 open my $listfile, '<', $GENLIST
     or die "$GENLIST: $!\n";
@@ -476,6 +522,7 @@ while (<$listfile>) {
 
 close $listfile;
 
+# configuration completed
 
 print "\n", $failed ? <<TERM1 : <<TERM2;
 Configuration FAIL. You can try to salvage the generated Makefile.
@@ -485,6 +532,9 @@ TERM2
 
 exit $failed;
 
+# helper functions
+
+# fill in defaults for native builds
 sub native_setup {
     my ($os) = @_;
 
@@ -537,6 +587,7 @@ sub native_setup {
     }
 }
 
+# fill in defaults for cross builds
 sub cross_setup {
     my ($build, $host) = @_;
 
@@ -576,7 +627,9 @@ sub cross_setup {
     $defaults{crossconf} = $crossconf;
 }
 
+# sets C<%defaults> from C<@_>
 sub set_defaults {
+    # getting the correct 3rdparty information is somewhat tricky
     my $thirdparty = $defaults{-thirdparty} // \%THIRDPARTY;
     @defaults{ keys %$_ } = values %$_ for @_;
     $defaults{-thirdparty} = {
@@ -584,6 +637,7 @@ sub set_defaults {
     };
 }
 
+# fill in config values
 sub configure {
     my ($_) = @_;
 
@@ -598,6 +652,7 @@ sub configure {
     return $_;
 }
 
+# generate files
 sub generate {
     my ($dest, $src) = @_;
 
@@ -611,6 +666,7 @@ sub generate {
         hardfail($error)
             unless defined $_;
 
+        # in-between slashes in makefiles need to be backslashes on Windows
         s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
             if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
 
@@ -623,6 +679,7 @@ sub generate {
     print "OK\n";
 }
 
+# some dots
 sub dots {
     my $message = shift;
     my $length = shift || 55;
@@ -630,6 +687,7 @@ sub dots {
     return "$message ". '.' x ($length - length $message) . ' ';
 }
 
+# fail but continue
 sub softfail {
     my ($msg) = @_;
     $failed = 1;
@@ -637,6 +695,8 @@ sub softfail {
     warn "    $msg\n";
 }
 
+
+# fail and don't continue
 sub hardfail {
     softfail(@_);
     die "\nConfiguration PANIC. A Makefile could not be generated.\n";
@@ -709,21 +769,21 @@ Currently supported compilers are C<gcc>, C<clang> and C<cl>.
 
 =item --cc <cc>
 
-Explicitly sets the compiler without affecting other configuration
+Explicitly set the compiler without affecting other configuration
 options.
 
 =item --ld <ld>
 
-Explicitly sets the linker without affecting other configuration
+Explicitly set the linker without affecting other configuration
 options.
 
 =item --make <make>
 
-Explicitly sets the make tool without affecting other configuration
+Explicitly set the make tool without affecting other configuration
 options.
 
 =item --build <build-triple> --host <host-triple>
 
-Sets up cross-compilation.
+Set up cross-compilation.
 
 =back
