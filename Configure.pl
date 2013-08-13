@@ -110,9 +110,9 @@ my %TOOLCHAINS = (
         ccout    => '-o',
         ccinc    => '-I',
         ccdef    => '-D',
-        cclib    => '-l%s',
 
         ldout => undef,
+        ldarg => '-l%s',
 
         arflags => 'rcs',
         arout   => '',
@@ -133,9 +133,9 @@ my %TOOLCHAINS = (
         ccout    => '/Fo',
         ccinc    => '/I',
         ccdef    => '/D',
-        cclib    => '%s.lib',
 
         ldout => '/out:',
+        ldarg => '%s.lib',
 
         arflags => '/nologo',
         arout   => '/out:',
@@ -271,9 +271,9 @@ my %FREEBSD = (
 );
 
 my %DARWIN = (
-    cclib  => '-framework %s',
-    defs   => [ '_DARWIN_USE_64_BIT_INODE=1' ],
-    libs   => [ qw( ApplicationServices CoreServices Foundation ) ],
+    ldarg => '-framework %s',
+    defs  => [ '_DARWIN_USE_64_BIT_INODE=1' ],
+    libs  => [ qw( ApplicationServices CoreServices Foundation ) ],
 
     -thirdparty => {
         uv => { %UV, objects => '$(UV_DARWIN)' },
@@ -346,7 +346,7 @@ $config{lddebugflags} //= $config{ccdebugflags};
 $config{ldinstflags}  //= $config{ccinstflags};
 
 $config{ldlibs} = join ' ', map {
-    sprintf $config{cclib}, $_;
+    sprintf $config{ldarg}, $_;
 } @{$config{libs}};
 
 my @cflags = ($config{ccmiscflags});
