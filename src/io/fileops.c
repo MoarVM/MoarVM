@@ -155,23 +155,12 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
 }
 
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
-    apr_status_t rv;
-    char *a;
-    apr_finfo_t  stat_info;
-    apr_pool_t *tmp_pool;
-    MVMint64 result;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    uv_fs_t req;
+    const MVMint64 result = uv_fs_stat(tc->loop, &req, a, NULL) < 0 ? 0 : 1;
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to exists file: ");
-    }
-
-    a = MVM_string_utf8_encode_C_string(tc, f);
-
-    result = ((rv = apr_stat(&stat_info, (const char *)a, APR_FINFO_SIZE, tmp_pool)) == APR_SUCCESS)
-        ? 1 : 0;
     free(a);
-    apr_pool_destroy(tmp_pool);
+
     return result;
 }
 
@@ -193,7 +182,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         flag = O_CREAT | O_WRONLY | O_APPEND;
     else {
         free(fmode);
-        MVM_exception_throw_adhoc(tc, "invalid open mode: %d", fmode);
+        MVM_exception_throw_adhoc(tc, "Invalid open mode: %d", fmode);
     }
 
     free(fmode);
@@ -220,8 +209,8 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "close filehandle");
 
-    if ((rv = apr_file_close(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to close filehandle: ");
+    if (uv_fs_close(tc->loop, &handle->body.req, handle->body.fd, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(handle->body.req.result));
     }
 }
 
