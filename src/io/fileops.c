@@ -468,11 +468,10 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
 
     verify_filehandle_type(tc, oshandle, &handle, "lock filehandle");
 
-    if ((rv = apr_file_lock(handle->body.file_handle, locktype)) != APR_SUCCESS) {
-        /* XXX this really should check what type of error was returned */
-        if (locktype & APR_FLOCK_NONBLOCK) return 0;
-        MVM_exception_throw_apr_error(tc, rv, "Failed to lock filehandle: ");
+    if(uv_fs_lock(tc->loop, &handle->body.req, handle->body.fd, flag, NULL) < 0 ) {
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", uv_strerror(handle->body.req.result));
     }
+
     return 1;
 }
 
@@ -483,8 +482,8 @@ void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "unlock filehandle");
 
-    if ((rv = apr_file_unlock(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to unlock filehandle: ");
+    if(uv_fs_unlock(tc->loop, &handle->body.req, handle->body.fd, NULL) < 0 ) {
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", uv_strerror(handle->body.req.result));
     }
 }
 
@@ -495,8 +494,8 @@ void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "flush filehandle");
 
-    if ((rv = apr_file_flush(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to flush filehandle: ");
+    if(uv_fs_flush(tc->loop, &handle->body.req, NULL) < 0 ) {
+        MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", uv_strerror(handle->body.req.result));
     }
 }
 
@@ -507,8 +506,8 @@ void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "sync filehandle");
 
-    if ((rv = apr_file_sync(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to sync filehandle: ");
+    if(uv_fs_fsync(tc->loop, &handle->body.req, handle->body.fd, NULL) < 0 ) {
+        MVM_exception_throw_adhoc(tc, "Failed to sync filehandle: %s", uv_strerror(handle->body.req.result));
     }
 }
 
@@ -545,29 +544,34 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 /* return an OSHandle representing one of the standard streams */
 static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
     MVMOSHandle *result;
+    MVMOSHandleBody *body;
+    MVMObject *type_object = tc->instance->boot_types->BOOTIO;
+    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+
+    body = &(result->body);
 
     switch(uv_guess_handle(type)) {
         case UV_TTY:
-            uv_tty_init(tc->loop, (uv_tty_t *)&result->body.handle, type, readable);
-            result->body.type = MVM_OSHANDLE_HANDLE;
+            uv_tty_init(tc->loop, (uv_tty_t *)&body->handle, type, readable);
+            body->type = MVM_OSHANDLE_HANDLE;
             break;
         case UV_FILE:
             if (type == 0) {
 #ifdef _WIN32
-                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "conin$", O_RDONLY, 0, NULL);
+                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&body->req, "conin$", O_RDONLY, 0, NULL);
 #else
-                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "/dev/tty", O_RDONLY, 0, NULL);
+                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&body->req, "/dev/tty", O_RDONLY, 0, NULL);
 #endif
             }
             else {
 #ifdef _WIN32
-                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "conout$", O_WRONLY, 0, NULL);
+                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&body->req, "conout$", O_WRONLY, 0, NULL);
 #else
-                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "/dev/tty", O_WRONLY, 0, NULL);
+                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&body->req, "/dev/tty", O_WRONLY, 0, NULL);
 #endif
             }
 
-            result->body.type = MVM_OSHANDLE_REQ;
+            body->type = MVM_OSHANDLE_REQ;
             break;
         default:
             MVM_exception_throw_adhoc(tc, "get_stream failed, unsupported std handle");

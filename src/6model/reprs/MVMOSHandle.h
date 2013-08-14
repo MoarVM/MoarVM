@@ -3,7 +3,12 @@ struct MVMOSHandleBody {
     MVMuint8 type;
     union {
        uv_handle_t handle;
-       uv_req_t    req;
+       struct
+       {
+           uv_fs_t         req;
+           uv_file          fd;
+       };
+
     };
 
     /* see MVMOSHandleTypes */
