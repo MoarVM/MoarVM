@@ -250,7 +250,7 @@ my %COMPILERS = (
 my %WIN32 = (
     exe  => '.exe',
     defs => [ 'WIN32' ],
-    libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 ) ],
+    libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi) ],
 
     -thirdparty => {
         # header only, no need to build anything
