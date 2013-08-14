@@ -166,10 +166,8 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
     char            * const fmode = MVM_string_utf8_encode_C_string(tc, mode);
     uv_fs_t req;
-    uv_file  fd;
     int flag;
 
-    /* generate apr compatible open mode flags */
     if (0 == strcmp("r", fmode))
         flag = O_RDONLY;
     else if (0 == strcmp("w", fmode))
@@ -183,16 +181,13 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
     free(fmode);
 
-    fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, 0, NULL);
-
-    if (fd < 0 ) {
+    if ((result->body.fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, 0, NULL)) < 0) {
         free(fname);
         MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
     }
 
     free(fname);
 
-    result->body.fd = fd;
     result->body.type = MVM_OSHANDLE_FD;
     result->body.encoding_type = MVM_encoding_type_utf8;
 
@@ -509,6 +504,14 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             body->fd   = type;
             body->type = MVM_OSHANDLE_FD;
             break;
+        case UV_NAMED_PIPE: {
+            uv_pipe_t *handle = malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(tc->loop, handle, 0);
+            uv_pipe_open(handle, type);
+            body->handle = (uv_handle_t *)handle;
+            body->type = MVM_OSHANDLE_HANDLE;
+            break;
+        }
         default:
             MVM_exception_throw_adhoc(tc, "get_stream failed, unsupported std handle");
             break;
