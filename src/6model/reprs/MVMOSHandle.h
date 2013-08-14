@@ -2,13 +2,8 @@
 struct MVMOSHandleBody {
     MVMuint8 type;
     union {
-       uv_handle_t handle;
-       struct
-       {
-           uv_fs_t         req;
-           uv_file          fd;
-       };
-
+       uv_handle_t *handle;
+       uv_file          fd;
     };
 
     /* see MVMOSHandleTypes */
@@ -30,7 +25,7 @@ struct MVMOSHandle {
 
 typedef enum {
    MVM_OSHANDLE_HANDLE = 0,
-   MVM_OSHANDLE_REQ    = 1,
+   MVM_OSHANDLE_FD    = 1,
 };
 
 typedef enum {
