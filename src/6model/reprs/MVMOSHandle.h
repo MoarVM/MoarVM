@@ -1,9 +1,10 @@
 /* Representation used by VM-level OS handles. */
 struct MVMOSHandleBody {
-    uv_handle_t *handle;
-
-    MVMuint8 tty_type; /* We need it untill libuv supports uv_file_t,
-                        * they said will support it soon. */
+    MVMuint8 type;
+    union {
+       uv_handle_t handle;
+       uv_req_t    req;
+    };
 
     /* see MVMOSHandleTypes */
     MVMuint8 handle_type;
@@ -23,10 +24,9 @@ struct MVMOSHandle {
 };
 
 typedef enum {
-    MVM_STDIN  = 0,
-    MVM_STDOUT = 1,
-    MVM_STDERR = 2
-} MVMSTDHandleType;
+   MVM_OSHANDLE_HANDLE = 0,
+   MVM_OSHANDLE_REQ    = 1,
+};
 
 typedef enum {
     MVM_OSHANDLE_UNINIT = UV_UNKNOWN_HANDLE,

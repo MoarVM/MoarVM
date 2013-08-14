@@ -35,6 +35,9 @@ struct MVMREPRHashEntry {
 
 /* Represents a MoarVM instance. */
 struct MVMInstance {
+    /* libuv loop */
+    uv_loop_t *default_loop;
+
     /* The main thread. */
     MVMThreadContext *main_thread;
 

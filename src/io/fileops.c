@@ -543,33 +543,36 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 }
 
 /* return an OSHandle representing one of the standard streams */
-static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
+static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
     MVMOSHandle *result;
-    apr_file_t  *handle;
-    apr_status_t rv;
-    MVMObject *type_object = tc->instance->boot_types->BOOTIO;
 
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    switch(uv_guess_handle(type)) {
+        case UV_TTY:
+            uv_tty_init(tc->loop, (uv_tty_t *)&result->body.handle, type, readable);
+            result->body.type = MVM_OSHANDLE_HANDLE;
+            break;
+        case UV_FILE:
+            if (type == 0) {
+#ifdef _WIN32
+                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "conin$", O_RDONLY, 0, NULL);
+#else
+                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "/dev/tty", O_RDONLY, 0, NULL);
+#endif
+            }
+            else {
+#ifdef _WIN32
+                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "conout$", O_WRONLY, 0, NULL);
+#else
+                uv_fs_open(tc->loop, (uv_fs_t *)&result->body.handle, "/dev/tty", O_WRONLY, 0, NULL);
+#endif
+            }
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&result->body.mem_pool, NULL)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "get_stream failed to create pool: ");
+            result->body.type = MVM_OSHANDLE_REQ;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "get_stream failed, unsupported std handle");
+            break;
     }
-
-    switch(type) {
-        case 0:
-            apr_file_open_stdin(&handle, result->body.mem_pool);
-            break;
-        case 1:
-            apr_file_open_stdout(&handle, result->body.mem_pool);
-            break;
-        case 2:
-            apr_file_open_stderr(&handle, result->body.mem_pool);
-            break;
-    }
-    result->body.file_handle = handle;
-    result->body.handle_type = MVM_OSHANDLE_FILE;
-    result->body.encoding_type = MVM_encoding_type_utf8;
 
     return (MVMObject *)result;
 }
@@ -583,15 +586,15 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 }
 
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 0);
+    return MVM_file_get_stdstream(tc, 0, 1);
 }
 
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 1);
+    return MVM_file_get_stdstream(tc, 1, 0);
 }
 
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 2);
+    return MVM_file_get_stdstream(tc, 2, 0);
 }
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
