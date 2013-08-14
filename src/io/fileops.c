@@ -118,63 +118,39 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 
 /* rename one file to another. */
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    apr_status_t rv;
-    char *a, *b, *afull, *bfull;
-    MVMuint32 len;
-    apr_pool_t *tmp_pool;
+    char * const a = MVM_string_utf8_encode_C_string(tc, src);
+    char * const b = MVM_string_utf8_encode_C_string(tc, dest);
+    uv_fs_t req;
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to rename file: ");
+    if(uv_fs_rename(tc->loop, &req, a, b, NULL) < 0 ) {
+        free(a); free(b);
+        MVM_exception_throw_adhoc(tc, "Failed to rename file: %s", uv_strerror(req.result));
     }
 
-    afull = MVM_file_get_full_path(tc, tmp_pool, a = MVM_string_utf8_encode_C_string(tc, src));
-    bfull = MVM_file_get_full_path(tc, tmp_pool, b = MVM_string_utf8_encode_C_string(tc, dest));
     free(a); free(b);
-
-    if ((rv = apr_file_rename((const char *)afull, (const char *)bfull, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to rename file: ");
-    }
-    apr_pool_destroy(tmp_pool);
 }
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
-    apr_status_t rv;
-    char *a;
-    apr_pool_t *tmp_pool;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    uv_fs_t req;
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
-    }
-
-    a = MVM_string_utf8_encode_C_string(tc, f);
-
-    /* 720002 means file wasn't there on windows, 2 on linux...  */
-    /* TODO find defines for these and make it os-specific */
-    if ((rv = apr_file_remove((const char *)a, tmp_pool)) != APR_SUCCESS && rv != 720002 && rv != 2) {
+    if(uv_fs_unlink(tc->loop, &req, a, NULL) < 0 ) {
         free(a);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
+        MVM_exception_throw_adhoc(tc, "Failed to delete file: %s", uv_strerror(req.result));
     }
+
     free(a);
-    apr_pool_destroy(tmp_pool);
 }
 
-/* set permissions.  see
- * http://apr.apache.org/docs/apr/1.4/group__apr__file__permissions.html
- * XXX TODO: accept bits by perl format instead...? */
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
-    apr_status_t rv;
-    char *a;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    uv_fs_t req;
 
-    a = MVM_string_utf8_encode_C_string(tc, f);
-
-    if ((rv = apr_file_perms_set((const char *)a, (apr_fileperms_t)flag)) != APR_SUCCESS) {
+    if(uv_fs_chmod(tc->loop, &req, a, flag, NULL) < 0 ) {
         free(a);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to set permissions on path: ");
+        MVM_exception_throw_adhoc(tc, "Failed to set permissions on path: %s", uv_strerror(req.result));
     }
+
     free(a);
 }
 
@@ -201,51 +177,40 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 
 /* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
-    MVMOSHandle *result;
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_file_t *file_handle;
-    apr_int32_t flag;
-    MVMObject *type_object = tc->instance->boot_types->BOOTIO;
-    char *fname = MVM_string_utf8_encode_C_string(tc, filename);
-    char *fmode;
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(fname);
-        MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
-    }
-
-    fmode = MVM_string_utf8_encode_C_string(tc, mode);
+    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
+    MVMOSHandle    * const result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
+    char            * const fmode = MVM_string_utf8_encode_C_string(tc, mode);
+    uv_file          fd;
+    int flag;
 
     /* generate apr compatible open mode flags */
     if (0 == strcmp("r", fmode))
-        flag = APR_FOPEN_READ;
+        flag = O_RDONLY;
     else if (0 == strcmp("w", fmode))
-        flag = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_TRUNCATE;
+        flag = O_CREAT| O_WRONLY | O_TRUNC;
     else if (0 == strcmp("wa", fmode))
-        flag = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_APPEND;
-    else
-        MVM_exception_throw_adhoc(tc, "invalid open mode: %d", fmode);
-
-    /* try to open the file */
-    if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
-        free(fname);
+        flag = O_CREAT | O_WRONLY | O_APPEND;
+    else {
         free(fmode);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
+        MVM_exception_throw_adhoc(tc, "invalid open mode: %d", fmode);
     }
 
-    /* initialize the object */
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    free(fmode);
 
-    result->body.file_handle = file_handle;
-    result->body.handle_type = MVM_OSHANDLE_FILE;
-    result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = MVM_encoding_type_utf8;
+    fd = uv_fs_open(tc->loop, &result->body.req, (const char *)fname, flag, 0, NULL);
+
+    if(fd < 0 ) {
+        free(fname);
+        MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(result->body.req.result));
+    }
 
     free(fname);
-    free(fmode);
+
+    result->body.fd = fd;
+    result->body.type = MVM_OSHANDLE_REQ;
+    result->body.encoding_type = MVM_encoding_type_utf8;
+
     return (MVMObject *)result;
 }
 
@@ -536,8 +501,8 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 
     verify_filehandle_type(tc, oshandle, &handle, "truncate filehandle");
 
-    if ((rv = apr_file_trunc(handle->body.file_handle, (apr_off_t)offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to truncate filehandle: ");
+    if(uv_fs_ftruncate(tc->loop, &handle->body.req, handle->body.fd, offset, NULL) < 0 ) {
+        MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(handle->body.req.result));
     }
 }
 
