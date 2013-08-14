@@ -94,26 +94,21 @@ char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *
 
 /* copy a file from one to another. */
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    apr_status_t rv;
-    char *a, *b, *afull, *bfull;
-    MVMuint32 len;
-    apr_pool_t *tmp_pool;
+    uv_fs_t req;
+    char * const       a = MVM_string_utf8_encode_C_string(tc, src);
+    char * const       b = MVM_string_utf8_encode_C_string(tc, dest);
+    const uv_file in_fd  = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
+    const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_CREAT| O_WRONLY | O_TRUNC, 0, NULL);
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to copy file: ");
+    if (in_fd >= 0 && out_fd >= 0
+        && uv_fs_stat(tc->loop, &req, a, NULL) >= 0
+        && uv_fs_sendfile(tc->loop, &req, out_fd, in_fd, 0, req.statbuf.st_size, NULL) >= 0) {
+        return;
     }
 
-    afull = MVM_file_get_full_path(tc, tmp_pool, a = MVM_string_utf8_encode_C_string(tc, src));
-    bfull = MVM_file_get_full_path(tc, tmp_pool, b = MVM_string_utf8_encode_C_string(tc, dest));
-    free(a); free(b);
-
-    if ((rv = apr_file_copy((const char *)afull, (const char *)bfull,
-            0, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to copy file: ");
-    }
-    apr_pool_destroy(tmp_pool);
+    free(a);
+    free(b);
+    MVM_exception_throw_adhoc(tc, "Failed to copy file: %s", uv_strerror(req.result));
 }
 
 /* rename one file to another. */
@@ -189,7 +184,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
     fd = uv_fs_open(tc->loop, &result->body.req, (const char *)fname, flag, 0, NULL);
 
-    if(fd < 0 ) {
+    if (fd < 0 ) {
         free(fname);
         MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(result->body.req.result));
     }
