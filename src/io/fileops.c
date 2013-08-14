@@ -506,21 +506,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             break;
         }
         case UV_FILE:
-            if (type == 0) {
-#ifdef _WIN32
-                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&req, "conin$", O_RDONLY, 0, NULL);
-#else
-                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&req, "/dev/tty", O_RDONLY, 0, NULL);
-#endif
-            }
-            else {
-#ifdef _WIN32
-                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&req, "conout$", O_WRONLY, 0, NULL);
-#else
-                body->fd = uv_fs_open(tc->loop, (uv_fs_t *)&req, "/dev/tty", O_WRONLY, 0, NULL);
-#endif
-            }
-
+            body->fd   = type;
             body->type = MVM_OSHANDLE_FD;
             break;
         default:
