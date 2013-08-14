@@ -83,10 +83,10 @@ my %THIRDPARTY = (
     lao => { %LAO },
     tom => { %TOM },
     sha => { %SHA },
-    ln  => { %LN },
-    dc  => { %DC },
-    dcb => { %DCB },
-    dl  => { %DL },
+#    ln  => { %LN },
+#    dc  => { %DC },
+#    dcb => { %DCB },
+#    dl  => { %DL },
     uv  => { %UVDUMMY },
 );
 
@@ -163,15 +163,15 @@ my %TOOLCHAINS = (
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
             },
 
-            dc => {
-                %DC,
-                name  => 'libdyncall_s',
-                rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
-                clean => '-$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
-            },
-
-            dcb => { %DCB, name => 'libdyncallback_s' },
-            dl  => { %DL, name => 'libdynload_s' },
+#            dc => {
+#                %DC,
+#                name  => 'libdyncall_s',
+#                rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
+#                clean => '-$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
+#            },
+#
+#            dcb => { %DCB, name => 'libdyncallback_s' },
+#            dl  => { %DL, name => 'libdynload_s' },
         },
     },
 );
@@ -411,8 +411,8 @@ if ($config{cc} eq 'cl') {
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" clean',
             };
 
-            $defaults{-thirdparty}->{dc}->{rule} =
-                'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
+#            $defaults{-thirdparty}->{dc}->{rule} =
+#                'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
         }
         else { print "NO\n" }
     }

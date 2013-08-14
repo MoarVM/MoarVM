@@ -12,7 +12,6 @@ CINCLUDES = @ccinc@3rdparty/apr/include \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@3rdparty/libtommath \
             @ccinc@3rdparty/sha1 \
-            @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -216,8 +215,6 @@ apr: @aprlib@
 
 libuv: @uvlib@
 
-dyncall: @dclib@
-
 $(OBJECTS): $(HEADERS)
 
 .c@obj@:
@@ -244,14 +241,6 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 @shalib@: @shaobjects@
 	@sharule@
 
-@lnlib@: @lnobjects@
-	@lnrule@
-
-@dclib@:
-	@dcrule@
-
-@dcblib@ @dllib@: @dclib@
-
 clean:
 	-$(RM) $(OBJECTS)
 	@clean@
@@ -260,8 +249,6 @@ clean:
 	@laoclean@
 	@tomclean@
 	@shaclean@
-	@lnclean@
-	@dcclean@
 
 realclean: clean
 	-$(RM) moarvm@exe@
