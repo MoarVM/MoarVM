@@ -385,29 +385,29 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
 
 /* seeks in a filehandle */
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag) {
-    apr_status_t rv;
     MVMOSHandle *handle;
+    uv_fs_t req;
 
     verify_filehandle_type(tc, oshandle, &handle, "seek in filehandle");
 
-    if ((rv = apr_file_seek(handle->body.file_handle, (apr_seek_where_t)flag, (apr_off_t *)&offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to seek in filehandle: ");
+    if (uv_fs_seek(tc->loop, &req, handle->body.fd, offset, flag, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", uv_strerror(req.result));
     }
 }
 
 /* tells position within file */
 MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
+    MVMint64 r;
     MVMOSHandle *handle;
-    MVMint64 offset = 0;
+    uv_fs_t req;
 
     verify_filehandle_type(tc, oshandle, &handle, "tell in filehandle");
 
-    if ((rv = apr_file_seek(handle->body.file_handle, APR_CUR, (apr_off_t *)&offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle: ");
+    if ((r = uv_fs_seek(tc->loop, &req, handle->body.fd, 0, SEEK_CUR, NULL)) < 0) {
+        MVM_exception_throw_adhoc(tc, "Failed to tell position of filehandle: %s", uv_strerror(req.result));
     }
 
-    return offset;
+    return r;
 }
 
 /* locks a filehandle */
