@@ -108,11 +108,13 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     uv_fs_t req;
 
     if(uv_fs_rename(tc->loop, &req, a, b, NULL) < 0 ) {
-        free(a); free(b);
+        free(a);
+        free(b);
         MVM_exception_throw_adhoc(tc, "Failed to rename file: %s", uv_strerror(req.result));
     }
 
-    free(a); free(b);
+    free(a);
+    free(b);
 }
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
@@ -177,7 +179,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     }
 
     free(fname);
-
+    result->body.eof  = 0;
     result->body.type = MVM_OSHANDLE_FD;
     result->body.encoding_type = MVM_encoding_type_utf8;
 
@@ -249,10 +251,10 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 /* reads a string from a filehandle. */
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;
-    apr_status_t rv;
     MVMOSHandle *handle;
-    char *buf;
     MVMint64 bytes_read;
+    uv_fs_t req;
+    char *buf;
 
     /* XXX TODO length currently means bytes. alter it to mean graphemes. */
     /* XXX TODO handle length == -1 to mean read to EOF */
@@ -264,11 +266,15 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     }
 
     buf = malloc(length);
-    bytes_read = length;
+    bytes_read = uv_fs_read(tc->loop, &req, handle->body.fd, buf, length, -1, NULL);
 
-    if ((rv = apr_file_read(handle->body.file_handle, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS) {
+    if (bytes_read < 0) {
         free(buf);
-        MVM_exception_throw_apr_error(tc, rv, "read from filehandle failed: ");
+        MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
+    }
+
+    if (bytes_read == 0) {
+        handle->body.eof = 1;
     }
                                                /* XXX should this take a type object? */
     result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
@@ -339,23 +345,25 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString 
 
 /* writes a string to a filehandle. */
 MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str) {
-    apr_status_t rv;
+    MVMOSHandle *handle;
     MVMuint8 *output;
     MVMuint64 output_size;
-    apr_size_t bytes_written;
-    MVMOSHandle *handle;
+    MVMint64 bytes_written;
+    uv_fs_t req;
 
     verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
 
     output = MVM_encode_string_to_C_buffer(tc, str, 0, -1, &output_size, handle->body.encoding_type);
-    bytes_written = (apr_size_t)output_size;
-    if ((rv = apr_file_write(handle->body.file_handle, (const void *)output, &bytes_written)) != APR_SUCCESS) {
-        free(output);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to write bytes to filehandle: tried to write %u bytes, wrote %u bytes: ", output_size, bytes_written);
-    }
-    free(output);
+    bytes_written = uv_fs_write(tc->loop, &req, handle->body.fd, (const void *)output, output_size, -1, NULL);
 
-    return (MVMint64)bytes_written;
+
+    if (bytes_written < 0) {
+        free(output);
+        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
+    }
+
+    free(output);
+    return bytes_written;
 }
 
 /* writes a string to a file, overwriting it if necessary */
