@@ -4,7 +4,10 @@ struct MVMOSHandleBody {
     union {
        uv_handle_t *handle;
        uv_file          fd;
+
     };
+
+    MVMuint8        eof;
 
     /* see MVMOSHandleTypes */
     MVMuint8 handle_type;
