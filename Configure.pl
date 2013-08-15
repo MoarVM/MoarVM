@@ -159,6 +159,7 @@ my %TOOLCHAINS = (
         -thirdparty => {
             apr => {
                 %APR,
+                path  => '3rdparty/apr/LibR',
                 rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
             },
