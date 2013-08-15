@@ -396,14 +396,6 @@ void fs__open(uv_fs_t* req) {
   int result, current_umask;
   int flags = req->file_flags;
 
-  if (flags == STD_INPUT_HANDLE
-    || flags == STD_OUTPUT_HANDLE
-    || flags == STD_ERROR_HANDLE) {
-    file = GetStdHandle(flags);
-    flags = _O_APPEND;
-    goto result;
-  }
-
   /* Obtain the active umask. umask() never fails and returns the previous */
   /* umask. */
   current_umask = umask(0);
@@ -516,8 +508,7 @@ void fs__open(uv_fs_t* req) {
     }
     return;
   }
-result:
-  result = _open_osfhandle((intptr_t) file, flags);
+
 end:
   SET_REQ_RESULT(req, result);
 }
@@ -817,31 +808,31 @@ static int fs___mkdir_p(wchar_t *pathname) {
   size_t r;
   size_t len = wcslen(pathname);
 
-  while ((len > 0) && (IS_SLASH(pathname[len - 1])))
+  while (len > 0 && IS_SLASH(pathname[len - 1]))
     len--;
 
-  pathname[len] = '\0';
+  pathname[len] = L'\0';
 
   r = _wmkdir(pathname);
 
   if (r == -1 && errno == ENOENT) {
     size_t _len = len;
 
-    while ((_len > 0) && (IS_SLASH(pathname[_len - 1])))
+    while (_len > 0 && IS_SLASH(pathname[_len - 1]))
       _len--;
 
-    pathname[_len] = '\0';
+    pathname[_len] = L'\0';
 
     r = fs___mkdir_p(pathname);
 
-    pathname[_len] = '/';
+    pathname[_len] = L'/';
 
     if(r == 0) {
       r = _wmkdir(pathname);
     }
   }
 
-  pathname[len] = '/';
+  pathname[len] = L'/';
 
   return r;
 }
@@ -1577,48 +1568,6 @@ static void fs__fchown(uv_fs_t* req) {
   req->result = 0;
 }
 
-static void fs__getfullpath(uv_fs_t* req) {
-  WCHAR pathw[_MAX_PATH];
-  if (_wfullpath(pathw, req->pathw, _MAX_PATH) == NULL) {
-    SET_REQ_RESULT(req, -1);
-  } else {
-    int target_len = WideCharToMultiByte(CP_UTF8,
-                                         0,
-                                         pathw,
-                                         -1,
-                                         NULL,
-                                         0,
-                                         NULL,
-                                         NULL);
-    if (target_len == 0) {
-      SET_REQ_RESULT(req, -1);
-      return;
-    } else {
-      char* target = (char*) malloc(target_len + 1);
-      if (target == NULL) {
-        SetLastError(ERROR_OUTOFMEMORY);
-        SET_REQ_RESULT(req, -1);
-        return;
-      }
-
-      target_len = WideCharToMultiByte(CP_UTF8,
-                                        0,
-                                        pathw,
-                                        -1,
-                                        target,
-                                        target_len,
-                                        NULL,
-                                        NULL);
-      target[target_len] = '\0';
-
-      req->new_path = target;
-
-      req->flags |= UV_FS_FREE_PATHS;
-
-      SET_REQ_RESULT(req, 0);
-    }
-  }
-}
 
 static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
   uv_fs_t* req = (uv_fs_t*) parameter;
@@ -1637,7 +1586,6 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     XX(LOCK, lock)
     XX(UNLOCK, unlock)
     XX(SEEK, seek)
-    XX(GETFULLPATH, getfullpath)
     XX(SENDFILE, sendfile)
     XX(STAT, stat)
     XX(LSTAT, lstat)
@@ -2232,27 +2180,6 @@ int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file fd, double atime,
   }
 }
 
-int uv_fs_getfullpath(uv_loop_t* loop, uv_fs_t* req, const char* path,
-    const char** new_path, uv_fs_cb cb) {
-  int err;
-
-  uv_fs_req_init(loop, req, UV_FS_GETFULLPATH, cb);
-
-  err = fs__capture_path(loop, req, path, NULL, cb != NULL);
-  if (err) {
-    return uv_translate_sys_error(err);
-  }
-
-  new_path = &(req->new_path);
-
-  if (cb) {
-    QUEUE_FS_TP_JOB(loop, req);
-    return 0;
-  } else {
-    fs__getfullpath(req);
-    return req->result;
-  }
-}
 
 void uv_process_fs_req(uv_loop_t* loop, uv_fs_t* req) {
   assert(req->cb);
@@ -2265,15 +2192,8 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   if (req->flags & UV_FS_CLEANEDUP)
     return;
 
-  if (req->flags & UV_FS_FREE_PATHS) {
+  if (req->flags & UV_FS_FREE_PATHS)
     free(req->pathw);
-
-    if (req->new_path) {
-      free((void *)req->new_path);
-      req->new_path = NULL;
-    }
-  }
-
 
   if (req->flags & UV_FS_FREE_PTR)
     free(req->ptr);

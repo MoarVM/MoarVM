@@ -333,11 +333,4 @@ typedef struct {
 #define uv_thread_yield pthread_yield
 #define uv_thread_exit(retval) pthread_exit(NULL)
 
-#define uv_fs_getstdin(loop, req, cb) uv_fs_getstd(loop, req,                 \
-        STDIN_FILENO, cb)
-#define uv_fs_getstdout(loop, req, cb) uv_fs_getstd(loop, req,                \
-        STDOUT_FILENO, cb)
-#define uv_fs_getstderr(loop, req, cb) uv_fs_getstd(loop, req,                \
-        STDERR_FILENO, cb)
-
 #endif /* UV_UNIX_H */
