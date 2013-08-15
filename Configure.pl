@@ -264,6 +264,8 @@ my %WIN32 = (
 );
 
 my %LINUX = (
+    libs => [ qw( m pthread uuid rt ) ],
+
     -thirdparty => {
         uv => { %UV, objects => '$(UV_LINUX)' },
     },
