@@ -20,7 +20,6 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle);
-void MVM_file_pipe(MVMThreadContext *tc, MVMObject *oshandle1, MVMObject *oshandle2);
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc);
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc);
