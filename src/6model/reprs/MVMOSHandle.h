@@ -3,13 +3,11 @@ struct MVMOSHandleBody {
     MVMuint8 type;
     union {
        uv_handle_t *handle;
-       struct
-       {
-         uv_file          fd;
-         MVMuint8        eof;
-       };
+       uv_file          fd;
 
     };
+
+    MVMuint8        eof;
 
     /* see MVMOSHandleTypes */
     MVMuint8 handle_type;

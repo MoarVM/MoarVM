@@ -2712,12 +2712,6 @@ static MVMOpInfo MVM_op_info_io[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_pipe_fh,
-        "pipe_fh",
-        2,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
-    },
-    {
         MVM_OP_trunc_fh,
         "trunc_fh",
         2,
@@ -3124,7 +3118,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     53,
     57,
     135,
-    50,
+    49,
     20,
     19,
 };
