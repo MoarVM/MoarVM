@@ -847,19 +847,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     case MVM_OP_bindexmessage: {
                         MVMObject *ex = GET_REG(cur_op, 0).o;
-                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
-                            ((MVMException *)ex)->body.message = GET_REG(cur_op, 2).s;
-                        else
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
+                            MVM_ASSIGN_REF(tc, ex, ((MVMException *)ex)->body.message,
+                                GET_REG(cur_op, 2).s);
+                        }
+                        else {
                             MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException");
+                        }
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_bindexpayload: {
                         MVMObject *ex = GET_REG(cur_op, 0).o;
-                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
-                            ((MVMException *)ex)->body.payload = GET_REG(cur_op, 2).o;
-                        else
+                        if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
+                            MVM_ASSIGN_REF(tc, ex, ((MVMException *)ex)->body.payload,
+                                GET_REG(cur_op, 2).o);
+                        }
+                        else {
                             MVM_exception_throw_adhoc(tc, "bindexpayload needs a VMException");
+                        }
                         cur_op += 4;
                         break;
                     }
