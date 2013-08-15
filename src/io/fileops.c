@@ -13,83 +13,60 @@ static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MV
     }
 }
 
-static apr_finfo_t MVM_file_info(MVMThreadContext *tc, MVMString *filename, apr_int32_t wanted) {
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_file_t *file_handle;
-    apr_finfo_t finfo;
+static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
+    uv_fs_t req;
+    char * const   a = MVM_string_utf8_encode_C_string(tc, filename);
+    const uv_file fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
 
-    char *fname = MVM_string_utf8_encode_C_string(tc, filename);
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(fname);
-        MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
+    if (fd >= 0
+        && uv_fs_stat(tc->loop, &req, a, NULL) >= 0) {
+        free(a);
+        if (uv_fs_close(tc->loop, &req, fd, NULL) < 0) {
+            MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+        }
+        return req.statbuf;
     }
 
-    if ((rv = apr_file_open(&file_handle, (const char *)fname, APR_FOPEN_READ, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
-        free(fname);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
-    }
-
-    free(fname);
-
-    if((rv = apr_file_info_get(&finfo, wanted, file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to stat file: ");
-    }
-
-    if ((rv = apr_file_close(file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to close filehandle: ");
-    }
-
-    return finfo;
+    free(a);
+    MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
 }
 
-MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *fn, MVMint64 status) {
+MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status) {
     MVMint64 r = -1;
 
     switch (status) {
-        case MVM_stat_exists:             r = MVM_file_exists(tc, fn); break;
-        case MVM_stat_filesize:           r = MVM_file_info(tc, fn, APR_FINFO_SIZE).size; break;
-        case MVM_stat_isdir:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_DIR ? 1 : 0; break;
-        case MVM_stat_isreg:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_REG ? 1 : 0; break;
-        case MVM_stat_isdev:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & (APR_CHR|APR_BLK) ? 1 : 0; break;
-        case MVM_stat_createtime:         r = MVM_file_info(tc, fn, APR_FINFO_CTIME).ctime; break;
-        case MVM_stat_accesstime:         r = MVM_file_info(tc, fn, APR_FINFO_ATIME).atime; break;
-        case MVM_stat_modifytime:         r = MVM_file_info(tc, fn, APR_FINFO_MTIME).mtime; break;
-        case MVM_stat_changetime:         r = MVM_file_info(tc, fn, APR_FINFO_CTIME).ctime; break;
+        case MVM_stat_exists:             r = MVM_file_exists(tc, filename); break;
+        case MVM_stat_filesize:           r = file_info(tc, filename).st_size; break;
+        case MVM_stat_isdir:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFDIR; break;
+        case MVM_stat_isreg:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFREG; break;
+        case MVM_stat_isdev: {
+            const int mode = file_info(tc, filename).st_mode;
+#ifdef _WIN32
+            r = mode & S_IFMT == S_IFCHR;
+#else
+            r = mode & S_IFMT == S_IFCHR || mode & S_IFMT == S_IFBLK;
+#endif
+            break;
+        }
+        case MVM_stat_createtime:         r = file_info(tc, filename).st_ctim.tv_sec; break;
+        case MVM_stat_accesstime:         r = file_info(tc, filename).st_atim.tv_sec; break;
+        case MVM_stat_modifytime:         r = file_info(tc, filename).st_mtim.tv_sec; break;
+        case MVM_stat_changetime:         r = file_info(tc, filename).st_ctim.tv_sec; break;
         case MVM_stat_backuptime:         r = -1; break;
-        case MVM_stat_uid:                r = MVM_file_info(tc, fn, APR_FINFO_USER).user; break;
-        case MVM_stat_gid:                r = MVM_file_info(tc, fn, APR_FINFO_GROUP).group; break;
-        case MVM_stat_islnk:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_LNK ? 1 : 0; break;
-        case MVM_stat_platform_dev:       r = MVM_file_info(tc, fn, APR_FINFO_DEV).device; break;
-        case MVM_stat_platform_inode:     r = MVM_file_info(tc, fn, APR_FINFO_INODE).inode; break;
-        case MVM_stat_platform_mode:      r = MVM_file_info(tc, fn, APR_FINFO_PROT).protection; break;
-        case MVM_stat_platform_nlinks:    r = MVM_file_info(tc, fn, APR_FINFO_NLINK).nlink; break;
-        case MVM_stat_platform_devtype:   r = -1; break;
-        case MVM_stat_platform_blocksize: r = MVM_file_info(tc, fn, APR_FINFO_CSIZE).csize; break;
-        case MVM_stat_platform_blocks:    r = -1; break;
+        case MVM_stat_uid:                r = file_info(tc, filename).st_uid; break;
+        case MVM_stat_gid:                r = file_info(tc, filename).st_gid; break;
+        case MVM_stat_islnk:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFLNK; break;
+        case MVM_stat_platform_dev:       r = file_info(tc, filename).st_dev; break;
+        case MVM_stat_platform_inode:     r = file_info(tc, filename).st_ino; break;
+        case MVM_stat_platform_mode:      r = file_info(tc, filename).st_mode; break;
+        case MVM_stat_platform_nlinks:    r = file_info(tc, filename).st_nlink; break;
+        case MVM_stat_platform_devtype:   r = file_info(tc, filename).st_rdev; break;
+        case MVM_stat_platform_blocksize: r = file_info(tc, filename).st_blksize; break;
+        case MVM_stat_platform_blocks:    r = file_info(tc, filename).st_blocks; break;
         default: break;
     }
 
     return r;
-}
-
-char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path) {
-    apr_status_t rv;
-    char *rootpath, *cwd;
-
-    /* determine whether the given path is absolute */
-    rv = apr_filepath_root((const char **)&rootpath, (const char **)&path, 0, tmp_pool);
-
-    if (rv != APR_SUCCESS) {
-        /* path is relative so needs cwd prepended */
-        rv = apr_filepath_get(&cwd, 0, tmp_pool);
-        return apr_pstrcat(tmp_pool, cwd, "/", path, NULL);
-    }
-    /* the path is already absolute */
-    return apr_pstrcat(tmp_pool, path, NULL);
 }
 
 /* copy a file from one to another. */
@@ -103,11 +80,24 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     if (in_fd >= 0 && out_fd >= 0
         && uv_fs_stat(tc->loop, &req, a, NULL) >= 0
         && uv_fs_sendfile(tc->loop, &req, out_fd, in_fd, 0, req.statbuf.st_size, NULL) >= 0) {
+        free(a);
+        free(b);
+
+        if (uv_fs_close(tc->loop, &req, in_fd, NULL) < 0) {
+            uv_fs_close(tc->loop, &req, out_fd, NULL); /* should close out_fd before throw. */
+            MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+        }
+
+        if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
+            MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+        }
+
         return;
     }
 
     free(a);
     free(b);
+
     MVM_exception_throw_adhoc(tc, "Failed to copy file: %s", uv_strerror(req.result));
 }
 
