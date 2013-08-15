@@ -1,0 +1,26 @@
+MAKEFILE ?= Makefile.generic
+MAKE_CMD = ${MAKE} -f ${MAKEFILE}
+
+.PHONY: all clean install test osx-universal linux bsd
+
+all:
+	cd dyncall ; ${MAKE_CMD}
+	cd dynload ; ${MAKE_CMD}
+	cd dyncallback ; ${MAKE_CMD}
+
+clean:
+	cd dyncall ; ${MAKE_CMD} clean
+	cd dynload ; ${MAKE_CMD} clean
+	cd dyncallback ; ${MAKE_CMD} clean
+
+install:
+	cd dyncall ; ${MAKE_CMD} install
+	cd dynload ; ${MAKE_CMD} install
+	cd dyncallback ; ${MAKE_CMD} install
+
+test:
+	cd test ; ${MAKE_CMD}
+
+osx-universal:
+	${MAKE_CMD} CPPFLAGS="-arch i386 -arch ppc -arch x86_64" MKLIB="libtool -static -o"
+

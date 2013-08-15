@@ -1,0 +1,4 @@
+all: ./../buildsys/dynmake/dynmake.bat
+	$(?:/=\\) all $(MAKE) && exit || sh $(?:bat=sh) all $(MAKE)
+clean: ./../buildsys/dynmake/dynmake.bat
+	$(?:/=\\) clean $(MAKE) && exit || sh $(?:bat=sh) clean $(MAKE)

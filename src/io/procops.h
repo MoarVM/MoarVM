@@ -1,16 +1,4 @@
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc);
-MVMString * MVM_proc_getenv(MVMThreadContext *tc, MVMString *var);
-void MVM_proc_setenv(MVMThreadContext *tc, MVMString *var, MVMString *value);
-void MVM_proc_delenv(MVMThreadContext *tc, MVMString *var);
-MVMint64 MVM_proc_nametogid(MVMThreadContext *tc, MVMString *name);
-MVMString * MVM_proc_gidtoname(MVMThreadContext *tc, MVMint64 groupid);
-MVMint64 MVM_proc_nametouid(MVMThreadContext *tc, MVMString *name);
-MVMString * MVM_proc_uidtoname(MVMThreadContext *tc, MVMint64 userid);
-MVMString * MVM_proc_getusername(MVMThreadContext *tc);
-MVMint64 MVM_proc_getuid(MVMThreadContext *tc);
-MVMint64 MVM_proc_getgid(MVMThreadContext *tc);
-MVMString * MVM_proc_gethomedir(MVMThreadContext *tc);
-MVMString * MVM_proc_getencoding(MVMThreadContext *tc);
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc);
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc);
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc);

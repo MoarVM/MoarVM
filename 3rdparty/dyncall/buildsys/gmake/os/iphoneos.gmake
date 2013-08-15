@@ -1,0 +1,51 @@
+#
+# Copyright (c) 2007,2010 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+
+# IPHONE SDK 3 supports 2.0, 3.0, 3.1 and 3.2
+# IPHONE SDK 4 supports 3.2 and 4.0
+
+CONFIG_IPHONESDK_VERSION ?= 3.2
+
+IPHONESDK_VERSION ?= $(CONFIG_IPHONESDK_VERSION)
+
+IPHONESDK_VERSION_MAJOR = $(shell echo $(IPHONESDK_VERSION) | sed 's/^\([0-9]*\).*/\1/')
+
+ifeq ("$(IPHONESDK_VERSION_MAJOR)","2")
+CC		  = gcc-4.0
+CXX		  = g++-4.0
+IPHONESDK_ARCHS  += -arch armv6
+endif
+
+ifeq ("$(IPHONESDK_VERSION_MAJOR)","3")
+IPHONESDK_ARCHS	   += -arch armv6
+# @@@ TODO:
+# IPHONESDK_ARCHS  += -arch armv6 -mthumb
+# IPHONESDK_ARCHS  += -arch armv7
+# IPHONESDK_ARCHS  += -arch armv7 -mno-thumb
+endif
+
+ifeq ("$(IPHONESDK_VERSION_MAJOR)","4")
+IPHONESDK_ARCHS  += -arch armv6 
+# @@@ TODO:
+# IPHONESDK_ARCHS	 += -arch armv7 -mno-thumb
+endif
+
+TARGET_ARCH 	 += -isysroot /Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS${IPHONESDK_VERSION}.sdk 
+TARGET_ARCH	 += ${IPHONESDK_ARCHS}
+
+include $(GMAKE_TOP)/os/darwin.gmake
+

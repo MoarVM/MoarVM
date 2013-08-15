@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include "linenoise.h"
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
@@ -113,31 +114,6 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
         apr_pool_destroy(tmp_pool);
         MVM_exception_throw_apr_error(tc, rv, "Failed to copy file: ");
     }
-    apr_pool_destroy(tmp_pool);
-}
-
-/* append one file to another. */
-void MVM_file_append(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    apr_status_t rv;
-    char *a, *b, *afull, *bfull;
-    MVMuint32 len;
-    apr_pool_t *tmp_pool;
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to append file: ");
-    }
-
-    afull = MVM_file_get_full_path(tc, tmp_pool, a = MVM_string_utf8_encode_C_string(tc, src));
-    bfull = MVM_file_get_full_path(tc, tmp_pool, b = MVM_string_utf8_encode_C_string(tc, dest));
-    free(a); free(b);
-
-    if ((rv = apr_file_append((const char *)afull, (const char *)bfull,
-            APR_FPROT_FILE_SOURCE_PERMS, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to append file: ");
-    }
-    /* note: destroying the pool deallocates afull, bfull */
     apr_pool_destroy(tmp_pool);
 }
 
@@ -334,6 +310,48 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     free(buf);
 
     return result;
+}
+
+/* reads a line from a filehandle. */
+MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt) {
+    MVMString *return_str = NULL;
+    MVMOSHandle *handle;
+    char *line;
+    char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
+
+    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
+
+#ifdef MVM_HAS_READLINE
+    line = readline(prompt_str);
+
+    free(prompt_str);
+
+    if (line) {
+        if (*line)
+            add_history(line);
+
+        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+
+        free(line);
+    }
+
+#else /* !MVM_HAS_READLINE */
+    line = linenoise(prompt_str);
+
+    free(prompt_str);
+
+    if (line) {
+        if (*line) {
+            linenoiseHistoryAdd(line);
+        }
+
+        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+
+        free(line);
+    }
+#endif /* MVM_HAS_READLINE */
+
+    return return_str;
 }
 
 /* reads a string from a filehandle. */

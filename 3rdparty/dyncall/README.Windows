@@ -1,0 +1,36 @@
+Build using buildsys/nmake and MSVC:
+
+  32-bit:
+    .\configure.bat /target-x86
+    nmake /fNmakefile
+
+  64-bit:
+    .\configure.bat /target-x64
+    nmake /fNmakefile
+
+Build using buildsys/gmake and MinGW:
+
+  32-bit:
+    .\configure.bat /target-x86 /tool-gcc
+    make
+
+  64-bit:
+    .\configure.bat /target-x64 /tool-gcc
+    make
+
+Build using CMake and Nmake:
+
+  Put the appropriate tool-chain in path (32 or 64-bit version of MSVC), then:
+  
+    cmake -G "NMake Makefiles" ${DYNCALL_SOURCE_DIR}
+    nmake
+
+
+Build using CMake and Visual Studio:
+ 
+  32-bit:
+    cmake .
+    open DynCall.sln
+
+  BROKEN: Rules to assemble MASM files are still missing.
+

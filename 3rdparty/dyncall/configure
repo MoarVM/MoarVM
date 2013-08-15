@@ -1,0 +1,444 @@
+#!/bin/sh
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007-2010 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+# --- configure settings ------------------------------------------------------
+
+PACKAGE=dyncall
+CONFIG_PREFIX=/usr/local
+
+# --- output error message ----------------------------------------------------
+
+error() 
+{
+  echo "error: $*"
+  exit 1
+}
+
+# --- output warning message --------------------------------------------------
+
+warning()
+{
+  echo "warning: $*"
+}
+
+# --- output info message -----------------------------------------------------
+
+info()
+{
+  echo "$*"
+}
+
+# --- print usage -------------------------------------------------------------
+
+usage()
+{
+  echo "$PACKAGE configuration shell-script"
+  echo "Usage:"
+  echo "  configure [ options ]"
+  echo
+  echo "Options:"
+  echo "  --help"
+  echo "   -h                print this page"
+  echo
+  echo "  --prefix=<path>    set installation prefix (GNU make only)"
+  echo "  --prefix-bd=<path> set build directory prefix (GNU make only)"
+  echo
+  echo "  --target-x86       build for x86 architecture platform"
+  echo "  --target-x64       build for x64 architecture platform"
+  echo "  --target-ppc32     build for ppc32 architecture platform"
+  echo "  --target-psp       build for Playstation Portable platform (PSPSDK)"
+  echo "  --target-arm-arm   build for ARM architecture platform (ARM mode)"
+  echo "  --target-arm-thumb build for ARM architecture platform (THUMB mode)"
+  echo "  --target-nds-arm   build for Nintendo DS platform (devkitPro, ARM mode)"
+  echo "  --target-nds-thumb build for Nintendo DS platform (devkitPro, THUMB mode)"
+  echo "  --target-cygwin    build for Cygwin platform"
+  echo "  --target-windows   build for Windows platform (useful for Cygwin)"
+  echo "  --target-macosx    build for Mac OS X platform"
+  echo "  --target-iphoneos  build for iPhone OS platform"
+  echo "  --target-universal build universal binaries (for Mac OS X/Darwin)"
+  echo
+  echo "  --tool-gcc         use GNU Compiler Collection"
+  echo "  --tool-pcc         use Portable C Compiler"
+  echo "  --tool-msvc        use Microsoft Visual C++"
+  echo "  --tool-pspsdk      use PSP SDK tool-chain"
+  echo "  --tool-llvm-gcc    use LLVM-GCC C/C++ compilers"
+  echo 
+  echo "  --with-iphonesdk=<version>"
+  echo "                     with iPhone SDK version (2.0-4.0)"
+  echo "  --with-macosxsdk=<version>"
+  echo "                     with Mac OS X SDK version (10.4u, 10.5, 10.6)"
+  echo 
+  echo "  --asm-as           use GNU Assembler"
+  echo "  --asm-nasm         use NASM Assembler"
+  echo "  --asm-ml           use Microsoft Macro Assembler"
+  echo
+  echo "  --config-release   build release version (default)"
+  echo "  --config-debug     build debug version"
+  echo
+  exit 0
+}
+
+# --- guess operating system -------------------------------------------------
+
+CONFIG_OS=""
+guess_os()
+{
+  OS=`uname -s`
+  if [ "$OS" = "WindowsNT" ]; then
+    CONFIG_OS="windows"
+  elif [ "$OS" = "Darwin" ]; then
+    CONFIG_OS="darwin"
+  elif [ "$OS" = "CYGWIN_NT-5.1" ]; then
+    CONFIG_OS="cygwin"
+  elif [ "$OS" = "MINGW32_NT-5.1" ]; then
+    CONFIG_OS="msys"
+  elif [ "$OS" = "Linux" ]; then
+    CONFIG_OS="linux"
+  elif [ "$OS" = "SunOS" ]; then
+    CONFIG_OS="sunos"
+  elif [ "$OS" = "OpenBSD" ]; then
+    CONFIG_OS="openbsd"
+  elif [ "$OS" = "FreeBSD" ]; then
+    CONFIG_OS="freebsd"
+  elif [ "$OS" = "NetBSD" ]; then
+    CONFIG_OS="netbsd"
+  elif [ "$OS" = "DragonFly" ]; then
+    CONFIG_OS="dragonfly"
+  elif [ "$OS" = "Haiku" ]; then
+    CONFIG_OS="beos"
+  elif [ "$OS" = "Minix" ]; then
+    CONFIG_OS="minix"
+  fi
+  info "guess operating system $CONFIG_OS"
+}
+
+# --- guess architecture -----------------------------------------------------
+
+guess_arch()
+{
+  # OS Specifics
+  if [ "$OS" = "SunOS" ]; then
+    ARCH=`uname -p`
+    if [ "$ARCH" = "sparc" ]; then
+      if [ "`isainfo -n`" = "sparcv9" ]; then
+        CONFIG_ARCH="sparc64"
+      else
+        CONFIG_ARCH="sparc"
+      fi
+    elif [ "$ARCH" = "i386" ] || [ "$ARCH" = "i86pc" ]; then
+      if [ "`isainfo -n`" = "amd64" ]; then
+        CONFIG_ARCH="x64"
+      else
+        CONFIG_ARCH="x86"
+      fi
+    fi
+  elif [ "$OS" = "Darwin" ]; then
+    # Mac OS X and iPhone OS config:
+    PROCESSOR=`uname -p`
+    if [ "$PROCESSOR" = "arm" ]; then
+      # iPhone OS
+     CONFIG_ARCH="arm"
+    elif [ "$PROCESSOR" = "i386" ]; then
+      # On OS X 10.6 (Darwin 10) the default architecture is now x86_64
+      # Still, BSD 'uname' and 'machine' reveals only that it is of arch i386
+      # We switch to x86_64 if it is darwin 10.
+      OS_VERSION=`uname -r`
+      OS_VERSION_MAJOR=`echo $OS_VERSION | sed 's/^\([0-9]*\).*/\1/'`
+      if [ "$OS_VERSION_MAJOR" = "10" ] || [ "$OS_VERSION_MAJOR" = "11" ]; then
+        CONFIG_ARCH="x64"
+      else
+        CONFIG_ARCH="x86"
+      fi
+    elif [ "$PROCESSOR" = "powerpc" ]; then
+      CONFIG_ARCH="ppc32"
+    fi
+  else
+    ARCH=`uname -m`
+    if [ "$ARCH" = "Power Macintosh" ] || [ "$ARCH" = "ppc" ] || [ "$ARCH" = "macppc" ] || [ "$ARCH" = "powerpc" ]; then
+      CONFIG_ARCH="ppc32"
+    elif [ "$ARCH" = "ppc64" ]; then
+      CONFIG_ARCH="ppc64"
+    elif [ "$ARCH" = "x86" ] || [ "$ARCH" = "i386" ] || [ "$ARCH" = "i486" ] || [ "$ARCH" = "i586" ] || [ "$ARCH" = "i686" ] || [ "$ARCH" = "i86pc" ]; then
+      CONFIG_ARCH="x86"
+    elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "x64" ]; then
+      CONFIG_ARCH="x64"
+    elif [ "$ARCH" = "acorn32" ] || [ "$ARCH" = "cats" ] || [ "$ARCH" = "shark" ] || [ "$ARCH" = "armv7l" ] || [ "$ARCH" = "armv5tejl" ]; then
+      CONFIG_ARCH="arm32_arm"
+    elif [ "$ARCH" = "BePC" ]; then
+      CONFIG_ARCH="x86"
+    elif [ "$ARCH" = "mips" ]; then
+      CONFIG_ARCH="mips32"
+    elif [ "$ARCH" = "mipsel" ] || [ "$ARCH" = "pmax" ]; then
+      CONFIG_ARCH="mips32el"
+    elif [ "$ARCH" = "loongson" ]; then
+      CONFIG_ARCH="mips64el"
+    elif [ "$ARCH" = "sparc64" ]; then
+      CONFIG_ARCH="sparc"
+    elif [ "$ARCH" = "ia64" ]; then
+      CONFIG_ARCH="ia64"
+    fi
+  fi
+  info "guess arch $CONFIG_ARCH"
+}
+
+# --- guess tool chain -------------------------------------------------------
+
+CONFIG_TOOL=""
+guess_tool()
+{
+  CONFIG_TOOL="gcc"
+  info "guess tool $CONFIG_TOOL"
+}
+
+# --- guess assembler --------------------------------------------------------
+
+CONFIG_ASM=""
+guess_asm()
+{
+  if [ "$CONFIG_TOOL" = "gcc" ] || [ "$CONFIG_TOOL" = "llvm_gcc" ]; then
+    CONFIG_ASM="as"
+  elif [ "$CONFIG_TOOL" = "msvc" ]; then
+    CONFIG_ASM="ml"
+  fi
+  info "guess assembler $CONFIG_ASM"
+}
+
+# --- process arguments ------------------------------------------------------
+
+args()
+{
+  while [ 0 -lt $# ]; do
+    OPT=$1
+    shift 1
+    case $OPT in
+      --help|-h)
+        usage
+        ;;
+      --prefix=*)
+        CONFIG_PREFIX=`echo $OPT | cut -c 10-` 
+        ;;
+      --prefix-bd=*)
+        CONFIG_BUILDPREFIX=`echo $OPT | cut -c 13-` 
+        ;;
+      --with-iphonesdk=*)
+        CONFIG_IPHONESDK_VERSION=`echo $OPT | cut -c 18-`
+        ;;
+      --with-macosxsdk=*)
+        CONFIG_MACOSXSDK_VERSION=`echo $OPT | cut -c 18-`
+        ;;
+      --target-universal)
+        CONFIG_ARCH=universal
+        ;;
+      --target-x86)
+        CONFIG_ARCH=x86
+        ;;
+      --target-x64)
+        CONFIG_ARCH=x64
+        ;;
+      --target-ppc32)
+        CONFIG_ARCH=ppc32
+        ;;
+      --target-psp) 
+        CONFIG_OS=psp
+        CONFIG_ARCH=mips32
+        CONFIG_TOOL=gcc
+        ;;
+      --target-arm-arm)
+        CONFIG_ARCH=arm32_arm
+        ;;
+      --target-arm-thumb)
+        CONFIG_ARCH=arm32_thumb
+        ;;
+      --target-nds-arm)
+        CONFIG_OS=nds
+        CONFIG_ARCH=arm32_arm
+        CONFIG_TOOL=gcc
+        ;;
+      --target-nds-thumb)
+        CONFIG_OS=nds
+        CONFIG_ARCH=arm32_thumb
+        CONFIG_TOOL=gcc
+        ;;
+      --target-cygwin)
+        CONFIG_OS=cygwin
+        ;;
+      --target-windows)
+        CONFIG_OS=windows
+        ;;
+      --target-iphoneos)
+        CONFIG_OS=iphoneos
+        CONFIG_ARCH=arm32_arm
+        CONFIG_TOOL=gcc
+        ;;
+      --target-macosx)
+        CONFIG_OS=macosx
+        CONFIG_TOOL=gcc
+        ;;
+      --tool-gcc)
+        CONFIG_TOOL=gcc
+        CONFIG_ASM=gcc
+        ;;
+      --tool-pcc)
+        CONFIG_TOOL=pcc
+        CONFIG_ASM=gcc
+        ;;
+      --tool-msvc)
+        CONFIG_TOOL=msvc
+        CONFIG_ASM=ml
+        CONFIG_OS=windows
+        ;;
+      --tool-pspsdk)
+        CONFIG_OS=psp
+        CONFIG_ARCH=mips32
+        CONFIG_TOOL=pspsdk
+        CONFIG_ASM=as
+        CONFIG_PREFIX=`psp-config -P`
+        ;;
+      --tool-llvm-gcc)
+        CONFIG_TOOL=llvm_gcc
+        ;;
+      --asm-as)
+        CONFIG_ASM=as
+        ;;
+      --asm-nasm)
+        CONFIG_ASM=nasm
+        ;;
+      --asm-ml)
+        CONFIG_ASM=ml
+        ;;
+      --config-release)
+        CONFIG_CONFIG=release
+        ;;
+      --config-debug)
+        CONFIG_CONFIG=debug
+        ;;
+      *)
+        warning "unknown option $OPT"
+        ;;
+    esac
+  done
+}
+
+# --- guess variables --------------------------------------------------------
+
+guess()
+{
+  if [ -z "$CONFIG_OS" ]; then 
+    guess_os
+    if [ -z "$CONFIG_OS" ]; then
+      error "unsupported operating system $OS"
+    fi
+  fi
+
+  if [ -z "$CONFIG_ARCH" ]; then
+    guess_arch 
+    if [ -z "$CONFIG_ARCH" ]; then
+      error "unsupported architecture $ARCH"
+    fi
+  fi
+
+  if [ -z "$CONFIG_TOOL" ]; then
+    guess_tool
+    if [ -z "$CONFIG_TOOL" ]; then
+      error "no tool"
+    fi
+  fi
+
+  if [ -z "$CONFIG_ASM" ]; then
+    guess_asm
+    if [ -z "$CONFIG_ASM" ]; then
+      error " no assembler tool"
+    fi
+  fi
+
+  if [ -z "$CONFIG_CONFIG" ]; then
+    CONFIG_CONFIG=release
+  fi
+  
+}
+  
+# --- set default variables --------------------------------------------------
+
+set_defaults()
+{
+  CONFIG_HOST="$CONFIG_OS"
+}
+
+# --- derive variables -------------------------------------------------------
+
+derive_vars()
+{
+  BUILD_HOST="$CONFIG_HOST"
+  if [ "$CONFIG_HOST" != "$CONFIG_OS" ]; then
+    BUILD_HOST="${CONFIG_HOST}_${CONFIG_OS}"
+  fi
+}
+
+# --- write ConfigVars files ------------------------------------------------
+
+output()
+{
+  echo "#auto-generated by $PACKAGE/configure" >$1
+  echo "CONFIG_PACKAGE=$PACKAGE" >>$1
+  echo "CONFIG_HOST=$CONFIG_HOST" >>$1
+  echo "CONFIG_OS=$CONFIG_OS" >>$1
+  echo "CONFIG_ARCH=$CONFIG_ARCH" >>$1
+  echo "CONFIG_TOOL=$CONFIG_TOOL" >>$1
+  echo "CONFIG_ASM=$CONFIG_ASM" >>$1
+  echo "CONFIG_CONFIG=$CONFIG_CONFIG" >>$1
+  echo "CONFIG_PREFIX=$CONFIG_PREFIX" >>$1
+  if [ $CONFIG_BUILDPREFIX ]; then
+    echo "CONFIG_BUILDPREFIX=$CONFIG_BUILDPREFIX" >>$1
+  fi
+  if [ $CONFIG_IPHONESDK_VERSION ]; then
+    echo "CONFIG_IPHONESDK_VERSION=$CONFIG_IPHONESDK_VERSION" >>$1
+  fi
+  if [ $CONFIG_MACOSXSDK_VERSION ]; then
+    echo "CONFIG_MACOSXSDK_VERSION=$CONFIG_MACOSXSDK_VERSION" >>$1
+  fi
+  echo "" >>$1
+}
+
+# --- configure --------------------------------------------------------------
+
+run_configure()
+{
+  OLD=$PWD
+  DIR=$1
+  shift 1
+  cd $DIR
+  sh configure $*
+  cd $OLD
+}
+
+# --- main -------------------------------------------------------------------
+
+main()
+{
+  args $*
+  info "* configure package $PACKAGE"
+  guess
+  set_defaults
+  derive_vars
+  output ConfigVars 
+}
+
+main $*
+

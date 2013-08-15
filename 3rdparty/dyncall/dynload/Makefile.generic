@@ -1,0 +1,37 @@
+SRCTOP ?= ..
+SRCDIR ?= .
+BLDDIR ?= ${SRCDIR}
+
+LIBNAME = dynload
+OBJS 	= dynload.o dynload_syms.o
+HEADERS = dynload.h 
+
+LIB = lib${LIBNAME}_s.a
+
+all: ${LIB}
+
+.PHONY: all clean install
+
+RM      ?= rm -f
+AR      ?= ar
+MKLIB	?= ${AR} rcs
+MKDIR	?= mkdir
+INSTALL	?= install -p
+
+${LIB}: ${OBJS}
+	${MKLIB} ${LIB} ${OBJS}
+
+clean:
+	${RM} ${OBJS} ${LIB}
+
+DESTDIR     ?= /usr/local
+INSTALL_TOP ?= ${DESTDIR}
+INSTALL_INC ?= ${INSTALL_TOP}/include
+INSTALL_LIB ?= ${INSTALL_TOP}/lib
+
+install:
+	${MKDIR} -p ${INSTALL_INC}
+	cd ${SRCDIR} ; ${INSTALL} ${HEADERS} ${INSTALL_INC} 
+	${MKDIR} -p ${INSTALL_LIB}
+	cd ${BLDDIR} ; ${INSTALL} ${LIB} ${INSTALL_LIB}
+

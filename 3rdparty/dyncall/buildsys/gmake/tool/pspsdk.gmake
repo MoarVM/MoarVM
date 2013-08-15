@@ -1,0 +1,114 @@
+#//////////////////////////////////////////////////////////////////////////////
+#
+# Copyright (c) 2007,2009 Daniel Adler <dadler@uni-goettingen.de>, 
+#                         Tassilo Philipp <tphilipp@potion-studios.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#//////////////////////////////////////////////////////////////////////////////
+
+#
+# adapter Makefile to PSP-SDK's psp/sdk/lib/build.mak Makefile
+#
+
+# psp/ucom module directory
+
+INSTALL_BINDIR = $(TOP)/build_psp_$(BUILD_CONFIG)/bootstrap/bootstrap
+
+# target ucom module (prx)
+
+ifdef TARGET_MOD
+PRX_EXPORTS = ucom_psp_module_exports.o
+PRX_EXPORTS_TEMPLATE = $(TOP)/psp/ucom_psp_module_exports.c
+
+$(PRX_EXPORTS): $(PRX_EXPORTS_TEMPLATE)
+	$(COMPILE.c) $< -DUCOM_MODULE_NAME=$(TARGET_MOD) $(OUTPUT_OPTION)
+
+TARGET_DLL=$(TARGET_MOD)
+endif
+
+
+# target dll (prx)
+
+ifdef TARGET_DLL
+TARGET = $(TARGET_DLL)
+DLL_FILE = $(FINAL_TARGET)
+BUILD_PRX=1
+MAKE_USE_PSPSDK=1
+endif
+
+
+# target app (elf)
+
+ifdef TARGET_APP
+TARGET = $(TARGET_APP)
+APP_FILE = $(FINAL_TARGET)
+MAKE_USE_PSPSDK=1
+endif
+
+
+# target lib
+
+ifdef TARGET_LIB
+LIB_FILE = lib$(TARGET_LIB).a
+TARGET_LIB := $(LIB_FILE)
+MAKE_USE_PSPSDK=1
+endif
+
+
+# psp-sdk
+
+ifdef MAKE_USE_PSPSDK
+
+OBJS = $(foreach X,$(UNITS) $(MODS),$X.o)
+
+build: all
+
+ifdef AUTOS
+EXTRA_TARGETS = $(AUTOS)
+endif
+
+ifdef LINK_DIRS
+LDFLAGS = $(foreach X,$(LINK_DIRS),-L$X)
+endif
+
+ifdef LINK_LIBS
+LIBS = $(foreach X,$(LINK_LIBS),-l$X)
+endif
+
+include $(GMAKE_TOP)/tool/gcc_$(BUILD_CONFIG).gmake
+
+
+PSPSDK=$(shell psp-config --pspsdk-path)
+include $(PSPSDK)/lib/build.mak
+
+ifdef INSTALL_PREFIX
+
+ifdef INSTALL_MOD
+INSTALL_MODDIR ?= $(INSTALL_PREFIX)/bin/ucom
+$(INSTALL_MODDIR):
+	mkdir -p $(INSTALL_MODDIR)
+install:
+	cp $(FINAL_TARGET) $(INSTALL_MODDIR)
+endif
+
+endif
+
+else
+
+# use traditional stuff
+
+include $(GMAKE_TOP)/targets.gmake
+
+endif
+

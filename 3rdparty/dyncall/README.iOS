@@ -1,0 +1,58 @@
+DynCall for apple's iOS platforms (iPod touch, iPhone, iPad)
+
+
+Environment Setup for Cross-Compilation using iPhone SDK:
+
+  $ source buildsys/scripts/setenv-sdk-ios.sh
+  
+
+Package Configuration
+
+  $ ./configure --target-iphoneos --with-iphonesdk=3.2
+
+
+Building
+
+  $ make 
+  
+
+Details:
+
+Useful configure switches:
+
+  --target-iphoneos
+  
+  --with-iphoensdk=<version> (tested with 2.0 up to 4.0)
+
+  --tool-gcc (default)
+  --tool-llvm-gcc
+
+  --target-arm32-arm
+  --target-arm32-thumb
+  --target-universal
+
+
+Supported Tool-chains
+
+  gcc and llvm-gcc
+
+
+Supported SDKs
+
+  SDKs starting with 2.0 up to 4.0 have been tested.
+
+
+Bugs
+
+  No armv7 support.
+
+
+Building with Makefile.generic ..
+    
+  $ source buildsys/scripts/setenv-sdk-ios.sh
+  $ source buildsys/scripts/setenv-cross-ios.sh
+
+  make -f Makefile.generic ...
+
+  uses armv6 and sdk 3.2 as default, can be changed in 'setenv-cross-ios.sh'.
+
