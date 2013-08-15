@@ -8,7 +8,7 @@ static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MV
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.handle_type != MVM_OSHANDLE_FILE) {
+    if ((*handle)->body.type != MVM_OSHANDLE_FD) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle", msg);
     }
 }
@@ -70,7 +70,7 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     char *       const a = MVM_string_utf8_encode_C_string(tc, src);
     char *       const b = MVM_string_utf8_encode_C_string(tc, dest);
     const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
-    const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_CREAT| O_WRONLY | O_TRUNC, 0, NULL);
+    const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, 0, NULL);
 
     if (in_fd >= 0 && out_fd >= 0
         && uv_fs_stat(tc->loop, &req, a, NULL) >= 0
@@ -115,8 +115,9 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     char * const a = MVM_string_utf8_encode_C_string(tc, f);
     uv_fs_t req;
+    const int    r = uv_fs_unlink(tc->loop, &req, a, NULL);
 
-    if(uv_fs_unlink(tc->loop, &req, a, NULL) < 0 ) {
+    if( r < 0 && r != UV_ENOENT) {
         free(a);
         MVM_exception_throw_adhoc(tc, "Failed to delete file: %s", uv_strerror(req.result));
     }
@@ -514,6 +515,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             break;
     }
 
+    body->encoding_type = MVM_encoding_type_utf8;
     return (MVMObject *)result;
 }
 
