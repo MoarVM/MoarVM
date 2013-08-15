@@ -2,6 +2,13 @@
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
+/* work around sucky libuv defaults */
+#ifdef _WIN32
+#define DEFAULT_MODE _S_IWRITE
+#else
+#define DEFAULT_MODE 0
+#endif
+
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
@@ -69,8 +76,8 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     uv_fs_t req;
     char *       const a = MVM_string_utf8_encode_C_string(tc, src);
     char *       const b = MVM_string_utf8_encode_C_string(tc, dest);
-    const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
-    const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, 0, NULL);
+    const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, DEFAULT_MODE, NULL);
+    const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_MODE, NULL);
 
     if (in_fd >= 0 && out_fd >= 0
         && uv_fs_stat(tc->loop, &req, a, NULL) >= 0
@@ -169,7 +176,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
     free(fmode);
 
-    if ((result->body.fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, 0, NULL)) < 0) {
+    if ((result->body.fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
         free(fname);
         MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
     }
