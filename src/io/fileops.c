@@ -181,6 +181,10 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
     }
 
+#ifdef _WIN32
+assert(_get_osfhandle(result->body.fd) != INVALID_HANDLE_VALUE);
+#endif
+
     free(fname);
     result->body.eof  = 0;
     result->body.type = MVM_OSHANDLE_FD;
