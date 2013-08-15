@@ -250,7 +250,7 @@ my %COMPILERS = (
 
 my %WIN32 = (
     exe  => '.exe',
-    defs => [ 'WIN32' ],
+    defs => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
     libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi) ],
 
     -thirdparty => {
