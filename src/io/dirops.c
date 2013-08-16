@@ -14,30 +14,87 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
     }
 }
 
+#ifdef _WIN32
+#  define mode_t          int
+#  define IS_SLASH(c)     ((c) == '\\' || (c) == '/')
+#  define IS_NOT_SLASH(c) ((c) != '\\' && (c) != '/')
+#else
+#  define IS_SLASH(c)     ((c) == '/')
+#  define IS_NOT_SLASH(c) ((c) != '/')
+#endif
+
+static int mkdir_p(char *pathname, mode_t mode) {
+    ssize_t r;
+    size_t len = strlen(pathname);
+    char tmp;
+
+    while (len > 0 && IS_SLASH(pathname[len - 1]))
+        len--;
+
+    tmp = pathname[len];
+    pathname[len] = '\0';
+#ifdef _WIN32
+    r = CreateDirectoryA(pathname, NULL);
+
+    if (!r && GetLastError() == ERROR_PATH_NOT_FOUND)
+#else
+    r = mkdir(pathname, mode);
+
+    if (r == -1 && errno == ENOENT)
+#endif
+    {
+        size_t _len = len;
+        char _tmp;
+
+        while (_len > 0 && IS_NOT_SLASH(pathname[_len - 1]))
+            _len--;
+
+        _len--;
+        _tmp = pathname[_len];
+        pathname[_len] = '\0';
+
+        r = mkdir_p(pathname, mode);
+
+        pathname[_len] = _tmp;
+
+#ifdef _WIN32
+        if(r) {
+            r = CreateDirectoryA(pathname, NULL);
+        }
+#else
+        if(r == 0) {
+            r = mkdir(pathname, mode);
+        }
+#endif
+    }
+
+    pathname[len] = tmp;
+
+    return r;
+}
+
 /* create a directory recursively */
-void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *f, MVMint64 mode) {
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    char *a;
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to mkdir: ");
+void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
+    char * const pathname = MVM_string_utf8_encode_C_string(tc, path);
+#ifdef _WIN32
+    if (!mkdir_p(pathname, mode)) {
+        DWORD error = GetLastError();
+        if (error != ERROR_ALREADY_EXISTS) {
+            free(pathname);
+            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", GetLastError());
+        }
     }
-
-    a = MVM_string_utf8_encode_C_string(tc, f);
-
-    if ((rv = apr_dir_make_recursive((const char *)a, MVM_get_apr_perms(mode), tmp_pool)) != APR_SUCCESS) {
-        free(a);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to mkdir: ");
+#else
+    if (mkdir_p(pathname, mode) == -1 && errno != EEXIST) {
+        free(pathname);
+        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", errno);
     }
-    free(a);
-    apr_pool_destroy(tmp_pool);
+#endif
+    free(pathname);
 }
 
 /* remove a directory recursively */
-void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *f) {
+void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
     apr_status_t rv;
     apr_pool_t *tmp_pool;
     char *a;
@@ -47,7 +104,7 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *f) {
         MVM_exception_throw_apr_error(tc, rv, "Failed to rmdir: ");
     }
 
-    a = MVM_string_utf8_encode_C_string(tc, f);
+    a = MVM_string_utf8_encode_C_string(tc, path);
 
     if ((rv = apr_dir_remove((const char *)a, tmp_pool)) != APR_SUCCESS) {
         free(a);
