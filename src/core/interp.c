@@ -225,34 +225,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         if (MVM_frame_try_return(tc))
                             break;
                         else
-                            return;
+                            goto return_label;
                     case MVM_OP_return_n:
                         MVM_args_set_result_num(tc, GET_REG(cur_op, 0).n64,
                             MVM_RETURN_CALLER_FRAME);
                         if (MVM_frame_try_return(tc))
                             break;
                         else
-                            return;
+                            goto return_label;
                     case MVM_OP_return_s:
                         MVM_args_set_result_str(tc, GET_REG(cur_op, 0).s,
                             MVM_RETURN_CALLER_FRAME);
                         if (MVM_frame_try_return(tc))
                             break;
                         else
-                            return;
+                            goto return_label;
                     case MVM_OP_return_o:
                         MVM_args_set_result_obj(tc, GET_REG(cur_op, 0).o,
                             MVM_RETURN_CALLER_FRAME);
                         if (MVM_frame_try_return(tc))
                             break;
                         else
-                            return;
+                            goto return_label;
                     case MVM_OP_return:
                         MVM_args_assert_void_return_ok(tc, MVM_RETURN_CALLER_FRAME);
                         if (MVM_frame_try_return(tc))
                             break;
                         else
-                            return;
+                            goto return_label;
                     case MVM_OP_const_i8:
                     case MVM_OP_const_i16:
                     case MVM_OP_const_i32:
@@ -3382,4 +3382,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             break;
         }
     }
+    
+    return_label:;
 }

@@ -59,7 +59,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMLexoticBody *lb = (MVMLexoticBody *)data;
     MVM_gc_worklist_add(tc, worklist, &lb->result);
     if (lb->frame)
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, lb->frame);
+        MVM_gc_worklist_add_frame(tc, worklist, lb->frame);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

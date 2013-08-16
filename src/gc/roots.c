@@ -63,6 +63,12 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     
     /* List of SCs currently being compiled. */
     MVM_gc_worklist_add(tc, worklist, &tc->compiling_scs);
+    
+    /* compunit variable pointer */
+    MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
+    
+    /* its current frame */
+    MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
@@ -158,40 +164,26 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
-    /* Create processing lists for frames. */
-    MVMGCWorklist *frame_worklist        = MVM_gc_worklist_create(tc);
-    MVMFrame      *cur_frame             = start_frame;
-
-    /* We'll iterate until everything reachable has the current sequence
-     * number. */
+    MVMFrame *cur_frame = start_frame;
     MVMuint32 cur_seq_number = tc->instance->gc_seq_number;
+    /* If we already saw the frame this run, skip it. */
+    MVMuint32 orig_seq = cur_frame->gc_seq_number;
+    if (orig_seq == cur_seq_number)
+        return;
+    if (apr_atomic_cas32(&cur_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
+        return;
 
-    /* Handle any frames in the work list. */
-    do {
-        /* If we already saw the frame this run, skip it. */
-        MVMuint32 orig_seq = cur_frame->gc_seq_number;
-        if (orig_seq == cur_seq_number)
-            continue;
-        if (apr_atomic_cas32(&cur_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
-            continue;
+    /* Add caller and outer to frames work list. */
+    MVM_gc_worklist_add_frame(tc, worklist, cur_frame->caller);
+    MVM_gc_worklist_add_frame(tc, worklist, cur_frame->outer);
 
-        /* Add caller and outer to frames work list. */
-        if (cur_frame->caller)
-            MVM_gc_worklist_add(tc, frame_worklist, cur_frame->caller);
-        if (cur_frame->outer)
-            MVM_gc_worklist_add(tc, frame_worklist, cur_frame->outer);
+    /* add code_ref to work list unless we're the top-level frame. */
+    if (cur_frame->code_ref)
+        MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
 
-        /* add code_ref to work list unless we're the top-level frame. */
-        if (cur_frame->code_ref)
-            MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
-        MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
-
-        /* Scan the registers. */
-        scan_registers(tc, worklist, cur_frame);
-    } while ((cur_frame = (MVMFrame *)MVM_gc_worklist_get(tc, frame_worklist)));
-
-    /* Clean up frame list. */
-    MVM_gc_worklist_destroy(tc, frame_worklist);
+    /* Scan the registers. */
+    scan_registers(tc, worklist, cur_frame);
 }
 
 /* Takes a frame, scans its registers and adds them to the roots. */

@@ -347,6 +347,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         static_frame_body->num_lexicals = read_int32(pos, 12);
 
         /* Get compilation unit unique ID and name. */
+        /* XXX do these need MVM_ASSIGN_REF? */
         static_frame_body->cuuid = get_heap_string(tc, cu, rs, pos, 16);
         static_frame_body->name  = get_heap_string(tc, cu, rs, pos, 18);
 

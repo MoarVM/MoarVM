@@ -56,8 +56,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMCodeBody *body = (MVMCodeBody *)data;
-    if (body->outer)
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, body->outer);
+    MVM_gc_worklist_add_frame(tc, worklist, body->outer);
     MVM_gc_worklist_add(tc, worklist, &body->code_object);
     MVM_gc_worklist_add(tc, worklist, &body->sf);
 }

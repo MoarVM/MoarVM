@@ -93,7 +93,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
-        /* Add things that are roots for the first generation because the are
+        /* Add things that are roots for the first generation because they are
         * pointed to by objects in the second generation and process them
         * (also per-thread). Note we need not do this if we're doing a full
         * collection anyway (in fact, we must not for correctness, otherwise
@@ -106,7 +106,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
 
         /* Find roots in frames and process them. */
         if (tc->cur_frame) {
-            MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, tc->cur_frame);
+            MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
             GCCOLL_LOG(tc, "Thread %d run %d : processing %d items from cur_frame \n", worklist->items);
 			process_worklist(tc, worklist, &wtp, gen);
 		}
@@ -151,11 +151,16 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMCollectable    *new_addr;
     MVMuint32          size, gen2count;
     MVMuint16          i;
+    MVMFrame          *cur_frame;
 
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
     gen2 = tc->gen2;
 
+    while ((cur_frame = MVM_gc_worklist_get_frame(tc, worklist))) {
+        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
+    }
+    
     while ((item_ptr = MVM_gc_worklist_get(tc, worklist))) {
         /* Dereference the object we're considering. */
         MVMCollectable *item = *item_ptr;
@@ -299,6 +304,10 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 if (*j)
                     MVM_WB(tc, new_addr, *j);
             }
+        }
+        
+        while ((cur_frame = MVM_gc_worklist_get_frame(tc, worklist))) {
+            MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
         }
     }
 }

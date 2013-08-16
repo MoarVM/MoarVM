@@ -38,8 +38,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContextBody *body = (MVMContextBody *)data;
-    if (body->context)
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, body->context);
+    MVM_gc_worklist_add_frame(tc, worklist, body->context);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

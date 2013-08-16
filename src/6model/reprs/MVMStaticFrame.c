@@ -106,8 +106,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     }
 
     /* prior invocation */
-    if (body->prior_invocation)
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, body->prior_invocation);
+    MVM_gc_worklist_add_frame(tc, worklist, body->prior_invocation);
 
     /* static env */
     if (body->static_env) {

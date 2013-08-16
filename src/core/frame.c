@@ -98,19 +98,20 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame = malloc(sizeof(MVMFrame));
         frame->params.named_used = NULL;
 
-        /* Copy thread context into the frame. */
-        frame->tc = tc;
-
-        /* Set static frame. */
-        frame->static_info = static_frame;
-
         /* Ensure special return pointer is null. */
         frame->special_return = NULL;
     }
     else {
         tc->frame_pool_table[pool_index] = node->outer;
+        node->outer = NULL;
         frame = node;
     }
+
+    /* Copy thread context (back?) into the frame. */
+    frame->tc = tc;
+
+    /* Set static frame. */
+    frame->static_info = static_frame;
 
     /* Store the code ref (NULL at the top-level). */
     frame->code_ref = code_ref;
@@ -143,12 +144,17 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (outer) {
         /* We were provided with an outer frame; just ensure that it is
          * based on the correct static frame. */
-        if (outer->static_info == static_frame_body->outer)
+    //    if (outer->static_info == static_frame_body->outer)
             frame->outer = outer;
-        else
-            MVM_exception_throw_adhoc(tc,
-                "Provided outer frame %p does not match expected static frame type %p",
-                outer->static_info, static_frame_body->outer);
+    //    else
+    //        MVM_exception_throw_adhoc(tc,
+    //            "Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+    //            outer->static_info,
+    //            MVM_string_utf8_encode_C_string(tc, MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name),
+    //            outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
+    //            static_frame_body->outer,
+    //            MVM_string_utf8_encode_C_string(tc, MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name),
+    //            static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
     }
     else if (static_frame_body->outer) {
         /* We need an outer, but none was provided by a closure. See if
@@ -162,11 +168,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
             candidate = candidate->caller;
         }
-        if (!frame->outer)
+        if (!frame->outer) {
             frame->outer = static_frame_body->outer->body.prior_invocation;
-        if (!frame->outer)
-            MVM_exception_throw_adhoc(tc,
-                "Cannot locate an outer frame for the call");
+            if (!frame->outer)
+                MVM_exception_throw_adhoc(tc,
+                    "Cannot locate an outer frame for the call");
+        }
     }
     else {
         frame->outer = NULL;
@@ -183,6 +190,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Initial reference count is 1 by virtue of it being the currently
      * executing frame. */
     frame->ref_count = 1;
+    frame->gc_seq_number = 0;
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
