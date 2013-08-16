@@ -22,9 +22,26 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 #  define IS_NOT_SLASH(c) ((c) != '/')
 #endif
 
+#ifdef _WIN32
+static wchar_t * UTF8ToUnicode(char *str)
+{
+     const int       len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+     wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
+
+     memset(result, 0, len * sizeof(wchar_t));
+
+     MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
+
+     return result;
+}
+
+static int mkdir_p(wchar_t *pathname, MVMint64 mode) {
+    size_t len = wcslen(pathname);
+#else
 static int mkdir_p(char *pathname, MVMint64 mode) {
-    ssize_t r;
     size_t len = strlen(pathname);
+#endif
+    ssize_t r;
     char tmp;
 
     while (len > 0 && IS_SLASH(pathname[len - 1]))
@@ -33,7 +50,7 @@ static int mkdir_p(char *pathname, MVMint64 mode) {
     tmp = pathname[len];
     pathname[len] = '\0';
 #ifdef _WIN32
-    r = CreateDirectoryA(pathname, NULL);
+    r = CreateDirectoryW(pathname, NULL);
 
     if (!r && GetLastError() == ERROR_PATH_NOT_FOUND)
 #else
@@ -58,7 +75,7 @@ static int mkdir_p(char *pathname, MVMint64 mode) {
 
 #ifdef _WIN32
         if(r) {
-            r = CreateDirectoryA(pathname, NULL);
+            r = CreateDirectoryW(pathname, NULL);
         }
 #else
         if(r == 0) {
@@ -75,19 +92,26 @@ static int mkdir_p(char *pathname, MVMint64 mode) {
 /* create a directory recursively */
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     char * const pathname = MVM_string_utf8_encode_C_string(tc, path);
+
 #ifdef _WIN32
-    if (!mkdir_p(pathname, mode)) {
+    /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
+    wchar_t * const wpathname = UTF8ToUnicode(pathname);
+    if (!mkdir_p(wpathname, mode)) {
         DWORD error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS) {
             free(pathname);
+            free(wpathname);
             MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", GetLastError());
         }
     }
+    free(wpathname);
 #else
+
     if (mkdir_p(pathname, mode) == -1 && errno != EEXIST) {
         free(pathname);
         MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", errno);
     }
+
 #endif
     free(pathname);
 }
