@@ -4,6 +4,8 @@ typedef struct _MVMCodeBody {
     MVMStaticFrame *sf;
     MVMFrame       *outer;
     MVMObject      *code_object;
+    MVMuint16       is_static;
+    MVMuint16       is_compiler_stub;
 } MVMCodeBody;
 typedef struct _MVMCode {
     MVMObject common;

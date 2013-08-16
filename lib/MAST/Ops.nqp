@@ -3269,6 +3269,32 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_str,
                     $MVM_operand_read_reg +| $MVM_operand_str
                 ]
+            ),
+            'freshcoderef', nqp::hash(
+                'code', 135,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'markcodestatic', nqp::hash(
+                'code', 136,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'markcodestub', nqp::hash(
+                'code', 137,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'getstaticcode', nqp::hash(
+                'code', 138,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [
@@ -3848,6 +3874,13 @@ class MAST::Ops {
                 'code', 31,
                 'operands', [
                     $MVM_operand_write_reg +| $MVM_operand_obj
+                ]
+            ),
+            'compilemasttofile', nqp::hash(
+                'code', 32,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_str
                 ]
             )
         ],

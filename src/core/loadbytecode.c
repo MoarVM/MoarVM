@@ -13,21 +13,21 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* See if we already loaded this. */
     try_cu = tc->instance->head_compunit;
     while (try_cu) {
-        if (try_cu->filename) {
-            if (MVM_string_equal(tc, try_cu->filename, filename)) {
+        if (try_cu->body.filename) {
+            if (MVM_string_equal(tc, try_cu->body.filename, filename)) {
                 /* Already loaded, so we're done. */
                 return;
             }
         }
-        try_cu = try_cu->next_compunit;
+        try_cu = try_cu->body.next_compunit;
     }
 
     /* Otherwise, load from disk. */
     cu = MVM_cu_map_from_file(tc, MVM_string_utf8_encode_C_string(tc, filename));
-    cu->filename = filename;
+    cu->body.filename = filename;
 
     /* If there's a deserialization frame, need to run that. */
-    if (cu->deserialize_frame) {
+    if (cu->body.deserialize_frame) {
         /* Set up special return to delegate to running the load frame,
          * if any. */
         tc->cur_frame->return_value        = NULL;
@@ -36,7 +36,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         tc->cur_frame->special_return_data = cu;
 
         /* Inovke the deserialization frame and return to the runloop. */
-        MVM_frame_invoke(tc, cu->deserialize_frame, &no_arg_callsite,
+        MVM_frame_invoke(tc, cu->body.deserialize_frame, &no_arg_callsite,
             NULL, NULL, NULL);
     }
     else {
@@ -50,15 +50,15 @@ static void run_load(MVMThreadContext *tc, void *sr_data) {
     MVMCompUnit *cu = (MVMCompUnit *)sr_data;
 
     /* If there's a load frame, need to run that. If not, we're done. */
-    if (cu->load_frame) {
+    if (cu->body.load_frame) {
         /* Make sure the call happens in void context. No special return
          * handler here; we want to go back to the place that used the
          * loadbytecode op in the first place. */
         tc->cur_frame->return_value = NULL;
         tc->cur_frame->return_type  = MVM_RETURN_VOID;
 
-        /* Inovke the deserialization frame and return to the runloop. */
-        MVM_frame_invoke(tc, cu->load_frame, &no_arg_callsite,
+        /* Invoke the load frame and return to the runloop. */
+        MVM_frame_invoke(tc, cu->body.load_frame, &no_arg_callsite,
             NULL, NULL, NULL);
     }
 }

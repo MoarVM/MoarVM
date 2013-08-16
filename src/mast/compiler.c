@@ -9,6 +9,7 @@
 #else
 #include "moarvm.h"
 #include "nodes_moarvm.h"
+#define MOARVM_IN_COMPILER
 #endif
 
 /* Some sizes. */
@@ -87,6 +88,8 @@ typedef struct {
 
     /* Handlers list. */
     FrameHandler *handlers;
+    
+    MASTNode *frame_mast;
 } FrameState;
 
 /* Describes the current writer state for the compilation unit as a whole. */
@@ -670,8 +673,12 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                     ATPOS(vm, c->args, arg_pos));
             }
             else {
+                unsigned int  current_frame_idx = ws->current_frame_idx;
+                unsigned int  current_ins_idx = ws->current_ins_idx;
+                const char *name = ws->current_op_info->name;
                 cleanup_all(vm, ws);
-                DIE(vm, "Unhandled arg type");
+                DIE(vm, "At Frame %u, Instruction %u, op '%s' unhandled arg type %u.",
+                    current_frame_idx, current_ins_idx, name, flag);
             }
 
             arg_pos++;

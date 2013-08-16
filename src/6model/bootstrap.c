@@ -573,6 +573,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCallCapture, CallCapture, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMOSHandle, boot_types->BOOTIO, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMException, boot_types->BOOTException, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMStaticFrame, boot_types->BOOTStaticFrame, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMCompUnit, boot_types->BOOTCompUnit, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
 
     /* Set up some strings. */
 #define string_creator(tc, variable, name) do { \
@@ -612,6 +614,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, CallCapture, "CallCapture");
     meta_objectifier(tc, boot_types->BOOTIO, "BOOTIO");
     meta_objectifier(tc, boot_types->BOOTException, "BOOTException");
+    meta_objectifier(tc, boot_types->BOOTStaticFrame, "BOOTStaticFrame");
+    meta_objectifier(tc, boot_types->BOOTCompUnit, "BOOTCompUnit");
 
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);

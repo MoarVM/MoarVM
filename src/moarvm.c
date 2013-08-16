@@ -132,12 +132,12 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
 
     /* Run deserialization frame, if there is one. */
-    if (cu->deserialize_frame)
-        MVM_interp_run(tc, &toplevel_initial_invoke, cu->deserialize_frame);
+    if (cu->body.deserialize_frame)
+        MVM_interp_run(tc, &toplevel_initial_invoke, cu->body.deserialize_frame);
 
     /* Run the frame marked main, or if there is none then fall back to the
      * first frame. */
-    start_frame = cu->main_frame ? cu->main_frame : cu->frames[0];
+    start_frame = cu->body.main_frame ? cu->body.main_frame : cu->body.frames[0];
     MVM_interp_run(tc, &toplevel_initial_invoke, start_frame);
 }
 

@@ -155,150 +155,39 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
-    MVMint8 did_something = 1;
-
-    /* Create processing lists for frames, static frames and compilation
-     * units. (Yeah, playing fast and loose with types here...) */
+    /* Create processing lists for frames. */
     MVMGCWorklist *frame_worklist        = MVM_gc_worklist_create(tc);
-    MVMGCWorklist *static_frame_worklist = MVM_gc_worklist_create(tc);
-    MVMGCWorklist *compunit_worklist     = MVM_gc_worklist_create(tc);
+    MVMFrame      *cur_frame             = start_frame;
 
     /* We'll iterate until everything reachable has the current sequence
      * number. */
     MVMuint32 cur_seq_number = tc->instance->gc_seq_number;
 
-    /* Place current frame on the frame worklist. */
-    MVM_gc_worklist_add(tc, frame_worklist, start_frame);
+    /* Handle any frames in the work list. */
+    do {
+        /* If we already saw the frame this run, skip it. */
+        MVMuint32 orig_seq = cur_frame->gc_seq_number;
+        if (orig_seq == cur_seq_number)
+            continue;
+        if (apr_atomic_cas32(&cur_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
+            continue;
 
-    /* XXX For now we also put on all compilation units. This is a hack,
-     * as it means compilation units never die. */
-    {
-        MVMCompUnit *cur_cu = tc->instance->head_compunit;
-        while (cur_cu) {
-            MVM_gc_worklist_add(tc, compunit_worklist, cur_cu);
-            cur_cu = cur_cu->next_compunit;
-        }
-    }
+        /* Add caller and outer to frames work list. */
+        if (cur_frame->caller)
+            MVM_gc_worklist_add(tc, frame_worklist, cur_frame->caller);
+        if (cur_frame->outer)
+            MVM_gc_worklist_add(tc, frame_worklist, cur_frame->outer);
 
-    /* Iterate while we scan all the things. */
-    while (did_something) {
-        MVMFrame       *cur_frame;
-        MVMStaticFrame *cur_static_frame;
-        MVMCompUnit    *cur_compunit;
+        /* add code_ref to work list unless we're the top-level frame. */
+        if (cur_frame->code_ref)
+            MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
 
-        /* Reset flag. */
-        did_something = 0;
+        /* Scan the registers. */
+        scan_registers(tc, worklist, cur_frame);
+    } while ((cur_frame = (MVMFrame *)MVM_gc_worklist_get(tc, frame_worklist)));
 
-        /* Handle any frames in the work list. */
-        while ((cur_frame = (MVMFrame *)MVM_gc_worklist_get(tc, frame_worklist))) {
-            /* If we already saw the frame this run, skip it. */
-            MVMuint32 orig_seq = cur_frame->gc_seq_number;
-            if (orig_seq == cur_seq_number)
-                continue;
-            if (apr_atomic_cas32(&cur_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
-                continue;
-
-            /* Add static frame to work list if needed. */
-            if (cur_frame->static_info->gc_seq_number != cur_seq_number)
-                MVM_gc_worklist_add(tc, static_frame_worklist, cur_frame->static_info);
-
-            /* Add caller and outer to frames work list. */
-            if (cur_frame->caller)
-                MVM_gc_worklist_add(tc, frame_worklist, cur_frame->caller);
-            if (cur_frame->outer)
-                MVM_gc_worklist_add(tc, frame_worklist, cur_frame->outer);
-
-            /* add code_ref to work list unless we're the top-level frame. */
-            if (cur_frame->code_ref)
-                MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
-
-            /* Scan the registers. */
-            scan_registers(tc, worklist, cur_frame);
-
-            /* Mark that we did some work (and thus possibly have more work
-             * to do later). */
-            did_something = 1;
-        }
-
-        /* Handle any static frames in the work list. */
-        while ((cur_static_frame = (MVMStaticFrame *)MVM_gc_worklist_get(tc, static_frame_worklist))) {
-            /* If we already saw the static frame this run, skip it. */
-            MVMuint32 orig_seq = cur_static_frame->gc_seq_number;
-            if (orig_seq == cur_seq_number)
-                continue;
-            if (apr_atomic_cas32(&cur_static_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
-                continue;
-
-            /* Add compilation unit to worklist if needed. */
-            if (cur_static_frame->cu->gc_seq_number != cur_seq_number)
-                MVM_gc_worklist_add(tc, compunit_worklist, cur_static_frame->cu);
-
-            /* Add name and ID strings to GC worklist. */
-            MVM_gc_worklist_add(tc, worklist, &cur_static_frame->cuuid);
-            MVM_gc_worklist_add(tc, worklist, &cur_static_frame->name);
-
-            /* Add prior invocation, if any. */
-            if (cur_static_frame->prior_invocation)
-                MVM_gc_worklist_add(tc, frame_worklist, cur_static_frame->prior_invocation);
-
-            /* Scan static lexicals. */
-            if (cur_static_frame->static_env) {
-                MVMuint16 *type_map = cur_static_frame->lexical_types;
-                MVMuint16  count    = cur_static_frame->num_lexicals;
-                MVMuint16  i;
-                for (i = 0; i < count; i++)
-                    if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
-                        MVM_gc_worklist_add(tc, worklist, &cur_static_frame->static_env[i].o);
-            }
-
-            /* Mark that we did some work (and thus possibly have more work
-             * to do later). */
-            did_something = 1;
-        }
-
-        /* Handle any compilation units in the work list. */
-        while ((cur_compunit = (MVMCompUnit *)MVM_gc_worklist_get(tc, compunit_worklist))) {
-            MVMuint32 i;
-
-            /* If we already saw the compunit this run, skip it. */
-            MVMuint32 orig_seq = cur_compunit->gc_seq_number;
-            if (orig_seq == cur_seq_number)
-                continue;
-            if (apr_atomic_cas32(&cur_compunit->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
-                continue;
-
-            /* Add code refs and static frames to the worklists. */
-            for (i = 0; i < cur_compunit->num_frames; i++) {
-                MVM_gc_worklist_add(tc, static_frame_worklist, cur_compunit->frames[i]);
-                MVM_gc_worklist_add(tc, worklist, &cur_compunit->coderefs[i]);
-            }
-
-            /* Add strings to the worklists. */
-            for (i = 0; i < cur_compunit->num_strings; i++)
-                MVM_gc_worklist_add(tc, worklist, &cur_compunit->strings[i]);
-
-            /* Add serialization contexts to the worklist. */
-            for (i = 0; i < cur_compunit->num_scs; i++) {
-                if (cur_compunit->scs[i])
-                    MVM_gc_worklist_add(tc, worklist, &cur_compunit->scs[i]);
-                if (cur_compunit->scs_to_resolve[i])
-                    MVM_gc_worklist_add(tc, worklist, &cur_compunit->scs_to_resolve[i]);
-            }
-
-            /* Add various other referenced strings, etc. */
-            MVM_gc_worklist_add(tc, worklist, &cur_compunit->hll_name);
-            MVM_gc_worklist_add(tc, worklist, &cur_compunit->filename);
-
-            /* Mark that we did some work (and thus possibly have more work
-             * to do later). */
-            did_something = 1;
-        }
-    }
-
-    /* Clean up frame and compunit lists. */
+    /* Clean up frame list. */
     MVM_gc_worklist_destroy(tc, frame_worklist);
-    MVM_gc_worklist_destroy(tc, static_frame_worklist);
-    MVM_gc_worklist_destroy(tc, compunit_worklist);
 }
 
 /* Takes a frame, scans its registers and adds them to the roots. */
@@ -309,8 +198,8 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan locals. */
     if (frame->work && frame->tc) {
-        type_map = frame->static_info->local_types;
-        count    = frame->static_info->num_locals;
+        type_map = frame->static_info->body.local_types;
+        count    = frame->static_info->body.num_locals;
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &frame->work[i].o);
@@ -318,8 +207,8 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan lexicals. */
     if (frame->env) {
-        type_map = frame->static_info->lexical_types;
-        count    = frame->static_info->num_lexicals;
+        type_map = frame->static_info->body.lexical_types;
+        count    = frame->static_info->body.num_lexicals;
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &frame->env[i].o);

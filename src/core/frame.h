@@ -1,5 +1,8 @@
 /* Lexical hash entry for ->lexical_names on a frame. */
 typedef struct _MVMLexicalHashEntry {
+    /* key string */
+    struct _MVMString *key;
+    
     /* index of the lexical entry. */
     MVMuint32 value;
 
@@ -7,78 +10,13 @@ typedef struct _MVMLexicalHashEntry {
     UT_hash_handle hash_handle;
 } MVMLexicalHashEntry;
 
-/* This represents the things we statically know about a call frame. */
-typedef struct _MVMStaticFrame {
-    /* The start of the stream of bytecode for this routine. */
-    MVMuint8 *bytecode;
-
-    /* The compilation unit this frame belongs to. */
-    struct _MVMCompUnit *cu;
-
-    /* The list of local types. */
-    MVMuint16 *local_types;
-
-    /* The list of lexical types. */
-    MVMuint16 *lexical_types;
-
-    /* Lexicals name map. */
-    MVMLexicalHashEntry *lexical_names;/* The environment for this frame, which lives beyond its execution. */
-
-    /* Defaults for lexicals upon new frame creation. */
-    MVMRegister *static_env;
-
-    /* Flag for if this frame has been invoked ever. */
-    MVMuint32 invoked;
-
-    /* The size in bytes to allocate for the lexical environment. */
-    MVMuint32 env_size;
-
-    /* The size in bytes to allocate for the work and arguments area. */
-    MVMuint32 work_size;
-
-    /* The size of the bytecode. */
-    MVMuint32 bytecode_size;
-
-    /* Count of locals. */
-    MVMuint32 num_locals;
-
-    /* Count of lexicals. */
-    MVMuint32 num_lexicals;
-
-    /* The frame of the prior invocation of this static frame. */
-    struct _MVMFrame *prior_invocation;
-
-    /* The number of exception handlers this frame has. */
-    MVMuint32 num_handlers;
-
-    /* Frame exception handlers information. */
-    MVMFrameHandler *handlers;
-
-    /* The compilation unit unique ID of this frame. */
-    struct _MVMString *cuuid;
-
-    /* The name of this frame. */
-    struct _MVMString *name;
-
-    /* This frame's static outer frame. */
-    struct _MVMStaticFrame *outer;
-
-    /* GC run sequence number that we last saw static this frame during. */
-    MVMuint32 gc_seq_number;
-
-    /* Index into each threadcontext's table of frame pools. */
-    MVMuint32 pool_index;
-
-    /* Annotation details */
-    MVMuint32 num_annotations;
-    MVMuint8 *annotations;
-} MVMStaticFrame;
+typedef struct _MVMStaticFrame MVMStaticFrame;
 
 /* Function pointer type of special return handler. These are used to allow
  * return to be intercepted in some way, for things that need to do multiple
  * calls into the runloop in some C-managed process. Essentially, instead of
  * nested runloops, you just re-work the C code in question into CPS. */
- typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
+typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
 
 /* This represents an active call frame. */
 typedef struct _MVMFrame {

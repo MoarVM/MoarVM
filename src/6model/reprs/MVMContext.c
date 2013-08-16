@@ -60,7 +60,7 @@ static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
     MVMContextBody *body = (MVMContextBody *)data; \
     MVMFrame *frame = body->context; \
     MVMObject *result = NULL; \
-    MVMLexicalHashEntry *lexical_names = frame->static_info->lexical_names, *entry; \
+    MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names, *entry; \
     if (!lexical_names) { \
        MVM_exception_throw_adhoc(tc, \
             "Lexical with name '%s' does not exist in this frame", \
@@ -73,7 +73,7 @@ static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
             "Lexical with name '%s' does not exist in this frame", \
                 MVM_string_utf8_encode_C_string(tc, name)); \
     } \
-    if (frame->static_info->lexical_types[entry->value] != _type) { \
+    if (frame->static_info->body.lexical_types[entry->value] != _type) { \
        MVM_exception_throw_adhoc(tc, \
             "Lexical with name '%s' has a different type in this frame", \
                 MVM_string_utf8_encode_C_string(tc, name)); \

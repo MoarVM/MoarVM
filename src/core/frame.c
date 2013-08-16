@@ -4,23 +4,24 @@
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
 void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+    MVMStaticFrameBody *static_frame_body = &static_frame->body;
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */
-    static_frame->work_size = sizeof(MVMRegister) *
-        (static_frame->num_locals + static_frame->cu->max_callsite_size);
+    static_frame_body->work_size = sizeof(MVMRegister) *
+        (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
 
     /* Validate the bytecode. */
     MVM_validate_static_frame(tc, static_frame);
 
     /* Obtain an index to each threadcontext's pool table */
-    static_frame->pool_index = apr_atomic_inc32(&tc->instance->num_frame_pools);
-    if (static_frame->pool_index >= tc->frame_pool_table_size) {
+    static_frame_body->pool_index = apr_atomic_inc32(&tc->instance->num_frame_pools);
+    if (static_frame_body->pool_index >= tc->frame_pool_table_size) {
         /* Grow the threadcontext's pool table */
         MVMuint32 old_size = tc->frame_pool_table_size;
         MVMuint32 new_size = tc->frame_pool_table_size;
         do {
             new_size *= 2;
-        } while (static_frame->pool_index >= new_size);
+        } while (static_frame_body->pool_index >= new_size);
 
         tc->frame_pool_table = realloc(tc->frame_pool_table,
             new_size * sizeof(MVMFrame *));
@@ -30,7 +31,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     }
 
     /* Mark frame as invoked, so we need not do these calculations again. */
-    static_frame->invoked = 1;
+    static_frame_body->invoked = 1;
 }
 
 /* Increases the reference count of a frame. */
@@ -45,7 +46,7 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     /* Note that we get zero if we really hit zero here, but dec32 may
      * not give the exact count back if it ends up non-zero. */
     while (apr_atomic_dec32(&frame->ref_count) == 0) {
-        MVMuint32 pool_index = frame->static_info->pool_index;
+        MVMuint32 pool_index = frame->static_info->body.pool_index;
         MVMFrame *node = tc->frame_pool_table[pool_index];
         MVMFrame *outer_to_decr = frame->outer;
 
@@ -82,13 +83,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     MVMuint32 pool_index;
     MVMFrame *node;
     int fresh = 0;
+    MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
     /* If the frame was never invoked before, need initial calculations
      * and verification. */
-    if (!static_frame->invoked)
+    if (!static_frame_body->invoked)
         prepare_and_verify_static_frame(tc, static_frame);
 
-    pool_index = static_frame->pool_index;
+    pool_index = static_frame_body->pool_index;
     node = tc->frame_pool_table[pool_index];
 
     if (node == NULL) {
@@ -115,52 +117,52 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
-    if (static_frame->env_size) {
+    if (static_frame_body->env_size) {
         if (fresh)
-            frame->env = malloc(static_frame->env_size);
-        memcpy(frame->env, static_frame->static_env, static_frame->env_size);
+            frame->env = malloc(static_frame_body->env_size);
+        memcpy(frame->env, static_frame_body->static_env, static_frame_body->env_size);
     }
     else {
         frame->env = NULL;
     }
-    if (static_frame->work_size) {
+    if (static_frame_body->work_size) {
         if (fresh)
-            frame->work = malloc(static_frame->work_size);
-        memset(frame->work, 0, static_frame->work_size);
+            frame->work = malloc(static_frame_body->work_size);
+        memset(frame->work, 0, static_frame_body->work_size);
     }
     else {
         frame->work = NULL;
     }
 
     /* Calculate args buffer position. */
-    frame->args = static_frame->work_size ?
-        frame->work + static_frame->num_locals :
+    frame->args = static_frame_body->work_size ?
+        frame->work + static_frame_body->num_locals :
         NULL;
 
     /* Outer. */
     if (outer) {
         /* We were provided with an outer frame; just ensure that it is
          * based on the correct static frame. */
-        if (outer->static_info == static_frame->outer)
+        if (outer->static_info == static_frame_body->outer)
             frame->outer = outer;
         else
             MVM_exception_throw_adhoc(tc,
                 "Provided outer frame does not match expected static frame type");
     }
-    else if (static_frame->outer) {
+    else if (static_frame_body->outer) {
         /* We need an outer, but none was provided by a closure. See if
          * we can find an appropriate frame on the current call stack. */
         MVMFrame *candidate = tc->cur_frame;
         frame->outer = NULL;
         while (candidate) {
-            if (candidate->static_info == static_frame->outer) {
+            if (candidate->static_info == static_frame_body->outer) {
                 frame->outer = candidate;
                 break;
             }
             candidate = candidate->caller;
         }
         if (!frame->outer)
-            frame->outer = static_frame->outer->prior_invocation;
+            frame->outer = static_frame_body->outer->body.prior_invocation;
         if (!frame->outer)
             MVM_exception_throw_adhoc(tc,
                 "Cannot locate an outer frame for the call");
@@ -187,10 +189,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
-    *(tc->interp_cur_op) = static_frame->bytecode;
-    *(tc->interp_bytecode_start) = static_frame->bytecode;
+    *(tc->interp_cur_op) = static_frame_body->bytecode;
+    *(tc->interp_bytecode_start) = static_frame_body->bytecode;
     *(tc->interp_reg_base) = frame->work;
-    *(tc->interp_cu) = static_frame->cu;
+    *(tc->interp_cu) = static_frame_body->cu;
 }
 
 /* Creates a frame that is suitable for deserializing a context into. Does not
@@ -201,7 +203,7 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 
     /* If the frame was never invoked before, need initial calculations
      * and verification. */
-    if (!static_frame->invoked)
+    if (!static_frame->body.invoked)
         prepare_and_verify_static_frame(tc, static_frame);
 
     frame = malloc(sizeof(MVMFrame));
@@ -218,9 +220,9 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 
     /* Allocate space for lexicals, copying the default lexical environment
      * into place. */
-    if (static_frame->env_size) {
-        frame->env = malloc(static_frame->env_size);
-        memcpy(frame->env, static_frame->static_env, static_frame->env_size);
+    if (static_frame->body.env_size) {
+        frame->env = malloc(static_frame->body.env_size);
+        memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
     }
 
     /* Initial reference count is 0 (will become referenced by being set as
@@ -237,8 +239,8 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     /* Decrement the frame reference of the prior invocation, and then
      * set us as it. */
     do {
-        prior = returner->static_info->prior_invocation;
-    } while (!MVM_cas(&returner->static_info->prior_invocation, prior, returner));
+        prior = returner->static_info->body.prior_invocation;
+    } while (!MVM_cas(&returner->static_info->body.prior_invocation, prior, returner));
     if (prior)
         MVM_frame_dec_ref(tc, prior);
 
@@ -255,9 +257,9 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
         *(tc->interp_cur_op) = caller->return_address;
-        *(tc->interp_bytecode_start) = caller->static_info->bytecode;
+        *(tc->interp_bytecode_start) = caller->static_info->body.bytecode;
         *(tc->interp_reg_base) = caller->work;
-        *(tc->interp_cu) = caller->static_info->cu;
+        *(tc->interp_cu) = caller->static_info->body.cu;
         MVM_frame_dec_ref(tc, caller);
         returner->caller = NULL;
 
@@ -298,12 +300,14 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *closure;
     MVMStaticFrame *sf;
 
-    if (!code || REPR(code)->ID != MVM_REPR_ID_MVMCode)
+    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
             "Can only perform takeclosure on object with representation MVMCode");
 
     sf = ((MVMCode *)code)->body.sf;
-    closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
+    MVMROOT(tc, code, {
+        closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
+    });
 
     closure->body.sf    = sf;
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
@@ -319,7 +323,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
     MVMFrame *cur_frame = tc->cur_frame;
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
-        MVMLexicalHashEntry *lexical_names = cur_frame->static_info->lexical_names;
+        MVMLexicalHashEntry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
             /* Indexes were formerly stored off-by-one
              * to avoid semi-predicate issue. */
@@ -328,7 +332,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
-                if (cur_frame->static_info->lexical_types[entry->value] == type)
+                if (cur_frame->static_info->body.lexical_types[entry->value] == type)
                     return &cur_frame->env[entry->value];
                 else
                    MVM_exception_throw_adhoc(tc,
@@ -351,14 +355,14 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     }
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
-        MVMLexicalHashEntry *lexical_names = cur_frame->static_info->lexical_names;
+        MVMLexicalHashEntry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
             MVMLexicalHashEntry *entry;
 
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
-                *type = cur_frame->static_info->lexical_types[entry->value];
+                *type = cur_frame->static_info->body.lexical_types[entry->value];
                 return &cur_frame->env[entry->value];
             }
         }
@@ -374,7 +378,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
     if (lex_reg) {
         switch (type) {
             case MVM_reg_int64:
-                result_type = (*tc->interp_cu)->hll_config->int_box_type;
+                result_type = (*tc->interp_cu)->body.hll_config->int_box_type;
                 if (!result_type)
                     MVM_exception_throw_adhoc(tc, "missing int box type");
                 result = REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -386,7 +390,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
                 MVM_gc_root_temp_pop(tc);
                 break;
             case MVM_reg_num64:
-                result_type = (*tc->interp_cu)->hll_config->num_box_type;
+                result_type = (*tc->interp_cu)->body.hll_config->num_box_type;
                 if (!result_type)
                     MVM_exception_throw_adhoc(tc, "missing num box type");
                 result = REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -398,7 +402,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
                 MVM_gc_root_temp_pop(tc);
                 break;
             case MVM_reg_str:
-                result_type = (*tc->interp_cu)->hll_config->str_box_type;
+                result_type = (*tc->interp_cu)->body.hll_config->str_box_type;
                 if (!result_type)
                     MVM_exception_throw_adhoc(tc, "missing str box type");
                 result = REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -449,7 +453,7 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
 
 /* Returns the storage unit for the lexical in the specified frame. */
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalHashEntry *lexical_names = f->static_info->lexical_names;
+    MVMLexicalHashEntry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
         MVMLexicalHashEntry *entry;
         MVM_string_flatten(tc, name);
@@ -463,13 +467,13 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
 
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalHashEntry *lexical_names = f->static_info->lexical_names;
+    MVMLexicalHashEntry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
         MVMLexicalHashEntry *entry;
         MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry) {
-            switch (f->static_info->lexical_types[entry->value]) {
+            switch (f->static_info->body.lexical_types[entry->value]) {
                 case MVM_reg_int64:
                     return MVM_STORAGE_SPEC_BP_INT;
                 case MVM_reg_num64:

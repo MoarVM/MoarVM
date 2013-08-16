@@ -11,7 +11,7 @@ extern char **environ;
 #  endif
 #endif
 
-#define POOL(tc) (*(tc->interp_cu))->pool
+#define POOL(tc) (*(tc->interp_cu))->body.pool
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     static MVMObject *env_hash;
