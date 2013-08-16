@@ -11,7 +11,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(P6int);
+        st->size = sizeof(MVMP6int);
     });
 
     return st->WHAT;
@@ -24,16 +24,16 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    P6intBody *src_body  = (P6intBody *)src;
-    P6intBody *dest_body = (P6intBody *)dest;
+    MVMP6intBody *src_body  = (MVMP6intBody *)src;
+    MVMP6intBody *dest_body = (MVMP6intBody *)dest;
     dest_body->value = src_body->value;
 }
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
-    ((P6intBody *)data)->value = value;
+    ((MVMP6intBody *)data)->value = value;
 }
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    return ((P6intBody *)data)->value;
+    return ((MVMP6intBody *)data)->value;
 }
 static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
     MVM_exception_throw_adhoc(tc,
@@ -73,15 +73,15 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(P6int);
+    st->size = sizeof(MVMP6int);
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    ((P6intBody *)data)->value = reader->read_int(tc, reader);
+    ((MVMP6intBody *)data)->value = reader->read_int(tc, reader);
 }
 
 /* Initializes the representation. */
-MVMREPROps * P6int_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMP6int_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));
     this_repr->type_object_for = type_object_for;

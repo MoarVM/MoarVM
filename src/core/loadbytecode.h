@@ -1,1 +1,1 @@
-void MVM_load_bytecode(MVMThreadContext *tc, struct _MVMString *filename);
+void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename);

@@ -7,8 +7,8 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
 #define MVM_unicode_case_change_type_lower 1
 #define MVM_unicode_case_change_type_title 2
 
-typedef struct _MVMUnicodeNameHashEntry {
+struct MVMUnicodeNameHashEntry {
     char *name;
     MVMCodepoint32 codepoint;
     UT_hash_handle hash_handle;
-} MVMUnicodeNameHashEntry;
+};

@@ -1,5 +1,5 @@
 /* Lexical hash entry for ->lexical_names on a frame. */
-typedef struct _MVMLexicalHashEntry {
+struct MVMLexicalHashEntry {
     /* key string */
     struct _MVMString *key;
     
@@ -8,7 +8,7 @@ typedef struct _MVMLexicalHashEntry {
 
     /* the uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
-} MVMLexicalHashEntry;
+};
 
 typedef struct _MVMStaticFrame MVMStaticFrame;
 
@@ -19,7 +19,7 @@ typedef struct _MVMStaticFrame MVMStaticFrame;
 typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
 
 /* This represents an active call frame. */
-typedef struct _MVMFrame {
+struct MVMFrame {
     /* The thread that is executing, or executed, this frame. */
     MVMThreadContext *tc;
 
@@ -36,10 +36,10 @@ typedef struct _MVMFrame {
     MVMRegister *args;
 
     /* The outer frame, thus forming the static chain. */
-    struct _MVMFrame *outer;
+    MVMFrame *outer;
 
     /* The caller frame, thus forming the dynamic chain. */
-    struct _MVMFrame *caller;
+    MVMFrame *caller;
 
     /* The static frame information. Holds all we statically know about
      * this kind of frame, including information needed to GC-trace it. */
@@ -72,20 +72,20 @@ typedef struct _MVMFrame {
 
     /* GC run sequence number that we last saw this frame during. */
     MVMuint32 gc_seq_number;
-} MVMFrame;
+};
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
  * an invokable thing, or alternatively a method to call. */
-typedef struct _MVMInvocationSpec {
+struct MVMInvocationSpec {
     /*
      * Class handle where we find the attribute to invoke.
      */
-    struct _MVMObject *class_handle;
+    MVMObject *class_handle;
 
     /*
      * Attribute name where we find the attribute to invoke.
      */
-    struct _MVMString *attr_name;
+    MVMString *attr_name;
 
     /*
      * Attribute lookup hint used in gradual typing.
@@ -95,8 +95,8 @@ typedef struct _MVMInvocationSpec {
     /*
      * Thing that handles invocation.
      */
-    struct _MVMObject *invocation_handler;
-} MVMInvocationSpec;
+    MVMObject *invocation_handler;
+};
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
@@ -108,10 +108,10 @@ MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
-MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 type);
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, struct _MVMString *name, MVMuint16 *type);
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, struct _MVMString *name);
-void MVM_frame_binddynlex(MVMThreadContext *tc, struct _MVMString *name, MVMObject *value);
-MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, struct _MVMString *name);
-MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, struct _MVMString *name);
+MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type);
+MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name);
+void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value);
+MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
+MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code);

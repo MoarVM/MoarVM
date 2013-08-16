@@ -1,5 +1,5 @@
 /* Representation used for bootstrapping the KnowHOW type. */
-typedef struct _MVMKnowHOWREPRBody {
+struct MVMKnowHOWREPRBody {
     /* Methods table; a hash. */
     MVMObject *methods;
 
@@ -8,11 +8,11 @@ typedef struct _MVMKnowHOWREPRBody {
 
     /* Name of the type. */
     MVMString *name;
-} MVMKnowHOWREPRBody;
-typedef struct _MVMKnowHOWREPR {
+};
+struct MVMKnowHOWREPR {
     MVMObject common;
     MVMKnowHOWREPRBody body;
-} MVMKnowHOWREPR;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMKnowHOWREPR_initialize(MVMThreadContext *tc);

@@ -1,5 +1,5 @@
 /* Representation used for bootstrapping attributes. */
-typedef struct _MVMKnowHOWAttributeREPRBody {
+struct MVMKnowHOWAttributeREPRBody {
     /* The attribute's name. */
     MVMString *name;
 
@@ -8,11 +8,11 @@ typedef struct _MVMKnowHOWAttributeREPRBody {
 
     /* Whether the attribute serves as a box target. */
     MVMuint32 box_target;
-} MVMKnowHOWAttributeREPRBody;
-typedef struct _MVMKnowHOWAttributeREPR {
+};
+struct MVMKnowHOWAttributeREPR {
     MVMObject common;
     MVMKnowHOWAttributeREPRBody body;
-} MVMKnowHOWAttributeREPR;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc);

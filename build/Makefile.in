@@ -309,7 +309,7 @@ CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/co
             src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
             src/strings/latin1$(O) src/strings/utf16$(O) src/math/bigintops$(O) src/moarvm$(O)
 MAIN_OBJ  = src/main$(O)
-HEADERS   = src/moarvm.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
+HEADERS   = src/moarvm.h src/types.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
             src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
             src/core/compunit.h src/core/bytecode.h src/core/ops.h src/core/validation.h \
             src/core/bytecodedump.h src/core/threads.h src/core/hll.h \

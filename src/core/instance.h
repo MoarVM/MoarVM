@@ -1,6 +1,6 @@
 /* The various "bootstrap" types, based straight off of some core
  * representations. They are used during the 6model bootstrap. */
-struct _MVMBootTypes {
+struct MVMBootTypes {
     MVMObject *BOOTInt;
     MVMObject *BOOTNum;
     MVMObject *BOOTStr;
@@ -21,22 +21,22 @@ struct _MVMBootTypes {
 };
 
 /* Various common string constants. */
-struct _MVMStringConsts {
-    struct _MVMString *empty;
-    struct _MVMString *Str;
-    struct _MVMString *Num;
+struct MVMStringConsts {
+    MVMString *empty;
+    MVMString *Str;
+    MVMString *Num;
 };
 
-typedef struct _MVMREPRHashEntry {
+struct MVMREPRHashEntry {
     /* index of the REPR */
     MVMuint32 value;
 
     /* the uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
-} MVMREPRHashEntry;
+};
 
 /* Represents a MoarVM instance. */
-typedef struct _MVMInstance {
+struct MVMInstance {
     /* The main thread. */
     MVMThreadContext *main_thread;
 
@@ -69,10 +69,10 @@ typedef struct _MVMInstance {
     MVMObject *CallCapture;
 
     /* Set of bootstrapping types. */
-    struct _MVMBootTypes *boot_types;
+    MVMBootTypes *boot_types;
 
     /* Set of string constants. */
-    struct _MVMStringConsts *str_consts;
+    MVMStringConsts *str_consts;
 
     /* An array mapping representation IDs to function tables. */
     MVMREPROps **repr_registry;
@@ -103,10 +103,10 @@ typedef struct _MVMInstance {
     AO_t gc_ack;
 
     /* MVMThreads completed starting, running, and/or exited. */
-    struct _MVMThread *threads;
+    MVMThread *threads;
 
     /* Linked list of compilation units that we have loaded. */
-    struct _MVMCompUnit *head_compunit;
+    MVMCompUnit *head_compunit;
 
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
@@ -119,7 +119,7 @@ typedef struct _MVMInstance {
     MVMObject      *clargs;
 
     /* Hash of HLLConfig objects. */
-    struct _MVMHLLConfig *hll_configs;
+    MVMHLLConfig *hll_configs;
     apr_thread_mutex_t   *mutex_hllconfigs;
 
     /* Atomically-incremented counter of newly invoked frames,
@@ -139,6 +139,6 @@ typedef struct _MVMInstance {
 
     /* Hash of all known serialization contexts. Not marked for GC; an SC
      * removes it from this when it gets GC'd. */
-    struct _MVMSerializationContextBody *sc_weakhash;
+    MVMSerializationContextBody *sc_weakhash;
     apr_thread_mutex_t                  *mutex_sc_weakhash;
-} MVMInstance;
+};

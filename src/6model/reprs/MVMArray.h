@@ -1,6 +1,6 @@
 /* Representation used by VM-level arrays. Adopted from QRPA work by
  * Patrick Michaud. */
-typedef struct _MVMArrayBody {
+struct MVMArrayBody {
     /* number of elements (from user's point of view) */
     MVMuint64   elems;
 
@@ -22,11 +22,11 @@ typedef struct _MVMArrayBody {
         MVMnum32   *n32;
         void       *any;
     } slots;
-} MVMArrayBody;
-typedef struct _MVMArray {
+};
+struct MVMArray {
     MVMObject common;
     MVMArrayBody body;
-} MVMArray;
+};
 
 /* Types of things we may be storing. */
 #define MVM_ARRAY_OBJ   0
@@ -42,10 +42,10 @@ typedef struct _MVMArray {
 MVMREPROps * MVMArray_initialize(MVMThreadContext *tc);
 
 /* Array REPR data specifies the type of array elements we have. */
-typedef struct {
+struct MVMArrayREPRData {
     /* The size of each element. */
     size_t elem_size;
 
     /* What type of slots we have. */
     MVMuint8 slot_type;
-} MVMArrayREPRData;
+};

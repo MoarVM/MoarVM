@@ -26,7 +26,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up instance data structure. */
     instance = calloc(1, sizeof(MVMInstance));
-    instance->boot_types = calloc(1, sizeof(struct _MVMBootTypes));
+    instance->boot_types = calloc(1, sizeof(MVMBootTypes));
 
     /* Allocate instance APR pool. */
     if ((apr_init_stat = apr_pool_create(&instance->apr_pool, NULL)) != APR_SUCCESS) {
@@ -99,7 +99,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
 /* Sets up some string constants. */
 static void string_consts(MVMThreadContext *tc) {
-    struct _MVMStringConsts *s = malloc(sizeof(struct _MVMStringConsts));
+    MVMStringConsts *s = malloc(sizeof(MVMStringConsts));
 
     s->empty = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->empty);

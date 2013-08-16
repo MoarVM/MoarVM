@@ -11,7 +11,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(HashAttrStore);
+        st->size = sizeof(MVMHashAttrStore);
     });
 
     return st->WHAT;
@@ -24,7 +24,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
+    MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
 
     /* this must be initialized to NULL */
     body->hash_head = NULL;
@@ -36,8 +36,8 @@ static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObj
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    HashAttrStoreBody *src_body  = (HashAttrStoreBody *)src;
-    HashAttrStoreBody *dest_body = (HashAttrStoreBody *)dest;
+    MVMHashAttrStoreBody *src_body  = (MVMHashAttrStoreBody *)src;
+    MVMHashAttrStoreBody *dest_body = (MVMHashAttrStoreBody *)dest;
     MVMHashEntry *current, *tmp;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
@@ -55,7 +55,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
+    MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
     MVMHashEntry *current, *tmp;
 
     HASH_ITER(hash_handle, body->hash_head, current, tmp) {
@@ -66,7 +66,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    HashAttrStore *h = (HashAttrStore *)obj;
+    MVMHashAttrStore *h = (MVMHashAttrStore *)obj;
     MVMHashEntry *current, *tmp;
 
     /* The macros already check for null. Also, must not delete the head
@@ -83,7 +83,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister *result_reg, MVMuint16 kind) {
-    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
+    MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
@@ -101,7 +101,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister value_reg, MVMuint16 kind) {
-    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
+    MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
@@ -126,7 +126,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 }
 
 static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
-    HashAttrStoreBody *body = (HashAttrStoreBody *)data;
+    MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
@@ -156,11 +156,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(HashAttrStore);
+    st->size = sizeof(MVMHashAttrStore);
 }
 
 /* Initializes the representation. */
-MVMREPROps * HashAttrStore_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));

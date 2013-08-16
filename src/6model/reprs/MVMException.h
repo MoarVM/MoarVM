@@ -1,5 +1,5 @@
 /* Representation for an exception in MoarVM. */
-typedef struct _MVMExceptionBody {
+struct MVMExceptionBody {
     /* The exception message. */
     MVMString *message;
 
@@ -14,11 +14,11 @@ typedef struct _MVMExceptionBody {
 
     /* Where was the exception thrown from? */
     MVMFrame *origin;
-} MVMExceptionBody;
-typedef struct _MVMException {
+};
+struct MVMException {
     MVMObject common;
     MVMExceptionBody body;
-} MVMException;
+};
 
 /* Function for REPR setup. */
 MVMREPROps * MVMException_initialize(MVMThreadContext *tc);
