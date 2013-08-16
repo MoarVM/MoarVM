@@ -1,4 +1,8 @@
 #include "moarvm.h"
+#ifndef _WIN32
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
@@ -39,14 +43,14 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
     switch (status) {
         case MVM_stat_exists:             r = MVM_file_exists(tc, filename); break;
         case MVM_stat_filesize:           r = file_info(tc, filename).st_size; break;
-        case MVM_stat_isdir:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFDIR; break;
-        case MVM_stat_isreg:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFREG; break;
+        case MVM_stat_isdir:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFDIR; break;
+        case MVM_stat_isreg:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFREG; break;
         case MVM_stat_isdev: {
             const int mode = file_info(tc, filename).st_mode;
 #ifdef _WIN32
             r = mode & S_IFMT == S_IFCHR;
 #else
-            r = mode & S_IFMT == S_IFCHR || mode & S_IFMT == S_IFBLK;
+            r = (mode & S_IFMT) == S_IFCHR || (mode & S_IFMT) == S_IFBLK;
 #endif
             break;
         }
@@ -57,7 +61,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
         case MVM_stat_backuptime:         r = -1; break;
         case MVM_stat_uid:                r = file_info(tc, filename).st_uid; break;
         case MVM_stat_gid:                r = file_info(tc, filename).st_gid; break;
-        case MVM_stat_islnk:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFLNK; break;
+        case MVM_stat_islnk:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFLNK; break;
         case MVM_stat_platform_dev:       r = file_info(tc, filename).st_dev; break;
         case MVM_stat_platform_inode:     r = file_info(tc, filename).st_ino; break;
         case MVM_stat_platform_mode:      r = file_info(tc, filename).st_mode; break;
@@ -343,7 +347,7 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString 
 MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str) {
     MVMOSHandle *handle;
     MVMuint8 *output;
-    MVMuint64 output_size;
+    MVMint64 output_size;
     MVMint64 bytes_written;
 
 
@@ -460,7 +464,7 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 
     return li.QuadPart;
 #else
-    if ((r = lseek64(handle->body.fd, offset, flag)) == -1) {
+    if ((r = lseek64(handle->body.fd, 0, SEEK_CUR)) == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", errno);
     }
 
@@ -600,7 +604,6 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
     MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
     MVMOSHandle * const    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     MVMOSHandleBody * const body  = &result->body;
-    uv_fs_t req;
 
     switch(uv_guess_handle(type)) {
         case UV_TTY: {
