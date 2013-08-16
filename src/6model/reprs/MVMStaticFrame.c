@@ -41,6 +41,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     
     dest_body->bytecode = src_body->bytecode;
     MVM_ASSIGN_REF(tc, dest_root, dest_body->cu, src_body->cu);
+    MVM_ASSIGN_REF(tc, dest_root, dest_body->cuuid, src_body->cuuid);
+    MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
     dest_body->num_locals = src_body->num_locals;
     dest_body->num_lexicals = src_body->num_lexicals;
     {
@@ -95,6 +97,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->cu);
     MVM_gc_worklist_add(tc, worklist, &body->cuuid);
     MVM_gc_worklist_add(tc, worklist, &body->name);
+    MVM_gc_worklist_add(tc, worklist, &body->outer);
+    MVM_gc_worklist_add(tc, worklist, &body->static_code);
 
     /* lexical names hash keys */
     HASH_ITER(hash_handle, body->lexical_names, current, tmp) {

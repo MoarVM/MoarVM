@@ -59,6 +59,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     if (body->outer)
         MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, body->outer);
     MVM_gc_worklist_add(tc, worklist, &body->code_object);
+    MVM_gc_worklist_add(tc, worklist, &body->sf);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

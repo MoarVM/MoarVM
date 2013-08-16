@@ -154,7 +154,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
             tc->cur_frame->special_return      = unwind_after_handler;
             tc->cur_frame->special_return_data = ah;
 
-            /* Inovke the handler frame and return to runloop. */
+            /* Invoke the handler frame and return to runloop. */
             STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
                 tc->cur_frame->args);
             break;
@@ -209,12 +209,15 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 
 /* Dumps a backtrace relative to the current frame to stderr. */
 static void dump_backtrace(MVMThreadContext *tc) {
-    MVMFrame *cur_frame = tc->cur_frame;
-    while (cur_frame != NULL) {
+    MVMFrame *cur_frame = tc->cur_frame, *last = NULL;
+    MVMuint32 count = 0;
+    while (cur_frame != NULL && cur_frame != last && count++ < 256) {
         MVMString *filename = cur_frame->static_info->body.cu->body.filename;
+        MVMString *name = cur_frame->static_info->body.name;
+        last = cur_frame;
         fprintf(stderr, "  in %s, %s\n",
-            MVM_string_utf8_encode(tc, cur_frame->static_info->body.name, NULL),
-            filename ? MVM_string_utf8_encode(tc, cur_frame->static_info->body.cu->body.filename, NULL) : "<unknown>");
+            name ? MVM_string_utf8_encode(tc, name, NULL) : "<unknown>",
+            filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<unknown>");
         cur_frame = cur_frame->caller;
     }
 }
