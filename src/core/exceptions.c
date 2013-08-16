@@ -216,8 +216,8 @@ static void dump_backtrace(MVMThreadContext *tc) {
         MVMString *name = cur_frame->static_info->body.name;
         last = cur_frame;
         fprintf(stderr, "  in %s, %s\n",
-            name ? MVM_string_utf8_encode(tc, name, NULL) : "<unknown>",
-            filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<unknown>");
+            name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
+            filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>");
         cur_frame = cur_frame->caller;
     }
 }
