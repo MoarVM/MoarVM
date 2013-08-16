@@ -1,5 +1,5 @@
 /* Representation for static code in the VM. */
-typedef struct _MVMStaticFrameBody {
+struct MVMStaticFrameBody {
     /* The start of the stream of bytecode for this routine. */
     MVMuint8 *bytecode;
 
@@ -65,8 +65,8 @@ typedef struct _MVMStaticFrameBody {
     /* Annotation details */
     MVMuint32 num_annotations;
     MVMuint8 *annotations;
-} MVMStaticFrameBody;
-struct _MVMStaticFrame {
+};
+struct MVMStaticFrame {
     MVMObject common;
     MVMStaticFrameBody body;
 };

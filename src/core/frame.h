@@ -10,8 +10,6 @@ struct MVMLexicalHashEntry {
     UT_hash_handle hash_handle;
 };
 
-typedef struct _MVMStaticFrame MVMStaticFrame;
-
 /* Function pointer type of special return handler. These are used to allow
  * return to be intercepted in some way, for things that need to do multiple
  * calls into the runloop in some C-managed process. Essentially, instead of

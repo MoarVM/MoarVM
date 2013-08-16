@@ -71,5 +71,5 @@ MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint
 /* Encodes the specified string to ASCII not returning length.  */
 MVMuint8 * MVM_string_ascii_encode_any(MVMThreadContext *tc, MVMString *str) {
     MVMuint64 output_size;
-    return MVM_string_ascii_encode(tc, str, MVMuint64 *output_size);
+    return MVM_string_ascii_encode(tc, str, &output_size);
 }

@@ -1,5 +1,5 @@
 /* Representation for a compilation unit in the VM. */
-typedef struct _MVMCompUnitBody {
+struct MVMCompUnitBody {
     /* The APR memory pool associated with this compilation unit,
      * if we need one. */
     apr_pool_t *pool;
@@ -47,8 +47,8 @@ typedef struct _MVMCompUnitBody {
     /* Pointer to next compilation unit in linked list of them (head is in
      * MVMInstance). */
     MVMCompUnit *next_compunit;
-} MVMCompUnitBody;
-struct _MVMCompUnit {
+};
+struct MVMCompUnit {
     MVMObject common;
     MVMCompUnitBody body;
 };
