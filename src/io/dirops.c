@@ -15,7 +15,6 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 }
 
 #ifdef _WIN32
-#  define mode_t          int
 #  define IS_SLASH(c)     ((c) == '\\' || (c) == '/')
 #  define IS_NOT_SLASH(c) ((c) != '\\' && (c) != '/')
 #else
@@ -23,7 +22,7 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 #  define IS_NOT_SLASH(c) ((c) != '/')
 #endif
 
-static int mkdir_p(char *pathname, mode_t mode) {
+static int mkdir_p(char *pathname, MVMint64 mode) {
     ssize_t r;
     size_t len = strlen(pathname);
     char tmp;
@@ -95,24 +94,15 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
 
 /* remove a directory recursively */
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    char *a;
+    char * const pathname = MVM_string_utf8_encode_C_string(tc, path);
+    uv_fs_t req;
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to rmdir: ");
+    if(uv_fs_rmdir(tc->loop, &req, pathname, NULL) < 0 ) {
+        free(pathname);
+        MVM_exception_throw_adhoc(tc, "Failed to rmdir: %s", uv_strerror(req.result));
     }
 
-    a = MVM_string_utf8_encode_C_string(tc, path);
-
-    if ((rv = apr_dir_remove((const char *)a, tmp_pool)) != APR_SUCCESS) {
-        free(a);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to rmdir: ");
-    }
-    free(a);
-    apr_pool_destroy(tmp_pool);
+    free(pathname);
 }
 
 /* open a filehandle; takes a type object */
@@ -194,11 +184,11 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
 }
 
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
-    char *dirstring = MVM_string_utf8_encode_C_string(tc, dir);
+    char * const dirstring = MVM_string_utf8_encode_C_string(tc, dir);
 
-    if (chdir((const char *)dirstring) != 0) {
+    if (uv_chdir((const char *)dirstring) != 0) {
         free(dirstring);
-        MVM_exception_throw_adhoc(tc, "chdir failed: %s", strerror(errno));
+        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(errno));
     }
 
     free(dirstring);
