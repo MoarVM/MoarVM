@@ -125,9 +125,13 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrame *sf = (MVMStaticFrame *)obj;
     MVMStaticFrameBody *body = &sf->body;
     free(body->handlers);
+    body->handlers = NULL;
     free(body->static_env);
+    body->static_env = NULL;
     free(body->local_types);
+    body->local_types = NULL;
     free(body->lexical_types);
+    body->lexical_types = NULL;
     {
         MVMLexicalHashEntry *current, *tmp;
 
@@ -138,11 +142,15 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
                 free(current);
         }
         HASH_CLEAR(hash_handle, body->lexical_names);
-        if (body->lexical_names)
+        if (body->lexical_names) {
             free(body->lexical_names);
+            body->lexical_names = NULL;
+        }
     }
-    if (body->prior_invocation)
+    if (body->prior_invocation) {
         MVM_frame_dec_ref(tc, body->prior_invocation);
+        body->prior_invocation = NULL;
+    }
 }
 
 /* Gets the storage specification for this representation. */

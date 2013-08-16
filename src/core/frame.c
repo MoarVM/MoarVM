@@ -147,7 +147,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame->outer = outer;
         else
             MVM_exception_throw_adhoc(tc,
-                "Provided outer frame does not match expected static frame type");
+                "Provided outer frame %p does not match expected static frame type %p",
+                outer->static_info, static_frame_body->outer);
     }
     else if (static_frame_body->outer) {
         /* We need an outer, but none was provided by a closure. See if
