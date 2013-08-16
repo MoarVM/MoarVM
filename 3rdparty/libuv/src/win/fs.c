@@ -508,7 +508,7 @@ void fs__open(uv_fs_t* req) {
     }
     return;
   }
-
+  result = _open_osfhandle((intptr_t) file, flags);
 end:
   SET_REQ_RESULT(req, result);
 }
