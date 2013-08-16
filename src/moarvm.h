@@ -21,6 +21,7 @@
 
 /* needs to be after config.h */
 #include <uthash.h>
+#include <uv.h>
 
 /* forward declarations */
 #include "types.h"

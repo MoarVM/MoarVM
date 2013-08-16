@@ -2700,22 +2700,10 @@ static MVMOpInfo MVM_op_info_io[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_flush_fh,
-        "flush_fh",
-        1,
-        { MVM_operand_read_reg | MVM_operand_obj }
-    },
-    {
         MVM_OP_sync_fh,
         "sync_fh",
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
-    },
-    {
-        MVM_OP_pipe_fh,
-        "pipe_fh",
-        2,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_trunc_fh,
@@ -2808,12 +2796,6 @@ static MVMOpInfo MVM_op_info_io[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_hostname,
-        "hostname",
-        1,
-        { MVM_operand_write_reg | MVM_operand_str }
-    },
-    {
         MVM_OP_nametoaddr,
         "nametoaddr",
         2,
@@ -2875,78 +2857,6 @@ static MVMOpInfo MVM_op_info_io[] = {
     },
 };
 static MVMOpInfo MVM_op_info_processthread[] = {
-    {
-        MVM_OP_getenv,
-        "getenv",
-        2,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_setenv,
-        "setenv",
-        2,
-        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_delenv,
-        "delenv",
-        1,
-        { MVM_operand_read_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_nametogid,
-        "nametogid",
-        2,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_gidtoname,
-        "gidtoname",
-        2,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
-    },
-    {
-        MVM_OP_nametouid,
-        "nametouid",
-        2,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_uidtoname,
-        "uidtoname",
-        2,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
-    },
-    {
-        MVM_OP_getusername,
-        "getusername",
-        1,
-        { MVM_operand_write_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_getuid,
-        "getuid",
-        1,
-        { MVM_operand_write_reg | MVM_operand_int64 }
-    },
-    {
-        MVM_OP_getgid,
-        "getgid",
-        1,
-        { MVM_operand_write_reg | MVM_operand_int64 }
-    },
-    {
-        MVM_OP_gethomedir,
-        "gethomedir",
-        1,
-        { MVM_operand_write_reg | MVM_operand_str }
-    },
-    {
-        MVM_OP_getencoding,
-        "getencoding",
-        1,
-        { MVM_operand_write_reg | MVM_operand_str }
-    },
     {
         MVM_OP_procshell,
         "procshell",
@@ -3202,8 +3112,8 @@ static unsigned char MVM_opcounts_by_bank[] = {
     53,
     57,
     135,
-    51,
-    32,
+    48,
+    20,
     19,
 };
 

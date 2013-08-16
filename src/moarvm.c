@@ -65,6 +65,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Fix up main thread's usecapture. */
     instance->main_thread->cur_usecapture = MVM_repr_alloc_init(instance->main_thread, instance->CallCapture);
 
+    /* get libuv default event loop. */
+    instance->default_loop = instance->main_thread->loop;
+
     /* Create main thread object, and also make it the start of the all threads
      * linked list. */
     instance->threads =

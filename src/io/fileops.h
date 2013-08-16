@@ -1,7 +1,12 @@
+#define MVM_FILE_FLOCK_SHARED        1       /* Shared lock. Read lock */
+#define MVM_FILE_FLOCK_EXCLUSIVE     2       /* Exclusive lock. Write lock. */
+#define MVM_FILE_FLOCK_TYPEMASK      0x000F  /* a mask of lock type */
+#define MVM_FILE_FLOCK_NONBLOCK      0x0010  /* asynchronous block during
+                                              * locking the file */
+
 char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
-void MVM_file_append(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f);
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag);
@@ -19,9 +24,7 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle);
-void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle);
-void MVM_file_pipe(MVMThreadContext *tc, MVMObject *oshandle1, MVMObject *oshandle2);
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc);
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc);

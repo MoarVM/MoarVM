@@ -2,332 +2,238 @@
 
 #define POOL(tc) (*(tc->interp_cu))->pool
 
+/* work around sucky libuv defaults */
+#ifdef _WIN32
+#define DEFAULT_MODE _S_IWRITE
+#else
+#define DEFAULT_MODE 0
+#endif
+
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.handle_type != MVM_OSHANDLE_FILE) {
+    if ((*handle)->body.type != MVM_OSHANDLE_FD) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle", msg);
     }
 }
 
-static apr_finfo_t MVM_file_info(MVMThreadContext *tc, MVMString *filename, apr_int32_t wanted) {
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_file_t *file_handle;
-    apr_finfo_t finfo;
+static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
+    char * const a = MVM_string_utf8_encode_C_string(tc, filename);
+    uv_fs_t req;
 
-    char *fname = MVM_string_utf8_encode_C_string(tc, filename);
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(fname);
-        MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
+    if (uv_fs_lstat(tc->loop, &req, a, NULL) < 0) {
+        free(a);
+        MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
     }
 
-    if ((rv = apr_file_open(&file_handle, (const char *)fname, APR_FOPEN_READ, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
-        free(fname);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
-    }
-
-    free(fname);
-
-    if((rv = apr_file_info_get(&finfo, wanted, file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to stat file: ");
-    }
-
-    if ((rv = apr_file_close(file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to close filehandle: ");
-    }
-
-    return finfo;
+    free(a);
+    return req.statbuf;
 }
 
-MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *fn, MVMint64 status) {
+MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status) {
     MVMint64 r = -1;
 
     switch (status) {
-        case MVM_stat_exists:             r = MVM_file_exists(tc, fn); break;
-        case MVM_stat_filesize:           r = MVM_file_info(tc, fn, APR_FINFO_SIZE).size; break;
-        case MVM_stat_isdir:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_DIR ? 1 : 0; break;
-        case MVM_stat_isreg:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_REG ? 1 : 0; break;
-        case MVM_stat_isdev:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & (APR_CHR|APR_BLK) ? 1 : 0; break;
-        case MVM_stat_createtime:         r = MVM_file_info(tc, fn, APR_FINFO_CTIME).ctime; break;
-        case MVM_stat_accesstime:         r = MVM_file_info(tc, fn, APR_FINFO_ATIME).atime; break;
-        case MVM_stat_modifytime:         r = MVM_file_info(tc, fn, APR_FINFO_MTIME).mtime; break;
-        case MVM_stat_changetime:         r = MVM_file_info(tc, fn, APR_FINFO_CTIME).ctime; break;
+        case MVM_stat_exists:             r = MVM_file_exists(tc, filename); break;
+        case MVM_stat_filesize:           r = file_info(tc, filename).st_size; break;
+        case MVM_stat_isdir:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFDIR; break;
+        case MVM_stat_isreg:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFREG; break;
+        case MVM_stat_isdev: {
+            const int mode = file_info(tc, filename).st_mode;
+#ifdef _WIN32
+            r = mode & S_IFMT == S_IFCHR;
+#else
+            r = mode & S_IFMT == S_IFCHR || mode & S_IFMT == S_IFBLK;
+#endif
+            break;
+        }
+        case MVM_stat_createtime:         r = file_info(tc, filename).st_ctim.tv_sec; break;
+        case MVM_stat_accesstime:         r = file_info(tc, filename).st_atim.tv_sec; break;
+        case MVM_stat_modifytime:         r = file_info(tc, filename).st_mtim.tv_sec; break;
+        case MVM_stat_changetime:         r = file_info(tc, filename).st_ctim.tv_sec; break;
         case MVM_stat_backuptime:         r = -1; break;
-        case MVM_stat_uid:                r = MVM_file_info(tc, fn, APR_FINFO_USER).user; break;
-        case MVM_stat_gid:                r = MVM_file_info(tc, fn, APR_FINFO_GROUP).group; break;
-        case MVM_stat_islnk:              r = MVM_file_info(tc, fn, APR_FINFO_TYPE).filetype & APR_LNK ? 1 : 0; break;
-        case MVM_stat_platform_dev:       r = MVM_file_info(tc, fn, APR_FINFO_DEV).device; break;
-        case MVM_stat_platform_inode:     r = MVM_file_info(tc, fn, APR_FINFO_INODE).inode; break;
-        case MVM_stat_platform_mode:      r = MVM_file_info(tc, fn, APR_FINFO_PROT).protection; break;
-        case MVM_stat_platform_nlinks:    r = MVM_file_info(tc, fn, APR_FINFO_NLINK).nlink; break;
-        case MVM_stat_platform_devtype:   r = -1; break;
-        case MVM_stat_platform_blocksize: r = MVM_file_info(tc, fn, APR_FINFO_CSIZE).csize; break;
-        case MVM_stat_platform_blocks:    r = -1; break;
+        case MVM_stat_uid:                r = file_info(tc, filename).st_uid; break;
+        case MVM_stat_gid:                r = file_info(tc, filename).st_gid; break;
+        case MVM_stat_islnk:              r = file_info(tc, filename).st_mode & S_IFMT == S_IFLNK; break;
+        case MVM_stat_platform_dev:       r = file_info(tc, filename).st_dev; break;
+        case MVM_stat_platform_inode:     r = file_info(tc, filename).st_ino; break;
+        case MVM_stat_platform_mode:      r = file_info(tc, filename).st_mode; break;
+        case MVM_stat_platform_nlinks:    r = file_info(tc, filename).st_nlink; break;
+        case MVM_stat_platform_devtype:   r = file_info(tc, filename).st_rdev; break;
+        case MVM_stat_platform_blocksize: r = file_info(tc, filename).st_blksize; break;
+        case MVM_stat_platform_blocks:    r = file_info(tc, filename).st_blocks; break;
         default: break;
     }
 
     return r;
 }
 
-char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path) {
-    apr_status_t rv;
-    char *rootpath, *cwd;
-
-    /* determine whether the given path is absolute */
-    rv = apr_filepath_root((const char **)&rootpath, (const char **)&path, 0, tmp_pool);
-
-    if (rv != APR_SUCCESS) {
-        /* path is relative so needs cwd prepended */
-        rv = apr_filepath_get(&cwd, 0, tmp_pool);
-        return apr_pstrcat(tmp_pool, cwd, "/", path, NULL);
-    }
-    /* the path is already absolute */
-    return apr_pstrcat(tmp_pool, path, NULL);
-}
-
 /* copy a file from one to another. */
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    apr_status_t rv;
-    char *a, *b, *afull, *bfull;
-    MVMuint32 len;
-    apr_pool_t *tmp_pool;
+    uv_fs_t req;
+    char *       const a = MVM_string_utf8_encode_C_string(tc, src);
+    char *       const b = MVM_string_utf8_encode_C_string(tc, dest);
+    const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, DEFAULT_MODE, NULL);
+    const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_MODE, NULL);
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to copy file: ");
+    if (in_fd >= 0 && out_fd >= 0
+        && uv_fs_stat(tc->loop, &req, a, NULL) >= 0
+        && uv_fs_sendfile(tc->loop, &req, out_fd, in_fd, 0, req.statbuf.st_size, NULL) >= 0) {
+        free(a);
+        free(b);
+
+        if (uv_fs_close(tc->loop, &req, in_fd, NULL) < 0) {
+            uv_fs_close(tc->loop, &req, out_fd, NULL); /* should close out_fd before throw. */
+            MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+        }
+
+        if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
+            MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+        }
+
+        return;
     }
 
-    afull = MVM_file_get_full_path(tc, tmp_pool, a = MVM_string_utf8_encode_C_string(tc, src));
-    bfull = MVM_file_get_full_path(tc, tmp_pool, b = MVM_string_utf8_encode_C_string(tc, dest));
-    free(a); free(b);
+    free(a);
+    free(b);
 
-    if ((rv = apr_file_copy((const char *)afull, (const char *)bfull,
-            0, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to copy file: ");
-    }
-    apr_pool_destroy(tmp_pool);
-}
-
-/* append one file to another. */
-void MVM_file_append(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    apr_status_t rv;
-    char *a, *b, *afull, *bfull;
-    MVMuint32 len;
-    apr_pool_t *tmp_pool;
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to append file: ");
-    }
-
-    afull = MVM_file_get_full_path(tc, tmp_pool, a = MVM_string_utf8_encode_C_string(tc, src));
-    bfull = MVM_file_get_full_path(tc, tmp_pool, b = MVM_string_utf8_encode_C_string(tc, dest));
-    free(a); free(b);
-
-    if ((rv = apr_file_append((const char *)afull, (const char *)bfull,
-            APR_FPROT_FILE_SOURCE_PERMS, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to append file: ");
-    }
-    /* note: destroying the pool deallocates afull, bfull */
-    apr_pool_destroy(tmp_pool);
+    MVM_exception_throw_adhoc(tc, "Failed to copy file: %s", uv_strerror(req.result));
 }
 
 /* rename one file to another. */
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    apr_status_t rv;
-    char *a, *b, *afull, *bfull;
-    MVMuint32 len;
-    apr_pool_t *tmp_pool;
+    char * const a = MVM_string_utf8_encode_C_string(tc, src);
+    char * const b = MVM_string_utf8_encode_C_string(tc, dest);
+    uv_fs_t req;
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to rename file: ");
+    if(uv_fs_rename(tc->loop, &req, a, b, NULL) < 0 ) {
+        free(a);
+        free(b);
+        MVM_exception_throw_adhoc(tc, "Failed to rename file: %s", uv_strerror(req.result));
     }
 
-    afull = MVM_file_get_full_path(tc, tmp_pool, a = MVM_string_utf8_encode_C_string(tc, src));
-    bfull = MVM_file_get_full_path(tc, tmp_pool, b = MVM_string_utf8_encode_C_string(tc, dest));
-    free(a); free(b);
-
-    if ((rv = apr_file_rename((const char *)afull, (const char *)bfull, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to rename file: ");
-    }
-    apr_pool_destroy(tmp_pool);
+    free(a);
+    free(b);
 }
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
-    apr_status_t rv;
-    char *a;
-    apr_pool_t *tmp_pool;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    uv_fs_t req;
+    const int    r = uv_fs_unlink(tc->loop, &req, a, NULL);
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
-    }
-
-    a = MVM_string_utf8_encode_C_string(tc, f);
-
-    /* 720002 means file wasn't there on windows, 2 on linux...  */
-    /* TODO find defines for these and make it os-specific */
-    if ((rv = apr_file_remove((const char *)a, tmp_pool)) != APR_SUCCESS && rv != 720002 && rv != 2) {
+    if( r < 0 && r != UV_ENOENT) {
         free(a);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to delete file: ");
+        MVM_exception_throw_adhoc(tc, "Failed to delete file: %s", uv_strerror(req.result));
     }
+
     free(a);
-    apr_pool_destroy(tmp_pool);
 }
 
-/* set permissions.  see
- * http://apr.apache.org/docs/apr/1.4/group__apr__file__permissions.html
- * XXX TODO: accept bits by perl format instead...? */
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
-    apr_status_t rv;
-    char *a;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    uv_fs_t req;
 
-    a = MVM_string_utf8_encode_C_string(tc, f);
-
-    if ((rv = apr_file_perms_set((const char *)a, (apr_fileperms_t)flag)) != APR_SUCCESS) {
+    if(uv_fs_chmod(tc->loop, &req, a, flag, NULL) < 0 ) {
         free(a);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to set permissions on path: ");
+        MVM_exception_throw_adhoc(tc, "Failed to set permissions on path: %s", uv_strerror(req.result));
     }
+
     free(a);
 }
 
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
-    apr_status_t rv;
-    char *a;
-    apr_finfo_t  stat_info;
-    apr_pool_t *tmp_pool;
-    MVMint64 result;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    uv_fs_t req;
+    const MVMint64 result = uv_fs_stat(tc->loop, &req, a, NULL) < 0 ? 0 : 1;
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to exists file: ");
-    }
-
-    a = MVM_string_utf8_encode_C_string(tc, f);
-
-    result = ((rv = apr_stat(&stat_info, (const char *)a, APR_FINFO_SIZE, tmp_pool)) == APR_SUCCESS)
-        ? 1 : 0;
     free(a);
-    apr_pool_destroy(tmp_pool);
+
     return result;
 }
 
 /* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
-    MVMOSHandle *result;
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_file_t *file_handle;
-    apr_int32_t flag;
-    MVMObject *type_object = tc->instance->boot_types->BOOTIO;
-    char *fname = MVM_string_utf8_encode_C_string(tc, filename);
-    char *fmode;
+    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
+    MVMOSHandle    * const result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
+    char            * const fmode = MVM_string_utf8_encode_C_string(tc, mode);
+    uv_fs_t req;
+    int flag;
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(fname);
-        MVM_exception_throw_apr_error(tc, rv, "Open file failed to create pool: ");
-    }
-
-    fmode = MVM_string_utf8_encode_C_string(tc, mode);
-
-    /* generate apr compatible open mode flags */
     if (0 == strcmp("r", fmode))
-        flag = APR_FOPEN_READ;
+        flag = O_RDONLY;
     else if (0 == strcmp("w", fmode))
-        flag = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_TRUNCATE;
+        flag = O_CREAT| O_WRONLY | O_TRUNC;
     else if (0 == strcmp("wa", fmode))
-        flag = APR_FOPEN_WRITE|APR_FOPEN_CREATE|APR_FOPEN_APPEND;
-    else
-        MVM_exception_throw_adhoc(tc, "invalid open mode: %d", fmode);
-
-    /* try to open the file */
-    if ((rv = apr_file_open(&file_handle, (const char *)fname, flag, APR_OS_DEFAULT, tmp_pool)) != APR_SUCCESS) {
-        free(fname);
+        flag = O_CREAT | O_WRONLY | O_APPEND;
+    else {
         free(fmode);
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to open file: ");
+        MVM_exception_throw_adhoc(tc, "Invalid open mode: %d", fmode);
     }
 
-    /* initialize the object */
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    free(fmode);
 
-    result->body.file_handle = file_handle;
-    result->body.handle_type = MVM_OSHANDLE_FILE;
-    result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = MVM_encoding_type_utf8;
+    if ((result->body.fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
+        free(fname);
+        MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
+    }
 
     free(fname);
-    free(fmode);
+    result->body.eof  = 0;
+    result->body.type = MVM_OSHANDLE_FD;
+    result->body.encoding_type = MVM_encoding_type_utf8;
+
     return (MVMObject *)result;
 }
 
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
     MVMOSHandle *handle;
+    uv_fs_t req;
 
     verify_filehandle_type(tc, oshandle, &handle, "close filehandle");
 
-    if ((rv = apr_file_close(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to close filehandle: ");
+    if (uv_fs_close(tc->loop, &req, handle->body.fd, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
 }
 
 /* reads a line from a filehandle. */
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMint32 bytes_read = 0;
     MVMString *result;
-    apr_status_t rv;
     MVMOSHandle *handle;
+    uv_fs_t req;
     char ch;
     char *buf;
-    apr_off_t offset = 0;
-    apr_off_t fetched = 0;
-    apr_off_t bytes_read = 0;
+
 
     verify_filehandle_type(tc, oshandle, &handle, "readline from filehandle");
 
-    if ((rv = apr_file_seek(handle->body.file_handle, APR_CUR, &offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(1): ");
-    }
-
-    while (apr_file_getc(&ch, handle->body.file_handle) == APR_SUCCESS && ch != 10 && ch != 13) {
-        bytes_read++;
+    while (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch != 10 && ch != 13) {
+        bytes_read += req.result;
     }
 
     /* have a look if it is a windows newline, and step back if not. */
-    if (ch == 13 && apr_file_getc(&ch, handle->body.file_handle) == APR_SUCCESS && ch != 10) {
-        fetched--;
+    if (ch == 13 && uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch != 10) {
+        if (uv_fs_seek(tc->loop, &req, handle->body.fd, -req.result, SEEK_CUR, NULL) < 0) {
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", uv_strerror(req.result));
+        }
+    } else {
+        bytes_read++;
     }
 
-    if ((rv = apr_file_seek(handle->body.file_handle, APR_CUR, &fetched)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(2): ");
+    if (uv_fs_seek(tc->loop, &req, handle->body.fd, -bytes_read, SEEK_CUR, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", uv_strerror(req.result));
     }
 
-    if ((rv = apr_file_seek(handle->body.file_handle, APR_SET, &offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(3)");
-    }
+    buf = malloc(bytes_read);
 
-    buf = malloc((int)(bytes_read + 1));
-
-    if ((rv = apr_file_read(handle->body.file_handle, buf, &bytes_read)) != APR_SUCCESS) {
+    if (uv_fs_read(tc->loop, &req, handle->body.fd, &buf, 1, -1, NULL) < 0) {
         free(buf);
-        MVM_exception_throw_apr_error(tc, rv, "readline from filehandle failed: ");
-    }
-
-    if ((rv = apr_file_seek(handle->body.file_handle, APR_SET, &fetched)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle in readline(4)");
+        MVM_exception_throw_adhoc(tc, "readline from filehandle failed: %s", uv_strerror(req.result));
     }
                                                /* XXX should this take a type object? */
     result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
@@ -339,10 +245,10 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 /* reads a string from a filehandle. */
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;
-    apr_status_t rv;
     MVMOSHandle *handle;
-    char *buf;
     MVMint64 bytes_read;
+    uv_fs_t req;
+    char *buf;
 
     /* XXX TODO length currently means bytes. alter it to mean graphemes. */
     /* XXX TODO handle length == -1 to mean read to EOF */
@@ -354,11 +260,25 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     }
 
     buf = malloc(length);
-    bytes_read = length;
 
-    if ((rv = apr_file_read(handle->body.file_handle, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS) {
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_HANDLE:
+            MVM_exception_throw_adhoc(tc, "Read from stream is NYI");
+            break;
+        case MVM_OSHANDLE_FD:
+            bytes_read = uv_fs_read(tc->loop, &req, handle->body.fd, buf, length, -1, NULL);
+            break;
+        default:
+            break;
+    }
+
+    if (bytes_read < 0) {
         free(buf);
-        MVM_exception_throw_apr_error(tc, rv, "read from filehandle failed: ");
+        MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
+    }
+
+    if (bytes_read == 0) {
+        handle->body.eof = 1;
     }
                                                /* XXX should this take a type object? */
     result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
@@ -371,38 +291,30 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
 /* read all of a filehandle into a string. */
 MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMString *result;
-    apr_status_t rv;
     MVMOSHandle *handle;
-    apr_finfo_t finfo;
-    apr_pool_t *tmp_pool;
-    char *buf;
+    MVMint64 file_size;
     MVMint64 bytes_read;
+    uv_fs_t req;
+    char *buf;
 
     /* XXX TODO length currently means bytes. alter it to mean graphemes. */
     /* XXX TODO handle length == -1 to mean read to EOF */
 
     verify_filehandle_type(tc, oshandle, &handle, "Readall from filehandle");
 
-    ENCODING_VALID(handle->body.encoding_type);
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Readall failed to create pool: ");
+    if (uv_fs_fstat(tc->loop, &req, handle->body.fd, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "Readall from filehandle failed: %s", uv_strerror(req.result));
     }
 
-    if ((rv = apr_file_info_get(&finfo, APR_FINFO_SIZE, handle->body.file_handle)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Readall failed to get info about file: ");
-    }
-    apr_pool_destroy(tmp_pool);
+    file_size = req.statbuf.st_size;
 
-    if (finfo.size > 0) {
-        buf = malloc(finfo.size);
-        bytes_read = finfo.size;
+    if (file_size > 0) {
+        buf = malloc(file_size);
 
-        if ((rv = apr_file_read(handle->body.file_handle, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS) {
+        bytes_read = uv_fs_read(tc->loop, &req, handle->body.fd, buf, file_size, -1, NULL);
+        if (bytes_read < 0) {
             free(buf);
-            MVM_exception_throw_apr_error(tc, rv, "Readall from filehandle failed: ");
+            MVM_exception_throw_adhoc(tc, "Readall from filehandle failed: %s", uv_strerror(req.result));
         }
                                                    /* XXX should this take a type object? */
         result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
@@ -429,23 +341,47 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString 
 
 /* writes a string to a filehandle. */
 MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str) {
-    apr_status_t rv;
+    MVMOSHandle *handle;
     MVMuint8 *output;
     MVMuint64 output_size;
-    apr_size_t bytes_written;
-    MVMOSHandle *handle;
+    MVMint64 bytes_written;
+
 
     verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
 
     output = MVM_encode_string_to_C_buffer(tc, str, 0, -1, &output_size, handle->body.encoding_type);
-    bytes_written = (apr_size_t)output_size;
-    if ((rv = apr_file_write(handle->body.file_handle, (const void *)output, &bytes_written)) != APR_SUCCESS) {
-        free(output);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to write bytes to filehandle: tried to write %u bytes, wrote %u bytes: ", output_size, bytes_written);
-    }
-    free(output);
 
-    return (MVMint64)bytes_written;
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_HANDLE: {
+            uv_write_t req;
+            uv_buf_t buf;
+            int r;
+
+            buf.base = output;
+            buf.len  = bytes_written = output_size;
+            if ((r = uv_write(&req, (uv_stream_t *)handle->body.handle, &buf, 1, NULL)) < 0) {
+                free(output);
+                MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
+            }
+            break;
+        }
+        case MVM_OSHANDLE_FD: {
+            uv_fs_t req;
+            bytes_written = uv_fs_write(tc->loop, &req, handle->body.fd, (const void *)output, output_size, -1, NULL);
+            if (bytes_written < 0) {
+                free(output);
+                MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
+            }
+            break;
+        }
+        default:
+            break;
+    }
+
+
+
+    free(output);
+    return bytes_written;
 }
 
 /* writes a string to a file, overwriting it if necessary */
@@ -460,142 +396,238 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
 
 /* seeks in a filehandle */
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag) {
-    apr_status_t rv;
     MVMOSHandle *handle;
+#ifdef _WIN32
+    HANDLE hf;
+    LARGE_INTEGER li;
+#endif
 
     verify_filehandle_type(tc, oshandle, &handle, "seek in filehandle");
 
-    if ((rv = apr_file_seek(handle->body.file_handle, (apr_seek_where_t)flag, (apr_off_t *)&offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to seek in filehandle: ");
+#ifdef _WIN32
+
+    hf = (HANDLE)_get_osfhandle(handle->body.fd);
+    if (hf == INVALID_HANDLE_VALUE) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
     }
+
+    li.QuadPart = offset;
+
+    li.LowPart = SetFilePointer(hf, li.LowPart, &li.HighPart, flag);
+
+    if (li.LowPart == INVALID_SET_FILE_POINTER) {
+        DWORD error = GetLastError();
+        if (error != NO_ERROR) {
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", error);
+        }
+    }
+#else
+    if (lseek64(handle->body.fd, offset, flag) == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", errno);
+    }
+#endif
 }
 
 /* tells position within file */
 MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
     MVMOSHandle *handle;
-    MVMint64 offset = 0;
+#ifdef _WIN32
+    HANDLE hf;
+    LARGE_INTEGER li;
+#else
+    MVMint64 r;
+#endif
 
-    verify_filehandle_type(tc, oshandle, &handle, "tell in filehandle");
+    verify_filehandle_type(tc, oshandle, &handle, "seek in filehandle");
 
-    if ((rv = apr_file_seek(handle->body.file_handle, APR_CUR, (apr_off_t *)&offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to tell position of filehandle: ");
+#ifdef _WIN32
+
+    hf = (HANDLE)_get_osfhandle(handle->body.fd);
+    if (hf == INVALID_HANDLE_VALUE) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
     }
 
-    return offset;
+    li.QuadPart = 0;
+
+    li.LowPart = SetFilePointer(hf, li.LowPart, &li.HighPart, FILE_CURRENT);
+
+    if (li.LowPart == INVALID_SET_FILE_POINTER) {
+        DWORD error = GetLastError();
+        if (error != NO_ERROR) {
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", error);
+        }
+    }
+
+    return li.QuadPart;
+#else
+    if ((r = lseek64(handle->body.fd, offset, flag)) == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", errno);
+    }
+
+    return r;
+#endif
 }
 
 /* locks a filehandle */
 MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag) {
-    apr_status_t rv;
     MVMOSHandle *handle;
-    int locktype = (int)flag;
+#ifdef _WIN32
+    const DWORD len = 0xffffffff;
+    HANDLE hf;
+    OVERLAPPED offset;
+#else
+  struct flock l;
+  ssize_t r;
+  int fc;
+  const int fd = handle->body.fd;
+#endif
 
     verify_filehandle_type(tc, oshandle, &handle, "lock filehandle");
 
-    if ((rv = apr_file_lock(handle->body.file_handle, locktype)) != APR_SUCCESS) {
-        /* XXX this really should check what type of error was returned */
-        if (locktype & APR_FLOCK_NONBLOCK) return 0;
-        MVM_exception_throw_apr_error(tc, rv, "Failed to lock filehandle: ");
+#ifdef _WIN32
+    hf = (HANDLE)_get_osfhandle(handle->body.fd);
+    if (hf == INVALID_HANDLE_VALUE) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
     }
+
+    flag = ((flag & MVM_FILE_FLOCK_NONBLOCK) ? LOCKFILE_FAIL_IMMEDIATELY : 0)
+          + ((flag & MVM_FILE_FLOCK_TYPEMASK) == MVM_FILE_FLOCK_SHARED
+                                       ? 0 : LOCKFILE_EXCLUSIVE_LOCK);
+
+    memset (&offset, 0, sizeof(offset));
+    if (LockFileEx(hf, flag, 0, len, len, &offset)) {
+        return 1;
+    }
+
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", GetLastError());
+
+    return 0;
+#else
+    l.l_whence = SEEK_SET;
+    l.l_start = 0;
+    l.l_len = 0;
+
+    if ((flag & MVM_FILE_FLOCK_TYPEMASK) == MVM_FILE_FLOCK_SHARED)
+    l.l_type = F_RDLCK;
+    else
+    l.l_type = F_WRLCK;
+
+    fc = (flag & MVM_FILE_FLOCK_NONBLOCK) ? F_SETLK : F_SETLKW;
+
+    do {
+    r = fcntl(fd, fc, &l);
+    } while (r == -1 && errno == EINTR);
+
+    if (r == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", errno);
+        return 0;
+    }
+
     return 1;
+#endif
 }
 
 /* unlocks a filehandle */
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
     MVMOSHandle *handle;
+#ifdef _WIN32
+    const DWORD len = 0xffffffff;
+    HANDLE hf;
+    OVERLAPPED offset;
+#else
+  struct flock l;
+  ssize_t r;
+  const int fd = handle->body.fd;
+#endif
 
     verify_filehandle_type(tc, oshandle, &handle, "unlock filehandle");
 
-    if ((rv = apr_file_unlock(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to unlock filehandle: ");
+#ifdef _WIN32
+    hf = (HANDLE)_get_osfhandle(handle->body.fd);
+    if (hf == INVALID_HANDLE_VALUE) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
     }
-}
 
-/* flushes a possibly-buffered filehandle (such as stdout) */
-void MVM_file_flush(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
-    MVMOSHandle *handle;
-
-    verify_filehandle_type(tc, oshandle, &handle, "flush filehandle");
-
-    if ((rv = apr_file_flush(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to flush filehandle: ");
+    memset (&offset, 0, sizeof(offset));
+    if (UnlockFileEx(hf, 0, len, len, &offset)) {
+        return;
     }
+
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", GetLastError());
+#else
+
+    l.l_whence = SEEK_SET;
+    l.l_start = 0;
+    l.l_len = 0;
+    l.l_type = F_UNLCK;
+
+    do {
+        r = fcntl(fd, F_SETLKW, &l);
+    } while (r == -1 && errno == EINTR);
+
+    if (r == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", errno);
+    }
+#endif
 }
 
 /* syncs a filehandle (Transfer all file modified data and metadata to disk.) */
 void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
     MVMOSHandle *handle;
+    uv_fs_t req;
 
     verify_filehandle_type(tc, oshandle, &handle, "sync filehandle");
 
-    if ((rv = apr_file_sync(handle->body.file_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to sync filehandle: ");
-    }
-}
-
-/* creates a pipe between two filehandles */
-/* XXX TODO: this needs to stash references to each other in each other,
- * that are understood by the GC, in case one goes out of scope but the
- * other doesn't. Also, there's not really a way to avoid a memory leak
- * when creating a pipe using one of the handle's mem_pools. */
-void MVM_file_pipe(MVMThreadContext *tc, MVMObject *oshandle1, MVMObject *oshandle2) {
-    apr_status_t rv;
-    MVMOSHandle *handle1;
-    MVMOSHandle *handle2;
-
-    verify_filehandle_type(tc, oshandle1, &handle1, "pipe filehandles");
-    verify_filehandle_type(tc, oshandle2, &handle2, "pipe filehandles");
-
-    if ((rv = apr_file_pipe_create(&handle1->body.file_handle, &handle2->body.file_handle, handle1->body.mem_pool)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to pipe filehandles: ");
+    if(uv_fs_fsync(tc->loop, &req, handle->body.fd, NULL) < 0 ) {
+        MVM_exception_throw_adhoc(tc, "Failed to sync filehandle: %s", uv_strerror(req.result));
     }
 }
 
 /* syncs a filehandle (Transfer all file modified data and metadata to disk.) */
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset) {
-    apr_status_t rv;
     MVMOSHandle *handle;
+    uv_fs_t req;
 
     verify_filehandle_type(tc, oshandle, &handle, "truncate filehandle");
 
-    if ((rv = apr_file_trunc(handle->body.file_handle, (apr_off_t)offset)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to truncate filehandle: ");
+    if(uv_fs_ftruncate(tc->loop, &req, handle->body.fd, offset, NULL) < 0 ) {
+        MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
     }
 }
 
 /* return an OSHandle representing one of the standard streams */
-static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
-    MVMOSHandle *result;
-    apr_file_t  *handle;
-    apr_status_t rv;
-    MVMObject *type_object = tc->instance->boot_types->BOOTIO;
+static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
+    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
+    MVMOSHandle * const    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    MVMOSHandleBody * const body  = &result->body;
+    uv_fs_t req;
 
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&result->body.mem_pool, NULL)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "get_stream failed to create pool: ");
+    switch(uv_guess_handle(type)) {
+        case UV_TTY: {
+            uv_tty_t *handle = malloc(sizeof(uv_tty_t));
+            uv_tty_init(tc->loop, handle, type, readable);
+            body->handle = (uv_handle_t *)handle;
+            body->type = MVM_OSHANDLE_HANDLE;
+            break;
+        }
+        case UV_FILE:
+            body->fd   = type;
+            body->type = MVM_OSHANDLE_FD;
+            break;
+        case UV_NAMED_PIPE: {
+            uv_pipe_t *handle = malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(tc->loop, handle, 0);
+            uv_pipe_open(handle, type);
+            body->handle = (uv_handle_t *)handle;
+            body->type = MVM_OSHANDLE_HANDLE;
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "get_stream failed, unsupported std handle");
+            break;
     }
 
-    switch(type) {
-        case 0:
-            apr_file_open_stdin(&handle, result->body.mem_pool);
-            break;
-        case 1:
-            apr_file_open_stdout(&handle, result->body.mem_pool);
-            break;
-        case 2:
-            apr_file_open_stderr(&handle, result->body.mem_pool);
-            break;
-    }
-    result->body.file_handle = handle;
-    result->body.handle_type = MVM_OSHANDLE_FILE;
-    result->body.encoding_type = MVM_encoding_type_utf8;
-
+    body->encoding_type = MVM_encoding_type_utf8;
     return (MVMObject *)result;
 }
 
@@ -604,19 +636,19 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "check eof");
 
-    return apr_file_eof(handle->body.file_handle) == APR_EOF ? 1 : 0;
+    return handle->body.eof;
 }
 
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 0);
+    return MVM_file_get_stdstream(tc, 0, 1);
 }
 
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 1);
+    return MVM_file_get_stdstream(tc, 1, 0);
 }
 
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 2);
+    return MVM_file_get_stdstream(tc, 2, 0);
 }
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {

@@ -2987,17 +2987,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_file_unlock(tc, GET_REG(cur_op, 0).o);
                         cur_op += 2;
                         break;
-                    case MVM_OP_flush_fh:
-                        MVM_file_flush(tc, GET_REG(cur_op, 0).o);
-                        cur_op += 2;
-                        break;
                     case MVM_OP_sync_fh:
                         MVM_file_sync(tc, GET_REG(cur_op, 0).o);
                         cur_op += 2;
-                        break;
-                    case MVM_OP_pipe_fh:
-                        MVM_file_pipe(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
-                        cur_op += 4;
                         break;
                     case MVM_OP_trunc_fh:
                         MVM_file_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
@@ -3055,10 +3047,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 4).i64);
                         cur_op += 6;
                         break;
-                    case MVM_OP_hostname:
-                        GET_REG(cur_op, 0).s = MVM_socket_hostname(tc);
-                        cur_op += 2;
-                        break;
                     case MVM_OP_setencoding:
                         MVM_file_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                         cur_op += 4;
@@ -3099,50 +3087,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             /* Process-wide and thread operations. */
             case MVM_OP_BANK_processthread: {
                 switch (*(cur_op++)) {
-                    case MVM_OP_getenv:
-                        GET_REG(cur_op, 0).s = MVM_proc_getenv(tc, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_setenv:
-                        MVM_proc_setenv(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_delenv:
-                        MVM_proc_delenv(tc, GET_REG(cur_op, 0).s);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_nametogid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_nametogid(tc, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_gidtoname:
-                        GET_REG(cur_op, 0).s = MVM_proc_gidtoname(tc, GET_REG(cur_op, 2).i64);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_nametouid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_nametouid(tc, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_uidtoname:
-                        GET_REG(cur_op, 0).s = MVM_proc_uidtoname(tc, GET_REG(cur_op, 2).i64);
-                        cur_op += 4;
-                        break;
-                    case MVM_OP_getusername:
-                        GET_REG(cur_op, 0).s = MVM_proc_getusername(tc);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_getuid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_getuid(tc);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_getgid:
-                        GET_REG(cur_op, 0).i64 = MVM_proc_getgid(tc);
-                        cur_op += 2;
-                        break;
-                    case MVM_OP_gethomedir:
-                        GET_REG(cur_op, 0).s = MVM_proc_gethomedir(tc);
-                        cur_op += 2;
-                        break;
                     case MVM_OP_chdir:
                         MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                         cur_op += 2;

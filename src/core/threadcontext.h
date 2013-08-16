@@ -76,6 +76,8 @@ struct MVMThreadContext {
     /* The frame we're currently executing. */
     MVMFrame *cur_frame;
 
+    uv_loop_t *loop;
+
     /* The usecapture op can, without allocating, have a way to talk about the
      * arguments of the current call. This is the (pre-thread) object that is
      * used by that op. */
