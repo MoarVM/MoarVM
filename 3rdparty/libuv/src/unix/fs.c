@@ -198,32 +198,37 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
 static int uv__fs_mkdir_p(char *pathname, mode_t mode) {
   ssize_t r;
   size_t len = strlen(pathname);
+  char tmp;
 
-  while ((len > 0) && (pathname[len - 1] == L'/'))
+  while (len > 0 && pathname[len - 1] == L'/')
     len--;
 
+  tmp = pathname[len];
   pathname[len] = '\0';
 
   r = mkdir(pathname, mode);
 
   if (r == -1 && errno == ENOENT) {
     size_t _len = len;
+    char _tmp;
 
-    while ((_len > 0) && (pathname[_len - 1]) == L'/')
+    while (_len > 0 && pathname[_len - 1] != L'/')
       _len--;
 
+    _len--;
+    _tmp = pathname[_len];
     pathname[_len] = L'\0';
 
     r = uv__fs_mkdir_p(pathname, mode);
 
-    pathname[_len] = L'/';
+    pathname[_len] = _tmp;
 
     if(r == 0) {
       r = mkdir(pathname, mode);
     }
   }
 
-  pathname[len] = L'/';
+  pathname[len] = tmp;
 
   return r;
 }
