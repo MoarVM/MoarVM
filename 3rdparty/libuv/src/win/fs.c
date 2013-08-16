@@ -807,32 +807,37 @@ void fs__mkdir(uv_fs_t* req) {
 static int fs___mkdir_p(wchar_t *pathname) {
   size_t r;
   size_t len = wcslen(pathname);
+  char tmp;
 
   while (len > 0 && IS_SLASH(pathname[len - 1]))
     len--;
 
+  tmp = pathname[len];
   pathname[len] = L'\0';
 
   r = _wmkdir(pathname);
 
   if (r == -1 && errno == ENOENT) {
     size_t _len = len;
+    char _tmp;
 
-    while (_len > 0 && IS_SLASH(pathname[_len - 1]))
+    while (_len > 0 && !IS_SLASH(pathname[_len - 1]))
       _len--;
 
+    _len--;
+    _tmp = pathname[_len];
     pathname[_len] = L'\0';
 
     r = fs___mkdir_p(pathname);
 
-    pathname[_len] = L'/';
+    pathname[_len] = _tmp;
 
     if(r == 0) {
       r = _wmkdir(pathname);
     }
   }
 
-  pathname[len] = L'/';
+  pathname[len] = tmp;
 
   return r;
 }
