@@ -24,7 +24,7 @@ static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
     char * const a = MVM_string_utf8_encode_C_string(tc, filename);
     uv_fs_t req;
 
-    if (uv_fs_stat(tc->loop, &req, a, NULL) < 0) {
+    if (uv_fs_lstat(tc->loop, &req, a, NULL) < 0) {
         free(a);
         MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
     }
