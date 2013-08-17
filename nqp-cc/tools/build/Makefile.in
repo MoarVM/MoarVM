@@ -72,8 +72,7 @@ CROSSCOMPILE    = $(NQP) nqp-moar-cc.nqp --target=mbc --setting=NQPCOREMoar --no
 NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm \
              QASTNodesMoar.moarvm QRegexMoar.moarvm NQPHLLMoar.moarvm \
              MASTOps.moarvm MASTNodes.moarvm QASTRegexCompilerMAST.moarvm \
-             QASTOperationsMAST.moarvm QASTCompilerMAST.moarvm \
-             NQPP6QRegex.moarvm
+             QASTOperationsMAST.moarvm QASTCompilerMAST.moarvm
 NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir QASTNodesMoar.pir QRegexMoar.pir NQPHLLMoar.pir
 
 CLEANUPS = \
