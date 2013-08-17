@@ -17,7 +17,7 @@ static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MV
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.type != MVM_OSHANDLE_FD) {
+    if ((*handle)->body.type != MVM_OSHANDLE_FD && (*handle)->body.type != MVM_OSHANDLE_HANDLE) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle", msg);
     }
 }
@@ -518,14 +518,14 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
     l.l_len = 0;
 
     if ((flag & MVM_FILE_FLOCK_TYPEMASK) == MVM_FILE_FLOCK_SHARED)
-    l.l_type = F_RDLCK;
+        l.l_type = F_RDLCK;
     else
-    l.l_type = F_WRLCK;
+        l.l_type = F_WRLCK;
 
     fc = (flag & MVM_FILE_FLOCK_NONBLOCK) ? F_SETLK : F_SETLKW;
 
     do {
-    r = fcntl(fd, fc, &l);
+        r = fcntl(fd, fc, &l);
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
