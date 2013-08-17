@@ -1,6 +1,6 @@
 #! nqp
 
-use nqpmo;
+use nqp-mo;
 
 plan(31);
 
