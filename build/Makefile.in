@@ -57,6 +57,8 @@ OBJECTS = src/main@obj@ \
           src/6model/reprs/P6opaque@obj@ \
           src/6model/reprs/MVMCode@obj@ \
           src/6model/reprs/MVMOSHandle@obj@ \
+          src/6model/reprs/MVMCompUnit@obj@ \
+          src/6model/reprs/MVMStaticFrame@obj@ \
           src/6model/reprs/P6int@obj@ \
           src/6model/reprs/P6num@obj@ \
           src/6model/reprs/Uninstantiable@obj@ \
@@ -202,7 +204,7 @@ UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
             3rdparty/libuv/src/unix/proctitle@obj@ \
             $(UV_UNIX)
 
-UV_OBJECTS = @uvobjects@
+UV_OBJECTS = # _uvobjects_
 
 TOM_OBJECTS = @tomobjects@
 
@@ -213,7 +215,7 @@ moarvm@exe@: $(OBJECTS) @thirdpartylibs@
 
 apr: @aprlib@
 
-libuv: @uvlib@
+libuv: _uvlib_
 
 $(OBJECTS): $(HEADERS)
 
@@ -229,8 +231,8 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 @aprlib@:
 	@aprrule@
 
-@uvlib@: @uvobjects@
-	@uvrule@
+_uvlib_: _uvobjects_
+	_uvrule_
 
 @laolib@:
 	@laorule@
@@ -245,7 +247,7 @@ clean:
 	-$(RM) $(OBJECTS)
 	@clean@
 	@aprclean@
-	@uvclean@
+#	_uvclean_
 	@laoclean@
 	@tomclean@
 	@shaclean@
