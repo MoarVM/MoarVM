@@ -119,13 +119,13 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
 /* gets the system time since the epoch in microseconds.
  * APR says the unix version returns GMT. */
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
-    return (MVMint64)apr_time_now();
+    return uv_hrtime();
 }
 
 /* gets the system time since the epoch in seconds.
  * APR says the unix version returns GMT. */
 MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
-    return (MVMnum64)apr_time_now() / 1000000.0;
+    return (MVMnum64)uv_hrtime() / 1000000.0;
 }
 
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
