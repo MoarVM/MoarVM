@@ -144,6 +144,9 @@ typedef struct {
 
     /* The compilation unit we're compiling. */
     MAST_CompUnit *cu;
+    
+    /* Last Annotated node, for error reporting */
+    MAST_Annotated *last_annotated;
 } WriterState;
 
 static unsigned int umax(unsigned int a, unsigned int b);
@@ -677,8 +680,12 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 unsigned int  current_ins_idx = ws->current_ins_idx;
                 const char *name = ws->current_op_info->name;
                 cleanup_all(vm, ws);
-                DIE(vm, "At Frame %u, Instruction %u, op '%s' unhandled arg type %u.",
-                    current_frame_idx, current_ins_idx, name, flag);
+                DIE(vm, "At Frame %u, Instruction %u, op '%s', "
+                        "file %s, line %u, unhandled arg type %u.",
+                    current_frame_idx, current_ins_idx, name,
+                    ws->last_annotated ? VM_STRING_TO_C_STRING(vm, ws->last_annotated->file) : "",
+                    ws->last_annotated ? ws->last_annotated->line : 0,
+                    flag);
             }
 
             arg_pos++;
@@ -732,6 +739,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         unsigned int num_ins = ELEMS(vm, a->instructions);
         unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
 
+        ws->last_annotated = a;
         ensure_space(vm, &ws->annotation_seg, &ws->annotation_alloc, ws->annotation_pos, 10);
         write_int32(ws->annotation_seg, ws->annotation_pos, offset);
         write_int16(ws->annotation_seg, ws->annotation_pos + 4, get_string_heap_index(vm, ws, a->file));

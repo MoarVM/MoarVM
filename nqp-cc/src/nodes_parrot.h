@@ -166,6 +166,7 @@ typedef STRING VMSTR;
 #define EMPTY_STRING(vm)            (Parrot_str_new_constant(interp, ""))
 #define VM_STRING_IS_NULL(s)        STRING_IS_NULL(s)
 #define VM_OBJ_IS_NULL(o)           PMC_IS_NULL(o)
+#define VM_STRING_TO_C_STRING(vm, s) (Parrot_str_to_encoded_cstring(vm, s, s->encoding))
 
 /* Copies of MVM operand read/write/literal flags. */
 #define MVM_operand_literal     0
