@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <sys/mman.h>
 #include "platform/mmap.h"
 
