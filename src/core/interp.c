@@ -1158,10 +1158,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             /* Development operations. */
             case MVM_OP_BANK_dev: {
                 switch (*(cur_op++)) {
-                    case MVM_OP_sleep: /* microseconds for now */
-                        apr_sleep((apr_interval_time_t)GET_REG(cur_op, 0).i64);
+                    case MVM_OP_sleep: {/* microseconds for now */
+#ifdef _WIN32
+                        Sleep((DWORD)(GET_REG(cur_op, 0).i64 / 1000));
+#else
+                        const MVMint64 t = GET_REG(cur_op, 0).i64;
+                        struct timeval tv;
+                        tv.tv_sec  = t / 1000000;
+                        tv.tv_usec = t % 1000000;
+                        select(0, NULL, NULL, NULL, &tv);
+#endif
                         cur_op += 2;
                         break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_dev, *(cur_op-1));
