@@ -6,6 +6,9 @@
  * !!!
  */
 
+ /* TODO: if we want something MVM_API for exporting.
+  * Please take a look at http://gcc.gnu.org/wiki/Visibility */
+
 /* This will eventually get really filled out from configuration.
  * For now, just hardcoded so more interesting things can be done. */
 

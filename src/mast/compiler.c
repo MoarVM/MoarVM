@@ -680,12 +680,16 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
                 unsigned int  current_ins_idx = ws->current_ins_idx;
                 const char *name = ws->current_op_info->name;
                 cleanup_all(vm, ws);
+                /*
                 DIE(vm, "At Frame %u, Instruction %u, op '%s', "
                         "file %s, line %u, unhandled arg type %u.",
                     current_frame_idx, current_ins_idx, name,
                     ws->last_annotated ? VM_STRING_TO_C_STRING(vm, ws->last_annotated->file) : "",
                     ws->last_annotated ? ws->last_annotated->line : 0,
                     flag);
+                */
+                DIE(vm, "At Frame %u, Instruction %u, op '%s', unhandled arg type %u.",
+                    current_frame_idx, current_ins_idx, name, flag);
             }
 
             arg_pos++;
