@@ -1,5 +1,5 @@
-#include "platform/mmap.h"
 #include <windows.h>
+#include "platform/mmap.h"
 
 void *MVM_platform_alloc_pages(size_t size, int executable)
 {
