@@ -1762,6 +1762,7 @@ QAST::MASTOperations.add_core_moarop_mapping('freshcoderef', 'freshcoderef');
 QAST::MASTOperations.add_core_moarop_mapping('iscoderef', 'iscoderef');
 QAST::MASTOperations.add_core_moarop_mapping('markcodestatic', 'markcodestatic');
 QAST::MASTOperations.add_core_moarop_mapping('markcodestub', 'markcodestub');
+QAST::MASTOperations.add_core_moarop_mapping('getstaticcode', 'getstaticcode');
 
 # language/compiler ops
 QAST::MASTOperations.add_core_moarop_mapping('getcomp', 'getcomp');
