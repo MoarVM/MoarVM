@@ -36,16 +36,16 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
 /* Increases the reference count of a frame. */
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
-    apr_atomic_inc32(&frame->ref_count);
+    MVM_atomic_incr(&frame->ref_count);
     return frame;
 }
 
 /* Decreases the reference count of a frame. If it hits zero, then we can
  * free it. */
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
-    /* Note that we get zero if we really hit zero here, but dec32 may
-     * not give the exact count back if it ends up non-zero. */
-    while (apr_atomic_dec32(&frame->ref_count) == 0) {
+    /* MVM_atomic_dec returns what the count was before it decremented it
+     * to zero, so we look for 1 here. */
+    while (MVM_atomic_decr(&frame->ref_count) == 1) {
         MVMuint32 pool_index = frame->static_info->body.pool_index;
         MVMFrame *node = tc->frame_pool_table[pool_index];
         MVMFrame *outer_to_decr = frame->outer;
