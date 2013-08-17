@@ -372,7 +372,7 @@ sub generate {
             unless defined $line;
 
         # in-between slashes in makefiles need to be backslashes on Windows
-        s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
+        $line =~ s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
             if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
 
         print $destfile $line;
