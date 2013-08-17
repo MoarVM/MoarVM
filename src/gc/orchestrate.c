@@ -1,4 +1,7 @@
 #include "moarvm.h"
+#ifdef _WIN32
+#define pthread_yield SwitchToThread
+#endif
 
 #define GCORCH_DEBUG 0
 #ifdef _MSC_VER
@@ -238,7 +241,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
             MVMGCStatus_UNABLE) != MVMGCStatus_UNABLE) {
         /* We can't, presumably because a GC run is going on. We should wait
          * for that to finish before we go on, but without chewing CPU. */
-        apr_thread_yield();
+        pthread_yield();
     }
 }
 
@@ -320,7 +323,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         /* need to wait for other threads to reset their gc_status. */
         while (tc->instance->gc_ack)
-            apr_thread_yield();
+            pthread_yield();
 
         add_work(tc, tc);
 
@@ -386,13 +389,13 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     while ((curr = tc->instance->gc_start) < 2
             || !MVM_cas(&tc->instance->gc_start, curr, curr - 1)) {
     /*    apr_sleep(1);
-        apr_thread_yield();*/
+        pthread_yield();*/
     }
 
     /* Wait for all threads to indicate readiness to collect. */
     while (tc->instance->gc_start) {
     /*    apr_sleep(1);
-        apr_thread_yield();*/
+        pthread_yield();*/
     }
     run_gc(tc, MVMGCWhatToDo_NoInstance);
 }

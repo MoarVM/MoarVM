@@ -16,7 +16,7 @@ struct MVMThreadBody {
      * with the correct reference if the code object is moved. */
     MVMObject *invokee;
 
-    apr_thread_t *apr_thread;
+    uv_thread_t thread;
     apr_pool_t *apr_pool;
 
     /* next in tc's threads list */

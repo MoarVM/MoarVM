@@ -2663,27 +2663,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_getcomp: {
                         MVMObject *obj = tc->instance->compiler_registry;
-                        if (apr_thread_mutex_lock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to lock compiler registry");
-                        }
+                        uv_mutex_lock(&tc->instance->mutex_compiler_registry);
                         GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s);
-                        if (apr_thread_mutex_unlock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to unlock compiler registry");
-                        }
+                        uv_mutex_unlock(&tc->instance->mutex_compiler_registry);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_bindcomp: {
                         MVMObject *obj = tc->instance->compiler_registry;
-                        if (apr_thread_mutex_lock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to lock compiler registry");
-                        }
+                        uv_mutex_lock(&tc->instance->mutex_compiler_registry);
                         REPR(obj)->ass_funcs->bind_key_boxed(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
-                        if (apr_thread_mutex_unlock(tc->instance->mutex_compiler_registry) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to unlock compiler registry");
-                        }
+                        uv_mutex_unlock(&tc->instance->mutex_compiler_registry);
                         GET_REG(cur_op, 0).o = GET_REG(cur_op, 4).o;
                         cur_op += 6;
                         break;
@@ -2691,9 +2683,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_getcurhllsym: {
                         MVMObject *syms = tc->instance->hll_syms, *hash;
                         MVMString *hll_name = tc->cur_frame->static_info->cu->hll_name;
-                        if (apr_thread_mutex_lock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to lock hll syms");
-                        }
+                        uv_mutex_lock(&tc->instance->mutex_hll_syms);
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
                             hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
@@ -2706,18 +2696,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         else {
                             GET_REG(cur_op, 0).o = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 2).s);
                         }
-                        if (apr_thread_mutex_unlock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to unlock hll syms");
-                        }
+                        uv_mutex_unlock(&tc->instance->mutex_hll_syms);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_bindcurhllsym: {
                         MVMObject *syms = tc->instance->hll_syms, *hash;
                         MVMString *hll_name = tc->cur_frame->static_info->cu->hll_name;
-                        if (apr_thread_mutex_lock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to lock hll syms");
-                        }
+                        uv_mutex_lock(&tc->instance->mutex_hll_syms);
+
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
                             hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
@@ -2728,9 +2715,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         }
                         MVM_repr_bind_key_boxed(tc, hash, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                         GET_REG(cur_op, 0).o = GET_REG(cur_op, 4).o;
-                        if (apr_thread_mutex_unlock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to unlock hll syms");
-                        }
+                        uv_mutex_unlock(&tc->instance->mutex_hll_syms);
                         cur_op += 6;
                         break;
                     }
@@ -2867,9 +2852,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_gethllsym: {
                         MVMObject *syms = tc->instance->hll_syms, *hash;
                         MVMString *hll_name = GET_REG(cur_op, 2).s;
-                        if (apr_thread_mutex_lock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to lock hll syms");
-                        }
+                        uv_mutex_lock(&tc->instance->mutex_hll_syms);
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
                             MVMROOT(tc, hll_name, {
@@ -2883,9 +2866,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         else {
                             GET_REG(cur_op, 0).o = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 4).s);
                         }
-                        if (apr_thread_mutex_unlock(tc->instance->mutex_hll_syms) != APR_SUCCESS) {
-                            MVM_exception_throw_adhoc(tc, "Unable to unlock hll syms");
-                        }
+                        uv_mutex_unlock(&tc->instance->mutex_hll_syms);
                         cur_op += 6;
                         break;
                     }

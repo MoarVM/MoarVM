@@ -1,10 +1,9 @@
 #include "moarvm.h"
 
 #define init_mutex(loc, name) do { \
-    if ((apr_init_stat = apr_thread_mutex_create(&loc, APR_THREAD_MUTEX_DEFAULT, instance->apr_pool)) != APR_SUCCESS) { \
-        char error[256]; \
+    if ((init_stat = uv_mutex_init(&loc)) < 0) { \
         fprintf(stderr, "MoarVM: Initialization of " name " mutex failed\n    %s\n", \
-            apr_strerror(apr_init_stat, error, 256)); \
+            uv_strerror(init_stat)); \
         exit(1); \
 	} \
 } while (0)
@@ -13,28 +12,16 @@
 static void string_consts(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
-    apr_status_t apr_init_stat;
+    int init_stat;
 
-    /* Set up APR related bits. */
-    apr_init_stat = apr_initialize();
-    if (apr_init_stat != APR_SUCCESS) {
-        char error[256];
-        fprintf(stderr, "MoarVM: Initialization of APR failed\n    %s\n",
-            apr_strerror(apr_init_stat, error, 256));
-        exit(1);
-    }
+    apr_initialize();
 
     /* Set up instance data structure. */
     instance = calloc(1, sizeof(MVMInstance));
     instance->boot_types = calloc(1, sizeof(MVMBootTypes));
 
     /* Allocate instance APR pool. */
-    if ((apr_init_stat = apr_pool_create(&instance->apr_pool, NULL)) != APR_SUCCESS) {
-        char error[256];
-        fprintf(stderr, "MoarVM: Initialization of APR pool failed\n    %s\n",
-            apr_strerror(apr_init_stat, error, 256));
-        exit(1);
-    }
+    apr_pool_create(&instance->apr_pool, NULL);
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(instance);
@@ -165,7 +152,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_tc_destroy(instance->main_thread);
 
     /* Clean up GC permanent roots related resources. */
-    apr_thread_mutex_destroy(instance->mutex_permroots);
+    uv_mutex_destroy(&instance->mutex_permroots);
     free(instance->permroots);
 
     /* Free APR pool. */

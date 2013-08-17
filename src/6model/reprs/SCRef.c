@@ -76,11 +76,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSerializationContext *sc = (MVMSerializationContext *)obj;
 
     /* Remove from weakref lookup hash (which doesn't count as a root). */
-    if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
-        MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
+    uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
     HASH_DELETE(hash_handle, tc->instance->sc_weakhash, sc->body);
-    if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
-        MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
+    uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
 
     /* Free manually managed STable list memory and body. */
     if (sc->body->root_stables)

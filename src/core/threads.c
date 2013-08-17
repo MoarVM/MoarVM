@@ -35,7 +35,7 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
 }
 
 /* This callback handles starting execution of a thread. */
-static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
+static void start_thread(void *data) {
     ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
@@ -61,21 +61,22 @@ static void * APR_THREAD_FUNC start_thread(apr_thread_t *thread, void *data) {
     MVM_gc_mark_thread_blocked(tc);
 
     /* these are about to destroy themselves */
-    tc->thread_obj->body.apr_thread = NULL;
+    tc->thread_obj->body.thread = NULL;
     tc->thread_obj->body.apr_pool = NULL;
     /* hopefully pop the ts->thread_obj temp */
     MVM_gc_root_temp_pop(tc);
     free(ts);
 
     /* Exit the thread, now it's completed. */
-    apr_thread_exit(thread, APR_SUCCESS);
-
-    return NULL;
+#ifdef _WIN32
+    ExitThread(0);
+#else
+    pthread_exit(NULL);
+#endif
 }
 
 MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject *result_type) {
-    int apr_return_status;
-    apr_threadattr_t *thread_attr;
+    int status;
     ThreadStart *ts;
     MVMObject *child_obj;
 
@@ -95,9 +96,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         child_tc->thread_id = MVM_atomic_incr(&tc->instance->next_user_thread_id);
 
         /* Allocate APR pool for the thread. */
-        if ((apr_return_status = apr_pool_create(&child->body.apr_pool, NULL)) != APR_SUCCESS) {
-            MVM_panic(MVM_exitcode_threads, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
-        }
+        apr_pool_create(&child->body.apr_pool, NULL);
 
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was
@@ -124,16 +123,11 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
             MVM_ASSIGN_REF(tc, child, child->body.next, curr);
         } while (apr_atomic_casptr((volatile void**)threads, child, child->body.next) != child->body.next);
 
-        apr_return_status = apr_threadattr_create(&thread_attr, child->body.apr_pool);
-        if (apr_return_status != APR_SUCCESS) {
-            MVM_panic(MVM_exitcode_compunit, "Could not create threadattr: errorcode %d", apr_return_status);
-        }
 
-        apr_return_status = apr_thread_create(&child->body.apr_thread,
-            thread_attr, &start_thread, ts, child->body.apr_pool);
+        status = uv_thread_create(&child->body.thread, &start_thread, ts);
 
-        if (apr_return_status != APR_SUCCESS) {
-            MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", apr_return_status);
+        if (status < 0) {
+            MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", status);
         }
 
         /* need to run the GC to clear our new_child field in case we try
@@ -152,19 +146,19 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
 void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *thread = (MVMThread *)thread_obj;
-        apr_status_t thread_return_status, apr_return_status;
+        int status;
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&thread);
         MVM_gc_mark_thread_blocked(tc);
         if (((MVMThread *)thread_obj)->body.stage < MVM_thread_stage_exited) {
-            apr_return_status = apr_thread_join(&thread_return_status, thread->body.apr_thread);
+            status = uv_thread_join(&thread->body.thread);
         }
         else { /* the target already ended */
-            apr_return_status = APR_SUCCESS;
+            status = APR_SUCCESS;
         }
         MVM_gc_mark_thread_unblocked(tc);
         MVM_gc_root_temp_pop(tc);
-        if (apr_return_status != APR_SUCCESS)
-            MVM_panic(MVM_exitcode_compunit, "Could not join thread: errorcode %d", apr_return_status);
+        if (status < 0)
+            MVM_panic(MVM_exitcode_compunit, "Could not join thread: errorcode %d", status);
     }
     else {
         MVM_exception_throw_adhoc(tc,

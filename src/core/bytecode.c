@@ -276,8 +276,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         handle = cu->strings[sh_idx];
 
         /* See if we can resolve it. */
-        if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
-            MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
+        uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
         MVM_string_flatten(tc, handle);
         MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
         if (scb) {
@@ -288,8 +287,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             cu->scs_to_resolve[i] = cu->strings[sh_idx];
             cu->scs[i] = NULL;
         }
-        if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
-            MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
+        uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
     }
 }
 

@@ -10,24 +10,19 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     if (obj_ref == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a permanent root");
 
-    if (apr_thread_mutex_lock(tc->instance->mutex_permroots) == APR_SUCCESS) {
-        /* Allocate extra permanent root space if needed. */
-        if (tc->instance->num_permroots == tc->instance->alloc_permroots) {
-            tc->instance->alloc_permroots *= 2;
-            tc->instance->permroots = realloc(tc->instance->permroots,
-                sizeof(MVMCollectable **) * tc->instance->alloc_permroots);
-        }
-
-        /* Add this one to the list. */
-        tc->instance->permroots[tc->instance->num_permroots] = obj_ref;
-        tc->instance->num_permroots++;
-
-        if (apr_thread_mutex_unlock(tc->instance->mutex_permroots) != APR_SUCCESS)
-            MVM_panic(MVM_exitcode_gcroots, "Unable to unlock GC permanent root mutex");
+    uv_mutex_lock(&tc->instance->mutex_permroots);
+    /* Allocate extra permanent root space if needed. */
+    if (tc->instance->num_permroots == tc->instance->alloc_permroots) {
+        tc->instance->alloc_permroots *= 2;
+        tc->instance->permroots = realloc(tc->instance->permroots,
+            sizeof(MVMCollectable **) * tc->instance->alloc_permroots);
     }
-    else {
-        MVM_panic(MVM_exitcode_gcroots, "Unable to lock GC permanent root mutex");
-    }
+
+    /* Add this one to the list. */
+    tc->instance->permroots[tc->instance->num_permroots] = obj_ref;
+    tc->instance->num_permroots++;
+
+    uv_mutex_unlock(&tc->instance->mutex_permroots);
 }
 
 /* Adds the set of permanently registered roots to a GC worklist. */
@@ -60,7 +55,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* The usecapture object. */
     MVM_gc_worklist_add(tc, worklist, &tc->cur_usecapture);
-    
+
     /* List of SCs currently being compiled. */
     MVM_gc_worklist_add(tc, worklist, &tc->compiling_scs);
 }

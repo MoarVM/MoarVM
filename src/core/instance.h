@@ -91,7 +91,7 @@ struct MVMInstance {
     MVMuint32             num_permroots;
     MVMuint32             alloc_permroots;
     MVMCollectable     ***permroots;
-    apr_thread_mutex_t   *mutex_permroots;
+    uv_mutex_t            mutex_permroots;
 
     /* The current GC run sequence number. May wrap around over time; that
      * is fine since only equality ever matters. */
@@ -121,7 +121,7 @@ struct MVMInstance {
 
     /* Hash of HLLConfig objects. */
     MVMHLLConfig *hll_configs;
-    apr_thread_mutex_t   *mutex_hllconfigs;
+    uv_mutex_t    mutex_hllconfigs;
 
     /* Atomically-incremented counter of newly invoked frames,
      * so each can obtain an index into each threadcontext's pool table */
@@ -129,17 +129,17 @@ struct MVMInstance {
 
     /* Hash of compiler objects keyed by name */
     MVMObject          *compiler_registry;
-    apr_thread_mutex_t *mutex_compiler_registry;
+    uv_mutex_t    mutex_compiler_registry;
 
     /* Hash of hashes of symbol tables per hll. */
     MVMObject          *hll_syms;
-    apr_thread_mutex_t *mutex_hll_syms;
+    uv_mutex_t    mutex_hll_syms;
 
     /* mutex for container registry */
-    apr_thread_mutex_t *mutex_container_registry;
+    uv_mutex_t    mutex_container_registry;
 
     /* Hash of all known serialization contexts. Not marked for GC; an SC
      * removes it from this when it gets GC'd. */
     MVMSerializationContextBody *sc_weakhash;
-    apr_thread_mutex_t                  *mutex_sc_weakhash;
+    uv_mutex_t                   mutex_sc_weakhash;
 };

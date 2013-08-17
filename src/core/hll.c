@@ -7,9 +7,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
 
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get hll config needs concrete string");
 
-    if (apr_thread_mutex_lock(tc->instance->mutex_hllconfigs) != APR_SUCCESS) {
-        MVM_exception_throw_adhoc(tc, "Unable to lock hll config hash");
-    }
+    uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 
     HASH_FIND(hash_handle, tc->instance->hll_configs, kdata, klen, entry);
 
@@ -32,9 +30,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     }
 
-    if (apr_thread_mutex_unlock(tc->instance->mutex_hllconfigs) != APR_SUCCESS) {
-        MVM_exception_throw_adhoc(tc, "Unable to unlock hll config hash");
-    }
+    uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
 
     return entry;
 }

@@ -145,9 +145,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "add container config needs concrete string");
 
-    if (apr_thread_mutex_lock(tc->instance->mutex_container_registry) != APR_SUCCESS) {
-        MVM_exception_throw_adhoc(tc, "Unable to lock container registry hash");
-    }
+    uv_mutex_lock(&tc->instance->mutex_container_registry);
 
     HASH_FIND(hash_handle, container_registry, kdata, klen, entry);
 
@@ -158,9 +156,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     HASH_ADD_KEYPTR(hash_handle, container_registry, kdata, klen, entry);
 
-    if (apr_thread_mutex_unlock(tc->instance->mutex_container_registry) != APR_SUCCESS) {
-        MVM_exception_throw_adhoc(tc, "Unable to unlock container registry hash");
-    }
+    uv_mutex_unlock(&tc->instance->mutex_container_registry);
 }
 
 /* Gets a container configurer from the registry. */
