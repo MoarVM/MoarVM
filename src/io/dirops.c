@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-#define POOL(tc) (*(tc->interp_cu))->pool
+#define POOL(tc) (*(tc->interp_cu))->body.pool
 
 static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 

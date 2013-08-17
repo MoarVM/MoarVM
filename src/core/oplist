@@ -432,7 +432,10 @@ BANK 4 object
 0x84    setcontspec         r(obj) r(str) r(obj)
 0x85    existspos           w(int64) r(obj) r(int64)
 0x86    gethllsym           w(obj) r(str) r(str)
-
+0x87    freshcoderef        w(obj) r(obj)
+0x88    markcodestatic      r(obj)
+0x89    markcodestub        r(obj)
+0x8A    getstaticcode       w(obj) r(obj)
 
 BANK 5 io
 0x00    copy_f              r(str) r(str)
@@ -505,6 +508,7 @@ BANK 6 processthread
 0x11    exit                r(int64)
 0x12    loadbytecode        w(str) r(str)
 0x13    getenvhash          w(obj)
+0x14    compilemasttofile   r(obj) r(str)
 
 BANK 7 serialization
 0x00    sha1                w(str) r(str)

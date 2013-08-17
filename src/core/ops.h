@@ -444,6 +444,10 @@
 #define MVM_OP_setcontspec 132
 #define MVM_OP_existspos 133
 #define MVM_OP_gethllsym 134
+#define MVM_OP_freshcoderef 135
+#define MVM_OP_markcodestatic 136
+#define MVM_OP_markcodestub 137
+#define MVM_OP_getstaticcode 138
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0
@@ -516,6 +520,7 @@
 #define MVM_OP_exit 17
 #define MVM_OP_loadbytecode 18
 #define MVM_OP_getenvhash 19
+#define MVM_OP_compilemasttofile 20
 
 /* Op name defines for bank serialization. */
 #define MVM_OP_sha1 0

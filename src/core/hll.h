@@ -18,6 +18,9 @@ struct MVMHLLConfig {
     /* The type to use for hash iteration (should have VMIter REPR). */
     MVMObject *hash_iterator_type;
 
+    /* array of types to pass to compiler.c */
+    MVMObject *mast_types;
+
     /* HLL name. */
     MVMString *name;
 

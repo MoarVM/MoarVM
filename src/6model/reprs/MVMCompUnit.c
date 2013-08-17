@@ -5,13 +5,7 @@ static MVMREPROps *this_repr;
 
 /* Invocation protocol handler. */
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    if (IS_CONCRETE(invokee)) {
-        MVMCode *code = (MVMCode *)invokee;
-        MVM_frame_invoke(tc, code->body.sf, callsite, args, code->body.outer, invokee);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot invoke code type object");
-    }
+    MVM_exception_throw_adhoc(tc, "Cannot invoke comp unit object");
 }
 
 /* Creates a new type object of this representation, and associates it with
@@ -25,7 +19,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->invoke = invoke_handler;
-        st->size = sizeof(MVMCode);
+        st->size = sizeof(MVMCompUnit);
     });
 
     return st->WHAT;
@@ -42,32 +36,46 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMCodeBody *src_body  = (MVMCodeBody *)src;
-    MVMCodeBody *dest_body = (MVMCodeBody *)dest;
-    dest_body->sf = src_body->sf;
-    if (src_body->outer)
-        dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
-    /* XXX should these next two really be copied? */
-    dest_body->is_static = dest_body->is_static;
-    dest_body->is_compiler_stub = dest_body->is_compiler_stub;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->code_object, src_body->code_object);
+    MVMCompUnitBody *src_body  = (MVMCompUnitBody *)src;
+    MVMCompUnitBody *dest_body = (MVMCompUnitBody *)dest;
+    MVM_exception_throw_adhoc(tc, "this representation (CompUnit) cannot be cloned");
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMCodeBody *body = (MVMCodeBody *)data;
-    MVM_gc_worklist_add_frame(tc, worklist, body->outer);
-    MVM_gc_worklist_add(tc, worklist, &body->code_object);
-    MVM_gc_worklist_add(tc, worklist, &body->sf);
+    MVMCompUnitBody *body = (MVMCompUnitBody *)data;
+    MVMuint32 i;
+
+    /* Add code refs and static frames to the worklists. */
+    for (i = 0; i < body->num_frames; i++) {
+        MVM_gc_worklist_add(tc, worklist, &body->frames[i]);
+        MVM_gc_worklist_add(tc, worklist, &body->coderefs[i]);
+    }
+
+    /* Add strings to the worklists. */
+    for (i = 0; i < body->num_strings; i++)
+        MVM_gc_worklist_add(tc, worklist, &body->strings[i]);
+
+    /* Add serialization contexts to the worklist. */
+    for (i = 0; i < body->num_scs; i++) {
+        if (body->scs[i])
+            MVM_gc_worklist_add(tc, worklist, &body->scs[i]);
+        if (body->scs_to_resolve[i])
+            MVM_gc_worklist_add(tc, worklist, &body->scs_to_resolve[i]);
+    }
+
+    /* Add various other referenced strings, etc. */
+    MVM_gc_worklist_add(tc, worklist, &body->hll_name);
+    MVM_gc_worklist_add(tc, worklist, &body->filename);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMCode *code_obj = (MVMCode *)obj;
+/*    MVMCompUnit *code_obj = (MVMCompUnit *)obj;
     if (code_obj->body.outer) {
         MVM_frame_dec_ref(tc, code_obj->body.outer);
         code_obj->body.outer = NULL;
-    }
+    }*/
 }
 
 /* Gets the storage specification for this representation. */
@@ -86,7 +94,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMCode_initialize(MVMThreadContext *tc) {
+MVMREPROps * MVMCompUnit_initialize(MVMThreadContext *tc) {
     /* Allocate and populate the representation function table. */
     this_repr = malloc(sizeof(MVMREPROps));
     memset(this_repr, 0, sizeof(MVMREPROps));

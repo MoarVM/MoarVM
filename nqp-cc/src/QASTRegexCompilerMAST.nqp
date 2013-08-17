@@ -287,10 +287,10 @@ class QAST::MASTRegexCompiler {
             merge_ins(@ins, [
                 op('ge_i', $i11, $pos, %*REG<eos>),
                 op('if_i', $i11, $fail),
-                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
+                op('iscclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
                 op('unless_i', $i11, %*REG<fail>),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
+                op('iscclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
                 op('if_i', $i11, $fail)
             ]);
         }
@@ -298,10 +298,10 @@ class QAST::MASTRegexCompiler {
             merge_ins(@ins, [
                 op('le_i', $i11, $pos, %*REG<zero>),
                 op('if_i', $i11, $fail),
-                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
+                op('iscclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $pos),
                 op('if_i', $i11, %*REG<fail>),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('is_cclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
+                op('iscclass', $i11, %*REG<cclass_word>, %*REG<tgt>, $i11),
                 op('unless_i', $i11, $fail)
             ]);
         }
@@ -312,21 +312,21 @@ class QAST::MASTRegexCompiler {
                 op('ge_i', $i11, $pos, %*REG<eos>),
                 op('if_i', $i11, $fail),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
+                op('iscclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
                 op('unless_i', $i11, $fail),
                 $donelabel
             ]);
         }
         elsif $subtype eq 'eol' {
             merge_ins(@ins, [
-                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, %*REG<pos>),
+                op('iscclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, %*REG<pos>),
                 op('if_i', $i11, $donelabel),
                 op('ne_i', $i11, %*REG<pos>, %*REG<eos>),
                 op('if_i', $i11, $fail),
                 op('eq_i', $i11, %*REG<pos>, %*REG<zero>),
                 op('if_i', $i11, $donelabel),
                 op('sub_i', $i11, %*REG<pos>, %*REG<one>),
-                op('is_cclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
+                op('iscclass', $i11, %*REG<cclass_newline>, %*REG<tgt>, $i11),
                 op('if_i', $i11, $fail),
                 $donelabel
             ]);
@@ -920,6 +920,18 @@ class QAST::MASTRegexCompiler {
         }
         my $rxtype := $node.rxtype() || 'concat';
         self."$rxtype"($node) # expects to return an nqp::list of instructions
+    }
+
+    method ws($node) { self.subrule($node) }
+
+    method dba($node) {
+        my @ins      := nqp::list();
+        my @flags := [$Arg::obj, $Arg::int64, $Arg::str];
+        merge_ins(@ins, [
+            op('findmeth', %*REG<method>, %*REG<cur>, sval('"!dba"')),
+            call(%*REG<method>, @flags, %*REG<cur>, %*REG<pos>, sval($node.name))
+        ]);
+        @ins
     }
 
     sub rxjump($name) {

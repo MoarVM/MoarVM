@@ -34,16 +34,17 @@ static void throw_past_end(MVMThreadContext *tc, MVMuint8 *labels) {
 
 /* Validate that a static frame's bytecode is executable by the interpreter */
 void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+    MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
-    MVMCompUnit *cu = static_frame->cu;
-    MVMuint32 bytecode_size = static_frame->bytecode_size;
-    MVMuint8 *bytecode_start = static_frame->bytecode;
+    MVMCompUnit *cu = static_frame_body->cu;
+    MVMuint32 bytecode_size = static_frame_body->bytecode_size;
+    MVMuint8 *bytecode_start = static_frame_body->bytecode;
     MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
     /* current position in the bytestream */
     MVMuint8 *cur_op = bytecode_start;
     /* positions in the bytestream that are starts of ops and goto targets */
     MVMuint8 *labels = malloc(bytecode_size);
-    MVMuint32 num_locals = static_frame->num_locals;
+    MVMuint32 num_locals = static_frame_body->num_locals;
     MVMuint32 branch_target;
     MVMuint8 bank_num;
     MVMuint8 op_num;
@@ -109,11 +110,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (cur_op + operand_size > bytecode_end)
                             throw_past_end(tc, labels);
                         operand_target = GET_UI16(cur_op, 0);
-                        if (operand_target >= cu->num_callsites) {
+                        if (operand_target >= cu->body.num_callsites) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
                                 "Bytecode validation error: callsites index (%u) out of range; frame has %u callsites",
-                                operand_target, cu->num_callsites);
+                                operand_target, cu->body.num_callsites);
                         }
                         break;
 
@@ -122,11 +123,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (cur_op + operand_size > bytecode_end)
                             throw_past_end(tc, labels);
                         operand_target = GET_UI16(cur_op, 0);
-                        if (operand_target >= cu->num_frames) {
+                        if (operand_target >= cu->body.num_frames) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
                                 "Bytecode validation error: coderef index (%u) out of range; frame has %u coderefs",
-                                operand_target, cu->num_frames);
+                                operand_target, cu->body.num_frames);
                         }
                         break; /* reset to 0 */
 
@@ -135,11 +136,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                         if (cur_op + operand_size > bytecode_end)
                             throw_past_end(tc, labels);
                         operand_target = GET_UI16(cur_op, 0);
-                        if (operand_target >= cu->num_strings) {
+                        if (operand_target >= cu->body.num_strings) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
                                 "Bytecode validation error: strings index (%u) out of range (0-%u)",
-                                operand_target, cu->num_strings - 1);
+                                operand_target, cu->body.num_strings - 1);
                         }
                         break;
 
@@ -188,18 +189,18 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 if (op_type == MVM_operand_type_var) {
                     if (operand_type_var) {
                         /* XXX assume only one type variable */
-                        if ((static_frame->local_types[GET_REG(cur_op, 0)] << 3) != operand_type_var) {
+                        if ((static_frame_body->local_types[GET_REG(cur_op, 0)] << 3) != operand_type_var) {
                             cleanup_all(tc, labels);
                             MVM_exception_throw_adhoc(tc,
                                 "Bytecode validation error: inconsistent operand types %d and %d to op '%s' with a type variable, at instruction %d",
-                                    static_frame->local_types[GET_REG(cur_op, 0)], operand_type_var >> 3, op_info->name, instruction);
+                                    static_frame_body->local_types[GET_REG(cur_op, 0)], operand_type_var >> 3, op_info->name, instruction);
                         }
                     }
                     else {
-                        operand_type_var = (static_frame->local_types[GET_REG(cur_op, 0)] << 3);
+                        operand_type_var = (static_frame_body->local_types[GET_REG(cur_op, 0)] << 3);
                     }
                 }
-                else if ((static_frame->local_types[GET_REG(cur_op, 0)] << 3) != op_type) {
+                else if ((static_frame_body->local_types[GET_REG(cur_op, 0)] << 3) != op_type) {
                     cleanup_all(tc, labels);
                     MVM_exception_throw_adhoc(tc,
                         "Bytecode validation error: instruction operand type does not match register type");
@@ -208,7 +209,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
             else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
                 /* lexical operand */
                 MVMuint16 idx, frames, i;
-                MVMStaticFrame *applicable_frame = static_frame;
+                MVMStaticFrameBody *applicable_frame_body = static_frame_body;
 
                 /* Check we've enough bytecode left to read the operands, and
                  * do so. */
@@ -221,8 +222,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 /* Locate the applicable static frame. */
                 i = frames;
                 while (i > 0) {
-                    if (applicable_frame->outer) {
-                        applicable_frame = applicable_frame->outer;
+                    if (applicable_frame_body->outer) {
+                        applicable_frame_body = &applicable_frame_body->outer->body;
                     }
                     else {
                         cleanup_all(tc, labels);
@@ -234,11 +235,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 }
 
                 /* Ensure that the lexical index is in range. */
-                if (idx >= applicable_frame->num_lexicals) {
+                if (idx >= applicable_frame_body->num_lexicals) {
                     cleanup_all(tc, labels);
                     MVM_exception_throw_adhoc(tc,
                         "Bytecode validation error: operand lexical index (%u) out of range; frame has %u lexicals; at byte %u",
-                        idx, applicable_frame->num_lexicals, cur_op - bytecode_start);
+                        idx, applicable_frame_body->num_lexicals, cur_op - bytecode_start);
                 }
 
                 /* XXX Type checks. */

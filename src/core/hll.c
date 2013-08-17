@@ -36,11 +36,9 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
 }
 
 #define check_config_key(tc, hash, name, member, config) do { \
-    MVMObject *key = (MVMObject *)MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
-    MVMObject *val = REPR((hash))->ass_funcs->at_key_boxed((tc), STABLE((hash)), (hash), OBJECT_BODY((hash)), key); \
-    if (val) { \
-        (config)->member = val; \
-    } \
+    MVMString *key = MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
+    MVMObject *val = MVM_repr_at_key_boxed((tc), (hash), key); \
+    if (val) (config)->member = val; \
 } while (0)
 
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash) {
@@ -66,5 +64,5 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
 
 /* Gets the current HLL configuration. */
 MVMHLLConfig *MVM_hll_current(MVMThreadContext *tc) {
-    return (*tc->interp_cu)->hll_config;
+    return (*tc->interp_cu)->body.hll_config;
 }

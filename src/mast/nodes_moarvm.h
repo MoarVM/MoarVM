@@ -154,3 +154,4 @@ typedef MVMString VMSTR;
 #define EMPTY_STRING(vm)            (MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ""))
 #define VM_STRING_IS_NULL(s)        (s == NULL)
 #define VM_OBJ_IS_NULL(o)           (o == NULL)
+#define VM_STRING_TO_C_STRING(vm, s) (MVM_string_ascii_encode_any(tc, s))

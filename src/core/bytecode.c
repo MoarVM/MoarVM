@@ -104,7 +104,8 @@ static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
 /* Ensures we can read a certain amount of bytes without overrunning the end
  * of the stream. */
 static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
-    if (pos + size > cu->data_start + cu->data_size) {
+    MVMCompUnitBody *cu_body = &cu->body;
+    if (pos + size > cu_body->data_start + cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
     }
@@ -113,26 +114,28 @@ static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *
 /* Reads a string index, looks up the string and returns it. Bounds
  * checks the string heap index too. */
 static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, char *buffer, size_t offset) {
+    MVMCompUnitBody *cu_body = &cu->body;
     MVMuint16 heap_index = read_int16(buffer, offset);
-    if (heap_index >= cu->num_strings) {
+    if (heap_index >= cu_body->num_strings) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
     }
-    return cu->strings[heap_index];
+    return cu_body->strings[heap_index];
 }
 
 /* Dissects the bytecode stream and hands back a reader pointing to the
  * various parts of it. */
 static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
+    MVMCompUnitBody *cu_body = &cu->body;
     ReaderState *rs = NULL;
     MVMuint32 version, offset, size;
 
     /* Sanity checks. */
-    if (cu->data_size < HEADER_SIZE)
+    if (cu_body->data_size < HEADER_SIZE)
         MVM_exception_throw_adhoc(tc, "Bytecode stream shorter than header");
-    if (memcmp(cu->data_start, "MOARVM\r\n", 8) != 0)
+    if (memcmp(cu_body->data_start, "MOARVM\r\n", 8) != 0)
         MVM_exception_throw_adhoc(tc, "Bytecode stream corrupt (missing magic string)");
-    version = read_int32(cu->data_start, 8);
+    version = read_int32(cu_body->data_start, 8);
     if (version < MIN_BYTECODE_VERSION)
         MVM_exception_throw_adhoc(tc, "Bytecode stream version too low");
     if (version > MAX_BYTECODE_VERSION)
@@ -143,69 +146,69 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->version = version;
 
     /* Locate SC dependencies segment. */
-    offset = read_int32(cu->data_start, 12);
-    if (offset > cu->data_size) {
+    offset = read_int32(cu_body->data_start, 12);
+    if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Serialization contexts segment starts after end of stream");
     }
-    rs->sc_seg       = cu->data_start + offset;
-    rs->expected_scs = read_int32(cu->data_start, 16);
+    rs->sc_seg       = cu_body->data_start + offset;
+    rs->expected_scs = read_int32(cu_body->data_start, 16);
 
     /* Locate frames segment. */
-    offset = read_int32(cu->data_start, 20);
-    if (offset > cu->data_size) {
+    offset = read_int32(cu_body->data_start, 20);
+    if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
     }
-    rs->frame_seg       = cu->data_start + offset;
-    rs->expected_frames = read_int32(cu->data_start, 24);
+    rs->frame_seg       = cu_body->data_start + offset;
+    rs->expected_frames = read_int32(cu_body->data_start, 24);
 
     /* Locate callsites segment. */
-    offset = read_int32(cu->data_start, 28);
-    if (offset > cu->data_size) {
+    offset = read_int32(cu_body->data_start, 28);
+    if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
     }
-    rs->callsite_seg       = cu->data_start + offset;
-    rs->expected_callsites = read_int32(cu->data_start, 32);
+    rs->callsite_seg       = cu_body->data_start + offset;
+    rs->expected_callsites = read_int32(cu_body->data_start, 32);
 
     /* Locate strings segment. */
-    offset = read_int32(cu->data_start, 40);
-    if (offset > cu->data_size) {
+    offset = read_int32(cu_body->data_start, 40);
+    if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
     }
-    rs->string_seg       = cu->data_start + offset;
-    rs->expected_strings = read_int32(cu->data_start, 44);
+    rs->string_seg       = cu_body->data_start + offset;
+    rs->expected_strings = read_int32(cu_body->data_start, 44);
 
     /* Locate bytecode segment. */
-    offset = read_int32(cu->data_start, 56);
-    size = read_int32(cu->data_start, 60);
-    if (offset > cu->data_size || offset + size > cu->data_size) {
+    offset = read_int32(cu_body->data_start, 56);
+    size = read_int32(cu_body->data_start, 60);
+    if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
     }
-    rs->bytecode_seg  = cu->data_start + offset;
+    rs->bytecode_seg  = cu_body->data_start + offset;
     rs->bytecode_size = size;
 
     /* Locate annotations segment. */
-    offset = read_int32(cu->data_start, 64);
-    size = read_int32(cu->data_start, 68);
-    if (offset > cu->data_size || offset + size > cu->data_size) {
+    offset = read_int32(cu_body->data_start, 64);
+    size = read_int32(cu_body->data_start, 68);
+    if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
     }
-    rs->annotation_seg  = cu->data_start + offset;
+    rs->annotation_seg  = cu_body->data_start + offset;
     rs->annotation_size = size;
 
     /* Locate HLL name */
-    rs->hll_str_idx = read_int32(cu->data_start, 72);
+    rs->hll_str_idx = read_int32(cu_body->data_start, 72);
 
     /* Locate special frame indexes. Note, they are 0 for none, and the
      * index + 1 if there is one. */
-    rs->main_frame = read_int32(cu->data_start, 76);
-    rs->load_frame = read_int32(cu->data_start, 80);
-    rs->deserialize_frame = read_int32(cu->data_start, 84);
+    rs->main_frame = read_int32(cu_body->data_start, 76);
+    rs->load_frame = read_int32(cu_body->data_start, 80);
+    rs->deserialize_frame = read_int32(cu_body->data_start, 84);
     if (rs->main_frame > rs->expected_frames
             || rs->load_frame > rs->expected_frames
             || rs->deserialize_frame > rs->expected_frames) {
@@ -217,6 +220,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 
 /* Loads the string heap. */
 static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMCompUnitBody *cu_body = &cu->body;
     MVMString **strings;
     MVMuint8   *pos;
     MVMuint32   i, ss;
@@ -237,7 +241,7 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
         /* Ensure we can read in the string of this size, and decode
          * it if so. */
         ensure_can_read(tc, cu, rs, pos, ss);
-        strings[i] = MVM_string_utf8_decode(tc, tc->instance->VMString, pos, ss);
+        MVM_ASSIGN_REF(tc, cu, strings[i], MVM_string_utf8_decode(tc, tc->instance->VMString, pos, ss));
         pos += ss;
 
         /* Add alignment. */
@@ -249,13 +253,14 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
 
 /* Loads the SC dependencies list. */
 static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMCompUnitBody *cu_body = &cu->body;
     MVMuint32 i, sh_idx;
     MVMuint8  *pos;
 
     /* Allocate SC lists in compilation unit. */
-    cu->scs = malloc(rs->expected_scs * sizeof(MVMSerializationContext *));
-    cu->scs_to_resolve = malloc(rs->expected_scs * sizeof(MVMString *));
-    cu->num_scs = rs->expected_scs;
+    cu_body->scs = malloc(rs->expected_scs * sizeof(MVMSerializationContext *));
+    cu_body->scs_to_resolve = malloc(rs->expected_scs * sizeof(MVMString *));
+    cu_body->num_scs = rs->expected_scs;
 
     /* Resolve all the things. */
     pos = rs->sc_seg;
@@ -269,23 +274,23 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         pos += 4;
 
         /* Resolve to string. */
-        if (sh_idx >= cu->num_strings) {
+        if (sh_idx >= cu_body->num_strings) {
             cleanup_all(tc, rs);
             MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
         }
-        handle = cu->strings[sh_idx];
+        handle = cu_body->strings[sh_idx];
 
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
         MVM_string_flatten(tc, handle);
         MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
         if (scb) {
-            cu->scs_to_resolve[i] = NULL;
-            cu->scs[i] = scb->sc;
+            cu_body->scs_to_resolve[i] = NULL;
+            MVM_ASSIGN_REF(tc, cu, cu_body->scs[i], scb->sc);
         }
         else {
-            cu->scs_to_resolve[i] = cu->strings[sh_idx];
-            cu->scs[i] = NULL;
+            MVM_ASSIGN_REF(tc, cu, cu_body->scs_to_resolve[i], cu_body->strings[sh_idx]);
+            cu_body->scs[i] = NULL;
         }
         uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
     }
@@ -294,6 +299,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
 /* Loads the static frame information (what locals we have, bytecode offset,
  * lexicals, etc.) */
 static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMCompUnitBody *cu_body = &cu->body;
     MVMStaticFrame **frames;
     MVMuint8        *pos;
     MVMuint32        bytecode_pos, bytecode_size, num_locals, i, j;
@@ -311,12 +317,16 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     /* Load frames. */
     pos = rs->frame_seg;
     for (i = 0; i < rs->expected_frames; i++) {
+        MVMStaticFrame *static_frame;
+        MVMStaticFrameBody *static_frame_body;
         /* Ensure we can read a frame here. */
         ensure_can_read(tc, cu, rs, pos, FRAME_HEADER_SIZE);
 
         /* Allocate frame and get/check bytecode start/length. */
-        frames[i] = malloc(sizeof(MVMStaticFrame));
-        memset(frames[i], 0, sizeof(MVMStaticFrame));
+        static_frame = (MVMStaticFrame *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStaticFrame);
+        MVM_ASSIGN_REF(tc, cu, frames[i], static_frame);
+        static_frame_body = &static_frame->body;
+        
         bytecode_pos = read_int32(pos, 0);
         bytecode_size = read_int32(pos, 4);
         if (bytecode_pos >= rs->bytecode_size) {
@@ -327,16 +337,17 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             cleanup_all(tc, rs);
             MVM_exception_throw_adhoc(tc, "Frame bytecode overflows bytecode stream");
         }
-        frames[i]->bytecode = rs->bytecode_seg + bytecode_pos;
-        frames[i]->bytecode_size = bytecode_size;
+        static_frame_body->bytecode = rs->bytecode_seg + bytecode_pos;
+        static_frame_body->bytecode_size = bytecode_size;
 
         /* Get number of locals and lexicals. */
-        frames[i]->num_locals = read_int32(pos, 8);
-        frames[i]->num_lexicals = read_int32(pos, 12);
+        static_frame_body->num_locals = read_int32(pos, 8);
+        static_frame_body->num_lexicals = read_int32(pos, 12);
 
         /* Get compilation unit unique ID and name. */
-        frames[i]->cuuid = get_heap_string(tc, cu, rs, pos, 16);
-        frames[i]->name  = get_heap_string(tc, cu, rs, pos, 18);
+        /* XXX do these need MVM_ASSIGN_REF? */
+        static_frame_body->cuuid = get_heap_string(tc, cu, rs, pos, 16);
+        static_frame_body->name  = get_heap_string(tc, cu, rs, pos, 18);
 
         /* Add frame outer fixup to fixup list. */
         rs->frame_outer_fixups[i] = read_int16(pos, 20);
@@ -349,77 +360,76 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 cleanup_all(tc, rs);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
-            frames[i]->annotations = rs->annotation_seg + annot_offset;
-            frames[i]->num_annotations = num_annotations;
+            static_frame_body->annotations = rs->annotation_seg + annot_offset;
+            static_frame_body->num_annotations = num_annotations;
         }
 
         /* Read number of handlers. */
-        frames[i]->num_handlers = read_int32(pos, 30);
+        static_frame_body->num_handlers = read_int32(pos, 30);
 
         pos += FRAME_HEADER_SIZE;
 
         /* Read the local types. */
-        if (frames[i]->num_locals) {
-            ensure_can_read(tc, cu, rs, pos, 2 * frames[i]->num_locals);
-            frames[i]->local_types = malloc(sizeof(MVMuint16) * frames[i]->num_locals);
-            for (j = 0; j < frames[i]->num_locals; j++)
-                frames[i]->local_types[j] = read_int16(pos, 2 * j);
-            pos += 2 * frames[i]->num_locals;
+        if (static_frame_body->num_locals) {
+            ensure_can_read(tc, cu, rs, pos, 2 * static_frame_body->num_locals);
+            static_frame_body->local_types = malloc(sizeof(MVMuint16) * static_frame_body->num_locals);
+            for (j = 0; j < static_frame_body->num_locals; j++)
+                static_frame_body->local_types[j] = read_int16(pos, 2 * j);
+            pos += 2 * static_frame_body->num_locals;
         }
 
         /* Read the lexical types. */
-        if (frames[i]->num_lexicals) {
+        if (static_frame_body->num_lexicals) {
             /* Allocate names hash and types list. */
-            /* lexical_names must start out as null, but it's already zeroed. */
-            /* frames[i]->lexical_names = NULL; */
-            frames[i]->lexical_types = malloc(sizeof(MVMuint16) * frames[i]->num_lexicals);
+            static_frame_body->lexical_types = malloc(sizeof(MVMuint16) * static_frame_body->num_lexicals);
 
             /* Read in data. */
-            ensure_can_read(tc, cu, rs, pos, 4 * frames[i]->num_lexicals);
-            for (j = 0; j < frames[i]->num_lexicals; j++) {
+            ensure_can_read(tc, cu, rs, pos, 4 * static_frame_body->num_lexicals);
+            for (j = 0; j < static_frame_body->num_lexicals; j++) {
                 MVMString *name = get_heap_string(tc, cu, rs, pos, 4 * j + 2);
-                MVMLexicalHashEntry *entry = calloc(sizeof(MVMLexicalHashEntry), 1);
+                MVMLexicalHashEntry *entry = calloc(1, sizeof(MVMLexicalHashEntry));
+
+                MVM_ASSIGN_REF(tc, static_frame, entry->key, name);
                 entry->value = j;
 
-                frames[i]->lexical_types[j] = read_int16(pos, 4 * j);
+                static_frame_body->lexical_types[j] = read_int16(pos, 4 * j);
                 MVM_string_flatten(tc, name);
-                MVM_HASH_BIND(tc, frames[i]->lexical_names, name, entry)
+                MVM_HASH_BIND(tc, static_frame_body->lexical_names, name, entry)
             }
-            pos += 4 * frames[i]->num_lexicals;
+            pos += 4 * static_frame_body->num_lexicals;
         }
 
         /* Read in handlers. */
-        if (frames[i]->num_handlers) {
+        if (static_frame_body->num_handlers) {
             /* Allocate space for handler data. */
-            frames[i]->handlers = malloc(frames[i]->num_handlers * sizeof(MVMFrameHandler));
+            static_frame_body->handlers = malloc(static_frame_body->num_handlers * sizeof(MVMFrameHandler));
 
             /* Read each handler. */
-            ensure_can_read(tc, cu, rs, pos, frames[i]->num_handlers * FRAME_HANDLER_SIZE);
-            for (j = 0; j < frames[i]->num_handlers; j++) {
-                frames[i]->handlers[j].start_offset = read_int32(pos, 0);
-                frames[i]->handlers[j].end_offset = read_int32(pos, 4);
-                frames[i]->handlers[j].category_mask = read_int32(pos, 8);
-                frames[i]->handlers[j].action = read_int16(pos, 12);
-                frames[i]->handlers[j].block_reg = read_int16(pos, 14);
-                frames[i]->handlers[j].goto_offset = read_int32(pos, 16);
+            ensure_can_read(tc, cu, rs, pos, static_frame_body->num_handlers * FRAME_HANDLER_SIZE);
+            for (j = 0; j < static_frame_body->num_handlers; j++) {
+                static_frame_body->handlers[j].start_offset = read_int32(pos, 0);
+                static_frame_body->handlers[j].end_offset = read_int32(pos, 4);
+                static_frame_body->handlers[j].category_mask = read_int32(pos, 8);
+                static_frame_body->handlers[j].action = read_int16(pos, 12);
+                static_frame_body->handlers[j].block_reg = read_int16(pos, 14);
+                static_frame_body->handlers[j].goto_offset = read_int32(pos, 16);
                 pos += FRAME_HANDLER_SIZE;
             }
         }
 
         /* Associate frame with compilation unit. */
-        frames[i]->cu = cu;
+        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->cu, cu);
 
         /* Allocate default lexical environment storage. */
-        frames[i]->env_size = frames[i]->num_lexicals * sizeof(MVMRegister);
-        frames[i]->static_env = malloc(frames[i]->env_size);
-        memset(frames[i]->static_env, 0, frames[i]->env_size);
+        static_frame_body->env_size = static_frame_body->num_lexicals * sizeof(MVMRegister);
+        static_frame_body->static_env = calloc(1, static_frame_body->env_size);
     }
 
     /* Fixup outers. */
     for (i = 0; i < rs->expected_frames; i++) {
         if (rs->frame_outer_fixups[i] != i) {
             if (rs->frame_outer_fixups[i] < rs->expected_frames) {
-                frames[i]->outer = frames[rs->frame_outer_fixups[i]];
+                MVM_ASSIGN_REF(tc, frames[i], frames[i]->body.outer, frames[rs->frame_outer_fixups[i]]);
             }
             else {
                 cleanup_all(tc, rs);
@@ -436,6 +446,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     MVMCallsite **callsites;
     MVMuint8     *pos;
     MVMuint32     i, j, elems, positionals, nameds;
+    MVMCompUnitBody *cu_body = &cu->body;
 
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
@@ -495,8 +506,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
-        if (positionals + nameds > cu->max_callsite_size)
-            cu->max_callsite_size = positionals + nameds;
+        if (positionals + nameds > cu_body->max_callsite_size)
+            cu_body->max_callsite_size = positionals + nameds;
     }
 
     return callsites;
@@ -506,14 +517,14 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32  i;
     MVMObject *code_type;
+    MVMCompUnitBody *cu_body = &cu->body;
 
-    cu->coderefs = malloc(sizeof(MVMObject *) * cu->num_frames);
-    memset(cu->coderefs, 0, sizeof(MVMObject *) * cu->num_frames);
+    cu_body->coderefs = malloc(cu_body->num_frames * sizeof(MVMObject *));
 
     code_type = tc->instance->boot_types->BOOTCode;
-    for (i = 0; i < cu->num_frames; i++) {
-        cu->coderefs[i] = REPR(code_type)->allocate(tc, STABLE(code_type));
-        ((MVMCode *)cu->coderefs[i])->body.sf = cu->frames[i];
+    for (i = 0; i < cu_body->num_frames; i++) {
+        MVM_ASSIGN_REF(tc, cu, cu_body->coderefs[i], REPR(code_type)->allocate(tc, STABLE(code_type)));
+        MVM_ASSIGN_REF(tc, cu_body->coderefs[i], ((MVMCode *)cu_body->coderefs[i])->body.sf, cu_body->frames[i]);
     }
 }
 
@@ -523,35 +534,35 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Dissect the bytecode into its parts. */
     ReaderState *rs = dissect_bytecode(tc, cu);
+    MVMCompUnitBody *cu_body = &cu->body;
 
     /* Load the strings heap. */
-    cu->strings = deserialize_strings(tc, cu, rs);
-    cu->num_strings = rs->expected_strings;
+    cu_body->strings = deserialize_strings(tc, cu, rs);
+    cu_body->num_strings = rs->expected_strings;
 
     /* Load SC dependencies. */
     deserialize_sc_deps(tc, cu, rs);
 
     /* Load the static frame info and give each one a code reference. */
-    cu->frames = deserialize_frames(tc, cu, rs);
-    cu->num_frames = rs->expected_frames;
+    cu_body->frames = deserialize_frames(tc, cu, rs);
+    cu_body->num_frames = rs->expected_frames;
     create_code_objects(tc, cu);
 
     /* Load callsites. */
-    cu->max_callsite_size = 0;
-    cu->callsites = deserialize_callsites(tc, cu, rs);
-    cu->num_callsites = rs->expected_callsites;
+    cu_body->max_callsite_size = 0;
+    cu_body->callsites = deserialize_callsites(tc, cu, rs);
+    cu_body->num_callsites = rs->expected_callsites;
 
     /* Resolve HLL name. */
-    cu->hll_name = cu->strings[rs->hll_str_idx];
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&cu->hll_name);
+    MVM_ASSIGN_REF(tc, cu, cu_body->hll_name, cu_body->strings[rs->hll_str_idx]);
 
     /* Resolve special frames. */
     if (rs->main_frame)
-        cu->main_frame = cu->frames[rs->main_frame - 1];
+        MVM_ASSIGN_REF(tc, cu, cu_body->main_frame, cu_body->frames[rs->main_frame - 1]);
     if (rs->load_frame)
-        cu->load_frame = cu->frames[rs->load_frame - 1];
+        MVM_ASSIGN_REF(tc, cu, cu_body->load_frame, cu_body->frames[rs->load_frame - 1]);
     if (rs->deserialize_frame)
-        cu->deserialize_frame = cu->frames[rs->deserialize_frame - 1];
+        MVM_ASSIGN_REF(tc, cu, cu_body->deserialize_frame, cu_body->frames[rs->deserialize_frame - 1]);
 
     /* Clean up reader state. */
     cleanup_all(tc, rs);

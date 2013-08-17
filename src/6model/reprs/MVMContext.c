@@ -38,8 +38,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContextBody *body = (MVMContextBody *)data;
-    if (body->context)
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, body->context);
+    MVM_gc_worklist_add_frame(tc, worklist, body->context);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -60,7 +59,7 @@ static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
     MVMContextBody *body = (MVMContextBody *)data; \
     MVMFrame *frame = body->context; \
     MVMObject *result = NULL; \
-    MVMLexicalHashEntry *lexical_names = frame->static_info->lexical_names, *entry; \
+    MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names, *entry; \
     if (!lexical_names) { \
        MVM_exception_throw_adhoc(tc, \
             "Lexical with name '%s' does not exist in this frame", \
@@ -73,7 +72,7 @@ static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
             "Lexical with name '%s' does not exist in this frame", \
                 MVM_string_utf8_encode_C_string(tc, name)); \
     } \
-    if (frame->static_info->lexical_types[entry->value] != _type) { \
+    if (frame->static_info->body.lexical_types[entry->value] != _type) { \
        MVM_exception_throw_adhoc(tc, \
             "Lexical with name '%s' has a different type in this frame", \
                 MVM_string_utf8_encode_C_string(tc, name)); \

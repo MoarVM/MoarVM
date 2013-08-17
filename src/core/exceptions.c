@@ -52,12 +52,12 @@ static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f
     if (f == tc->cur_frame)
         pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
     else
-        pc = (MVMuint32)(f->return_address - sf->bytecode);
-    for (i = 0; i < sf->num_handlers; i++) {
-        if (sf->handlers[i].category_mask & cat)
-            if (pc >= sf->handlers[i].start_offset && pc < sf->handlers[i].end_offset)
-                if (!in_handler_stack(tc, &sf->handlers[i]))
-                    return &sf->handlers[i];
+        pc = (MVMuint32)(f->return_address - sf->body.bytecode);
+    for (i = 0; i < sf->body.num_handlers; i++) {
+        if (sf->body.handlers[i].category_mask & cat)
+            if (pc >= sf->body.handlers[i].start_offset && pc < sf->body.handlers[i].end_offset)
+                if (!in_handler_stack(tc, &sf->body.handlers[i]))
+                    return &sf->body.handlers[i];
     }
     return NULL;
 }
@@ -154,7 +154,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
             tc->cur_frame->special_return      = unwind_after_handler;
             tc->cur_frame->special_return_data = ah;
 
-            /* Inovke the handler frame and return to runloop. */
+            /* Invoke the handler frame and return to runloop. */
             STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
                 tc->cur_frame->args);
             break;
@@ -198,7 +198,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     MVMROOT(tc, arr, {
         while (cur_frame != NULL) {
             MVMObject *pobj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStr);
-            MVM_repr_set_str(tc, pobj, cur_frame->static_info->name);
+            MVM_repr_set_str(tc, pobj, cur_frame->static_info->body.name);
             MVM_repr_push_o(tc, arr, pobj);
             cur_frame = cur_frame->caller;
         }
@@ -209,10 +209,15 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 
 /* Dumps a backtrace relative to the current frame to stderr. */
 static void dump_backtrace(MVMThreadContext *tc) {
-    MVMFrame *cur_frame = tc->cur_frame;
-    while (cur_frame != NULL) {
-        fprintf(stderr, "  in %s\n",
-            MVM_string_utf8_encode(tc, cur_frame->static_info->name, NULL));
+    MVMFrame *cur_frame = tc->cur_frame, *last = NULL;
+    MVMuint32 count = 0;
+    while (cur_frame != NULL && cur_frame != last && count++ < 256) {
+        MVMString *filename = cur_frame->static_info->body.cu->body.filename;
+        MVMString *name = cur_frame->static_info->body.name;
+        last = cur_frame;
+        fprintf(stderr, "  in %s, %s\n",
+            name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
+            filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>");
         cur_frame = cur_frame->caller;
     }
 }
@@ -279,10 +284,10 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     MVMStaticFrame *sf = tc->cur_frame->static_info;
     MVMFrameHandler *h = NULL;
     MVMuint32 i;
-    for (i = 0; i < sf->num_handlers; i++) {
-        if (sf->handlers[i].action == MVM_EX_ACTION_GOTO &&
-                sf->handlers[i].goto_offset == offset) {
-            h = &sf->handlers[i];
+    for (i = 0; i < sf->body.num_handlers; i++) {
+        if (sf->body.handlers[i].action == MVM_EX_ACTION_GOTO &&
+                sf->body.handlers[i].goto_offset == offset) {
+            h = &sf->body.handlers[i];
             break;
         }
     }

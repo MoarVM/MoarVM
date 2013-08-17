@@ -17,12 +17,15 @@ struct MVMGCWorklist {
      * collectables (yes, two levels of indirection, since we need to
      * update addresses in copying/moving algorithms.) */
     MVMCollectable ***list;
+    MVMFrame        **frames_list;
 
     /* The number of items on the worklist. */
     MVMuint32 items;
+    MVMuint32 frames;
 
     /* The number of items the work list is allocated to hold. */
     MVMuint32 alloc;
+    MVMuint32 frames_alloc;
 };
 
 /* Some macros for doing stuff fast with worklists, defined to look like
@@ -34,14 +37,31 @@ struct MVMGCWorklist {
         else \
             worklist->list[worklist->items++] = (MVMCollectable **)(item); \
     } while (0)
+
+#define MVM_gc_worklist_add_frame(tc, worklist, frame) \
+    do { \
+        if ((frame) && (tc)->instance->gc_seq_number != (frame)->gc_seq_number) { \
+            if (worklist->frames == worklist->frames_alloc) \
+                MVM_gc_worklist_add_frame_slow(tc, worklist, (frame)); \
+            else \
+                worklist->frames_list[worklist->frames++] = (frame); \
+        } \
+    } while (0)
+
 #define MVM_gc_worklist_get(tc, worklist) \
     (worklist->items ? \
         worklist->list[--worklist->items] : \
         NULL)
 
+#define MVM_gc_worklist_get_frame(tc, worklist) \
+    (worklist->frames ? \
+        worklist->frames_list[--worklist->frames] : \
+        NULL)
+
 /* Various functions for worklist manipulation. */
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc);
 void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
+void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
 /* The number of pointers we assume the list may need to hold initially;

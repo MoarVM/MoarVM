@@ -2565,6 +2565,30 @@ static MVMOpInfo MVM_op_info_object[] = {
         3,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_freshcoderef,
+        "freshcoderef",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_markcodestatic,
+        "markcodestatic",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_markcodestub,
+        "markcodestub",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_getstaticcode,
+        "getstaticcode",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_io[] = {
     {
@@ -2975,6 +2999,12 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_compilemasttofile,
+        "compilemasttofile",
+        2,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 static MVMOpInfo MVM_op_info_serialization[] = {
     {
@@ -3111,9 +3141,9 @@ static unsigned char MVM_opcounts_by_bank[] = {
     2,
     53,
     57,
-    135,
+    139,
     48,
-    20,
+    21,
     19,
 };
 

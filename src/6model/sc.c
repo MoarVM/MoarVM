@@ -25,18 +25,18 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             /* Visit compilation units that need this SC and resolve it. */
             cur_cu = tc->instance->head_compunit;
             while (cur_cu) {
-                if (cur_cu->scs_to_resolve) {
+                if (cur_cu->body.scs_to_resolve) {
                     MVMuint32 i;
-                    for (i = 0; i < cur_cu->num_scs; i++) {
-                        MVMString *res = cur_cu->scs_to_resolve[i];
+                    for (i = 0; i < cur_cu->body.num_scs; i++) {
+                        MVMString *res = cur_cu->body.scs_to_resolve[i];
                         if (res && MVM_string_equal(tc, res, handle)) {
-                            cur_cu->scs[i] = (MVMSerializationContext *)sc;
-                            cur_cu->scs_to_resolve[i] = NULL;
+                            MVM_ASSIGN_REF(tc, cur_cu, cur_cu->body.scs[i], (MVMSerializationContext *)sc);
+                            cur_cu->body.scs_to_resolve[i] = NULL;
                             break;
                         }
                     }
                 }
-                cur_cu = cur_cu->next_compunit;
+                cur_cu = cur_cu->body.next_compunit;
             }
         });
     });
@@ -59,7 +59,7 @@ MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *s
     MVMObject *roots;
     MVMint64   i, count;
     roots = sc->body->root_objects;
-    count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    count = MVM_repr_elems(tc, roots);
     for (i = 0; i < count; i++) {
         MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
         if (test == obj)
@@ -84,7 +84,7 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *roots;
     MVMint64   i, count;
     roots = sc->body->root_codes;
-    count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    count = MVM_repr_elems(tc, roots);
     for (i = 0; i < count; i++) {
         MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
         if (test == obj)
@@ -108,7 +108,7 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
 /* Given an SC, an index, and an object, store the object at that index. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     MVMObject *roots = sc->body->root_objects;
-    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    MVMint64   count = MVM_repr_elems(tc, roots);
     MVM_repr_bind_pos_o(tc, roots, idx, obj);
 }
 
@@ -149,7 +149,7 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 /* Given an SC and an index, fetch the code ref stored there. */
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject *roots = sc->body->root_codes;
-    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    MVMint64   count = MVM_repr_elems(tc, roots);
     if (idx < count)
         return MVM_repr_at_pos_o(tc, roots, idx);
     else
@@ -160,7 +160,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 /* Given an SC, an index and a code ref, store it and the index. */
 void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *code) {
     MVMObject *roots = sc->body->root_codes;
-    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    MVMint64   count = MVM_repr_elems(tc, roots);
     MVM_repr_bind_pos_o(tc, roots, idx, code);
 }
 

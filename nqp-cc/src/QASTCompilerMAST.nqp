@@ -296,8 +296,11 @@ class QAST::MASTCompiler {
                 elsif $got == $MVM_reg_str {
                     push_op($il, 'coerce_si', $res_reg, $reg);
                 }
+                elsif $got == $MVM_reg_void {
+                    push_op($il, 'const_i64', $res_reg, MAST::IVal.new( :value(0) ));
+                }
                 else {
-                    nqp::die("Unknown coercion case for int");
+                    nqp::die("Unknown coercion case for int; got: "~$got);
                 }
             }
             elsif $desired == $MVM_reg_num64 {
@@ -307,8 +310,11 @@ class QAST::MASTCompiler {
                 elsif $got == $MVM_reg_str {
                     push_op($il, 'coerce_sn', $res_reg, $reg);
                 }
+                elsif $got == $MVM_reg_void {
+                    push_op($il, 'const_n64', $res_reg, MAST::NVal.new( :value(0) ));
+                }
                 else {
-                    nqp::die("Unknown coercion case for num");
+                    nqp::die("Unknown coercion case for num; got: "~$got);
                 }
             }
             elsif $desired == $MVM_reg_str {
@@ -318,8 +324,11 @@ class QAST::MASTCompiler {
                 elsif $got == $MVM_reg_num64 {
                     push_op($il, 'coerce_ns', $res_reg, $reg);
                 }
+                elsif $got == $MVM_reg_void {
+                    push_op($il, 'const_s', $res_reg, MAST::SVal.new( :value('') ));
+                }
                 else {
-                    nqp::die("Unknown coercion case for str");
+                    nqp::die("Unknown coercion case for str; got: "~$got);
                 }
             }
             else {
@@ -788,24 +797,30 @@ class QAST::MASTCompiler {
     # all of the statements within it.
     method compile_all_the_stmts(@stmts, $resultchild?, :$want) {
         my @all_ins;
+        # the most recent statement mast
         my $last_stmt;
         my $result_stmt;
         my $result_count := 0;
         $resultchild := $resultchild // -1;
-        my $last_stmt_num := +@stmts - 1;
+        my $final_stmt_idx := +@stmts - 1;
         for @stmts {
+            my $use_result := 0;
             # Compile this child to MAST, and add its instructions to the end
             # of our instruction list. Also track the last statement.
-            if $result_count == $resultchild || $resultchild == -1
-                    && $result_count == $last_stmt_num
-                    && nqp::defined($want) {
-                $last_stmt := self.as_mast($_, :want($want));
+            # if this is the statement we've been asked to make the result
+            if $result_count == $resultchild
+            # or if we weren't given a particular result statement and we're on
+            # the last statement, 
+                    || $resultchild == -1 && $result_count == $final_stmt_idx {
+                # compile $_ with an explicit $want, either what's given or obj
+                $last_stmt := self.as_mast($_, :want($want // $MVM_reg_obj));
+                $use_result := 1;
             }
             else {
                 $last_stmt := self.as_mast($_);
             }
             nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
-            if $result_count == $resultchild || $resultchild == -1 && $result_count == $last_stmt_num {
+            if $use_result {
                 $result_stmt := $last_stmt;
             }
             else { # release top-level results (since they can't be used by anything anyway)
@@ -817,7 +832,7 @@ class QAST::MASTCompiler {
             MAST::InstructionList.new(@all_ins, $result_stmt.result_reg, $result_stmt.result_kind);
         }
         else {
-            MAST::InstructionList.new(@all_ins, $*REGALLOC.fresh_o(), $MVM_reg_obj);
+            MAST::InstructionList.new(@all_ins, MAST::VOID, $MVM_reg_void);
         }
     }
 
@@ -1248,7 +1263,7 @@ sub push_op(@dest, $op, *@args) {
     }
     $op := $op.name if nqp::istype($op, QAST::Op);
     nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
-
+#nqp::say($bank~"::"~$op);
     nqp::push(@dest, MAST::Op.new(
         :bank(nqp::substr($bank, 1)), :op($op),
         |@args

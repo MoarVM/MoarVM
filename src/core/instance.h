@@ -16,6 +16,8 @@ struct MVMBootTypes {
     MVMObject *BOOTStrArray;
     MVMObject *BOOTIO;
     MVMObject *BOOTException;
+    MVMObject *BOOTStaticFrame;
+    MVMObject *BOOTCompUnit;
 };
 
 /* Various common string constants. */

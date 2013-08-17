@@ -302,7 +302,7 @@ class QAST::MASTOperations {
 
     # Adds a HLL box handler.
     method add_hll_box($hll, $type, $handler) {
-        unless $type == $MVM_reg_int64 || $type == $MVM_reg_num64 || $type == $MVM_reg_str {
+        unless $type == $MVM_reg_int64 || $type == $MVM_reg_num64 || $type == $MVM_reg_str || $type == $MVM_reg_void {
             nqp::die("Unknown box type '$type'");
         }
         %hll_box{$hll} := {} unless nqp::existskey(%hll_box, $hll);
@@ -320,9 +320,6 @@ class QAST::MASTOperations {
 
     # Generates instructions to box the result in reg.
     method box($qastcomp, $hll, $type, $reg) {
-        if $type == $MVM_reg_void {
-            return $qastcomp.as_mast(QAST::IVal.new( :value(1) ));
-        }
         (%hll_box{$hll}{$type} // %hll_box{''}{$type})($qastcomp, $reg)
     }
 
@@ -504,6 +501,7 @@ for <if unless> -> $op_name {
         else {
             $res_kind := $operands == 3
                 ?? (@comp_ops[1].result_kind == @comp_ops[2].result_kind
+                && @comp_ops[1].result_kind != $MVM_reg_void
                     ?? @comp_ops[1].result_kind
                     !! $MVM_reg_obj)
                 !! (@comp_ops[0].result_kind == @comp_ops[1].result_kind
@@ -1303,6 +1301,12 @@ sub boxer($kind, $type_op, $op) {
 QAST::MASTOperations.add_hll_box('', $MVM_reg_int64, boxer($MVM_reg_int64, 'hllboxtype_i', 'box_i'));
 QAST::MASTOperations.add_hll_box('', $MVM_reg_num64, boxer($MVM_reg_num64, 'hllboxtype_n', 'box_n'));
 QAST::MASTOperations.add_hll_box('', $MVM_reg_str, boxer($MVM_reg_str, 'hllboxtype_s', 'box_s'));
+QAST::MASTOperations.add_hll_box('', $MVM_reg_void, -> $qastcomp, $reg {
+    my $il := nqp::list();
+    my $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+    push_op($il, 'null', $res_reg);
+    MAST::InstructionList.new($il, $res_reg, $MVM_reg_obj)
+});
 
 # Context introspection
 QAST::MASTOperations.add_core_moarop_mapping('ctx', 'ctx');
@@ -1754,6 +1758,10 @@ QAST::MASTOperations.add_core_op('setup_blv', -> $qastcomp, $op {
 
     MAST::InstructionList.new(@ops, $*REGALLOC.fresh_o(), $MVM_reg_obj)
 });
+QAST::MASTOperations.add_core_moarop_mapping('freshcoderef', 'freshcoderef');
+QAST::MASTOperations.add_core_moarop_mapping('iscoderef', 'iscoderef');
+QAST::MASTOperations.add_core_moarop_mapping('markcodestatic', 'markcodestatic');
+QAST::MASTOperations.add_core_moarop_mapping('markcodestub', 'markcodestub');
 
 # language/compiler ops
 QAST::MASTOperations.add_core_moarop_mapping('getcomp', 'getcomp');
@@ -1800,7 +1808,7 @@ sub push_op(@dest, $op, *@args) {
     }
     $op := $op.name if nqp::istype($op, QAST::Op);
     nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
-
+#nqp::say($bank~"::"~$op);
     nqp::push(@dest, MAST::Op.new(
         :bank(nqp::substr($bank, 1)), :op($op),
         |@args

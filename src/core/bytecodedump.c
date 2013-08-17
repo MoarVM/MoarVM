@@ -61,13 +61,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 l = 0;
     MVMuint32 i, j, k, q;
     char *o = calloc(sizeof(char) * s, 1);
-    char ***frame_lexicals = malloc(sizeof(char **) * cu->num_frames);
+    char ***frame_lexicals = malloc(sizeof(char **) * cu->body.num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
 
     a("\nMoarVM dump of binary compilation unit:\n\n");
 
-    for (k = 0; k < cu->num_callsites; k++) {
-        MVMCallsite *callsite = cu->callsites[k];
+    for (k = 0; k < cu->body.num_callsites; k++) {
+        MVMCallsite *callsite = cu->body.callsites[k];
         MVMuint16 arg_count = callsite->arg_count;
 
         a("  Callsite_%u :\n", k);
@@ -96,52 +96,52 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
     }
 
-    for (k = 0; k < cu->num_frames; k++) {
-        MVMStaticFrame *frame = cu->frames[k];
+    for (k = 0; k < cu->body.num_frames; k++) {
+        MVMStaticFrame *frame = cu->body.frames[k];
         MVMLexicalHashEntry *current, *tmp;
-        char **lexicals = malloc(sizeof(char *) * frame->num_lexicals);
+        char **lexicals = malloc(sizeof(char *) * frame->body.num_lexicals);
         frame_lexicals[k] = lexicals;
 
-        HASH_ITER(hash_handle, frame->lexical_names, current, tmp) {
+        HASH_ITER(hash_handle, frame->body.lexical_names, current, tmp) {
             name->body.int32s = (MVMint32 *)current->hash_handle.key;
             name->body.graphs = (MVMuint32)current->hash_handle.keylen / sizeof(MVMCodepoint32);
             lexicals[current->value] = MVM_string_utf8_encode_C_string(tc, name);
         }
     }
-    for (k = 0; k < cu->num_frames; k++) {
-        MVMStaticFrame *frame = cu->frames[k];
+    for (k = 0; k < cu->body.num_frames; k++) {
+        MVMStaticFrame *frame = cu->body.frames[k];
         char *cuuid;
         char *fname;
-        cuuid = MVM_string_utf8_encode_C_string(tc, frame->cuuid);
-        fname = MVM_string_utf8_encode_C_string(tc, frame->name);
+        cuuid = MVM_string_utf8_encode_C_string(tc, frame->body.cuuid);
+        fname = MVM_string_utf8_encode_C_string(tc, frame->body.name);
         a("  Frame_%u :\n", k);
         a("    cuuid : %s\n", cuuid);
         free(cuuid);
         a("    name : %s\n", fname);
         free(fname);
-        for (j = 0; j < cu->num_frames; j++) {
-            if (cu->frames[j] == frame->outer)
+        for (j = 0; j < cu->body.num_frames; j++) {
+            if (cu->body.frames[j] == frame->body.outer)
                 a("    outer : Frame_%u\n", j);
         }
 
-        for (j = 0; j < frame->num_locals; j++) {
+        for (j = 0; j < frame->body.num_locals; j++) {
             if (!j)
             a("    Locals :\n");
-            a("  %6u: loc_%u_%s\n", j, j, get_typename(frame->local_types[j]));
+            a("  %6u: loc_%u_%s\n", j, j, get_typename(frame->body.local_types[j]));
         }
 
-        for (j = 0; j < frame->num_lexicals; j++) {
+        for (j = 0; j < frame->body.num_lexicals; j++) {
             if (!j)
             a("    Lexicals :\n");
-            a("  %6u: lex_Frame_%u_%s_%s\n", j, k, frame_lexicals[k][j], get_typename(frame->lexical_types[j]));
+            a("  %6u: lex_Frame_%u_%s_%s\n", j, k, frame_lexicals[k][j], get_typename(frame->body.lexical_types[j]));
         }
         a("    Instructions :\n");
         {
 
     /* mostly stolen from validation.c */
     MVMStaticFrame *static_frame = frame;
-    MVMuint32 bytecode_size = static_frame->bytecode_size;
-    MVMuint8 *bytecode_start = static_frame->bytecode;
+    MVMuint32 bytecode_size = static_frame->body.bytecode_size;
+    MVMuint8 *bytecode_start = static_frame->body.bytecode;
     MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
     /* current position in the bytestream */
     MVMuint8 *cur_op = bytecode_start;
@@ -225,7 +225,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                     case MVM_operand_str:
                         operand_size = 2;
                         tmpstr = MVM_string_utf8_encode_C_string(
-                            tc, cu->strings[GET_UI16(cur_op, 0)]);
+                            tc, cu->body.strings[GET_UI16(cur_op, 0)]);
                         /* XXX C-string-literal escape the \ and '
                             and line breaks and non-ascii someday */
                         a("'%s'", tmpstr);
@@ -248,7 +248,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                 /* register operand */
                 operand_size = 2;
                 a("loc_%u_%s", GET_REG(cur_op, 0),
-                    get_typename(frame->local_types[GET_REG(cur_op, 0)]));
+                    get_typename(frame->body.local_types[GET_REG(cur_op, 0)]));
             }
             else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
                 /* lexical operand */
@@ -261,14 +261,14 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
                 m = frames;
                 while (m > 0) {
-                    applicable_frame = applicable_frame->outer;
+                    applicable_frame = applicable_frame->body.outer;
                     m--;
                 }
                 /* inefficient, I know. should use a hash. */
-                for (m = 0; m < cu->num_frames; m++) {
-                    if (cu->frames[m] == applicable_frame) {
+                for (m = 0; m < cu->body.num_frames; m++) {
+                    if (cu->body.frames[m] == applicable_frame) {
                         a("lex_Frame_%u_%s_%s", m, frame_lexicals[m][idx],
-                            get_typename(applicable_frame->lexical_types[idx]));
+                            get_typename(applicable_frame->body.lexical_types[idx]));
                     }
                 }
             }
@@ -297,8 +297,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         i = 0;
         /* resolve annotation line numbers */
-        for (j = 0; j < frame->num_annotations; j++) {
-            MVMuint32 ann_offset = GET_UI32(frame->annotations, j*10);
+        for (j = 0; j < frame->body.num_annotations; j++) {
+            MVMuint32 ann_offset = GET_UI32(frame->body.annotations, j*10);
             for (; i < lineno; i++) {
                 if (linelocs[i] == ann_offset) {
                     annotations[i] = j + 1;
@@ -310,8 +310,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         for (j = 0; j < lineno; j++) {
             if (annotations[j]) {
                 tmpstr = MVM_string_utf8_encode_C_string(
-                    tc, cu->strings[GET_UI16(frame->annotations + 4, (annotations[j] - 1)*10)]);
-                a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->annotations + 6, (annotations[j] - 1)*10));
+                    tc, cu->body.strings[GET_UI16(frame->body.annotations + 4, (annotations[j] - 1)*10)]);
+                a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations + 6, (annotations[j] - 1)*10));
                 free(tmpstr);
             }
             if (linelabels[j])
@@ -319,7 +319,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             a("%05d   %s", j, lines[j]);
             free(lines[j]);
             if (jumps[j]) {
-                /* hoirrbly inefficient for large frames.  again, should use a hash */
+                /* horribly inefficient for large frames.  again, should use a hash */
                 line_number = 0;
                 while (linelocs[line_number] != jumps[j]) line_number++;
                 a("label_%u(%05u)", linelabels[line_number], line_number);
@@ -336,8 +336,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         }
     }
-    for (k = 0; k < cu->num_frames; k++) {
-        for (j = 0; j < cu->frames[k]->num_lexicals; j++) {
+    for (k = 0; k < cu->body.num_frames; k++) {
+        for (j = 0; j < cu->body.frames[k]->body.num_lexicals; j++) {
             free(frame_lexicals[k][j]);
         }
         free(frame_lexicals[k]);

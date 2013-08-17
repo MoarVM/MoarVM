@@ -169,7 +169,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 
 #define autobox(tc, target, result, box_type_obj, is_object, set_func, dest) do { \
     MVMObject *box, *box_type; \
-    box_type = target->static_info->cu->hll_config->box_type_obj; \
+    box_type = target->static_info->body.cu->body.hll_config->box_type_obj; \
     box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
     if (is_object) MVM_gc_root_temp_push(tc, (MVMCollectable **)&result); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
@@ -366,7 +366,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
 }
 
 #define box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, box_type_obj, name, set_func, reg_member, stmt1, action_funcs, action_func, target1, target2) do { \
-    type = (*(tc->interp_cu))->hll_config->box_type_obj; \
+    type = (*(tc->interp_cu))->body.hll_config->box_type_obj; \
     if (!type || IS_CONCRETE(type)) { \
         MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
     } \
@@ -381,7 +381,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
 } while (0)
 
 MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos) {
-    MVMObject *type = (*(tc->interp_cu))->hll_config->slurpy_array_type, *result = NULL, *box = NULL;
+    MVMObject *type = (*(tc->interp_cu))->body.hll_config->slurpy_array_type, *result = NULL, *box = NULL;
     MVMArgInfo arg_info;
     MVMRegister reg;
 
@@ -436,7 +436,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
 }
 
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVMObject *type = (*(tc->interp_cu))->hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
+    MVMObject *type = (*(tc->interp_cu))->body.hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
     MVMArgInfo arg_info;
     MVMuint32 flag_pos, arg_pos;
     arg_info.exists = 0;

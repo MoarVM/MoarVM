@@ -40,8 +40,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMExceptionBody *body = (MVMExceptionBody *)data;
     MVM_gc_worklist_add(tc, worklist, &body->message);
     MVM_gc_worklist_add(tc, worklist, &body->payload);
-    if (body->origin)
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, body->origin);
+    MVM_gc_worklist_add_frame(tc, worklist, body->origin);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

@@ -35,22 +35,21 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     apr_file_close(file_handle);
 
     /* Create compilation unit data structure. */
-    cu = malloc(sizeof(MVMCompUnit));
-    memset(cu, 0, sizeof(MVMCompUnit));
-    cu->pool       = pool;
-    cu->data_start = (MVMuint8 *)mmap_handle->mm;
-    cu->data_size  = (MVMuint32)mmap_handle->size;
+    cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCompUnit);
+    cu->body.pool       = pool;
+    cu->body.data_start = (MVMuint8 *)mmap_handle->mm;
+    cu->body.data_size  = (MVMuint32)mmap_handle->size;
 
     /* Process the input. */
     MVM_bytecode_unpack(tc, cu);
 
     /* Resolve HLL config. */
-    cu->hll_config = MVM_hll_get_config_for(tc, cu->hll_name);
+    cu->body.hll_config = MVM_hll_get_config_for(tc, cu->body.hll_name);
 
     /* Add the compilation unit to the head of the unit linked lists. */
     do {
-        cu->next_compunit = tc->instance->head_compunit;
-    } while (!MVM_cas(&tc->instance->head_compunit, cu->next_compunit, cu));
+        MVM_ASSIGN_REF(tc, cu, cu->body.next_compunit, tc->instance->head_compunit);
+    } while (!MVM_cas(&tc->instance->head_compunit, cu->body.next_compunit, cu));
 
     return cu;
 }
