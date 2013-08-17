@@ -7,312 +7,10 @@ use warnings;
 use Getopt::Long;
 use Pod::Usage;
 
+use build::setup;
+
 my $NAME    = 'moarvm';
 my $GENLIST = 'build/gen.list';
-
-# 3rdparty library configuration
-
-my %APR = (
-    name  => 'apr-1',
-    path  => '3rdparty/apr/.libs',
-    rule  => 'cd 3rdparty/apr && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure --disable-shared @crossconf@ && $(MAKE)',
-    clean => '-cd 3rdparty/apr && $(MAKE) distclean',
-);
-
-my %LAO = (
-    name  => 'atomic_ops',
-    path  => '3rdparty/libatomic_ops/src',
-    rule  => 'cd 3rdparty/libatomic_ops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && $(MAKE)',
-    clean => '-cd 3rdparty/libatomic_ops && $(MAKE) distclean',
-);
-
-my %SHA = (
-    name => 'sha1',
-    path => '3rdparty/sha1',
-    src  => [ '3rdparty/sha1' ],
-);
-
-my %TOM = (
-    name => 'tommath',
-    path => '3rdparty/libtommath',
-    src  => [ '3rdparty/libtommath' ],
-);
-
-my %LN = (
-    name => 'linenoise',
-    path => '3rdparty/linenoise',
-    src  => [ '3rdparty/linenoise' ],
-);
-
-my %DC = (
-    name  => 'dyncall_s',
-    path  => '3rdparty/dyncall/dyncall',
-    rule  => 'cd 3rdparty/dyncall &&  ./configure2 && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile',
-    clean => '-cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
-);
-
-my %DCB = (
-    name  => 'dyncallback_s',
-    path  => '3rdparty/dyncall/dyncallback',
-    dummy => 1, # created as part of dyncall build
-);
-
-my %DL = (
-    name  => 'dynload_s',
-    path  => '3rdparty/dyncall/dynload',
-    dummy => 1, # created as part of dyncall build
-);
-
-my %UVDUMMY = (
-    name => 'uv',
-    path => '3rdparty/libuv',
-    # no default rule
-    # building libuv is always OS-specific
-);
-
-my %UV = (
-    %UVDUMMY,
-    rule  => '$(AR) $(ARFLAGS) @arout@$@ $(UV_OBJECTS)',
-    clean => '-$(RM) @uvlib@ $(UV_OBJECTS)',
-    # actually insufficient to build libuv
-    # the OS needs to provide a C<src> or C<objects> setting
-);
-
-my %THIRDPARTY = (
-    apr => { %APR },
-    lao => { %LAO },
-    tom => { %TOM },
-    sha => { %SHA },
-#    ln  => { %LN },
-#    dc  => { %DC },
-#    dcb => { %DCB },
-#    dl  => { %DL },
-#    uv  => { %UVDUMMY },
-);
-
-# shell configuration
-# selected by C<--shell>
-
-my %SHELLS = (
-    posix => {
-        sh  => 'sh',
-        cat => 'cat',
-        rm  => 'rm -f',
-    },
-
-    win32 => {
-        sh  => 'cmd',
-        cat => 'type',
-        rm  => 'del',
-    },
-);
-
-# toolchain configuration
-# selected by C<--toolchain>
-
-my %TOOLCHAINS = (
-    gnu => {
-        -compiler => 'gcc',
-
-        make => 'make',
-        ar   => 'ar',
-
-        ccswitch => '-c',
-        ccout    => '-o',
-        ccinc    => '-I',
-        ccdef    => '-D',
-
-        ldout => undef,
-        ldarg => '-l%s',
-
-        arflags => 'rcs',
-        arout   => '',
-
-        obj => '.o',
-        lib => 'lib%s.a',
-
-        -auxfiles => [],
-    },
-
-    msvc => {
-        -compiler => 'cl',
-
-        make => 'nmake',
-        ar   => 'lib',
-
-        ccswitch => '/c',
-        ccout    => '/Fo',
-        ccinc    => '/I',
-        ccdef    => '/D',
-
-        ldout => '/out:',
-        ldarg => '%s.lib',
-
-        arflags => '/nologo',
-        arout   => '/out:',
-
-        obj => '.obj',
-        lib => '%s.lib',
-
-        -auxfiles => [ qw( @name@.ilk @name@.pdb vc100.pdb ) ],
-
-        -thirdparty => {
-            apr => {
-                %APR,
-                path  => '3rdparty/apr/LibR',
-                rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
-                clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
-            },
-
-#            dc => {
-#                %DC,
-#                name  => 'libdyncall_s',
-#                rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
-#                clean => '-$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
-#            },
-#
-#            dcb => { %DCB, name => 'libdyncallback_s' },
-#            dl  => { %DL, name => 'libdynload_s' },
-        },
-    },
-);
-
-# compiler configuration
-# selected by C<--compiler>
-
-my %COMPILERS = (
-    gcc => {
-        -toolchain => 'gnu',
-
-        cc => 'gcc',
-        ld => undef,
-
-        ccmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE',
-        ccwarnflags  => '-Wall -Wextra',
-        ccoptiflags  => '-O3',
-        ccdebugflags => '-g',
-        ccinstflags  => '',
-
-        ldmiscflags  => '',
-        ldoptiflags  => undef,
-        lddebugflags => undef,
-        ldinstflags  => undef,
-
-        noreturnspecifier => '',
-        noreturnattribute => '__attribute__((noreturn))',
-    },
-
-    clang => {
-        -toolchain => 'gnu',
-
-        cc => 'clang',
-        ld => undef,
-
-        ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-        ccwarnflags  => '', #'-Weverything',
-        ccoptiflags  =>  '-O3',
-        ccdebugflags => '-g',
-        ccinstflags  => '-fsanitize=address',
-
-        ldmiscflags  => '',
-        ldoptiflags  => undef,
-        lddebugflags => undef,
-        ldinstflags  => undef,
-
-        noreturnspecifier => '',
-        noreturnattribute => '__attribute__((noreturn))',
-    },
-
-    cl => {
-        -toolchain => 'msvc',
-
-        cc => 'cl',
-        ld => 'link',
-
-        ccmiscflags  => '/nologo /MT',
-        ccwarnflags  => '',
-        ccoptiflags  => '/Ox /GL',
-        ccdebugflags => '/Zi',
-        ccinstflags  => '',
-
-        ldmiscflags  => '/nologo',
-        ldoptiflags  => '/LTCG',
-        lddebugflags => '/debug',
-        ldinstflags  => '/Profile',
-
-        noreturnspecifier => '__declspec(noreturn)',
-        noreturnattribute => '',
-    },
-);
-
-# OS configuration
-# selected by C<--os> or taken from C<$^O>
-
-my %WIN32 = (
-    exe  => '.exe',
-    defs => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
-    libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
-
-    platformobjects => 'src/platform/win32/mmap@obj@',
-
-    -thirdparty => {
-        # header only, no need to build anything
-        lao => undef,
-
-#        uv => {
-#            %UV,
-#            src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
-#        },
-    },
-);
-
-my %LINUX = (
-    libs => [ qw( m pthread uuid rt ) ],
-
-    -thirdparty => {
-#        uv => { %UV, objects => '$(UV_LINUX)' },
-    },
-);
-
-my %OPENBSD = (
-    -thirdparty => {
-#        uv => { %UV, objects => '$(UV_OPENBSD)' },
-    },
-);
-
-my %NETBSD = (
-    -thirdparty => {
-#        uv => { %UV, objects => '$(UV_NETBSD)' },
-    },
-);
-
-my %FREEBSD = (
-    -thirdparty => {
-#        uv => { %UV, objects => '$(UV_FREEBSD)' },
-    },
-);
-
-my %DARWIN = (
-    ldarg => '-framework %s',
-    defs  => [ '_DARWIN_USE_64_BIT_INODE=1' ],
-    libs  => [ qw( ApplicationServices CoreServices Foundation ) ],
-
-    -thirdparty => {
-#        uv => { %UV, objects => '$(UV_DARWIN)' },
-    },
-);
-
-my %SYSTEMS = (
-    generic => [ qw( posix gnu gcc ), {} ],
-    linux   => [ qw( posix gnu gcc ), { %LINUX } ],
-    darwin  => [ qw( posix gnu clang ), { %DARWIN } ],
-    openbsd => [ qw( posix gnu gcc ), { %OPENBSD} ],
-    netbsd  => [ qw( posix gnu gcc ), { %NETBSD } ],
-    freebsd => [ qw( posix gnu clang ), { %FREEBSD } ],
-    cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
-    win32   => [ qw( win32 msvc cl ), { %WIN32 } ],
-    mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
-);
 
 # configuration logic
 
@@ -412,7 +110,7 @@ if ($config{cc} eq 'cl') {
         if ($msg =~ /x64/) {
             print "YES\n";
             $defaults{-thirdparty}->{apr} = {
-                %APR,
+                %::APR,
                 path  => '3rdparty/apr/x64/LibR',
                 rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
                 clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" clean',
@@ -547,46 +245,46 @@ sub native_setup {
 
     print dots("Configuring native build environment");
 
-    if (!exists $SYSTEMS{$os}) {
+    if (!exists $::SYSTEMS{$os}) {
         softfail("unknown OS '$os'");
         print dots("    assuming GNU userland");
         $os = 'generic';
     }
 
-    my ($shell, $toolchain, $compiler, $overrides) = @{$SYSTEMS{$os}};
-    $shell     = $SHELLS{$shell};
-    $toolchain = $TOOLCHAINS{$toolchain};
-    $compiler  = $COMPILERS{$compiler};
+    my ($shell, $toolchain, $compiler, $overrides) = @{$::SYSTEMS{$os}};
+    $shell     = $::SHELLS{$shell};
+    $toolchain = $::TOOLCHAINS{$toolchain};
+    $compiler  = $::COMPILERS{$compiler};
     set_defaults($shell, $toolchain, $compiler, $overrides);
 
     if (exists $args{shell}) {
         $shell = $args{shell};
         hardfail("unsupported shell '$shell'")
-            unless exists $SHELLS{$shell};
+            unless exists $::SHELLS{$shell};
 
-        $shell = $SHELLS{$shell};
+        $shell = $::SHELLS{$shell};
         set_defaults($shell);
     }
 
     if (exists $args{toolchain}) {
         $toolchain = $args{toolchain};
         hardfail("unsupported toolchain '$toolchain'")
-            unless exists $TOOLCHAINS{$toolchain};
+            unless exists $::TOOLCHAINS{$toolchain};
 
-        $toolchain = $TOOLCHAINS{$toolchain};
-        $compiler  = $COMPILERS{ $toolchain->{-compiler} };
+        $toolchain = $::TOOLCHAINS{$toolchain};
+        $compiler  = $::COMPILERS{ $toolchain->{-compiler} };
         set_defaults($toolchain, $compiler);
     }
 
     if (exists $args{compiler}) {
         $compiler = $args{compiler};
         hardfail("unsupported compiler '$compiler'")
-            unless exists $COMPILERS{$compiler};
+            unless exists $::COMPILERS{$compiler};
 
-        $compiler  = $COMPILERS{$compiler};
+        $compiler  = $::COMPILERS{$compiler};
 
         unless (exists $args{toolchain}) {
-            $toolchain = $TOOLCHAINS{ $compiler->{-toolchain} };
+            $toolchain = $::TOOLCHAINS{ $compiler->{-toolchain} };
             set_defaults($toolchain);
         }
 
@@ -610,7 +308,7 @@ sub cross_setup {
     for (\$build, \$host) {
         if ($$_ =~ /-(\w+)$/) {
             $$_ = $1;
-            if (!exists $SYSTEMS{$1}) {
+            if (!exists $::SYSTEMS{$1}) {
                 softfail("unknown OS '$1'");
                 print dots("    assuming GNU userland");
                 $$_ = 'generic';
@@ -619,12 +317,12 @@ sub cross_setup {
         else { hardfail("failed to parse triple '$$_'") }
     }
 
-    $build = $SYSTEMS{$build};
-    $host  = $SYSTEMS{$host};
+    $build = $::SYSTEMS{$build};
+    $host  = $::SYSTEMS{$host};
 
-    my $shell     = $SHELLS{ $build->[0] };
-    my $toolchain = $TOOLCHAINS{gnu};
-    my $compiler  = $COMPILERS{gcc};
+    my $shell     = $::SHELLS{ $build->[0] };
+    my $toolchain = $::TOOLCHAINS{gnu};
+    my $compiler  = $::COMPILERS{gcc};
     my $overrides = $host->[3];
 
     set_defaults($shell, $toolchain, $compiler, $overrides);
@@ -637,7 +335,7 @@ sub cross_setup {
 # sets C<%defaults> from C<@_>
 sub set_defaults {
     # getting the correct 3rdparty information is somewhat tricky
-    my $thirdparty = $defaults{-thirdparty} // \%THIRDPARTY;
+    my $thirdparty = $defaults{-thirdparty} // \%::THIRDPARTY;
     @defaults{ keys %$_ } = values %$_ for @_;
     $defaults{-thirdparty} = {
         %$thirdparty, map{ %{ $_->{-thirdparty} // {} } } @_
@@ -646,17 +344,17 @@ sub set_defaults {
 
 # fill in config values
 sub configure {
-    my ($_) = @_;
+    my ($template) = @_;
 
-    while (/@(\w+)@/) {
+    while ($template =~ /@(\w+)@/) {
         my $key = $1;
         return (undef, "unknown configuration key '$key'")
             unless exists $config{$key};
 
-        s/@\Q$key\E@/$config{$key}/;
+        $template =~ s/@\Q$key\E@/$config{$key}/;
     }
 
-    return $_;
+    return $template;
 }
 
 # generate files
@@ -669,15 +367,15 @@ sub generate {
     open my $destfile, '>', $dest or hardfail($!);
 
     while (<$srcfile>) {
-        my ($_, $error) = configure($_);
+        my ($line, $error) = configure($_);
         hardfail($error)
-            unless defined $_;
+            unless defined $line;
 
         # in-between slashes in makefiles need to be backslashes on Windows
         s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
             if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
 
-        print $destfile $_;
+        print $destfile $line;
     }
 
     close $srcfile;
