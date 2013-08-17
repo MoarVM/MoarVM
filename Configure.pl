@@ -87,7 +87,7 @@ my %THIRDPARTY = (
 #    dc  => { %DC },
 #    dcb => { %DCB },
 #    dl  => { %DL },
-    uv  => { %UVDUMMY },
+#    uv  => { %UVDUMMY },
 );
 
 # shell configuration
@@ -257,10 +257,10 @@ my %WIN32 = (
         # header only, no need to build anything
         lao => undef,
 
-        uv => {
-            %UV,
-            src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
-        },
+#        uv => {
+#            %UV,
+#            src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
+#        },
     },
 );
 
@@ -268,25 +268,25 @@ my %LINUX = (
     libs => [ qw( m pthread uuid rt ) ],
 
     -thirdparty => {
-        uv => { %UV, objects => '$(UV_LINUX)' },
+#        uv => { %UV, objects => '$(UV_LINUX)' },
     },
 );
 
 my %OPENBSD = (
     -thirdparty => {
-        uv => { %UV, objects => '$(UV_OPENBSD)' },
+#        uv => { %UV, objects => '$(UV_OPENBSD)' },
     },
 );
 
 my %NETBSD = (
     -thirdparty => {
-        uv => { %UV, objects => '$(UV_NETBSD)' },
+#        uv => { %UV, objects => '$(UV_NETBSD)' },
     },
 );
 
 my %FREEBSD = (
     -thirdparty => {
-        uv => { %UV, objects => '$(UV_FREEBSD)' },
+#        uv => { %UV, objects => '$(UV_FREEBSD)' },
     },
 );
 
@@ -296,7 +296,7 @@ my %DARWIN = (
     libs  => [ qw( ApplicationServices CoreServices Foundation ) ],
 
     -thirdparty => {
-        uv => { %UV, objects => '$(UV_DARWIN)' },
+#        uv => { %UV, objects => '$(UV_DARWIN)' },
     },
 );
 
