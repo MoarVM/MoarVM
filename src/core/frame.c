@@ -249,7 +249,7 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
      * set us as it. */
     do {
         prior = returner->static_info->body.prior_invocation;
-    } while (!MVM_cas(&returner->static_info->body.prior_invocation, prior, returner));
+    } while (!MVM_trycas(&returner->static_info->body.prior_invocation, prior, returner));
     if (prior)
         MVM_frame_dec_ref(tc, prior);
 

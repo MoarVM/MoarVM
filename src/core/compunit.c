@@ -49,7 +49,7 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     /* Add the compilation unit to the head of the unit linked lists. */
     do {
         MVM_ASSIGN_REF(tc, cu, cu->body.next_compunit, tc->instance->head_compunit);
-    } while (!MVM_cas(&tc->instance->head_compunit, cu->body.next_compunit, cu));
+    } while (!MVM_trycas(&tc->instance->head_compunit, cu->body.next_compunit, cu));
 
     return cu;
 }
