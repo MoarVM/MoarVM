@@ -251,7 +251,9 @@ my %COMPILERS = (
 my %WIN32 = (
     exe  => '.exe',
     defs => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
-    libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi) ],
+    libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
+
+    platformobjects => 'src/platform/win32/mmap@obj@',
 
     -thirdparty => {
         # header only, no need to build anything
@@ -359,10 +361,12 @@ for (keys %defaults) {
 }
 
 # misc defaults
-$config{exe}       //= '';
-$config{defs}      //= [];
-$config{libs}      //= [ qw( m pthread ) ];
-$config{crossconf} //= '';
+$config{exe}             //= '';
+$config{defs}            //= [];
+$config{libs}            //= [ qw( m pthread ) ];
+$config{platformobjects} //= 'src/platform/posix/mmap@obj@';
+$config{platformheaders} //= 'src/platform/mmap.h';
+$config{crossconf}       //= '';
 
 # assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};

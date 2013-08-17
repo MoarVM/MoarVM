@@ -18,6 +18,9 @@ LDFLAGS   = @ldflags@
 LDLIBS    = @thirdpartylibs@ @ldlibs@
 ARFLAGS   = @arflags@
 
+PLATFORM_OBJECTS = @platformobjects@
+PLATFORM_HEADERS = @platformheaders@
+
 OBJECTS = src/main@obj@ \
           src/core/args@obj@ \
           src/core/exceptions@obj@ \
@@ -84,7 +87,8 @@ OBJECTS = src/main@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
           src/math/bigintops@obj@ \
-          src/moarvm@obj@
+          src/moarvm@obj@ \
+          $(PLATFORM_OBJECTS)
 
 HEADERS = src/moarvm.h \
           src/types.h \
@@ -154,7 +158,8 @@ HEADERS = src/moarvm.h \
           src/math/bigintops.h \
           3rdparty/uthash.h \
           src/gen/config.h \
-          3rdparty/apr/include/apr.h
+          3rdparty/apr/include/apr.h \
+          $(PLATFORM_HEADERS)
 
 UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
