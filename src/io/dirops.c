@@ -15,8 +15,8 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 }
 
 #ifdef _WIN32
-#  define IS_SLASH(c)     ((c) == '\\' || (c) == '/')
-#  define IS_NOT_SLASH(c) ((c) != '\\' && (c) != '/')
+#  define IS_SLASH(c)     ((c) == L'\\' || (c) == L'/')
+#  define IS_NOT_SLASH(c) ((c) != L'\\' && (c) != L'/')
 #else
 #  define IS_SLASH(c)     ((c) == '/')
 #  define IS_NOT_SLASH(c) ((c) != '/')
@@ -25,7 +25,7 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 #ifdef _WIN32
 static wchar_t * UTF8ToUnicode(char *str)
 {
-     const int       len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+     const int         len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
      wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
 
      memset(result, 0, len * sizeof(wchar_t));
@@ -59,13 +59,12 @@ static int mkdir_p(char *pathname, MVMint64 mode) {
     if (r == -1 && errno == ENOENT)
 #endif
     {
-        size_t _len = len;
+        size_t _len = len - 1;
         char _tmp;
 
-        while (_len > 0 && IS_NOT_SLASH(pathname[_len - 1]))
+        while (_len >= 0 && IS_NOT_SLASH(pathname[_len]))
             _len--;
 
-        _len--;
         _tmp = pathname[_len];
         pathname[_len] = '\0';
 

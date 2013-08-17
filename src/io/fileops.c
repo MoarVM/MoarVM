@@ -4,8 +4,6 @@
 #include <unistd.h>
 #endif
 
-#define POOL(tc) (*(tc->interp_cu))->pool
-
 /* work around sucky libuv defaults */
 #ifdef _WIN32
 #define DEFAULT_MODE _S_IWRITE
@@ -124,8 +122,8 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 }
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
-    char * const a = MVM_string_utf8_encode_C_string(tc, f);
     uv_fs_t req;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
     const int    r = uv_fs_unlink(tc->loop, &req, a, NULL);
 
     if( r < 0 && r != UV_ENOENT) {
@@ -149,8 +147,8 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
 }
 
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
-    char * const a = MVM_string_utf8_encode_C_string(tc, f);
     uv_fs_t req;
+    char * const a = MVM_string_utf8_encode_C_string(tc, f);
     const MVMint64 result = uv_fs_stat(tc->loop, &req, a, NULL) < 0 ? 0 : 1;
 
     free(a);
@@ -207,38 +205,45 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 /* reads a line from a filehandle. */
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMint32 bytes_read = 0;
+    MVMint32 step_back  = 0;
+    MVMuint8 linebreaks = 0;
     MVMString *result;
     MVMOSHandle *handle;
     uv_fs_t req;
     char ch;
     char *buf;
 
-
     verify_filehandle_type(tc, oshandle, &handle, "readline from filehandle");
 
-    while (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch != 10 && ch != 13) {
-        bytes_read += req.result;
-    }
-
-    /* have a look if it is a windows newline, and step back if not. */
-    if (ch == 13 && uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch != 10) {
-        if (uv_fs_seek(tc->loop, &req, handle->body.fd, -req.result, SEEK_CUR, NULL) < 0) {
-            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", uv_strerror(req.result));
+    while (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0) {
+        if (ch == 10 || ch == 13) {
+            linebreaks++;
+            step_back++;
+            break;
         }
-    } else {
+
         bytes_read++;
     }
 
-    if (uv_fs_seek(tc->loop, &req, handle->body.fd, -bytes_read, SEEK_CUR, NULL) < 0) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", uv_strerror(req.result));
+    /* have a look if it is a windows newline, and step back if not. */
+    if (ch == 13) {
+        if (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch == 10) {
+            linebreaks++;
+        }
+        step_back++;
     }
+
+    MVM_file_seek(tc, oshandle, -bytes_read - step_back, SEEK_CUR);
 
     buf = malloc(bytes_read);
 
-    if (uv_fs_read(tc->loop, &req, handle->body.fd, &buf, 1, -1, NULL) < 0) {
+    if (uv_fs_read(tc->loop, &req, handle->body.fd, buf, bytes_read, -1, NULL) < 0) {
         free(buf);
         MVM_exception_throw_adhoc(tc, "readline from filehandle failed: %s", uv_strerror(req.result));
     }
+
+    MVM_file_seek(tc, oshandle, linebreaks, SEEK_CUR);
+
                                                /* XXX should this take a type object? */
     result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
     free(buf);
@@ -607,7 +612,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
 
     switch(uv_guess_handle(type)) {
         case UV_TTY: {
-            uv_tty_t *handle = malloc(sizeof(uv_tty_t));
+            uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
             body->handle = (uv_handle_t *)handle;
             body->type = MVM_OSHANDLE_HANDLE;
@@ -618,7 +623,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             body->type = MVM_OSHANDLE_FD;
             break;
         case UV_NAMED_PIPE: {
-            uv_pipe_t *handle = malloc(sizeof(uv_pipe_t));
+            uv_pipe_t * const handle = malloc(sizeof(uv_pipe_t));
             uv_pipe_init(tc->loop, handle, 0);
             uv_pipe_open(handle, type);
             body->handle = (uv_handle_t *)handle;
