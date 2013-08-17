@@ -124,7 +124,7 @@ struct MVMInstance {
 
     /* Atomically-incremented counter of newly invoked frames,
      * so each can obtain an index into each threadcontext's pool table */
-    MVMuint32 num_frame_pools;
+    AO_t num_frame_pools;
 
     /* Hash of compiler objects keyed by name */
     MVMObject          *compiler_registry;

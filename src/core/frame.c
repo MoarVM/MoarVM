@@ -14,7 +14,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     MVM_validate_static_frame(tc, static_frame);
 
     /* Obtain an index to each threadcontext's pool table */
-    static_frame_body->pool_index = apr_atomic_inc32(&tc->instance->num_frame_pools);
+    static_frame_body->pool_index = MVM_atomic_incr(&tc->instance->num_frame_pools);
     if (static_frame_body->pool_index >= tc->frame_pool_table_size) {
         /* Grow the threadcontext's pool table */
         MVMuint32 old_size = tc->frame_pool_table_size;
