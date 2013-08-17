@@ -1,744 +1,255 @@
-# Compiler configuration
-CC       = @cc@
-CFLAGS   = @cflags@
-CINCLUDE = -I3rdparty/apr/include -I3rdparty/libatomic_ops/src -I3rdparty/libtommath/ -I3rdparty/sha1/ -Isrc -I3rdparty
-LD       = @link@
-LDFLAGS  = @ldflags@
-LLIBS    = @llibs@
-COUTO    = @couto@
-LOUTO    = @louto@
-
-# File extensions
-EXE = @exe@
-O   = @o@
-
-# Tool configuration
+CC   = @cc@
+LD   = @ld@
+AR   = @ar@
 MAKE = @make@
 RM   = @rm@
 CAT  = @cat@
 
-# APR related
-APR_LIB = @apr_lib@
-APR_BUILD_LINE = @apr_build_line@
+CFLAGS    = @cflags@
+CINCLUDES = @ccinc@3rdparty/apr/include \
+            @ccinc@3rdparty/libuv/include \
+            @ccinc@3rdparty/libuv/src \
+            @ccinc@3rdparty/libatomic_ops/src \
+            @ccinc@3rdparty/libtommath \
+            @ccinc@3rdparty/sha1 \
+            @ccinc@3rdparty \
+            @ccinc@src
+LDFLAGS   = @ldflags@
+LDLIBS    = @thirdpartylibs@ @ldlibs@
+ARFLAGS   = @arflags@
 
-# libatomic_ops related
-LAO_LIB = @lao_lib@
-LAO_BUILD_LINE = @lao_build_line@
-# the following will be the same as LAO_LIB if it's to be built, otherwise blank
-BUILD_LAO_LIB = @lao_whether_build@
+OBJECTS = src/main@obj@ \
+          src/core/args@obj@ \
+          src/core/exceptions@obj@ \
+          src/core/interp@obj@ \
+          src/core/threadcontext@obj@ \
+          src/core/compunit@obj@ \
+          src/core/bytecode@obj@ \
+          src/core/frame@obj@ \
+          src/core/validation@obj@ \
+          src/core/bytecodedump@obj@ \
+          src/core/threads@obj@ \
+          src/core/ops@obj@ \
+          src/core/hll@obj@ \
+          src/core/loadbytecode@obj@ \
+          src/core/coerce@obj@ \
+          src/gc/orchestrate@obj@ \
+          src/gc/allocation@obj@ \
+          src/gc/worklist@obj@ \
+          src/gc/roots@obj@ \
+          src/io/fileops@obj@ \
+          src/io/socketops@obj@ \
+          src/io/dirops@obj@ \
+          src/io/procops@obj@ \
+          src/gc/collect@obj@ \
+          src/gc/gen2@obj@ \
+          src/gc/wb@obj@ \
+          src/6model/reprs@obj@ \
+          src/6model/reprconv@obj@ \
+          src/6model/containers@obj@ \
+          src/6model/reprs/MVMString@obj@ \
+          src/6model/reprs/MVMArray@obj@ \
+          src/6model/reprs/MVMHash@obj@ \
+          src/6model/reprs/MVMCFunction@obj@ \
+          src/6model/reprs/KnowHOWREPR@obj@ \
+          src/6model/reprs/KnowHOWAttributeREPR@obj@ \
+          src/6model/reprs/P6str@obj@ \
+          src/6model/reprs/P6opaque@obj@ \
+          src/6model/reprs/MVMCode@obj@ \
+          src/6model/reprs/MVMOSHandle@obj@ \
+          src/6model/reprs/P6int@obj@ \
+          src/6model/reprs/P6num@obj@ \
+          src/6model/reprs/Uninstantiable@obj@ \
+          src/6model/reprs/HashAttrStore@obj@ \
+          src/6model/reprs/MVMThread@obj@ \
+          src/6model/reprs/MVMIter@obj@ \
+          src/6model/reprs/MVMContext@obj@ \
+          src/6model/reprs/SCRef@obj@ \
+          src/6model/reprs/Lexotic@obj@ \
+          src/6model/reprs/MVMCallCapture@obj@ \
+          src/6model/reprs/P6bigint@obj@ \
+          src/6model/reprs/NFA@obj@ \
+          src/6model/reprs/MVMException@obj@ \
+          src/6model/6model@obj@ \
+          src/6model/bootstrap@obj@ \
+          src/6model/sc@obj@ \
+          src/6model/serialization@obj@ \
+          src/mast/compiler@obj@ \
+          src/strings/ascii@obj@ \
+          src/strings/utf8@obj@ \
+          src/strings/ops@obj@ \
+          src/strings/unicode@obj@ \
+          src/strings/latin1@obj@ \
+          src/strings/utf16@obj@ \
+          src/math/bigintops@obj@ \
+          src/moarvm@obj@
 
-# sha1 related
-SHA1_LIB = 3rdparty/sha1/sha1$(O)
+HEADERS = src/moarvm.h \
+          src/types.h \
+          src/6model/6model.h \
+          src/core/instance.h \
+          src/core/threadcontext.h \
+          src/core/args.h \
+          src/core/exceptions.h \
+          src/core/interp.h \
+          src/core/frame.h \
+          src/core/compunit.h \
+          src/core/bytecode.h \
+          src/core/ops.h \
+          src/core/validation.h \
+          src/core/bytecodedump.h \
+          src/core/threads.h \
+          src/core/hll.h \
+          src/core/loadbytecode.h \
+          src/core/coerce.h \
+          src/io/fileops.h \
+          src/io/socketops.h \
+          src/io/dirops.h \
+          src/io/procops.h \
+          src/gc/orchestrate.h \
+          src/gc/allocation.h \
+          src/gc/worklist.h \
+          src/gc/collect.h \
+          src/gc/roots.h \
+          src/gc/gen2.h \
+          src/gc/wb.h \
+          src/6model/reprs.h \
+          src/6model/reprconv.h \
+          src/6model/bootstrap.h \
+          src/6model/serialization.h \
+          src/6model/containers.h \
+          src/6model/reprs/MVMString.h \
+          src/6model/reprs/MVMArray.h \
+          src/6model/reprs/MVMHash.h \
+          src/6model/reprs/MVMCFunction.h \
+          src/6model/reprs/KnowHOWREPR.h \
+          src/6model/reprs/KnowHOWAttributeREPR.h \
+          src/6model/reprs/P6opaque.h \
+          src/6model/reprs/MVMCode.h \
+          src/6model/reprs/P6str.h \
+          src/6model/reprs/MVMOSHandle.h \
+          src/6model/reprs/P6int.h \
+          src/6model/reprs/P6num.h \
+          src/6model/reprs/Uninstantiable.h \
+          src/6model/reprs/HashAttrStore.h \
+          src/6model/reprs/MVMThread.h \
+          src/6model/reprs/MVMIter.h \
+          src/6model/reprs/MVMContext.h \
+          src/6model/reprs/SCRef.h \
+          src/6model/reprs/Lexotic.h \
+          src/6model/reprs/MVMCallCapture.h \
+          src/6model/reprs/P6bigint.h \
+          src/6model/reprs/NFA.h \
+          src/6model/reprs/MVMException.h \
+          src/6model/sc.h \
+          src/strings/unicode_gen.h \
+          src/strings/ascii.h \
+          src/strings/utf8.h \
+          src/strings/ops.h \
+          src/strings/unicode.h \
+          src/strings/latin1.h \
+          src/strings/utf16.h \
+          src/math/bigintops.h \
+          3rdparty/uthash.h \
+          src/gen/config.h \
+          3rdparty/apr/include/apr.h
 
-# libtommath related
-TOM = 3rdparty/libtommath/bn
+UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
+          3rdparty/libuv/src/inet@obj@ \
+          3rdparty/libuv/src/uv-common@obj@ \
+          3rdparty/libuv/src/version@obj@ \
+          3rdparty/libuv/src/unix/async@obj@ \
+          3rdparty/libuv/src/unix/core@obj@ \
+          3rdparty/libuv/src/unix/dl@obj@ \
+          3rdparty/libuv/src/unix/fs@obj@ \
+          3rdparty/libuv/src/unix/getaddrinfo@obj@ \
+          3rdparty/libuv/src/unix/loop-watcher@obj@ \
+          3rdparty/libuv/src/unix/loop@obj@ \
+          3rdparty/libuv/src/unix/pipe@obj@ \
+          3rdparty/libuv/src/unix/poll@obj@ \
+          3rdparty/libuv/src/unix/process@obj@ \
+          3rdparty/libuv/src/unix/signal@obj@ \
+          3rdparty/libuv/src/unix/stream@obj@ \
+          3rdparty/libuv/src/unix/tcp@obj@ \
+          3rdparty/libuv/src/unix/thread@obj@ \
+          3rdparty/libuv/src/unix/threadpool@obj@ \
+          3rdparty/libuv/src/unix/timer@obj@ \
+          3rdparty/libuv/src/unix/tty@obj@ \
+          3rdparty/libuv/src/unix/udp@obj@
 
-# libtommath files
-LIBTOMMATH_BIN = $(TOM)core$(O) \
-        $(TOM)_error$(O) \
-        $(TOM)_fast_mp_invmod$(O) \
-        $(TOM)_fast_mp_montgomery_reduce$(O) \
-        $(TOM)_fast_s_mp_mul_digs$(O) \
-        $(TOM)_fast_s_mp_mul_high_digs$(O) \
-        $(TOM)_fast_s_mp_sqr$(O) \
-        $(TOM)_mp_2expt$(O) \
-        $(TOM)_mp_abs$(O) \
-        $(TOM)_mp_add_d$(O) \
-        $(TOM)_mp_addmod$(O) \
-        $(TOM)_mp_add$(O) \
-        $(TOM)_mp_and$(O) \
-        $(TOM)_mp_clamp$(O) \
-        $(TOM)_mp_clear_multi$(O) \
-        $(TOM)_mp_clear$(O) \
-        $(TOM)_mp_cmp_d$(O) \
-        $(TOM)_mp_cmp_mag$(O) \
-        $(TOM)_mp_cmp$(O) \
-        $(TOM)_mp_cnt_lsb$(O) \
-        $(TOM)_mp_copy$(O) \
-        $(TOM)_mp_count_bits$(O) \
-        $(TOM)_mp_div_2d$(O) \
-        $(TOM)_mp_div_2$(O) \
-        $(TOM)_mp_div_3$(O) \
-        $(TOM)_mp_div_d$(O) \
-        $(TOM)_mp_div$(O) \
-        $(TOM)_mp_dr_is_modulus$(O) \
-        $(TOM)_mp_dr_reduce$(O) \
-        $(TOM)_mp_dr_setup$(O) \
-        $(TOM)_mp_exch$(O) \
-        $(TOM)_mp_expt_d$(O) \
-        $(TOM)_mp_exptmod_fast$(O) \
-        $(TOM)_mp_exptmod$(O) \
-        $(TOM)_mp_exteuclid$(O) \
-        $(TOM)_mp_fread$(O) \
-        $(TOM)_mp_fwrite$(O) \
-        $(TOM)_mp_gcd$(O) \
-        $(TOM)_mp_get_int$(O) \
-        $(TOM)_mp_get_long$(O) \
-        $(TOM)_mp_grow$(O) \
-        $(TOM)_mp_init_copy$(O) \
-        $(TOM)_mp_init_multi$(O) \
-        $(TOM)_mp_init$(O) \
-        $(TOM)_mp_init_set_int$(O) \
-        $(TOM)_mp_init_set$(O) \
-        $(TOM)_mp_init_size$(O) \
-        $(TOM)_mp_invmod$(O) \
-        $(TOM)_mp_invmod_slow$(O) \
-        $(TOM)_mp_is_square$(O) \
-        $(TOM)_mp_jacobi$(O) \
-        $(TOM)_mp_karatsuba_mul$(O) \
-        $(TOM)_mp_karatsuba_sqr$(O) \
-        $(TOM)_mp_lcm$(O) \
-        $(TOM)_mp_lshd$(O) \
-        $(TOM)_mp_mod_2d$(O) \
-        $(TOM)_mp_mod_d$(O) \
-        $(TOM)_mp_mod$(O) \
-        $(TOM)_mp_montgomery_calc_normalization$(O) \
-        $(TOM)_mp_montgomery_reduce$(O) \
-        $(TOM)_mp_montgomery_setup$(O) \
-        $(TOM)_mp_mul_2d$(O) \
-        $(TOM)_mp_mul_2$(O) \
-        $(TOM)_mp_mul_d$(O) \
-        $(TOM)_mp_mulmod$(O) \
-        $(TOM)_mp_mul$(O) \
-        $(TOM)_mp_neg$(O) \
-        $(TOM)_mp_n_root$(O) \
-        $(TOM)_mp_or$(O) \
-        $(TOM)_mp_prime_fermat$(O) \
-        $(TOM)_mp_prime_is_divisible$(O) \
-        $(TOM)_mp_prime_is_prime$(O) \
-        $(TOM)_mp_prime_miller_rabin$(O) \
-        $(TOM)_mp_prime_next_prime$(O) \
-        $(TOM)_mp_prime_rabin_miller_trials$(O) \
-        $(TOM)_mp_prime_random_ex$(O) \
-        $(TOM)_mp_radix_size$(O) \
-        $(TOM)_mp_radix_smap$(O) \
-        $(TOM)_mp_rand$(O) \
-        $(TOM)_mp_read_radix$(O) \
-        $(TOM)_mp_read_signed_bin$(O) \
-        $(TOM)_mp_read_unsigned_bin$(O) \
-        $(TOM)_mp_reduce_2k_l$(O) \
-        $(TOM)_mp_reduce_2k$(O) \
-        $(TOM)_mp_reduce_2k_setup_l$(O) \
-        $(TOM)_mp_reduce_2k_setup$(O) \
-        $(TOM)_mp_reduce_is_2k_l$(O) \
-        $(TOM)_mp_reduce_is_2k$(O) \
-        $(TOM)_mp_reduce$(O) \
-        $(TOM)_mp_reduce_setup$(O) \
-        $(TOM)_mp_rshd$(O) \
-        $(TOM)_mp_set_int$(O) \
-        $(TOM)_mp_set_long$(O) \
-        $(TOM)_mp_set$(O) \
-        $(TOM)_mp_shrink$(O) \
-        $(TOM)_mp_signed_bin_size$(O) \
-        $(TOM)_mp_sqrmod$(O) \
-        $(TOM)_mp_sqr$(O) \
-        $(TOM)_mp_sqrt$(O) \
-        $(TOM)_mp_sub_d$(O) \
-        $(TOM)_mp_submod$(O) \
-        $(TOM)_mp_sub$(O) \
-        $(TOM)_mp_toom_mul$(O) \
-        $(TOM)_mp_toom_sqr$(O) \
-        $(TOM)_mp_toradix_n$(O) \
-        $(TOM)_mp_toradix$(O) \
-        $(TOM)_mp_to_signed_bin_n$(O) \
-        $(TOM)_mp_to_signed_bin$(O) \
-        $(TOM)_mp_to_unsigned_bin_n$(O) \
-        $(TOM)_mp_to_unsigned_bin$(O) \
-        $(TOM)_mp_unsigned_bin_size$(O) \
-        $(TOM)_mp_xor$(O) \
-        $(TOM)_mp_zero$(O) \
-        $(TOM)_prime_tab$(O) \
-        $(TOM)_reverse$(O) \
-        $(TOM)_s_mp_add$(O) \
-        $(TOM)_s_mp_exptmod$(O) \
-        $(TOM)_s_mp_mul_digs$(O) \
-        $(TOM)_s_mp_mul_high_digs$(O) \
-        $(TOM)_s_mp_sqr$(O) \
-        $(TOM)_s_mp_sub$(O) \
+UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
+           3rdparty/libuv/src/unix/linux-inotify@obj@ \
+           3rdparty/libuv/src/unix/linux-syscalls@obj@ \
+           3rdparty/libuv/src/unix/proctitle@obj@ \
+           $(UV_UNIX)
 
-LIBTOMMATH_H = 3rdparty/libtommath/tommath_class.h \
-        3rdparty/libtommath/tommath.h \
-        3rdparty/libtommath/tommath_superclass.h \
+UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd@obj@ \
+             3rdparty/libuv/src/unix/kqueue@obj@ \
+             $(UV_UNIX)
 
-LIBTOMMATH_SOURCE = $(TOM)core.c \
-        $(TOM)_error.c \
-        $(TOM)_fast_mp_invmod.c \
-        $(TOM)_fast_mp_montgomery_reduce.c \
-        $(TOM)_fast_s_mp_mul_digs.c \
-        $(TOM)_fast_s_mp_mul_high_digs.c \
-        $(TOM)_fast_s_mp_sqr.c \
-        $(TOM)_mp_2expt.c \
-        $(TOM)_mp_abs.c \
-        $(TOM)_mp_add.c \
-        $(TOM)_mp_add_d.c \
-        $(TOM)_mp_addmod.c \
-        $(TOM)_mp_and.c \
-        $(TOM)_mp_clamp.c \
-        $(TOM)_mp_clear.c \
-        $(TOM)_mp_clear_multi.c \
-        $(TOM)_mp_cmp.c \
-        $(TOM)_mp_cmp_d.c \
-        $(TOM)_mp_cmp_mag.c \
-        $(TOM)_mp_cnt_lsb.c \
-        $(TOM)_mp_copy.c \
-        $(TOM)_mp_count_bits.c \
-        $(TOM)_mp_div_2.c \
-        $(TOM)_mp_div_2d.c \
-        $(TOM)_mp_div_3.c \
-        $(TOM)_mp_div.c \
-        $(TOM)_mp_div_d.c \
-        $(TOM)_mp_dr_is_modulus.c \
-        $(TOM)_mp_dr_reduce.c \
-        $(TOM)_mp_dr_setup.c \
-        $(TOM)_mp_exch.c \
-        $(TOM)_mp_expt_d.c \
-        $(TOM)_mp_exptmod.c \
-        $(TOM)_mp_exptmod_fast.c \
-        $(TOM)_mp_exteuclid.c \
-        $(TOM)_mp_fread.c \
-        $(TOM)_mp_fwrite.c \
-        $(TOM)_mp_gcd.c \
-        $(TOM)_mp_get_int.c \
-        $(TOM)_mp_get_long.c \
-        $(TOM)_mp_grow.c \
-        $(TOM)_mp_init.c \
-        $(TOM)_mp_init_copy.c \
-        $(TOM)_mp_init_multi.c \
-        $(TOM)_mp_init_set.c \
-        $(TOM)_mp_init_set_int.c \
-        $(TOM)_mp_init_size.c \
-        $(TOM)_mp_invmod.c \
-        $(TOM)_mp_invmod_slow.c \
-        $(TOM)_mp_is_square.c \
-        $(TOM)_mp_jacobi.c \
-        $(TOM)_mp_karatsuba_mul.c \
-        $(TOM)_mp_karatsuba_sqr.c \
-        $(TOM)_mp_lcm.c \
-        $(TOM)_mp_lshd.c \
-        $(TOM)_mp_mod_2d.c \
-        $(TOM)_mp_mod.c \
-        $(TOM)_mp_mod_d.c \
-        $(TOM)_mp_montgomery_calc_normalization.c \
-        $(TOM)_mp_montgomery_reduce.c \
-        $(TOM)_mp_montgomery_setup.c \
-        $(TOM)_mp_mul_2.c \
-        $(TOM)_mp_mul_2d.c \
-        $(TOM)_mp_mul.c \
-        $(TOM)_mp_mul_d.c \
-        $(TOM)_mp_mulmod.c \
-        $(TOM)_mp_neg.c \
-        $(TOM)_mp_n_root.c \
-        $(TOM)_mp_or.c \
-        $(TOM)_mp_prime_fermat.c \
-        $(TOM)_mp_prime_is_divisible.c \
-        $(TOM)_mp_prime_is_prime.c \
-        $(TOM)_mp_prime_miller_rabin.c \
-        $(TOM)_mp_prime_next_prime.c \
-        $(TOM)_mp_prime_rabin_miller_trials.c \
-        $(TOM)_mp_prime_random_ex.c \
-        $(TOM)_mp_radix_size.c \
-        $(TOM)_mp_radix_smap.c \
-        $(TOM)_mp_rand.c \
-        $(TOM)_mp_read_radix.c \
-        $(TOM)_mp_read_signed_bin.c \
-        $(TOM)_mp_read_unsigned_bin.c \
-        $(TOM)_mp_reduce_2k.c \
-        $(TOM)_mp_reduce_2k_l.c \
-        $(TOM)_mp_reduce_2k_setup.c \
-        $(TOM)_mp_reduce_2k_setup_l.c \
-        $(TOM)_mp_reduce.c \
-        $(TOM)_mp_reduce_is_2k.c \
-        $(TOM)_mp_reduce_is_2k_l.c \
-        $(TOM)_mp_reduce_setup.c \
-        $(TOM)_mp_rshd.c \
-        $(TOM)_mp_set.c \
-        $(TOM)_mp_set_int.c \
-        $(TOM)_mp_set_long.c \
-        $(TOM)_mp_shrink.c \
-        $(TOM)_mp_signed_bin_size.c \
-        $(TOM)_mp_sqr.c \
-        $(TOM)_mp_sqrmod.c \
-        $(TOM)_mp_sqrt.c \
-        $(TOM)_mp_sub.c \
-        $(TOM)_mp_sub_d.c \
-        $(TOM)_mp_submod.c \
-        $(TOM)_mp_toom_mul.c \
-        $(TOM)_mp_toom_sqr.c \
-        $(TOM)_mp_toradix.c \
-        $(TOM)_mp_toradix_n.c \
-        $(TOM)_mp_to_signed_bin.c \
-        $(TOM)_mp_to_signed_bin_n.c \
-        $(TOM)_mp_to_unsigned_bin.c \
-        $(TOM)_mp_to_unsigned_bin_n.c \
-        $(TOM)_mp_unsigned_bin_size.c \
-        $(TOM)_mp_xor.c \
-        $(TOM)_mp_zero.c \
-        $(TOM)_prime_tab.c \
-        $(TOM)_reverse.c \
-        $(TOM)_s_mp_add.c \
-        $(TOM)_s_mp_exptmod.c \
-        $(TOM)_s_mp_mul_digs.c \
-        $(TOM)_s_mp_mul_high_digs.c \
-        $(TOM)_s_mp_sqr.c \
-        $(TOM)_s_mp_sub.c \
+UV_NETBSD = 3rdparty/libuv/src/unix/netbsd@obj@ \
+            3rdparty/libuv/src/unix/kqueue@obj@ \
+            $(UV_UNIX)
 
-# Various collections of libraries, objects and sources.
-THIRDPARTY_LIBS = $(APR_LIB) $(BUILD_LAO_LIB) $(SHA1_LIB)
-CORE_OBJS = src/core/args$(O) src/core/exceptions$(O) src/core/interp$(O) src/core/threadcontext$(O) \
-            src/core/compunit$(O) src/core/bytecode$(O) src/core/frame$(O) src/core/validation$(O) \
-            src/core/bytecodedump$(O) src/core/threads$(O) src/core/ops$(O) src/core/hll$(O) \
-            src/core/loadbytecode$(O) src/core/coerce$(O) \
-            src/gc/orchestrate$(O) src/gc/allocation$(O) src/gc/worklist$(O) src/gc/roots$(O) \
-            src/io/fileops$(O) src/io/socketops$(O) src/io/dirops$(O) src/io/procops$(O) \
-            src/gc/collect$(O) src/gc/gen2$(O) src/gc/wb$(O) src/6model/reprs$(O) \
-            src/6model/reprconv$(O) src/6model/containers$(O) src/6model/reprs/MVMString$(O) \
-            src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMHash$(O) \
-            src/6model/reprs/MVMCFunction$(O) src/6model/reprs/KnowHOWREPR$(O) \
-            src/6model/reprs/KnowHOWAttributeREPR$(O) src/6model/reprs/P6str$(O) \
-            src/6model/reprs/P6opaque$(O) src/6model/reprs/MVMCode$(O) \
-            src/6model/reprs/MVMOSHandle$(O) src/6model/reprs/P6int$(O) src/6model/reprs/P6num$(O) \
-            src/6model/reprs/Uninstantiable$(O) src/6model/reprs/HashAttrStore$(O) \
-            src/6model/reprs/MVMThread$(O) src/6model/reprs/MVMIter$(O) \
-            src/6model/reprs/MVMContext$(O) src/6model/reprs/SCRef$(O) \
-            src/6model/reprs/Lexotic$(O) src/6model/reprs/MVMCallCapture$(O) \
-            src/6model/reprs/P6bigint$(O) src/6model/reprs/NFA$(O) \
-            src/6model/reprs/MVMException$(O) \
-            src/6model/reprs/MVMStaticFrame$(O) src/6model/reprs/MVMCompUnit$(O) \
-            src/6model/6model$(O) src/6model/bootstrap$(O) src/6model/sc$(O) \
-            src/6model/serialization$(O) src/mast/compiler$(O) src/strings/ascii$(O) \
-            src/strings/utf8$(O) src/strings/ops$(O) src/strings/unicode$(O) \
-            src/strings/latin1$(O) src/strings/utf16$(O) src/math/bigintops$(O) src/moarvm$(O)
-MAIN_OBJ  = src/main$(O)
-HEADERS   = src/moarvm.h src/types.h src/6model/6model.h src/core/instance.h src/core/threadcontext.h \
-            src/core/args.h src/core/exceptions.h src/core/interp.h src/core/frame.h \
-            src/core/compunit.h src/core/bytecode.h src/core/ops.h src/core/validation.h \
-            src/core/bytecodedump.h src/core/threads.h src/core/hll.h \
-            src/core/loadbytecode.h src/core/coerce.h \
-            src/io/fileops.h src/io/socketops.h src/io/dirops.h src/io/procops.h src/gc/orchestrate.h \
-            src/gc/allocation.h src/gc/worklist.h src/gc/collect.h src/gc/roots.h src/gc/gen2.h \
-            src/gc/wb.h src/6model/reprs.h src/6model/reprconv.h src/6model/bootstrap.h \
-            src/6model/serialization.h src/6model/containers.h src/6model/reprs/MVMString.h \
-            src/6model/reprs/MVMArray.h src/6model/reprs/MVMHash.h src/6model/reprs/MVMCFunction.h \
-            src/6model/reprs/KnowHOWREPR.h src/6model/reprs/KnowHOWAttributeREPR.h \
-            src/6model/reprs/P6opaque.h src/6model/reprs/MVMCode.h src/6model/reprs/P6str.h \
-            src/6model/reprs/MVMOSHandle.h src/6model/reprs/P6int.h src/6model/reprs/P6num.h \
-            src/6model/reprs/Uninstantiable.h src/6model/reprs/HashAttrStore.h \
-            src/6model/reprs/MVMThread.h src/6model/reprs/MVMIter.h src/6model/reprs/MVMContext.h \
-            src/6model/reprs/SCRef.h src/6model/reprs/Lexotic.h src/6model/reprs/MVMCallCapture.h \
-            src/6model/reprs/P6bigint.h src/6model/reprs/NFA.h src/6model/reprs/MVMException.h \
-            src/6model/reprs/MVMStaticFrame.h src/6model/reprs/MVMCompUnit.h \
-            src/6model/sc.h src/strings/unicode_gen.h \
-            src/strings/ascii.h src/strings/utf8.h src/strings/ops.h src/strings/unicode.h \
-            src/strings/latin1.h src/strings/utf16.h src/math/bigintops.h \
-            3rdparty/uthash.h src/gen/config.h 3rdparty/apr/include/apr.h
+UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd@obj@ \
+             3rdparty/libuv/src/unix/kqueue@obj@ \
+             $(UV_UNIX)
 
-# Main target
-moarvm$(EXE): $(THIRDPARTY_LIBS) $(LIBTOMMATH_BIN) $(CORE_OBJS) $(MAIN_OBJ)
-	$(LD) $(LOUTO)moarvm$(EXE) $(LDFLAGS) $(CORE_OBJS) $(MAIN_OBJ) $(LIBTOMMATH_BIN) $(THIRDPARTY_LIBS) $(LLIBS)
+UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
+            3rdparty/libuv/src/unix/darwin-proctitle@obj@ \
+            3rdparty/libuv/src/unix/fsevents@obj@ \
+            3rdparty/libuv/src/unix/kqueue@obj@ \
+            3rdparty/libuv/src/unix/proctitle@obj@ \
+            $(UV_UNIX)
 
-# APR
-$(APR_LIB):
-	$(APR_BUILD_LINE)
-3rdparty/apr/include/apr.h: $(APR_LIB)
+UV_OBJECTS = @uvobjects@
 
-# libatomic_ops
-$(LAO_LIB):
-	$(LAO_BUILD_LINE)
+TOM_OBJECTS = @tomobjects@
 
-# sha1
-$(SHA1_LIB): 3rdparty/sha1/sha1.h
-	cd 3rdparty/sha1 && $(CC) -c $(COUTO)sha1$(O) -I. $(CFLAGS) sha1.c
+.SUFFIXES: .c @obj@
 
-test:
-	@echo "Please build nqp-cc and run the tests in there"
+moarvm@exe@: $(OBJECTS) @thirdpartylibs@
+	$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
 
-# Generated unicode database
+apr: @aprlib@
+
+libuv: @uvlib@
+
+$(OBJECTS): $(HEADERS)
+
+.c@obj@:
+	$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
+
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
-	$(CAT) src/strings/unicode_db.c >src/strings/unicode.c
-	$(CAT) src/strings/unicode_ops.c >>src/strings/unicode.c
+	$(CAT) src/strings/unicode_db.c >$@
+	$(CAT) src/strings/unicode_ops.c >>$@
 
-# libtommath
-$(TOM)core$(O): $(TOM)core.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bncore$(O) -I. $(CFLAGS) bncore.c
-$(TOM)_error$(O): $(TOM)_error.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_error$(O) -I. $(CFLAGS) bn_error.c
-$(TOM)_fast_mp_invmod$(O): $(TOM)_fast_mp_invmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_mp_invmod$(O) -I. $(CFLAGS) bn_fast_mp_invmod.c
-$(TOM)_fast_mp_montgomery_reduce$(O): $(TOM)_fast_mp_montgomery_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_mp_montgomery_reduce$(O) -I. $(CFLAGS) bn_fast_mp_montgomery_reduce.c
-$(TOM)_fast_s_mp_mul_digs$(O): $(TOM)_fast_s_mp_mul_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_s_mp_mul_digs$(O) -I. $(CFLAGS) bn_fast_s_mp_mul_digs.c
-$(TOM)_fast_s_mp_mul_high_digs$(O): $(TOM)_fast_s_mp_mul_high_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_s_mp_mul_high_digs$(O) -I. $(CFLAGS) bn_fast_s_mp_mul_high_digs.c
-$(TOM)_fast_s_mp_sqr$(O): $(TOM)_fast_s_mp_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_fast_s_mp_sqr$(O) -I. $(CFLAGS) bn_fast_s_mp_sqr.c
-$(TOM)_mp_2expt$(O): $(TOM)_mp_2expt.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_2expt$(O) -I. $(CFLAGS) bn_mp_2expt.c
-$(TOM)_mp_abs$(O): $(TOM)_mp_abs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_abs$(O) -I. $(CFLAGS) bn_mp_abs.c
-$(TOM)_mp_add$(O): $(TOM)_mp_add.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_add$(O) -I. $(CFLAGS) bn_mp_add.c
-$(TOM)_mp_add_d$(O): $(TOM)_mp_add_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_add_d$(O) -I. $(CFLAGS) bn_mp_add_d.c
-$(TOM)_mp_addmod$(O): $(TOM)_mp_addmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_addmod$(O) -I. $(CFLAGS) bn_mp_addmod.c
-$(TOM)_mp_and$(O): $(TOM)_mp_and.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_and$(O) -I. $(CFLAGS) bn_mp_and.c
-$(TOM)_mp_clamp$(O): $(TOM)_mp_clamp.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_clamp$(O) -I. $(CFLAGS) bn_mp_clamp.c
-$(TOM)_mp_clear$(O): $(TOM)_mp_clear.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_clear$(O) -I. $(CFLAGS) bn_mp_clear.c
-$(TOM)_mp_clear_multi$(O): $(TOM)_mp_clear_multi.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_clear_multi$(O) -I. $(CFLAGS) bn_mp_clear_multi.c
-$(TOM)_mp_cmp$(O): $(TOM)_mp_cmp.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cmp$(O) -I. $(CFLAGS) bn_mp_cmp.c
-$(TOM)_mp_cmp_d$(O): $(TOM)_mp_cmp_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cmp_d$(O) -I. $(CFLAGS) bn_mp_cmp_d.c
-$(TOM)_mp_cmp_mag$(O): $(TOM)_mp_cmp_mag.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cmp_mag$(O) -I. $(CFLAGS) bn_mp_cmp_mag.c
-$(TOM)_mp_cnt_lsb$(O): $(TOM)_mp_cnt_lsb.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_cnt_lsb$(O) -I. $(CFLAGS) bn_mp_cnt_lsb.c
-$(TOM)_mp_copy$(O): $(TOM)_mp_copy.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_copy$(O) -I. $(CFLAGS) bn_mp_copy.c
-$(TOM)_mp_count_bits$(O): $(TOM)_mp_count_bits.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_count_bits$(O) -I. $(CFLAGS) bn_mp_count_bits.c
-$(TOM)_mp_div_2$(O): $(TOM)_mp_div_2.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_2$(O) -I. $(CFLAGS) bn_mp_div_2.c
-$(TOM)_mp_div_2d$(O): $(TOM)_mp_div_2d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_2d$(O) -I. $(CFLAGS) bn_mp_div_2d.c
-$(TOM)_mp_div_3$(O): $(TOM)_mp_div_3.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_3$(O) -I. $(CFLAGS) bn_mp_div_3.c
-$(TOM)_mp_div$(O): $(TOM)_mp_div.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div$(O) -I. $(CFLAGS) bn_mp_div.c
-$(TOM)_mp_div_d$(O): $(TOM)_mp_div_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_div_d$(O) -I. $(CFLAGS) bn_mp_div_d.c
-$(TOM)_mp_dr_is_modulus$(O): $(TOM)_mp_dr_is_modulus.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_dr_is_modulus$(O) -I. $(CFLAGS) bn_mp_dr_is_modulus.c
-$(TOM)_mp_dr_reduce$(O): $(TOM)_mp_dr_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_dr_reduce$(O) -I. $(CFLAGS) bn_mp_dr_reduce.c
-$(TOM)_mp_dr_setup$(O): $(TOM)_mp_dr_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_dr_setup$(O) -I. $(CFLAGS) bn_mp_dr_setup.c
-$(TOM)_mp_exch$(O): $(TOM)_mp_exch.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exch$(O) -I. $(CFLAGS) bn_mp_exch.c
-$(TOM)_mp_expt_d$(O): $(TOM)_mp_expt_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_expt_d$(O) -I. $(CFLAGS) bn_mp_expt_d.c
-$(TOM)_mp_exptmod$(O): $(TOM)_mp_exptmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exptmod$(O) -I. $(CFLAGS) bn_mp_exptmod.c
-$(TOM)_mp_exptmod_fast$(O): $(TOM)_mp_exptmod_fast.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exptmod_fast$(O) -I. $(CFLAGS) bn_mp_exptmod_fast.c
-$(TOM)_mp_exteuclid$(O): $(TOM)_mp_exteuclid.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_exteuclid$(O) -I. $(CFLAGS) bn_mp_exteuclid.c
-$(TOM)_mp_fread$(O): $(TOM)_mp_fread.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_fread$(O) -I. $(CFLAGS) bn_mp_fread.c
-$(TOM)_mp_fwrite$(O): $(TOM)_mp_fwrite.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_fwrite$(O) -I. $(CFLAGS) bn_mp_fwrite.c
-$(TOM)_mp_gcd$(O): $(TOM)_mp_gcd.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_gcd$(O) -I. $(CFLAGS) bn_mp_gcd.c
-$(TOM)_mp_get_int$(O): $(TOM)_mp_get_int.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_get_int$(O) -I. $(CFLAGS) bn_mp_get_int.c
-$(TOM)_mp_get_long$(O): $(TOM)_mp_get_long.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_get_long$(O) -I. $(CFLAGS) bn_mp_get_long.c
-$(TOM)_mp_grow$(O): $(TOM)_mp_grow.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_grow$(O) -I. $(CFLAGS) bn_mp_grow.c
-$(TOM)_mp_init$(O): $(TOM)_mp_init.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init$(O) -I. $(CFLAGS) bn_mp_init.c
-$(TOM)_mp_init_copy$(O): $(TOM)_mp_init_copy.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_copy$(O) -I. $(CFLAGS) bn_mp_init_copy.c
-$(TOM)_mp_init_multi$(O): $(TOM)_mp_init_multi.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_multi$(O) -I. $(CFLAGS) bn_mp_init_multi.c
-$(TOM)_mp_init_set$(O): $(TOM)_mp_init_set.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_set$(O) -I. $(CFLAGS) bn_mp_init_set.c
-$(TOM)_mp_init_set_int$(O): $(TOM)_mp_init_set_int.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_set_int$(O) -I. $(CFLAGS) bn_mp_init_set_int.c
-$(TOM)_mp_init_size$(O): $(TOM)_mp_init_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_init_size$(O) -I. $(CFLAGS) bn_mp_init_size.c
-$(TOM)_mp_invmod$(O): $(TOM)_mp_invmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_invmod$(O) -I. $(CFLAGS) bn_mp_invmod.c
-$(TOM)_mp_invmod_slow$(O): $(TOM)_mp_invmod_slow.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_invmod_slow$(O) -I. $(CFLAGS) bn_mp_invmod_slow.c
-$(TOM)_mp_is_square$(O): $(TOM)_mp_is_square.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_is_square$(O) -I. $(CFLAGS) bn_mp_is_square.c
-$(TOM)_mp_jacobi$(O): $(TOM)_mp_jacobi.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_jacobi$(O) -I. $(CFLAGS) bn_mp_jacobi.c
-$(TOM)_mp_karatsuba_mul$(O): $(TOM)_mp_karatsuba_mul.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_karatsuba_mul$(O) -I. $(CFLAGS) bn_mp_karatsuba_mul.c
-$(TOM)_mp_karatsuba_sqr$(O): $(TOM)_mp_karatsuba_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_karatsuba_sqr$(O) -I. $(CFLAGS) bn_mp_karatsuba_sqr.c
-$(TOM)_mp_lcm$(O): $(TOM)_mp_lcm.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_lcm$(O) -I. $(CFLAGS) bn_mp_lcm.c
-$(TOM)_mp_lshd$(O): $(TOM)_mp_lshd.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_lshd$(O) -I. $(CFLAGS) bn_mp_lshd.c
-$(TOM)_mp_mod_2d$(O): $(TOM)_mp_mod_2d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mod_2d$(O) -I. $(CFLAGS) bn_mp_mod_2d.c
-$(TOM)_mp_mod$(O): $(TOM)_mp_mod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mod$(O) -I. $(CFLAGS) bn_mp_mod.c
-$(TOM)_mp_mod_d$(O): $(TOM)_mp_mod_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mod_d$(O) -I. $(CFLAGS) bn_mp_mod_d.c
-$(TOM)_mp_montgomery_calc_normalization$(O): $(TOM)_mp_montgomery_calc_normalization.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_montgomery_calc_normalization$(O) -I. $(CFLAGS) bn_mp_montgomery_calc_normalization.c
-$(TOM)_mp_montgomery_reduce$(O): $(TOM)_mp_montgomery_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_montgomery_reduce$(O) -I. $(CFLAGS) bn_mp_montgomery_reduce.c
-$(TOM)_mp_montgomery_setup$(O): $(TOM)_mp_montgomery_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_montgomery_setup$(O) -I. $(CFLAGS) bn_mp_montgomery_setup.c
-$(TOM)_mp_mul_2$(O): $(TOM)_mp_mul_2.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul_2$(O) -I. $(CFLAGS) bn_mp_mul_2.c
-$(TOM)_mp_mul_2d$(O): $(TOM)_mp_mul_2d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul_2d$(O) -I. $(CFLAGS) bn_mp_mul_2d.c
-$(TOM)_mp_mul$(O): $(TOM)_mp_mul.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul$(O) -I. $(CFLAGS) bn_mp_mul.c
-$(TOM)_mp_mul_d$(O): $(TOM)_mp_mul_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mul_d$(O) -I. $(CFLAGS) bn_mp_mul_d.c
-$(TOM)_mp_mulmod$(O): $(TOM)_mp_mulmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_mulmod$(O) -I. $(CFLAGS) bn_mp_mulmod.c
-$(TOM)_mp_neg$(O): $(TOM)_mp_neg.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_neg$(O) -I. $(CFLAGS) bn_mp_neg.c
-$(TOM)_mp_n_root$(O): $(TOM)_mp_n_root.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_n_root$(O) -I. $(CFLAGS) bn_mp_n_root.c
-$(TOM)_mp_or$(O): $(TOM)_mp_or.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_or$(O) -I. $(CFLAGS) bn_mp_or.c
-$(TOM)_mp_prime_fermat$(O): $(TOM)_mp_prime_fermat.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_fermat$(O) -I. $(CFLAGS) bn_mp_prime_fermat.c
-$(TOM)_mp_prime_is_divisible$(O): $(TOM)_mp_prime_is_divisible.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_is_divisible$(O) -I. $(CFLAGS) bn_mp_prime_is_divisible.c
-$(TOM)_mp_prime_is_prime$(O): $(TOM)_mp_prime_is_prime.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_is_prime$(O) -I. $(CFLAGS) bn_mp_prime_is_prime.c
-$(TOM)_mp_prime_miller_rabin$(O): $(TOM)_mp_prime_miller_rabin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_miller_rabin$(O) -I. $(CFLAGS) bn_mp_prime_miller_rabin.c
-$(TOM)_mp_prime_next_prime$(O): $(TOM)_mp_prime_next_prime.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_next_prime$(O) -I. $(CFLAGS) bn_mp_prime_next_prime.c
-$(TOM)_mp_prime_rabin_miller_trials$(O): $(TOM)_mp_prime_rabin_miller_trials.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_rabin_miller_trials$(O) -I. $(CFLAGS) bn_mp_prime_rabin_miller_trials.c
-$(TOM)_mp_prime_random_ex$(O): $(TOM)_mp_prime_random_ex.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_prime_random_ex$(O) -I. $(CFLAGS) bn_mp_prime_random_ex.c
-$(TOM)_mp_radix_size$(O): $(TOM)_mp_radix_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_radix_size$(O) -I. $(CFLAGS) bn_mp_radix_size.c
-$(TOM)_mp_radix_smap$(O): $(TOM)_mp_radix_smap.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_radix_smap$(O) -I. $(CFLAGS) bn_mp_radix_smap.c
-$(TOM)_mp_rand$(O): $(TOM)_mp_rand.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_rand$(O) -I. $(CFLAGS) bn_mp_rand.c
-$(TOM)_mp_read_radix$(O): $(TOM)_mp_read_radix.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_read_radix$(O) -I. $(CFLAGS) bn_mp_read_radix.c
-$(TOM)_mp_read_signed_bin$(O): $(TOM)_mp_read_signed_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_read_signed_bin$(O) -I. $(CFLAGS) bn_mp_read_signed_bin.c
-$(TOM)_mp_read_unsigned_bin$(O): $(TOM)_mp_read_unsigned_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_read_unsigned_bin$(O) -I. $(CFLAGS) bn_mp_read_unsigned_bin.c
-$(TOM)_mp_reduce_2k$(O): $(TOM)_mp_reduce_2k.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k$(O) -I. $(CFLAGS) bn_mp_reduce_2k.c
-$(TOM)_mp_reduce_2k_l$(O): $(TOM)_mp_reduce_2k_l.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k_l$(O) -I. $(CFLAGS) bn_mp_reduce_2k_l.c
-$(TOM)_mp_reduce_2k_setup$(O): $(TOM)_mp_reduce_2k_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k_setup$(O) -I. $(CFLAGS) bn_mp_reduce_2k_setup.c
-$(TOM)_mp_reduce_2k_setup_l$(O): $(TOM)_mp_reduce_2k_setup_l.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_2k_setup_l$(O) -I. $(CFLAGS) bn_mp_reduce_2k_setup_l.c
-$(TOM)_mp_reduce$(O): $(TOM)_mp_reduce.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce$(O) -I. $(CFLAGS) bn_mp_reduce.c
-$(TOM)_mp_reduce_is_2k$(O): $(TOM)_mp_reduce_is_2k.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_is_2k$(O) -I. $(CFLAGS) bn_mp_reduce_is_2k.c
-$(TOM)_mp_reduce_is_2k_l$(O): $(TOM)_mp_reduce_is_2k_l.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_is_2k_l$(O) -I. $(CFLAGS) bn_mp_reduce_is_2k_l.c
-$(TOM)_mp_reduce_setup$(O): $(TOM)_mp_reduce_setup.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_reduce_setup$(O) -I. $(CFLAGS) bn_mp_reduce_setup.c
-$(TOM)_mp_rshd$(O): $(TOM)_mp_rshd.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_rshd$(O) -I. $(CFLAGS) bn_mp_rshd.c
-$(TOM)_mp_set$(O): $(TOM)_mp_set.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_set$(O) -I. $(CFLAGS) bn_mp_set.c
-$(TOM)_mp_set_int$(O): $(TOM)_mp_set_int.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_set_int$(O) -I. $(CFLAGS) bn_mp_set_int.c
-$(TOM)_mp_set_long$(O): $(TOM)_mp_set_long.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_set_long$(O) -I. $(CFLAGS) bn_mp_set_long.c
-$(TOM)_mp_shrink$(O): $(TOM)_mp_shrink.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_shrink$(O) -I. $(CFLAGS) bn_mp_shrink.c
-$(TOM)_mp_signed_bin_size$(O): $(TOM)_mp_signed_bin_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_signed_bin_size$(O) -I. $(CFLAGS) bn_mp_signed_bin_size.c
-$(TOM)_mp_sqr$(O): $(TOM)_mp_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sqr$(O) -I. $(CFLAGS) bn_mp_sqr.c
-$(TOM)_mp_sqrmod$(O): $(TOM)_mp_sqrmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sqrmod$(O) -I. $(CFLAGS) bn_mp_sqrmod.c
-$(TOM)_mp_sqrt$(O): $(TOM)_mp_sqrt.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sqrt$(O) -I. $(CFLAGS) bn_mp_sqrt.c
-$(TOM)_mp_sub$(O): $(TOM)_mp_sub.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sub$(O) -I. $(CFLAGS) bn_mp_sub.c
-$(TOM)_mp_sub_d$(O): $(TOM)_mp_sub_d.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_sub_d$(O) -I. $(CFLAGS) bn_mp_sub_d.c
-$(TOM)_mp_submod$(O): $(TOM)_mp_submod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_submod$(O) -I. $(CFLAGS) bn_mp_submod.c
-$(TOM)_mp_toom_mul$(O): $(TOM)_mp_toom_mul.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toom_mul$(O) -I. $(CFLAGS) bn_mp_toom_mul.c
-$(TOM)_mp_toom_sqr$(O): $(TOM)_mp_toom_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toom_sqr$(O) -I. $(CFLAGS) bn_mp_toom_sqr.c
-$(TOM)_mp_toradix$(O): $(TOM)_mp_toradix.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toradix$(O) -I. $(CFLAGS) bn_mp_toradix.c
-$(TOM)_mp_toradix_n$(O): $(TOM)_mp_toradix_n.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_toradix_n$(O) -I. $(CFLAGS) bn_mp_toradix_n.c
-$(TOM)_mp_to_signed_bin$(O): $(TOM)_mp_to_signed_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_signed_bin$(O) -I. $(CFLAGS) bn_mp_to_signed_bin.c
-$(TOM)_mp_to_signed_bin_n$(O): $(TOM)_mp_to_signed_bin_n.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_signed_bin_n$(O) -I. $(CFLAGS) bn_mp_to_signed_bin_n.c
-$(TOM)_mp_to_unsigned_bin$(O): $(TOM)_mp_to_unsigned_bin.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_unsigned_bin$(O) -I. $(CFLAGS) bn_mp_to_unsigned_bin.c
-$(TOM)_mp_to_unsigned_bin_n$(O): $(TOM)_mp_to_unsigned_bin_n.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_to_unsigned_bin_n$(O) -I. $(CFLAGS) bn_mp_to_unsigned_bin_n.c
-$(TOM)_mp_unsigned_bin_size$(O): $(TOM)_mp_unsigned_bin_size.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_unsigned_bin_size$(O) -I. $(CFLAGS) bn_mp_unsigned_bin_size.c
-$(TOM)_mp_xor$(O): $(TOM)_mp_xor.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_xor$(O) -I. $(CFLAGS) bn_mp_xor.c
-$(TOM)_mp_zero$(O): $(TOM)_mp_zero.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_mp_zero$(O) -I. $(CFLAGS) bn_mp_zero.c
-$(TOM)_prime_tab$(O): $(TOM)_prime_tab.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_prime_tab$(O) -I. $(CFLAGS) bn_prime_tab.c
-$(TOM)_reverse$(O): $(TOM)_reverse.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_reverse$(O) -I. $(CFLAGS) bn_reverse.c
-$(TOM)_s_mp_add$(O): $(TOM)_s_mp_add.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_add$(O) -I. $(CFLAGS) bn_s_mp_add.c
-$(TOM)_s_mp_exptmod$(O): $(TOM)_s_mp_exptmod.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_exptmod$(O) -I. $(CFLAGS) bn_s_mp_exptmod.c
-$(TOM)_s_mp_mul_digs$(O): $(TOM)_s_mp_mul_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_mul_digs$(O) -I. $(CFLAGS) bn_s_mp_mul_digs.c
-$(TOM)_s_mp_mul_high_digs$(O): $(TOM)_s_mp_mul_high_digs.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_mul_high_digs$(O) -I. $(CFLAGS) bn_s_mp_mul_high_digs.c
-$(TOM)_s_mp_sqr$(O): $(TOM)_s_mp_sqr.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_sqr$(O) -I. $(CFLAGS) bn_s_mp_sqr.c
-$(TOM)_s_mp_sub$(O): $(TOM)_s_mp_sub.c $(LIBTOMMATH_H)
-	cd 3rdparty/libtommath && $(CC) -c @couto@bn_s_mp_sub$(O) -I. $(CFLAGS) bn_s_mp_sub.c
+3rdparty/apr/include/apr.h: @aprlib@
 
-# VM core compilation.
-src/core/args$(O): src/core/args.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/args$(O) src/core/args.c
-src/core/exceptions$(O): src/core/exceptions.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/exceptions$(O) src/core/exceptions.c
-src/core/interp$(O): src/core/interp.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/interp$(O) src/core/interp.c
-src/core/compunit$(O): src/core/compunit.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/compunit$(O) src/core/compunit.c
-src/core/bytecode$(O): src/core/bytecode.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/bytecode$(O) src/core/bytecode.c
-src/core/frame$(O): src/core/frame.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/frame$(O) src/core/frame.c
-src/core/validation$(O): src/core/validation.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/validation$(O) src/core/validation.c
-src/core/bytecodedump$(O): src/core/bytecodedump.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/bytecodedump$(O) src/core/bytecodedump.c
-src/core/ops$(O): src/core/ops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/ops$(O) src/core/ops.c
-src/core/threads$(O): src/core/threads.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/threads$(O) src/core/threads.c
-src/core/hll$(O): src/core/hll.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/hll$(O) src/core/hll.c
-src/core/loadbytecode$(O): src/core/loadbytecode.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/loadbytecode$(O) src/core/loadbytecode.c
-src/core/coerce$(O): src/core/coerce.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/coerce$(O) src/core/coerce.c
-src/io/fileops$(O): src/io/fileops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/fileops$(O) src/io/fileops.c
-src/io/socketops$(O): src/io/socketops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/socketops$(O) src/io/socketops.c
-src/io/dirops$(O): src/io/dirops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/dirops$(O) src/io/dirops.c
-src/io/procops$(O): src/io/procops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/io/procops$(O) src/io/procops.c
-src/core/threadcontext$(O): src/core/threadcontext.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/core/threadcontext$(O) src/core/threadcontext.c
-src/gc/allocation$(O): src/gc/allocation.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/allocation$(O) src/gc/allocation.c
-src/gc/worklist$(O): src/gc/worklist.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/worklist$(O) src/gc/worklist.c
-src/gc/roots$(O): src/gc/roots.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/roots$(O) src/gc/roots.c
-src/gc/collect$(O): src/gc/collect.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/collect$(O) src/gc/collect.c
-src/gc/orchestrate$(O): src/gc/orchestrate.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/orchestrate$(O) src/gc/orchestrate.c
-src/gc/gen2$(O): src/gc/gen2.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/gen2$(O) src/gc/gen2.c
-src/gc/wb$(O): src/gc/wb.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/gc/wb$(O) src/gc/wb.c
-src/6model/reprs$(O): src/6model/reprs.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs$(O) src/6model/reprs.c
-src/6model/containers$(O): src/6model/containers.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/containers$(O) src/6model/containers.c
-src/6model/reprconv$(O): src/6model/reprconv.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprconv$(O) src/6model/reprconv.c
-src/6model/reprs/MVMString$(O): src/6model/reprs/MVMString.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMString$(O) src/6model/reprs/MVMString.c
-src/6model/reprs/MVMArray$(O): src/6model/reprs/MVMArray.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMArray$(O) src/6model/reprs/MVMArray.c
-src/6model/reprs/MVMHash$(O): src/6model/reprs/MVMHash.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMHash$(O) src/6model/reprs/MVMHash.c
-src/6model/reprs/MVMCFunction$(O): src/6model/reprs/MVMCFunction.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMCFunction$(O) src/6model/reprs/MVMCFunction.c
-src/6model/reprs/KnowHOWREPR$(O): src/6model/reprs/KnowHOWREPR.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/KnowHOWREPR$(O) src/6model/reprs/KnowHOWREPR.c
-src/6model/reprs/P6opaque$(O): src/6model/reprs/P6opaque.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6opaque$(O) src/6model/reprs/P6opaque.c
-src/6model/reprs/MVMCode$(O): src/6model/reprs/MVMCode.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMCode$(O) src/6model/reprs/MVMCode.c
-src/6model/reprs/MVMOSHandle$(O): src/6model/reprs/MVMOSHandle.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMOSHandle$(O) src/6model/reprs/MVMOSHandle.c
-src/6model/reprs/P6int$(O): src/6model/reprs/P6int.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6int$(O) src/6model/reprs/P6int.c
-src/6model/reprs/P6num$(O): src/6model/reprs/P6num.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6num$(O) src/6model/reprs/P6num.c
-src/6model/reprs/P6str$(O): src/6model/reprs/P6str.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6str$(O) src/6model/reprs/P6str.c
-src/6model/reprs/Uninstantiable$(O): src/6model/reprs/Uninstantiable.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/Uninstantiable$(O) src/6model/reprs/Uninstantiable.c
-src/6model/reprs/HashAttrStore$(O): src/6model/reprs/HashAttrStore.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/HashAttrStore$(O) src/6model/reprs/HashAttrStore.c
-src/6model/reprs/KnowHOWAttributeREPR$(O): src/6model/reprs/KnowHOWAttributeREPR.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/KnowHOWAttributeREPR$(O) src/6model/reprs/KnowHOWAttributeREPR.c
-src/6model/reprs/MVMThread$(O): src/6model/reprs/MVMThread.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMThread$(O) src/6model/reprs/MVMThread.c
-src/6model/reprs/MVMIter$(O): src/6model/reprs/MVMIter.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMIter$(O) src/6model/reprs/MVMIter.c
-src/6model/reprs/MVMContext$(O): src/6model/reprs/MVMContext.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMContext$(O) src/6model/reprs/MVMContext.c
-src/6model/reprs/SCRef$(O): src/6model/reprs/SCRef.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/SCRef$(O) src/6model/reprs/SCRef.c
-src/6model/reprs/Lexotic$(O): src/6model/reprs/Lexotic.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/Lexotic$(O) src/6model/reprs/Lexotic.c
-src/6model/reprs/MVMCallCapture$(O): src/6model/reprs/MVMCallCapture.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMCallCapture$(O) src/6model/reprs/MVMCallCapture.c
-src/6model/reprs/P6bigint$(O): src/6model/reprs/P6bigint.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/P6bigint$(O) src/6model/reprs/P6bigint.c
-src/6model/reprs/NFA$(O): src/6model/reprs/NFA.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/NFA$(O) src/6model/reprs/NFA.c
-src/6model/reprs/MVMException$(O): src/6model/reprs/MVMException.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMException$(O) src/6model/reprs/MVMException.c
-src/6model/reprs/MVMStaticFrame$(O): src/6model/reprs/MVMStaticFrame.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMStaticFrame$(O) src/6model/reprs/MVMStaticFrame.c
-src/6model/reprs/MVMCompUnit$(O): src/6model/reprs/MVMCompUnit.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/reprs/MVMCompUnit$(O) src/6model/reprs/MVMCompUnit.c
-src/6model/6model$(O): src/6model/6model.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/6model$(O) src/6model/6model.c
-src/6model/bootstrap$(O): src/6model/bootstrap.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/bootstrap$(O) src/6model/bootstrap.c
-src/6model/sc$(O): src/6model/sc.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/sc$(O) src/6model/sc.c
-src/6model/serialization$(O): src/6model/serialization.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/6model/serialization$(O) src/6model/serialization.c
-src/mast/compiler$(O): src/mast/compiler.c $(HEADERS) src/mast/nodes_moarvm.h
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/mast/compiler$(O) src/mast/compiler.c
-src/strings/ascii$(O): src/strings/ascii.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/ascii$(O) src/strings/ascii.c
-src/strings/utf8$(O): src/strings/utf8.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/utf8$(O) src/strings/utf8.c
-src/strings/ops$(O): src/strings/ops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/ops$(O) src/strings/ops.c
-src/strings/unicode$(O): src/strings/unicode.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/unicode$(O) src/strings/unicode.c
-src/strings/latin1$(O): src/strings/latin1.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/latin1$(O) src/strings/latin1.c
-src/strings/utf16$(O): src/strings/utf16.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/strings/utf16$(O) src/strings/utf16.c
-src/math/bigintops$(O): src/math/bigintops.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/math/bigintops$(O) src/math/bigintops.c
-src/moarvm$(O): src/moarvm.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/moarvm$(O) src/moarvm.c
-src/main$(O): src/main.c $(HEADERS)
-	$(CC) $(CINCLUDE) $(CFLAGS) -c $(COUTO)src/main$(O) src/main.c
+@aprlib@:
+	@aprrule@
 
-# Cleanup.
+@uvlib@: @uvobjects@
+	@uvrule@
+
+@laolib@:
+	@laorule@
+
+@tomlib@: $(TOM_OBJECTS)
+	@tomrule@
+
+@shalib@: @shaobjects@
+	@sharule@
+
 clean:
-	$(RM) moarvm$(EXE)
-	$(RM) src/*$(O) src/6model/*$(O) src/6model/reprs/*$(O) src/core/*$(O) src/gc/*$(O) src/strings/*$(O) src/strings/unicode.c src/io/*$(O) src/math/*$(O)
-	$(RM) 3rdparty/libtommath/*$(O)
+	-$(RM) $(OBJECTS)
+	@clean@
+	@aprclean@
+	@uvclean@
+	@laoclean@
+	@tomclean@
+	@shaclean@
+
+realclean: clean
+	-$(RM) moarvm@exe@
+	-$(RM) Makefile src/gen/config.h src/strings/unicode.c
