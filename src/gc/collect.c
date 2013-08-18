@@ -151,15 +151,12 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMCollectable    *new_addr;
     MVMuint32          size, gen2count;
     MVMuint16          i;
-    MVMFrame          *cur_frame;
 
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
     gen2 = tc->gen2;
 
-    while ((cur_frame = MVM_gc_worklist_get_frame(tc, worklist))) {
-        MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
-    }
+    MVM_gc_worklist_mark_frame_roots(tc, worklist);
     
     while ((item_ptr = MVM_gc_worklist_get(tc, worklist))) {
         /* Dereference the object we're considering. */
@@ -286,6 +283,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             *item_ptr = item->forwarder = new_addr;
         }
 
+        /* make sure any rooted frames mark their stuff */
+        MVM_gc_worklist_mark_frame_roots(tc, worklist);
+
         /* Finally, we need to mark the collectable (at its moved address).
          * Track how many items we had before we mark it, in case we need
          * to write barrier them post-move to uphold the generational
@@ -294,9 +294,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         MVM_gc_mark_collectable(tc, worklist, new_addr);
 
         /* make sure any rooted frames mark their stuff */
-        while ((cur_frame = MVM_gc_worklist_get_frame(tc, worklist))) {
-            MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
-        }
+        MVM_gc_worklist_mark_frame_roots(tc, worklist);
 
         /* In moving an object to generation 2, we may have left it pointing
          * to nursery objects. If so, make sure it's in the gen2 roots. */
