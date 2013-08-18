@@ -925,12 +925,14 @@ class QAST::MASTRegexCompiler {
     method ws($node) { self.subrule($node) }
 
     method dba($node) {
-        my @ins      := nqp::list();
-        my @flags := [$Arg::obj, $Arg::int64, $Arg::str];
-        merge_ins(@ins, [
+        my @flags := [$Arg::obj, $Arg::int, $Arg::str];
+        my $sname := fresh_s();
+        my @ins := [
+            op('const_s', $sname, sval($node.name)),
             op('findmeth', %*REG<method>, %*REG<cur>, sval('"!dba"')),
-            call(%*REG<method>, @flags, %*REG<cur>, %*REG<pos>, sval($node.name))
-        ]);
+            call(%*REG<method>, @flags, %*REG<cur>, %*REG<pos>, $sname)
+        ];
+        release($sname, $MVM_reg_str);
         @ins
     }
 
