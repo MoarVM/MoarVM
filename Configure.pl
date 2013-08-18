@@ -8,6 +8,7 @@ use Getopt::Long;
 use Pod::Usage;
 
 use build::setup;
+use build::auto;
 
 my $NAME    = 'moarvm';
 my $GENLIST = 'build/gen.list';
@@ -39,10 +40,10 @@ $args{instrument} //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
-    cross_setup($args{build}, $args{host});
+    setup_cross($args{build}, $args{host});
 }
 else {
-    native_setup($args{os} // {
+    setup_native($args{os} // {
         'MSWin32' => 'win32'
     }->{$^O} // $^O);
 }
@@ -101,30 +102,11 @@ $config{clean} = @auxfiles ? '-$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
 
-# detect x64 on Windows so we can build the correct APR version
-# something of a hack, but works for now
-if ($config{cc} eq 'cl') {
-    print dots('    auto-detecting x64 toolchain');
-    my $msg = `cl 2>&1`;
-    if (defined $msg) {
-        if ($msg =~ /x64/) {
-            print "YES\n";
-            $defaults{-thirdparty}->{apr} = {
-                %::APR,
-                path  => '3rdparty/apr/x64/LibR',
-                rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
-                clean => '-cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" clean',
-            };
-
-#            $defaults{-thirdparty}->{dc}->{rule} =
-#                'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
-        }
-        else { print "NO\n" }
-    }
-    else {
-        softfail("could not run 'cl'");
-        print dots('    assuming x86'), "OK\n";
-    }
+if ($config{crossconf}) {
+    build::auto::detect_cross(\%config, \%defaults);
+}
+else {
+    build::auto::detect_native(\%config, \%defaults);
 }
 
 # dump configuration
@@ -240,7 +222,7 @@ exit $failed;
 # helper functions
 
 # fill in defaults for native builds
-sub native_setup {
+sub setup_native {
     my ($os) = @_;
 
     print dots("Configuring native build environment");
@@ -293,7 +275,7 @@ sub native_setup {
 }
 
 # fill in defaults for cross builds
-sub cross_setup {
+sub setup_cross {
     my ($build, $host) = @_;
 
     print dots("Configuring cross build environment");
