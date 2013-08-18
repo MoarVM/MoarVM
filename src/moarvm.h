@@ -83,3 +83,11 @@ void MVM_vm_destroy_instance(MVMInstance *instance);
 
 /* Full memory barrier. */
 #define MVM_barrier() AO_nop_full()
+
+/* Convenience shortcut for use in gc_free routines. */
+#define MVM_checked_free_null(addr) do { \
+    if (addr) { \
+        free(addr); \
+        addr = NULL; \
+    } \
+} while (0)

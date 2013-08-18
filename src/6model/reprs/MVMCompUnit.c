@@ -69,13 +69,23 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->filename);
 }
 
+
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-/*    MVMCompUnit *code_obj = (MVMCompUnit *)obj;
-    if (code_obj->body.outer) {
-        MVM_frame_dec_ref(tc, code_obj->body.outer);
-        code_obj->body.outer = NULL;
-    }*/
+    MVMCompUnitBody *body = &((MVMCompUnit *)obj)->body;
+    MVM_checked_free_null(body->frames);
+    MVM_checked_free_null(body->coderefs);
+    body->main_frame = NULL;
+    body->load_frame = NULL;
+    body->deserialize_frame = NULL;
+    MVM_checked_free_null(body->callsites);
+    MVM_checked_free_null(body->strings);
+    MVM_checked_free_null(body->scs);
+    MVM_checked_free_null(body->scs_to_resolve);
+    body->hll_config = NULL;
+    body->hll_name = NULL;
+    body->filename = NULL;
+    body->next_compunit = NULL;
 }
 
 /* Gets the storage specification for this representation. */
