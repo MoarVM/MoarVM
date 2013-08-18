@@ -4,6 +4,7 @@ use QASTRegexCompilerMAST;
 # Disable compilatin of deserialization stuff while still in development.
 my $ENABLE_SC_COMP := 1;
 
+#?start_redecl
 my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
 my $MVM_reg_int8            := 1;
 my $MVM_reg_int16           := 2;
@@ -13,6 +14,7 @@ my $MVM_reg_num32           := 5;
 my $MVM_reg_num64           := 6;
 my $MVM_reg_str             := 7;
 my $MVM_reg_obj             := 8;
+#?end_redecl
 
 # Mapping of QAST::Want type identifiers to return types.
 my %WANTMAP := nqp::hash(
@@ -1254,6 +1256,7 @@ class QAST::MASTCompiler {
     }
 }
 
+#?start_redecl
 sub push_op(@dest, $op, *@args) {
     # Resolve the op.
     my $bank;
@@ -1269,3 +1272,4 @@ sub push_op(@dest, $op, *@args) {
         |@args
     ));
 }
+#?end_redecl
