@@ -1,9 +1,5 @@
 #include "moarvm.h"
 
-#ifdef _WIN32
-#include <strsafe.h>
-#endif
-
 static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 
     /* work on only MVMOSHandle of type MVM_OSHANDLE_DIR */
@@ -11,7 +7,7 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.handle_type != MVM_OSHANDLE_DIR) {
+    if ((*handle)->body.type != MVM_OSHANDLE_DIR) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type dir handle", msg);
     }
 }
@@ -143,13 +139,16 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
 }
 
 /* open a filehandle; takes a type object */
-MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString *dirname, MVMString *encoding_name) {
+MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
+    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
 #ifdef _WIN32
     MVMOSHandle *result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     char *name;
     int str_len;
     wchar_t *wname;
     wchar_t *dir_name;
+    wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
+    wchar_t **lpp_part = {NULL};
 
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
         MVM_exception_throw_adhoc(tc, "Open dir needs a type object with MVMOSHandle REPR");
@@ -159,24 +158,32 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString
     wname = UTF8ToUnicode(name);
     free(name);
 
-    str_len = wcslen(wname) + 7;
-
-    if (str_len > (MAX_PATH - 3)) {
-        free(wname);
+    if (!GetFullPathNameW(wname, 4096, abs_dirname, lpp_part)) {
         MVM_exception_throw_adhoc(tc, "Directory path is too long.");
     }
 
-    dir_name = (wchar_t *)calloc(str_len, sizeof(wchar_t));
-
-    StringCbCopyW(dir_name, str_len, L"\\\\?\\");
-    StringCchCatW(dir_name, str_len, wname);
-    StringCchCatW(dir_name, str_len, L"\\*");
-
     free(wname);
+
+    str_len = wcslen(abs_dirname) ;
+
+    /* Prepending "\\?\" to the path extend this limit to 32,767. see msdn FindFirstFile API. */
+    if (str_len > (32767 - 7)) {
+        MVM_exception_throw_adhoc(tc, "Directory path is too long.");
+    }
+
+    dir_name = (wchar_t *)calloc(str_len + 7, sizeof(wchar_t));
+
+    /* You cannot use the "\\?\" prefix with a relative path,
+     * relative paths are always limited to a total of MAX_PATH characters.
+     * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
+    wcscpy(dir_name, L"\\\\?\\");
+    wcscat(dir_name, abs_dirname);
+    wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
+                                   * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx */
+
     result->body.type          = MVM_OSHANDLE_DIR;
     result->body.dir_name      = dir_name;
     result->body.dir_handle    = INVALID_HANDLE_VALUE;
-    result->body.encoding_type = MVM_find_encoding_by_name(tc, encoding_name);
 
     return (MVMObject *)result;
 #endif
@@ -193,7 +200,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_dirhandle_type(tc, oshandle, &handle, "read from dirhandle");
 
-    if (handle->body.dir_handle = INVALID_HANDLE_VALUE) {
+    if (handle->body.dir_handle == INVALID_HANDLE_VALUE) {
         HANDLE hFind = FindFirstFileW(handle->body.dir_name, &ffd);
 
         if (hFind == INVALID_HANDLE_VALUE) {
@@ -202,17 +209,17 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 
         handle->body.dir_handle = hFind;
         dir_str = UnicodeToUTF8(ffd.cFileName);
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, dir_str, strlen(dir_str), handle->body.encoding_type);
+        result = MVM_string_utf8_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str));
         free(dir_str);
         return result;
     }
     else if (FindNextFileW(handle->body.dir_handle, &ffd) != 0)  {
         dir_str = UnicodeToUTF8(ffd.cFileName);
-        result  = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, dir_str, strlen(dir_str), handle->body.encoding_type);
+        result  = MVM_string_utf8_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str));
         free(dir_str);
         return result;
     } else {
-        return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
+        return MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
     }
 #endif
 }
@@ -222,6 +229,11 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle;
 
     verify_dirhandle_type(tc, oshandle, &handle, "close dirhandle");
+
+    if(handle->body.dir_name) {
+        free(handle->body.dir_name);
+        handle->body.dir_name = NULL;
+    }
 
     if (!FindClose(handle->body.dir_handle))
         MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %s", GetLastError());
