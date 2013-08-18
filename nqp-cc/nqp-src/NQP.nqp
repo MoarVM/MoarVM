@@ -2,8 +2,8 @@
 
 # From src/NQP/World.nqp
 
-use NQPP6QRegex;
-use QAST;
+use NQPP6QRegexMoar;
+#use QAST;
 
 class NQP::World is HLL::World {
     # The stack of lexical pads, actually as QAST::Block objects. The

@@ -2,9 +2,9 @@
 
 # From src\QRegex\P6Regex\Grammar.nqp
 
-use QRegex;
-use NQPHLL;
-use QASTCompilerMAST;
+use QRegexMoar;
+use NQPHLLMoar;
+#use QASTCompilerMAST;
 
 class QRegex::P6Regex::World is HLL::World {
     method create_code($past, $name) {

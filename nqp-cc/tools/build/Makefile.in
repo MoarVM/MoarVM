@@ -73,8 +73,9 @@ NQPLIBS    = nqp-mo.moarvm ModuleLoader.class NQPCOREMoar.setting.moarvm \
              QASTNodesMoar.moarvm QRegexMoar.moarvm NQPHLLMoar.moarvm \
              MASTOps.moarvm MASTNodes.moarvm QASTRegexCompilerMAST.moarvm \
              QASTOperationsMAST.moarvm QASTCompilerMAST.moarvm \
-             NQPP6QRegex.moarvm
-NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir QASTNodesMoar.pir QRegexMoar.pir NQPHLLMoar.pir
+             NQPP6QRegexMoar.moarvm nqp.moarvm
+NQPLIBPIRS = nqp-mo.pir NQPCOREMoar.setting.pir QASTNodesMoar.pir QRegexMoar.pir \
+             NQPHLLMoar.pir NQPP6QRegexMoar.pir
 
 CLEANUPS = \
   *.manifest \
@@ -156,6 +157,9 @@ QRegexMoar.pir: nqp-src/QRegex.nqp QASTNodesMoar.pbc $(CROSS_COMP_PBCS)
 NQPHLLMoar.pir: nqp-src/NQPHLL.nqp QRegexMoar.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE) nqp-src/NQPHLL.nqp
 
+NQPP6QRegexMoar.pir: nqp-src/NQPP6QRegex.nqp QRegexMoar.pbc NQPHLLMoar.pbc $(CROSS_COMP_PBCS)
+	$(PRECOMPILE) nqp-src/NQPP6QRegex.nqp
+
 nqp-mo.moarvm: nqp-src/nqp-mo.pm nqp-mo.pbc $(CROSS_COMP_PBCS)
 	$(CROSSCOMPILE_NS) nqp-src/nqp-mo.pm
 
@@ -189,10 +193,10 @@ QASTOperationsMAST.moarvm: QASTOperationsMAST.pbc NQPCOREMoar.setting.moarvm
 QASTCompilerMAST.moarvm: QASTCompilerMAST.pbc QASTOperationsMAST.moarvm
 	$(CROSSCOMPILE) src/QASTCompilerMAST.nqp
 
-NQPP6QRegex.moarvm: nqp-src/NQPP6QRegex.nqp NQPHLLMoar.moarvm QASTCompilerMAST.moarvm QRegexMoar.moarvm QASTRegexCompilerMAST.moarvm
+NQPP6QRegexMoar.moarvm: NQPP6QRegexMoar.pbc nqp-src/NQPP6QRegex.nqp NQPHLLMoar.moarvm QRegexMoar.moarvm QASTCompilerMAST.moarvm QASTRegexCompilerMAST.moarvm
 	$(CROSSCOMPILE) nqp-src/NQPP6QRegex.nqp
 
-NQP.moarvm: nqp-src/NQP.nqp NQPP6QRegex.moarvm
+nqp.moarvm: nqp-src/NQP.nqp NQPP6QRegexMoar.moarvm
 	$(CROSSCOMPILE) nqp-src/NQP.nqp
 
 ## testing
