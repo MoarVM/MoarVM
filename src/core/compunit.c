@@ -62,15 +62,12 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     cu->body.data_size  = (MVMuint32)stat_info.size;
 
     /* Process the input. */
-    MVM_bytecode_unpack(tc, cu);
+    MVMROOT(tc, cu, {
+        MVM_bytecode_unpack(tc, cu);
+    });
 
     /* Resolve HLL config. */
     cu->body.hll_config = MVM_hll_get_config_for(tc, cu->body.hll_name);
-
-    /* Add the compilation unit to the head of the unit linked lists. */
-    do {
-        MVM_ASSIGN_REF(tc, cu, cu->body.next_compunit, tc->instance->head_compunit);
-    } while (!MVM_trycas(&tc->instance->head_compunit, cu->body.next_compunit, cu));
 
     return cu;
 }
