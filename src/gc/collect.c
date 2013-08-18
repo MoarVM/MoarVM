@@ -293,6 +293,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         gen2count = worklist->items;
         MVM_gc_mark_collectable(tc, worklist, new_addr);
 
+        /* make sure any rooted frames mark their stuff */
+        while ((cur_frame = MVM_gc_worklist_get_frame(tc, worklist))) {
+            MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
+        }
+
         /* In moving an object to generation 2, we may have left it pointing
          * to nursery objects. If so, make sure it's in the gen2 roots. */
         if (new_addr->flags & MVM_CF_SECOND_GEN) {
@@ -304,10 +309,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 if (*j)
                     MVM_WB(tc, new_addr, *j);
             }
-        }
-        
-        while ((cur_frame = MVM_gc_worklist_get_frame(tc, worklist))) {
-            MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
         }
     }
 }
