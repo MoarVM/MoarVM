@@ -110,7 +110,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         if (error != ERROR_ALREADY_EXISTS) {
             free(pathname);
             free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", GetLastError());
+            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", GetLastError());
         }
     }
     free(wpathname);
@@ -159,7 +159,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     free(name);
 
     if (!GetFullPathNameW(wname, 4096, abs_dirname, lpp_part)) {
-        MVM_exception_throw_adhoc(tc, "Directory path is too long.");
+        MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
     }
 
     free(wname);
@@ -204,7 +204,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         HANDLE hFind = FindFirstFileW(handle->body.dir_name, &ffd);
 
         if (hFind == INVALID_HANDLE_VALUE) {
-            MVM_exception_throw_adhoc(tc, "read from dirhandle failed: %s", GetLastError());
+            MVM_exception_throw_adhoc(tc, "read from dirhandle failed: %d", GetLastError());
         }
 
         handle->body.dir_handle = hFind;
@@ -236,7 +236,7 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 
     if (!FindClose(handle->body.dir_handle))
-        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %s", GetLastError());
+        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
 }
 
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {

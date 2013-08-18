@@ -428,7 +428,7 @@ void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, M
     if (li.LowPart == INVALID_SET_FILE_POINTER) {
         DWORD error = GetLastError();
         if (error != NO_ERROR) {
-            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", error);
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", error);
         }
     }
 #else
@@ -464,7 +464,7 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     if (li.LowPart == INVALID_SET_FILE_POINTER) {
         DWORD error = GetLastError();
         if (error != NO_ERROR) {
-            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", error);
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", error);
         }
     }
 
@@ -509,7 +509,7 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
         return 1;
     }
 
-    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", GetLastError());
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
 
     return 0;
 #else
@@ -563,7 +563,7 @@ void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
         return;
     }
 
-    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", GetLastError());
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
 #else
 
     l.l_whence = SEEK_SET;
