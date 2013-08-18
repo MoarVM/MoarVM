@@ -46,16 +46,16 @@ our %DC = (
 our %DCB = (
     name  => 'dyncallback_s',
     path  => '3rdparty/dyncall/dyncallback',
-    dumour => 1, # created as part of dyncall build
+    dummy => 1, # created as part of dyncall build
 );
 
 our %DL = (
     name  => 'dynload_s',
     path  => '3rdparty/dyncall/dynload',
-    dumour => 1, # created as part of dyncall build
+    dummy => 1, # created as part of dyncall build
 );
 
-our %UVDUMour = (
+our %UVDUMMY = (
     name => 'uv',
     path => '3rdparty/libuv',
     # no default rule
@@ -63,7 +63,7 @@ our %UVDUMour = (
 );
 
 our %UV = (
-    %UVDUMour,
+    %UVDUMMY,
     rule  => '$(AR) $(ARFLAGS) @arout@$@ $(UV_OBJECTS)',
     clean => '-$(RM) @uvlib@ $(UV_OBJECTS)',
     # actually insufficient to build libuv
@@ -79,7 +79,7 @@ our %THIRDPARTY = (
 #    dc  => { %DC },
 #    dcb => { %DCB },
 #    dl  => { %DL },
-#    uv  => { %UVDUMour },
+#    uv  => { %UVDUMMY },
 );
 
 # shell configuration
