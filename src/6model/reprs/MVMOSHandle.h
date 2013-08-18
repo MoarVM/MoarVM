@@ -2,9 +2,14 @@
 struct MVMOSHandleBody {
     MVMuint8 type;
     union {
-       uv_handle_t *handle;
-       uv_file          fd;
-
+        uv_handle_t *handle;
+        uv_file          fd;
+#ifdef _WIN32
+        struct {
+            wchar_t   *dir_name;
+            HANDLE   dir_handle;
+        };
+#endif
     };
 
     MVMuint8        eof;
@@ -15,8 +20,6 @@ struct MVMOSHandleBody {
     apr_pool_t *mem_pool;
 
     union {
-        apr_file_t   *file_handle;
-        apr_dir_t    *dir_handle;
         apr_socket_t *socket;
     };
 

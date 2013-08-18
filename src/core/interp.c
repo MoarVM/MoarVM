@@ -2926,7 +2926,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_open_dir:
                         GET_REG(cur_op, 0).o = MVM_dir_open(tc,
                             tc->instance->boot_types->BOOTIO,
-                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                            GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                         cur_op += 6;
                         break;
                     case MVM_OP_read_dir:

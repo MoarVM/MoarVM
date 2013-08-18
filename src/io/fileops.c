@@ -662,7 +662,7 @@ MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
-    MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
+    const MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
 
     verify_filehandle_type(tc, oshandle, &handle, "setencoding");
 

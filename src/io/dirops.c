@@ -1,6 +1,8 @@
 #include "moarvm.h"
 
-#define POOL(tc) (*(tc->interp_cu))->pool
+#ifdef _WIN32
+#include <strsafe.h>
+#endif
 
 static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 
@@ -31,6 +33,18 @@ static wchar_t * UTF8ToUnicode(char *str)
      memset(result, 0, len * sizeof(wchar_t));
 
      MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
+
+     return result;
+}
+
+static char * UnicodeToUTF8(const wchar_t *str)
+{
+     const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
+     char * const result = (char *)calloc(len, sizeof(char));
+
+     memset(result, 0, len * sizeof(char));
+
+     WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
      return result;
 }
@@ -129,70 +143,78 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
 }
 
 /* open a filehandle; takes a type object */
-MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString *dirname, MVMint64 encoding_flag) {
-    MVMOSHandle *result;
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_dir_t *dir_handle;
-    char *dname = MVM_string_utf8_encode_C_string(tc, dirname);
-
-    ENCODING_VALID(encoding_flag);
+MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString *dirname, MVMString *encoding_name) {
+#ifdef _WIN32
+    MVMOSHandle *result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    char *name;
+    int str_len;
+    wchar_t *wname;
+    wchar_t *dir_name;
 
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
         MVM_exception_throw_adhoc(tc, "Open dir needs a type object with MVMOSHandle REPR");
     }
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(dname);
-        MVM_exception_throw_apr_error(tc, rv, "Open dir failed to create pool: ");
+    name  = MVM_string_utf8_encode_C_string(tc, dirname);
+    wname = UTF8ToUnicode(name);
+    free(name);
+
+    str_len = wcslen(wname) + 7;
+
+    if (str_len > (MAX_PATH - 3)) {
+        free(wname);
+        MVM_exception_throw_adhoc(tc, "Directory path is too long.");
     }
 
-    /* try to open the dir */
-    if ((rv = apr_dir_open(&dir_handle, (const char *)dname, tmp_pool)) != APR_SUCCESS) {
-        free(dname);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to open dir: ");
-    }
+    dir_name = (wchar_t *)calloc(str_len, sizeof(wchar_t));
 
-    free(dname);
+    StringCbCopyW(dir_name, str_len, L"\\\\?\\");
+    StringCchCatW(dir_name, str_len, wname);
+    StringCchCatW(dir_name, str_len, L"\\*");
 
-    /* initialize the object */
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-
-    result->body.dir_handle = dir_handle;
-    result->body.handle_type = MVM_OSHANDLE_DIR;
-    result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = encoding_flag;
+    free(wname);
+    result->body.type          = MVM_OSHANDLE_DIR;
+    result->body.dir_name      = dir_name;
+    result->body.dir_handle    = INVALID_HANDLE_VALUE;
+    result->body.encoding_type = MVM_find_encoding_by_name(tc, encoding_name);
 
     return (MVMObject *)result;
+#endif
 }
 
 /* reads a directory entry from a directory.  Assumes utf8 for now */
 MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMString *result;
-    apr_status_t rv;
     MVMOSHandle *handle;
-    apr_finfo_t *finfo = (apr_finfo_t *)malloc(sizeof(apr_finfo_t));
+#ifdef _WIN32
+    MVMString *result;
+    TCHAR dir[MAX_PATH];
+    WIN32_FIND_DATAW ffd;
+    char *dir_str;
 
     verify_dirhandle_type(tc, oshandle, &handle, "read from dirhandle");
 
-    if ((rv = apr_dir_read(finfo, APR_FINFO_NAME, handle->body.dir_handle)) != APR_SUCCESS && rv != APR_ENOENT && rv != 720018) {
-        printf("rv is %d\n", rv);
-        MVM_exception_throw_apr_error(tc, rv, "read from dirhandle failed: ");
-    }
+    if (handle->body.dir_handle = INVALID_HANDLE_VALUE) {
+        HANDLE hFind = FindFirstFileW(handle->body.dir_name, &ffd);
 
-    /* TODO investigate magic number 720018 */
-    if (rv == APR_ENOENT || rv == 720018) { /* no more entries in the directory */
-        /* XXX TODO: reference some process global empty string instead of creating one */
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
-    }
-    else {
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, (char *)finfo->name, strlen(finfo->name), handle->body.encoding_type);
-    }
+        if (hFind == INVALID_HANDLE_VALUE) {
+            MVM_exception_throw_adhoc(tc, "read from dirhandle failed: %s", GetLastError());
+        }
 
-    free(finfo);
-
-    return result;
+        handle->body.dir_handle = hFind;
+        dir_str = UnicodeToUTF8(ffd.cFileName);
+        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, dir_str, strlen(dir_str), handle->body.encoding_type);
+        free(dir_str);
+        return result;
+    }
+    else if (FindNextFileW(handle->body.dir_handle, &ffd) != 0)  {
+        dir_str = UnicodeToUTF8(ffd.cFileName);
+        result  = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, dir_str, strlen(dir_str), handle->body.encoding_type);
+        free(dir_str);
+        return result;
+    } else {
+        return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
+    }
+#endif
 }
 
 void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
@@ -201,9 +223,8 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_dirhandle_type(tc, oshandle, &handle, "close dirhandle");
 
-    if ((rv = apr_dir_close(handle->body.dir_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to close dirhandle: ");
-    }
+    if (!FindClose(handle->body.dir_handle))
+        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %s", GetLastError());
 }
 
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {

@@ -443,7 +443,7 @@ BANK 5 io
 0x05    exists_f            w(int64) r(str)
 0x06    mkdir               r(str) r(int64)
 0x07    rmdir               r(str)
-0x08    open_dir            w(obj) r(str) r(int64)
+0x08    open_dir            w(obj) r(str) r(str)
 0x09    read_dir            w(str) r(obj)
 0x0A    close_dir           r(obj)
 0x0B    open_fh             w(obj) r(str) r(str)
