@@ -58,18 +58,13 @@ struct MVMGCWorklist {
         worklist->frames_list[--worklist->frames] : \
         NULL)
 
-#define MVM_gc_worklist_mark_frame_roots(tc, worklist) do { \
-    MVMFrame cur_frame; \
-    while ((cur_frame = MVM_gc_worklist_get_frame((tc), (worklist)))) \
-        MVM_gc_root_add_frame_roots_to_worklist((tc), (worklist), cur_frame); \
-} while (0)
-
 /* Various functions for worklist manipulation. */
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc);
 void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
 void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items);
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist);
+void MVM_gc_worklist_mark_frame_roots(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
 /* The number of pointers we assume the list may need to hold initially;
  * it will be resized as needed. */
