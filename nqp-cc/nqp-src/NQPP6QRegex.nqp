@@ -4,7 +4,7 @@
 
 use QRegexMoar;
 use NQPHLLMoar;
-#use QASTCompilerMAST;
+use QASTMoar;
 
 class QRegex::P6Regex::World is HLL::World {
     method create_code($past, $name) {

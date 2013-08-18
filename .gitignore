@@ -58,6 +58,7 @@ nqp-cc/*.moarvm
 nqp-cc/temp.output
 nqp-cc/*.mvmdump
 nqp-cc/*.mastdump
+nqp-cc/nqp-src/QASTMoar.nqp
 *.vsp
 *.psess
 /nmake.cmd

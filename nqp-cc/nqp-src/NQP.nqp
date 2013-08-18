@@ -3,7 +3,7 @@
 # From src/NQP/World.nqp
 
 use NQPP6QRegexMoar;
-#use QAST;
+use QASTMoar;
 
 class NQP::World is HLL::World {
     # The stack of lexical pads, actually as QAST::Block objects. The
