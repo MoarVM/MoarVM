@@ -433,7 +433,7 @@ void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, M
     }
 #else
     if (lseek64(handle->body.fd, offset, flag) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
 #endif
 }
@@ -471,7 +471,7 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     return li.QuadPart;
 #else
     if ((r = lseek64(handle->body.fd, 0, SEEK_CUR)) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
 
     return r;
@@ -529,7 +529,7 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", errno);
         return 0;
     }
 
@@ -576,7 +576,7 @@ void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", errno);
     }
 #endif
 }

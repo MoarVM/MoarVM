@@ -9,6 +9,8 @@ struct MVMOSHandleBody {
             wchar_t   *dir_name;
             HANDLE   dir_handle;
         };
+#else
+        DIR     *dir_handle;
 #endif
     };
 
