@@ -25,8 +25,8 @@
 #define MVMnum64       double
 
 /* Various compiler-specific pragmii. */
-#define MVM_NO_RETURN @noreturn@
-#define MVM_NO_RETURN_GCC @noreturngcc@
+#define MVM_NO_RETURN @noreturnspecifier@
+#define MVM_NO_RETURN_GCC @noreturnattribute@
 
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
