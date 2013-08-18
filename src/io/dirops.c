@@ -158,24 +158,18 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     wname = UTF8ToUnicode(name);
     free(name);
 
+    /* You cannot use the "\\?\" prefix with a relative path,
+     * relative paths are always limited to a total of MAX_PATH characters.
+     * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
     if (!GetFullPathNameW(wname, 4096, abs_dirname, lpp_part)) {
         MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
     }
 
     free(wname);
 
-    str_len = wcslen(abs_dirname) ;
-
-    /* Prepending "\\?\" to the path extend this limit to 32,767. see msdn FindFirstFile API. */
-    if (str_len > (32767 - 7)) {
-        MVM_exception_throw_adhoc(tc, "Directory path is too long.");
-    }
-
+    str_len  = wcslen(abs_dirname) ;
     dir_name = (wchar_t *)calloc(str_len + 7, sizeof(wchar_t));
 
-    /* You cannot use the "\\?\" prefix with a relative path,
-     * relative paths are always limited to a total of MAX_PATH characters.
-     * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
     wcscpy(dir_name, L"\\\\?\\");
     wcscat(dir_name, abs_dirname);
     wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
