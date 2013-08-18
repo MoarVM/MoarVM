@@ -42,12 +42,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     switch(handle->body.handle_type) {
         case MVM_OSHANDLE_UNINIT:
             break;
-        case MVM_OSHANDLE_FILE:
-            apr_file_close(handle->body.file_handle);
-            break;
-        case MVM_OSHANDLE_DIR:
-            apr_dir_close(handle->body.dir_handle);
-            break;
         case MVM_OSHANDLE_SOCKET:
             apr_socket_close(handle->body.socket);
             break;

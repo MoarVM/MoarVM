@@ -1,7 +1,5 @@
 #include "moarvm.h"
 
-#define POOL(tc) (*(tc->interp_cu))->body.pool
-
 static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 
     /* work on only MVMOSHandle of type MVM_OSHANDLE_DIR */
@@ -9,7 +7,7 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.handle_type != MVM_OSHANDLE_DIR) {
+    if ((*handle)->body.type != MVM_OSHANDLE_DIR) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type dir handle", msg);
     }
 }
@@ -31,6 +29,18 @@ static wchar_t * UTF8ToUnicode(char *str)
      memset(result, 0, len * sizeof(wchar_t));
 
      MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
+
+     return result;
+}
+
+static char * UnicodeToUTF8(const wchar_t *str)
+{
+     const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
+     char * const result = (char *)calloc(len, sizeof(char));
+
+     memset(result, 0, len * sizeof(char));
+
+     WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
      return result;
 }
@@ -59,7 +69,7 @@ static int mkdir_p(char *pathname, MVMint64 mode) {
     if (r == -1 && errno == ENOENT)
 #endif
     {
-        size_t _len = len - 1;
+        ssize_t _len = len - 1;
         char _tmp;
 
         while (_len >= 0 && IS_NOT_SLASH(pathname[_len]))
@@ -100,7 +110,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         if (error != ERROR_ALREADY_EXISTS) {
             free(pathname);
             free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", GetLastError());
+            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", GetLastError());
         }
     }
     free(wpathname);
@@ -129,81 +139,131 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
 }
 
 /* open a filehandle; takes a type object */
-MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMObject *type_object, MVMString *dirname, MVMint64 encoding_flag) {
-    MVMOSHandle *result;
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_dir_t *dir_handle;
-    char *dname = MVM_string_utf8_encode_C_string(tc, dirname);
-
-    ENCODING_VALID(encoding_flag);
+MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
+    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
+    MVMOSHandle *result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+#ifdef _WIN32
+    char *name;
+    int str_len;
+    wchar_t *wname;
+    wchar_t *dir_name;
+    wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
+    wchar_t *lpp_part;
 
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
         MVM_exception_throw_adhoc(tc, "Open dir needs a type object with MVMOSHandle REPR");
     }
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(dname);
-        MVM_exception_throw_apr_error(tc, rv, "Open dir failed to create pool: ");
+    name  = MVM_string_utf8_encode_C_string(tc, dirname);
+    wname = UTF8ToUnicode(name);
+    free(name);
+
+    /* You cannot use the "\\?\" prefix with a relative path,
+     * relative paths are always limited to a total of MAX_PATH characters.
+     * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
+    if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
+        MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
     }
 
-    /* try to open the dir */
-    if ((rv = apr_dir_open(&dir_handle, (const char *)dname, tmp_pool)) != APR_SUCCESS) {
-        free(dname);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to open dir: ");
+    free(wname);
+
+    str_len  = wcslen(abs_dirname) ;
+    dir_name = (wchar_t *)calloc(str_len + 7, sizeof(wchar_t));
+
+    wcscpy(dir_name, L"\\\\?\\");
+    wcscat(dir_name, abs_dirname);
+    wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
+                                   * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx */
+
+    result->body.type          = MVM_OSHANDLE_DIR;
+    result->body.dir_name      = dir_name;
+    result->body.dir_handle    = INVALID_HANDLE_VALUE;
+
+#else
+    char *  const dir_name = MVM_string_utf8_encode_C_string(tc, dirname);
+    DIR * const dir_handle = opendir(dir_name);
+
+    if (!dir_handle) {
+        MVM_exception_throw_adhoc(tc, "Failed to open dir: %d", errno);
     }
 
-    free(dname);
+    result->body.type          = MVM_OSHANDLE_DIR;
+    result->body.dir_handle    = dir_handle;
+    result->body.encoding_type = MVM_encoding_type_utf8;
 
-    /* initialize the object */
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-
-    result->body.dir_handle = dir_handle;
-    result->body.handle_type = MVM_OSHANDLE_DIR;
-    result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = encoding_flag;
-
+#endif
     return (MVMObject *)result;
 }
 
 /* reads a directory entry from a directory.  Assumes utf8 for now */
 MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMString *result;
-    apr_status_t rv;
     MVMOSHandle *handle;
-    apr_finfo_t *finfo = (apr_finfo_t *)malloc(sizeof(apr_finfo_t));
+#ifdef _WIN32
+    MVMString *result;
+    TCHAR dir[MAX_PATH];
+    WIN32_FIND_DATAW ffd;
+    char *dir_str;
 
     verify_dirhandle_type(tc, oshandle, &handle, "read from dirhandle");
 
-    if ((rv = apr_dir_read(finfo, APR_FINFO_NAME, handle->body.dir_handle)) != APR_SUCCESS && rv != APR_ENOENT && rv != 720018) {
-        printf("rv is %d\n", rv);
-        MVM_exception_throw_apr_error(tc, rv, "read from dirhandle failed: ");
+    if (handle->body.dir_handle == INVALID_HANDLE_VALUE) {
+        HANDLE hFind = FindFirstFileW(handle->body.dir_name, &ffd);
+
+        if (hFind == INVALID_HANDLE_VALUE) {
+            MVM_exception_throw_adhoc(tc, "read from dirhandle failed: %d", GetLastError());
+        }
+
+        handle->body.dir_handle = hFind;
+        dir_str = UnicodeToUTF8(ffd.cFileName);
+        result = MVM_string_utf8_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str));
+        free(dir_str);
+        return result;
+    }
+    else if (FindNextFileW(handle->body.dir_handle, &ffd) != 0)  {
+        dir_str = UnicodeToUTF8(ffd.cFileName);
+        result  = MVM_string_utf8_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str));
+        free(dir_str);
+        return result;
+    } else {
+        return MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
+    }
+#else
+    struct dirent entry;
+    struct dirent *result;
+    int ret;
+
+    verify_dirhandle_type(tc, oshandle, &handle, "read from dirhandle");
+
+    ret = readdir_r(handle->body.dir_handle, &entry, &result);
+
+    if (ret == 0) {
+        if (result == NULL) {
+            return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
+        }
+        return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, entry.d_name, strlen(entry.d_name), handle->body.encoding_type);
     }
 
-    /* TODO investigate magic number 720018 */
-    if (rv == APR_ENOENT || rv == 720018) { /* no more entries in the directory */
-        /* XXX TODO: reference some process global empty string instead of creating one */
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
-    }
-    else {
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, (char *)finfo->name, strlen(finfo->name), handle->body.encoding_type);
-    }
-
-    free(finfo);
-
-    return result;
+    MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %d", errno);
+#endif
 }
 
 void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
     MVMOSHandle *handle;
 
     verify_dirhandle_type(tc, oshandle, &handle, "close dirhandle");
-
-    if ((rv = apr_dir_close(handle->body.dir_handle)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to close dirhandle: ");
+#ifdef _WIN32
+    if(handle->body.dir_name) {
+        free(handle->body.dir_name);
+        handle->body.dir_name = NULL;
     }
+
+    if (!FindClose(handle->body.dir_handle))
+        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
+#else
+
+    if (closedir(handle->body.dir_handle) == -1)
+        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", errno);
+#endif
 }
 
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {

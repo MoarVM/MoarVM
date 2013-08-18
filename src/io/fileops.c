@@ -428,12 +428,12 @@ void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, M
     if (li.LowPart == INVALID_SET_FILE_POINTER) {
         DWORD error = GetLastError();
         if (error != NO_ERROR) {
-            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", error);
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", error);
         }
     }
 #else
     if (lseek64(handle->body.fd, offset, flag) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
 #endif
 }
@@ -464,14 +464,14 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     if (li.LowPart == INVALID_SET_FILE_POINTER) {
         DWORD error = GetLastError();
         if (error != NO_ERROR) {
-            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", error);
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", error);
         }
     }
 
     return li.QuadPart;
 #else
     if ((r = lseek64(handle->body.fd, 0, SEEK_CUR)) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
 
     return r;
@@ -509,7 +509,7 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
         return 1;
     }
 
-    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", GetLastError());
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
 
     return 0;
 #else
@@ -529,7 +529,7 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", errno);
         return 0;
     }
 
@@ -563,7 +563,7 @@ void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
         return;
     }
 
-    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", GetLastError());
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
 #else
 
     l.l_whence = SEEK_SET;
@@ -576,7 +576,7 @@ void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %s", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", errno);
     }
 #endif
 }
@@ -662,7 +662,7 @@ MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
-    MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
+    const MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
 
     verify_filehandle_type(tc, oshandle, &handle, "setencoding");
 
