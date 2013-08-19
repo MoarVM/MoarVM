@@ -120,10 +120,15 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
+    
+    cu->body.filename = MVM_string_utf8_decode(tc, instance->VMString, filename, strlen(filename));
 
     /* Run deserialization frame, if there is one. */
-    if (cu->body.deserialize_frame)
-        MVM_interp_run(tc, &toplevel_initial_invoke, cu->body.deserialize_frame);
+    if (cu->body.deserialize_frame) {
+        MVMROOT(tc, cu, {
+            MVM_interp_run(tc, &toplevel_initial_invoke, cu->body.deserialize_frame);
+        });
+    }
 
     /* Run the frame marked main, or if there is none then fall back to the
      * first frame. */

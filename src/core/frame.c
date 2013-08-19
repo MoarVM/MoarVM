@@ -14,7 +14,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     MVM_validate_static_frame(tc, static_frame);
 
     /* Obtain an index to each threadcontext's pool table */
-    static_frame_body->pool_index = apr_atomic_inc32(&tc->instance->num_frame_pools);
+    static_frame_body->pool_index = MVM_atomic_incr(&tc->instance->num_frame_pools);
     if (static_frame_body->pool_index >= tc->frame_pool_table_size) {
         /* Grow the threadcontext's pool table */
         MVMuint32 old_size = tc->frame_pool_table_size;
@@ -36,16 +36,16 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
 /* Increases the reference count of a frame. */
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
-    apr_atomic_inc32(&frame->ref_count);
+    MVM_atomic_incr(&frame->ref_count);
     return frame;
 }
 
 /* Decreases the reference count of a frame. If it hits zero, then we can
  * free it. */
 void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
-    /* Note that we get zero if we really hit zero here, but dec32 may
-     * not give the exact count back if it ends up non-zero. */
-    while (apr_atomic_dec32(&frame->ref_count) == 0) {
+    /* MVM_atomic_dec returns what the count was before it decremented it
+     * to zero, so we look for 1 here. */
+    while (MVM_atomic_decr(&frame->ref_count) == 1) {
         MVMuint32 pool_index = frame->static_info->body.pool_index;
         MVMFrame *node = tc->frame_pool_table[pool_index];
         MVMFrame *outer_to_decr = frame->outer;
@@ -249,7 +249,7 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
      * set us as it. */
     do {
         prior = returner->static_info->body.prior_invocation;
-    } while (!MVM_cas(&returner->static_info->body.prior_invocation, prior, returner));
+    } while (!MVM_trycas(&returner->static_info->body.prior_invocation, prior, returner));
     if (prior)
         MVM_frame_dec_ref(tc, prior);
 

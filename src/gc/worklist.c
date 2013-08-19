@@ -30,6 +30,15 @@ void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklis
     worklist->frames_list[worklist->frames++] = frame;
 }
 
+/* Pre-sizes the worklist in expectation a certain number of items is about to be
+ * added. */
+void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items) {
+    if (worklist->items + items >= worklist->alloc) {
+        worklist->alloc = worklist->items + items;
+        worklist->list = realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));
+    }
+}
+
 /* Free a worklist. */
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     free(worklist->list);
@@ -38,3 +47,11 @@ void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     worklist->frames_list = NULL;
     free(worklist);
 }
+
+/* Move things from the frames worklist to the object worklist. */
+void MVM_gc_worklist_mark_frame_roots(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMFrame *cur_frame;
+    while ((cur_frame = MVM_gc_worklist_get_frame((tc), (worklist))))
+        MVM_gc_root_add_frame_roots_to_worklist((tc), (worklist), cur_frame);
+}
+

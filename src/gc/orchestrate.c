@@ -252,7 +252,7 @@ static void signal_child(MVMThreadContext *tc) {
         /* this will never return nonzero, because the child's status
          * will always be UNABLE or STOLEN. */
         signal_one_thread(tc, child->body.tc);
-        while (!MVM_cas(&tc->thread_obj->body.new_child,
+        while (!MVM_trycas(&tc->thread_obj->body.new_child,
             tc->thread_obj->body.new_child, NULL));
     }
 }
@@ -308,7 +308,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     GCORCH_LOG(tc, "Thread %d run %d : Entered from allocate\n");
 
     /* Try to start the GC run. */
-    if (MVM_cas(&tc->instance->gc_start, 0, 1)) {
+    if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
         MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
 
@@ -334,7 +334,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             if (tc->instance->threads && tc->instance->threads != last_starter) {
                 MVMThread *head;
                 MVMuint32 add;
-                while (!MVM_cas(&tc->instance->threads, (head = tc->instance->threads), NULL));
+                while (!MVM_trycas(&tc->instance->threads, (head = tc->instance->threads), NULL));
 
                 add = signal_all_but(tc, head, last_starter);
                 last_starter = head;
@@ -346,7 +346,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             }
         } while (tc->instance->gc_start > 1);
 
-        if (!MVM_cas(&tc->instance->threads, NULL, last_starter))
+        if (!MVM_trycas(&tc->instance->threads, NULL, last_starter))
             MVM_panic(MVM_exitcode_gcorch, "threads list corrupted\n");
 
         if (tc->instance->gc_finish != 0)
@@ -387,7 +387,7 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     GCORCH_LOG(tc, "Thread %d run %d : Entered from interrupt\n");
 
     while ((curr = tc->instance->gc_start) < 2
-            || !MVM_cas(&tc->instance->gc_start, curr, curr - 1)) {
+            || !MVM_trycas(&tc->instance->gc_start, curr, curr - 1)) {
     /*    apr_sleep(1);
         pthread_yield();*/
     }

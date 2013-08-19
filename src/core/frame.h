@@ -50,7 +50,7 @@ struct MVMFrame {
     MVMArgProcContext params;
 
     /* Reference count for the frame. */
-    MVMuint32 ref_count;
+    AO_t ref_count;
 
     /* Address of the next op to execute if we return to this frame. */
     MVMuint8 *return_address;

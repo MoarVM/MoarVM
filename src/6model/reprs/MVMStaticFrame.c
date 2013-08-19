@@ -123,14 +123,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrame *sf = (MVMStaticFrame *)obj;
     MVMStaticFrameBody *body = &sf->body;
-    free(body->handlers);
-    body->handlers = NULL;
-    free(body->static_env);
-    body->static_env = NULL;
-    free(body->local_types);
-    body->local_types = NULL;
-    free(body->lexical_types);
-    body->lexical_types = NULL;
+    MVM_checked_free_null(body->handlers);
+    MVM_checked_free_null(body->static_env);
+    MVM_checked_free_null(body->local_types);
+    MVM_checked_free_null(body->lexical_types);
     {
         MVMLexicalHashEntry *current, *tmp;
 
@@ -141,10 +137,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
                 free(current);
         }
         HASH_CLEAR(hash_handle, body->lexical_names);
-        if (body->lexical_names) {
-            free(body->lexical_names);
-            body->lexical_names = NULL;
-        }
+        MVM_checked_free_null(body->lexical_names);
     }
     if (body->prior_invocation) {
         MVM_frame_dec_ref(tc, body->prior_invocation);

@@ -139,6 +139,7 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     MVMuint32        i;
 
     /* Mark gen2 objects that point to nursery things. */
+    MVM_gc_worklist_presize_for(tc, worklist, num_roots);
     for (i = 0; i < num_roots; i++)
         MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
 }

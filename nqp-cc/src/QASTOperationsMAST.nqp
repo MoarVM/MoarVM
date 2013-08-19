@@ -10,6 +10,7 @@ my $MVM_operand_write_lex   := 4;
 my $MVM_operand_rw_mask     := 7;
 
 # the register "kind" codes, for expression results and arguments.
+#?start_redecl
 my $MVM_reg_void            := 0; # not really a register; just a result/return kind marker
 my $MVM_reg_int8            := 1;
 my $MVM_reg_int16           := 2;
@@ -19,6 +20,7 @@ my $MVM_reg_num32           := 5;
 my $MVM_reg_num64           := 6;
 my $MVM_reg_str             := 7;
 my $MVM_reg_obj             := 8;
+#?end_redecl
 
 my $MVM_operand_int8        := ($MVM_reg_int8 * 8);
 my $MVM_operand_int16       := ($MVM_reg_int16 * 8);
@@ -281,7 +283,7 @@ class QAST::MASTOperations {
         my $bank;
         my $self := self;
         for MAST::Ops.WHO {
-            $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $moarop);
+            $bank := $_.key if nqp::existskey(MAST::Ops.WHO{$_.key}, $moarop);
         }
         nqp::die("Unable to resolve moarop '$moarop'") unless $bank;
 
