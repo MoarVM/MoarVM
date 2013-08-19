@@ -4,46 +4,42 @@
  * compilation units are waiting for an SC with this handle, removes it from
  * their to-resolve list after installing itself in the appropriate slot. */
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
-    MVMObject   *sc;
-    MVMCompUnit *cur_cu;
+    MVMSerializationContext     *sc;
+    MVMCompUnit                 *cur_cu;
+    MVMSerializationContextBody *scb;
 
     /* Allocate. */
     MVMROOT(tc, handle, {
-        sc = REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
+        sc = (MVMSerializationContext *)REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
         MVMROOT(tc, sc, {
-            REPR(sc)->initialize(tc, STABLE(sc), sc, OBJECT_BODY(sc));
-
-            /* Set handle. */
-            MVM_ASSIGN_REF(tc, sc, ((MVMSerializationContext *)sc)->body->handle, handle);
-
             /* Add to weak lookup hash. */
             if (apr_thread_mutex_lock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
                 MVM_exception_throw_adhoc(tc, "Unable to lock SC weakhash");
             MVM_string_flatten(tc, handle);
-            MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, ((MVMSerializationContext *)sc)->body);
+            MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
+            if (!scb) {
+                sc->body = scb = calloc(1, sizeof(MVMSerializationContextBody));
+                MVM_ASSIGN_REF(tc, (MVMObject *)sc, scb->handle, handle);
+                MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
+                MVM_repr_init(tc, (MVMObject *)sc);
+                scb->sc = sc;
+            }
+            else if (scb->sc) {
+                /* we lost a race to create it! */
+                sc = scb->sc;
+            }
+            else {
+                scb->sc = sc;
+                sc->body = scb;
+                MVM_ASSIGN_REF(tc, sc, scb->handle, handle);
+                MVM_repr_init(tc, (MVMObject *)sc);
+            }
             if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
                 MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
-
-            /* Visit compilation units that need this SC and resolve it. */
-            cur_cu = tc->instance->head_compunit;
-            while (cur_cu) {
-                if (cur_cu->body.scs_to_resolve) {
-                    MVMuint32 i;
-                    for (i = 0; i < cur_cu->body.num_scs; i++) {
-                        MVMString *res = cur_cu->body.scs_to_resolve[i];
-                        if (res && MVM_string_equal(tc, res, handle)) {
-                            MVM_ASSIGN_REF(tc, cur_cu, cur_cu->body.scs[i], (MVMSerializationContext *)sc);
-                            cur_cu->body.scs_to_resolve[i] = NULL;
-                            break;
-                        }
-                    }
-                }
-                cur_cu = cur_cu->body.next_compunit;
-            }
         });
     });
 
-    return sc;
+    return (MVMObject *)sc;
 }
 
 /* Given an SC, returns its unique handle. */
@@ -94,6 +90,22 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     }
     MVM_exception_throw_adhoc(tc,
         "Code ref does not exist in serialization context");
+}
+
+/* Given a compilation unit and dependency index, returns that SC. */
+MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep) {
+    MVMSerializationContext *sc = cu->body.scs[dep];
+    if (sc == NULL) {
+        MVMSerializationContextBody *scb = cu->body.scs_to_resolve[dep];
+        if (!scb)
+            MVM_exception_throw_adhoc(tc,
+                "SC resolution; internal error");
+        sc = scb->sc;
+        if (sc == NULL)
+            return NULL;
+        cu->body.scs[dep] = sc;
+    }
+    return sc;
 }
 
 /* Given an SC and an index, fetch the object stored there. */
@@ -190,5 +202,5 @@ MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString 
     MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
     if (apr_thread_mutex_unlock(tc->instance->mutex_sc_weakhash) != APR_SUCCESS)
         MVM_exception_throw_adhoc(tc, "Unable to unlock SC weakhash");
-    return scb ? scb->sc : NULL;
+    return scb && scb->sc ? scb->sc : NULL;
 }

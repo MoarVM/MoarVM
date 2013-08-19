@@ -3305,11 +3305,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMint16 dep = GET_I16(cur_op, 2);
                         MVMint16 idx = GET_I16(cur_op, 4);
                         if (dep >= 0 && dep < cu->body.num_scs) {
-                            if (cu->body.scs[dep] == NULL)
+                            MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+                            if (sc == NULL)
                                 MVM_exception_throw_adhoc(tc,
                                     "SC not yet resolved; lookup failed");
-                            GET_REG(cur_op, 0).o = MVM_sc_get_object(tc,
-                                cu->body.scs[dep], idx);
+                            GET_REG(cur_op, 0).o = MVM_sc_get_object(tc, sc, idx);
                             cur_op += 6;
                         }
                         else {
@@ -3322,11 +3322,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMint16 dep = GET_I16(cur_op, 2);
                         MVMint64 idx = GET_I64(cur_op, 4);
                         if (dep >= 0 && dep < cu->body.num_scs) {
-                            if (cu->body.scs[dep] == NULL)
+                            MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+                            if (sc == NULL)
                                 MVM_exception_throw_adhoc(tc,
                                     "SC not yet resolved; lookup failed");
-                            GET_REG(cur_op, 0).o = MVM_sc_get_object(tc,
-                                cu->body.scs[dep], idx);
+                            GET_REG(cur_op, 0).o = MVM_sc_get_object(tc, sc, idx);
                             cur_op += 12;
                         }
                         else {

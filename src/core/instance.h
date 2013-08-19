@@ -105,9 +105,6 @@ struct MVMInstance {
     /* MVMThreads completed starting, running, and/or exited. */
     MVMThread *threads;
 
-    /* Linked list of compilation units that we have loaded. */
-    MVMCompUnit *head_compunit;
-
     /* APR memory pool for the instance. */
     apr_pool_t *apr_pool;
 
@@ -137,8 +134,12 @@ struct MVMInstance {
     /* mutex for container registry */
     apr_thread_mutex_t *mutex_container_registry;
 
-    /* Hash of all known serialization contexts. Not marked for GC; an SC
-     * removes it from this when it gets GC'd. */
+    /* Hash of all known serialization contexts. Marked for GC iff
+     * the item is unresolved. */
     MVMSerializationContextBody *sc_weakhash;
-    apr_thread_mutex_t                  *mutex_sc_weakhash;
+    apr_thread_mutex_t          *mutex_sc_weakhash;
+    
+    /* Hash of filenames of compunits loaded from disk. */
+    MVMLoadedCompUnitName *loaded_compunits;
+    apr_thread_mutex_t    *mutex_loaded_compunits;
 };

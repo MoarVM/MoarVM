@@ -43,10 +43,20 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 /* Adds anything that is a root thanks to being referenced by instance,
  * but that isn't permanent. */
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMSerializationContextBody *current, *tmp;
+
     MVM_gc_worklist_add(tc, worklist, &tc->instance->threads);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->hll_syms);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
+    
+    /* okay, so this makes the weak hash slightly less weak.. for certain
+     * keys of it anyway... */
+    HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp) {
+        /* mark the string handle pointer iff it hasn't yet been resolved */
+        if (!current->sc)
+            MVM_gc_worklist_add(tc, worklist, &current->handle);
+    }
 }
 
 /* Adds anything that is a root thanks to being referenced by a thread,

@@ -56,6 +56,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up weak reference hash mutex. */
     init_mutex(instance->mutex_sc_weakhash, "sc weakhash");
 
+    /* Set up loaded compunits hash mutex. */
+    init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
+
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
 
@@ -130,7 +133,7 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
-    
+
     cu->body.filename = MVM_string_utf8_decode(tc, instance->VMString, filename, strlen(filename));
 
     /* Run deserialization frame, if there is one. */

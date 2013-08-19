@@ -22,7 +22,8 @@ struct MVMSerializationContextBody {
 
     /* XXX Repossession info. */
 
-    /* Backlink to the (memory-managed) SC itself. */
+    /* Backlink to the (memory-managed) SC itself. If
+     * this is null, it is unresolved. */
     MVMSerializationContext *sc;
 
     /* Inline handle to the SCs hash (in MVMInstance). */
@@ -40,3 +41,4 @@ struct MVMSerializationContext {
 
 /* Function for REPR setup. */
 MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc);
+void MVM_sc_gc_mark_body(MVMThreadContext *tc, MVMSerializationContextBody *sc, MVMGCWorklist *worklist);

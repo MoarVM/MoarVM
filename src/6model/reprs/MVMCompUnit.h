@@ -35,7 +35,7 @@ struct MVMCompUnitBody {
      * array of string handles; its length is determined by num_scs above.
      * once an SC has been resolved, the entry on this list is NULLed. If
      * all are resolved, this pointer itself becomes NULL. */
-    MVMString **scs_to_resolve;
+    MVMSerializationContextBody **scs_to_resolve;
 
     /* HLL configuration for this compilation unit. */
     MVMHLLConfig *hll_config;
@@ -43,14 +43,18 @@ struct MVMCompUnitBody {
 
     /* Filename, if any, that we loaded it from. */
     MVMString *filename;
-
-    /* Pointer to next compilation unit in linked list of them (head is in
-     * MVMInstance). */
-    MVMCompUnit *next_compunit;
 };
 struct MVMCompUnit {
     MVMObject common;
     MVMCompUnitBody body;
+};
+
+struct MVMLoadedCompUnitName {
+    /* Loaded filename. */
+    MVMString *filename;
+
+    /* Inline handle to the loaded filenames hash (in MVMInstance). */
+    UT_hash_handle hash_handle;
 };
 
 /* Function for REPR setup. */
