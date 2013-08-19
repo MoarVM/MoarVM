@@ -78,7 +78,7 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     uv_fs_t req;
     char *       const a = MVM_string_utf8_encode_C_string(tc, src);
     char *       const b = MVM_string_utf8_encode_C_string(tc, dest);
-    const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, DEFAULT_MODE, NULL);
+    const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
     const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_MODE, NULL);
 
     if (in_fd >= 0 && out_fd >= 0

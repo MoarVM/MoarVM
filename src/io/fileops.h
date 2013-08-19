@@ -4,7 +4,6 @@
 #define MVM_FILE_FLOCK_NONBLOCK      0x0010  /* asynchronous block during
                                               * locking the file */
 
-char * MVM_file_get_full_path(MVMThreadContext *tc, apr_pool_t *tmp_pool, char *path);
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);
