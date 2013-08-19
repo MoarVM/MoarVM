@@ -2,6 +2,11 @@
 #include <sys/mman.h>
 #include "platform/mmap.h"
 
+/* MAP_ANONYMOUS is Linux, MAP_ANON is BSD */
+#if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
 void *MVM_platform_alloc_pages(size_t size, int executable)
 {
     void *block = mmap(NULL, size,
