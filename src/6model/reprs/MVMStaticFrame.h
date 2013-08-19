@@ -63,8 +63,11 @@ struct MVMStaticFrameBody {
     MVMuint32 pool_index;
 
     /* Annotation details */
-    MVMuint32 num_annotations;
-    MVMuint8 *annotations;
+    MVMuint32              num_annotations;
+    MVMBytecodeAnnotation *annotations;
+
+    /* Cached instruction offsets */
+    MVMuint8 *instr_offsets;
 };
 struct MVMStaticFrame {
     MVMObject common;

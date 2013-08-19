@@ -9,6 +9,7 @@ typedef struct MVMArrayREPRData MVMArrayREPRData;
 typedef struct MVMAttributeIdentifier MVMAttributeIdentifier;
 typedef struct MVMBoolificationSpec MVMBoolificationSpec;
 typedef struct MVMBootTypes MVMBootTypes;
+typedef struct MVMBytecodeAnnotation MVMBytecodeAnnotation;
 typedef struct MVMCallCapture MVMCallCapture;
 typedef struct MVMCallCaptureBody MVMCallCaptureBody;
 typedef struct MVMCallsite MVMCallsite;

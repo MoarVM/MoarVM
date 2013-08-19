@@ -367,7 +367,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 cleanup_all(tc, rs);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
-            static_frame_body->annotations = rs->annotation_seg + annot_offset;
+            static_frame_body->annotations = (MVMBytecodeAnnotation *)(rs->annotation_seg + annot_offset);
             static_frame_body->num_annotations = num_annotations;
         }
 
@@ -573,4 +573,18 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     /* Clean up reader state. */
     cleanup_all(tc, rs);
+}
+
+/* returns the annotation for that bytecode offset */
+MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MVMStaticFrameBody *sfb, MVMuint32 offset) {
+    MVMBytecodeAnnotation *ba = NULL;
+    MVMuint32 i, j;
+
+    if (offset >= sfb->bytecode_size)
+        return NULL;
+    for (i = 0, j = 0; i <= offset && j < sfb->num_annotations; i++)
+        /* if we reached an annotation point, advance to the next */
+        if (!ba || ba->bytecode_offset == i)
+            ba = &sfb->annotations[j++];
+    return ba;
 }
