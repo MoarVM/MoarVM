@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include "platform/time.h"
 
 /* MSVC compilers know about environ,
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
@@ -392,16 +393,14 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
     return first < second ? (MVMnum64)first / second : (MVMnum64)second / first;
 }
 
-/* gets the system time since the epoch in microseconds.
- * APR says the unix version returns GMT. */
+/* gets the system time since the epoch truncated to integral seconds */
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
-    return (MVMint64)apr_time_now();
+    return MVM_platform_now() / 1000000000;
 }
 
-/* gets the system time since the epoch in seconds.
- * APR says the unix version returns GMT. */
+/* gets the system time since the epoch as floating point seconds */
 MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
-    return (MVMnum64)apr_time_now() / 1000000.0;
+    return (MVMnum64)MVM_platform_now() / 1000000000.0;
 }
 
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {

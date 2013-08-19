@@ -60,12 +60,11 @@ for (keys %defaults) {
 }
 
 # misc defaults
-$config{exe}             //= '';
-$config{defs}            //= [];
-$config{libs}            //= [ qw( m pthread ) ];
-$config{platformobjects} //= 'src/platform/posix/mmap@obj@';
-$config{platformheaders} //= 'src/platform/mmap.h';
-$config{crossconf}       //= '';
+$config{exe}       //= '';
+$config{defs}      //= [];
+$config{libs}      //= [ qw( m pthread ) ];
+$config{platform}  //= '$(PLATFORM_POSIX)';
+$config{crossconf} //= '';
 
 # assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};
