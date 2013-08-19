@@ -8,7 +8,7 @@
 
 MVMint64 MVM_platform_now(void)
 {
-	FILETIME ft;
-	GetSystemTimeAsFileTime(&ft);
-	return (((MVMint64)ft.dwHighDateTime << 32 | ft.dwLowDateTime) - OFFSET) * 100;
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    return (((MVMint64)ft.dwHighDateTime << 32 | ft.dwLowDateTime) - OFFSET) * 100;
 }
