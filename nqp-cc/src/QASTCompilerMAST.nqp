@@ -821,7 +821,18 @@ class QAST::MASTCompiler {
             else {
                 $last_stmt := self.as_mast($_);
             }
-            nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
+            
+            # Annotate with line number if we have one.
+            if $_.node {
+                my $node := $_.node;
+                my $line := HLL::Compiler.lineof($node.orig(), $node.from(), :cache(1));            
+                nqp::push(@all_ins, MAST::Annotated.new(
+                    :$line, :instructions($last_stmt.instructions) ));
+            }
+            else {
+                nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
+            }
+            
             if $use_result {
                 $result_stmt := $last_stmt;
             }
