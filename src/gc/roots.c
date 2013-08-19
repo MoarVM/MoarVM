@@ -49,7 +49,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->hll_syms);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
-    
+
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
     HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp) {
