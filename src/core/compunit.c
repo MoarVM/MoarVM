@@ -48,10 +48,6 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
         MVM_exception_throw_apr_error(tc, apr_return_status, "Could not map file into memory '%s': ", filename);
     }
 
-    #ifdef _WIN32
-    _close(fd);
-    #endif
-
     /* close the filehandle. */
     apr_file_close(file_handle);
 
