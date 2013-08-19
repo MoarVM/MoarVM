@@ -246,6 +246,8 @@ class QAST::MASTCompiler {
 
     method to_mast($qast) {
         my $*MAST_COMPUNIT := MAST::CompUnit.new();
+        
+        my $*file := nqp::ifnull(nqp::getlexdyn('$?FILES'), "<unknown file>");
 
         # map a QAST::Block's cuid to the MAST::Frame we
         # created for it, so we can find the Frame later
@@ -827,7 +829,7 @@ class QAST::MASTCompiler {
                 my $node := $_.node;
                 my $line := HLL::Compiler.lineof($node.orig(), $node.from(), :cache(1));            
                 nqp::push(@all_ins, MAST::Annotated.new(
-                    :$line, :instructions($last_stmt.instructions) ));
+                    :$*file, :$line, :instructions($last_stmt.instructions) ));
             }
             else {
                 nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
