@@ -21,6 +21,8 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->str_box_type = tc->instance->boot_types->BOOTStr;
         entry->slurpy_array_type = tc->instance->boot_types->BOOTArray;
         entry->slurpy_hash_type = tc->instance->boot_types->BOOTHash;
+        entry->array_iterator_type = tc->instance->boot_types->BOOTIter;
+        entry->hash_iterator_type = tc->instance->boot_types->BOOTIter;
         HASH_ADD_KEYPTR(hash_handle, tc->instance->hll_configs, kdata, klen, entry);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->int_box_type);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->num_box_type);
@@ -60,8 +62,8 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
     check_config_key(tc, config_hash, "str_box", str_box_type, config);
     check_config_key(tc, config_hash, "slurpy_array", slurpy_array_type, config);
     check_config_key(tc, config_hash, "slurpy_hash", slurpy_hash_type, config);
-    check_config_key(tc, config_hash, "array_iterator", array_iterator_type, config);
-    check_config_key(tc, config_hash, "hash_iterator", hash_iterator_type, config);
+    check_config_key(tc, config_hash, "array_iter", array_iterator_type, config);
+    check_config_key(tc, config_hash, "hash_iter", hash_iterator_type, config);
 
     return config_hash;
 }
