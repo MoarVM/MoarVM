@@ -283,7 +283,8 @@ class QAST::MASTOperations {
         my $bank;
         my $self := self;
         for MAST::Ops.WHO {
-            $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $moarop);
+            my $bankish := MAST::Ops.WHO{~$_};
+            $bank := ~$_ if nqp::ishash($bankish) && nqp::existskey($bankish, $moarop);
         }
         nqp::die("Unable to resolve moarop '$moarop'") unless $bank;
 
