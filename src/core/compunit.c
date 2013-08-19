@@ -1,65 +1,55 @@
 #include "moarvm.h"
 #include "platform/mmap.h"
 
-/* HACK - goes away when switching to libuv */
-#ifdef _WIN32
-#include "arch/win32/apr_arch_file_io.h"
-#else
-#include "arch/unix/apr_arch_file_io.h"
-#endif
-
 /* Loads a compilation unit from a bytecode file, mapping it into
  * memory. */
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     MVMCompUnit *cu          = NULL;
     void        *block       = NULL;
     apr_pool_t  *pool        = NULL;
-    apr_file_t  *file_handle = NULL;
-    apr_finfo_t  stat_info;
-    int          fd;
+    int          uv_return_status;
     int          apr_return_status;
+    uv_fs_t      req;
+    MVMuint64    size;
+    int          fd;
 
-    /* Ensure the file exists, and get its size. */
+    /* Create compunit's APR pool */
     if ((apr_return_status = apr_pool_create(&pool, NULL)) != APR_SUCCESS) {
         MVM_panic(MVM_exitcode_compunit, "Could not allocate APR memory pool: errorcode %d", apr_return_status);
     }
-    if ((apr_return_status = apr_stat(&stat_info, filename, APR_FINFO_SIZE, pool)) != APR_SUCCESS) {
+
+    /* Ensure the file exists, and get its size. */
+    if ((uv_return_status = uv_fs_lstat(tc->loop, &req, filename, NULL)) < 0) {
         apr_pool_destroy(pool);
-        MVM_exception_throw_apr_error(tc, apr_return_status, "While looking for '%s': ", filename);
+        MVM_exception_throw_adhoc(tc, "While looking for '%s': %s", filename, uv_strerror(uv_return_status));
     }
 
-    /* Map the bytecdoe file into memory. */
-    if ((apr_return_status = apr_file_open(&file_handle, filename,
-            APR_READ | APR_BINARY, APR_OS_DEFAULT, pool)) != APR_SUCCESS) {
+    size = req.statbuf.st_size;
+
+    /* Map the bytecode file into memory. */
+    if ((uv_return_status = uv_fs_open(tc->loop, &req, filename, O_RDONLY, 0, NULL)) < 0) {
         apr_pool_destroy(pool);
-        MVM_exception_throw_apr_error(tc, apr_return_status, "While trying to open '%s': ", filename);
+        MVM_exception_throw_adhoc(tc, "While trying to open '%s': %s", filename, uv_strerror(uv_return_status));
     }
 
-    /* HACK - goes away when switching to libuv */
-    #ifdef _WIN32
-    fd =  _open_osfhandle((intptr_t)file_handle->filehand, _O_RDONLY);
-    #else
-    fd = file_handle->filedes;
-    #endif
+    fd = req.result;
 
     /* leaks the mapping file handle on win32 */
-    if ((block = MVM_platform_map_file(fd, NULL, stat_info.size, 0)) == NULL) {
+    if ((block = MVM_platform_map_file(fd, NULL, (size_t)size, 0)) == NULL) {
         apr_pool_destroy(pool);
-        MVM_exception_throw_apr_error(tc, apr_return_status, "Could not map file into memory '%s': ", filename);
+        /* FIXME: check errno or GetLastError() */
+        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, "FIXME");
     }
 
-    #ifdef _WIN32
-    _close(fd);
-    #endif
-
     /* close the filehandle. */
-    apr_file_close(file_handle);
+    /* FIXME: check for errors? */
+    uv_fs_close(tc->loop, &req, fd, NULL);
 
     /* Create compilation unit data structure. */
     cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCompUnit);
     cu->body.pool       = pool;
     cu->body.data_start = (MVMuint8 *)block;
-    cu->body.data_size  = (MVMuint32)stat_info.size;
+    cu->body.data_size  = (MVMuint32)size;
 
     /* Process the input. */
     MVMROOT(tc, cu, {
