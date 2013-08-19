@@ -209,7 +209,7 @@ UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
             3rdparty/libuv/src/unix/proctitle@obj@ \
             $(UV_UNIX)
 
-UV_OBJECTS = # _uvobjects_
+UV_OBJECTS = @uvobjects@
 
 TOM_OBJECTS = @tomobjects@
 
@@ -220,7 +220,7 @@ moarvm@exe@: $(OBJECTS) @thirdpartylibs@
 
 apr: @aprlib@
 
-libuv: _uvlib_
+libuv: @uvlib@
 
 $(OBJECTS): $(HEADERS)
 
@@ -236,8 +236,8 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 @aprlib@:
 	@aprrule@
 
-_uvlib_: _uvobjects_
-	_uvrule_
+@uvlib@: $(UV_OBJECTS)
+	@uvrule@
 
 @laolib@:
 	@laorule@
@@ -252,7 +252,7 @@ clean:
 	-$(RM) $(OBJECTS)
 	@clean@
 	@aprclean@
-#	_uvclean_
+	@uvclean@
 	@laoclean@
 	@tomclean@
 	@shaclean@
