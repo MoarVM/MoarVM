@@ -19,7 +19,7 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
     }
 
     /* Ensure the file exists, and get its size. */
-    if ((uv_fs_stat(tc->loop, &req, filename, NULL)) < 0) {
+    if (uv_fs_stat(tc->loop, &req, filename, NULL) < 0) {
         apr_pool_destroy(pool);
         MVM_exception_throw_adhoc(tc, "While looking for '%s': %s", filename, uv_strerror(req.result));
     }

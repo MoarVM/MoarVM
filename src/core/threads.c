@@ -60,8 +60,6 @@ static void start_thread(void *data) {
      * of GC-ing our objects and cleaning up our thread context. */
     MVM_gc_mark_thread_blocked(tc);
 
-    /* these are about to destroy themselves */
-    tc->thread_obj->body.thread = NULL;
     tc->thread_obj->body.apr_pool = NULL;
     /* hopefully pop the ts->thread_obj temp */
     MVM_gc_root_temp_pop(tc);

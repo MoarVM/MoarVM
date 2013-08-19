@@ -41,8 +41,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    /* The ThreadContext has already been destroyed by the GC.
-     * apr_thread and apr_pool killed themselves when the thread exited. */
+    /* The ThreadContext has already been destroyed by the GC. */
     MVMThread *thread = (MVMThread *)obj;
     thread->body.invokee = NULL;
     thread->body.next = thread->body.new_child = NULL;
