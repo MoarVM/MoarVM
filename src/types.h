@@ -49,6 +49,7 @@ typedef struct MVMKnowHOWREPRBody MVMKnowHOWREPRBody;
 typedef struct MVMLexicalHashEntry MVMLexicalHashEntry;
 typedef struct MVMLexotic MVMLexotic;
 typedef struct MVMLexoticBody MVMLexoticBody;
+typedef struct MVMLoadedCompUnitName MVMLoadedCompUnitName;
 typedef struct MVMNFA MVMNFA;
 typedef struct MVMNFABody MVMNFABody;
 typedef struct MVMNFAStateInfo MVMNFAStateInfo;

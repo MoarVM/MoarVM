@@ -58,17 +58,16 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
     /* Add serialization contexts to the worklist. */
     for (i = 0; i < body->num_scs; i++) {
-        if (body->scs[i])
+        if (body->scs[i]) {
             MVM_gc_worklist_add(tc, worklist, &body->scs[i]);
-        if (body->scs_to_resolve[i])
-            MVM_gc_worklist_add(tc, worklist, &body->scs_to_resolve[i]);
+        }
+        /* Unresolved sc bodies' handles are marked by the GC instance root marking. */
     }
 
     /* Add various other referenced strings, etc. */
     MVM_gc_worklist_add(tc, worklist, &body->hll_name);
     MVM_gc_worklist_add(tc, worklist, &body->filename);
 }
-
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
@@ -85,7 +84,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     body->hll_config = NULL;
     body->hll_name = NULL;
     body->filename = NULL;
-    body->next_compunit = NULL;
 }
 
 /* Gets the storage specification for this representation. */

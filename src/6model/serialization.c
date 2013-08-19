@@ -571,6 +571,7 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
         sc = MVM_sc_find_by_handle(tc, handle);
         if (sc == NULL) {
             MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
+            if (!desc) desc = handle;
             fail_deserialize(tc, reader,
                 "Missing or wrong version of dependency '%s'",
                 MVM_string_ascii_encode(tc, desc, NULL));

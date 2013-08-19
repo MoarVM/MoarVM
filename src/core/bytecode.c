@@ -259,7 +259,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
 
     /* Allocate SC lists in compilation unit. */
     cu_body->scs = malloc(rs->expected_scs * sizeof(MVMSerializationContext *));
-    cu_body->scs_to_resolve = malloc(rs->expected_scs * sizeof(MVMString *));
+    cu_body->scs_to_resolve = malloc(rs->expected_scs * sizeof(MVMSerializationContextBody *));
     cu_body->num_scs = rs->expected_scs;
 
     /* Resolve all the things. */
@@ -284,12 +284,17 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
         MVM_string_flatten(tc, handle);
         MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
-        if (scb) {
+        if (scb && scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
             MVM_ASSIGN_REF(tc, cu, cu_body->scs[i], scb->sc);
         }
         else {
-            MVM_ASSIGN_REF(tc, cu, cu_body->scs_to_resolve[i], cu_body->strings[sh_idx]);
+            if (!scb) {
+                scb = calloc(1, sizeof(MVMSerializationContextBody));
+                scb->handle = handle;
+                MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
+            }
+            cu_body->scs_to_resolve[i] = scb;
             cu_body->scs[i] = NULL;
         }
         uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);

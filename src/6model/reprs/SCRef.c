@@ -19,14 +19,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    MVMSerializationContext *sc;
-    MVMObject *obj;
-    obj = MVM_gc_allocate_object(tc, st);
-    sc = (MVMSerializationContext *)obj;
-    sc->body = malloc(sizeof(MVMSerializationContextBody));
-    memset(sc->body, 0, sizeof(MVMSerializationContextBody));
-    sc->body->sc = sc;
-    return obj;
+    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Initializes a new instance. */
@@ -54,6 +47,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_exception_throw_adhoc(tc, "Cannot copy object with representation SCRef");
 }
 
+void MVM_sc_gc_mark_body(MVMThreadContext *tc, MVMSerializationContextBody *sc, MVMGCWorklist *worklist) {
+}
+
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *sc = ((MVMSerializationContextBody **)data)[0];
@@ -69,6 +65,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
     /* Maintain backlink (yes, this is ugly). */
     sc->sc = (MVMSerializationContext *)((char *)data - sizeof(MVMObject));
+    MVM_gc_worklist_add(tc, worklist, &sc->sc);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -81,8 +78,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
 
     /* Free manually managed STable list memory and body. */
-    if (sc->body->root_stables)
-        free(sc->body->root_stables);
+    MVM_checked_free_null(sc->body->root_stables);
     free(sc->body);
 }
 
