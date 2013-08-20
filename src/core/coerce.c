@@ -187,7 +187,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (REPR(obj)->ID == MVM_REPR_ID_MVMString)
             res_reg->s = (MVMString *)obj;
-        else if (REPR(obj)->ID = MVM_REPR_ID_MVMException)
+        else if (REPR(obj)->ID == MVM_REPR_ID_MVMException)
             res_reg->s = ((MVMException *)obj)->body.message;
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             res_reg->s = REPR(obj)->box_funcs->get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
