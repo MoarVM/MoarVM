@@ -1,14 +1,16 @@
 #include "moarvm.h"
+
 #ifndef _WIN32
 #include <sys/types.h>
 #include <unistd.h>
-#endif
-
-/* work around sucky libuv defaults */
-#ifdef _WIN32
-#define DEFAULT_MODE _S_IWRITE
-#else
 #define DEFAULT_MODE 0
+#else
+#include <fcntl.h>
+#define O_CREAT  _O_CREAT
+#define O_RDONLY _O_RDONLY
+#define O_WRONLY _O_WRONLY
+#define O_TRUNC  _O_TRUNC
+#define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
 #endif
 
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {

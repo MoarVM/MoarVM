@@ -2,15 +2,8 @@
 
 /* Pull in the APR. */
 #define APR_DECLARE_STATIC 1
-#include <apr_general.h>
 #include <apr_atomic.h>
-#include <apr_file_info.h>
-#include <apr_file_io.h>
-#include <apr_mmap.h>
 #include <apr_network_io.h>
-#include <apr_strings.h>
-#include <apr_portable.h>
-#include <apr_env.h>
 #include <apr_getopt.h>
 
 /* libatomic_ops */

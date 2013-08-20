@@ -1,6 +1,11 @@
 #include "moarvm.h"
 #include "platform/mmap.h"
 
+#ifdef _WIN32
+#include <fcntl.h>
+#define O_RDONLY _O_RDONLY
+#endif
+
 /* Loads a compilation unit from a bytecode file, mapping it into
  * memory. */
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
