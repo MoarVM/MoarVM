@@ -406,7 +406,7 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
     if (!instance->clargs) {
-        MVMObject *clargs = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+        MVMObject *clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
         MVMROOT(tc, clargs, {
             MVMint64 count;
             for (count = 0; count < instance->num_clargs; count++) {
