@@ -1,6 +1,13 @@
+#ifndef _WIN32
+#include <dirent.h>
+#endif
+
 /* Representation used by VM-level OS handles. */
 struct MVMOSHandleBody {
+    /* see MVMOSHandleTypes */
     MVMuint8 type;
+
+
     union {
         uv_handle_t *handle;
         uv_file          fd;
@@ -12,19 +19,13 @@ struct MVMOSHandleBody {
 #else
         DIR     *dir_handle;
 #endif
-    };
-
-    MVMuint8        eof;
-
-    /* see MVMOSHandleTypes */
-    MVMuint8 handle_type;
-    MVMuint8 encoding_type;
-    apr_pool_t *mem_pool;
-
-    union {
         apr_socket_t *socket;
     };
+    MVMuint8        eof;
+    MVMuint8 encoding_type;
 
+
+    apr_pool_t *mem_pool;
 };
 struct MVMOSHandle {
     MVMObject common;
@@ -32,15 +33,11 @@ struct MVMOSHandle {
 };
 
 typedef enum {
-   MVM_OSHANDLE_HANDLE = 0,
-   MVM_OSHANDLE_FD    = 1,
-};
-
-typedef enum {
-    MVM_OSHANDLE_UNINIT = UV_UNKNOWN_HANDLE,
-    MVM_OSHANDLE_FILE   = UV_FILE,
-    MVM_OSHANDLE_DIR    = 2,
-    MVM_OSHANDLE_SOCKET = 3
+   MVM_OSHANDLE_UNINIT = 0,
+   MVM_OSHANDLE_HANDLE = 1,
+   MVM_OSHANDLE_FD     = 2,
+   MVM_OSHANDLE_DIR    = 3,
+   MVM_OSHANDLE_SOCKET = 4
 } MVMOSHandleTypes;
 
 /* Function for REPR setup. */

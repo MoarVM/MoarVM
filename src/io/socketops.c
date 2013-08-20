@@ -10,7 +10,7 @@ static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSH
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.handle_type != MVM_OSHANDLE_SOCKET) {
+    if ((*handle)->body.type != MVM_OSHANDLE_SOCKET) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type socket", msg);
     }
 }
@@ -75,7 +75,7 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
     result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
 
     result->body.socket = socket;
-    result->body.handle_type = MVM_OSHANDLE_SOCKET;
+    result->body.type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
     result->body.encoding_type = encoding_flag;
 
@@ -154,7 +154,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
     result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
 
     result->body.socket = socket;
-    result->body.handle_type = MVM_OSHANDLE_SOCKET;
+    result->body.type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
     result->body.encoding_type = encoding_flag;
 
@@ -196,7 +196,7 @@ MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMin
     result = (MVMOSHandle *)REPR(STABLE(oshandle)->WHAT)->allocate(tc, STABLE(STABLE(oshandle)->WHAT));
 
     result->body.socket = new_socket;
-    result->body.handle_type = MVM_OSHANDLE_SOCKET;
+    result->body.type = MVM_OSHANDLE_SOCKET;
     result->body.mem_pool = tmp_pool;
     result->body.encoding_type = handle->body.encoding_type;
 

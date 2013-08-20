@@ -34,11 +34,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
     tc->frame_pool_table = calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
 
-    if (!instance->default_loop) {
-        tc->loop = uv_default_loop();
-    } else {
-        tc->loop = uv_loop_new();
-    }
+    tc->loop = instance->default_loop ? uv_loop_new() : uv_default_loop();
 
     /* Create a CallCapture for usecapture instructions in this thread (needs
      * special handling in initial thread as this runs before bootstrap). */

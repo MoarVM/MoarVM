@@ -39,7 +39,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMOSHandle *handle = (MVMOSHandle *)obj;
-    switch(handle->body.handle_type) {
+    switch(handle->body.type) {
         case MVM_OSHANDLE_UNINIT:
             break;
         case MVM_OSHANDLE_SOCKET:
