@@ -483,13 +483,19 @@ class QAST::MASTCompiler {
             $*MAST_COMPUNIT.load_frame(%*MAST_FRAMES{$load_block.cuid});
         }
 
-        # Compile and include main-time logic, if any, and then add a Java
-        # main that will lead to its invocation.
+        # Compile and include main-time logic, if any, and wrap it up so that we
+        # pass command line arguments.
         if nqp::defined($cu.main) {
             my $main_block := QAST::Block.new(
                 :blocktype('raw'),
-                $cu.main
-            );
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::Block.new(
+                        :blocktype('declaration'),
+                        $cu.main
+                    ),
+                    QAST::VM.new( :moarop('clargs'), :flat(1) )
+                ));
             self.as_mast($main_block);
             $*MAST_COMPUNIT.main_frame(%*MAST_FRAMES{$main_block.cuid});
         }
