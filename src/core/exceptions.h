@@ -72,6 +72,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFram
 MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) MVM_NO_RETURN_GCC;
+void MVM_crash_on_error();
 
 /* Exit codes for panic. */
 #define MVM_exitcode_NYI            12

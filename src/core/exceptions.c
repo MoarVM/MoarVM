@@ -1,6 +1,12 @@
 #include "moarvm.h"
 #include <stdarg.h>
 
+static int crash_on_error = 0;
+
+static void fake_crash() {
+	printf("%s", (char *)(1));
+}
+
 /* Maps ID of exception category to its name. */
 static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
     switch (cat) {
@@ -189,19 +195,24 @@ static char * backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint1
     MVMuint32 offset = cur_op - cur_frame->static_info->body.bytecode;
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset);
-    char *tmp1 = NULL;
+	
+	MVMuint32 line_number = annot ? annot->line_number + 1 : 1;
+	MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 0;
+	char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
+		? MVM_string_utf8_encode(tc,
+			cur_frame->static_info->body.cu->body.strings[string_heap_index], NULL)
+		: NULL;
+	const char *op_name = (offset && instr) ? MVM_op_get_op(*cur_op, *(cur_op+1))->name : "<unknown>";
 
     sprintf(o, "  line %d in %s  (op %s, instr %u%s, frame %s, compunit %s)",
-        annot ? annot->line_number + 1 : 1,
-        annot ? (tmp1 = MVM_string_utf8_encode(tc,
-                cur_frame->static_info->body.cu->body.strings[
-                    annot->filename_string_heap_index], NULL
-            )) : "<unknown>",
-        (offset && instr) ? MVM_op_get_op(*cur_op, *(cur_op+1))->name : "<unknown>",
-        instr,
-        instr ? "" : "<unknown>",
-        name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
-        filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>");
+		line_number,
+		tmp1 ? tmp1 : "<unknown>",
+		op_name,
+		instr,
+		instr ? "" : "<unknown>",
+		name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
+		filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>"
+	);
     if (tmp1) free(tmp1);
     return o;
 }
@@ -248,7 +259,10 @@ static void dump_backtrace(MVMThreadContext *tc) {
 static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
     fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
     dump_backtrace(tc);
-    exit(1);
+    if (crash_on_error)
+		fake_crash();
+	else
+		exit(1);
 }
 
 /* Panic over an unhandled exception object. */
@@ -261,7 +275,10 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
     fprintf(stderr, "Unhandled exception: %s\n",
         MVM_string_utf8_encode_C_string(tc, ex->body.message));
     dump_backtrace(tc);
-    exit(1);
+    if (crash_on_error)
+		fake_crash();
+	else
+		exit(1);
 }
 
 /* Throws an exception by category, searching for a handler according to
@@ -348,7 +365,10 @@ void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     vfprintf(stderr, messageFormat, args);
     va_end(args);
     fwrite("\n", 1, 1, stderr);
-    exit(exitCode);
+	if (crash_on_error)
+		fake_crash();
+	else
+		exit(exitCode);
 }
 
 /* Throws an ad-hoc (untyped) exception. */
@@ -367,7 +387,10 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
     vfprintf(stderr, messageFormat, args);
     fwrite("\n", 1, 1, stderr);
     dump_backtrace(tc);
-    exit(1);
+    if (crash_on_error)
+		fake_crash();
+	else
+		exit(1);
 }
 
 /* Throws an ad-hoc (untyped) formatted exception with an apr error appended. */
@@ -391,4 +414,8 @@ void MVM_exception_throw_apr_error(MVMThreadContext *tc, apr_status_t code, cons
 
     dump_backtrace(tc);
     exit(1);
+}
+
+void MVM_crash_on_error() {
+	crash_on_error = 1;
 }
