@@ -309,8 +309,11 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         for (j = 0; j < lineno; j++) {
             if (annotations[j]) {
+				MVMuint16 shi = GET_UI16(frame->body.annotations + 4, (annotations[j] - 1)*10);
                 tmpstr = MVM_string_utf8_encode_C_string(
-                    tc, cu->body.strings[GET_UI16(frame->body.annotations + 4, (annotations[j] - 1)*10)]);
+                    tc, cu->body.strings[
+						shi < cu->body.num_strings ? shi : 0
+					]);
                 a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations + 6, (annotations[j] - 1)*10));
                 free(tmpstr);
             }
