@@ -54,7 +54,6 @@ int main(int argc, const char *argv[]) {
 
     /* stash the rest of the raw command line args in the instance */
     instance->num_clargs = argc - processed_args;
-    printf("got %u args for nqp\n", instance->num_clargs);
 	instance->raw_clargs = (char **)(opt->argv + processed_args);
 
     if (dump) {
