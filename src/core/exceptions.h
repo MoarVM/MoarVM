@@ -57,12 +57,6 @@ struct MVMActiveHandler {
     MVMActiveHandler *next_handler;
 };
 
-struct MVMBytecodeAnnotation {
-    MVMuint32 bytecode_offset;
-    MVMuint16 filename_string_heap_index;
-    MVMuint32 line_number;
-};
-
 /* Exception related functions. */
 MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result);

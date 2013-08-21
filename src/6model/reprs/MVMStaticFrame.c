@@ -85,7 +85,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->static_code = NULL; /* XXX ? */
     dest_body->pool_index = src_body->pool_index;
     dest_body->num_annotations = src_body->num_annotations;
-    dest_body->annotations = src_body->annotations;
+    dest_body->annotations_data = src_body->annotations_data;
 }
 
 /* Adds held objects to the GC worklist. */

@@ -298,7 +298,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         i = 0;
         /* resolve annotation line numbers */
         for (j = 0; j < frame->body.num_annotations; j++) {
-            MVMuint32 ann_offset = GET_UI32(frame->body.annotations, j*10);
+            MVMuint32 ann_offset = GET_UI32(frame->body.annotations_data, j*10);
             for (; i < lineno; i++) {
                 if (linelocs[i] == ann_offset) {
                     annotations[i] = j + 1;
@@ -309,12 +309,12 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         for (j = 0; j < lineno; j++) {
             if (annotations[j]) {
-				MVMuint16 shi = GET_UI16(frame->body.annotations + 4, (annotations[j] - 1)*10);
+				MVMuint16 shi = GET_UI16(frame->body.annotations_data + 4, (annotations[j] - 1)*10);
                 tmpstr = MVM_string_utf8_encode_C_string(
                     tc, cu->body.strings[
 						shi < cu->body.num_strings ? shi : 0
 					]);
-                a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations + 6, (annotations[j] - 1)*10));
+                a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations_data + 6, (annotations[j] - 1)*10));
                 free(tmpstr);
             }
             if (linelabels[j])

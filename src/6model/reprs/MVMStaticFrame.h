@@ -64,7 +64,7 @@ struct MVMStaticFrameBody {
 
     /* Annotation details */
     MVMuint32              num_annotations;
-    MVMBytecodeAnnotation *annotations;
+    MVMuint8              *annotations_data;
 
     /* Cached instruction offsets */
     MVMuint8 *instr_offsets;
