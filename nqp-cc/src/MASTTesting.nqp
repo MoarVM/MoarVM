@@ -50,7 +50,7 @@ sub mast_frame_output_is($frame_filler, $expected, $desc, :$timeit, :$approx) is
     mast_output_is($comp_unit, $expected, $desc, $timeit, timeit => $timeit, approx => $approx);
 }
 
-sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) is export {
+sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx, :$clargs = '') is export {
 
     my $desc_file := $DEBUG ?? nqp::join('', match($desc, /(\w | ' ')+/, :global)) !! '';
 
@@ -68,7 +68,7 @@ sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) is export {
     # Invoke and redirect output to a file.
     my $start := nqp::time_n();
     pir::spawnw__Is("$moarvm --dump temp.moarvm > $quote$desc_file.mvmdump$quote") if $DEBUG;
-    pir::spawnw__Is("$moarvm temp.moarvm foobar foobaz > temp.output");
+    pir::spawnw__Is("$moarvm temp.moarvm $clargs > temp.output");
     my $end := nqp::time_n();
 
     # Read it and check it is OK.
@@ -86,8 +86,8 @@ sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx) is export {
     pir::spawnw__Is("$del temp.output");
 }
 
-sub qast_output_is($qast, $expected, $desc, :$timeit, :$approx) is export {
-    mast_output_is(QAST::MASTCompiler.to_mast($qast), $expected, $desc, timeit => $timeit, approx => $approx);
+sub qast_output_is($qast, $expected, $desc, :$timeit, :$approx, :$clargs = '') is export {
+    mast_output_is(QAST::MASTCompiler.to_mast($qast), $expected, $desc, :$timeit, :$approx, :$clargs);
 }
 
 sub qast_test($qast_builder, *@pos, *%named) is export {
