@@ -209,7 +209,12 @@ static char * backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint1
 		name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
 		filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>"
 	);
-    if (tmp1) free(tmp1);
+
+    if (tmp1)
+        free(tmp1);
+    if (annot)
+        free(annot);
+
     return o;
 }
 
