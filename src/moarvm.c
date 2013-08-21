@@ -127,7 +127,7 @@ static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
 }
 
 /* Loads bytecode from the specified file name and runs it. */
-void MVM_vm_run_file(MVMInstance *instance, char *filename) {
+void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     MVMStaticFrame *start_frame;
 
     /* Map the compilation unit into memory and dissect it. */
@@ -150,7 +150,7 @@ void MVM_vm_run_file(MVMInstance *instance, char *filename) {
 }
 
 /* Loads bytecode from the specified file name and dumps it. */
-void MVM_vm_dump_file(MVMInstance *instance, char *filename) {
+void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
