@@ -3,10 +3,6 @@
 
 static int crash_on_error = 0;
 
-static void fake_crash() {
-	printf("%s", (char *)(1));
-}
-
 /* Maps ID of exception category to its name. */
 static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
     switch (cat) {
@@ -260,7 +256,7 @@ static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
     fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
     dump_backtrace(tc);
     if (crash_on_error)
-		fake_crash();
+		abort();
 	else
 		exit(1);
 }
@@ -276,7 +272,7 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
         MVM_string_utf8_encode_C_string(tc, ex->body.message));
     dump_backtrace(tc);
     if (crash_on_error)
-		fake_crash();
+		abort();
 	else
 		exit(1);
 }
@@ -366,7 +362,7 @@ void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     va_end(args);
     fwrite("\n", 1, 1, stderr);
 	if (crash_on_error)
-		fake_crash();
+		abort();
 	else
 		exit(exitCode);
 }
@@ -388,7 +384,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
     fwrite("\n", 1, 1, stderr);
     dump_backtrace(tc);
     if (crash_on_error)
-		fake_crash();
+		abort();
 	else
 		exit(1);
 }

@@ -24,7 +24,7 @@ int main(int argc, const char *argv[]) {
     MoarVM usage: moarvm [options] bytecode.moarvm [program args]           \n\
       --help, display this message                                          \n\
       --dump, dump the bytecode to stdout instead of executing              \n\
-      --crash, segfault instead of exiting on unhandled exception  \n";
+      --crash, abort instead of exiting on unhandled exception  \n";
     int processed_args = 0;
 
     instance = MVM_vm_create_instance();
