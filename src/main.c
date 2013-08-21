@@ -11,7 +11,7 @@ int main(int argc, const char *argv[]) {
            Otherwise, use a character such as 'h' */
         { "dump", 256, 0, "dump bytecode" },
         { "help", 257, 0, "show help" },
-		{ "crash", 258, 0, "segfault instead of exiting on unhandled exception" },
+        { "crash", 258, 0, "abort instead of exiting on unhandled exception" },
         { NULL, 0, 0, NULL }
     };
     apr_getopt_t *opt;
@@ -39,9 +39,9 @@ int main(int argc, const char *argv[]) {
         case 257:
             printf("%s", helptext);
             goto terminate;
-		case 258:
-			MVM_crash_on_error();
-			break;
+        case 258:
+            MVM_crash_on_error();
+            break;
         }
     }
     processed_args = opt->ind;
@@ -54,7 +54,7 @@ int main(int argc, const char *argv[]) {
 
     /* stash the rest of the raw command line args in the instance */
     instance->num_clargs = argc - processed_args;
-	instance->raw_clargs = (char **)(opt->argv + processed_args);
+    instance->raw_clargs = (char **)(opt->argv + processed_args);
 
     if (dump) {
         MVM_vm_dump_file(instance, input_file);
