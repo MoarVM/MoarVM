@@ -505,8 +505,10 @@ options.
 =item --no-readline
 
 Disable GNU Readline auto-detection and force use of Linenoise.
-This flag is important if you create derivative work based on MoarVM
-that you wish to distribute under a license other than the GNU GPL.
+
+You must supply this flag if you create derivative work of MoarVM -
+including binary packages of MoarVM itself - that you wish to
+distribute under a license other than the GNU GPL.
 
 =item --build <build-triple> --host <host-triple>
 
