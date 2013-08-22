@@ -13,7 +13,7 @@
  * For now, just hardcoded so more interesting things can be done. */
 
 /* Sized types. */
-#define MVMint8        char
+#define MVMint8        signed char
 #define MVMuint8       unsigned char
 #define MVMint16       short
 #define MVMuint16      unsigned short
