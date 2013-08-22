@@ -13,6 +13,10 @@
 #define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
+#if MVM_TRACING_ENABLED
+static int tracing_enabled = 0;
+#endif
+
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
     /* Points to the current opcode. */
@@ -46,6 +50,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
     /* Enter runloop. */
     while (1) {
+#if MVM_TRACING_ENABLED
+        if (tracing_enabled) {
+            char *trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
+            fprintf(stderr, "%s\n", trace_line);
+            /* slow tracing is slow. Feel free to speed it. */
+            free(trace_line);
+        }
+#endif
         /* Primary dispatch by op bank. */
         switch (*(cur_op++)) {
             /* Control flow and primitive operations. */
@@ -3387,3 +3399,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
     return_label:;
 }
+
+#if MVM_TRACING_ENABLED
+void MVM_interp_enable_tracing() {
+    tracing_enabled = 1;
+}
+#endif

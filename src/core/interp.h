@@ -71,3 +71,6 @@ struct MVMOpInfo {
 
 /* Functions. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data);
+#if MVM_TRACING_ENABLED
+void MVM_interp_enable_tracing();
+#endif

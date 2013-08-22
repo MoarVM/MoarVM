@@ -232,8 +232,7 @@ $(OBJECTS): $(HEADERS)
 	$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
 
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
-	$(CAT) src/strings/unicode_db.c >$@
-	$(CAT) src/strings/unicode_ops.c >>$@
+	$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c >$@
 
 3rdparty/apr/include/apr.h: @aprlib@
 

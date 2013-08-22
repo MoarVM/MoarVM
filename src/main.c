@@ -12,17 +12,33 @@ enum {
     FLAG_CRASH,
     FLAG_DUMP,
     FLAG_HELP,
+#if MVM_TRACING_ENABLED
+    FLAG_TRACING,
+#endif
 };
 
-static const char *const FLAGS[] = { "--crash", "--dump", "--help" };
+static const char *const FLAGS[] = { "--crash", "--dump", "--help"
+#if MVM_TRACING_ENABLED
+, "--tracing"
+#endif
+};
 
 static const char USAGE[] = "\
-USAGE: moarvm [--dump] [--crash] input.moarvm [program args]\n\
-       moarvm --help\n\
+USAGE: moarvm [--dump] [--crash] "
+#if MVM_TRACING_ENABLED
+"[--tracing] "
+#endif
+"input.moarvm [program args]\n\
+       moarvm [--help]\n\
 \n\
-    --help   display this message\n\
-    --dump   dump the bytecode to stdout instead of executing\n\
-    --crash  abort instead of exiting on unhandled exception";
+    --help     display this message\n\
+    --dump     dump the bytecode to stdout instead of executing\n\
+    --crash    abort instead of exiting on unhandled exception"
+#if MVM_TRACING_ENABLED
+"\n\
+    --tracing  output a line to stderr on every interpreter instr"
+#endif
+;
 
 static int cmp_flag(const void *key, const void *value)
 {
@@ -62,6 +78,12 @@ int main(int argc, char *argv[])
             case FLAG_HELP:
             puts(USAGE);
             return EXIT_SUCCESS;
+
+#if MVM_TRACING_ENABLED
+            case FLAG_TRACING:
+            MVM_interp_enable_tracing();
+            continue;
+#endif
 
             default:
             fprintf(stderr, "ERROR: Unknown flag %s.\n\n%s\n", argv[argi], USAGE);

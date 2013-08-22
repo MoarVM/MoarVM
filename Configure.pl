@@ -23,7 +23,7 @@ my %config;
 
 GetOptions(\%args, qw(
     help|?
-    debug! optimize! instrument!
+    debug! optimize! instrument! tracing!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     build=s host=s
@@ -37,6 +37,7 @@ print "Welcome to MoarVM!\n\n";
 $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
+$args{tracing}    //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -49,6 +50,7 @@ else {
 }
 
 $config{name} = $NAME;
+$config{tracing} = $args{tracing} ? "1" : "0";
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -329,7 +331,7 @@ sub configure {
 
     while ($template =~ /@(\w+)@/) {
         my $key = $1;
-        return (undef, "unknown configuration key '$key'")
+        return (undef, "unknown configuration key '$key', keys: ".join(',', keys %config))
             unless exists $config{$key};
 
         $template =~ s/@\Q$key\E@/$config{$key}/;
@@ -398,11 +400,11 @@ __END__
     ./Configure.pl [--os <os>] [--shell <shell>]
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--cc <cc>] [--ld <ld>] [--make <make>]
-                   [--debug] [--optimize] [--instrument]
+                   [--debug] [--optimize] [--instrument] [--tracing]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
-                   [--debug] [--optimize] [--instrument]
+                   [--debug] [--optimize] [--instrument] [--tracing]
 
 =head1 OPTIONS
 
@@ -435,6 +437,14 @@ defaults to the opposite of C<--debug>.
 
 Toggle extra instrumentation flags during compile and link; for example,
 turns on Address Sanitizer when compiling with C<clang>.  Defaults to off.
+
+=item --tracing
+
+=item --no-tracing
+
+Toggle the ability to pass --tracing to the moarvm executable which outputs
+a trace of every instruction.  Extremely verbose; use with caution.
+Defaults to off.
 
 =item --os <os>
 
