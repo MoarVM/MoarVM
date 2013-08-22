@@ -15,7 +15,7 @@ MSG = @:
 CMD =
 CMDOUT =
 @mkelse@
-MSG = @
+MSG = @echo
 CMD = @
 CMDOUT = > @nul@
 @mkendif@
@@ -235,7 +235,7 @@ TOM_OBJECTS = @tomobjects@
 .SUFFIXES: .c @obj@
 
 moarvm@exe@: $(OBJECTS) @thirdpartylibs@
-	$(MSG)echo linking $@
+	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
 
 apr: @aprlib@
@@ -245,47 +245,47 @@ libuv: _uvlib_
 $(OBJECTS): $(HEADERS)
 
 tracing:
-	$(MSG)echo enable tracing
+	$(MSG) enable tracing
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=1 NOISY="$(NOISY)"
 
 no-tracing:
-	$(MSG)echo disable tracing
+	$(MSG) disable tracing
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=0 NOISY="$(NOISY)"
 
 .c@obj@:
-	$(MSG)echo compiling $@
+	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c $(CMDOUT)
 
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
-	$(MSG)echo generating $@
+	$(MSG) generating $@
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 3rdparty/apr/include/apr.h: @aprlib@
 
 @aprlib@:
-	$(MSG)echo building $@...
+	$(MSG) building $@...
 	$(CMD)@aprrule@ $(CMDOUT)
-	$(MSG)echo done.
+	$(MSG) done.
 
 _uvlib_: _uvobjects_
 	_uvrule_
 
 @laolib@:
-	$(MSG)echo linking $@
+	$(MSG) linking $@
 	$(CMD)@laorule@ $(CMDOUT)
 
 @tomlib@: $(TOM_OBJECTS)
-	$(MSG)echo linking $@
+	$(MSG) linking $@
 	$(CMD)@tomrule@ $(CMDOUT)
 
 @shalib@: @shaobjects@
-	$(MSG)echo linking $@
+	$(MSG) linking $@
 	$(CMD)@sharule@ $(CMDOUT)
 
 clean:
-	$(MSG)echo cleaning...
+	$(MSG) cleaning...
 	-$(CMD)$(RM) $(OBJECTS) $(CMDOUT) $(NOERR)
 	-$(CMD)@clean@ $(CMDOUT) $(NOERR)
 	-$(CMD)@aprclean@ $(CMDOUT) $(NOERR)
@@ -293,10 +293,10 @@ clean:
 	-$(CMD)@laoclean@ $(CMDOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(CMDOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(CMDOUT) $(NOERR)
-	$(MSG)echo done.
+	$(MSG) done.
 
 realclean: clean
-	$(MSG)echo really cleaning...
+	$(MSG) really cleaning...
 	-$(CMD)$(RM) moarvm@exe@ $(CMDOUT) $(NOERR)
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(CMDOUT) $(NOERR)
-	$(MSG)echo done.
+	$(MSG) done.
