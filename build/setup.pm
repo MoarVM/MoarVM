@@ -14,7 +14,7 @@ our %APR = (
 our %LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomic_ops/src',
-    rule  => 'cd 3rdparty/libatomic_ops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && $(MAKE) -C src',
+    rule  => 'cd 3rdparty/libatomic_ops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
     clean => 'cd 3rdparty/libatomic_ops/src && $(MAKE) distclean',
 );
 
