@@ -183,7 +183,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     free(ah);
 }
 
-static char * backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top) {
+char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top) {
     MVMString *filename = cur_frame->static_info->body.cu->body.filename;
     MVMString *name = cur_frame->static_info->body.name;
     char *o = malloc(1024);
@@ -251,7 +251,9 @@ static void dump_backtrace(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVMuint32 count = 0;
     while (cur_frame != NULL) {
-        fprintf(stderr, "%s\n", backtrace_line(tc, cur_frame, count++));
+        char *line = MVM_exception_backtrace_line(tc, cur_frame, count++);
+        fprintf(stderr, "%s\n", line);
+        free(line);
         cur_frame = cur_frame->caller;
     }
 }
