@@ -3,6 +3,14 @@
 #include <string.h>
 #include <moarvm.h>
 
+#if MVM_TRACING
+#  define TRACING_OPT "[--tracing] "
+#  define TRACING_USAGE "\n    --tracing  output a line to stderr on every interpreter instr"
+#else
+#  define TRACING_OPT ""
+#  define TRACING_USAGE ""
+#endif
+
 /* flags need to be sorted alphabetically */
 
 enum {
@@ -12,33 +20,24 @@ enum {
     FLAG_CRASH,
     FLAG_DUMP,
     FLAG_HELP,
-#if MVM_TRACING_ENABLED
     FLAG_TRACING,
-#endif
 };
 
-static const char *const FLAGS[] = { "--crash", "--dump", "--help"
-#if MVM_TRACING_ENABLED
-, "--tracing"
-#endif
+static const char *const FLAGS[] = {
+    "--crash",
+    "--dump",
+    "--help",
+    "--tracing",
 };
 
 static const char USAGE[] = "\
-USAGE: moarvm [--dump] [--crash] "
-#if MVM_TRACING_ENABLED
-"[--tracing] "
-#endif
-"input.moarvm [program args]\n\
+USAGE: moarvm [--dump] [--crash] " TRACING_OPT "input.moarvm [program args]\n\
        moarvm [--help]\n\
 \n\
     --help     display this message\n\
     --dump     dump the bytecode to stdout instead of executing\n\
     --crash    abort instead of exiting on unhandled exception"
-#if MVM_TRACING_ENABLED
-"\n\
-    --tracing  output a line to stderr on every interpreter instr"
-#endif
-;
+    TRACING_USAGE;
 
 static int cmp_flag(const void *key, const void *value)
 {
@@ -79,7 +78,7 @@ int main(int argc, char *argv[])
             puts(USAGE);
             return EXIT_SUCCESS;
 
-#if MVM_TRACING_ENABLED
+#if MVM_TRACING
             case FLAG_TRACING:
             MVM_interp_enable_tracing();
             continue;

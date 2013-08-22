@@ -46,5 +46,3 @@
 
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
-
-#define MVM_TRACING_ENABLED @tracing@

@@ -5,7 +5,9 @@ MAKE = @make@
 RM   = @rm@
 CAT  = @cat@
 
-CFLAGS    = @cflags@
+TRACING = 0
+
+CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING)
 CINCLUDES = @ccinc@3rdparty/apr/include \
             @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libuv/src \
@@ -227,6 +229,14 @@ apr: @aprlib@
 libuv: _uvlib_
 
 $(OBJECTS): $(HEADERS)
+
+tracing:
+	-$(RM) src/main@obj@ src/core/interp@obj@
+	$(MAKE) TRACING=1
+
+no-tracing:
+	-$(RM) src/main@obj@ src/core/interp@obj@
+	$(MAKE) TRACING=0
 
 .c@obj@:
 	$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
