@@ -252,6 +252,26 @@ our %COMPILERS = (
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
     },
+    cc => {
+        -toolchain => 'bsd',
+
+        cc => 'cc',
+        ld => undef,
+
+        ccmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE',
+        ccwarnflags  => '',
+        ccoptiflags  => '-O',
+        ccdebugflags => '-g',
+        ccinstflags  => '',
+
+        ldmiscflags  => '',
+        ldoptiflags  => undef,
+        lddebugflags => undef,
+        ldinstflags  => undef,
+
+        noreturnspecifier => '',
+        noreturnattribute => '',
+    },
 );
 
 # OS configuration
@@ -301,6 +321,14 @@ our %FREEBSD = (
     },
 );
 
+our %SOLARIS = (
+    libs => [ qw( socket sendfile nsl uuid pthread m rt ) ],
+
+    -thirdparty => {
+#        uv => { %UV, objects => '$(UV_SOLARIS)' },
+    },
+);
+
 our %DARWIN = (
     ldarg => '-framework %s',
     defs  => [ '_DARWIN_USE_64_BIT_INODE=1' ],
@@ -318,6 +346,7 @@ our %SYSTEMS = (
     openbsd => [ qw( posix gnu gcc ), { %OPENBSD} ],
     netbsd  => [ qw( posix gnu gcc ), { %NETBSD } ],
     freebsd => [ qw( posix gnu clang ), { %FREEBSD } ],
+    solaris => [ qw( posix bsd cc ),  { %SOLARIS } ],
     cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
     win32   => [ qw( win32 msvc cl ), { %WIN32 } ],
     mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
