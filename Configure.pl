@@ -97,7 +97,7 @@ $config{ldflags} = join ' ', @ldflags;
 
 # some toolchains generate garbage
 my @auxfiles = @{ $defaults{-auxfiles} };
-$config{clean} = @auxfiles ? '-$(RM) ' . join ' ', @auxfiles : '@:';
+$config{clean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
 
@@ -145,14 +145,14 @@ for (keys %$thirdparty) {
 
      # dummy build - nothing to do
     if (exists $current->{dummy}) {
-        $clean //= sprintf '-$(RM) %s', $lib;
+        $clean //= sprintf '$(RM) %s', $lib;
     }
 
     # use explicit object list
     elsif (exists $current->{objects}) {
         $objects = $current->{objects};
         $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ @%sobjects@', $_;
-        $clean //= sprintf '-$(RM) @%slib@ @%sobjects@', $_, $_;
+        $clean //= sprintf '$(RM) @%slib@ @%sobjects@', $_, $_;
     }
 
     # find *.c files and build objects for those
@@ -162,7 +162,7 @@ for (keys %$thirdparty) {
 
         $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
         $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ %s', $globs;
-        $clean //= sprintf '-$(RM) %s %s', $lib, $globs;
+        $clean //= sprintf '$(RM) %s %s', $lib, $globs;
     }
 
     # use an explicit rule (which has already been set)

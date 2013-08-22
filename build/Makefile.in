@@ -5,7 +5,20 @@ MAKE = @make@
 RM   = @rm@
 CAT  = @cat@
 
+NOERR = 2> @nul@
+
 TRACING = 0
+NOISY = 0
+
+@mkifnoisy@
+MSG = @:
+CMD =
+CMDOUT =
+@mkelse@
+MSG = @
+CMD = @
+CMDOUT = > @nul@
+@mkendif@
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING)
 CINCLUDES = @ccinc@3rdparty/apr/include \
@@ -222,7 +235,8 @@ TOM_OBJECTS = @tomobjects@
 .SUFFIXES: .c @obj@
 
 moarvm@exe@: $(OBJECTS) @thirdpartylibs@
-	$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
+	$(MSG)echo linking $@
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
 
 apr: @aprlib@
 
@@ -231,45 +245,58 @@ libuv: _uvlib_
 $(OBJECTS): $(HEADERS)
 
 tracing:
-	-$(RM) src/main@obj@ src/core/interp@obj@
-	$(MAKE) TRACING=1
+	$(MSG)echo enable tracing
+	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
+	$(CMD)$(MAKE) TRACING=1 NOISY="$(NOISY)"
 
 no-tracing:
-	-$(RM) src/main@obj@ src/core/interp@obj@
-	$(MAKE) TRACING=0
+	$(MSG)echo disable tracing
+	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
+	$(CMD)$(MAKE) TRACING=0 NOISY="$(NOISY)"
 
 .c@obj@:
-	$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
+	$(MSG)echo compiling $@
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c $(CMDOUT)
 
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
-	$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c >$@
+	$(MSG)echo generating $@
+	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 3rdparty/apr/include/apr.h: @aprlib@
 
 @aprlib@:
-	@aprrule@
+	$(MSG)echo building $@...
+	$(CMD)@aprrule@ $(CMDOUT)
+	$(MSG)echo done.
 
 _uvlib_: _uvobjects_
 	_uvrule_
 
 @laolib@:
-	@laorule@
+	$(MSG)echo linking $@
+	$(CMD)@laorule@ $(CMDOUT)
 
 @tomlib@: $(TOM_OBJECTS)
-	@tomrule@
+	$(MSG)echo linking $@
+	$(CMD)@tomrule@ $(CMDOUT)
 
 @shalib@: @shaobjects@
-	@sharule@
+	$(MSG)echo linking $@
+	$(CMD)@sharule@ $(CMDOUT)
 
 clean:
-	-$(RM) $(OBJECTS)
-	@clean@
-	@aprclean@
+	$(MSG)echo cleaning...
+	-$(CMD)$(RM) $(OBJECTS) $(CMDOUT) $(NOERR)
+	-$(CMD)@clean@ $(CMDOUT) $(NOERR)
+	-$(CMD)@aprclean@ $(CMDOUT) $(NOERR)
 #	_uvclean_
-	@laoclean@
-	@tomclean@
-	@shaclean@
+	-$(CMD)@laoclean@ $(CMDOUT) $(NOERR)
+	-$(CMD)@tomclean@ $(CMDOUT) $(NOERR)
+	-$(CMD)@shaclean@ $(CMDOUT) $(NOERR)
+	$(MSG)echo done.
 
 realclean: clean
-	-$(RM) moarvm@exe@
-	-$(RM) Makefile src/gen/config.h src/strings/unicode.c
+	$(MSG)echo really cleaning...
+	-$(CMD)$(RM) moarvm@exe@ $(CMDOUT) $(NOERR)
+	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(CMDOUT) $(NOERR)
+	$(MSG)echo done.
