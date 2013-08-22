@@ -121,6 +121,7 @@ our %GNU = (
     arflags => 'rcs',
     arout   => '',
 
+    mkflags   => '',
     mkifnoisy => 'ifeq ($(NOISY), 1)',
     mkelse    => 'else',
     mkendif   => 'endif',
@@ -154,6 +155,7 @@ our %TOOLCHAINS = (
         arflags => '/nologo',
         arout   => '/out:',
 
+        mkflags   => '/nologo',
         mkifnoisy => '!IF $(NOISY) == 1',
         mkelse    => '!ELSE',
         mkendif   => '!ENDIF',
