@@ -1,4 +1,4 @@
-# Bootstrap
+# 6model Bootstrap (run-time)
 MoarVM is based around the 6model object system. This must be bootstrapped as
 pretty much the first thing that the VM does after startup.
 

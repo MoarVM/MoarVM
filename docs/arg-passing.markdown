@@ -4,7 +4,7 @@ Every invocation in MoarVM consists of two pieces:
 * A static Callsite descriptor (MVMCallsite), which incorporates the
   number of arguments along with a set of flags about what is being
   passed.
-* A contignuous group of MVMRegister, which is a union type. This contains
+* A contiguous group of MVMRegister, which is a union type. This contains
   the actual arguments being passed. The static descriptor indicates how
   to process the registers. As they are registers, they really are just a
   chunk of the register space in the caller, thus anything that wants the
@@ -12,7 +12,7 @@ Every invocation in MoarVM consists of two pieces:
 
 ## Memory management
 Callsite descriptors are kept at a compilation unit level, and thus their
-lifetime is simply that of the compilation unit. (An alternative way would
+lifetimes are simply that of the compilation unit. (An alternative way would
 be to keep a global store of these and intern them, fixing up all of the
 references to them at bytecode loading time.)
 
