@@ -3404,7 +3404,7 @@ my @clo := $nqpcomp.commandline_options();
 @clo.push('bootstrap');
 $nqpcomp.addstage('classname', :after<start>);
 
-sub MAIN(*@ARGS) {
+sub MAIN(@ARGS) {
     # Enter the compiler.
     $nqpcomp.command_line(@ARGS, :encoding('utf8'), :transcode('ascii iso-8859-1'));
 

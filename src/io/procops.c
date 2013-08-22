@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include "platform/time.h"
 
 /* MSVC compilers know about environ,
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
@@ -116,22 +117,20 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
     return first < second ? (MVMnum64)first / second : (MVMnum64)second / first;
 }
 
-/* gets the system time since the epoch in microseconds.
- * APR says the unix version returns GMT. */
+/* gets the system time since the epoch truncated to integral seconds */
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
-    return uv_hrtime();
+    return MVM_platform_now() / 1000000000;
 }
 
-/* gets the system time since the epoch in seconds.
- * APR says the unix version returns GMT. */
+/* gets the system time since the epoch as floating point seconds */
 MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
-    return (MVMnum64)uv_hrtime() / 1000000.0;
+    return (MVMnum64)MVM_platform_now() / 1000000000.0;
 }
 
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
     if (!instance->clargs) {
-        MVMObject *clargs = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStrArray);
+        MVMObject *clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
         MVMROOT(tc, clargs, {
             MVMint64 count;
             for (count = 0; count < instance->num_clargs; count++) {
@@ -139,7 +138,10 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
                 MVMString *string = MVM_string_utf8_decode(tc,
                     tc->instance->VMString,
                     instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
-                MVM_repr_push_s(tc, clargs, string);
+                MVMROOT(tc, string, {
+                    MVMObject *boxed = MVM_repr_box_str(tc, tc->instance->boot_types->BOOTStr, string);
+                    MVM_repr_push_o(tc, clargs, boxed);
+                });
             }
         });
 

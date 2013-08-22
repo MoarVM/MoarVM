@@ -11,10 +11,12 @@ qast_test(
             ));
         QAST::CompUnit.new(
             $block,
-            :main(QAST::Op.new(
-                :op('call'),
-                QAST::BVal.new( :value($block) )
-            )))
+            :main(QAST::Stmts.new(
+                QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::BVal.new( :value($block) )
+                ))))
     },
     "OMG QAST compiled to JVM!\n",
     "Basic block call and say of a string literal");
@@ -28,10 +30,12 @@ qast_test(
             ));
         QAST::CompUnit.new(
             $block,
-            :main(QAST::Op.new(
-                :op('call'),
-                QAST::BVal.new( :value($block) )
-            )))
+            :main(QAST::Stmts.new(
+                QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::BVal.new( :value($block) )
+                ))))
     },
     "42\n",
     "Basic block call and say of an int literal");
@@ -45,10 +49,12 @@ qast_test(
             ));
         QAST::CompUnit.new(
             $block,
-            :main(QAST::Op.new(
-                :op('call'),
-                QAST::BVal.new( :value($block) )
-            )))
+            :main(QAST::Stmts.new(
+                QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::BVal.new( :value($block) )
+                ))))
     },
     "-42\n",
     "Same, but with a negative int literal");
@@ -62,10 +68,12 @@ qast_test(
             ));
         QAST::CompUnit.new(
             $block,
-            :main(QAST::Op.new(
-                :op('call'),
-                QAST::BVal.new( :value($block) )
-            )))
+            :main(QAST::Stmts.new(
+                QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::BVal.new( :value($block) )
+                ))))
     },
     "6.9\n",
     "Basic block call and say of an num literal");

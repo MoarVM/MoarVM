@@ -365,7 +365,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 cleanup_all(tc, rs);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
-            static_frame_body->annotations = rs->annotation_seg + annot_offset;
+            static_frame_body->annotations_data = rs->annotation_seg + annot_offset;
             static_frame_body->num_annotations = num_annotations;
         }
 
@@ -571,4 +571,30 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     /* Clean up reader state. */
     cleanup_all(tc, rs);
+}
+
+/* returns the annotation for that bytecode offset */
+MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MVMStaticFrameBody *sfb, MVMuint32 offset) {
+    MVMBytecodeAnnotation *ba = NULL;
+    MVMuint32 i, j;
+
+    if (offset >= 0 && offset < sfb->bytecode_size) {
+        MVMint8 *cur_anno = sfb->annotations_data;
+        for (i = 0; i < sfb->num_annotations; i++) {
+            MVMint32 ann_offset = read_int32(cur_anno, 0);
+            if (ann_offset > offset)
+                break;
+            cur_anno += 10;
+        }
+        if (i == sfb->num_annotations)
+            cur_anno -= 10;
+        if (i > 0) {
+            ba = malloc(sizeof(MVMBytecodeAnnotation));
+            ba->bytecode_offset = read_int32(cur_anno, 0);
+            ba->filename_string_heap_index = read_int16(cur_anno, 4);
+            ba->line_number = read_int32(cur_anno, 6);
+        }
+    }
+    
+    return ba;
 }

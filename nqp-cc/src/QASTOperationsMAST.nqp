@@ -283,7 +283,8 @@ class QAST::MASTOperations {
         my $bank;
         my $self := self;
         for MAST::Ops.WHO {
-            $bank := $_.key if nqp::existskey(MAST::Ops.WHO{$_.key}, $moarop);
+            my $bankish := MAST::Ops.WHO{~$_};
+            $bank := ~$_ if nqp::ishash($bankish) && nqp::existskey($bankish, $moarop);
         }
         nqp::die("Unable to resolve moarop '$moarop'") unless $bank;
 
@@ -1785,9 +1786,6 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
-QAST::MASTOperations.add_core_moarop_mapping('getenv', 'getenv');
-QAST::MASTOperations.add_core_moarop_mapping('setenv', 'setenv');
-QAST::MASTOperations.add_core_moarop_mapping('delenv', 'delenv');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??

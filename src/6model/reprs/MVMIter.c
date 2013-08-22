@@ -176,20 +176,23 @@ MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
 MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
     MVMIter *iterator;
     MVMROOT(tc, target, {
-        iterator = (MVMIter *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIter);
-        MVM_ASSIGN_REF(tc, iterator, iterator->body.target, target);
         if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
+            iterator = (MVMIter *)MVM_repr_alloc_init(tc,
+                MVM_hll_current(tc)->array_iterator_type);
             iterator->body.mode = MVM_ITER_MODE_ARRAY;
             iterator->body.array_state.index = -1;
             iterator->body.array_state.limit = REPR(target)->elems(tc, STABLE(target), target, OBJECT_BODY(target));
         }
         else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+            iterator = (MVMIter *)MVM_repr_alloc_init(tc,
+                MVM_hll_current(tc)->hash_iterator_type);
             iterator->body.mode = MVM_ITER_MODE_HASH;
             iterator->body.hash_state.next = ((MVMHash *)target)->body.hash_head;
         }
         else {
             MVM_exception_throw_adhoc(tc, "Cannot iterate this");
         }
+        MVM_ASSIGN_REF(tc, iterator, iterator->body.target, target);
     });
     return (MVMObject *)iterator;
 }

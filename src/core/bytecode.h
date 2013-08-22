@@ -1,8 +1,9 @@
-void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu);
+/* Bytecode annotation, post-resolution. */
+struct MVMBytecodeAnnotation {
+    MVMuint32 bytecode_offset;
+    MVMuint16 filename_string_heap_index;
+    MVMuint32 line_number;
+};
 
-/* Steal endianness from APR */
-#ifdef APR_IS_BIGENDIAN
- #if APR_IS_BIGENDIAN
-  #define MVM_BIGENDIAN           1
- #endif
-#endif
+void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu);
+MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MVMStaticFrameBody *sfb, MVMuint32 offset);

@@ -280,6 +280,9 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     finish_gc(tc, gen);
 
     /* Now we're all done, it's safe to finalize any objects that need it. */
+	/* XXX TODO explore the feasability of doing this in a background
+	 * finalizer/destructor thread and letting the main thread(s) continue
+	 * on their merry way(s). */
     for (i = 0, n = tc->gc_work_count ; i < n; i++) {
         MVMThreadContext *other = tc->gc_work[i].tc;
         MVMThread *thread_obj;

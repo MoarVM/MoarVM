@@ -245,7 +245,7 @@ our %WIN32 = (
     defs => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
     libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
 
-    platformobjects => 'src/platform/win32/mmap@obj@',
+    platform => '$(PLATFORM_WIN32)',
 
     -thirdparty => {
         # header only, no need to build anything

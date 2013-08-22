@@ -246,6 +246,8 @@ class QAST::MASTCompiler {
 
     method to_mast($qast) {
         my $*MAST_COMPUNIT := MAST::CompUnit.new();
+        
+        my $*file := nqp::ifnull(nqp::getlexdyn('$?FILES'), "<unknown file>");
 
         # map a QAST::Block's cuid to the MAST::Frame we
         # created for it, so we can find the Frame later
@@ -481,13 +483,19 @@ class QAST::MASTCompiler {
             $*MAST_COMPUNIT.load_frame(%*MAST_FRAMES{$load_block.cuid});
         }
 
-        # Compile and include main-time logic, if any, and then add a Java
-        # main that will lead to its invocation.
+        # Compile and include main-time logic, if any, and wrap it up so that we
+        # pass command line arguments.
         if nqp::defined($cu.main) {
             my $main_block := QAST::Block.new(
                 :blocktype('raw'),
-                $cu.main
-            );
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::Block.new(
+                        :blocktype('declaration'),
+                        $cu.main
+                    ),
+                    QAST::VM.new( :moarop('clargs'), :flat(1) )
+                ));
             self.as_mast($main_block);
             $*MAST_COMPUNIT.main_frame(%*MAST_FRAMES{$main_block.cuid});
         }
@@ -821,7 +829,18 @@ class QAST::MASTCompiler {
             else {
                 $last_stmt := self.as_mast($_);
             }
-            nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
+            
+            # Annotate with line number if we have one.
+            if $_.node {
+                my $node := $_.node;
+                my $line := HLL::Compiler.lineof($node.orig(), $node.from(), :cache(1));            
+                nqp::push(@all_ins, MAST::Annotated.new(
+                    :$*file, :$line, :instructions($last_stmt.instructions) ));
+            }
+            else {
+                nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
+            }
+            
             if $use_result {
                 $result_stmt := $last_stmt;
             }

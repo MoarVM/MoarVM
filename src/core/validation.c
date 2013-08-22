@@ -267,7 +267,6 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                 "Bytecode validation error: branch to a non-op start position at instruction %u", i);
         }
     }
-    cleanup_all(tc, labels);
     /* check that the last op is a return of some sort so we don't run off the */
     /* XXX TODO maybe also allow tailcalls of some sort, but currently compiler.c
      * adds the trailing return anyway, so... */
@@ -280,4 +279,27 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
         MVM_exception_throw_adhoc(tc,
             "Bytecode validation error: missing final return instruction");
     }
+
+    /* successfully passed validation. Cache the located instruction offsets. */
+    static_frame_body->instr_offsets = labels;
+}
+
+/* Returns nonzero if the provided offset is the start of an instruction in the
+ * executable bytecode range.  The value returned is the instruction index. The
+ * caller already knows that offset 0 is an instruction index (and which one!)
+ * so it simply doesn't ask in that case. */
+MVMuint32 MVM_bytecode_offset_to_instr_idx(MVMThreadContext *tc,
+        MVMStaticFrame *static_frame, MVMuint32 offset) {
+    MVMuint8 *labels = static_frame->body.instr_offsets;
+    MVMuint32 i, idx;
+    if (offset >= static_frame->body.bytecode_size
+            || (labels[offset] & MVM_val_op_boundary) == 0) {
+        return 0;
+    }
+    for (i = 0; i < offset; i++) {
+        if (labels[i] & MVM_val_op_boundary) {
+            idx++;
+        }
+    }
+    return idx;
 }

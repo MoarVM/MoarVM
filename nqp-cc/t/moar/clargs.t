@@ -8,7 +8,7 @@ qast_output_is(QAST::Block.new(
         QAST::Var.new( :name('args'), :scope('local'), :decl('var') ),
         QAST::VM.new( :moarop('clargs') )),
     QAST::VM.new( :moarop('say'),
-        QAST::VM.new( :moarop('atpos_s'),
+        QAST::VM.new( :moarop('atpos_o'),
             QAST::Var.new( :name('args'), :scope('local') ),
             QAST::IVal.new( :value(1) ) ) )
-), "foobaz\n", "grabbing the second clarg works");
+), :clargs("foobar foobaz"), "foobaz\n", "grabbing the second clarg works");

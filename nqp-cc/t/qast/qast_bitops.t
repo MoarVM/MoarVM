@@ -23,10 +23,12 @@ for @ops -> $op {
                     )));
             QAST::CompUnit.new(
                 $block,
-                :main(QAST::Op.new(
+                :main(QAST::Stmts.new(
+                QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                QAST::Op.new(
                     :op('call'),
                     QAST::BVal.new( :value($block) )
-                )))
+                ))))
         },
         $op[3] ~ "\n",
         $op[0]);
@@ -43,10 +45,12 @@ qast_test(
                 )));
         QAST::CompUnit.new(
             $block,
-            :main(QAST::Op.new(
-                :op('call'),
-                QAST::BVal.new( :value($block) )
-            )))
+            :main(QAST::Stmts.new(
+                QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::BVal.new( :value($block) )
+                ))))
     },
     "-4\n",
     "bitneg_i");

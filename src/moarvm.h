@@ -63,8 +63,8 @@
 
 /* Top level VM API functions. */
 MVMInstance * MVM_vm_create_instance(void);
-void MVM_vm_run_file(MVMInstance *instance, char *filename);
-void MVM_vm_dump_file(MVMInstance *instance, char *filename);
+void MVM_vm_run_file(MVMInstance *instance, const char *filename);
+void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
 void MVM_vm_destroy_instance(MVMInstance *instance);
 
 /* Returns original. Use only on AO_t-sized values (including pointers). */

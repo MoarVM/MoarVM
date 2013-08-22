@@ -3,15 +3,25 @@
 #include "platform/mmap.h"
 
 /* MAP_ANONYMOUS is Linux, MAP_ANON is BSD */
-#if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
-#define MAP_ANONYMOUS MAP_ANON
+#ifndef MVM_MAP_ANON
+
+#if defined(MAP_ANONYMOUS)
+#define MVM_MAP_ANON MAP_ANONYMOUS
+
+#elif defined(MAP_ANON)
+#define MVM_MAP_ANON MAP_ANON
+
+#else
+#error "Anonymous mmap() not supported. You need to define MVM_MAP_ANON manually if it is."
+
+#endif
 #endif
 
 void *MVM_platform_alloc_pages(size_t size, int executable)
 {
     void *block = mmap(NULL, size,
         executable ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_READ | PROT_WRITE,
-        MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        MVM_MAP_ANON | MAP_PRIVATE, -1, 0);
 
     return block != MAP_FAILED ? block : NULL;
 }

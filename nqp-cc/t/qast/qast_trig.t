@@ -29,10 +29,12 @@ for @ops -> $op {
                     )));
             QAST::CompUnit.new(
                 $block,
-                :main(QAST::Op.new(
-                    :op('call'),
-                    QAST::BVal.new( :value($block) )
-                )))
+                :main(QAST::Stmts.new(
+                    QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                    QAST::Op.new(
+                        :op('call'),
+                        QAST::BVal.new( :value($block) )
+                    ))))
         },
         $op[2] ~ "\n",
         $op[0] ~ " works", :approx(1));
@@ -50,10 +52,12 @@ qast_test(
                 )));
         QAST::CompUnit.new(
             $block,
-            :main(QAST::Op.new(
-                :op('call'),
-                QAST::BVal.new( :value($block) )
-            )))
+            :main(QAST::Stmts.new(
+                QAST::Var.new( :name('ARGS'), :scope('local'), :decl('param'), :slurpy(1) ),
+                QAST::Op.new(
+                    :op('call'),
+                    QAST::BVal.new( :value($block) )
+                ))))
     },
     "0.7853981633974483\n",
     "atan2_n works", :approx(1));
