@@ -10,15 +10,9 @@ NOERR = 2> @nul@
 TRACING = 0
 NOISY = 0
 
-@mkifnoisy@
 MSG = @:
 CMD =
 CMDOUT =
-@mkelse@
-MSG = @echo
-CMD = @
-CMDOUT = > @nul@
-@mkendif@
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING)
 CINCLUDES = @ccinc@3rdparty/apr/include \
