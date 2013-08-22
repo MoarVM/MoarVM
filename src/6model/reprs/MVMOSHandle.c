@@ -39,6 +39,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMOSHandle *handle = (MVMOSHandle *)obj;
+    /* XXX hack to leak for now until libuv port.. need to eventually
+     * make the standard streams singletons, or at least know to use
+     * proper filehandle cloning when opening another handle to a
+     * standard stream. */
+    if (handle->body.std_stream) {
+        return;
+    }
     switch(handle->body.handle_type) {
         case MVM_OSHANDLE_UNINIT:
             break;

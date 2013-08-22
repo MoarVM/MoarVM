@@ -3,6 +3,7 @@ struct MVMOSHandleBody {
     /* see MVMOSHandleTypes */
     MVMuint8 handle_type;
     MVMuint8 encoding_type;
+    MVMuint8 std_stream;
     apr_pool_t *mem_pool;
 
     union {

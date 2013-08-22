@@ -595,6 +595,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type) {
     result->body.file_handle = handle;
     result->body.handle_type = MVM_OSHANDLE_FILE;
     result->body.encoding_type = MVM_encoding_type_utf8;
+    result->body.std_stream = 1;
 
     return (MVMObject *)result;
 }
