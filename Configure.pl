@@ -4,6 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
+use Config;
 use Getopt::Long;
 use Pod::Usage;
 
@@ -27,6 +28,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     build=s host=s
+    big-endian
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -37,6 +39,8 @@ print "Welcome to MoarVM!\n\n";
 $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
+
+$args{'big-endian'} //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -100,6 +104,16 @@ my @auxfiles = @{ $defaults{-auxfiles} };
 $config{clean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
+
+print dots('    assumed byte order');
+if ($defaults{-be}) {
+    print "BE\n";
+    $config{bedef} = 'define';
+}
+else {
+    print "LE\n";
+    $config{bedef} = 'undef';
+}
 
 if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
@@ -271,6 +285,17 @@ sub setup_native {
 
         set_defaults($compiler);
     }
+
+    my $order = $Config{byteorder};
+    if ($order eq '1234' || $order eq '12345678') {
+        $defaults{-be} = 0;
+    }
+    elsif ($order eq '4321' || $order eq '87654321') {
+        $defaults{-be} = 1;
+    }
+    else {
+        ::hardfail("unsupported byte order $order");
+    }
 }
 
 # fill in defaults for cross builds
@@ -311,6 +336,7 @@ sub setup_cross {
     $defaults{cc}        = $cc;
     $defaults{ar}        = $ar;
     $defaults{crossconf} = $crossconf;
+    $defaults{-be}       = $args{'big-endian'};
 }
 
 # sets C<%defaults> from C<@_>
@@ -381,7 +407,6 @@ sub softfail {
     warn "    $msg\n";
 }
 
-
 # fail and don't continue
 sub hardfail {
     softfail(@_);
@@ -403,6 +428,7 @@ __END__
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
+                   [--big-endian]
 
 =head1 OPTIONS
 
@@ -471,5 +497,10 @@ options.
 =item --build <build-triple> --host <host-triple>
 
 Set up cross-compilation.
+
+=item --big-endian
+
+Set byte order of host system in case of cross compilation. With native
+builds, the byte order is auto-detected.
 
 =back

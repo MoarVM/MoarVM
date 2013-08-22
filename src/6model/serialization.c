@@ -43,7 +43,7 @@
 
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
 static void switch_endian(char *bytes, size_t size)
 {
     size_t low  = 0;
@@ -159,7 +159,7 @@ static void * base64_decode(const char *s, size_t *data_len)
 /* Reads an int64 from a buffer. */
 static MVMint64 read_int64(char *buffer, size_t offset) {
     MVMint64 value;
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 8);
 #endif
     memcpy(&value, buffer + offset, 8);
@@ -169,7 +169,7 @@ static MVMint64 read_int64(char *buffer, size_t offset) {
 /* Reads an int32 from a buffer. */
 static MVMint32 read_int32(char *buffer, size_t offset) {
     MVMint32 value;
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 4);
 #endif
     memcpy(&value, buffer + offset, 4);
@@ -179,7 +179,7 @@ static MVMint32 read_int32(char *buffer, size_t offset) {
 /* Reads an int16 from a buffer. */
 static MVMint16 read_int16(char *buffer, size_t offset) {
     MVMint16 value;
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 2);
 #endif
     memcpy(&value, buffer + offset, 2);
@@ -189,7 +189,7 @@ static MVMint16 read_int16(char *buffer, size_t offset) {
 /* Reads double from a buffer. */
 static MVMnum64 read_double(char *buffer, size_t offset) {
     MVMnum64 value;
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 8);
 #endif
     memcpy(&value, buffer + offset, 8);
