@@ -3296,6 +3296,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = (MVMObject *)GET_REG(cur_op, 2).o->header.sc;
                         cur_op += 4;
                         break;
+                    case MVM_OP_serialize: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        MVMObject *obj = GET_REG(cur_op, 4).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to serialize");
+                        GET_REG(cur_op, 0).s = MVM_serialization_serialize(tc, (MVMSerializationContext *)sc, obj);
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_deserialize: {
                         MVMString *blob = GET_REG(cur_op, 2).s;
                         MVMObject *sc   = GET_REG(cur_op, 4).o;

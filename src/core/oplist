@@ -545,3 +545,4 @@ BANK 7 serialization
 0x10    scwbenable          w(obj)
 0x11    pushcompsc          r(obj)
 0x12    popcompsc           w(obj)
+0x13    scgetdesc           w(str) r(obj)

@@ -100,8 +100,46 @@ struct MVMSerializationWriter {
     /* Serialization root data. */
     MVMSerializationRoot root;
 
-    /* Much more todo here... */
+    /* The stables, objects, code refs and contexts lists we're working
+     * through/adding to. */
+    MVMObject *stables_list;
+    MVMObject *objects_list;
+    MVMObject *codes_list;
+    MVMObject *contexts_list;
+    
+    /* Current position in the stables, objects and contexts lists. */
+    MVMint64 stables_list_pos;
+    MVMint64 objects_list_pos;
+    MVMint64 contexts_list_pos;
 
+    /* Hash of strings we've already seen while serializing to the index they
+     * are placed at in the string heap. */
+    MVMObject *seen_strings;
+    
+    /* Amount of memory allocated for various things. */
+    MVMuint32 dependencies_table_alloc;
+    MVMuint32 stables_table_alloc;
+    MVMuint32 stables_data_alloc;
+    MVMuint32 objects_table_alloc;
+    MVMuint32 objects_data_alloc;
+    MVMuint32 closures_table_alloc;
+    MVMuint32 contexts_table_alloc;
+    MVMuint32 contexts_data_alloc;
+    MVMuint32 repos_table_alloc;
+    
+    /* Current offsets for the data chunks (also correspond to the amount of
+     * data written in to them). */
+    MVMuint32 stables_data_offset;
+    MVMuint32 objects_data_offset;
+    MVMuint32 contexts_data_offset;
+    
+    /* Where to find details related to the current buffer we're writing in
+     * to: the buffer pointer itself, the current offset and the amount that
+     * is allocated. These are all pointers back into this data structure. */
+    char      **cur_write_buffer;
+    MVMuint32  *cur_write_offset;
+    MVMuint32  *cur_write_limit;
+    
     /* Various writing functions. */
     void (*write_int) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
     void (*write_num) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
@@ -115,3 +153,5 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     MVMObject *string_heap, MVMObject *codes_static, MVMObject *repo_conflicts,
     MVMString *data);
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str);
+MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc,
+    MVMObject *obj);

@@ -939,3 +939,8 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
     free(cstr);
     return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, output, 40, MVM_encoding_type_ascii);
 }
+
+MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
+    
+    return NULL;
+}
