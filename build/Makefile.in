@@ -22,6 +22,7 @@ CINCLUDES = @ccinc@3rdparty/apr/include \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@3rdparty/libtommath \
             @ccinc@3rdparty/sha1 \
+            @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -279,6 +280,10 @@ _uvlib_: _uvobjects_
 	$(MSG) linking $@
 	$(CMD)@sharule@ $(CMDOUT)
 
+@lnlib@: @lnobjects@
+	$(MSG) linking $@
+	$(CMD)@lnrule@ $(CMDOUT)
+
 clean:
 	$(MSG) cleaning...
 	-$(CMD)$(RM) $(OBJECTS) $(CMDOUT) $(NOERR)
@@ -288,6 +293,7 @@ clean:
 	-$(CMD)@laoclean@ $(CMDOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(CMDOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(CMDOUT) $(NOERR)
+	-$(CMD)@lnclean@ $(CMDOUT) $(NOERR)
 	$(MSG) done.
 
 realclean: clean

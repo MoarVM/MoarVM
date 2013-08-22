@@ -1,5 +1,18 @@
 #include "moarvm.h"
 
+#if MVM_HAS_READLINE
+#ifdef __cplusplus
+extern "C" {
+#endif
+    char *readline(const char *);
+    void add_history(const char*);
+#ifdef __cplusplus
+}
+#endif
+#else
+#include <linenoise.h>
+#endif
+
 #define POOL(tc) (*(tc->interp_cu))->body.pool
 
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {

@@ -356,7 +356,7 @@
 #define MVM_OP_unshift_s 44
 #define MVM_OP_unshift_o 45
 #define MVM_OP_splice 46
-#define MVM_OP_gethllmasttypes 47
+#define MVM_OP___INVALID_1__ 47
 #define MVM_OP_setelemspos 48
 #define MVM_OP_box_i 49
 #define MVM_OP_box_n 50
@@ -501,6 +501,7 @@
 #define MVM_OP_tell_fh 48
 #define MVM_OP_stat 49
 #define MVM_OP_readline_fh 50
+#define MVM_OP_readlineint_fh 51
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_getenv 0

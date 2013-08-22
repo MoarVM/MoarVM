@@ -2039,10 +2039,9 @@ static MVMOpInfo MVM_op_info_object[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_gethllmasttypes,
-        "gethllmasttypes",
-        1,
-        { MVM_operand_write_reg | MVM_operand_obj }
+        MVM_OP___INVALID_1__,
+        "__INVALID_1__",
+        0,
     },
     {
         MVM_OP_setelemspos,
@@ -2898,6 +2897,12 @@ static MVMOpInfo MVM_op_info_io[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_readlineint_fh,
+        "readlineint_fh",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 static MVMOpInfo MVM_op_info_processthread[] = {
     {
@@ -3233,7 +3238,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     53,
     57,
     139,
-    51,
+    52,
     33,
     19,
 };

@@ -28,6 +28,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     build=s host=s
+    no-readline
     big-endian
     no-readline
 )) or die "See --help for further information\n";
@@ -41,6 +42,8 @@ $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
 
+# disable GNU Readline
+$args{'no-readline'} //= 0;
 $args{'big-endian'} //= 0;
 # disable GNU Readline
 $args{'no-readline'} //= 0;
