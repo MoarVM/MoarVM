@@ -1,0 +1,3 @@
+[submodule "3rdparty/linenoise"]
+	path = 3rdparty/linenoise
+	url = https://github.com/MoarVM/linenoise.git
