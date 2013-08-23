@@ -14,6 +14,8 @@ MSG = @:
 CMD =
 CMDOUT =
 
+@mknoisy@
+
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING)
 CINCLUDES = @ccinc@3rdparty/apr/include \
             @ccinc@3rdparty/libuv/include \

@@ -121,10 +121,14 @@ our %GNU = (
     arflags => 'rcs',
     arout   => '',
 
-    mkflags   => '',
-    mkifnoisy => 'ifeq ($(NOISY), 1)',
-    mkelse    => 'else',
-    mkendif   => 'endif',
+    mkflags => '',
+    mknoisy => <<'TERM',
+ifneq ($(NOISY), 1)
+MSG = @echo
+CMD = @
+CMDOUT = > @nul@
+endif
+TERM
 
     obj => '.o',
     lib => 'lib%s.a',
@@ -136,7 +140,17 @@ our %TOOLCHAINS = (
     gnu => { %GNU },
 
     # FIXME: support BSD makefile syntax
-    bsd => { %GNU },
+    bsd => {
+        %GNU,
+
+        mknoisy => <<'TERM',
+.if $(NOISY) != 1
+MSG = @echo
+CMD = @
+CMDOUT = > @nul@
+.endif
+TERM
+    },
 
     msvc => {
         -compiler => 'cl',
@@ -155,10 +169,14 @@ our %TOOLCHAINS = (
         arflags => '/nologo',
         arout   => '/out:',
 
-        mkflags   => '/nologo',
-        mkifnoisy => '!IF $(NOISY) == 1',
-        mkelse    => '!ELSE',
-        mkendif   => '!ENDIF',
+        mkflags => '/nologo',
+        mknoisy => <<'TERM',
+!IF $(NOISY) != 1
+MSG = @echo
+CMD = @
+CMDOUT = > @nul@
+!ENDIF
+TERM
 
         obj => '.obj',
         lib => '%s.lib',
@@ -324,6 +342,8 @@ our %FREEBSD = (
 our %SOLARIS = (
     libs => [ qw( socket sendfile nsl uuid pthread m rt ) ],
 
+    mknoisy => '',
+
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_SOLARIS)' },
     },
@@ -343,9 +363,9 @@ our %SYSTEMS = (
     generic => [ qw( posix gnu gcc ), {} ],
     linux   => [ qw( posix gnu gcc ), { %LINUX } ],
     darwin  => [ qw( posix gnu clang ), { %DARWIN } ],
-    openbsd => [ qw( posix gnu gcc ), { %OPENBSD} ],
-    netbsd  => [ qw( posix gnu gcc ), { %NETBSD } ],
-    freebsd => [ qw( posix gnu clang ), { %FREEBSD } ],
+    openbsd => [ qw( posix bsd gcc ), { %OPENBSD} ],
+    netbsd  => [ qw( posix bsd gcc ), { %NETBSD } ],
+    freebsd => [ qw( posix bsd clang ), { %FREEBSD } ],
     solaris => [ qw( posix bsd cc ),  { %SOLARIS } ],
     cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
     win32   => [ qw( win32 msvc cl ), { %WIN32 } ],
