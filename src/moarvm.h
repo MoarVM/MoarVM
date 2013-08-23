@@ -25,12 +25,11 @@
 /* forward declarations */
 #include "types.h"
 
-#ifdef MVM_SHARED
-#  if INCLUDED_FROM_FILE_THAT_GOES_INTO_THE_DLL
-#    define MVM_PUBLIC MVM_DLL_EXPORT
-#  else
-#    define MVM_PUBLIC MVM_DLL_IMPORT
-#  endif
+#if defined MVM_BUILD_SHARED
+#  define MVM_PUBLIC  MVM_DLL_EXPORT
+#  define MVM_PRIVATE MVM_DLL_LOCAL
+#elif defined MVM_SHARED
+#  define MVM_PUBLIC  MVM_DLL_IMPORT
 #  define MVM_PRIVATE MVM_DLL_LOCAL
 #else
 #  define MVM_PUBLIC
