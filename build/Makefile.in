@@ -10,7 +10,7 @@ NOISY = 0
 
 MSG = @:
 CMD =
-CMDOUT =
+NOOUT =
 NOERR =
 
 @mknoisy@
@@ -252,7 +252,7 @@ no-tracing:
 
 .c@obj@:
 	$(MSG) compiling $@
-	$(CMD)$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c $(CMDOUT)
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
 
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
@@ -262,7 +262,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 
 @aprlib@:
 	$(MSG) building $@...
-	$(CMD)@aprrule@ $(CMDOUT)
+	$(CMD)@aprrule@ $(NOOUT)
 	$(MSG) done.
 
 _uvlib_: _uvobjects_
@@ -270,34 +270,34 @@ _uvlib_: _uvobjects_
 
 @laolib@:
 	$(MSG) linking $@
-	$(CMD)@laorule@ $(CMDOUT)
+	$(CMD)@laorule@ $(NOOUT)
 
 @tomlib@: $(TOM_OBJECTS)
 	$(MSG) linking $@
-	$(CMD)@tomrule@ $(CMDOUT)
+	$(CMD)@tomrule@ $(NOOUT)
 
 @shalib@: @shaobjects@
 	$(MSG) linking $@
-	$(CMD)@sharule@ $(CMDOUT)
+	$(CMD)@sharule@ $(NOOUT)
 
 @lnlib@: @lnobjects@
 	$(MSG) linking $@
-	$(CMD)@lnrule@ $(CMDOUT)
+	$(CMD)@lnrule@ $(NOOUT)
 
 clean:
 	$(MSG) cleaning...
-	-$(CMD)$(RM) $(OBJECTS) $(CMDOUT) $(NOERR)
-	-$(CMD)@clean@ $(CMDOUT) $(NOERR)
-	-$(CMD)@aprclean@ $(CMDOUT) $(NOERR)
+	-$(CMD)$(RM) $(OBJECTS) $(NOOUT) $(NOERR)
+	-$(CMD)@clean@ $(NOOUT) $(NOERR)
+	-$(CMD)@aprclean@ $(NOOUT) $(NOERR)
 #	_uvclean_
-	-$(CMD)@laoclean@ $(CMDOUT) $(NOERR)
-	-$(CMD)@tomclean@ $(CMDOUT) $(NOERR)
-	-$(CMD)@shaclean@ $(CMDOUT) $(NOERR)
-	-$(CMD)@lnclean@ $(CMDOUT) $(NOERR)
+	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
 	$(MSG) done.
 
 realclean: clean
 	$(MSG) really cleaning...
-	-$(CMD)$(RM) moarvm@exe@ $(CMDOUT) $(NOERR)
-	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(CMDOUT) $(NOERR)
+	-$(CMD)$(RM) moarvm@exe@ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
 	$(MSG) done.

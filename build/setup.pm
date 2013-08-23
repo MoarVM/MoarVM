@@ -127,7 +127,7 @@ our %GNU = (
 ifneq ($(NOISY), 1)
 MSG = @echo
 CMD = @
-CMDOUT = > @nul@
+NOOUT = > @nul@
 NOERR = 2> @nul@
 endif
 TERM
@@ -149,7 +149,7 @@ our %TOOLCHAINS = (
 .if $(NOISY) != 1
 MSG = @echo
 CMD = @
-CMDOUT = > @nul@
+NOOUT = > @nul@
 NOERR = 2> @nul@
 .endif
 TERM
@@ -178,7 +178,7 @@ TERM
 !IF $(NOISY) != 1
 MSG = @echo
 CMD = @
-CMDOUT = > @nul@
+NOOUT = > @nul@
 NOERR = 2> @nul@
 !ENDIF
 TERM
