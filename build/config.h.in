@@ -28,9 +28,22 @@
 #define MVM_NO_RETURN @noreturnspecifier@
 #define MVM_NO_RETURN_GCC @noreturnattribute@
 
+/* DLL interface definitions. */
+#define MVM_DLL_IMPORT @dllimport@
+#define MVM_DLL_EXPORT @dllexport@
+#define MVM_DLL_LOCAL  @dlllocal@
+
+/* Set if building a shared library.
+ * By default, build statically. */
+#if @shared@
+#define MVM_SHARED @shared@
+#endif
+
 /* Set in case of big-endian sytems.
  * The default byte order is little-endian. */
-#@bedef@ MVM_BIGENDIAN
+#if @be@
+#define MVM_BIGENDIAN @be@
+#endif
 
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)

@@ -104,8 +104,8 @@ our %SHELLS = (
 # toolchain configuration
 # selected by C<--toolchain>
 
-our %GNU = (
-    -compiler => 'gcc',
+our %POSIXTC = (
+    -compiler => 'cc',
 
     make => 'make',
     ar   => 'ar',
@@ -122,14 +122,7 @@ our %GNU = (
     arout   => '',
 
     mkflags => '',
-    mknoisy => <<'TERM',
-ifneq ($(NOISY), 1)
-MSG = @echo
-CMD = @
-CMDOUT = > @nul@
-NOERR = 2> @nul@
-endif
-TERM
+    mknoisy => '',
 
     obj => '.o',
     lib => 'lib%s.a',
@@ -138,11 +131,28 @@ TERM
 );
 
 our %TOOLCHAINS = (
-    gnu => { %GNU },
+    posix => { %POSIXTC },
+
+    gnu => {
+        %POSIXTC,
+
+        mknoisy => <<'TERM',
+ifneq ($(NOISY), 1)
+MSG = @echo
+CMD = @
+CMDOUT = > @nul@
+NOERR = 2> @nul@
+endif
+TERM
+
+        dllimport => '__attribute__ ((visibility ("default")))',
+        dllexport => '__attribute__ ((visibility ("default")))',
+        dlllocal  => '__attribute__ ((visibility ("hidden")))',
+    },
 
     # FIXME: support BSD makefile syntax
     bsd => {
-        %GNU,
+        %POSIXTC,
 
         mknoisy => <<'TERM',
 .if $(NOISY) != 1
@@ -273,8 +283,9 @@ our %COMPILERS = (
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
     },
+
     cc => {
-        -toolchain => 'bsd',
+        -toolchain => 'posix',
 
         cc => 'cc',
         ld => undef,
@@ -304,6 +315,10 @@ our %WIN32 = (
     libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
 
     platform => '$(PLATFORM_WIN32)',
+
+    dllimport => '__declspec(dllimport)',
+    dllexport => '__declspec(dllexport)',
+    dlllocal  => '',
 
     -thirdparty => {
         # header only, no need to build anything
@@ -345,8 +360,6 @@ our %FREEBSD = (
 our %SOLARIS = (
     libs => [ qw( socket sendfile nsl uuid pthread m rt ) ],
 
-    mknoisy => '',
-
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_SOLARIS)' },
     },
@@ -363,15 +376,15 @@ our %DARWIN = (
 );
 
 our %SYSTEMS = (
-    generic => [ qw( posix gnu gcc ), {} ],
+    posix   => [ qw( posix posix cc ), {} ],
     linux   => [ qw( posix gnu gcc ), { %LINUX } ],
     darwin  => [ qw( posix gnu clang ), { %DARWIN } ],
     openbsd => [ qw( posix bsd gcc ), { %OPENBSD} ],
     netbsd  => [ qw( posix bsd gcc ), { %NETBSD } ],
     freebsd => [ qw( posix bsd clang ), { %FREEBSD } ],
-    solaris => [ qw( posix bsd cc ),  { %SOLARIS } ],
-    cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
+    solaris => [ qw( posix posix cc ),  { %SOLARIS } ],
     win32   => [ qw( win32 msvc cl ), { %WIN32 } ],
+    cygwin  => [ qw( win32 gnu gcc ), { %WIN32 } ],
     mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
 );
 
