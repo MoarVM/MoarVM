@@ -33,12 +33,6 @@
 #define MVM_DLL_EXPORT @dllexport@
 #define MVM_DLL_LOCAL  @dlllocal@
 
-/* Set if building a shared library.
- * By default, build statically. */
-#if @shared@
-#define MVM_SHARED @shared@
-#endif
-
 /* Set in case of big-endian sytems.
  * The default byte order is little-endian. */
 #if @be@
