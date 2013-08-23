@@ -25,6 +25,18 @@
 /* forward declarations */
 #include "types.h"
 
+#ifdef MVM_SHARED
+#  if INCLUDED_FROM_FILE_THAT_GOES_INTO_THE_DLL
+#    define MVM_PUBLIC MVM_DLL_EXPORT
+#  else
+#    define MVM_PUBLIC MVM_DLL_IMPORT
+#  endif
+#  define MVM_PRIVATE MVM_DLL_LOCAL
+#else
+#  define MVM_PUBLIC
+#  define MVM_PRIVATE
+#endif
+
 /* Headers for APIs for various other data structures and APIs. */
 #include "6model/6model.h"
 #include "core/threadcontext.h"
