@@ -409,6 +409,15 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         MVMObject *clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
         MVMROOT(tc, clargs, {
             MVMint64 count;
+            
+            MVMString *prog_string = MVM_string_utf8_decode(tc,
+                tc->instance->VMString,
+                instance->prog_name, strlen(instance->prog_name));
+            MVMROOT(tc, prog_string, {
+                MVMObject *boxed = MVM_repr_box_str(tc, tc->instance->boot_types->BOOTStr, prog_string);
+                MVM_repr_push_o(tc, clargs, boxed);
+            });
+            
             for (count = 0; count < instance->num_clargs; count++) {
                 char *raw = instance->raw_clargs[count];
                 MVMString *string = MVM_string_utf8_decode(tc,
