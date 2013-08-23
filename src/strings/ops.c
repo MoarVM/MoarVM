@@ -387,6 +387,8 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     strands[1].graphs = length;
     _STRAND_DEPTH(result) = STRAND_DEPTH(strands->string) + 1;
 
+    MVM_string_flatten(tc, result);
+    
     return result;
 }
 
@@ -440,6 +442,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     result->body.num_strands = strand_count;
     result->body.flags = MVM_STRING_TYPE_ROPE;
     _STRAND_DEPTH(result) = max_strand_depth + 1;
+    
+    MVM_string_flatten(tc, result);
 
     return result;
 }
@@ -492,6 +496,8 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.flags = MVM_STRING_TYPE_UINT8;
         /* leave graphs 0 and storage null */
     }
+    
+    MVM_string_flatten(tc, result);
 
     return result;
 }
@@ -865,6 +871,8 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     /* assertion/check */
     if (NUM_GRAPHS(result) != position)
         MVM_exception_throw_adhoc(tc, "join had an internal error");
+
+    MVM_string_flatten(tc, result);
 
     return result;
 }
