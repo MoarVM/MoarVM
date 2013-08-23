@@ -31,25 +31,6 @@ sub detect_native {
             print ::dots('    assuming x86'), "OK\n";
         }
     }
-
-    # detect readline and use it instead of linenoise
-    if ($defaults->{-toolchain} eq 'gnu' && !defined $config->{hasreadline}) {
-        print ::dots('    auto-detecting GNU readline');
-
-        my $cc = $config->{cc};
-        qx{echo '#include <readline/readline.h>' | $cc -E - 2>&1};
-
-        if ($? >> 8 == 0) {
-            print "YES\n";
-            $config->{ldlibs} = '-lreadline ' . $config->{ldlibs};
-
-            print ::dots('    disable Linenoise build');
-            $defaults->{-thirdparty}->{ln} = undef;
-            $config->{hasreadline} = 1;
-            print "OK\n";
-        }
-        else { print "NO\n" }
-    }
 }
 
 sub detect_cross {}

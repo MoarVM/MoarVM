@@ -28,9 +28,8 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     build=s host=s
-    no-readline
     big-endian
-    no-readline
+    use-readline
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -42,11 +41,8 @@ $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
 
-# disable GNU Readline
-$args{'no-readline'} //= 0;
-$args{'big-endian'} //= 0;
-# disable GNU Readline
-$args{'no-readline'} //= 0;
+$args{'use-readline'} //= 0;
+$args{'big-endian'}   //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -59,8 +55,6 @@ else {
 }
 
 $config{name} = $NAME;
-$config{hasreadline} = 0
-    if $args{'no-readline'};
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -85,6 +79,14 @@ $config{ldmiscflags}  //= $config{ccmiscflags};
 $config{ldoptiflags}  //= $config{ccoptiflags};
 $config{lddebugflags} //= $config{ccdebugflags};
 $config{ldinstflags}  //= $config{ccinstflags};
+
+# choose between Linenoise and GNU Readline
+if ($args{'use-readline'}) {
+    $config{hasreadline} = 1;
+    $defaults{-thirdparty}->{ln} = undef;
+    unshift @{$config{libs}}, 'readline';
+}
+else { $config{hasreadline} = 0 }
 
 # mangle OS library names
 $config{ldlibs} = join ' ', map {
@@ -129,8 +131,6 @@ if ($config{crossconf}) {
 else {
     build::auto::detect_native(\%config, \%defaults);
 }
-
-$config{hasreadline} //= 0;
 
 # dump configuration
 print "\n", <<TERM, "\n";
@@ -434,7 +434,7 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--no-readline]
+                   [--use-readline]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -505,13 +505,14 @@ options.
 Explicitly set the make tool without affecting other configuration
 options.
 
-=item --no-readline
+=item --use-readline
 
-Disable GNU Readline auto-detection and force use of Linenoise.
+Disable Linenoise and try to use the system version of GNU Readline
+instead.
 
-You must supply this flag if you create derivative work of MoarVM -
-including binary packages of MoarVM itself - that you wish to
-distribute under a license other than the GNU GPL.
+You must not supply this flag if you create derivative work of
+MoarVM - including binary packages of MoarVM itself - that you wish
+to distribute under a license other than the GNU GPL.
 
 =item --build <build-triple> --host <host-triple>
 
