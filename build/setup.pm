@@ -111,7 +111,7 @@ our %POSIXTC = (
     ar   => 'ar',
 
     ccswitch => '-c',
-    ccout    => '-o',
+    ccout    => '-o ',
     ccinc    => '-I',
     ccdef    => '-D',
 
