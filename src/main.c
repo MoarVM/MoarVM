@@ -101,6 +101,7 @@ int main(int argc, char *argv[])
     /* stash the rest of the raw command line args in the instance */
     instance->num_clargs = argc - argi;
     instance->raw_clargs = argv + argi;
+    instance->prog_name  = input_file;
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);

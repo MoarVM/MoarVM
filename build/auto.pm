@@ -31,7 +31,6 @@ sub detect_native {
             print ::dots('    assuming x86'), "OK\n";
         }
     }
-
 }
 
 sub detect_cross {}

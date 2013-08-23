@@ -3402,7 +3402,6 @@ my @clo := $nqpcomp.commandline_options();
 @clo.push('stable-sc');
 @clo.push('javaclass=s');
 @clo.push('bootstrap');
-$nqpcomp.addstage('classname', :after<start>);
 
 sub MAIN(@ARGS) {
     # Enter the compiler.

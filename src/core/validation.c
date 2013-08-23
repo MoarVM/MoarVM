@@ -291,7 +291,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
 MVMuint32 MVM_bytecode_offset_to_instr_idx(MVMThreadContext *tc,
         MVMStaticFrame *static_frame, MVMuint32 offset) {
     MVMuint8 *labels = static_frame->body.instr_offsets;
-    MVMuint32 i, idx;
+    MVMuint32 i, idx = 0;
     if (offset >= static_frame->body.bytecode_size
             || (labels[offset] & MVM_val_op_boundary) == 0) {
         return 0;

@@ -75,7 +75,7 @@ our %THIRDPARTY = (
     lao => { %LAO },
     tom => { %TOM },
     sha => { %SHA },
-#    ln  => { %LN },
+    ln  => { %LN },
 #    dc  => { %DC },
 #    dcb => { %DCB },
 #    dl  => { %DL },
@@ -116,7 +116,8 @@ our %POSIXTC = (
     ccdef    => '-D',
 
     ldout => undef,
-    ldarg => '-l%s',
+    ldusr => '-l%s',
+    ldsys => undef,
 
     arflags => 'rcs',
     arout   => '',
@@ -158,7 +159,7 @@ TERM
 .if $(NOISY) != 1
 MSG = @echo
 CMD = @
-CMDOUT = > @nul@
+NOOUT = > @nul@
 NOERR = 2> @nul@
 .endif
 TERM
@@ -176,7 +177,8 @@ TERM
         ccdef    => '/D',
 
         ldout => '/out:',
-        ldarg => '%s.lib',
+        ldusr => '%s.lib',
+        ldsys => undef,
 
         arflags => '/nologo',
         arout   => '/out:',
@@ -186,7 +188,7 @@ TERM
 !IF $(NOISY) != 1
 MSG = @echo
 CMD = @
-CMDOUT = > @nul@
+NOOUT = > @nul@
 NOERR = 2> @nul@
 !ENDIF
 TERM
@@ -310,10 +312,9 @@ our %COMPILERS = (
 # selected by C<--os> or taken from C<$^O>
 
 our %WIN32 = (
-    exe  => '.exe',
-    defs => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
-    libs => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
-
+    exe      => '.exe',
+    defs     => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
+    syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
     platform => '$(PLATFORM_WIN32)',
 
     dllimport => '__declspec(dllimport)',
@@ -332,7 +333,7 @@ our %WIN32 = (
 );
 
 our %LINUX = (
-    libs => [ qw( m pthread uuid rt ) ],
+    syslibs => [ qw( m pthread uuid rt ) ],
 
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_LINUX)' },
@@ -358,7 +359,8 @@ our %FREEBSD = (
 );
 
 our %SOLARIS = (
-    libs => [ qw( socket sendfile nsl uuid pthread m rt ) ],
+    syslibs => [ qw( socket sendfile nsl uuid pthread m rt ) ],
+    mknoisy => '',
 
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_SOLARIS)' },
@@ -366,9 +368,9 @@ our %SOLARIS = (
 );
 
 our %DARWIN = (
-    ldarg => '-framework %s',
-    defs  => [ '_DARWIN_USE_64_BIT_INODE=1' ],
-    libs  => [ qw( ApplicationServices CoreServices Foundation ) ],
+    ldsys    => '-framework %s',
+    defs     => [ '_DARWIN_USE_64_BIT_INODE=1' ],
+    syslibs  => [ qw( ApplicationServices CoreServices Foundation ) ],
 
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_DARWIN)' },

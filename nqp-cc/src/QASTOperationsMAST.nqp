@@ -1382,7 +1382,7 @@ QAST::MASTOperations.add_core_moarop_mapping('tellfh', 'tell_fh');
 QAST::MASTOperations.add_core_moarop_mapping('printfh', 'write_fhs');
 # QAST::MASTOperations.add_core_moarop_mapping('sayfh', ?);
 QAST::MASTOperations.add_core_moarop_mapping('readlinefh', 'readline_fh');
-# QAST::MASTOperations.add_core_moarop_mapping('readlineintfh', ?);
+QAST::MASTOperations.add_core_moarop_mapping('readlineintfh', 'readlineint_fh');
 QAST::MASTOperations.add_core_moarop_mapping('readallfh', 'readall_fh');
 QAST::MASTOperations.add_core_moarop_mapping('eoffh', 'eof_fh');
 QAST::MASTOperations.add_core_moarop_mapping('closefh', 'close_fh', 0);

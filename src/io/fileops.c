@@ -1,5 +1,18 @@
 #include "moarvm.h"
 
+#if MVM_HAS_READLINE
+#ifdef __cplusplus
+extern "C" {
+#endif
+    char *readline(const char *);
+    void add_history(const char*);
+#ifdef __cplusplus
+}
+#endif
+#else
+#include <linenoise.h>
+#endif
+
 #define POOL(tc) (*(tc->interp_cu))->body.pool
 
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
@@ -334,6 +347,48 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     free(buf);
 
     return result;
+}
+
+/* reads a line from a filehandle. */
+MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt) {
+    MVMString *return_str = NULL;
+    MVMOSHandle *handle;
+    char *line;
+    char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
+
+    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
+
+#if MVM_HAS_READLINE
+    line = readline(prompt_str);
+
+    free(prompt_str);
+
+    if (line) {
+        if (*line)
+            add_history(line);
+
+        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+
+        free(line);
+    }
+
+#else /* !MVM_HAS_READLINE */
+    line = linenoise(prompt_str);
+
+    free(prompt_str);
+
+    if (line) {
+        if (*line) {
+            linenoiseHistoryAdd(line);
+        }
+
+        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+
+        free(line);
+    }
+#endif /* MVM_HAS_READLINE */
+
+    return return_str;
 }
 
 /* reads a string from a filehandle. */

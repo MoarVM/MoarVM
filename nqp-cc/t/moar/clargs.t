@@ -10,5 +10,5 @@ qast_output_is(QAST::Block.new(
     QAST::VM.new( :moarop('say'),
         QAST::VM.new( :moarop('atpos_o'),
             QAST::Var.new( :name('args'), :scope('local') ),
-            QAST::IVal.new( :value(1) ) ) )
-), :clargs("foobar foobaz"), "foobaz\n", "grabbing the second clarg works");
+            QAST::IVal.new( :value(2) ) ) )
+), :clargs("foobar foobaz"), "foobaz\n", "grabbing the second clarg works (zero is program name)");

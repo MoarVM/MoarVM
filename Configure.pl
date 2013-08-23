@@ -27,9 +27,8 @@ GetOptions(\%args, qw(
     debug! optimize! instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
-    build=s host=s
-    big-endian
-    shared
+    shared use-readline
+    build=s host=s big-endian
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -42,7 +41,8 @@ $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
 $args{shared}     //= 0;
 
-$args{'big-endian'} //= 0;
+$args{'use-readline'} //= 0;
+$args{'big-endian'}   //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -68,7 +68,8 @@ for (keys %defaults) {
 # misc defaults
 $config{exe}       //= '';
 $config{defs}      //= [];
-$config{libs}      //= [ qw( m pthread ) ];
+$config{syslibs}   //= [ qw( m pthread ) ];
+$config{usrlibs}   //= [];
 $config{platform}  //= '$(PLATFORM_POSIX)';
 $config{crossconf} //= '';
 $config{dllimport} //= '',
@@ -78,15 +79,24 @@ $config{dlllocal}  //= '',
 # assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};
 $config{ldout}        //= $config{ccout};
+$config{ldsys}        //= $config{ldusr};
 $config{ldmiscflags}  //= $config{ccmiscflags};
 $config{ldoptiflags}  //= $config{ccoptiflags};
 $config{lddebugflags} //= $config{ccdebugflags};
 $config{ldinstflags}  //= $config{ccinstflags};
 
-# mangle OS library names
-$config{ldlibs} = join ' ', map {
-    sprintf $config{ldarg}, $_;
-} @{$config{libs}};
+# choose between Linenoise and GNU Readline
+if ($args{'use-readline'}) {
+    $config{hasreadline} = 1;
+    $defaults{-thirdparty}->{ln} = undef;
+    unshift @{$config{usrlibs}}, 'readline';
+}
+else { $config{hasreadline} = 0 }
+
+# mangle library names
+$config{ldlibs} = join ' ',
+    (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
+    (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 
 # generate CFLAGS
 my @cflags = ($config{ccmiscflags});
@@ -425,7 +435,7 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--shared]
+                   [--shared] [--use-readline]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -499,6 +509,15 @@ options.
 =item --shared
 
 Build MoarVM as a shared library instead of a static one.
+
+=item --use-readline
+
+Disable Linenoise and try to use the system version of GNU Readline
+instead.
+
+You must not supply this flag if you create derivative work of
+MoarVM - including binary packages of MoarVM itself - that you wish
+to distribute under a license other than the GNU GPL.
 
 =item --build <build-triple> --host <host-triple>
 
