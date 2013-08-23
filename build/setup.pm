@@ -127,6 +127,7 @@ ifneq ($(NOISY), 1)
 MSG = @echo
 CMD = @
 CMDOUT = > @nul@
+NOERR = 2> @nul@
 endif
 TERM
 
@@ -148,6 +149,7 @@ our %TOOLCHAINS = (
 MSG = @echo
 CMD = @
 CMDOUT = > @nul@
+NOERR = 2> @nul@
 .endif
 TERM
     },
@@ -175,6 +177,7 @@ TERM
 MSG = @echo
 CMD = @
 CMDOUT = > @nul@
+NOERR = 2> @nul@
 !ENDIF
 TERM
 

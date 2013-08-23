@@ -5,14 +5,13 @@ MAKE = @make@ @mkflags@
 RM   = @rm@
 CAT  = @cat@
 
-NOERR = 2> @nul@
-
 TRACING = 0
 NOISY = 0
 
 MSG = @:
 CMD =
 CMDOUT =
+NOERR =
 
 @mknoisy@
 
