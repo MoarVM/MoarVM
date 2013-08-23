@@ -19,7 +19,9 @@
 /* Configuration. */
 #include "gen/config.h"
 
-/* needs to be after config.h */
+/* stuff for uthash */
+#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
+
 #include <uthash.h>
 
 /* forward declarations */
