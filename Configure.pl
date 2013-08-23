@@ -68,13 +68,15 @@ for (keys %defaults) {
 # misc defaults
 $config{exe}       //= '';
 $config{defs}      //= [];
-$config{libs}      //= [ qw( m pthread ) ];
+$config{syslibs}   //= [ qw( m pthread ) ];
+$config{usrlibs}   //= [];
 $config{platform}  //= '$(PLATFORM_POSIX)';
 $config{crossconf} //= '';
 
 # assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};
 $config{ldout}        //= $config{ccout};
+$config{ldsys}        //= $config{ldusr};
 $config{ldmiscflags}  //= $config{ccmiscflags};
 $config{ldoptiflags}  //= $config{ccoptiflags};
 $config{lddebugflags} //= $config{ccdebugflags};
@@ -84,14 +86,14 @@ $config{ldinstflags}  //= $config{ccinstflags};
 if ($args{'use-readline'}) {
     $config{hasreadline} = 1;
     $defaults{-thirdparty}->{ln} = undef;
-    unshift @{$config{libs}}, 'readline';
+    unshift @{$config{usrlibs}}, 'readline';
 }
 else { $config{hasreadline} = 0 }
 
-# mangle OS library names
-$config{ldlibs} = join ' ', map {
-    sprintf $config{ldarg}, $_;
-} @{$config{libs}};
+# mangle library names
+$config{ldlibs} = join ' ',
+    (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
+    (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 
 # generate CFLAGS
 my @cflags = ($config{ccmiscflags});
