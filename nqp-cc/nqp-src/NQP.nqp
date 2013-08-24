@@ -3405,7 +3405,8 @@ my @clo := $nqpcomp.commandline_options();
 
 sub MAIN(@ARGS) {
     # Enter the compiler.
-    $nqpcomp.command_line(@ARGS, :encoding('utf8'), :transcode('ascii iso-8859-1'));
+    $nqpcomp.command_line(@ARGS, :encoding('utf8'), :transcode('ascii iso-8859-1'),
+        :setting('NQPCOREMoar'), :custom-regex-lib('QRegexMoar'));
 
     # Close event logging
     $nqpcomp.nqpevent();
