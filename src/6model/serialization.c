@@ -1178,13 +1178,13 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
     va_end(args);
 }
 
-/* Reads the item from the MVMString heap at the specified index. */
+/* Reads the item from the string heap at the specified index. */
 static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 idx) {
     if (idx < MVM_repr_elems(tc, reader->root.string_heap))
         return MVM_repr_at_pos_s(tc, reader->root.string_heap, idx);
     else
         fail_deserialize(tc, reader,
-            "Attempt to read past end of MVMString heap (index %d)", idx);
+            "Attempt to read past end of string heap (index %d)", idx);
 }
 
 /* Locates a serialization context; 0 is the current one, otherwise see the
@@ -1293,7 +1293,7 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     return result;
 }
 
-/* Reads in an hash with MVMString keys and variant references. */
+/* Reads in an hash with string keys and variant references. */
 static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
     MVMint32 elems, i;
@@ -1385,11 +1385,11 @@ static MVMSTable * read_stable_ref_func(MVMThreadContext *tc, MVMSerializationRe
 }
 
 /* Checks the header looks sane and all of the places it points to make sense.
- * Also disects the input MVMString into the tables and data segments and populates
+ * Also disects the input string into the tables and data segments and populates
  * the reader data structure more fully. */
 static void check_and_dissect_input(MVMThreadContext *tc,
         MVMSerializationReader *reader, MVMString *data_str) {
-    /* Grab data from MVMString. */
+    /* Grab data from string. */
     size_t  data_len;
     char   *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
     char   *data     = (char *)base64_decode(data_b64, &data_len);
@@ -1880,13 +1880,13 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
 
 =item sha1
 
-Computes the SHA-1 hash of MVMString.
+Computes the SHA-1 hash of string.
 
 =cut
 
 */
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
-    /* Grab the MVMString as a C MVMString. */
+    /* Grab the string as a C string. */
     char *cstr = MVM_string_utf8_encode_C_string(tc, str);
 
     /* Compute its SHA-1 and encode it. */
