@@ -35,3 +35,17 @@ void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val);
 MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val);
 MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 val);
 MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val);
+
+#define MVM_repr_at_key_int(tc, obj, key) \
+    MVM_repr_get_int((tc), MVM_repr_at_key_boxed((tc), (obj), (key)))
+#define MVM_repr_at_key_num(tc, obj, key) \
+    MVM_repr_get_num((tc), MVM_repr_at_key_boxed((tc), (obj), (key)))
+#define MVM_repr_at_key_str(tc, obj, key) \
+    MVM_repr_get_str((tc), MVM_repr_at_key_boxed((tc), (obj), (key)))
+
+#define MVM_repr_bind_key_int(tc, obj, key, val) \
+    MVM_repr_bind_key_boxed((tc), (obj), (key), MVM_repr_box_int((tc), (*((tc)->interp_cu))->body.hll_config->int_box_type, (val)))
+#define MVM_repr_bind_key_num(tc, obj, key, val) \
+    MVM_repr_bind_key_boxed((tc), (obj), (key), MVM_repr_box_num((tc), (*((tc)->interp_cu))->body.hll_config->num_box_type, (val)))
+#define MVM_repr_bind_key_str(tc, obj, key, val) \
+    MVM_repr_bind_key_boxed((tc), (obj), (key), MVM_repr_box_str((tc), (*((tc)->interp_cu))->body.hll_config->str_box_type, (val)))
