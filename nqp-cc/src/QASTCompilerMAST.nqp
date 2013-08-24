@@ -75,7 +75,7 @@ class QAST::MASTCompiler {
                 nqp::deletekey(%!released_indexes, $reg.index);
             }
             else {
-                $reg := MAST::Local.new($!frame.add_local($type));
+                $reg := MAST::Local.new(:index($!frame.add_local($type)));
             }
             $reg
         }

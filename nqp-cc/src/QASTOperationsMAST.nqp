@@ -1227,7 +1227,7 @@ QAST::MASTOperations.add_core_op('handle', -> $qastcomp, $op {
     }
 
     # Add a local and store the handler block into it.
-    my $hblocal := MAST::Local.new($*MAST_FRAME.add_local(NQPMu));
+    my $hblocal := MAST::Local.new(:index($*MAST_FRAME.add_local(NQPMu)));
     my $il      := nqp::list();
     my $hbmast  := $qastcomp.as_mast($hblock, :want($MVM_reg_obj));
     push_ilist($il, $hbmast);
