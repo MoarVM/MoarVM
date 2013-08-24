@@ -62,7 +62,7 @@ else {
 $config{name} = $NAME;
 
 # set options that take priority over all others
-my @keys = qw( cc ld make shared );
+my @keys = qw( cc ld make );
 @config{@keys} = @args{@keys};
 
 for (keys %defaults) {
@@ -118,6 +118,9 @@ push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} = join ' ', @ldflags;
+
+# setup shared linking
+$config{moarlib} = sprintf $config{ $args{shared} ? 'dll' : 'lib' }, $NAME;
 
 # some toolchains generate garbage
 my @auxfiles = @{ $defaults{-auxfiles} };

@@ -114,10 +114,12 @@ our %TC_POSIX = (
     ccout    => '-o ',
     ccinc    => '-I',
     ccdef    => '-D',
+    ccdll    => '-fPIC',
 
     ldout => undef,
     ldusr => '-l%s',
     ldsys => undef,
+    lddll => '-shared @ccshared@',
 
     arflags => 'rcs',
     arout   => '',
@@ -127,6 +129,7 @@ our %TC_POSIX = (
 
     obj => '.o',
     lib => 'lib%s.a',
+    dll => 'lib%s.so',
 
     -auxfiles => [],
 );
@@ -171,10 +174,12 @@ our %TC_MSVC = (
     ccout    => '/Fo',
     ccinc    => '/I',
     ccdef    => '/D',
+    ccdll    => '',
 
     ldout => '/out:',
     ldusr => '%s.lib',
     ldsys => undef,
+    lddll => '/dll',
 
     arflags => '/nologo',
     arout   => '/out:',
@@ -191,6 +196,7 @@ TERM
 
     obj => '.obj',
     lib => '%s.lib',
+    dll => '%s.dll',
 
     -auxfiles => [ qw( @name@.ilk @name@.pdb vc100.pdb ) ],
 
