@@ -237,7 +237,7 @@ moarvm@exe@: $(MAIN_OBJECTS) @moarlib@ @thirdpartylibs@
 
 @moarlib@: $(OBJECTS)
 	$(MSG) linking $@
-	$(CMD)$(AR) $(ARFLAGS) /out:$@ $(OBJECTS) $(NOOUT)
+	$(CMD)$(AR) $(ARFLAGS) @arout@$@ $(OBJECTS) $(NOOUT)
 
 apr: @aprlib@
 
