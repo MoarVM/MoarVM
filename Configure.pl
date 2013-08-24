@@ -139,7 +139,7 @@ else {
 
 # some toolchains generate garbage
 my @auxfiles = @{ $defaults{-auxfiles} };
-$config{clean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
+$config{auxclean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
 
