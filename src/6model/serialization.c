@@ -970,15 +970,15 @@ static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter
     
     /* Make entries. */
     for (i = 0; i < writer->root.num_repos; i++) {
-        MVMint32  offset  = (MVMint32)(i * REPOS_TABLE_ENTRY_SIZE);
-        MVMint32  obj_idx = (MVMint32)(MVM_repr_at_pos_i(tc, rep_indexes, i) >> 1);
-        MVMint32  is_st   = MVM_repr_at_pos_i(tc, rep_indexes, i) & 1;
-        MVMObject         *orig_sc = MVM_repr_at_pos_o(tc, rep_scs, i);
+        MVMint32 offset  = (MVMint32)(i * REPOS_TABLE_ENTRY_SIZE);
+        MVMint32 obj_idx = (MVMint32)(MVM_repr_at_pos_i(tc, rep_indexes, i) >> 1);
+        MVMint32 is_st   = MVM_repr_at_pos_i(tc, rep_indexes, i) & 1;
 
         /* Work out original object's SC location. */
-        MVMint32 orig_sc_id = get_sc_id(tc, writer, orig_sc);
-        MVMint32 orig_idx   = (MVMint32)(is_st ?
-            MVM_sc_find_stable_idx(tc, orig_sc, MVM_repr_at_pos_o(tc, writer->stables_list, obj_idx)) :
+        MVMObject *orig_sc    = MVM_repr_at_pos_o(tc, rep_scs, i);
+        MVMint32   orig_sc_id = get_sc_id(tc, writer, orig_sc);
+        MVMint32   orig_idx   = (MVMint32)(is_st ?
+            MVM_sc_find_stable_idx(tc, orig_sc, writer->stables_list[obj_idx]) :
             MVM_sc_find_object_idx(tc, orig_sc, MVM_repr_at_pos_o(tc, writer->objects_list, obj_idx)));
         
         /* Write table row. */
@@ -993,7 +993,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     MVMuint32 work_todo;
     do {
         /* Current work list sizes. */
-        MVMuint64 stables_todo  = MVM_repr_elems(tc, writer->stables_list);
+        MVMuint64 stables_todo  = writer->root.sc->body->num_stables;
         MVMuint64 objects_todo  = MVM_repr_elems(tc, writer->objects_list);
         MVMuint64 contexts_todo = MVM_repr_elems(tc, writer->contexts_list);
 
@@ -1003,8 +1003,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 
         /* Serialize any STables on the todo list. */
         while (writer->stables_list_pos < stables_todo) {
-            serialize_stable(tc, writer, MVM_repr_at_pos_o(tc,
-                writer->stables_list, writer->stables_list_pos));
+            serialize_stable(tc, writer, writer->stables_list[writer->stables_list_pos]);
             writer->stables_list_pos++;
             work_todo = 1;
         }
@@ -1032,7 +1031,6 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 }
 
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
-    MVMObject *stables  = NULL;
     MVMObject *objects  = NULL;
     MVMObject *codes    = NULL;
     MVMString *result   = NULL;
@@ -1041,12 +1039,11 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     
     /* Set up writer with some initial settings. */
     MVMSerializationWriter *writer = (MVMSerializationWriter *)calloc(1, sizeof (MVMSerializationWriter));
-    GETATTR_SerializationContext_root_stables(tc, sc, stables);
     GETATTR_SerializationContext_root_objects(tc, sc, objects);
     GETATTR_SerializationContext_root_codes(tc, sc, codes);
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
-    writer->stables_list        = stables;
+    writer->stables_list        = sc->body->root_stables;
     writer->objects_list        = objects;
     writer->codes_list          = codes;
     writer->contexts_list       = Parrot_pmc_new(tc, enum_class_ResizablePMCArray);
