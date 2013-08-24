@@ -255,7 +255,7 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
     /* Add to this SC if needed. */
     if (OBJ_IS_NULL(STABLE_STRUCT(st)->sc)) {
         STABLE_STRUCT(st)->sc = writer->root.sc;
-        MVM_repr_push_o(tc, writer->stables_list, st);
+        MVM_repr_push_o(tc, writer->stables_list, (MVMObject *)st);
     }
     
     /* Work out SC reference. */
@@ -280,7 +280,7 @@ static void write_int_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
 }
 
 /* Writing function for native numbers. */
-static void write_num_func(MVMThreadContext *tc, MVMSerializationWriter *writer, FLOATVAL value) {
+static void write_num_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value) {
     expand_storage_if_needed(tc, writer, 8);
     write_double(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
     *(writer->cur_write_offset) += 8;
@@ -375,7 +375,7 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
     
     /* Write elements, as key,value,key,value etc. */
     while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
-        write_str_func(tc, writer, MVM_OP_iterkey_s(tc, (MVMIter *)iter));
+        write_str_func(tc, writer, MVM_iterkey_s(tc, (MVMIter *)iter));
         write_ref_func(tc, writer, MVM_iterval(tc, (MVMIter *)iter));
     }
 }
@@ -414,7 +414,7 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
 static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
-    MVMObject *ctx_sc = Parrot_pmc_getprop(tc, ctx, Parrot_str_new_constant(tc, "SC"));
+    MVMSerializationContext *ctx_sc = Parrot_pmc_getprop(tc, ctx, Parrot_str_new_constant(tc, "SC"));
     if (OBJ_IS_NULL(ctx_sc)) {
         /* Make sure we should chase a level down. */
         if (OBJ_IS_NULL(closure_to_static_code_ref(tc, PARROT_CALLCONTEXT(ctx)->current_sub, 0))) {
@@ -446,7 +446,7 @@ static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializatio
 static MVMint32 get_serialized_outer_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *closure) {
     if (!OBJ_IS_NULL(Parrot_pmc_getprop(tc, closure, Parrot_str_new_constant(tc, "COMPILER_STUB"))))
         return 0;
-    if (OBJ_IS_NULL(PARROT_SUB(closure)->outer_ctx))
+    if (VM_OBJ_IS_NULL(PARROT_SUB(closure)->outer_ctx))
         return 0;
     return get_serialized_context_idx(tc, writer, PARROT_SUB(closure)->outer_ctx);
 }
@@ -642,7 +642,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 }
 
 /* Writing function for references to STables. */
-static void write_stable_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, STable *st) {
+static void write_stable_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint32 sc_id, idx;
     get_stable_ref_info(tc, writer, st->stable_pmc, &sc_id, &idx);
     expand_storage_if_needed(tc, writer, 8);
@@ -746,7 +746,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     
     /* Base 64 encode. */
     output_b64 = base64_encode(output, output_size);
-    mem_sys_free(output);
+    free(output);
     if (output_b64 == NULL)
         MVM_exception_throw_adhoc(tc,
             "Serialization error: failed to convert to base64");
@@ -759,7 +759,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
-static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMStable *st) {
+static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint32 version = writer->root.version;
     MVMint64  i;
     
@@ -822,9 +822,9 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     if (writer->root.version >= 5) {
         write_int_func(tc, writer, st->invocation_spec != NULL);
         if (st->invocation_spec) {
-            write_ref_func(tc, writer, st->invocation_spec->value_slot.class_handle);
-            write_str_func(tc, writer, st->invocation_spec->value_slot.attr_name);
-            write_int_func(tc, writer, st->invocation_spec->value_slot.hint);
+            write_ref_func(tc, writer, st->invocation_spec->class_handle);
+            write_str_func(tc, writer, st->invocation_spec->attr_name);
+            write_int_func(tc, writer, st->invocation_spec->hint);
             write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
         }
     }
@@ -1032,15 +1032,15 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 }
 
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
-    MVMObject         *stables  = PMCNULL;
-    MVMObject         *objects  = PMCNULL;
-    MVMObject         *codes    = PMCNULL;
-    MVMString      *result   = STRINGNULL;
-    MVMint32  sc_elems = (MVMint32)MVM_repr_elems(tc, sc);
-    MVMint32  version  = CURRENT_VERSION;
+    MVMObject *stables  = NULL;
+    MVMObject *objects  = NULL;
+    MVMObject *codes    = NULL;
+    MVMString *result   = NULL;
+    MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, (MVMObject *)sc);
+    MVMint32   version  = CURRENT_VERSION;
     
     /* Set up writer with some initial settings. */
-    MVMSerializationWriter *writer = mem_allocate_zeroed_typed(MVMSerializationWriter);
+    MVMSerializationWriter *writer = (MVMSerializationWriter *)calloc(1, sizeof (MVMSerializationWriter));
     GETATTR_SerializationContext_root_stables(tc, sc, stables);
     GETATTR_SerializationContext_root_objects(tc, sc, objects);
     GETATTR_SerializationContext_root_codes(tc, sc, codes);
@@ -1092,7 +1092,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     qrpa_id = Parrot_pmc_get_type_str(tc, Parrot_str_new(tc, "QRPA", 0));
     
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
-    VTABLE_push_string(tc, empty_string_heap, STRINGNULL);
+    VTABLE_push_string(tc, empty_string_heap, NULL);
 
     /* Start serializing. */
     serialize(tc, writer);
@@ -1104,12 +1104,12 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     Parrot_unblock_GC_mark(tc);
 
     /* Clear up afterwards. */
-    mem_sys_free(writer->root.dependencies_table);
-    mem_sys_free(writer->root.stables_table);
-    mem_sys_free(writer->root.stables_data);
-    mem_sys_free(writer->root.objects_table);
-    mem_sys_free(writer->root.objects_data);
-    mem_sys_free(writer);
+    free(writer->root.dependencies_table);
+    free(writer->root.stables_table);
+    free(writer->root.stables_data);
+    free(writer->root.objects_table);
+    free(writer->root.objects_data);
+    free(writer);
     
     return result;
 }
