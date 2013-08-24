@@ -290,9 +290,13 @@ _uvlib_: _uvobjects_
 	$(CMD)@lnrule@ $(NOOUT)
 
 clean:
-	$(MSG) cleaning...
+	$(MSG) cleaning build files...
 	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
 	-$(CMD)@clean@ $(NOOUT) $(NOERR)
+	$(MSG) done.
+
+realclean: clean
+	$(MSG) cleaning 3rdparty libs...
 	-$(CMD)@aprclean@ $(NOOUT) $(NOERR)
 #	_uvclean_
 	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
@@ -301,8 +305,8 @@ clean:
 	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
 	$(MSG) done.
 
-realclean: clean
-	$(MSG) really cleaning...
-	-$(CMD)$(RM) moarvm@exe@ $(NOOUT) $(NOERR)
+distclean: realclean
+	$(MSG) cleaning binaries and configuration files...
+	-$(CMD)$(RM) moarvm@exe@ @moarlib@ $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
 	$(MSG) done.
