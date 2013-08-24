@@ -36,6 +36,11 @@ pod2usage(1) if $args{help};
 
 print "Welcome to MoarVM!\n\n";
 
+print dots("Updating submodules");
+my $msg = qx{git submodule --quiet update --init 2>&1};
+if ($? >> 8 == 0) { print "OK\n" }
+else { softfail("git error: $msg") }
+
 # fiddle with flags
 $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
