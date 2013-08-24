@@ -255,7 +255,7 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
     /* Add to this SC if needed. */
     if (OBJ_IS_NULL(STABLE_STRUCT(st)->sc)) {
         STABLE_STRUCT(st)->sc = writer->root.sc;
-        MVM_repr_push_o(tc, writer->stables_list, (MVMObject *)st);
+        MVM_sc_push_stable(tc, writer->root.sc, st);
     }
     
     /* Work out SC reference. */
