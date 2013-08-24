@@ -235,11 +235,6 @@ moarvm@exe@: $(OBJECTS) @thirdpartylibs@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
 
-submodules:
-	$(MSG) updating submodules
-	$(CMD)git submodule init $(NOOUT)
-	$(CMD)git submodule update $(NOOUT)
-
 apr: @aprlib@
 
 libuv: _uvlib_
@@ -266,7 +261,9 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 
 3rdparty/apr/include/apr.h: @aprlib@
 
-3rdparty/linenoise/linenoise.h: submodules
+3rdparty/linenoise/linenoise.h: .gitmodules
+	$(MSG) updating submodules
+	$(CMD)git submodule update --init $(NOOUT)
 
 @aprlib@:
 	$(MSG) building $@...
