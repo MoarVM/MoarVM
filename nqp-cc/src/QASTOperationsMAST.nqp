@@ -1549,14 +1549,14 @@ QAST::MASTOperations.add_core_op('rindex',  -> $qastcomp, $op {
 # serialization context opcodes
 QAST::MASTOperations.add_core_moarop_mapping('sha1', 'sha1');
 QAST::MASTOperations.add_core_moarop_mapping('createsc', 'createsc');
-QAST::MASTOperations.add_core_moarop_mapping('scsetobj', 'scsetobj');
-QAST::MASTOperations.add_core_moarop_mapping('scsetcode', 'scsetcode');
+QAST::MASTOperations.add_core_moarop_mapping('scsetobj', 'scsetobj', 2);
+QAST::MASTOperations.add_core_moarop_mapping('scsetcode', 'scsetcode', 2);
 QAST::MASTOperations.add_core_moarop_mapping('scgetobj', 'scgetobj');
 QAST::MASTOperations.add_core_moarop_mapping('scgethandle', 'scgethandle');
 QAST::MASTOperations.add_core_moarop_mapping('scgetobjidx', 'scgetobjidx');
-QAST::MASTOperations.add_core_moarop_mapping('scsetdesc', 'scsetdesc');
+QAST::MASTOperations.add_core_moarop_mapping('scsetdesc', 'scsetdesc', 1);
 QAST::MASTOperations.add_core_moarop_mapping('scobjcount', 'scobjcount');
-QAST::MASTOperations.add_core_moarop_mapping('setobjsc', 'setobjsc');
+QAST::MASTOperations.add_core_moarop_mapping('setobjsc', 'setobjsc', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getobjsc', 'getobjsc');
 QAST::MASTOperations.add_core_moarop_mapping('serialize', 'serialize');
 QAST::MASTOperations.add_core_moarop_mapping('deserialize', 'deserialize');

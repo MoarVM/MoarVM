@@ -3271,39 +3271,85 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
+                    case MVM_OP_scsetobj: {
+                        MVMObject *sc = GET_REG(cur_op, 0).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scsetobj");
+                        MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_scsetcode: {
+                        MVMObject *sc = GET_REG(cur_op, 0).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scsetcode");
+                        MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_scgetobj: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scgetobj");
+                        GET_REG(cur_op, 0).o = MVM_sc_get_object(tc,
+                            (MVMSerializationContext *)sc, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_scgethandle: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scgethandle");
+                        GET_REG(cur_op, 0).s = MVM_sc_get_handle(tc,
+                            (MVMSerializationContext *)sc);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_scgetobjidx: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scgetobjidx");
+                        GET_REG(cur_op, 0).i64 = MVM_sc_find_object_idx(tc,
+                            (MVMSerializationContext *)sc, GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_scsetdesc: {
-                        MVMObject *sc   = GET_REG(cur_op, 2).o;
-                        MVMString *desc = GET_REG(cur_op, 4).s;
+                        MVMObject *sc   = GET_REG(cur_op, 0).o;
+                        MVMString *desc = GET_REG(cur_op, 2).s;
                         if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                             MVM_exception_throw_adhoc(tc,
                                 "Must provide an SCRef operand to scsetdesc");
-                        MVM_ASSIGN_REF(tc, sc,
-                            ((MVMSerializationContext *)sc)->body->description,
-                            desc);
-                        GET_REG(cur_op, 0).s = desc;
-                        cur_op += 6;
+                        MVM_sc_set_description(tc, (MVMSerializationContext *)sc, desc);
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_scobjcount: {
                         MVMObject *sc = GET_REG(cur_op, 2).o;
                         if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                             MVM_exception_throw_adhoc(tc,
-                                "Must provide an SCRef operand to setobjsc");
-                        GET_REG(cur_op, 0).i64 = MVM_repr_elems(tc,
-                            ((MVMSerializationContext *)sc)->body->root_objects);
+                                "Must provide an SCRef operand to scobjcount");
+                        GET_REG(cur_op, 0).i64 = MVM_sc_get_object_count(tc,
+                            (MVMSerializationContext *)sc);
                         cur_op += 4;
                         break;
                     }
                     case MVM_OP_setobjsc: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMObject *sc  = GET_REG(cur_op, 4).o;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        MVMObject *sc  = GET_REG(cur_op, 2).o;
                         if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                             MVM_exception_throw_adhoc(tc,
                                 "Must provide an SCRef operand to setobjsc");
                         MVM_ASSIGN_REF(tc, obj, obj->header.sc,
                             (MVMSerializationContext *)sc);
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 6;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_getobjsc:
