@@ -253,14 +253,14 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
 static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *writer,
                                 MVMSTable *st, MVMint32 *sc, MVMint32 *sc_idx) {
     /* Add to this SC if needed. */
-    if (OBJ_IS_NULL(STABLE_STRUCT(st)->sc)) {
-        STABLE_STRUCT(st)->sc = writer->root.sc;
+    if (st->header.sc == NULL) {
+        st->header.sc = writer->root.sc;
         MVM_sc_push_stable(tc, writer->root.sc, st);
     }
     
     /* Work out SC reference. */
-    *sc     = get_sc_id(tc, writer, STABLE_STRUCT(st)->sc);
-    *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, STABLE_STRUCT(st)->sc, st);
+    *sc     = get_sc_id(tc, writer, st->header.sc);
+    *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, st->header.sc, st);
 }
 
 /* Expands current target storage as needed. */
@@ -459,7 +459,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     
     /* Locate the static code object. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, closure, 1);
-    MVMObject *static_code_sc  = Parrot_pmc_getprop(tc, static_code_ref, Parrot_str_new_constant(tc, "SC"));
+    MVMSerializationContext *static_code_sc = Parrot_pmc_getprop(tc, static_code_ref, Parrot_str_new_constant(tc, "SC"));
 
     /* Ensure there's space in the closures table; grow if not. */
     MVMint32 offset = writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
