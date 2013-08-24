@@ -174,8 +174,7 @@ HEADERS = src/moarvm.h \
           src/platform/time.h \
           src/gen/config.h \
           3rdparty/uthash.h \
-          3rdparty/apr/include/apr.h \
-          3rdparty/linenoise/linenoise.h
+          3rdparty/apr/include/apr.h
 
 UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
@@ -235,11 +234,6 @@ moarvm@exe@: $(OBJECTS) @thirdpartylibs@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
 
-submodules:
-	$(MSG) updating submodules
-	$(CMD)git submodule init $(NOOUT)
-	$(CMD)git submodule update $(NOOUT)
-
 apr: @aprlib@
 
 libuv: _uvlib_
@@ -265,8 +259,6 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 3rdparty/apr/include/apr.h: @aprlib@
-
-3rdparty/linenoise/linenoise.h: submodules
 
 @aprlib@:
 	$(MSG) building $@...
