@@ -81,10 +81,10 @@
 #include "math/bigintops.h"
 
 /* Top level VM API functions. */
-MVMInstance * MVM_vm_create_instance(void);
-void MVM_vm_run_file(MVMInstance *instance, const char *filename);
-void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
-void MVM_vm_destroy_instance(MVMInstance *instance);
+MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);
+MVM_PUBLIC void MVM_vm_run_file(MVMInstance *instance, const char *filename);
+MVM_PUBLIC void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
+MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 
 /* Returns original. Use only on AO_t-sized values (including pointers). */
 #define MVM_atomic_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))

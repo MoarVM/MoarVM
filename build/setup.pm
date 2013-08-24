@@ -114,12 +114,14 @@ our %TC_POSIX = (
     ccout    => '-o ',
     ccinc    => '-I',
     ccdef    => '-D',
-    ccdll    => '-fPIC',
 
     ldout => undef,
     ldusr => '-l%s',
     ldsys => undef,
-    lddll => '-shared @ccshared@',
+    ldimp => undef,
+
+    ccshared => '-fPIC',
+    ldshared => '-shared @ccshared@',
 
     arflags => 'rcs',
     arout   => '',
@@ -136,6 +138,8 @@ our %TC_POSIX = (
 
 our %TC_GNU = (
     %TC_POSIX,
+
+    -compiler => 'gcc',
 
     mknoisy => <<'TERM',
 ifneq ($(NOISY), 1)
@@ -174,12 +178,14 @@ our %TC_MSVC = (
     ccout    => '/Fo',
     ccinc    => '/I',
     ccdef    => '/D',
-    ccdll    => '',
 
     ldout => '/out:',
     ldusr => '%s.lib',
     ldsys => undef,
-    lddll => '/dll',
+    ldimp => '%s.dll.lib',
+
+    ccshared => '',
+    ldshared => '/dll /implib:@moardll@.lib',
 
     arflags => '/nologo',
     arout   => '/out:',
@@ -198,7 +204,7 @@ TERM
     lib => '%s.lib',
     dll => '%s.dll',
 
-    -auxfiles => [ qw( @name@.ilk @name@.pdb vc100.pdb ) ],
+    -auxfiles => [ qw( @name@.ilk @name@.pdb @moardll@.lib @moardll@.exp vc100.pdb ) ],
 
     -thirdparty => {
         apr => {

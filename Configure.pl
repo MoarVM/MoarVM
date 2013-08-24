@@ -119,8 +119,23 @@ push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} = join ' ', @ldflags;
 
-# setup shared linking
-$config{moarlib} = sprintf $config{ $args{shared} ? 'dll' : 'lib' }, $NAME;
+# setup library names
+$config{moarlib} = sprintf $config{lib}, $NAME;
+$config{moardll} = sprintf $config{dll}, $NAME;
+
+# setup flags for shared builds
+if ($args{shared}) {
+    $config{objflags}  = '@ccdef@MVM_BUILD_SHARED @ccshared@';
+    $config{mainflags} = '@ccdef@MVM_SHARED';
+    $config{moar}      = '@moardll@';
+    $config{linkmoar}  = sprintf $config{ldimp} // $config{ldusr}, $NAME;
+}
+else {
+    $config{objflags}  = '';
+    $config{mainflags} = '';
+    $config{moar}      = '@moarlib@';
+    $config{linkmoar}  = '@moarlib@';
+}
 
 # some toolchains generate garbage
 my @auxfiles = @{ $defaults{-auxfiles} };

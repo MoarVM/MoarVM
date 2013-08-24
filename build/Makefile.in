@@ -229,15 +229,21 @@ UV_OBJECTS = # _uvobjects_
 
 TOM_OBJECTS = @tomobjects@
 
+THIRDPARTY = @thirdpartylibs@
+
 .SUFFIXES: .c @obj@
 
-moarvm@exe@: $(MAIN_OBJECTS) @moarlib@ @thirdpartylibs@
+moarvm@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @moarlib@ $(LDLIBS)
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @linkmoar@ $(LDLIBS)
 
-@moarlib@: $(OBJECTS)
+@moarlib@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@
 	$(CMD)$(AR) $(ARFLAGS) @arout@$@ $(OBJECTS) $(NOOUT)
+
+@moardll@: $(OBJECTS) $(THIRDPARTY)
+	$(MSG) linking $@
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) @ldshared@ $(OBJECTS) $(LDLIBS)
 
 apr: @aprlib@
 
@@ -257,7 +263,11 @@ no-tracing:
 
 .c@obj@:
 	$(MSG) compiling $@
-	$(CMD)$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @ccout@$@ $*.c
+
+src/main@obj@: src/main.c
+	$(MSG) compiling $@
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
@@ -307,6 +317,6 @@ realclean: clean
 
 distclean: realclean
 	$(MSG) cleaning binaries and configuration files...
-	-$(CMD)$(RM) moarvm@exe@ @moarlib@ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
 	$(MSG) done.
