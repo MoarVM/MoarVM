@@ -141,7 +141,7 @@ our %TC_GNU = (
 ifneq ($(NOISY), 1)
 MSG = @echo
 CMD = @
-CMDOUT = > @nul@
+NOOUT = > @nul@
 NOERR = 2> @nul@
 endif
 TERM
