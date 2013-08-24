@@ -48,7 +48,9 @@ src/gen/
 *.o
 *.a
 *.lib
+*.dll
 *.pdb
+*.exp
 *.suo
 *.ilk
 *.lo

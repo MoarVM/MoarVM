@@ -52,6 +52,11 @@ MVMString * MVM_sc_get_description(MVMThreadContext *tc, MVMSerializationContext
     return sc->body->description;
 }
 
+/* Given an SC, sets its description. */
+void MVM_sc_set_description(MVMThreadContext *tc, MVMSerializationContext *sc, MVMString *desc) {
+    MVM_ASSIGN_REF(tc, sc, sc->body->description, desc);
+}
+
 /* Given an SC, looks up the index of an object that is in its root set. */
 MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
     MVMObject *roots;
@@ -195,6 +200,11 @@ void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64
 /* Sets the full list of code refs. */
 void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *code_list) {
     MVM_ASSIGN_REF(tc, sc, sc->body->root_codes, code_list);
+}
+
+/* Gets the number of objects in the SC. */
+MVMint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc) {
+    return MVM_repr_elems(tc, sc->body->root_objects);
 }
 
 /* Sets an object's SC. */

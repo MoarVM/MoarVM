@@ -326,11 +326,13 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     if (neg || flag & 0x01) { value = -value; }
 
     /* initialize the object */
-    result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTNumArray);
-
-    MVM_repr_push_n(tc, result, value);
-    MVM_repr_push_n(tc, result, base);
-    MVM_repr_push_n(tc, result, pos);
+    result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVMROOT(tc, result, {
+        MVMObject *box_type = MVM_hll_current(tc)->num_box_type;
+        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, value));
+        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, base));
+        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, pos));
+    });
 
     return result;
 }

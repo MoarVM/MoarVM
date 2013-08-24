@@ -199,7 +199,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
 
 /* Takes a frame, scans its registers and adds them to the roots. */
 static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
-    MVMuint16  i, count;
+    MVMuint16  i, count, flag;
     MVMuint16 *type_map;
     MVMuint8  *flag_map;
 
@@ -227,8 +227,14 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
         MVMArgProcContext *ctx = &frame->params;
         flag_map = ctx->arg_flags;
         count = ctx->arg_count;
-        for (i = 0; i < count; i++)
-            if (flag_map[i] & MVM_CALLSITE_ARG_STR || flag_map[i] & MVM_CALLSITE_ARG_OBJ)
+        for (i = 0, flag = 0; i < count; i++, flag++) {
+            if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
+                /* Current position is name, then next is value. */
+                MVM_gc_worklist_add(tc, worklist, &ctx->args[i].s);
+                i++;
+            }
+            if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
+        }
     }
 }

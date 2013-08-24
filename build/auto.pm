@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 my %APRW64 = (
-    %::APR,
+    %::TP_APR,
     path  => '3rdparty/apr/x64/LibR',
     rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" buildall',
     clean => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="x64 Release" clean',

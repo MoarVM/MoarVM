@@ -34,4 +34,5 @@ foreach my $file (@files) {
     close $fh;
 }
 
+print "\nnqp::bindcomp('qast', QAST::MASTCompiler)\n";
 print "\n# vim: set ft=perl6 nomodifiable :\n";

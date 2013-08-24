@@ -900,7 +900,7 @@ class HLL::Backend::MoarVM {
     }
 
     method mast($qast, *%adverbs) {
-        nqp::getcomp('qast').mast($qast);
+        nqp::getcomp('qast').to_mast($qast);
     }
 
     method mbc($jast, *%adverbs) {

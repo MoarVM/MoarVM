@@ -35,8 +35,9 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@
 
-OBJECTS = src/main@obj@ \
-          src/core/args@obj@ \
+MAIN_OBJECTS = src/main@obj@
+
+OBJECTS = src/core/args@obj@ \
           src/core/exceptions@obj@ \
           src/core/interp@obj@ \
           src/core/threadcontext@obj@ \
@@ -228,17 +229,27 @@ UV_OBJECTS = # _uvobjects_
 
 TOM_OBJECTS = @tomobjects@
 
+THIRDPARTY = @thirdpartylibs@
+
 .SUFFIXES: .c @obj@
 
-moarvm@exe@: $(OBJECTS) @thirdpartylibs@
+moarvm@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @linkmoar@ $(LDLIBS)
+
+@moarlib@: $(OBJECTS) $(THIRDPARTY)
+	$(MSG) linking $@
+	$(CMD)$(AR) $(ARFLAGS) @arout@$@ $(OBJECTS) $(NOOUT)
+
+@moardll@: $(OBJECTS) $(THIRDPARTY)
+	$(MSG) linking $@
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) @ldshared@ $(OBJECTS) $(LDLIBS)
 
 apr: @aprlib@
 
 libuv: _uvlib_
 
-$(OBJECTS): $(HEADERS)
+$(MAIN_OBJECTS) $(OBJECTS): $(HEADERS)
 
 tracing:
 	$(MSG) enable tracing
@@ -252,7 +263,11 @@ no-tracing:
 
 .c@obj@:
 	$(MSG) compiling $@
-	$(CMD)$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @ccout@$@ $*.c
+
+src/main@obj@: src/main.c
+	$(MSG) compiling $@
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
@@ -285,19 +300,21 @@ _uvlib_: _uvobjects_
 	$(CMD)@lnrule@ $(NOOUT)
 
 clean:
-	$(MSG) cleaning...
-	-$(CMD)$(RM) $(OBJECTS) $(NOOUT) $(NOERR)
-	-$(CMD)@clean@ $(NOOUT) $(NOERR)
+	$(MSG) remove build files
+	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
+
+realclean: clean
+	$(MSG) remove auxiliary files
+	-$(CMD)@auxclean@ $(NOOUT) $(NOERR)
+	$(MSG) remove 3rdparty files
 	-$(CMD)@aprclean@ $(NOOUT) $(NOERR)
 #	_uvclean_
 	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
-	$(MSG) done.
 
-realclean: clean
-	$(MSG) really cleaning...
-	-$(CMD)$(RM) moarvm@exe@ $(NOOUT) $(NOERR)
+distclean: realclean
+	$(MSG) remove binary and configuration files
+	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
-	$(MSG) done.

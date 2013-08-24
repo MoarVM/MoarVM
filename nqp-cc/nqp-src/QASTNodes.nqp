@@ -300,8 +300,8 @@ class QAST::Var is QAST::Node {
     has str $!scope;
     has str $!decl;
     has int $!slurpy;
-    has $!default;
-
+    has $!default_or_value;
+    
     method name(*@value) {
         $!name := @value[0] if @value;
         !nqp::isnull_s($!name) ?? $!name !! ""
@@ -315,8 +315,9 @@ class QAST::Var is QAST::Node {
         !nqp::isnull_s($!decl) ?? $!decl !! ""
     }
     method slurpy(*@value)  { $!slurpy := @value[0] if @value; $!slurpy }
-    method default(*@value) { $!default := @value[0] if @value; $!default }
-
+    method default(*@value) { $!default_or_value := @value[0] if @value; $!default_or_value }
+    method value(*@value) { $!default_or_value := @value[0] if @value; $!default_or_value }
+    
     method substitute_inline_placeholders(@fillers) {
         self
     }
@@ -327,7 +328,7 @@ class QAST::Var is QAST::Node {
 
     method dump_extra_node_info() {
         $!decl
-            ?? "$!scope $!name :decl"
+            ?? "$!scope $!name :decl($!decl)"
             !! "$!scope $!name";
     }
 }

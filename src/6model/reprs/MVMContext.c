@@ -101,8 +101,14 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 }
 
 static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not support exists key");
+    MVMContextBody *body = (MVMContextBody *)data;
+    MVMFrame *frame = body->context;
+    MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    MVMString *name = (MVMString *)key;
+    if (!lexical_names)
+        return 0;
+    MVM_HASH_GET(tc, lexical_names, name, entry);
+    return entry ? 1 : 0;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {

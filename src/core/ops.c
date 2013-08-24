@@ -3119,13 +3119,13 @@ static MVMOpInfo MVM_op_info_serialization[] = {
         MVM_OP_scsetobj,
         "scsetobj",
         3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_scsetcode,
         "scsetcode",
         3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_scgetobj,
@@ -3148,8 +3148,8 @@ static MVMOpInfo MVM_op_info_serialization[] = {
     {
         MVM_OP_scsetdesc,
         "scsetdesc",
-        3,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+        2,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_scobjcount,
@@ -3160,8 +3160,8 @@ static MVMOpInfo MVM_op_info_serialization[] = {
     {
         MVM_OP_setobjsc,
         "setobjsc",
-        3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        2,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_getobjsc,
@@ -3217,6 +3217,12 @@ static MVMOpInfo MVM_op_info_serialization[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_scgetdesc,
+        "scgetdesc",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
 static MVMOpInfo *MVM_op_info[] = {
@@ -3240,7 +3246,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     139,
     52,
     33,
-    19,
+    20,
 };
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {
