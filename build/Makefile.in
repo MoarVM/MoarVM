@@ -35,8 +35,9 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@
 
-OBJECTS = src/main@obj@ \
-          src/core/args@obj@ \
+MAIN_OBJECTS = src/main@obj@
+
+OBJECTS = src/core/args@obj@ \
           src/core/exceptions@obj@ \
           src/core/interp@obj@ \
           src/core/threadcontext@obj@ \
@@ -230,15 +231,19 @@ TOM_OBJECTS = @tomobjects@
 
 .SUFFIXES: .c @obj@
 
-moarvm@exe@: $(OBJECTS) @thirdpartylibs@
+moarvm@exe@: $(MAIN_OBJECTS) @moarlib@ @thirdpartylibs@
 	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @moarlib@ $(LDLIBS)
+
+@moarlib@: $(OBJECTS)
+	$(MSG) linking $@
+	$(CMD)$(AR) $(ARFLAGS) /out:$@ $(OBJECTS) $(NOOUT)
 
 apr: @aprlib@
 
 libuv: _uvlib_
 
-$(OBJECTS): $(HEADERS)
+$(MAIN_OBJECTS) $(OBJECTS): $(HEADERS)
 
 tracing:
 	$(MSG) enable tracing
@@ -286,7 +291,7 @@ _uvlib_: _uvobjects_
 
 clean:
 	$(MSG) cleaning...
-	-$(CMD)$(RM) $(OBJECTS) $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
 	-$(CMD)@clean@ $(NOOUT) $(NOERR)
 	-$(CMD)@aprclean@ $(NOOUT) $(NOERR)
 #	_uvclean_

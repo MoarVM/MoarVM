@@ -19,11 +19,24 @@
 /* Configuration. */
 #include "gen/config.h"
 
-/* needs to be after config.h */
+/* stuff for uthash */
+#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
+
 #include <uthash.h>
 
 /* forward declarations */
 #include "types.h"
+
+#if defined MVM_BUILD_SHARED
+#  define MVM_PUBLIC  MVM_DLL_EXPORT
+#  define MVM_PRIVATE MVM_DLL_LOCAL
+#elif defined MVM_SHARED
+#  define MVM_PUBLIC  MVM_DLL_IMPORT
+#  define MVM_PRIVATE MVM_DLL_LOCAL
+#else
+#  define MVM_PUBLIC
+#  define MVM_PRIVATE
+#endif
 
 /* Headers for APIs for various other data structures and APIs. */
 #include "6model/6model.h"

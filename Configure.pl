@@ -27,9 +27,8 @@ GetOptions(\%args, qw(
     debug! optimize! instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
-    build=s host=s
-    big-endian
-    use-readline
+    shared use-readline
+    build=s host=s big-endian
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -45,6 +44,7 @@ else { softfail("git error: $msg") }
 $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
+$args{shared}     //= 0;
 
 $args{'use-readline'} //= 0;
 $args{'big-endian'}   //= 0;
@@ -77,6 +77,9 @@ $config{syslibs}   //= [ qw( m pthread ) ];
 $config{usrlibs}   //= [];
 $config{platform}  //= '$(PLATFORM_POSIX)';
 $config{crossconf} //= '';
+$config{dllimport} //= '',
+$config{dllexport} //= '',
+$config{dlllocal}  //= '',
 
 # assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};
@@ -116,21 +119,14 @@ push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}  if $args{instrument};
 $config{ldflags} = join ' ', @ldflags;
 
+# setup shared linking
+$config{moarlib} = sprintf $config{ $args{shared} ? 'dll' : 'lib' }, $NAME;
+
 # some toolchains generate garbage
 my @auxfiles = @{ $defaults{-auxfiles} };
 $config{clean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n";
-
-print dots('    assumed byte order');
-if ($defaults{-be}) {
-    print "BE\n";
-    $config{bedef} = 'define';
-}
-else {
-    print "LE\n";
-    $config{bedef} = 'undef';
-}
 
 if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
@@ -139,12 +135,16 @@ else {
     build::auto::detect_native(\%config, \%defaults);
 }
 
+my $order = $config{be} ? 'big endian' : 'little endian';
+
 # dump configuration
 print "\n", <<TERM, "\n";
-      make: $config{make}
-   compile: $config{cc} $config{cflags}
-      link: $config{ld} $config{ldflags}
-      libs: $config{ldlibs}
+        make: $config{make}
+     compile: $config{cc} $config{cflags}
+        link: $config{ld} $config{ldflags}
+        libs: $config{ldlibs}
+
+  byte order: $order
 TERM
 
 print dots('Configuring 3rdparty libs');
@@ -259,8 +259,8 @@ sub setup_native {
 
     if (!exists $::SYSTEMS{$os}) {
         softfail("unknown OS '$os'");
-        print dots("    assuming GNU userland");
-        $os = 'generic';
+        print dots("    assuming POSIX userland");
+        $os = 'posix';
     }
 
     my ($shell, $toolchain, $compiler, $overrides) = @{$::SYSTEMS{$os}};
@@ -305,10 +305,10 @@ sub setup_native {
 
     my $order = $Config{byteorder};
     if ($order eq '1234' || $order eq '12345678') {
-        $defaults{-be} = 0;
+        $defaults{be} = 0;
     }
     elsif ($order eq '4321' || $order eq '87654321') {
-        $defaults{-be} = 1;
+        $defaults{be} = 1;
     }
     else {
         ::hardfail("unsupported byte order $order");
@@ -334,7 +334,7 @@ sub setup_cross {
             if (!exists $::SYSTEMS{$1}) {
                 softfail("unknown OS '$1'");
                 print dots("    assuming GNU userland");
-                $$_ = 'generic';
+                $$_ = 'posix';
             }
         }
         else { hardfail("failed to parse triple '$$_'") }
@@ -353,7 +353,7 @@ sub setup_cross {
     $defaults{cc}        = $cc;
     $defaults{ar}        = $ar;
     $defaults{crossconf} = $crossconf;
-    $defaults{-be}       = $args{'big-endian'};
+    $defaults{be}        = $args{'big-endian'};
 }
 
 # sets C<%defaults> from C<@_>
@@ -372,8 +372,10 @@ sub configure {
 
     while ($template =~ /@(\w+)@/) {
         my $key = $1;
-        return (undef, "unknown configuration key '$key', keys: ".join(',', keys %config))
-            unless exists $config{$key};
+        unless (exists $config{$key}) {
+            return (undef, "unknown configuration key '$key'\n    known keys: " .
+                join(', ', sort keys %config));
+        }
 
         $template =~ s/@\Q$key\E@/$config{$key}/;
     }
@@ -441,12 +443,12 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--use-readline]
+                   [--shared] [--use-readline]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--big-endian]
+                   [--shared] [--big-endian]
 
 =head1 OPTIONS
 
@@ -483,7 +485,7 @@ turns on Address Sanitizer when compiling with C<clang>.  Defaults to off.
 =item --os <os>
 
 If not explicitly set, the operating system is provided by the Perl
-runtime.  In case of unknown operating systems, a GNU userland is assumed.
+runtime.  In case of unknown operating systems, a POSIX userland is assumed.
 
 =item --shell <shell>
 
@@ -491,7 +493,7 @@ Currently supported shells are C<posix> and C<win32>.
 
 =item --toolchain <toolchain>
 
-Currently supported toolchains are C<gnu> and C<msvc>.
+Currently supported toolchains are C<posix>, C<gnu>, C<bsd> and C<msvc>.
 
 =item --compiler <compiler>
 
@@ -511,6 +513,10 @@ options.
 
 Explicitly set the make tool without affecting other configuration
 options.
+
+=item --shared
+
+Build MoarVM as a shared library instead of a static one.
 
 =item --use-readline
 

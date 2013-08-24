@@ -4,66 +4,66 @@ use warnings;
 
 # 3rdparty library configuration
 
-our %APR = (
+our %TP_APR = (
     name  => 'apr-1',
     path  => '3rdparty/apr/.libs',
     rule  => 'cd 3rdparty/apr && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure --disable-shared @crossconf@ && $(MAKE)',
     clean => 'cd 3rdparty/apr && $(MAKE) distclean',
 );
 
-our %LAO = (
+our %TP_LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomic_ops/src',
     rule  => 'cd 3rdparty/libatomic_ops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
     clean => 'cd 3rdparty/libatomic_ops/src && $(MAKE) distclean',
 );
 
-our %SHA = (
+our %TP_SHA = (
     name => 'sha1',
     path => '3rdparty/sha1',
     src  => [ '3rdparty/sha1' ],
 );
 
-our %TOM = (
+our %TP_TOM = (
     name => 'tommath',
     path => '3rdparty/libtommath',
     src  => [ '3rdparty/libtommath' ],
 );
 
-our %LN = (
+our %TP_LN = (
     name => 'linenoise',
     path => '3rdparty/linenoise',
     src  => [ '3rdparty/linenoise' ],
 );
 
-our %DC = (
+our %TP_DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
     rule  => 'cd 3rdparty/dyncall &&  ./configure2 && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile',
     clean => 'cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
 );
 
-our %DCB = (
+our %TP_DCB = (
     name  => 'dyncallback_s',
     path  => '3rdparty/dyncall/dyncallback',
     dummy => 1, # created as part of dyncall build
 );
 
-our %DL = (
+our %TP_DL = (
     name  => 'dynload_s',
     path  => '3rdparty/dyncall/dynload',
     dummy => 1, # created as part of dyncall build
 );
 
-our %UVDUMMY = (
+our %TP_UVDUMMY = (
     name => 'uv',
     path => '3rdparty/libuv',
     # no default rule
     # building libuv is always OS-specific
 );
 
-our %UV = (
-    %UVDUMMY,
+our %TP_UV = (
+    %TP_UVDUMMY,
     rule  => '$(AR) $(ARFLAGS) @arout@$@ $(UV_OBJECTS)',
     clean => '$(RM) @uvlib@ $(UV_OBJECTS)',
     # actually insufficient to build libuv
@@ -71,15 +71,15 @@ our %UV = (
 );
 
 our %THIRDPARTY = (
-    apr => { %APR },
-    lao => { %LAO },
-    tom => { %TOM },
-    sha => { %SHA },
-    ln  => { %LN },
-#    dc  => { %DC },
-#    dcb => { %DCB },
-#    dl  => { %DL },
-#    uv  => { %UVDUMMY },
+    apr => { %TP_APR },
+    lao => { %TP_LAO },
+    tom => { %TP_TOM },
+    sha => { %TP_SHA },
+    ln  => { %TP_LN },
+#    dc  => { %TP_DC },
+#    dcb => { %TP_DCB },
+#    dl  => { %TP_DL },
+#    uv  => { %TP_UVDUMMY },
 );
 
 # shell configuration
@@ -104,8 +104,8 @@ our %SHELLS = (
 # toolchain configuration
 # selected by C<--toolchain>
 
-our %GNU = (
-    -compiler => 'gcc',
+our %TC_POSIX = (
+    -compiler => 'cc',
 
     make => 'make',
     ar   => 'ar',
@@ -114,38 +114,47 @@ our %GNU = (
     ccout    => '-o ',
     ccinc    => '-I',
     ccdef    => '-D',
+    ccdll    => '-fPIC',
 
     ldout => undef,
     ldusr => '-l%s',
     ldsys => undef,
+    lddll => '-shared @ccshared@',
 
     arflags => 'rcs',
     arout   => '',
 
     mkflags => '',
-    mknoisy => <<'TERM',
-ifneq ($(NOISY), 1)
-MSG = @echo
-CMD = @
-NOOUT = > @nul@
-NOERR = 2> @nul@
-endif
-TERM
+    mknoisy => '',
 
     obj => '.o',
     lib => 'lib%s.a',
+    dll => 'lib%s.so',
 
     -auxfiles => [],
 );
 
-our %TOOLCHAINS = (
-    gnu => { %GNU },
+our %TC_GNU = (
+    %TC_POSIX,
 
-    # FIXME: support BSD makefile syntax
-    bsd => {
-        %GNU,
+    mknoisy => <<'TERM',
+ifneq ($(NOISY), 1)
+MSG = @echo
+CMD = @
+CMDOUT = > @nul@
+NOERR = 2> @nul@
+endif
+TERM
 
-        mknoisy => <<'TERM',
+    dllimport => '__attribute__ ((visibility ("default")))',
+    dllexport => '__attribute__ ((visibility ("default")))',
+    dlllocal  => '__attribute__ ((visibility ("hidden")))',
+);
+
+our %TC_BSD = (
+    %TC_POSIX,
+
+    mknoisy => <<'TERM',
 .if $(NOISY) != 1
 MSG = @echo
 CMD = @
@@ -153,28 +162,30 @@ NOOUT = > @nul@
 NOERR = 2> @nul@
 .endif
 TERM
-    },
+);
 
-    msvc => {
-        -compiler => 'cl',
+our %TC_MSVC = (
+    -compiler => 'cl',
 
-        make => 'nmake',
-        ar   => 'lib',
+    make => 'nmake',
+    ar   => 'lib',
 
-        ccswitch => '/c',
-        ccout    => '/Fo',
-        ccinc    => '/I',
-        ccdef    => '/D',
+    ccswitch => '/c',
+    ccout    => '/Fo',
+    ccinc    => '/I',
+    ccdef    => '/D',
+    ccdll    => '',
 
-        ldout => '/out:',
-        ldusr => '%s.lib',
-        ldsys => undef,
+    ldout => '/out:',
+    ldusr => '%s.lib',
+    ldsys => undef,
+    lddll => '/dll',
 
-        arflags => '/nologo',
-        arout   => '/out:',
+    arflags => '/nologo',
+    arout   => '/out:',
 
-        mkflags => '/nologo',
-        mknoisy => <<'TERM',
+    mkflags => '/nologo',
+    mknoisy => <<'TERM',
 !IF $(NOISY) != 1
 MSG = @echo
 CMD = @
@@ -183,18 +194,19 @@ NOERR = 2> @nul@
 !ENDIF
 TERM
 
-        obj => '.obj',
-        lib => '%s.lib',
+    obj => '.obj',
+    lib => '%s.lib',
+    dll => '%s.dll',
 
-        -auxfiles => [ qw( @name@.ilk @name@.pdb vc100.pdb ) ],
+    -auxfiles => [ qw( @name@.ilk @name@.pdb vc100.pdb ) ],
 
-        -thirdparty => {
-            apr => {
-                %APR,
-                path  => '3rdparty/apr/LibR',
-                rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
-                clean => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
-            },
+    -thirdparty => {
+        apr => {
+            %TP_APR,
+            path  => '3rdparty/apr/LibR',
+            rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
+            clean => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
+        },
 
 #            dc => {
 #                %DC,
@@ -205,8 +217,14 @@ TERM
 #
 #            dcb => { %DCB, name => 'libdyncallback_s' },
 #            dl  => { %DL, name => 'libdynload_s' },
-        },
     },
+);
+
+our %TOOLCHAINS = (
+    posix => { %TC_POSIX },
+    gnu   => { %TC_GNU },
+    bsd   => { %TC_BSD },
+    msvc  => { %TC_MSVC },
 );
 
 # compiler configuration
@@ -275,8 +293,9 @@ our %COMPILERS = (
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
     },
+
     cc => {
-        -toolchain => 'bsd',
+        -toolchain => 'posix',
 
         cc => 'cc',
         ld => undef,
@@ -300,11 +319,15 @@ our %COMPILERS = (
 # OS configuration
 # selected by C<--os> or taken from C<$^O>
 
-our %WIN32 = (
+our %OS_WIN32 = (
     exe      => '.exe',
     defs     => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
     syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
     platform => '$(PLATFORM_WIN32)',
+
+    dllimport => '__declspec(dllimport)',
+    dllexport => '__declspec(dllexport)',
+    dlllocal  => '',
 
     -thirdparty => {
         # header only, no need to build anything
@@ -317,7 +340,7 @@ our %WIN32 = (
     },
 );
 
-our %LINUX = (
+our %OS_LINUX = (
     syslibs => [ qw( m pthread uuid rt ) ],
 
     -thirdparty => {
@@ -325,25 +348,25 @@ our %LINUX = (
     },
 );
 
-our %OPENBSD = (
+our %OS_OPENBSD = (
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_OPENBSD)' },
     },
 );
 
-our %NETBSD = (
+our %OS_NETBSD = (
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_NETBSD)' },
     },
 );
 
-our %FREEBSD = (
+our %OS_FREEBSD = (
     -thirdparty => {
 #        uv => { %UV, objects => '$(UV_FREEBSD)' },
     },
 );
 
-our %SOLARIS = (
+our %OS_SOLARIS = (
     syslibs => [ qw( socket sendfile nsl uuid pthread m rt ) ],
     mknoisy => '',
 
@@ -352,7 +375,7 @@ our %SOLARIS = (
     },
 );
 
-our %DARWIN = (
+our %OS_DARWIN = (
     ldsys    => '-framework %s',
     defs     => [ '_DARWIN_USE_64_BIT_INODE=1' ],
     syslibs  => [ qw( ApplicationServices CoreServices Foundation ) ],
@@ -363,16 +386,16 @@ our %DARWIN = (
 );
 
 our %SYSTEMS = (
-    generic => [ qw( posix gnu gcc ), {} ],
-    linux   => [ qw( posix gnu gcc ), { %LINUX } ],
-    darwin  => [ qw( posix gnu clang ), { %DARWIN } ],
-    openbsd => [ qw( posix bsd gcc ), { %OPENBSD} ],
-    netbsd  => [ qw( posix bsd gcc ), { %NETBSD } ],
-    freebsd => [ qw( posix bsd clang ), { %FREEBSD } ],
-    solaris => [ qw( posix bsd cc ),  { %SOLARIS } ],
-    cygwin  => [ qw( posix gnu gcc ), { exe => '.exe' } ],
-    win32   => [ qw( win32 msvc cl ), { %WIN32 } ],
-    mingw32 => [ qw( win32 gnu gcc ), { %WIN32 } ],
+    posix   => [ qw( posix posix cc ), {} ],
+    linux   => [ qw( posix gnu gcc ), { %OS_LINUX } ],
+    darwin  => [ qw( posix gnu clang ), { %OS_DARWIN } ],
+    openbsd => [ qw( posix bsd gcc ), { %OS_OPENBSD} ],
+    netbsd  => [ qw( posix bsd gcc ), { %OS_NETBSD } ],
+    freebsd => [ qw( posix bsd clang ), { %OS_FREEBSD } ],
+    solaris => [ qw( posix posix cc ),  { %OS_SOLARIS } ],
+    win32   => [ qw( win32 msvc cl ), { %OS_WIN32 } ],
+    cygwin  => [ qw( win32 gnu gcc ), { %OS_WIN32 } ],
+    mingw32 => [ qw( win32 gnu gcc ), { %OS_WIN32 } ],
 );
 
 42;
