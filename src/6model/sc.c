@@ -160,6 +160,20 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
     }
 }
 
+
+/* Given an SC and an STable, pushes the STable to the end of the root list. */
+void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMSTable *st) {
+    MVMint64 idx = sc->body->num_stables;
+    if (idx == sc->body->alloc_stables) {
+        sc->body->alloc_stables += 16;
+        sc->body->root_stables = realloc(sc->body->root_stables,
+            sc->body->alloc_stables * sizeof(MVMSTable *));
+    }
+    MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
+    sc->body->num_stables++;
+}
+
+
 /* Given an SC and an index, fetch the code ref stored there. */
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject *roots = sc->body->root_codes;
