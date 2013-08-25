@@ -1,0 +1,2 @@
+    MoarVM does not come with its own test suite
+    Build the NQP cross compiler and test that
