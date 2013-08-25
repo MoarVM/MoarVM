@@ -218,7 +218,7 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
     /* Easy if it's in the current SC. */
     if (writer->root.sc == sc)
         return 0;
-    
+
     /* Otherwise, find it in our dependencies list. */
     num_deps = writer->root.num_dependencies;
     for (i = 0; i < num_deps; i++)
@@ -232,7 +232,7 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
         writer->dependencies_table_alloc *= 2;
         writer->root.dependencies_table = (char *)realloc(writer->root.dependencies_table, writer->dependencies_table_alloc);
     }
-    
+
     /* Add dependency. */
     /* XXX MVM_repr_push_o(tc, writer->root.dependent_scs, sc); */
     write_int32(writer->root.dependencies_table, offset,
@@ -257,7 +257,7 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
         st->header.sc = writer->root.sc;
         MVM_sc_push_stable(tc, writer->root.sc, st);
     }
-    
+
     /* Work out SC reference. */
     *sc     = get_sc_id(tc, writer, st->header.sc);
     *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, st->header.sc, st);
@@ -299,7 +299,7 @@ static void write_str_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
 /* Writes an object reference. */
 static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     MVMint32 sc_id, idx;
-    
+
     if (OBJ_IS_NULL(SC_OBJ(ref))) {
         /* This object doesn't belong to an SC yet, so it must be serialized as part of
          * this compilation unit. Add it to the work list. */
@@ -308,7 +308,7 @@ static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, 
     }
     sc_id = get_sc_id(tc, writer, SC_OBJ(ref));
     idx   = (MVMint32)MVM_sc_find_object_idx(tc, SC_OBJ(ref), ref);
-    
+
     expand_storage_if_needed(tc, writer, 8);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
     *(writer->cur_write_offset) += 4;
@@ -321,12 +321,12 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
     MVMint32 i;
-    
+
     /* Write out element count. */
     expand_storage_if_needed(tc, writer, 4);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
     *(writer->cur_write_offset) += 4;
-    
+
     /* Write elements. */
     for (i = 0; i < elems; i++)
         write_ref_func(tc, writer, MVM_repr_at_pos_o(tc, arr, i));
@@ -336,12 +336,12 @@ static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer
 static void write_array_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
     MVMint32 i;
-    
+
     /* Write out element count. */
     expand_storage_if_needed(tc, writer, 4);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
     *(writer->cur_write_offset) += 4;
-    
+
     /* Write elements. */
     for (i = 0; i < elems; i++)
         write_int_func(tc, writer, MVM_repr_at_pos_i(tc, arr, i));
@@ -351,12 +351,12 @@ static void write_array_int(MVMThreadContext *tc, MVMSerializationWriter *writer
 static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
     MVMint32 i;
-    
+
     /* Write out element count. */
     expand_storage_if_needed(tc, writer, 4);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
     *(writer->cur_write_offset) += 4;
-    
+
     /* Write elements. */
     for (i = 0; i < elems; i++)
         write_str_func(tc, writer, MVM_repr_at_pos_s(tc, arr, i));
@@ -367,12 +367,12 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *hash) {
     MVMObject *iter = MVM_iter(tc, hash);
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, hash);
-    
+
     /* Write out element count. */
     expand_storage_if_needed(tc, writer, 4);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
     *(writer->cur_write_offset) += 4;
-    
+
     /* Write elements, as key,value,key,value etc. */
     while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
         write_str_func(tc, writer, MVM_iterkey_s(tc, (MVMIter *)iter));
@@ -398,7 +398,7 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
     MVMCode *code = (MVMCode *)closure;
     MVMStaticFrame *sf;
     MVMObject *scr;
-    
+
     if (code->body.is_static)
         return code->body.code_object;
     sf = code->body.sf;
@@ -456,7 +456,7 @@ static MVMint32 get_serialized_outer_context_idx(MVMThreadContext *tc, MVMSerial
  * current SC. */
 static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *closure) {
     MVMint32 static_sc_id, static_idx, context_idx;
-    
+
     /* Locate the static code object. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, closure, 1);
     MVMSerializationContext *static_code_sc = Parrot_pmc_getprop(tc, static_code_ref, Parrot_str_new_constant(tc, "SC"));
@@ -467,18 +467,18 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
         writer->closures_table_alloc *= 2;
         writer->root.closures_table = (char *)realloc(writer->root.closures_table, writer->closures_table_alloc);
     }
-    
+
     /* Get the index of the context (which will add it to the todo list if
      * needed). */
     context_idx = get_serialized_outer_context_idx(tc, writer, closure);
-    
+
     /* Add an entry to the closures table. */
     static_sc_id = get_sc_id(tc, writer, static_code_sc);
     static_idx   = (MVMint32)MVM_sc_find_code_idx(tc, static_code_sc, static_code_ref);
     write_int32(writer->root.closures_table, offset, static_sc_id);
     write_int32(writer->root.closures_table, offset + 4, static_idx);
     write_int32(writer->root.closures_table, offset + 8, context_idx);
-    
+
     /* Check if it has a static code object. */
     if (!OBJ_IS_NULL(PARROT_SUB(closure)->multi_signature)) {
         MVMObject *code_obj = PARROT_SUB(closure)->multi_signature;
@@ -495,7 +495,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     else {
         write_int32(writer->root.closures_table, offset + 12, 0);
     }
-    
+
     /* Increment count of closures in the table. */
     writer->root.num_closures++;
 
@@ -599,7 +599,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     expand_storage_if_needed(tc, writer, 2);
     write_int16(*(writer->cur_write_buffer), *(writer->cur_write_offset), discrim);
     *(writer->cur_write_offset) += 2;
-    
+
     /* Now take appropriate action. */
     switch (discrim) {
         case REFVAR_NULL:
@@ -659,7 +659,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     MVMint32  output_size = 0;
     MVMint32  offset      = 0;
     MVMint32  version     = writer->root.version;
-    
+
     /* Calculate total size. */
     output_size += HEADER_SIZE;
     output_size += writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE;
@@ -671,86 +671,86 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     output_size += writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
     output_size += writer->contexts_data_offset;
     output_size += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
-    
+
     /* Allocate a buffer that size. */
     output = (char *)mem_sys_allocate(output_size);
-    
+
     /* Write version into header. */
     write_int32(output, 0, CURRENT_VERSION);
     offset += HEADER_SIZE;
-    
+
     /* Put dependencies table in place and set location/rows in header. */
     write_int32(output, 4, offset);
     write_int32(output, 8, writer->root.num_dependencies);
-    memcpy(output + offset, writer->root.dependencies_table, 
+    memcpy(output + offset, writer->root.dependencies_table,
         writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE);
     offset += writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE;
-    
+
     /* Put STables table in place, and set location/rows in header. */
     write_int32(output, 12, offset);
     write_int32(output, 16, writer->root.num_stables);
-    memcpy(output + offset, writer->root.stables_table, 
+    memcpy(output + offset, writer->root.stables_table,
         writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE);
     offset += writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
-    
+
     /* Put STables data in place. */
     write_int32(output, 20, offset);
-    memcpy(output + offset, writer->root.stables_data, 
+    memcpy(output + offset, writer->root.stables_data,
         writer->stables_data_offset);
     offset += writer->stables_data_offset;
-    
+
     /* Put objects table in place, and set location/rows in header. */
     write_int32(output, 24, offset);
     write_int32(output, 28, writer->root.num_objects);
-    memcpy(output + offset, writer->root.objects_table, 
+    memcpy(output + offset, writer->root.objects_table,
         writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE);
     offset += writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
-    
+
     /* Put objects data in place. */
     write_int32(output, 32, offset);
-    memcpy(output + offset, writer->root.objects_data, 
+    memcpy(output + offset, writer->root.objects_data,
         writer->objects_data_offset);
     offset += writer->objects_data_offset;
-    
+
     /* Put closures table in place, and set location/rows in header. */
     write_int32(output, 36, offset);
     write_int32(output, 40, writer->root.num_closures);
-    memcpy(output + offset, writer->root.closures_table, 
+    memcpy(output + offset, writer->root.closures_table,
         writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE);
     offset += writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
 
     /* Put contexts table in place, and set location/rows in header. */
     write_int32(output, 44, offset);
     write_int32(output, 48, writer->root.num_contexts);
-    memcpy(output + offset, writer->root.contexts_table, 
+    memcpy(output + offset, writer->root.contexts_table,
         writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE);
     offset += writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
-    
+
     /* Put contexts data in place. */
     write_int32(output, 52, offset);
     memcpy(output + offset, writer->root.contexts_data,
         writer->contexts_data_offset);
     offset += writer->contexts_data_offset;
-    
+
     /* Put repossessions table in place, and set location/rows in header. */
     write_int32(output, 56, offset);
     write_int32(output, 60, writer->root.num_repos);
-    memcpy(output + offset, writer->root.repos_table, 
+    memcpy(output + offset, writer->root.repos_table,
         writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
     offset += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
-    
+
     /* Sanity check. */
     if (offset != output_size)
         MVM_exception_throw_adhoc(tc,
             "Serialization sanity check failed: offset != output_size");
-    
+
     /* Base 64 encode. */
     output_b64 = base64_encode(output, output_size);
     free(output);
     if (output_b64 == NULL)
         MVM_exception_throw_adhoc(tc,
             "Serialization error: failed to convert to base64");
-    
+
     /* Make a Parrot binary MVMString containing it (external flag means use
      * this buffer, not copy it to a new one). */
     return Parrot_str_new_init(tc, output_b64, strlen(output_b64),
@@ -762,26 +762,26 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint32 version = writer->root.version;
     MVMint64  i;
-    
+
     /* Ensure there's space in the STables table; grow if not. */
     MVMint32 offset = writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
     if (offset + STABLES_TABLE_ENTRY_SIZE > writer->stables_table_alloc) {
         writer->stables_table_alloc *= 2;
         writer->root.stables_table = (char *)realloc(writer->root.stables_table, writer->stables_table_alloc);
     }
-    
+
     /* Make STables table entry. */
     write_int32(writer->root.stables_table, offset, add_string_to_heap(tc, writer, st->REPR->name));
     write_int32(writer->root.stables_table, offset + 4, writer->stables_data_offset);
-    
+
     /* Increment count of stables in the table. */
     writer->root.num_stables++;
-    
+
     /* Make sure we're going to write to the correct place. */
     writer->cur_write_buffer = &(writer->root.stables_data);
     writer->cur_write_offset = &(writer->stables_data_offset);
     writer->cur_write_limit  = &(writer->stables_data_alloc);
-    
+
     /* Write HOW, WHAT and WHO. */
     write_obj_ref(tc, writer, st->HOW);
     write_obj_ref(tc, writer, st->WHAT);
@@ -792,32 +792,32 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     write_int_func(tc, writer, st->vtable_length);
     for (i = 0; i < st->vtable_length; i++)
         write_ref_func(tc, writer, st->vtable[i]);
-    
+
     /* Type check cache. */
     write_int_func(tc, writer, st->type_check_cache_length);
     for (i = 0; i < st->type_check_cache_length; i++)
         write_ref_func(tc, writer, st->type_check_cache[i]);
-    
+
     /* Mode flags. */
     write_int_func(tc, writer, st->mode_flags);
-    
+
     /* Boolification spec. */
     write_int_func(tc, writer, st->boolification_spec != NULL);
     if (st->boolification_spec) {
         write_int_func(tc, writer, st->boolification_spec->mode);
         write_ref_func(tc, writer, st->boolification_spec->method);
     }
-    
+
     /* Container spec. */
     write_int_func(tc, writer, st->container_spec != NULL);
     if (st->container_spec) {
         /* Write container spec name. */
         write_str_func(tc, writer, st->container_spec->name);
-        
+
         /* Give container spec a chance to serialize any data it wishes. */
         st->container_spec->serialize(tc, st, writer);
     }
-    
+
     /* Invocation spec. */
     if (writer->root.version >= 5) {
         write_int_func(tc, writer, st->invocation_spec != NULL);
@@ -828,10 +828,10 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
             write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
         }
     }
-    
+
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
-    
+
     /* If the REPR has a function to serialize representation data, call it. */
     if (st->REPR->serialize_repr_data)
         st->REPR->serialize_repr_data(tc, st, writer);
@@ -841,7 +841,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
  * delegation to its representation. */
 static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *obj) {
     MVMint32 offset;
-    
+
     /* Get index of SC that holds the STable and its index. */
     MVMint32 sc;
     MVMint32 sc_idx;
@@ -849,28 +849,28 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
         MVM_exception_throw_adhoc(tc,
             "Non-6model object in object serialization list");
     get_stable_ref_info(tc, writer, STABLE_PMC(obj), &sc, &sc_idx);
-    
+
     /* Ensure there's space in the objects table; grow if not. */
     offset = writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
     if (offset + OBJECTS_TABLE_ENTRY_SIZE > writer->objects_table_alloc) {
         writer->objects_table_alloc *= 2;
         writer->root.objects_table = (char *)realloc(writer->root.objects_table, writer->objects_table_alloc);
     }
-    
+
     /* Make objects table entry. */
     write_int32(writer->root.objects_table, offset, sc);
     write_int32(writer->root.objects_table, offset + 4, sc_idx);
     write_int32(writer->root.objects_table, offset + 8, writer->objects_data_offset);
     write_int32(writer->root.objects_table, offset + 12, IS_CONCRETE(obj) ? 1 : 0);
-    
+
     /* Increment count of objects in the table. */
     writer->root.num_objects++;
-    
+
     /* Make sure we're going to write to the correct place. */
     writer->cur_write_buffer = &(writer->root.objects_data);
     writer->cur_write_offset = &(writer->objects_data_offset);
     writer->cur_write_limit  = &(writer->objects_data_alloc);
-    
+
     /* Delegate to its serialization REPR function. */
     if (IS_CONCRETE(obj)) {
         if (REPR(obj)->serialize)
@@ -885,12 +885,12 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
  * the stuff in its lexpad. */
 static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
     MVMint32 i, offset, static_sc_id, static_idx;
-    
+
     /* Grab lexpad, which we'll serialize later on. */
     MVMObject *lexpad    = PARROT_CALLCONTEXT(ctx)->lex_pad;
     MVMObject *lexinfo   = PARROT_SUB(PARROT_CALLCONTEXT(ctx)->current_sub)->lex_info;
     MVMObject *lexiter   = MVM_iter(tc, lexpad);
-    
+
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, PARROT_CALLCONTEXT(ctx)->current_sub, 1);
     MVMObject *static_code_sc  = Parrot_pmc_getprop(tc, static_code_ref, Parrot_str_new_constant(tc, "SC"));
@@ -906,12 +906,12 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
         writer->contexts_table_alloc *= 2;
         writer->root.contexts_table = (char *)realloc(writer->root.contexts_table, writer->contexts_table_alloc);
     }
-    
+
     /* Make contexts table entry. */
     write_int32(writer->root.contexts_table, offset, static_sc_id);
     write_int32(writer->root.contexts_table, offset + 4, static_idx);
     write_int32(writer->root.contexts_table, offset + 8, writer->contexts_data_offset);
-    
+
     /* See if there's any relevant outer context, and if so set it up to
      * be serialized. */
     if (!OBJ_IS_NULL(PARROT_CALLCONTEXT(ctx)->outer_ctx))
@@ -919,15 +919,15 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
             get_serialized_context_idx(tc, writer, PARROT_CALLCONTEXT(ctx)->outer_ctx));
     else
         write_int32(writer->root.contexts_table, offset + 12, 0);
-    
+
     /* Increment count of stables in the table. */
     writer->root.num_contexts++;
-    
+
     /* Set up writer. */
     writer->cur_write_buffer = &(writer->root.contexts_data);
     writer->cur_write_offset = &(writer->contexts_data_offset);
     writer->cur_write_limit  = &(writer->contexts_data_alloc);
-    
+
     /* Serialize lexicals. */
     writer->write_int(tc, writer, MVM_repr_elems(tc, lexpad));
     while (VTABLE_get_bool(tc, lexiter)) {
@@ -956,18 +956,18 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
 /* Goes through the list of repossessions and serializes them all. */
 static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     MVMint64 i;
-    
+
     /* Obtain list of repossession object indexes and original SCs. */
     MVMObject *rep_indexes, *rep_scs;
     GETATTR_SerializationContext_rep_indexes(tc, writer->root.sc, rep_indexes);
     GETATTR_SerializationContext_rep_scs(tc, writer->root.sc, rep_scs);
-    
+
     /* Allocate table space, provided we've actually something to do. */
     writer->root.num_repos = (MVMint32)MVM_repr_elems(tc, rep_indexes);
     if (writer->root.num_repos == 0)
         return;
     writer->root.repos_table = (char *)mem_sys_allocate(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
-    
+
     /* Make entries. */
     for (i = 0; i < writer->root.num_repos; i++) {
         MVMint32 offset  = (MVMint32)(i * REPOS_TABLE_ENTRY_SIZE);
@@ -980,7 +980,7 @@ static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter
         MVMint32   orig_idx   = (MVMint32)(is_st ?
             MVM_sc_find_stable_idx(tc, orig_sc, writer->stables_list[obj_idx]) :
             MVM_sc_find_object_idx(tc, orig_sc, MVM_repr_at_pos_o(tc, writer->objects_list, obj_idx)));
-        
+
         /* Write table row. */
         write_int32(writer->root.repos_table, offset, is_st);
         write_int32(writer->root.repos_table, offset + 4, obj_idx);
@@ -1036,7 +1036,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVMString *result   = NULL;
     MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, (MVMObject *)sc);
     MVMint32   version  = CURRENT_VERSION;
-    
+
     /* Set up writer with some initial settings. */
     MVMSerializationWriter *writer = (MVMSerializationWriter *)calloc(1, sizeof (MVMSerializationWriter));
     GETATTR_SerializationContext_root_objects(tc, sc, objects);
@@ -1050,7 +1050,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.string_heap    = empty_string_heap;
     writer->root.dependent_scs  = Parrot_pmc_new(tc, enum_class_ResizablePMCArray);
     writer->seen_strings        = Parrot_pmc_new(tc, enum_class_Hash);
-    
+
     /* Allocate initial memory space for storing serialized tables and data. */
     writer->dependencies_table_alloc = DEP_TABLE_ENTRY_SIZE * 4;
     writer->root.dependencies_table  = (char *)mem_sys_allocate(writer->dependencies_table_alloc);
@@ -1068,17 +1068,17 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.contexts_table      = (char *)mem_sys_allocate(writer->contexts_table_alloc);
     writer->contexts_data_alloc      = DEFAULT_CONTEXTS_DATA_SIZE;
     writer->root.contexts_data       = (char *)mem_sys_allocate(writer->contexts_data_alloc);
-    
+
     /* Populate write functions table. */
     writer->write_int        = write_int_func;
     writer->write_num        = write_num_func;
     writer->write_str        = write_str_func;
     writer->write_ref        = write_ref_func;
     writer->write_stable_ref = write_stable_ref_func;
-    
+
     /* Disable GC at this stage; the stuff hanging off writer isn't anchored. */
      Parrot_block_GC_mark(tc);
-    
+
     /* Other init. */
     smo_id = Parrot_pmc_get_type_str(tc, Parrot_str_new(tc, "SixModelObject", 0));
     nqp_lexpad_id = Parrot_pmc_get_type_str(tc, Parrot_str_new(tc, "NQPLexInfo", 0));
@@ -1087,7 +1087,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     ownedhash_id = Parrot_pmc_get_type_str(tc, Parrot_str_new(tc, "OwnedHash", 0));
     ownedrpa_id = Parrot_pmc_get_type_str(tc, Parrot_str_new(tc, "OwnedResizablePMCArray", 0));
     qrpa_id = Parrot_pmc_get_type_str(tc, Parrot_str_new(tc, "QRPA", 0));
-    
+
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
     VTABLE_push_string(tc, empty_string_heap, NULL);
 
@@ -1096,7 +1096,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
 
     /* Build a single result MVMString out of the serialized data. */
     result = concatenate_outputs(tc, writer);
-    
+
     /* Re-enable GC. */
     Parrot_unblock_GC_mark(tc);
 
@@ -1107,7 +1107,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     free(writer->root.objects_table);
     free(writer->root.objects_data);
     free(writer);
-    
+
     return result;
 }
 
