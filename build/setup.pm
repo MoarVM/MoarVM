@@ -7,7 +7,7 @@ use warnings;
 our %TP_APR = (
     name  => 'apr-1',
     path  => '3rdparty/apr/.libs',
-    rule  => 'cd 3rdparty/apr && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure --disable-shared @crossconf@ && $(MAKE)',
+    rule  => 'cd 3rdparty/apr && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) @ccshared@\' ./configure --disable-shared @crossconf@ && $(MAKE)',
     clean => 'cd 3rdparty/apr && $(MAKE) distclean',
 );
 
