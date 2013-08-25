@@ -42,11 +42,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     switch(handle->body.type) {
         case MVM_OSHANDLE_UNINIT:
             break;
-        case MVM_OSHANDLE_SOCKET:
-            apr_socket_close(handle->body.socket);
-            break;
     }
-    apr_pool_destroy(handle->body.mem_pool);
 }
 
 /* Gets the storage specification for this representation. */

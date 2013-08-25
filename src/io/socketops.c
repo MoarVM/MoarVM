@@ -9,26 +9,24 @@ static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSH
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.type != MVM_OSHANDLE_SOCKET) {
+    if ((*handle)->body.type != MVM_OSHANDLE_TCP || (*handle)->body.type != MVM_OSHANDLE_UDP) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type socket", msg);
     }
 }
 
 MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVMString *hostname, MVMint64 port, MVMint64 protocol, MVMint64 encoding_flag) {
     MVMOSHandle *result;
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_socket_t *socket;
-    apr_sockaddr_t *sa;
-    int family = APR_INET; /* TODO: detect family from ip address format or the ip address resolving from the hostname */
-    int type = SOCK_STREAM;
-    int protocol_int = (int)protocol;
+    MVMOSHandleBody *body;
+    uv_tcp_t *socket;
+    uv_connect_t connect;
+    struct sockaddr_in dest;
     char *hostname_cstring;
+    int r;
 
     ENCODING_VALID(encoding_flag);
 
-    if (!(protocol_int == APR_PROTO_TCP || protocol_int == APR_PROTO_UDP || protocol_int == APR_PROTO_SCTP)) {
-        MVM_exception_throw_adhoc(tc, "Open socket got an invalid protocol number (needs 6, 17, or 132; got %d)", protocol_int);
+    if (!(protocol == MVM_OSHANDLE_TCP || protocol == MVM_OSHANDLE_UDP)) {
+        MVM_exception_throw_adhoc(tc, "Bind socket got an invalid protocol number (needs 4, 5; got %d)", protocol);
     }
 
     if (port < 1 || port > 65535) {
@@ -46,37 +44,25 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
         MVM_exception_throw_adhoc(tc, "Open socket needs a type object with MVMOSHandle REPR");
     }
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(hostname_cstring);
-        MVM_exception_throw_apr_error(tc, rv, "Open socket failed to create pool: ");
-    }
-
-    if ((rv = apr_socket_create(&socket, family, type, protocol_int, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        free(hostname_cstring);
-        MVM_exception_throw_apr_error(tc, rv, "Open socket failed to create socket: ");
-    }
-
-    if ((rv = apr_sockaddr_info_get(&sa, (const char *)hostname_cstring, APR_UNSPEC, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        free(hostname_cstring);
-        MVM_exception_throw_apr_error(tc, rv, "Open socket failed to study address/port: ");
-    }
+    dest = uv_ip4_addr(hostname_cstring, port);
 
     free(hostname_cstring);
 
-    if ((rv = apr_socket_connect(socket, sa)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Open socket failed to connect: ");
+    socket = malloc(sizeof(uv_tcp_t));
+    uv_tcp_init(tc->loop, socket);
+
+    if ((r = uv_tcp_connect(&connect, socket, dest, NULL)) < 0) {
+        MVM_exception_throw_adhoc(tc, "Open socket failed to connect: %s", uv_strerror(r));
     }
 
     /* initialize the object */
     result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
 
-    result->body.socket = socket;
-    result->body.type = MVM_OSHANDLE_SOCKET;
-    result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = encoding_flag;
+    body = &result->body;
+    body->handle = (uv_handle_t *)socket;
+    body->handle->data = body;   /* this is needed in tcp_stream_on_read function. */
+    body->type = MVM_OSHANDLE_TCP;
+    body->encoding_type = encoding_flag;
 
     return (MVMObject *)result;
 }
@@ -128,6 +114,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
             uv_tcp_init(tc->loop, server);
             uv_tcp_bind(server, bind_addr);
             body->handle = (uv_handle_t *)server;
+            body->handle->data = body;   /* this is needed in tcp_stream_on_read function. */
             body->type = MVM_OSHANDLE_TCP;
             body->encoding_type = encoding_flag;
             break;
@@ -138,6 +125,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
             uv_udp_init(tc->loop, server);
             uv_udp_bind(server, bind_addr, 0);
             body->handle = (uv_handle_t *)server;
+            body->handle->data = body;    /* this is needed in udp_stream_on_read function. */
             body->type = MVM_OSHANDLE_UDP;
             body->encoding_type = encoding_flag;
             break;
@@ -182,7 +170,7 @@ MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMin
     result = (MVMOSHandle *)REPR(STABLE(oshandle)->WHAT)->allocate(tc, STABLE(STABLE(oshandle)->WHAT));
     body = &handle->body;
     body->handle = (uv_handle_t *)client;
-    body->handle->data = body;      /* this is needed in tcp_stream_on_read and udp_stream_on_read function. */
+    body->handle->data = body;      /* this is needed in tcp_stream_on_read function. */
     body->type   = MVM_OSHANDLE_TCP;
     body->encoding_type = handle->body.encoding_type;
 

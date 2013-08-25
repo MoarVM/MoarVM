@@ -22,13 +22,9 @@ struct MVMOSHandleBody {
 #else
         DIR     *dir_handle;
 #endif
-        apr_socket_t *socket;
     };
     MVMuint8        eof;
     MVMuint8 encoding_type;
-
-
-    apr_pool_t *mem_pool;
 };
 struct MVMOSHandle {
     MVMObject common;
