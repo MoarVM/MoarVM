@@ -13,7 +13,7 @@
  * For now, just hardcoded so more interesting things can be done. */
 
 /* Sized types. */
-#define MVMint8        char
+#define MVMint8        signed char
 #define MVMuint8       unsigned char
 #define MVMint16       short
 #define MVMuint16      unsigned short
@@ -28,21 +28,18 @@
 #define MVM_NO_RETURN @noreturnspecifier@
 #define MVM_NO_RETURN_GCC @noreturnattribute@
 
-/* Detect big-endian systems.
- * Win32 is always little-endian. */
-#ifndef _WIN32
-#  if defined __BYTE_ORDER__
-#    if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#      define MVM_BIGENDIAN 1
-#    elif __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-#      error "Unsupported endianness"
-#    endif
-#  elif _BIG_ENDIAN || __BIG_ENDIAN__
-#    define MVM_BIGENDIAN 1
-#  elif !(_LITTLE_ENDIAN || __LITTLE_ENDIAN__)
-#    error "Failed to detect endianness"
-#  endif
+/* DLL interface definitions. */
+#define MVM_DLL_IMPORT @dllimport@
+#define MVM_DLL_EXPORT @dllexport@
+#define MVM_DLL_LOCAL  @dlllocal@
+
+/* Set in case of big-endian sytems.
+ * The default byte order is little-endian. */
+#if @be@
+#define MVM_BIGENDIAN @be@
 #endif
 
-/* stuff for uthash */
-#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
+/* Readline detection */
+#if @hasreadline@
+#define MVM_HAS_READLINE @hasreadline@
+#endif

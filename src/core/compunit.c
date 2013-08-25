@@ -8,7 +8,7 @@
 
 /* Loads a compilation unit from a bytecode file, mapping it into
  * memory. */
-MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename) {
+MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     MVMCompUnit *cu          = NULL;
     void        *block       = NULL;
     apr_pool_t  *pool        = NULL;

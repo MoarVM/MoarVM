@@ -498,6 +498,7 @@
 #define MVM_OP_tell_fh 45
 #define MVM_OP_stat 46
 #define MVM_OP_readline_fh 47
+#define MVM_OP_readlineint_fh 48
 
 /* Op name defines for bank processthread. */
 #define MVM_OP_procshell 0
@@ -542,5 +543,6 @@
 #define MVM_OP_scwbenable 16
 #define MVM_OP_pushcompsc 17
 #define MVM_OP_popcompsc 18
+#define MVM_OP_scgetdesc 19
 
 MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);

@@ -2,4 +2,4 @@
  * of a MAST::CompUnit. It may be mapped in from a file, created in memory
  * or something else. */
 
-MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, char *filename);
+MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename);

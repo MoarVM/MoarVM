@@ -13,6 +13,8 @@
 #define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
+static int tracing_enabled = 0;
+
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
     /* Points to the current opcode. */
@@ -46,6 +48,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
     /* Enter runloop. */
     while (1) {
+#if MVM_TRACING
+        if (tracing_enabled) {
+            char *trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
+            fprintf(stderr, "%s\n", trace_line);
+            /* slow tracing is slow. Feel free to speed it. */
+            free(trace_line);
+        }
+#endif
         /* Primary dispatch by op bank. */
         switch (*(cur_op++)) {
             /* Control flow and primitive operations. */
@@ -3101,6 +3111,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).s = MVM_file_readline_fh(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
+                    case MVM_OP_readlineint_fh:
+                        GET_REG(cur_op, 0).s = MVM_file_readline_interactive_fh(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_io, *(cur_op-1));
@@ -3188,35 +3202,101 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
-                    case MVM_OP_scsetdesc: {
-                        MVMObject *sc   = GET_REG(cur_op, 2).o;
-                        MVMString *desc = GET_REG(cur_op, 4).s;
+                    case MVM_OP_scsetobj: {
+                        MVMObject *sc = GET_REG(cur_op, 0).o;
                         if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                             MVM_exception_throw_adhoc(tc,
-                                "Must provide an SCRef operand to scsetdesc");
-                        MVM_ASSIGN_REF(tc, sc,
-                            ((MVMSerializationContext *)sc)->body->description,
-                            desc);
-                        GET_REG(cur_op, 0).s = desc;
+                                "Must provide an SCRef operand to scsetobj");
+                        MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
                         cur_op += 6;
                         break;
                     }
+                    case MVM_OP_scsetcode: {
+                        MVMObject *sc = GET_REG(cur_op, 0).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scsetcode");
+                        MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
+                            GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_scgetobj: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scgetobj");
+                        GET_REG(cur_op, 0).o = MVM_sc_get_object(tc,
+                            (MVMSerializationContext *)sc, GET_REG(cur_op, 4).i64);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_scgethandle: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scgethandle");
+                        GET_REG(cur_op, 0).s = MVM_sc_get_handle(tc,
+                            (MVMSerializationContext *)sc);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_scgetobjidx: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scgetobjidx");
+                        GET_REG(cur_op, 0).i64 = MVM_sc_find_object_idx(tc,
+                            (MVMSerializationContext *)sc, GET_REG(cur_op, 4).o);
+                        cur_op += 6;
+                        break;
+                    }
+                    case MVM_OP_scsetdesc: {
+                        MVMObject *sc   = GET_REG(cur_op, 0).o;
+                        MVMString *desc = GET_REG(cur_op, 2).s;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scsetdesc");
+                        MVM_sc_set_description(tc, (MVMSerializationContext *)sc, desc);
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_scobjcount: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to scobjcount");
+                        GET_REG(cur_op, 0).i64 = MVM_sc_get_object_count(tc,
+                            (MVMSerializationContext *)sc);
+                        cur_op += 4;
+                        break;
+                    }
                     case MVM_OP_setobjsc: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
-                        MVMObject *sc  = GET_REG(cur_op, 4).o;
+                        MVMObject *obj = GET_REG(cur_op, 0).o;
+                        MVMObject *sc  = GET_REG(cur_op, 2).o;
                         if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                             MVM_exception_throw_adhoc(tc,
                                 "Must provide an SCRef operand to setobjsc");
                         MVM_ASSIGN_REF(tc, obj, obj->header.sc,
                             (MVMSerializationContext *)sc);
-                        GET_REG(cur_op, 0).o = obj;
-                        cur_op += 6;
+                        cur_op += 4;
                         break;
                     }
                     case MVM_OP_getobjsc:
                         GET_REG(cur_op, 0).o = (MVMObject *)GET_REG(cur_op, 2).o->header.sc;
                         cur_op += 4;
                         break;
+                    case MVM_OP_serialize: {
+                        MVMObject *sc = GET_REG(cur_op, 2).o;
+                        MVMObject *obj = GET_REG(cur_op, 4).o;
+                        if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                            MVM_exception_throw_adhoc(tc,
+                                "Must provide an SCRef operand to serialize");
+                        GET_REG(cur_op, 0).s = MVM_serialization_serialize(tc, (MVMSerializationContext *)sc, obj);
+                        cur_op += 6;
+                        break;
+                    }
                     case MVM_OP_deserialize: {
                         MVMString *blob = GET_REG(cur_op, 2).s;
                         MVMObject *sc   = GET_REG(cur_op, 4).o;
@@ -3317,4 +3397,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     }
 
     return_label:;
+}
+
+void MVM_interp_enable_tracing() {
+    tracing_enabled = 1;
 }

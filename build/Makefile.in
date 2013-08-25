@@ -1,17 +1,28 @@
 CC   = @cc@
 LD   = @ld@
 AR   = @ar@
-MAKE = @make@
+MAKE = @make@ @mkflags@
 RM   = @rm@
 CAT  = @cat@
 
-CFLAGS    = @cflags@
+TRACING = 0
+NOISY = 0
+
+MSG = @:
+CMD =
+NOOUT =
+NOERR =
+
+@mknoisy@
+
+CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING)
 CINCLUDES = @ccinc@3rdparty/apr/include \
             @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libuv/src \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@3rdparty/libtommath \
             @ccinc@3rdparty/sha1 \
+            @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -24,8 +35,9 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@
 
-OBJECTS = src/main@obj@ \
-          src/core/args@obj@ \
+MAIN_OBJECTS = src/main@obj@
+
+OBJECTS = src/core/args@obj@ \
           src/core/exceptions@obj@ \
           src/core/interp@obj@ \
           src/core/threadcontext@obj@ \
@@ -217,50 +229,92 @@ UV_OBJECTS = @uvobjects@
 
 TOM_OBJECTS = @tomobjects@
 
+THIRDPARTY = @thirdpartylibs@
+
 .SUFFIXES: .c @obj@
 
-moarvm@exe@: $(OBJECTS) @thirdpartylibs@
-	$(LD) @ldout@$@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
+moarvm@exe@: $(MAIN_OBJECTS) @moar@
+	$(MSG) linking $@
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @linkmoar@ $(LDLIBS)
+
+@moarlib@: $(OBJECTS) $(THIRDPARTY)
+	$(MSG) linking $@
+	$(CMD)$(AR) $(ARFLAGS) @arout@$@ $(OBJECTS) $(NOOUT)
+
+@moardll@: $(OBJECTS) $(THIRDPARTY)
+	$(MSG) linking $@
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) @ldshared@ $(OBJECTS) $(LDLIBS)
 
 apr: @aprlib@
 
 libuv: @uvlib@
 
-$(OBJECTS): $(HEADERS)
+$(MAIN_OBJECTS) $(OBJECTS): $(HEADERS)
+
+tracing:
+	$(MSG) enable tracing
+	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
+	$(CMD)$(MAKE) TRACING=1 NOISY="$(NOISY)"
+
+no-tracing:
+	$(MSG) disable tracing
+	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
+	$(CMD)$(MAKE) TRACING=0 NOISY="$(NOISY)"
 
 .c@obj@:
-	$(CC) @ccswitch@ $(CFLAGS) $(CINCLUDES) @ccout@$@ $*.c
+	$(MSG) compiling $@
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @ccout@$@ $*.c
+
+src/main@obj@: src/main.c
+	$(MSG) compiling $@
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
-	$(CAT) src/strings/unicode_db.c >$@
-	$(CAT) src/strings/unicode_ops.c >>$@
+	$(MSG) generating $@
+	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 3rdparty/apr/include/apr.h: @aprlib@
 
 @aprlib@:
-	@aprrule@
+	$(MSG) building $@...
+	$(CMD)@aprrule@ $(NOOUT)
+	$(MSG) done.
 
 @uvlib@: $(UV_OBJECTS)
 	@uvrule@
 
 @laolib@:
-	@laorule@
+	$(MSG) linking $@
+	$(CMD)@laorule@ $(NOOUT)
 
 @tomlib@: $(TOM_OBJECTS)
-	@tomrule@
+	$(MSG) linking $@
+	$(CMD)@tomrule@ $(NOOUT)
 
 @shalib@: @shaobjects@
-	@sharule@
+	$(MSG) linking $@
+	$(CMD)@sharule@ $(NOOUT)
+
+@lnlib@: @lnobjects@
+	$(MSG) linking $@
+	$(CMD)@lnrule@ $(NOOUT)
 
 clean:
-	-$(RM) $(OBJECTS)
-	@clean@
-	@aprclean@
-	@uvclean@
-	@laoclean@
-	@tomclean@
-	@shaclean@
+	$(MSG) remove build files
+	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
 
 realclean: clean
-	-$(RM) moarvm@exe@
-	-$(RM) Makefile src/gen/config.h src/strings/unicode.c
+	$(MSG) remove auxiliary files
+	-$(CMD)@auxclean@ $(NOOUT) $(NOERR)
+	$(MSG) remove 3rdparty files
+	-$(CMD)@aprclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@uvclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
+
+distclean: realclean
+	$(MSG) remove binary and configuration files
+	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)

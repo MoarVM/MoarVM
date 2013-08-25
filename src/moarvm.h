@@ -12,12 +12,25 @@
 /* Configuration. */
 #include "gen/config.h"
 
-/* needs to be after config.h */
+/* stuff for uthash */
+#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
+
 #include <uthash.h>
 #include <uv.h>
 
 /* forward declarations */
 #include "types.h"
+
+#if defined MVM_BUILD_SHARED
+#  define MVM_PUBLIC  MVM_DLL_EXPORT
+#  define MVM_PRIVATE MVM_DLL_LOCAL
+#elif defined MVM_SHARED
+#  define MVM_PUBLIC  MVM_DLL_IMPORT
+#  define MVM_PRIVATE MVM_DLL_LOCAL
+#else
+#  define MVM_PUBLIC
+#  define MVM_PRIVATE
+#endif
 
 /* Headers for APIs for various other data structures and APIs. */
 #include "6model/6model.h"
@@ -62,10 +75,10 @@
 #include "math/bigintops.h"
 
 /* Top level VM API functions. */
-MVMInstance * MVM_vm_create_instance(void);
-void MVM_vm_run_file(MVMInstance *instance, const char *filename);
-void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
-void MVM_vm_destroy_instance(MVMInstance *instance);
+MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);
+MVM_PUBLIC void MVM_vm_run_file(MVMInstance *instance, const char *filename);
+MVM_PUBLIC void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
+MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 
 /* Returns original. Use only on AO_t-sized values (including pointers). */
 #define MVM_atomic_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))

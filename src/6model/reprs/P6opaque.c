@@ -677,22 +677,22 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     /* Yes, it's something we'll flatten. */
                     unboxed_type = spec.boxed_primitive;
                     bits = spec.bits;
-                    repr_data->flattened_stables[i] = STABLE(type);
+                    repr_data->flattened_stables[cur_slot] = STABLE(type);
                     inlined = 1;
 
                     /* Does it need special initialization? */
                     if (REPR(type)->initialize) {
-                        repr_data->initialize_slots[cur_init_slot] = i;
+                        repr_data->initialize_slots[cur_init_slot] = cur_slot;
                         cur_init_slot++;
                     }
 
                     /* Does it have special GC needs? */
                     if (REPR(type)->gc_mark) {
-                        repr_data->gc_mark_slots[cur_mark_slot] = i;
+                        repr_data->gc_mark_slots[cur_mark_slot] = cur_slot;
                         cur_mark_slot++;
                     }
                     if (REPR(type)->gc_cleanup) {
-                        repr_data->gc_cleanup_slots[cur_cleanup_slot] = i;
+                        repr_data->gc_cleanup_slots[cur_cleanup_slot] = cur_slot;
                         cur_cleanup_slot++;
                     }
 
@@ -704,19 +704,19 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                                 if (repr_data->unbox_int_slot >= 0)
                                     MVM_exception_throw_adhoc(tc,
                                         "Duplicate box_target for native int");
-                                repr_data->unbox_int_slot = i;
+                                repr_data->unbox_int_slot = cur_slot;
                                 break;
                             case MVM_STORAGE_SPEC_BP_NUM:
                                 if (repr_data->unbox_num_slot >= 0)
                                     MVM_exception_throw_adhoc(tc,
                                         "Duplicate box_target for native num");
-                                repr_data->unbox_num_slot = i;
+                                repr_data->unbox_num_slot = cur_slot;
                                 break;
                             case MVM_STORAGE_SPEC_BP_STR:
                                 if (repr_data->unbox_str_slot >= 0)
                                     MVM_exception_throw_adhoc(tc,
                                         "Duplicate box_target for native str");
-                                repr_data->unbox_str_slot = i;
+                                repr_data->unbox_str_slot = cur_slot;
                                 break;
                             default:
                                 /* nothing, just suppress 'missing default' warning */
@@ -727,7 +727,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         if (repr_data->unbox_slots == NULL)
                             repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)malloc(total_attrs * sizeof(MVMP6opaqueBoxedTypeMap));
                         repr_data->unbox_slots[cur_unbox_slot].repr_id = REPR(type)->ID;
-                        repr_data->unbox_slots[cur_unbox_slot].slot = i;
+                        repr_data->unbox_slots[cur_unbox_slot].slot = cur_slot;
                         cur_unbox_slot++;
                     }
                 }

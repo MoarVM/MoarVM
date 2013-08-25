@@ -13,6 +13,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f);
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode);
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle);
+MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt);
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
 MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding);

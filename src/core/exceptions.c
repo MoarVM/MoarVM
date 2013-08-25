@@ -206,8 +206,8 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
 		op_name,
 		instr,
 		instr ? "" : "<unknown>",
-		name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
-		filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>"
+		name ? (char *) MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
+		filename ? (char *) MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>"
 	);
 
     if (tmp1)

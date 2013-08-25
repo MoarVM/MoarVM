@@ -3402,11 +3402,11 @@ my @clo := $nqpcomp.commandline_options();
 @clo.push('stable-sc');
 @clo.push('javaclass=s');
 @clo.push('bootstrap');
-$nqpcomp.addstage('classname', :after<start>);
 
 sub MAIN(@ARGS) {
     # Enter the compiler.
-    $nqpcomp.command_line(@ARGS, :encoding('utf8'), :transcode('ascii iso-8859-1'));
+    $nqpcomp.command_line(@ARGS, :encoding('utf8'), :transcode('ascii iso-8859-1'),
+        :setting('NQPCOREMoar'), :custom-regex-lib('QRegexMoar'));
 
     # Close event logging
     $nqpcomp.nqpevent();

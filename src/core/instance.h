@@ -115,6 +115,8 @@ struct MVMInstance {
     MVMint64        num_clargs;
     /* raw command line args from APR */
     char          **raw_clargs;
+    /* program name; becomes first clargs entry */
+    const char     *prog_name;
     /* cached parsed command line args */
     MVMObject      *clargs;
 
