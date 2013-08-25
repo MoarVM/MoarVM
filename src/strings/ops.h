@@ -5,13 +5,6 @@
 #define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_latin1) \
                             || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
 
-#define MVM_open_mode_read 1
-#define MVM_open_mode_write 2
-#define MVM_open_mode_append 3
-#define MVM_open_mode_readpipe 4
-#define MVM_open_mode_writepipe 5
-#define MVM_get_apr_perms(p) (apr_fileperms_t)((p & 7) + (((p & 56) >> 3) * 16) + (((p & 448) >> 6) << 8))
-
 #define MVM_stat_exists              0
 #define MVM_stat_filesize            1
 #define MVM_stat_isdir               2

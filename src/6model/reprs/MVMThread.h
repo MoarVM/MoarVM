@@ -17,7 +17,6 @@ struct MVMThreadBody {
     MVMObject *invokee;
 
     uv_thread_t thread;
-    apr_pool_t *apr_pool;
 
     /* next in tc's threads list */
     MVMThread *next;

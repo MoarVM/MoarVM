@@ -60,7 +60,6 @@ static void start_thread(void *data) {
      * of GC-ing our objects and cleaning up our thread context. */
     MVM_gc_mark_thread_blocked(tc);
 
-    tc->thread_obj->body.apr_pool = NULL;
     /* hopefully pop the ts->thread_obj temp */
     MVM_gc_root_temp_pop(tc);
     free(ts);
@@ -92,9 +91,6 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         MVM_ASSIGN_REF(tc, child, child->body.invokee, invokee);
         child_tc->thread_obj = child;
         child_tc->thread_id = MVM_atomic_incr(&tc->instance->next_user_thread_id);
-
-        /* Allocate APR pool for the thread. */
-        apr_pool_create(&child->body.apr_pool, NULL);
 
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was

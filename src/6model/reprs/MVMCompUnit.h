@@ -1,9 +1,5 @@
 /* Representation for a compilation unit in the VM. */
 struct MVMCompUnitBody {
-    /* The APR memory pool associated with this compilation unit,
-     * if we need one. */
-    apr_pool_t *pool;
-
     /* The start and size of the raw data for this compilation unit. */
     MVMuint8  *data_start;
     MVMuint32  data_size;

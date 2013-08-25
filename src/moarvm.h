@@ -3,8 +3,6 @@
 /* Pull in the APR. */
 #define APR_DECLARE_STATIC 1
 #include <apr_atomic.h>
-#include <apr_network_io.h>
-#include <apr_getopt.h>
 
 /* libatomic_ops */
 #include <atomic_ops.h>

@@ -191,7 +191,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     MVMuint32 offset = cur_op - cur_frame->static_info->body.bytecode;
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset);
-	
+
 	MVMuint32 line_number = annot ? annot->line_number + 1 : 1;
 	MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 0;
 	char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
@@ -394,29 +394,6 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
 		abort();
 	else
 		exit(1);
-}
-
-/* Throws an ad-hoc (untyped) formatted exception with an apr error appended. */
-MVM_NO_RETURN
-void MVM_exception_throw_apr_error(MVMThreadContext *tc, apr_status_t code, const char *messageFormat, ...) {
-    /* Needs plugging in to the exceptions mechanism. */
-    char *error_string = malloc(512);
-    int offset;
-    va_list args;
-    va_start(args, messageFormat);
-
-    /* inject the supplied formatted string */
-    offset = vsprintf(error_string, messageFormat, args);
-    va_end(args);
-
-    /* append the apr error */
-    apr_strerror(code, error_string + offset, 512 - offset);
-    fwrite(error_string, 1, strlen(error_string), stderr);
-    fwrite("\n", 1, 1, stderr);
-    free(error_string);
-
-    dump_backtrace(tc);
-    exit(1);
 }
 
 void MVM_crash_on_error() {

@@ -14,14 +14,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     int init_stat;
 
-    apr_initialize();
-
     /* Set up instance data structure. */
     instance = calloc(1, sizeof(MVMInstance));
     instance->boot_types = calloc(1, sizeof(MVMBootTypes));
-
-    /* Allocate instance APR pool. */
-    apr_pool_create(&instance->apr_pool, NULL);
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(instance);
@@ -163,12 +158,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_permroots);
     free(instance->permroots);
 
-    /* Free APR pool. */
-    apr_pool_destroy(instance->apr_pool);
-
     /* Clear up VM instance memory. */
     free(instance);
 
-    /* Terminate APR. */
-    apr_terminate();
 }
