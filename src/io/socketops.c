@@ -161,13 +161,13 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
 }
 
 void MVM_socket_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 backlog_size) {
-    apr_status_t rv;
     MVMOSHandle *handle;
+    int r;
 
     verify_socket_type(tc, oshandle, &handle, "listen socket");
 
-    if ((rv = apr_socket_listen(handle->body.socket, (apr_int32_t)backlog_size)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to listen to the socket: ");
+    if ((r = uv_listen((uv_stream_t *)handle->body.handle, (int)backlog_size, NULL)) < 0) {
+        MVM_exception_throw_adhoc(tc, "Failed to listen to the socket: %s", uv_strerror(r));
     }
 }
 
