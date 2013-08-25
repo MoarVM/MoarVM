@@ -328,3 +328,6 @@ distclean: realclean
 	$(MSG) remove binary and configuration files
 	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
+
+sandwich:
+	@echo What? Make it yourself.
