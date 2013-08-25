@@ -694,7 +694,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
             body->handle = (uv_handle_t *)handle;
-            body->handle->data = body;
+            body->handle->data = body;       /* this is needed in tty_on_read function. */
             body->type = MVM_OSHANDLE_HANDLE;
             break;
         }

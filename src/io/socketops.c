@@ -169,32 +169,30 @@ void MVM_socket_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 backl
 }
 
 MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMint64 timeout*/) {
-    apr_status_t rv;
     MVMOSHandle *handle;
     MVMOSHandle *result;
-    apr_pool_t *tmp_pool;
-    apr_socket_t *new_socket;
+    MVMOSHandleBody *body;
+    uv_tcp_t *client;
+    int r;
 
     verify_socket_type(tc, oshandle, &handle, "socket accept");
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Socket accept failed to create pool: ");
-    }
+
+    client = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
 
     /* XXX TODO: set the timeout if one is provided */
-    if ((rv = apr_socket_accept(&new_socket, handle->body.socket, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Socket accept failed to get connection: ");
+    if ((r = uv_accept((uv_stream_t *)handle->body.handle, (uv_stream_t*) client)) != 0) {
+        free(client);
+        MVM_exception_throw_adhoc(tc, "Socket accept failed to get connection: %s", uv_strerror(r));
     }
 
     /* inherit the type object of the originating socket */
     result = (MVMOSHandle *)REPR(STABLE(oshandle)->WHAT)->allocate(tc, STABLE(STABLE(oshandle)->WHAT));
-
-    result->body.socket = new_socket;
-    result->body.type = MVM_OSHANDLE_SOCKET;
-    result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = handle->body.encoding_type;
+    body = &handle->body;
+    body->handle = (uv_handle_t *)client;
+    body->handle->data = body;      /* this is needed in tcp_stream_on_read and udp_stream_on_read function. */
+    body->type   = MVM_OSHANDLE_TCP;
+    body->encoding_type = handle->body.encoding_type;
 
     return (MVMObject *)result;
 }
