@@ -91,19 +91,13 @@ void MVM_socket_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
 MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMString *address, MVMint64 port, MVMint64 protocol, MVMint64 encoding_flag) {
     MVMOSHandle *result;
-    apr_status_t rv;
-    apr_pool_t *tmp_pool;
-    apr_socket_t *socket;
-    apr_sockaddr_t *sa;
-    int family = APR_INET; /* TODO: detect family from ip address format */
-    int type = SOCK_STREAM;
-    int protocol_int = (int)protocol;
     char *address_cstring;
+    struct sockaddr_in bind_addr;
 
     ENCODING_VALID(encoding_flag);
 
-    if (!(protocol_int == APR_PROTO_TCP || protocol_int == APR_PROTO_UDP || protocol_int == APR_PROTO_SCTP)) {
-        MVM_exception_throw_adhoc(tc, "Bind socket got an invalid protocol number (needs 6, 17, or 132; got %d)", protocol_int);
+    if (!(protocol == MVM_OSHANDLE_TCP || protocol == MVM_OSHANDLE_UDP)) {
+        MVM_exception_throw_adhoc(tc, "Bind socket got an invalid protocol number (needs 4, 5; got %d)", protocol);
     }
 
     if (port < 1 || port > 65535) {
@@ -121,38 +115,34 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
         MVM_exception_throw_adhoc(tc, "Bind socket needs a type object with MVMOSHandle REPR");
     }
 
-    /* need a temporary pool */
-    if ((rv = apr_pool_create(&tmp_pool, POOL(tc))) != APR_SUCCESS) {
-        free(address_cstring);
-        MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to create pool: ");
-    }
-
-    if ((rv = apr_socket_create(&socket, family, type, protocol_int, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        free(address_cstring);
-        MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to create socket: ");
-    }
-
-    if ((rv = apr_sockaddr_info_get(&sa, (const char *)address_cstring, APR_UNSPEC, (apr_port_t)port, APR_IPV4_ADDR_OK, tmp_pool)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        free(address_cstring);
-        MVM_exception_throw_apr_error(tc, rv, "Bind socket failed to study address/port: ");
-    }
+    /* initialize the object */
+    result    = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+    bind_addr = uv_ip4_addr(address_cstring, port);
 
     free(address_cstring);
 
-    if ((rv = apr_socket_bind(socket, sa)) != APR_SUCCESS) {
-        apr_pool_destroy(tmp_pool);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to bind socket: ");
+    switch (protocol) {
+        case MVM_OSHANDLE_TCP: {
+            MVMOSHandleBody * const body = &result->body;
+            uv_tcp_t *server = malloc(sizeof(uv_tcp_t));
+            uv_tcp_init(tc->loop, server);
+            uv_tcp_bind(server, bind_addr);
+            body->handle = (uv_handle_t *)server;
+            body->type = MVM_OSHANDLE_TCP;
+            body->encoding_type = encoding_flag;
+            break;
+        }
+        case MVM_OSHANDLE_UDP: {
+            MVMOSHandleBody * const body = &result->body;
+            uv_udp_t *server = malloc(sizeof(uv_udp_t));
+            uv_udp_init(tc->loop, server);
+            uv_udp_bind(server, bind_addr, 0);
+            body->handle = (uv_handle_t *)server;
+            body->type = MVM_OSHANDLE_UDP;
+            body->encoding_type = encoding_flag;
+            break;
+        }
     }
-
-    /* initialize the object */
-    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-
-    result->body.socket = socket;
-    result->body.type = MVM_OSHANDLE_SOCKET;
-    result->body.mem_pool = tmp_pool;
-    result->body.encoding_type = encoding_flag;
 
     return (MVMObject *)result;
 }
@@ -179,6 +169,8 @@ MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMin
 
 
     client = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
+
+    uv_tcp_init(tc->loop, client);
 
     /* XXX TODO: set the timeout if one is provided */
     if ((r = uv_accept((uv_stream_t *)handle->body.handle, (uv_stream_t*) client)) != 0) {
