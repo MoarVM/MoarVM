@@ -82,14 +82,11 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
 }
 
 void MVM_socket_close(MVMThreadContext *tc, MVMObject *oshandle) {
-    apr_status_t rv;
     MVMOSHandle *handle;
 
     verify_socket_type(tc, oshandle, &handle, "close socket");
 
-    if ((rv = apr_socket_close(handle->body.socket)) != APR_SUCCESS) {
-        MVM_exception_throw_apr_error(tc, rv, "Failed to close the socket: ");
-    }
+    uv_close(handle->body.handle, NULL);
 }
 
 MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMString *address, MVMint64 port, MVMint64 protocol, MVMint64 encoding_flag) {
@@ -203,22 +200,26 @@ MVMObject * MVM_socket_accept(MVMThreadContext *tc, MVMObject *oshandle/*, MVMin
 }
 
 MVMint64 MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *tosend, MVMint64 start, MVMint64 length) {
-    apr_status_t rv;
     MVMOSHandle *handle;
-    char *send_string;
-    apr_size_t send_length;
-    MVMuint64 output_size;
+    MVMint64 output_size;
+    MVMuint8 *output;
+    uv_write_t req;
+    uv_buf_t buf;
+    int r;
 
     verify_socket_type(tc, oshandle, &handle, "send string to socket");
 
-    send_string = MVM_encode_string_to_C_buffer(tc, tosend, start, length, &output_size, handle->body.encoding_type);
-    send_length = (apr_size_t)output_size;
+    output = MVM_encode_string_to_C_buffer(tc, tosend, start, length, &output_size, handle->body.encoding_type);
 
-    if ((rv = apr_socket_send(handle->body.socket, send_string, &send_length)) != APR_SUCCESS) {
-        free(send_string);
-        MVM_exception_throw_apr_error(tc, rv, "Failed to send data to the socket: ");
+    buf.base = output;
+    buf.len  = output_size;
+
+    if ((r = uv_write(&req, (uv_stream_t *)handle->body.handle, &buf, 1, NULL)) < 0) {
+        free(output);
+        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
     }
-    free(send_string);
+
+    free(output);
 
     return (MVMint64)output_size;
 }

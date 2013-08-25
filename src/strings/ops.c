@@ -388,7 +388,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     _STRAND_DEPTH(result) = STRAND_DEPTH(strands->string) + 1;
 
     MVM_string_flatten(tc, result);
-    
+
     return result;
 }
 
@@ -442,7 +442,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     result->body.num_strands = strand_count;
     result->body.flags = MVM_STRING_TYPE_ROPE;
     _STRAND_DEPTH(result) = max_strand_depth + 1;
-    
+
     MVM_string_flatten(tc, result);
 
     return result;
@@ -496,7 +496,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.flags = MVM_STRING_TYPE_UINT8;
         /* leave graphs 0 and storage null */
     }
-    
+
     MVM_string_flatten(tc, result);
 
     return result;
@@ -706,7 +706,7 @@ MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc,
 }
 
 /* encodes an MVMString to a C buffer, dependent on the encoding type flag */
-unsigned char * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
+MVMuint8 * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_encode_substr(tc, s, output_size, start, length);
