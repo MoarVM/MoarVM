@@ -108,9 +108,6 @@ struct MVMInstance {
     /* MVMThreads completed starting, running, and/or exited. */
     MVMThread *threads;
 
-    /* APR memory pool for the instance. */
-    apr_pool_t *apr_pool;
-
     /* Number of passed command-line args */
     MVMint64        num_clargs;
     /* raw command line args from APR */

@@ -391,14 +391,12 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
     while ((curr = tc->instance->gc_start) < 2
             || !MVM_trycas(&tc->instance->gc_start, curr, curr - 1)) {
-    /*    apr_sleep(1);
-        pthread_yield();*/
+    /* pthread_yield();*/
     }
 
     /* Wait for all threads to indicate readiness to collect. */
     while (tc->instance->gc_start) {
-    /*    apr_sleep(1);
-        pthread_yield();*/
+    /* pthread_yield();*/
     }
     run_gc(tc, MVMGCWhatToDo_NoInstance);
 }

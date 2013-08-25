@@ -13,7 +13,6 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     void        *block       = NULL;
     uv_file      fd;
     MVMuint64    size;
-    int          apr_return_status;
     uv_fs_t req;
 
     /* Ensure the file exists, and get its size. */
