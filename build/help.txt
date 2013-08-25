@@ -1,0 +1,24 @@
+Makefile targets:
+
+        help    display this message
+
+         all    build library and MoarVM executable [default]
+         lib    build library only
+
+        test    dummy target
+                ( use the nqp-cc test suite instead )
+
+     tracing    rebuild executable with tracing enabled
+  no-tracing    rebuild executable with tracing disabled
+
+       clean    remove build files
+   realclean    additionally remove auxiliary and 3rdparty files
+                ( needs to be called when switching between
+                  shared and static library builds )
+   distclean    additionally remove executable, library and
+                configuration files
+                ( should remove all generated files )
+
+Makefile options:
+
+     NOISY=1    show actual commands instead of descriptions

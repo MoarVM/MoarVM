@@ -259,7 +259,10 @@ close $listfile;
 print "\n", $failed ? <<TERM1 : <<TERM2;
 Configuration FAIL. You can try to salvage the generated Makefile.
 TERM1
-Configuration SUCCESS. Type '$config{'make'}' to build.
+Configuration SUCCESS.
+
+Type '$config{'make'}' to build and '$config{'make'} help' to see a list of
+available make targets.
 TERM2
 
 exit $failed;

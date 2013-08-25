@@ -237,6 +237,16 @@ moarvm@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @lddir@. @linkmoar@ $(LDLIBS)
 
+all: moarvm@exe@
+
+lib: @moar@
+
+help:
+	@$(CAT) build/help.txt
+
+test:
+	@$(CAT) build/test.txt
+
 @moarlib@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@
 	$(CMD)$(AR) $(ARFLAGS) @arout@$@ $(OBJECTS) $(NOOUT)
