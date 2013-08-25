@@ -388,6 +388,11 @@ our %OS_DARWIN = (
     defs     => [ '_DARWIN_USE_64_BIT_INODE=1' ],
     syslibs  => [ qw( ApplicationServices CoreServices Foundation ) ],
 
+    dll => 'lib%s.dylib',
+
+    ccshared => '',
+    ldshared => '-dynamiclib',
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
     },
