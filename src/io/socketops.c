@@ -266,6 +266,7 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
     switch (handle->body.type) {
         case MVM_OSHANDLE_TCP: {
             MVMOSHandleBody * const body = &handle->body;
+            body->length = length;
             uv_read_start((uv_stream_t *)body->handle, stream_on_alloc, tcp_stream_on_read);
             buf = body->data;
             bytes_read = body->length;
@@ -273,6 +274,7 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
         }
         case MVM_OSHANDLE_UDP: {
             MVMOSHandleBody * const body = &handle->body;
+            body->length = length;
             uv_udp_recv_start((uv_udp_t *)body->handle, stream_on_alloc, udp_stream_on_read);
             buf = body->data;
             bytes_read = body->length;

@@ -346,6 +346,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     switch (handle->body.type) {
         case MVM_OSHANDLE_HANDLE: {
             MVMOSHandleBody * const body = &handle->body;
+            body->length = length;
             uv_read_start((uv_stream_t *)body->handle, tty_on_alloc, tty_on_read);
             buf = body->data;
             bytes_read = body->length;
