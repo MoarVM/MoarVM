@@ -16,8 +16,7 @@ NOERR =
 @mknoisy@
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING)
-CINCLUDES = @ccinc@3rdparty/apr/include \
-            @ccinc@3rdparty/libuv/include \
+CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libuv/src \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@3rdparty/libtommath \
@@ -174,8 +173,7 @@ HEADERS = src/moarvm.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/gen/config.h \
-          3rdparty/uthash.h \
-          3rdparty/apr/include/apr.h
+          3rdparty/uthash.h
 
 UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
@@ -255,8 +253,6 @@ test:
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) @ldshared@ $(OBJECTS) $(LDLIBS)
 
-apr: @aprlib@
-
 libuv: @uvlib@
 
 $(MAIN_OBJECTS) $(OBJECTS): $(HEADERS)
@@ -282,13 +278,6 @@ src/main@obj@: src/main.c
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
-
-3rdparty/apr/include/apr.h: @aprlib@
-
-@aprlib@:
-	$(MSG) building $@...
-	$(CMD)@aprrule@ $(NOOUT)
-	$(MSG) done.
 
 @uvlib@: $(UV_OBJECTS)
 	@uvrule@
@@ -317,7 +306,6 @@ realclean: clean
 	$(MSG) remove auxiliary files
 	-$(CMD)@auxclean@ $(NOOUT) $(NOERR)
 	$(MSG) remove 3rdparty files
-	-$(CMD)@aprclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@uvclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)

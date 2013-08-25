@@ -4,13 +4,6 @@ use warnings;
 
 # 3rdparty library configuration
 
-our %TP_APR = (
-    name  => 'apr-1',
-    path  => '3rdparty/apr/.libs',
-    rule  => 'cd 3rdparty/apr && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) @ccshared@\' ./configure --disable-shared @crossconf@ && $(MAKE)',
-    clean => 'cd 3rdparty/apr && $(MAKE) distclean',
-);
-
 our %TP_LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomic_ops/src',
@@ -71,7 +64,6 @@ our %TP_UV = (
 );
 
 our %THIRDPARTY = (
-    apr => { %TP_APR },
     lao => { %TP_LAO },
     tom => { %TP_TOM },
     sha => { %TP_SHA },
@@ -209,13 +201,6 @@ TERM
     -auxfiles => [ qw( @name@.ilk @name@.pdb @moardll@.lib @moardll@.exp vc100.pdb ) ],
 
     -thirdparty => {
-        apr => {
-            %TP_APR,
-            path  => '3rdparty/apr/LibR',
-            rule  => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" buildall',
-            clean => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
-        },
-
 #            dc => {
 #                %DC,
 #                name  => 'libdyncall_s',
