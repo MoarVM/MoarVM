@@ -7,7 +7,12 @@ struct MVMOSHandleBody {
     /* see MVMOSHandleTypes */
     MVMuint8 type;
     union {
-        uv_handle_t *handle;
+        struct
+        {
+          uv_handle_t *handle;
+          void          *data;
+          MVMint32     length;
+        };
         uv_file          fd;
 #ifdef _WIN32
         struct {

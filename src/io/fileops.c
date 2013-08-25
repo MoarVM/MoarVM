@@ -26,13 +26,6 @@ extern "C" {
 #include <linenoise.h>
 #endif
 
-typedef struct
-{
-    uv_tty_t handle;
-    uv_buf_t  buf;
-    MVMuint32 length;
-} _tty_wrap_handle;
-
 static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle) {
@@ -316,19 +309,21 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     return return_str;
 }
 
-static uv_buf_t tty_on_alloc(uv_handle_t* handle, size_t suggested_size) {
-    const MVMuint32 length = ((_tty_wrap_handle *)handle)->length;
-
+static uv_buf_t tty_on_alloc(uv_handle_t *handle, size_t suggested_size) {
+    const MVMint64 length = ((MVMOSHandleBody *)(handle->data))->length;
     uv_buf_t buf;
+
     buf.base = malloc(length);
     buf.len = length;
+
     return buf;
 }
 
-static void tty_after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
-    _tty_wrap_handle *tty_wrap_handle = (_tty_wrap_handle *)handle;
-    tty_wrap_handle->buf    = buf;
-    tty_wrap_handle->length = nread;
+static void tty_on_read(uv_stream_t *handle, ssize_t nread, uv_buf_t buf) {
+    MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
+
+    body->data = buf.base;
+    body->length = buf.len;
 }
 
 /* reads a string from a filehandle. */
@@ -350,12 +345,10 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
 
     switch (handle->body.type) {
         case MVM_OSHANDLE_HANDLE: {
-            _tty_wrap_handle tty_wrap_handle;
-            tty_wrap_handle.handle = *(uv_tty_t *)handle->body.handle;
-            tty_wrap_handle.length = length;
-            uv_read_start((uv_stream_t *)&tty_wrap_handle, tty_on_alloc, tty_after_read);
-            bytes_read = tty_wrap_handle.length;
-            buf = tty_wrap_handle.buf.base;
+            MVMOSHandleBody * const body = &handle->body;
+            uv_read_start((uv_stream_t *)body->handle, tty_on_alloc, tty_on_read);
+            buf = body->data;
+            bytes_read = body->length;
             break;
         }
         case MVM_OSHANDLE_FD:
@@ -700,6 +693,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
             body->handle = (uv_handle_t *)handle;
+            body->handle->data = body;
             body->type = MVM_OSHANDLE_HANDLE;
             break;
         }
@@ -712,6 +706,7 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             uv_pipe_init(tc->loop, handle, 0);
             uv_pipe_open(handle, type);
             body->handle = (uv_handle_t *)handle;
+            body->handle->data = body;
             body->type = MVM_OSHANDLE_HANDLE;
             break;
         }

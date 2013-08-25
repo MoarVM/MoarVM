@@ -2,20 +2,6 @@
 
 #define POOL(tc) (*(tc->interp_cu))->body.pool
 
-typedef struct
-{
-    uv_tcp_t handle;
-    uv_buf_t  buf;
-    MVMuint32 length;
-} _tcp_wrap_handle;
-
-typedef struct
-{
-    uv_udp_t handle;
-    uv_buf_t  buf;
-    MVMuint32 length;
-} _udp_wrap_handle;
-
 static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */
@@ -237,35 +223,29 @@ MVMint64 MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMSt
     return (MVMint64)output_size;
 }
 
-static uv_buf_t tcp_on_alloc(uv_handle_t* handle, size_t suggested_size) {
-    const MVMuint32 length = ((_tcp_wrap_handle *)handle)->length;
-
+static uv_buf_t stream_on_alloc(uv_handle_t *handle, size_t suggested_size) {
+    const MVMint64 length = ((MVMOSHandleBody *)(handle->data))->length;
     uv_buf_t buf;
+
     buf.base = malloc(length);
     buf.len = length;
+
     return buf;
 }
 
-static void tcp_after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
-    _tcp_wrap_handle *tcp_wrap_handle = (_tcp_wrap_handle *)handle;
-    tcp_wrap_handle->buf    = buf;
-    tcp_wrap_handle->length = nread;
+static void tcp_stream_on_read(uv_stream_t *handle, ssize_t nread, uv_buf_t buf) {
+    MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
+
+    body->data = buf.base;
+    body->length = buf.len;
 }
 
-static uv_buf_t udp_on_alloc(uv_handle_t* handle, size_t suggested_size) {
-    const MVMuint32 length = ((_udp_wrap_handle *)handle)->length;
-
-    uv_buf_t buf;
-    buf.base = malloc(length);
-    buf.len = length;
-    return buf;
-}
-
-static void udp_after_read(uv_udp_t* handle, ssize_t nread, uv_buf_t buf,
+static void udp_stream_on_read(uv_udp_t *handle, ssize_t nread, uv_buf_t buf,
     struct sockaddr* addr, unsigned flags) {
-    _udp_wrap_handle *udp_wrap_handle = (_udp_wrap_handle *)handle;
-    udp_wrap_handle->buf    = buf;
-    udp_wrap_handle->length = nread;
+    MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
+
+    body->data = buf.base;
+    body->length = buf.len;
 }
 
 /* reads a string from a filehandle. */
@@ -285,21 +265,17 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
 
     switch (handle->body.type) {
         case MVM_OSHANDLE_TCP: {
-            _tcp_wrap_handle tcp_wrap_handle;
-            tcp_wrap_handle.handle = *(uv_tcp_t *)handle->body.handle;
-            tcp_wrap_handle.length = length;
-            uv_read_start((uv_stream_t *)&tcp_wrap_handle, udp_on_alloc, tcp_after_read);
-            bytes_read = tcp_wrap_handle.length;
-            buf = tcp_wrap_handle.buf.base;
+            MVMOSHandleBody * const body = &handle->body;
+            uv_read_start((uv_stream_t *)body->handle, stream_on_alloc, tcp_stream_on_read);
+            buf = body->data;
+            bytes_read = body->length;
             break;
         }
         case MVM_OSHANDLE_UDP: {
-            _udp_wrap_handle udp_wrap_handle;
-            udp_wrap_handle.handle = *(uv_udp_t *)handle->body.handle;
-            udp_wrap_handle.length = length;
-            uv_udp_recv_start((uv_udp_t *)&udp_wrap_handle, udp_on_alloc, udp_after_read);
-            bytes_read = udp_wrap_handle.length;
-            buf = udp_wrap_handle.buf.base;
+            MVMOSHandleBody * const body = &handle->body;
+            uv_udp_recv_start((uv_udp_t *)body->handle, stream_on_alloc, udp_stream_on_read);
+            buf = body->data;
+            bytes_read = body->length;
             break;
         }
         default:
