@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdarg.h>
 
 /* libatomic_ops */
 #include <atomic_ops.h>

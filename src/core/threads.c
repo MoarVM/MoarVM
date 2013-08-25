@@ -147,7 +147,8 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
             status = uv_thread_join(&thread->body.thread);
         }
         else { /* the target already ended */
-            status = APR_SUCCESS;
+            /* used to be APR_SUCCESS, but then we ditched APR */
+            status = 0;
         }
         MVM_gc_mark_thread_unblocked(tc);
         MVM_gc_root_temp_pop(tc);
