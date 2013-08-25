@@ -83,6 +83,12 @@ MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 /* Returns non-zero for success. Use for both AO_t numbers and pointers. */
 #define MVM_trycas(addr, old, new) AO_compare_and_swap_full((volatile AO_t *)(addr), (AO_t)(old), (AO_t)(new))
 
+/* Returns the old value dereferenced at addr. */
+#define MVM_cas(addr, old, new) AO_fetch_compare_and_swap_full(addr, old, new)
+
+/* Returns the old value dereferenced at addr. Provided for a tiny bit of type safety. */
+#define MVM_casptr(addr, old, new) ((void *)MVM_cas((AO_t *)(addr), (AO_t)(old), (AO_t)(new)))
+
 /* Full memory barrier. */
 #define MVM_barrier() AO_nop_full()
 
