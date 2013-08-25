@@ -402,7 +402,7 @@ our %SYSTEMS = (
     freebsd => [ qw( posix bsd clang ), { %OS_FREEBSD } ],
     solaris => [ qw( posix posix cc ),  { %OS_SOLARIS } ],
     win32   => [ qw( win32 msvc cl ), { %OS_WIN32 } ],
-    cygwin  => [ qw( win32 gnu gcc ), { %OS_WIN32 } ],
+    cygwin  => [ qw( posix gnu gcc ), { %OS_WIN32 } ],
     mingw32 => [ qw( win32 gnu gcc ), { %OS_WIN32 } ],
 );
 
