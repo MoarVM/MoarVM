@@ -356,7 +356,6 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
             uv_read_start((uv_stream_t *)&tty_wrap_handle, tty_on_alloc, tty_after_read);
             bytes_read = tty_wrap_handle.length;
             buf = tty_wrap_handle.buf.base;
-            printf("%s\n", buf);
             break;
         }
         case MVM_OSHANDLE_FD:

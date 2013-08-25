@@ -2,6 +2,19 @@
 
 #define POOL(tc) (*(tc->interp_cu))->body.pool
 
+typedef struct
+{
+    uv_tcp_t handle;
+    uv_buf_t  buf;
+    MVMuint32 length;
+} _tcp_wrap_handle;
+
+typedef struct
+{
+    uv_udp_t handle;
+    uv_buf_t  buf;
+    MVMuint32 length;
+} _udp_wrap_handle;
 
 static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 
@@ -224,10 +237,40 @@ MVMint64 MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMSt
     return (MVMint64)output_size;
 }
 
+static uv_buf_t tcp_on_alloc(uv_handle_t* handle, size_t suggested_size) {
+    const MVMuint32 length = ((_tcp_wrap_handle *)handle)->length;
+
+    uv_buf_t buf;
+    buf.base = malloc(length);
+    buf.len = length;
+    return buf;
+}
+
+static void tcp_after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+    _tcp_wrap_handle *tcp_wrap_handle = (_tcp_wrap_handle *)handle;
+    tcp_wrap_handle->buf    = buf;
+    tcp_wrap_handle->length = nread;
+}
+
+static uv_buf_t udp_on_alloc(uv_handle_t* handle, size_t suggested_size) {
+    const MVMuint32 length = ((_udp_wrap_handle *)handle)->length;
+
+    uv_buf_t buf;
+    buf.base = malloc(length);
+    buf.len = length;
+    return buf;
+}
+
+static void udp_after_read(uv_udp_t* handle, ssize_t nread, uv_buf_t buf,
+    struct sockaddr* addr, unsigned flags) {
+    _udp_wrap_handle *udp_wrap_handle = (_udp_wrap_handle *)handle;
+    udp_wrap_handle->buf    = buf;
+    udp_wrap_handle->length = nread;
+}
+
 /* reads a string from a filehandle. */
 MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length) {
     MVMString *result;
-    apr_status_t rv;
     MVMOSHandle *handle;
     char *buf;
     MVMint64 bytes_read;
@@ -240,13 +283,27 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
         MVM_exception_throw_adhoc(tc, "receive string from socket length out of bounds");
     }
 
-    buf = malloc(length);
-    bytes_read = length;
-
-    /*apr_socket_timeout_set(handle->body.socket, 3000000);*/
-
-    if ((rv = apr_socket_recv(handle->body.socket, buf, (apr_size_t *)&bytes_read)) != APR_SUCCESS && rv != APR_EOF) {
-        MVM_exception_throw_apr_error(tc, rv, "receive string from socket failed: ");
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_TCP: {
+            _tcp_wrap_handle tcp_wrap_handle;
+            tcp_wrap_handle.handle = *(uv_tcp_t *)handle->body.handle;
+            tcp_wrap_handle.length = length;
+            uv_read_start((uv_stream_t *)&tcp_wrap_handle, udp_on_alloc, tcp_after_read);
+            bytes_read = tcp_wrap_handle.length;
+            buf = tcp_wrap_handle.buf.base;
+            break;
+        }
+        case MVM_OSHANDLE_UDP: {
+            _udp_wrap_handle udp_wrap_handle;
+            udp_wrap_handle.handle = *(uv_udp_t *)handle->body.handle;
+            udp_wrap_handle.length = length;
+            uv_udp_recv_start((uv_udp_t *)&udp_wrap_handle, udp_on_alloc, udp_after_read);
+            bytes_read = udp_wrap_handle.length;
+            buf = udp_wrap_handle.buf.base;
+            break;
+        }
+        default:
+            break;
     }
 
     result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
