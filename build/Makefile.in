@@ -235,7 +235,7 @@ THIRDPARTY = @thirdpartylibs@
 
 moarvm@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @linkmoar@ $(LDLIBS)
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @lddir@. @linkmoar@ $(LDLIBS)
 
 @moarlib@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@
