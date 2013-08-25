@@ -116,6 +116,7 @@ our %TC_POSIX = (
     ccdef    => '-D',
 
     ldout => undef,
+    lddir => '-L',
     ldusr => '-l%s',
     ldsys => undef,
     ldimp => undef,
@@ -180,6 +181,7 @@ our %TC_MSVC = (
     ccdef    => '/D',
 
     ldout => '/out:',
+    lddir => '/libpath:',
     ldusr => '%s.lib',
     ldsys => undef,
     ldimp => '%s.dll.lib',
