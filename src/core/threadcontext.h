@@ -54,7 +54,7 @@ struct MVMThreadContext {
     void *nursery_alloc_limit;
 
     /* This thread's GC status. */
-    MVMint32 gc_status;
+    AO_t gc_status;
 
     /* Where we're allocating. */
     MVMAllocationTarget allocate_in;

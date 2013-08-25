@@ -115,7 +115,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         do {
             MVMThread *curr = *threads;
             MVM_ASSIGN_REF(tc, child, child->body.next, curr);
-        } while (apr_atomic_casptr((volatile void**)threads, child, child->body.next) != child->body.next);
+        } while (AO_fetch_compare_and_swap((AO_t *)threads, child->body.next, child) != child->body.next);
 
 
         status = uv_thread_create(&child->body.thread, &start_thread, ts);

@@ -176,7 +176,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     MVMuint32 orig_seq = cur_frame->gc_seq_number;
     if (orig_seq == cur_seq_number)
         return;
-    if (apr_atomic_cas32(&cur_frame->gc_seq_number, cur_seq_number, orig_seq) != orig_seq)
+    if (AO_fetch_compare_and_swap(&cur_frame->gc_seq_number, orig_seq, cur_seq_number) != orig_seq)
         return;
 
     /* Add caller and outer to frames work list. */

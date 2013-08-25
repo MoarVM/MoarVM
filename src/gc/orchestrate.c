@@ -36,8 +36,8 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
         switch (to_signal->gc_status) {
             case MVMGCStatus_NONE:
                 /* Try to set it from running to interrupted - the common case. */
-                if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_INTERRUPT,
-                        MVMGCStatus_NONE) == MVMGCStatus_NONE) {
+                if (AO_fetch_compare_and_swap(&to_signal->gc_status, MVMGCStatus_NONE,
+                        MVMGCStatus_INTERRUPT) == MVMGCStatus_NONE) {
                     GCORCH_LOG(tc, "Thread %d run %d : Signalled thread %d to interrupt\n", to_signal->thread_id);
                     return 1;
                 }
@@ -47,8 +47,8 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                 return 0;
             case MVMGCStatus_UNABLE:
                 /* Otherwise, it's blocked; try to set it to work Stolen. */
-                if (apr_atomic_cas32(&to_signal->gc_status, MVMGCStatus_STOLEN,
-                        MVMGCStatus_UNABLE) == MVMGCStatus_UNABLE) {
+                if (AO_fetch_compare_and_swap(&to_signal->gc_status, MVMGCStatus_UNABLE,
+                        MVMGCStatus_STOLEN) == MVMGCStatus_UNABLE) {
                     GCORCH_LOG(tc, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
                     add_work(tc, to_signal);
                     return 0;
@@ -203,10 +203,10 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
                 thread_obj->body.stage = MVM_thread_stage_clearing_nursery;
 //                    GCORCH_LOG(tc, "Thread %d run %d : set thread %d clearing nursery stage to %d\n", other->thread_id, thread_obj->body.stage);
             }
-            apr_atomic_cas32(&other->gc_status, MVMGCStatus_UNABLE,
-                MVMGCStatus_STOLEN);
-            apr_atomic_cas32(&other->gc_status, MVMGCStatus_NONE,
-                MVMGCStatus_INTERRUPT);
+            AO_fetch_compare_and_swap(&other->gc_status, MVMGCStatus_STOLEN,
+                MVMGCStatus_UNABLE);
+            AO_fetch_compare_and_swap(&other->gc_status, MVMGCStatus_INTERRUPT,
+                MVMGCStatus_NONE);
         }
     }
     MVM_atomic_decr(&tc->instance->gc_ack);
@@ -219,8 +219,8 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
     /* This may need more than one attempt. */
     while (1) {
         /* Try to set it from running to unable - the common case. */
-        if (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_UNABLE,
-                MVMGCStatus_NONE) == MVMGCStatus_NONE)
+        if (AO_fetch_compare_and_swap(&tc->gc_status, MVMGCStatus_NONE,
+                MVMGCStatus_UNABLE) == MVMGCStatus_NONE)
             return;
 
         /* The only way this can fail is if another thread just decided we're to
@@ -237,8 +237,8 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
  * special handling if it comes out of this mode when a GC run is taking place. */
 void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
     /* Try to set it from unable to running. */
-    while (apr_atomic_cas32(&tc->gc_status, MVMGCStatus_NONE,
-            MVMGCStatus_UNABLE) != MVMGCStatus_UNABLE) {
+    while (AO_fetch_compare_and_swap(&tc->gc_status, MVMGCStatus_UNABLE,
+            MVMGCStatus_NONE) != MVMGCStatus_UNABLE) {
         /* We can't, presumably because a GC run is going on. We should wait
          * for that to finish before we go on, but without chewing CPU. */
         pthread_yield();

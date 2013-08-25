@@ -69,7 +69,7 @@ struct MVMFrame {
     void *special_return_data;
 
     /* GC run sequence number that we last saw this frame during. */
-    MVMuint32 gc_seq_number;
+    AO_t gc_seq_number;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

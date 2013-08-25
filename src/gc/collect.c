@@ -408,7 +408,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
     while (1) {
         MVMGCPassedWork *orig = *target_tray;
         work->next = orig;
-        if (apr_atomic_casptr((volatile void **)target_tray, work, orig) == orig)
+        if (AO_fetch_compare_and_swap((AO_t *)target_tray, orig, work) == orig)
             return;
     }
 }
@@ -477,7 +477,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
             return;
 
         /* Otherwise, try to take it. */
-        if (apr_atomic_casptr((volatile void **)in_tray, NULL, head) == head)
+        if (AO_fetch_compare_and_swap((AO_t *)in_tray, head, NULL) == head)
             break;
     }
 
