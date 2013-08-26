@@ -21,8 +21,8 @@ sub detect_native {
                 print "YES\n";
                 $defaults->{-thirdparty}->{apr} = { %APRW64 };
 
-    #            $defaults->{-thirdparty}->{dc}->{rule} =
-    #                'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
+                $defaults->{-thirdparty}->{dc}->{rule} =
+                    'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
             }
             else { print "NO\n" }
         }

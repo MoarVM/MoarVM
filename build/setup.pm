@@ -76,9 +76,9 @@ our %THIRDPARTY = (
     tom => { %TP_TOM },
     sha => { %TP_SHA },
     ln  => { %TP_LN },
-#    dc  => { %TP_DC },
-#    dcb => { %TP_DCB },
-#    dl  => { %TP_DL },
+    dc  => { %TP_DC },
+    dcb => { %TP_DCB },
+    dl  => { %TP_DL },
 #    uv  => { %TP_UVDUMMY },
 );
 
@@ -216,15 +216,15 @@ TERM
             clean => 'cd 3rdparty/apr && $(MAKE) -f Makefile.win ARCH="Win32 Release" clean',
         },
 
-#            dc => {
-#                %DC,
-#                name  => 'libdyncall_s',
-#                rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
-#                clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
-#            },
-#
-#            dcb => { %DCB, name => 'libdyncallback_s' },
-#            dl  => { %DL, name => 'libdynload_s' },
+        dc => {
+            %TP_DC,
+            name  => 'libdyncall_s',
+            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
+            clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
+        },
+
+        dcb => { %TP_DCB, name => 'libdyncallback_s' },
+        dl  => { %TP_DL, name => 'libdynload_s' },
     },
 );
 

@@ -1,3 +1,6 @@
 [submodule "3rdparty/linenoise"]
 	path = 3rdparty/linenoise
 	url = https://github.com/MoarVM/linenoise.git
+[submodule "3rdparty/dyncall"]
+	path = 3rdparty/dyncall
+	url = https://github.com/zhuomingliang/dyncall.git
