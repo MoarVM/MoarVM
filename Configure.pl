@@ -128,13 +128,14 @@ if ($args{shared}) {
     $config{objflags}  = '@ccdef@MVM_BUILD_SHARED @ccshared@';
     $config{mainflags} = '@ccdef@MVM_SHARED';
     $config{moar}      = '@moardll@';
-    $config{linkmoar}  = sprintf $config{ldimp} // $config{ldusr}, $NAME;
+    $config{mainlibs}  = '@lddir@. ' .
+        sprintf($config{ldimp} // $config{ldusr}, $NAME);
 }
 else {
     $config{objflags}  = '';
     $config{mainflags} = '';
     $config{moar}      = '@moarlib@';
-    $config{linkmoar}  = '@moarlib@';
+    $config{mainlibs}  = '@moarlib@ @thirdpartylibs@ $(LDLIBS)';
 }
 
 # some toolchains generate garbage

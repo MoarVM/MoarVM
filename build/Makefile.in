@@ -25,7 +25,9 @@ CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
-LDLIBS    = @thirdpartylibs@ @ldlibs@
+LDLIBS    = @ldlibs@
+MAIN_LIBS = @mainlibs@
+DLL_LIBS  = @thirdpartylibs@ $(LDLIBS)
 ARFLAGS   = @arflags@
 
 PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
@@ -231,10 +233,6 @@ THIRDPARTY = @thirdpartylibs@
 
 .SUFFIXES: .c @obj@
 
-moarvm@exe@: $(MAIN_OBJECTS) @moar@
-	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) @lddir@. @linkmoar@ $(LDLIBS)
-
 all: moarvm@exe@
 
 lib: @moar@
@@ -245,13 +243,17 @@ help:
 test:
 	@$(CAT) build/test.txt
 
+moarvm@exe@: $(MAIN_OBJECTS) @moar@
+	$(MSG) linking $@
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) $(MAIN_LIBS)
+
 @moarlib@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@
 	$(CMD)$(AR) $(ARFLAGS) @arout@$@ $(OBJECTS) $(NOOUT)
 
 @moardll@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) @ldshared@ $(OBJECTS) $(LDLIBS)
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) @ldshared@ $(OBJECTS) $(DLL_LIBS)
 
 libuv: @uvlib@
 
@@ -313,8 +315,9 @@ realclean: clean
 	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
 
 distclean: realclean
-	$(MSG) remove binary and configuration files
+	$(MSG) remove executable and libraries
 	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
+	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
 
 sandwich:
