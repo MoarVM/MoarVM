@@ -340,32 +340,42 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MV
 }
 
 /* Returns a substring of the given string */
-MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 start, MVMint64 length) {
+MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMint64 length) {
     MVMString *result;
     MVMStrand *strands;
-    MVMStringIndex agraphs = NUM_GRAPHS(a);
+    MVMint64   start_pos, end_pos;
 
-    if (start < 0) {
-        start += agraphs;
-        if (start < 0)
-            start = 0;
-    }
+    /* convert to signed to avoid implicit arithmetic conversions */
+    MVMint64 agraphs = (MVMint64)NUM_GRAPHS(a);
 
     if (!IS_CONCRETE((MVMObject *)a)) {
         MVM_exception_throw_adhoc(tc, "Substring needs a concrete string");
     }
 
-    if (start > agraphs)
-        start = agraphs;
-
-    if (length == -1) /* -1 signifies go to the end of the string */
-        length = agraphs - start;
-
-    if (length < 0)
+    /* -1 signifies go to the end of the string
+     * anything less is a bug
+     */
+    if (length < -1)
         MVM_exception_throw_adhoc(tc, "Substring length (%lld) cannot be negative", length);
 
-    if (start + length > agraphs)
-        length = agraphs - start;
+    /* negative offsets count from the end */
+    start_pos = offset < 0 ? offset + agraphs : offset;
+    end_pos   = length == -1 ? agraphs : start_pos + length;
+
+    if (start_pos > agraphs)
+        MVM_exception_throw_adhoc(tc, "Substring start (%lld) cannot be greater than string size (%lld)", start_pos, agraphs);
+
+    if (end_pos < 0)
+        MVM_exception_throw_adhoc(tc, "Substring end (%lld) cannot be less than 0", end_pos);
+
+    if (start_pos < 0)
+        start_pos = 0;
+
+    if (end_pos > agraphs)
+        end_pos = agraphs;
+
+    if (start_pos == end_pos)
+        return tc->instance->str_consts->empty;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
@@ -374,17 +384,17 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 st
     strands = result->body.strands = calloc(sizeof(MVMStrand), 2);
     /* if we're substringing a substring, substring the same one */
     if (IS_ONE_STRING_ROPE(a)) {
-        strands->string_offset = (MVMStringIndex)start + a->body.strands->string_offset;
+        strands->string_offset = (MVMStringIndex)start_pos + a->body.strands->string_offset;
         strands->string = a->body.strands->string;
     }
     else {
-        strands->string_offset = (MVMStringIndex)start;
+        strands->string_offset = (MVMStringIndex)start_pos;
         strands->string = a;
     }
     /* result->body.codes  = 0; /* Populate this lazily. */
     result->body.flags = MVM_STRING_TYPE_ROPE;
     result->body.num_strands = 1;
-    strands[1].graphs = length;
+    strands[1].graphs = end_pos - start_pos;
     _STRAND_DEPTH(result) = STRAND_DEPTH(strands->string) + 1;
 
     MVM_string_flatten(tc, result);
@@ -757,12 +767,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
                 start += length + sep_length;
                 /* Gather an empty string if the delimiter is found at the end. */
                 if (sep_length && start == end) {
-                    portion = MVM_string_substring(tc, input, start, length);
-                    MVMROOT(tc, portion, {
-                        MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
-                        MVM_repr_set_str(tc, pobj, portion);
-                        MVM_repr_push_o(tc, result, pobj);
-                    });
+                    MVM_repr_push_o(tc, result, tc->instance->str_consts->empty);
                 }
             }
         });
