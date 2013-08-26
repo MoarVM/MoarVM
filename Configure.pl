@@ -416,9 +416,14 @@ sub generate {
         hardfail($error)
             unless defined $line;
 
-        # in-between slashes in makefiles need to be backslashes on Windows
-        $line =~ s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g
-            if $dest =~ /Makefile/ && $config{sh} eq 'cmd';
+        if ($dest =~ /Makefile/ && $config{sh} eq 'cmd') {
+            # in-between slashes in makefiles need to be backslashes on Windows
+            $line =~ s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g;
+
+            # gmake doesn't like \*
+            $line =~ s/(\w|\.)\\\*/$1\\\\\*/g
+                if $config{make} eq 'gmake';
+        }
 
         print $destfile $line;
     }
