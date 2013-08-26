@@ -47,7 +47,7 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                 return 0;
             case MVMGCStatus_UNABLE:
                 /* Otherwise, it's blocked; try to set it to work Stolen. */
-                if (MVM_casptr(&to_signal->gc_status, MVMGCStatus_UNABLE,
+                if (MVM_cas(&to_signal->gc_status, MVMGCStatus_UNABLE,
                         MVMGCStatus_STOLEN) == MVMGCStatus_UNABLE) {
                     GCORCH_LOG(tc, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
                     add_work(tc, to_signal);
@@ -235,7 +235,7 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
  * special handling if it comes out of this mode when a GC run is taking place. */
 void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
     /* Try to set it from unable to running. */
-    while (MVM_casptr(&tc->gc_status, MVMGCStatus_UNABLE,
+    while (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE,
             MVMGCStatus_NONE) != MVMGCStatus_UNABLE) {
         /* We can't, presumably because a GC run is going on. We should wait
          * for that to finish before we go on, but without chewing CPU. */
