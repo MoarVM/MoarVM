@@ -254,7 +254,7 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
                                 MVMSTable *st, MVMint32 *sc, MVMint32 *sc_idx) {
     /* Add to this SC if needed. */
     if (st->header.sc == NULL) {
-        st->header.sc = writer->root.sc;
+        MVM_ASSIGN_REF(tc, st, st->header.sc, writer->root.sc);
         MVM_sc_push_stable(tc, writer->root.sc, st);
     }
 
@@ -395,41 +395,34 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
 /* Given a closure, locate the static code reference it was originally cloned
  * from. */
 static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *closure, MVMint64 fatal) {
-    MVMCode *code = (MVMCode *)closure;
-    MVMStaticFrame *sf;
-    MVMObject *scr;
+    MVMObject *scr = (MVMObject *)(((MVMCode *)closure)->body.sf)->body.static_code;
 
-    if (code->body.is_static)
-        return code->body.code_object;
-    sf = code->body.sf;
-    scr = (MVMObject *)sf->body.static_code;
-    if (scr) return scr;
-    if (fatal)
-        MVM_exception_throw_adhoc(tc,
-            "Serialization Error: missing static code ref for closure");
-    else
+    if (scr == NULL || scr->header.sc == NULL) {
+        if (fatal)
+            MVM_exception_throw_adhoc(tc,
+                "Serialization Error: missing static code ref for closure");
         return NULL;
+    }
+    return scr;
 }
 
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
 static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
-    MVMSerializationContext *ctx_sc = Parrot_pmc_getprop(tc, ctx, Parrot_str_new_constant(tc, "SC"));
-    if (OBJ_IS_NULL(ctx_sc)) {
+    if (OBJ_IS_NULL(ctx->header.sc)) {
         /* Make sure we should chase a level down. */
-        if (OBJ_IS_NULL(closure_to_static_code_ref(tc, PARROT_CALLCONTEXT(ctx)->current_sub, 0))) {
+        if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ((MVMObject *)ctx)->body.code_object, 0))) {
             return 0;
         }
         else {
-            MVMint64 idx = MVM_repr_elems(tc, writer->contexts_list);
-            VTABLE_set_pmc_keyed_int(tc, writer->contexts_list, idx, ctx);
-            Parrot_pmc_setprop(tc, ctx, Parrot_str_new_constant(tc, "SC"), writer->root.sc);
-            return (MVMint32)idx + 1;
+            MVM_repr_push_o(tc, writer->contexts_list, ctx);
+            MVM_ASSIGN_REF(tc, ctx, ctx.header->sc, writer->root.sc);
+            return (MVMint32)MVM_repr_elems(tc, writer->contexts_list);
         }
     }
     else {
         MVMint64 i, c;
-        if (ctx_sc != writer->root.sc)
+        if (ctx->header.sc != writer->root.sc)
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: reference to context outside of SC");
         c = MVM_repr_elems(tc, writer->contexts_list);
@@ -459,7 +452,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Locate the static code object. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, closure, 1);
-    MVMSerializationContext *static_code_sc = Parrot_pmc_getprop(tc, static_code_ref, Parrot_str_new_constant(tc, "SC"));
+    MVMSerializationContext *static_code_sc = static_code_ref->header.sc;
 
     /* Ensure there's space in the closures table; grow if not. */
     MVMint32 offset = writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
@@ -501,7 +494,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Add the closure to this SC, and mark it as as being in it. */
     MVM_repr_push_o(tc, writer->codes_list, closure);
-    Parrot_pmc_setprop(tc, closure, Parrot_str_new_constant(tc, "SC"), writer->root.sc);
+    closure->header.sc = writer->root.sc;
 }
 
 /* Writing function for references to things. */
@@ -602,12 +595,12 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 
     /* Now take appropriate action. */
     switch (discrim) {
-        case REFVAR_NULL:
-        case REFVAR_VM_NULL:
-            /* Nothing to do for these. */
-            break;
+        case REFVAR_NULL: goto REFVAR_VM_NULL;
         case REFVAR_OBJECT:
             write_obj_ref(tc, writer, ref);
+            break;
+        case REFVAR_VM_NULL:
+            /* Nothing to do for these. */
             break;
         case REFVAR_VM_INT:
             write_int_func(tc, writer, VTABLE_get_integer(tc, ref));
@@ -621,11 +614,11 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
         case REFVAR_VM_ARR_VAR:
             write_array_var(tc, writer, ref);
             break;
-        case REFVAR_VM_ARR_INT:
-            write_array_int(tc, writer, ref);
-            break;
         case REFVAR_VM_ARR_STR:
             write_array_str(tc, writer, ref);
+            break;
+        case REFVAR_VM_ARR_INT:
+            write_array_int(tc, writer, ref);
             break;
         case REFVAR_VM_HASH_STR_VAR:
             write_hash_str_var(tc, writer, ref);
