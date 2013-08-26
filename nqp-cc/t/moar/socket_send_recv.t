@@ -3,11 +3,13 @@ use MASTTesting;
 
 plan(1);
 
+# This test can't work on windows due to a libuv bug, see test-tcp-connect-error-after-write.c in libuv, and
+# https://github.com/joyent/libuv/issues/444
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, NQPMu);
         my $r1 := const($frame, sval("www.google.com")); # hostname
         my $r7 := const($frame, ival(80)); # port 80
-        my $r8 := const($frame, ival(6)); # TCP
+        my $r8 := const($frame, ival(4)); # TCP
         my $r10 := const($frame, sval("GET / HTTP/1.0\r\n\r\n"));
         my $r11 := const($frame, ival(999999));
         my $r12 := const($frame, ival(1));
