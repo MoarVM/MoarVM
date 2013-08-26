@@ -437,11 +437,11 @@ static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializatio
 /* Takes a closure, that is to be serialized. Checks if it has an outer that is
  * of interest, and if so sets it up to be serialized. */
 static MVMint32 get_serialized_outer_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *closure) {
-    if (!OBJ_IS_NULL(Parrot_pmc_getprop(tc, closure, Parrot_str_new_constant(tc, "COMPILER_STUB"))))
+    if (((MVMCode *)closure)->body.is_compiler_stub)
         return 0;
-    if (VM_OBJ_IS_NULL(PARROT_SUB(closure)->outer_ctx))
+    if (((MVMCode *)closure)->body.outer == NULL)
         return 0;
-    return get_serialized_context_idx(tc, writer, PARROT_SUB(closure)->outer_ctx);
+    return get_serialized_context_idx(tc, writer, ((MVMCode *)closure)->body.outer);
 }
 
 /* Takes a closure that needs to be serialized. Makes an entry in the closures
