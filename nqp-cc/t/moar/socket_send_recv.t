@@ -3,6 +3,8 @@ use MASTTesting;
 
 plan(1);
 
+# This test can't work on windows due to a libuv bug, see test-tcp-connect-error-after-write.c in libuv, and
+# https://github.com/joyent/libuv/issues/444
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $r0 := local($frame, NQPMu);
         my $r1 := const($frame, sval("www.google.com")); # hostname
