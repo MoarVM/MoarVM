@@ -9,7 +9,7 @@ static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSH
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.type != MVM_OSHANDLE_TCP || (*handle)->body.type != MVM_OSHANDLE_UDP) {
+    if ((*handle)->body.type != MVM_OSHANDLE_TCP && (*handle)->body.type != MVM_OSHANDLE_UDP) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type socket", msg);
     }
 }
