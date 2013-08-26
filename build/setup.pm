@@ -348,6 +348,13 @@ our %OS_WIN32 = (
     },
 );
 
+our %OS_MINGW32 = (
+    %OS_WIN32,
+
+    make => 'gmake',
+    defs => [ @{$OS_WIN32{defs}}, '_WIN32_WINNT=0x0600' ],
+);
+
 our %OS_LINUX = (
     syslibs => [ qw( m pthread uuid rt ) ],
 
@@ -408,7 +415,7 @@ our %SYSTEMS = (
     solaris => [ qw( posix posix cc ),  { %OS_SOLARIS } ],
     win32   => [ qw( win32 msvc cl ), { %OS_WIN32 } ],
     cygwin  => [ qw( posix gnu gcc ), { %OS_WIN32 } ],
-    mingw32 => [ qw( win32 gnu gcc ), { %OS_WIN32 } ],
+    mingw32 => [ qw( win32 gnu gcc ), { %OS_MINGW32 } ],
 );
 
 42;
