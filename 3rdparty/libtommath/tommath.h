@@ -46,7 +46,7 @@ extern "C" {
 
 
 /* detect 64-bit mode if possible */
-#if defined(__x86_64__) 
+#if defined(__x86_64__) && !defined(_WIN32)
    #if !(defined(MP_64BIT) && defined(MP_16BIT) && defined(MP_8BIT))
       #define MP_64BIT
    #endif
@@ -73,7 +73,7 @@ extern "C" {
    typedef signed long long   long64;
 #endif
 
-   typedef unsigned long      mp_digit;
+   typedef unsigned long      mp_digit __attribute__ ((mode(DI)));
    typedef unsigned long      mp_word __attribute__ ((mode(TI)));
 
    #define DIGIT_BIT          60
