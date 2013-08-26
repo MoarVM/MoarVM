@@ -510,7 +510,7 @@ void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, M
         }
     }
 #else
-    if (lseek64(handle->body.fd, offset, flag) == -1) {
+    if (lseek(handle->body.fd, offset, flag) == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
 #endif
@@ -548,7 +548,7 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 
     return li.QuadPart;
 #else
-    if ((r = lseek64(handle->body.fd, 0, SEEK_CUR)) == -1) {
+    if ((r = lseek(handle->body.fd, 0, SEEK_CUR)) == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
 

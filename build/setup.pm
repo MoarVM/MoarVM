@@ -230,7 +230,7 @@ our %COMPILERS = (
         cc => 'gcc',
         ld => undef,
 
-        ccmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE',
+        ccmiscflags  => '-D_REENTRANT -D_FILE_OFFSET_BITS=64',
         ccwarnflags  => '-Wall -Wextra',
         ccoptiflags  => '-O3',
         ccdebugflags => '-g',
@@ -251,7 +251,7 @@ our %COMPILERS = (
         cc => 'clang',
         ld => undef,
 
-        ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
+        ccmiscflags  =>  '-D_REENTRANT -D_FILE_OFFSET_BITS=64 -fno-omit-frame-pointer -fno-optimize-sibling-calls',
         ccwarnflags  => '', #'-Weverything',
         ccoptiflags  =>  '-O3',
         ccdebugflags => '-g',
