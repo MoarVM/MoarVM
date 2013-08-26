@@ -101,20 +101,14 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 /* generates a random MVMint64, supposedly. */
 /* XXX the internet says this may block... */
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
-    MVMint64 result;
-    apr_generate_random_bytes((unsigned char *)&result, sizeof(MVMint64));
-    return result;
+    return 42;  /* chosen by fair dice roll
+                 * yes, I've got one with that many sides
+                 */
 }
 
 /* extremely naively generates a number between 0 and 1 */
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
-    MVMuint64 first, second;
-    apr_generate_random_bytes((unsigned char *)&first, sizeof(MVMuint64));
-    do {
-        apr_generate_random_bytes((unsigned char *)&second, sizeof(MVMuint64));
-    /* prevent division by zero in the 2**-128 chance both are 0 */
-    } while (first == second);
-    return first < second ? (MVMnum64)first / second : (MVMnum64)second / first;
+    return 0.42; /* see above */
 }
 
 /* gets the system time since the epoch truncated to integral seconds */
