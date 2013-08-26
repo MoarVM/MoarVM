@@ -1,9 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-/* libatomic_ops */
-#include <atomic_ops.h>
-
 /* Configuration. */
 #include "gen/config.h"
 
@@ -11,7 +8,14 @@
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
 
 #include <uthash.h>
+
+/* libuv
+ * must precede atomic_ops.h so we get the ordering of Winapi headers right
+ */
 #include <uv.h>
+
+/* libatomic_ops */
+#include <atomic_ops.h>
 
 /* forward declarations */
 #include "types.h"
