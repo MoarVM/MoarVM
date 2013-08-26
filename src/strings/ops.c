@@ -360,7 +360,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
 
     /* negative offsets count from the end */
     start_pos = offset < 0 ? offset + agraphs : offset;
-    end_pos   = (length == -1 ? agraphs : start_pos + length);
+    end_pos   = length == -1 ? agraphs : start_pos + length;
 
     if (start_pos > agraphs)
         MVM_exception_throw_adhoc(tc, "Substring start (%lld) cannot be greater than string size (%lld)", start_pos, agraphs);
