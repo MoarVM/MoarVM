@@ -309,6 +309,13 @@ _uvlib_: _uvobjects_
 	$(MSG) linking $@
 	$(CMD)@lnrule@ $(NOOUT)
 
+@dclib@:
+	$(MSG) building dyncall...
+	$(CMD)@dcrule@ $(NOOUT)
+	$(MSG) done.
+
+@dcblib@ @dllib@: @dclib@
+
 clean:
 	$(MSG) remove build files
 	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
@@ -323,6 +330,7 @@ realclean: clean
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 
 distclean: realclean
 	$(MSG) remove binary and configuration files
