@@ -6,4 +6,4 @@
 	url = https://github.com/joyent/libuv.git
 [submodule "3rdparty/dyncall"]
 	path = 3rdparty/dyncall
-	url = https://github.com/zhuomingliang/dyncall.git
+	url = https://github.com/MoarVM/dyncall.git
