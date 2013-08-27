@@ -398,7 +398,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     _STRAND_DEPTH(result) = STRAND_DEPTH(strands->string) + 1;
 
     MVM_string_flatten(tc, result);
-    
+
     return result;
 }
 
@@ -452,7 +452,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     result->body.num_strands = strand_count;
     result->body.flags = MVM_STRING_TYPE_ROPE;
     _STRAND_DEPTH(result) = max_strand_depth + 1;
-    
+
     MVM_string_flatten(tc, result);
 
     return result;
@@ -506,7 +506,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.flags = MVM_STRING_TYPE_UINT8;
         /* leave graphs 0 and storage null */
     }
-    
+
     MVM_string_flatten(tc, result);
 
     return result;
@@ -767,12 +767,9 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
                 start += length + sep_length;
                 /* Gather an empty string if the delimiter is found at the end. */
                 if (sep_length && start == end) {
-                    portion = tc->instance->str_consts->empty;
-                    MVMROOT(tc, portion, {
-                        MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
-                        MVM_repr_set_str(tc, pobj, portion);
-                        MVM_repr_push_o(tc, result, pobj);
-                    });
+                    MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
+                    MVM_repr_set_str(tc, pobj, tc->instance->str_consts->empty);
+                    MVM_repr_push_o(tc, result, pobj);
                 }
             }
         });
