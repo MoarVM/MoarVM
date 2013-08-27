@@ -34,7 +34,7 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
         switch (to_signal->gc_status) {
             case MVMGCStatus_NONE:
                 /* Try to set it from running to interrupted - the common case. */
-                if (MVM_casptr(&to_signal->gc_status, MVMGCStatus_NONE,
+                if (MVM_cas(&to_signal->gc_status, MVMGCStatus_NONE,
                         MVMGCStatus_INTERRUPT) == MVMGCStatus_NONE) {
                     GCORCH_LOG(tc, "Thread %d run %d : Signalled thread %d to interrupt\n", to_signal->thread_id);
                     return 1;
@@ -215,7 +215,7 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
     /* This may need more than one attempt. */
     while (1) {
         /* Try to set it from running to unable - the common case. */
-        if (MVM_casptr(&tc->gc_status, MVMGCStatus_NONE,
+        if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE,
                 MVMGCStatus_UNABLE) == MVMGCStatus_NONE)
             return;
 
