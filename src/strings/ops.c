@@ -767,12 +767,9 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
                 start += length + sep_length;
                 /* Gather an empty string if the delimiter is found at the end. */
                 if (sep_length && start == end) {
-                    portion = tc->instance->str_consts->empty;
-                    MVMROOT(tc, portion, {
-                        MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
-                        MVM_repr_set_str(tc, pobj, portion);
-                        MVM_repr_push_o(tc, result, pobj);
-                    });
+                    MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
+                    MVM_repr_set_str(tc, pobj, tc->instance->str_consts->empty);
+                    MVM_repr_push_o(tc, result, pobj);
                 }
             }
         });

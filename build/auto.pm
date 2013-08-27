@@ -12,8 +12,8 @@ sub detect_native {
         if (defined $msg) {
             if ($msg =~ /x64/) {
                 print "YES\n";
-    #            $defaults->{-thirdparty}->{dc}->{rule} =
-    #                'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
+                $defaults->{-thirdparty}->{dc}->{rule} =
+                    'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
             }
             else { print "NO\n" }
         }
