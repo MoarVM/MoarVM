@@ -103,6 +103,10 @@ static char * base64_encode(const void *buf, size_t size)
 /* Base64 decoding */
 static int POS(char c)
 {
+    /* XXX TODO: investigate whether enumerating all 256 cases of
+     * this in a switch/case can help the compiler turn it into a
+     * jump table instead of a bunch of comparisons (if it doesn't
+     * already, of course!)... */
     if (c>='A' && c<='Z') return c - 'A';
     if (c>='a' && c<='z') return c - 'a' + 26;
     if (c>='0' && c<='9') return c - '0' + 52;
@@ -115,6 +119,8 @@ static void * base64_decode(const char *s, size_t *data_len)
 {
     const char *p;
     unsigned char *q, *data;
+    /* XXX TODO: investigate whether putting these n[4] into 4
+     * separate locals helps the compiler optimize them better.. */
     int n[4];
 
     size_t len = strlen(s);
@@ -129,20 +135,22 @@ static void * base64_decode(const char *s, size_t *data_len)
         n[2] = POS(*p++);
         n[3] = POS(*p++);
 
-            if (n[0] == -2 || n[1] == -2 || n[2] == -2 || n[3] == -2)
-                return NULL;
+        /* XXX TODO: investigate jump table possibility here too,
+         * or at least collapse some of the branches... */
+        if (n[0] == -2
+         || n[1] == -2
+         || n[2] == -2
+         || n[3] == -2
+         || n[0] == -1
+         || n[1] == -1
+         || (n[2] == -1 && n[3] != -1))
+            return NULL;
 
-        if (n[0] == -1 || n[1] == -1)
-        return NULL;
-
-        if (n[2] == -1 && n[3] != -1)
-        return NULL;
-
-            q[0] = (n[0] << 2) + (n[1] >> 4);
+        q[0] = (n[0] << 2) + (n[1] >> 4);
         if (n[2] != -1)
-                q[1] = ((n[1] & 15) << 4) + (n[2] >> 2);
+            q[1] = ((n[1] & 15) << 4) + (n[2] >> 2);
         if (n[3] != -1)
-                q[2] = ((n[2] & 3) << 6) + n[3];
+            q[2] = ((n[2] & 3) << 6) + n[3];
         q += 3;
     }
 
@@ -1375,13 +1383,21 @@ static MVMSTable * read_stable_ref_func(MVMThreadContext *tc, MVMSerializationRe
 }
 
 /* Checks the header looks sane and all of the places it points to make sense.
- * Also disects the input string into the tables and data segments and populates
+ * Also dissects the input string into the tables and data segments and populates
  * the reader data structure more fully. */
 static void check_and_dissect_input(MVMThreadContext *tc,
         MVMSerializationReader *reader, MVMString *data_str) {
     /* Grab data from string. */
     size_t  data_len;
+    /* XXX TODO: create an internals-only interface so a string can
+     * be decoded into an existing buffer if it's big enough... then
+     * cache that buffer on threadcontext to avoid one of the
+     * allocations when decoding base64. */
     char   *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
+    /* XXX TODO: extend base64_decode to take a pointer to a pointer
+     * to a destination buffer, and to decode to it if the buffer is
+     * big enough... then cache this buffer on the threadcontext to
+     * get rid of the other mallocation... */
     char   *data     = (char *)base64_decode(data_b64, &data_len);
     char   *prov_pos = data;
     char   *data_end = data + data_len;
