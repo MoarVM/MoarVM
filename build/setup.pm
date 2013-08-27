@@ -345,7 +345,7 @@ our %OS_MINGW32 = (
 
         dc => {
             %TP_DC,
-            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 /tool-gcc && $(MAKE)',
+            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
         },
     },
 );
