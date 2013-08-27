@@ -31,7 +31,7 @@ sub detect_native {
                 print "YES\n";
 
                 $defaults->{-thirdparty}->{dc}->{rule} =
-                    'cd 3rdparty/dyncall && configure.bat /target-x64 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32';
+                    'cd 3rdparty/dyncall && ./configure.bat /target-x64 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32';
             }
             else { print "NO\n" }
         }

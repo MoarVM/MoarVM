@@ -206,7 +206,7 @@ TERM
             %TP_DC,
             name  => 'libdyncall_s',
             rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
-            clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
+            clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*@obj@ 3rdparty/dyncall/dyncallback/*@obj@ 3rdparty/dyncall/dynload/*@obj@',
         },
 
         dcb => { %TP_DCB, name => 'libdyncallback_s' },
@@ -351,8 +351,8 @@ our %OS_MINGW32 = (
 
         dc => {
             %TP_DC,
-            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
-            clean => 'cd 3rdparty/dyncall && $(MAKE) -f Makefile.embedded clean',
+            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
+            clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
         },
     },
 );
