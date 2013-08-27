@@ -339,6 +339,15 @@ our %OS_MINGW32 = (
 
     make => 'gmake',
     defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0600 ) ],
+
+    -thirdparty => {
+        %{$OS_WIN32{-thirdparty}},
+
+        dc => {
+            %TP_DC,
+            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 /tool-gcc && $(MAKE)',
+        },
+    },
 );
 
 our %OS_POSIX = (

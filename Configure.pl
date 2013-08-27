@@ -282,6 +282,8 @@ sub setup_native {
         $os = 'posix';
     }
 
+    $defaults{os} = $os;
+
     my ($shell, $toolchain, $compiler, $overrides) = @{$::SYSTEMS{$os}};
     $shell     = $::SHELLS{$shell};
     $toolchain = $::TOOLCHAINS{$toolchain};
@@ -358,6 +360,8 @@ sub setup_cross {
         }
         else { hardfail("failed to parse triple '$$_'") }
     }
+
+    $defaults{os} = $host;
 
     $build = $::SYSTEMS{$build};
     $host  = $::SYSTEMS{$host};
