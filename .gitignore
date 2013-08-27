@@ -5,6 +5,11 @@
 # Separately cloned repos
 tools/nqp-cross-compiler/nqp/
 
+# clangcheck files
+.clangcheck
+.gcccheck
+tools/check.mk
+
 # Generated files
 Makefile
 3rdparty/libatomic_ops/autom4te.cache/

@@ -246,6 +246,9 @@ help:
 test:
 	@$(CAT) build/test.txt
 
+clangcheck gcccheck:
+	@$(MAKE) --no-print-directory -f tools/check.mk $@
+
 moarvm@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) $(MAIN_LIBS)
@@ -329,7 +332,7 @@ distclean: realclean
 	$(MSG) remove executable and libraries
 	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
-	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
 
 sandwich:
 	@echo What? Make it yourself.
