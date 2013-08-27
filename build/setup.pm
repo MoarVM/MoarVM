@@ -340,6 +340,12 @@ our %OS_MINGW32 = (
     make => 'gmake',
     defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0600 ) ],
 
+    dll   => '%s.dll',
+    ldimp => '-l%s.dll',
+
+    ccshared => '',
+    ldshared => '-shared -Wl,--out-implib,lib$@.a',
+
     -thirdparty => {
         %{$OS_WIN32{-thirdparty}},
 
