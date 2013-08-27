@@ -73,9 +73,9 @@ for (keys %defaults) {
 # misc defaults
 $config{exe}       //= '';
 $config{defs}      //= [];
-$config{syslibs}   //= [ qw( m pthread ) ];
+$config{syslibs}   //= [];
 $config{usrlibs}   //= [];
-$config{platform}  //= '$(PLATFORM_POSIX)';
+$config{platform}  //= '';
 $config{crossconf} //= '';
 $config{dllimport} //= '',
 $config{dllexport} //= '',

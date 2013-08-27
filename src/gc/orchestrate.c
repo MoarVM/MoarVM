@@ -1,5 +1,5 @@
 #include "moarvm.h"
-#include <platform/yield.h>
+#include <platform/threads.h>
 
 #define GCORCH_DEBUG 0
 #ifdef _MSC_VER

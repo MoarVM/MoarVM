@@ -230,7 +230,7 @@ our %COMPILERS = (
         cc => 'gcc',
         ld => undef,
 
-        ccmiscflags  => '-D_REENTRANT -D_FILE_OFFSET_BITS=64',
+        ccmiscflags  => '',
         ccwarnflags  => '-Wall -Wextra',
         ccoptiflags  => '-O3',
         ccdebugflags => '-g',
@@ -251,7 +251,7 @@ our %COMPILERS = (
         cc => 'clang',
         ld => undef,
 
-        ccmiscflags  =>  '-D_REENTRANT -D_FILE_OFFSET_BITS=64 -fno-omit-frame-pointer -fno-optimize-sibling-calls',
+        ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
         ccwarnflags  => '', #'-Weverything',
         ccoptiflags  =>  '-O3',
         ccdebugflags => '-g',
@@ -293,7 +293,7 @@ our %COMPILERS = (
         cc => 'cc',
         ld => undef,
 
-        ccmiscflags  => '-D_REENTRANT -D_LARGEFILE64_SOURCE',
+        ccmiscflags  => '',
         ccwarnflags  => '',
         ccoptiflags  => '-O',
         ccdebugflags => '-g',
@@ -314,7 +314,7 @@ our %COMPILERS = (
 
 our %OS_WIN32 = (
     exe      => '.exe',
-    defs     => [ 'WIN32', 'AO_ASSUME_WINDOWS98' ],
+    defs     => [ qw( WIN32 AO_ASSUME_WINDOWS98 ) ],
     syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi ) ],
     platform => '$(PLATFORM_WIN32)',
 
@@ -337,11 +337,19 @@ our %OS_MINGW32 = (
     %OS_WIN32,
 
     make => 'gmake',
-    defs => [ @{$OS_WIN32{defs}}, '_WIN32_WINNT=0x0600' ],
+    defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0600 ) ],
+);
+
+our %OS_POSIX = (
+    defs     => [ qw( _REENTRANT -D_FILE_OFFSET_BITS=64 ) ],
+    syslibs  => [ qw( m pthread ) ],
+    platform => '$(PLATFORM_POSIX)',
 );
 
 our %OS_LINUX = (
-    syslibs => [ qw( m pthread rt ) ],
+    %OS_POSIX,
+
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( rt ) ],
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_LINUX)' },
@@ -349,24 +357,32 @@ our %OS_LINUX = (
 );
 
 our %OS_OPENBSD = (
+    %OS_POSIX,
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_OPENBSD)' },
     },
 );
 
 our %OS_NETBSD = (
+    %OS_POSIX,
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_NETBSD)' },
     },
 );
 
 our %OS_FREEBSD = (
+    %OS_POSIX,
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_FREEBSD)' },
     },
 );
 
 our %OS_SOLARIS = (
+    %OS_POSIX,
+
     syslibs => [ qw( socket sendfile nsl pthread m rt ) ],
     mknoisy => '',
 
@@ -376,8 +392,10 @@ our %OS_SOLARIS = (
 );
 
 our %OS_DARWIN = (
+    %OS_POSIX,
+
     ldsys    => '-framework %s',
-    defs     => [ '_DARWIN_USE_64_BIT_INODE=1' ],
+    defs     => [ qw( _DARWIN_USE_64_BIT_INODE=1 ) ],
     syslibs  => [ qw( ApplicationServices CoreServices Foundation ) ],
     usrlibs  => [ qw( pthread ) ],
 
@@ -392,7 +410,7 @@ our %OS_DARWIN = (
 );
 
 our %SYSTEMS = (
-    posix   => [ qw( posix posix cc ), {} ],
+    posix   => [ qw( posix posix cc ), { %OS_POSIX } ],
     linux   => [ qw( posix gnu gcc ), { %OS_LINUX } ],
     darwin  => [ qw( posix gnu clang ), { %OS_DARWIN } ],
     openbsd => [ qw( posix bsd gcc ), { %OS_OPENBSD} ],
