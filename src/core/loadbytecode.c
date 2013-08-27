@@ -17,7 +17,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     MVM_HASH_GET(tc, tc->instance->loaded_compunits, filename, loaded_name);
     if (loaded_name) {
         /* already loaded */
-        uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
+        uv_mutex_unlock(&tc->instance->mutex_loaded_compunits);
         return;
     }
 
