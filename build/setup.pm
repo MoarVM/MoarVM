@@ -341,7 +341,7 @@ our %OS_MINGW32 = (
 );
 
 our %OS_LINUX = (
-    syslibs => [ qw( m pthread uuid rt ) ],
+    syslibs => [ qw( m pthread rt ) ],
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_LINUX)' },
@@ -367,7 +367,7 @@ our %OS_FREEBSD = (
 );
 
 our %OS_SOLARIS = (
-    syslibs => [ qw( socket sendfile nsl uuid pthread m rt ) ],
+    syslibs => [ qw( socket sendfile nsl pthread m rt ) ],
     mknoisy => '',
 
     -thirdparty => {
