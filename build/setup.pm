@@ -338,7 +338,7 @@ our %OS_MINGW32 = (
     %OS_WIN32,
 
     make => 'gmake',
-    defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0600 ) ],
+    defs => [ @{$OS_WIN32{defs}}, '_WIN32_WINNT=0x0600' ],
 );
 
 our %OS_POSIX = (
@@ -399,6 +399,11 @@ our %OS_DARWIN = (
     defs     => [ qw( _DARWIN_USE_64_BIT_INODE=1 ) ],
     syslibs  => [ qw( ApplicationServices CoreServices Foundation ) ],
     usrlibs  => [ qw( pthread ) ],
+
+    dll => 'lib%s.dylib',
+
+    ccshared => '',
+    ldshared => '-dynamiclib',
 
     dll => 'lib%s.dylib',
 
