@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include "platform/io.h"
 
 #ifndef _WIN32
 #include <sys/types.h>

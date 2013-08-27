@@ -19,7 +19,7 @@ MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
         return -1;
     }
 
-    li.QuadPart = 0;
+    li.QuadPart = offset;
     li.LowPart = SetFilePointer(hf, li.LowPart, &li.HighPart, origin);
 
     if (li.LowPart == INVALID_SET_FILE_POINTER) {
