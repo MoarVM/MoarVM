@@ -485,75 +485,26 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
 /* seeks in a filehandle */
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag) {
     MVMOSHandle *handle;
-#ifdef _WIN32
-    HANDLE hf;
-    LARGE_INTEGER li;
-#endif
 
     verify_filehandle_type(tc, oshandle, &handle, "seek in filehandle");
 
-#ifdef _WIN32
-
-    hf = (HANDLE)_get_osfhandle(handle->body.fd);
-    if (hf == INVALID_HANDLE_VALUE) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
-    }
-
-    li.QuadPart = offset;
-
-    li.LowPart = SetFilePointer(hf, li.LowPart, &li.HighPart, flag);
-
-    if (li.LowPart == INVALID_SET_FILE_POINTER) {
-        DWORD error = GetLastError();
-        if (error != NO_ERROR) {
-            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", error);
-        }
-    }
-#else
-    if (lseek(handle->body.fd, offset, flag) == -1) {
+    if (MVM_platform_lseek(handle->body.fd, offset, flag) == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
-#endif
 }
 
 /* tells position within file */
 MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle;
-#ifdef _WIN32
-    HANDLE hf;
-    LARGE_INTEGER li;
-#else
     MVMint64 r;
-#endif
 
     verify_filehandle_type(tc, oshandle, &handle, "seek in filehandle");
 
-#ifdef _WIN32
-
-    hf = (HANDLE)_get_osfhandle(handle->body.fd);
-    if (hf == INVALID_HANDLE_VALUE) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
-    }
-
-    li.QuadPart = 0;
-
-    li.LowPart = SetFilePointer(hf, li.LowPart, &li.HighPart, FILE_CURRENT);
-
-    if (li.LowPart == INVALID_SET_FILE_POINTER) {
-        DWORD error = GetLastError();
-        if (error != NO_ERROR) {
-            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", error);
-        }
-    }
-
-    return li.QuadPart;
-#else
-    if ((r = lseek(handle->body.fd, 0, SEEK_CUR)) == -1) {
+    if ((r = MVM_platform_lseek(handle->body.fd, 0, SEEK_CUR)) == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     }
 
     return r;
-#endif
 }
 
 /* locks a filehandle */

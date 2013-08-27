@@ -31,7 +31,8 @@ DLL_LIBS  = @thirdpartylibs@ $(LDLIBS)
 ARFLAGS   = @arflags@
 
 PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
-                 src/platform/win32/time@obj@
+                 src/platform/win32/time@obj@ \
+                 src/platform/win32/io@obj@
 
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@
@@ -174,6 +175,8 @@ HEADERS = src/moarvm.h \
           src/math/bigintops.h \
           src/platform/mmap.h \
           src/platform/time.h \
+          src/platform/threads.h \
+          src/platform/io.h \
           src/gen/config.h \
           3rdparty/uthash.h
 
