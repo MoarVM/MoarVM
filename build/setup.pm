@@ -341,7 +341,7 @@ our %OS_MINGW32 = (
 );
 
 our %OS_POSIX = (
-    defs     => [ qw( _REENTRANT -D_FILE_OFFSET_BITS=64 ) ],
+    defs     => [ qw( _REENTRANT _FILE_OFFSET_BITS=64 ) ],
     syslibs  => [ qw( m pthread ) ],
     platform => '$(PLATFORM_POSIX)',
 );
