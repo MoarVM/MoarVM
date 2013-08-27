@@ -18,9 +18,6 @@ with `gcc` and `clang` on Linux & MacOS X.  We're expanding this with time.
 Type `perl Configure.pl --help` to see the configure-time options, as well
 as some descriptions of the make-time options/targets.
 
-You need to install libuuid on linux (It's required by libapr, but not for
-long).
-
 ## Build the NQP Cross-Compiler
 
 To run some NQP code, or tests, then:
