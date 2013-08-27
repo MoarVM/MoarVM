@@ -16,16 +16,17 @@ int MVM_platform_free_pages(void *pages, size_t size)
 void *MVM_platform_map_file(int fd, void **handle, size_t size, int writable)
 {
     HANDLE fh, mapping;
+    LARGE_INTEGER li;
     void *block;
 
     fh = (HANDLE)_get_osfhandle(fd);
     if (fh == INVALID_HANDLE_VALUE)
         return NULL;
 
+    li.QuadPart = size;
     mapping = CreateFileMapping(fh, NULL,
         writable ? PAGE_READWRITE : PAGE_READONLY,
-        sizeof (size_t) > sizeof (DWORD) ? (DWORD)(size >> 32) : 0,
-        (DWORD)size, NULL);
+        li.HighPart, li.LowPart, NULL);
 
     if(mapping == NULL)
         return NULL;
