@@ -17,7 +17,7 @@ extern char **environ;
 #ifdef _WIN32
 static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 {
-     const int          len = MultiByteToWideChar(acp, 0, str,-1, NULL,0);
+     const int          len = MultiByteToWideChar(acp, 0, str, -1, NULL, 0);
      wchar_t * const result = (wchar_t *)malloc(len * sizeof(wchar_t));
 
      MultiByteToWideChar(acp, 0, str, -1, (LPWSTR)result, len);

@@ -164,7 +164,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     free(wname);
 
     str_len  = wcslen(abs_dirname) ;
-    dir_name = (wchar_t *)calloc(str_len + 7, sizeof(wchar_t));
+    dir_name = (wchar_t *)malloc((str_len + 7) * sizeof(wchar_t));
 
     wcscpy(dir_name, L"\\\\?\\");
     wcscat(dir_name, abs_dirname);
