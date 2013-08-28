@@ -828,7 +828,6 @@ QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
     $val_il := MAST::InstructionList.new($val_il, MAST::VOID, $MVM_reg_void);
 
     # Now do block invocation.
-
     my $inv_il := $res
         ?? MAST::Call.new(
             :target($block_res.result_reg),
@@ -842,35 +841,37 @@ QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
             |@val_temps
         );
     $inv_il := MAST::InstructionList.new([$inv_il], MAST::VOID, $MVM_reg_void);
-
-#    # Wrap block invocation in redo handler if needed.
-#    if $handler {
-#        my $catch := JAST::InstructionList.new();
-#        $catch.append(JAST::Instruction.new( :op('pop') ));
-#        $catch.append(JAST::Instruction.new( :op('goto'), $lbl_redo ));
-#        $inv_il := JAST::TryCatch.new( :try($inv_il), :$catch, :type($TYPE_EX_REDO) );
-#    }
     push_ilist($val_il.instructions, $inv_il);
 
-#    # Wrap value fetching and call in "next" handler if needed.
-#    if $handler {
-#        $val_il := JAST::TryCatch.new(
-#            :try($val_il),
-#            :catch(JAST::Instruction.new( :op('pop') )),
-#            :type($TYPE_EX_NEXT)
-#        );
-#    }
+    # Emit next.
     push_ilist($loop_il.instructions, $val_il);
     push_op($loop_il.instructions, 'goto', $lbl_next );
 
-#    # Emit postlude, wrapping in last handler if needed.
-#    if $handler {
-#        my $catch := JAST::InstructionList.new();
-#        $catch.append(JAST::Instruction.new( :op('pop') ));
-#        $catch.append(JAST::Instruction.new( :op('goto'), $lbl_done ));
-#        $loop_il := JAST::TryCatch.new( :try($loop_il), :$catch, :type($TYPE_EX_LAST) );
-#    }
-    push_ilist($il, $loop_il);
+    # Emit postlude, wrapping in handlers if needed.
+    if $handler {
+        my @ins_wrap := $loop_il.instructions;
+        @ins_wrap := [MAST::HandlerScope.new(
+            :instructions(@ins_wrap),
+            :category_mask($HandlerCategory::redo),
+            :action($HandlerAction::unwind_and_goto),
+            :goto($lbl_redo)
+        )];
+        @ins_wrap := [MAST::HandlerScope.new(
+            :instructions(@ins_wrap),
+            :category_mask($HandlerCategory::next),
+            :action($HandlerAction::unwind_and_goto),
+            :goto($lbl_next)
+        )];
+        nqp::push($il, MAST::HandlerScope.new(
+            :instructions(@ins_wrap),
+            :category_mask($HandlerCategory::last),
+            :action($HandlerAction::unwind_and_goto),
+            :goto($lbl_done)
+        ));
+    }
+    else {
+        push_ilist($il, $loop_il);
+    }
     nqp::push($il, $lbl_done);
 
     # Result, as needed.
