@@ -516,8 +516,14 @@ turns on Address Sanitizer when compiling with C<clang>.  Defaults to off.
 
 =item --os <os>
 
-If not explicitly set, the operating system is provided by the Perl
-runtime.  In case of unknown operating systems, a POSIX userland is assumed.
+Set the operating system name which you are compiling to.
+
+Currently supported operating systems are C<posix>, C<linux>, C<darwin>,
+C<openbsd>, C<netbsd>, C<freebsd>, C<solaris>, C<win32>, C<cygwin> and
+C<mingw32>.
+
+If not explicitly set, the option will be provided by the Perl runtime.
+In case of unknown operating systems, a POSIX userland is assumed.
 
 =item --shell <shell>
 
