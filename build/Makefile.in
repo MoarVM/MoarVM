@@ -1,9 +1,10 @@
-CC   = @cc@
-LD   = @ld@
-AR   = @ar@
-MAKE = @make@ @mkflags@
-RM   = @rm@
-CAT  = @cat@
+CC    = @cc@
+LD    = @ld@
+AR    = @ar@
+MAKE  = @make@ @mkflags@
+RM    = @rm@
+CAT   = @cat@
+SHELL = @sh@
 
 TRACING = 0
 NOISY = 0
