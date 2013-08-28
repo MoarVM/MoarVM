@@ -18,7 +18,7 @@ extern char **environ;
 static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 {
      const int          len = MultiByteToWideChar(acp, 0, str,-1, NULL,0);
-     wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
+     wchar_t * const result = (wchar_t *)malloc(len * sizeof(wchar_t));
 
      MultiByteToWideChar(acp, 0, str, -1, (LPWSTR)result, len);
 
@@ -28,7 +28,7 @@ static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)calloc(len, sizeof(char));
+     char * const result = (char *)malloc(len * sizeof(char));
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
