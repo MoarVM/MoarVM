@@ -20,8 +20,6 @@ static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
      const int          len = MultiByteToWideChar(acp, 0, str,-1, NULL,0);
      wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
 
-     memset(result, 0, len * sizeof(wchar_t));
-
      MultiByteToWideChar(acp, 0, str, -1, (LPWSTR)result, len);
 
      return result;
@@ -31,8 +29,6 @@ static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
      char * const result = (char *)calloc(len, sizeof(char));
-
-     memset(result, 0, len * sizeof(char));
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
@@ -127,13 +123,13 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         MVMObject *clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
         MVMROOT(tc, clargs, {
             MVMint64 count;
-            
+
             MVMString *prog_string = MVM_string_utf8_decode(tc,
                 tc->instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
             MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
                 tc->instance->boot_types->BOOTStr, prog_string));
-            
+
             for (count = 0; count < instance->num_clargs; count++) {
                 char *raw = instance->raw_clargs[count];
                 MVMString *string = MVM_string_utf8_decode(tc,

@@ -26,8 +26,6 @@ static wchar_t * UTF8ToUnicode(char *str)
      const int         len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
      wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
 
-     memset(result, 0, len * sizeof(wchar_t));
-
      MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
 
      return result;
@@ -37,8 +35,6 @@ static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
      char * const result = (char *)calloc(len, sizeof(char));
-
-     memset(result, 0, len * sizeof(char));
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
