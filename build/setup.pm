@@ -392,6 +392,8 @@ our %OS_NETBSD = (
 our %OS_FREEBSD = (
     %OS_POSIX,
 
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_FREEBSD)' },
     },
