@@ -40,7 +40,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
     if (body->mode == MVM_CALL_CAPTURE_MODE_SAVE) {
         MVMArgProcContext *ctx = body->apc;
-        MVMuint8  *flag_map = ctx->arg_flags;
+        MVMuint8  *flag_map = ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags;
         MVMuint16  count = ctx->arg_count;
         MVMuint16  i, flag;
         for (i = 0, flag = 0; i < count; i++, flag++) {
