@@ -484,8 +484,8 @@ for <if unless> -> $op_name {
 
         # Create labels.
         my $if_id    := $qastcomp.unique($op_name);
-        my $else_lbl := MAST::Label.new($if_id ~ '_else');
-        my $end_lbl  := MAST::Label.new($if_id ~ '_end');
+        my $else_lbl := MAST::Label.new(:name($if_id ~ '_else'));
+        my $end_lbl  := MAST::Label.new(:name($if_id ~ '_end'));
 
         # Compile each of the children, handling any that want the conditional
         # value to be passed.
@@ -622,7 +622,7 @@ QAST::MASTOperations.add_core_op('defor', -> $qastcomp, $op {
 
     # Emit defined check.
     my $def_reg := $*REGALLOC.fresh_i();
-    my $lbl := MAST::Label.new($qastcomp.unique('defor'));
+    my $lbl := MAST::Label.new(:name($qastcomp.unique('defor')));
     push_op($expr.instructions, 'set', $res_reg, $expr.result_reg);
     push_op($expr.instructions, 'isconcrete', $def_reg, $res_reg);
     push_op($expr.instructions, 'if_i', $def_reg, $lbl);
@@ -651,7 +651,7 @@ QAST::MASTOperations.add_core_op('ifnull', -> $qastcomp, $op {
     my $expr := $qastcomp.as_mast($op[0], :want($MVM_reg_obj));
 
     # Emit null check.
-    my $lbl := MAST::Label.new($qastcomp.unique('ifnull'));
+    my $lbl := MAST::Label.new(:name($qastcomp.unique('ifnull')));
     push_op($expr.instructions, 'set', $res_reg, $expr.result_reg);
     push_op($expr.instructions, 'ifnonnull', $expr.result_reg, $lbl);
 
@@ -674,11 +674,10 @@ for ('', 'repeat_') -> $repness {
         QAST::MASTOperations.add_core_op("$repness$op_name", -> $qastcomp, $op {
             # Create labels.
             my $while_id := $qastcomp.unique($op_name);
-            my $test_lbl := MAST::Label.new($while_id ~ '_test');
-            my $next_lbl := MAST::Label.new($while_id ~ '_next');
-            my $redo_lbl := MAST::Label.new($while_id ~ '_redo');
-            my $hand_lbl := MAST::Label.new($while_id ~ '_handlers');
-            my $done_lbl := MAST::Label.new($while_id ~ '_done');
+            my $test_lbl := MAST::Label.new(:name($while_id ~ '_test'));
+            my $next_lbl := MAST::Label.new(:name($while_id ~ '_next'));
+            my $redo_lbl := MAST::Label.new(:name($while_id ~ '_redo'));
+            my $done_lbl := MAST::Label.new(:name($while_id ~ '_done'));
 
             # Compile each of the children; we'll need to look at the result
             # types and pick an overall result type if in non-void context.
