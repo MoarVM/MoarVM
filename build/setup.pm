@@ -419,7 +419,6 @@ our %OS_DARWIN = (
 
     ldsys    => '-framework %s',
     defs     => [ qw( _DARWIN_USE_64_BIT_INODE=1 ) ],
-    syslibs  => [ qw( ApplicationServices CoreServices Foundation ) ],
     usrlibs  => [ qw( pthread ) ],
 
     dll => 'lib%s.dylib',
