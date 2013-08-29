@@ -417,8 +417,8 @@ our %OS_SOLARIS = (
 our %OS_DARWIN = (
     %OS_POSIX,
 
-    ldsys    => '-framework %s',
     defs     => [ qw( _DARWIN_USE_64_BIT_INODE=1 ) ],
+    syslibs  => [],
     usrlibs  => [ qw( pthread ) ],
 
     dll => 'lib%s.dylib',
