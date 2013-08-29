@@ -487,9 +487,43 @@ for <if unless> -> $op_name {
         my $else_lbl := MAST::Label.new($if_id ~ '_else');
         my $end_lbl  := MAST::Label.new($if_id ~ '_end');
 
-        # Compile each of the children
+        # Compile each of the children, handling any that want the conditional
+        # value to be passed.
         my @comp_ops;
-        @comp_ops.push($qastcomp.as_mast($_)) for $op.list;
+        sub needs_cond_passed($n) {
+            nqp::istype($n, QAST::Block) && $n.arity > 0 && $n.blocktype eq 'immediate'
+        }
+        my $cond_temp_lbl := needs_cond_passed($op[1]) || needs_cond_passed($op[2])
+            ?? $qastcomp.unique('__im_cond_')
+            !! '';
+        if $cond_temp_lbl {
+            @comp_ops[0] := $qastcomp.as_mast(QAST::Op.new(
+                :op('bind'),
+                QAST::Var.new( :name($cond_temp_lbl), :scope('local'), :decl('var') ),
+                $op[0]));
+        } else {
+            @comp_ops[0] := $qastcomp.as_mast($op[0]);
+        }
+        if needs_cond_passed($op[1]) {
+            $op[1].blocktype('declaration');
+            @comp_ops[1] := $qastcomp.as_mast(QAST::Op.new(
+                :op('call'),
+                $op[1],
+                QAST::Var.new( :name($cond_temp_lbl), :scope('local') )));
+        }
+        else {
+            @comp_ops[1] := $qastcomp.as_mast($op[1]);
+        }
+        if needs_cond_passed($op[2]) {
+            $op[2].blocktype('declaration');
+            @comp_ops[2] := $qastcomp.as_mast(QAST::Op.new(
+                :op('call'),
+                $op[2],
+                QAST::Var.new( :name($cond_temp_lbl), :scope('local') )));
+        }
+        elsif $op[2] {
+            @comp_ops[2] := $qastcomp.as_mast($op[2]);
+        }
 
         if (@comp_ops[0].result_kind == $MVM_reg_void) {
             nqp::die("operation '$op_name' condition cannot be void");
