@@ -1,8 +1,8 @@
 #!nqp
 use MASTTesting;
 
-plan(1);
-
+plan(0);
+nqp::exit(0);
 # This test can't work on windows due to a libuv bug, see test-tcp-connect-error-after-write.c in libuv, and
 # https://github.com/joyent/libuv/issues/444
 mast_frame_output_is(-> $frame, @ins, $cu {
