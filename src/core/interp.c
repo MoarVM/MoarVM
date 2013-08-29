@@ -1936,9 +1936,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_atkey_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj),
-                            (MVMObject *)GET_REG(cur_op, 4).s);
+                        if (IS_CONCRETE(obj))
+                            GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
+                                STABLE(obj), obj, OBJECT_BODY(obj),
+                                (MVMObject *)GET_REG(cur_op, 4).s);
+                        else
+                            GET_REG(cur_op, 0).o = NULL;
                         cur_op += 6;
                         break;
                     }
@@ -2017,9 +2020,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_atpos_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
-                            OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
-                            &GET_REG(cur_op, 0), MVM_reg_obj);
+                        if (IS_CONCRETE(obj))
+                            REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
+                                OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+                                &GET_REG(cur_op, 0), MVM_reg_obj);
+                        else
+                            GET_REG(cur_op, 0).o = NULL;
                         cur_op += 6;
                         break;
                     }
