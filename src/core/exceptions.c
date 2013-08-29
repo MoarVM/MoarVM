@@ -186,6 +186,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top) {
     MVMString *filename = cur_frame->static_info->body.cu->body.filename;
     MVMString *name = cur_frame->static_info->body.name;
+    /* XXX TODO: cache this malloc on threadcontext */
     char *o = malloc(1024);
     MVMuint8 *cur_op = !not_top ? (*tc->interp_cur_op) : cur_frame->return_address;
     MVMuint32 offset = cur_op - cur_frame->static_info->body.bytecode;
