@@ -376,6 +376,8 @@ our %OS_LINUX = (
 our %OS_OPENBSD = (
     %OS_POSIX,
 
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_OPENBSD)' },
     },
@@ -383,6 +385,8 @@ our %OS_OPENBSD = (
 
 our %OS_NETBSD = (
     %OS_POSIX,
+
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_NETBSD)' },
