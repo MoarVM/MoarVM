@@ -1267,7 +1267,7 @@ class QAST::MASTCompiler {
 
     my @prim_to_reg := [$MVM_reg_obj, $MVM_reg_int64, $MVM_reg_num64, $MVM_reg_str];
     method type_to_register_kind($type) {
-        @prim_to_reg[nqp::objprimspec($type)]
+        @prim_to_reg[nqp::isnull($type) ?? 0 !! nqp::objprimspec($type)]
     }
 
     method operations() {
