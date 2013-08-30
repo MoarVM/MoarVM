@@ -158,7 +158,7 @@ QRegexMoar.pir: nqp-src/QRegex.nqp QASTNodesMoar.pbc $(CROSS_COMP_PBCS)
 NQPHLLMoar.pir: nqp-src/NQPHLL.nqp QRegexMoar.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE) nqp-src/NQPHLL.nqp
 
-QASTMoar.pir: QRegexMoar.pbc NQPHLLMoar.pbc $(CROSS_COMP_PBCS)
+QASTMoar.pir: nqp-src/QASTMoar.nqp QRegexMoar.pbc NQPHLLMoar.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE) nqp-src/QASTMoar.nqp
 
 NQPP6QRegexMoar.pir: nqp-src/NQPP6QRegex.nqp QRegexMoar.pbc NQPHLLMoar.pbc QASTMoar.pbc $(CROSS_COMP_PBCS)
