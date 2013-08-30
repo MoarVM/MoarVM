@@ -149,7 +149,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMGen2Allocator  *gen2;
     MVMCollectable   **item_ptr;
     MVMCollectable    *new_addr;
-    MVMuint32          size, gen2count;
+    MVMuint32          gen2count;
     MVMuint16          i;
 
     /* Grab the second generation allocator; we may move items into the
@@ -220,31 +220,23 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
             *item_ptr = item->forwarder = new_addr;
         } else {
+            /* Catch NULL stable (always sign of trouble) in debug mode. */
             if (GCCOLL_DEBUG && !STABLE(item)) {
                 GCCOLL_LOG(tc, "Thread %d run %d : found a zeroed handle %p to object %p\n", item_ptr, item);
                 printf("%d", ((MVMCollectable *)1)->owner);
             }
-            /* We've got a live object in the nursery; this means some kind of
-             * copying is going to happen. Work out the size. */
-            if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE)))
-                size = ((MVMObject *)item)->st->size;
-            else if (item->flags & MVM_CF_TYPE_OBJECT)
-                size = sizeof(MVMObject);
-            else if (item->flags & MVM_CF_STABLE)
-                size = sizeof(MVMSTable);
-            else
-                MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC sizing");
 
             /* Did we see it in the nursery before? */
             if (item->flags & MVM_CF_NURSERY_SEEN) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
-                new_addr = MVM_gc_gen2_allocate(gen2, size);
+                new_addr = MVM_gc_gen2_allocate(gen2, item->size);
 
                 /* Copy the object to the second generation and mark it as
                  * living there. */
-                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n", item, size, new_addr);
-                memcpy(new_addr, item, size);
+                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n",
+                    item, item->size, new_addr);
+                memcpy(new_addr, item, item->size);
                 new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
 
@@ -265,13 +257,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 /* No, so it will live in the nursery for another GC
                  * iteration. Allocate space in the nursery. */
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
-                tc->nursery_alloc = (char *)tc->nursery_alloc + size;
-                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %p of size %d to tospace %p\n", item, size, new_addr);
+                tc->nursery_alloc = (char *)tc->nursery_alloc + item->size;
+                GCCOLL_LOG(tc, "Thread %d run %d : copying an object %p of size %d to tospace %p\n",
+                    item, item->size, new_addr);
 
                 /* Copy the object to tospace and mark it as seen in the
                  * nursery (so the next time around it will move to the
                  * older generation, if it survives). */
-                memcpy(new_addr, item, size);
+                memcpy(new_addr, item, item->size);
                 new_addr->flags |= MVM_CF_NURSERY_SEEN;
             }
 
@@ -514,11 +507,9 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
 /*            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %d in the nursery\n", item);*/
             if (dead && REPR(obj)->gc_free)
                 REPR(obj)->gc_free(tc, obj);
-            scan = (char *)scan + STABLE(obj)->size;
         }
         else if (item->flags & MVM_CF_TYPE_OBJECT) {
             /* Type object; doesn't have anything extra that needs freeing. */
-            scan = (char *)scan + sizeof(MVMObject);
         }
         else if (item->flags & MVM_CF_STABLE) {
             /* Dead STables are a little interesting. Of course, there is
@@ -530,12 +521,14 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             if (dead) {
                 MVM_panic(MVM_exitcode_gcnursery, "Can't free STables in the GC yet");
             }
-            scan = (char *)scan + sizeof(MVMSTable);
         }
         else {
             printf("item flags: %d\n", item->flags);
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC free");
         }
+        
+        /* Go to the next item. */
+        scan = (char *)scan + item->size;
     }
 }
 
