@@ -86,7 +86,7 @@ our %THIRDPARTY = (
 
 our %SHELLS = (
     posix => {
-        sh  => 'sh',
+        sh  => '/bin/sh',
         cat => 'cat',
         rm  => 'rm -f',
         nul => '/dev/null',
