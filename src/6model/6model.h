@@ -105,7 +105,10 @@ struct MVMCollectable {
     MVMuint32 owner;
 
     /* Collectable flags (see MVMCollectableFlags). */
-    MVMuint32 flags;
+    MVMuint16 flags;
+    
+    /* Object size, in bytes. */
+    MVMuint16 size;
 
     /* Forwarding pointer, for copying/compacting GC purposes. */
     MVMCollectable *forwarder;
