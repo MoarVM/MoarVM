@@ -53,3 +53,5 @@ UNIDATA/*
 /src/strings/unicode.c
 *.class
 tags
+
+nqp-cc/nqp/
