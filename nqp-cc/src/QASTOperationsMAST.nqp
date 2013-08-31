@@ -1821,6 +1821,13 @@ QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
 
+# MoarVM-specific compilation ops
+QAST::MASTOperations.add_core_moarop_mapping('masttofile', 'masttofile', 2);
+QAST::MASTOperations.add_core_moarop_mapping('masttocu', 'masttocu');
+QAST::MASTOperations.add_core_moarop_mapping('iscompunit', 'iscompunit');
+QAST::MASTOperations.add_core_moarop_mapping('compunitmainline', 'compunitmainline');
+QAST::MASTOperations.add_core_moarop_mapping('compunitcodes', 'compunitcodes');
+
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
         $kind == $MVM_reg_int64 ?? 'unless_i' !!
