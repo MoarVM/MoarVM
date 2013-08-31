@@ -202,6 +202,9 @@ bench: all
 nqptest: all
 	prove -e "$(NQP) nqp-moar-cc.nqp" t/nqp
 
+selftest: all
+	prove -e "../moarvm nqp.moarvm" t/nqp
+
 ## cleaning
 
 clean:
