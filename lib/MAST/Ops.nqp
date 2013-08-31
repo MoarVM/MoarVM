@@ -1350,6 +1350,43 @@ class MAST::Ops {
                     $MVM_operand_write_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
+            ),
+            'masttofile', nqp::hash(
+                'code', 178,
+                'operands', [
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_str
+                ]
+            ),
+            'masttocu', nqp::hash(
+                'code', 179,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'iscompunit', nqp::hash(
+                'code', 180,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_int64,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'compunitmainline', nqp::hash(
+                'code', 181,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
+            ),
+            'compunitcodes', nqp::hash(
+                'code', 182,
+                'operands', [
+                    $MVM_operand_write_reg +| $MVM_operand_obj,
+                    $MVM_operand_read_reg +| $MVM_operand_obj
+                ]
             )
         ],
         [

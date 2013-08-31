@@ -177,6 +177,11 @@ BANK 0 primitives
 0xAF    assignunchecked     r(obj) r(obj)
 0xB0    objprimspec         w(int64) r(obj)
 0xB1    backtracestrings    w(obj) r(obj)
+0xB2    masttofile          r(obj) r(obj) r(str)
+0xB3    masttocu            w(obj) r(obj) r(obj)
+0xB4    iscompunit          w(int64) r(obj)
+0xB5    compunitmainline    w(obj) r(obj)
+0xB6    compunitcodes       w(obj) r(obj)
 
 BANK 1 dev
 0x00    sleep               r(int64)
