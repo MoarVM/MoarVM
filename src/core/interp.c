@@ -1168,7 +1168,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMObject *node = GET_REG(cur_op, 2).o;
                         MVMObject *types = GET_REG(cur_op, 4).o;
                         MVMRegister *result_reg = &GET_REG(cur_op, 0);
-                        tc->cur_frame->return_type = MVM_RETURN_VOID;
                         cur_op += 6;
 
                         /* Set up return (really continuation after load) address

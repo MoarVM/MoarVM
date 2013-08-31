@@ -2,6 +2,9 @@
 #include "nodes_moarvm.h"
 #include "mast/compiler.h"
 
+/* Dummy, 0-arg callsite. */
+static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
+
 /* Takes a hash of types and produces a MASTNodeTypes structure. */
 #define grab_type(name) do { \
     MVMString *key = MVM_string_utf8_decode(tc, tc->instance->VMString, #name, strlen(#name)); \
@@ -26,7 +29,8 @@ MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
     return result;
 }
 
-/* Compiles MAST down to bytecode, then loads it as a compilation unit. */
+/* Compiles MAST down to bytecode, then loads it as a compilation unit,
+ * running deserialize and load frames as appropriate. */
 void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
         MVMRegister *res) {
     MVMCompUnit *loaded;
@@ -47,6 +51,18 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
     
     /* Stash loaded comp unit in result register. */
     res->o = (MVMObject *)loaded;
+    
+    /* If there's a deserialization frame, need to run that. */
+    if (loaded->body.deserialize_frame) {
+        /* Set up special return to delegate to running the load frame,
+         * if any. */
+        tc->cur_frame->return_value        = NULL;
+        tc->cur_frame->return_type         = MVM_RETURN_VOID;
+
+        /* Invoke the deserialization frame and return to the runloop. */
+        MVM_frame_invoke(tc, loaded->body.deserialize_frame, &no_arg_callsite,
+            NULL, NULL, NULL);
+    }
 }
 
 /* Compiles MAST down to bytecode, then loads it as a compilation unit. */
