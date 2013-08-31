@@ -975,7 +975,13 @@ sub arrange_args(@in) {
     @posit
 }
 
-QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
+QAST::MASTOperations.add_core_op('call', sub ($qastcomp, $op) {
+    # Cheat for __MVM__ => nqp::foo
+    if nqp::substr($op.name, 0, 8) eq '&__MVM__' {
+        my $realname := nqp::substr($op.name, 8);
+        return $qastcomp.as_mast(QAST::Op.new( :op($realname), |$op.list ));
+    }
+    
     # Work out what callee is.
     my $callee;
     my @args := $op.list;
