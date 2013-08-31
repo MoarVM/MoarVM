@@ -1,5 +1,6 @@
 #include "moarvm.h"
 #include "nodes_moarvm.h"
+#include "mast/compiler.h"
 
 /* Takes a hash of types and produces a MASTNodeTypes structure. */
 #define grab_type(name) do { \
