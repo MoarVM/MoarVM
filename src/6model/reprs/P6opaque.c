@@ -170,6 +170,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 /* Marks the representation data in an STable.*/
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    
+    /* May not be composed yet. */
+    if (repr_data == NULL)
+        return;
 
     if (repr_data->flattened_stables) {
         int i;
@@ -201,6 +205,10 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
 /* Marks the representation data in an STable.*/
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+
+    /* May not have survived to composition. */
+    if (repr_data == NULL)
+        return;
 
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
