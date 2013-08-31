@@ -72,6 +72,8 @@
 #include "io/dirops.h"
 #include "io/procops.h"
 #include "math/bigintops.h"
+#include "mast/compiler.h"
+#include "mast/driver.h"
 
 /* Top level VM API functions. */
 MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);

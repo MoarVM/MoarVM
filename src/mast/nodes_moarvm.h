@@ -94,7 +94,7 @@ typedef struct {
 } MAST_HandlerScope;
 
 /* Node types structure. */
-typedef struct {
+typedef struct _MASTNodeTypes {
     MVMObject *CompUnit;
     MVMObject *Frame;
     MVMObject *Op;

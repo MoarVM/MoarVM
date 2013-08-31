@@ -98,6 +98,7 @@ OBJECTS = src/core/args@obj@ \
           src/6model/sc@obj@ \
           src/6model/serialization@obj@ \
           src/mast/compiler@obj@ \
+          src/mast/driver@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
           src/strings/ops@obj@ \
@@ -166,6 +167,8 @@ HEADERS = src/moarvm.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \
           src/6model/sc.h \
+          src/mast/compiler.h \
+          src/mast/driver.h \
           src/strings/unicode_gen.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
