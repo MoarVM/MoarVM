@@ -47,7 +47,7 @@ class MAST::InstructionList {
     has str $!filename;
     has int $!lineno;
 
-    method new(:@instructions!, :$result_reg!, :$result_kind!, :$filename = '<anon>', :$lineno = 0) {
+    method new(@instructions, $result_reg, $result_kind, :$filename = '<anon>', :$lineno = 0) {
         my $obj := nqp::create(self);
         nqp::bindattr($obj, MAST::InstructionList, '@!instructions', @instructions);
         nqp::bindattr($obj, MAST::InstructionList, '$!result_reg', $result_reg);
@@ -484,12 +484,46 @@ for <if unless> -> $op_name {
 
         # Create labels.
         my $if_id    := $qastcomp.unique($op_name);
-        my $else_lbl := MAST::Label.new($if_id ~ '_else');
-        my $end_lbl  := MAST::Label.new($if_id ~ '_end');
+        my $else_lbl := MAST::Label.new(:name($if_id ~ '_else'));
+        my $end_lbl  := MAST::Label.new(:name($if_id ~ '_end'));
 
-        # Compile each of the children
+        # Compile each of the children, handling any that want the conditional
+        # value to be passed.
         my @comp_ops;
-        @comp_ops.push($qastcomp.as_mast($_)) for $op.list;
+        sub needs_cond_passed($n) {
+            nqp::istype($n, QAST::Block) && $n.arity > 0 && $n.blocktype eq 'immediate'
+        }
+        my $cond_temp_lbl := needs_cond_passed($op[1]) || needs_cond_passed($op[2])
+            ?? $qastcomp.unique('__im_cond_')
+            !! '';
+        if $cond_temp_lbl {
+            @comp_ops[0] := $qastcomp.as_mast(QAST::Op.new(
+                :op('bind'),
+                QAST::Var.new( :name($cond_temp_lbl), :scope('local'), :decl('var') ),
+                $op[0]));
+        } else {
+            @comp_ops[0] := $qastcomp.as_mast($op[0]);
+        }
+        if needs_cond_passed($op[1]) {
+            $op[1].blocktype('declaration');
+            @comp_ops[1] := $qastcomp.as_mast(QAST::Op.new(
+                :op('call'),
+                $op[1],
+                QAST::Var.new( :name($cond_temp_lbl), :scope('local') )));
+        }
+        else {
+            @comp_ops[1] := $qastcomp.as_mast($op[1]);
+        }
+        if needs_cond_passed($op[2]) {
+            $op[2].blocktype('declaration');
+            @comp_ops[2] := $qastcomp.as_mast(QAST::Op.new(
+                :op('call'),
+                $op[2],
+                QAST::Var.new( :name($cond_temp_lbl), :scope('local') )));
+        }
+        elsif $op[2] {
+            @comp_ops[2] := $qastcomp.as_mast($op[2]);
+        }
 
         if (@comp_ops[0].result_kind == $MVM_reg_void) {
             nqp::die("operation '$op_name' condition cannot be void");
@@ -588,7 +622,7 @@ QAST::MASTOperations.add_core_op('defor', -> $qastcomp, $op {
 
     # Emit defined check.
     my $def_reg := $*REGALLOC.fresh_i();
-    my $lbl := MAST::Label.new($qastcomp.unique('defor'));
+    my $lbl := MAST::Label.new(:name($qastcomp.unique('defor')));
     push_op($expr.instructions, 'set', $res_reg, $expr.result_reg);
     push_op($expr.instructions, 'isconcrete', $def_reg, $res_reg);
     push_op($expr.instructions, 'if_i', $def_reg, $lbl);
@@ -617,7 +651,7 @@ QAST::MASTOperations.add_core_op('ifnull', -> $qastcomp, $op {
     my $expr := $qastcomp.as_mast($op[0], :want($MVM_reg_obj));
 
     # Emit null check.
-    my $lbl := MAST::Label.new($qastcomp.unique('ifnull'));
+    my $lbl := MAST::Label.new(:name($qastcomp.unique('ifnull')));
     push_op($expr.instructions, 'set', $res_reg, $expr.result_reg);
     push_op($expr.instructions, 'ifnonnull', $expr.result_reg, $lbl);
 
@@ -640,11 +674,10 @@ for ('', 'repeat_') -> $repness {
         QAST::MASTOperations.add_core_op("$repness$op_name", -> $qastcomp, $op {
             # Create labels.
             my $while_id := $qastcomp.unique($op_name);
-            my $test_lbl := MAST::Label.new($while_id ~ '_test');
-            my $next_lbl := MAST::Label.new($while_id ~ '_next');
-            my $redo_lbl := MAST::Label.new($while_id ~ '_redo');
-            my $hand_lbl := MAST::Label.new($while_id ~ '_handlers');
-            my $done_lbl := MAST::Label.new($while_id ~ '_done');
+            my $test_lbl := MAST::Label.new(:name($while_id ~ '_test'));
+            my $next_lbl := MAST::Label.new(:name($while_id ~ '_next'));
+            my $redo_lbl := MAST::Label.new(:name($while_id ~ '_redo'));
+            my $done_lbl := MAST::Label.new(:name($while_id ~ '_done'));
 
             # Compile each of the children; we'll need to look at the result
             # types and pick an overall result type if in non-void context.
@@ -828,7 +861,6 @@ QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
     $val_il := MAST::InstructionList.new($val_il, MAST::VOID, $MVM_reg_void);
 
     # Now do block invocation.
-
     my $inv_il := $res
         ?? MAST::Call.new(
             :target($block_res.result_reg),
@@ -842,35 +874,37 @@ QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
             |@val_temps
         );
     $inv_il := MAST::InstructionList.new([$inv_il], MAST::VOID, $MVM_reg_void);
-
-#    # Wrap block invocation in redo handler if needed.
-#    if $handler {
-#        my $catch := JAST::InstructionList.new();
-#        $catch.append(JAST::Instruction.new( :op('pop') ));
-#        $catch.append(JAST::Instruction.new( :op('goto'), $lbl_redo ));
-#        $inv_il := JAST::TryCatch.new( :try($inv_il), :$catch, :type($TYPE_EX_REDO) );
-#    }
     push_ilist($val_il.instructions, $inv_il);
 
-#    # Wrap value fetching and call in "next" handler if needed.
-#    if $handler {
-#        $val_il := JAST::TryCatch.new(
-#            :try($val_il),
-#            :catch(JAST::Instruction.new( :op('pop') )),
-#            :type($TYPE_EX_NEXT)
-#        );
-#    }
+    # Emit next.
     push_ilist($loop_il.instructions, $val_il);
     push_op($loop_il.instructions, 'goto', $lbl_next );
 
-#    # Emit postlude, wrapping in last handler if needed.
-#    if $handler {
-#        my $catch := JAST::InstructionList.new();
-#        $catch.append(JAST::Instruction.new( :op('pop') ));
-#        $catch.append(JAST::Instruction.new( :op('goto'), $lbl_done ));
-#        $loop_il := JAST::TryCatch.new( :try($loop_il), :$catch, :type($TYPE_EX_LAST) );
-#    }
-    push_ilist($il, $loop_il);
+    # Emit postlude, wrapping in handlers if needed.
+    if $handler {
+        my @ins_wrap := $loop_il.instructions;
+        @ins_wrap := [MAST::HandlerScope.new(
+            :instructions(@ins_wrap),
+            :category_mask($HandlerCategory::redo),
+            :action($HandlerAction::unwind_and_goto),
+            :goto($lbl_redo)
+        )];
+        @ins_wrap := [MAST::HandlerScope.new(
+            :instructions(@ins_wrap),
+            :category_mask($HandlerCategory::next),
+            :action($HandlerAction::unwind_and_goto),
+            :goto($lbl_next)
+        )];
+        nqp::push($il, MAST::HandlerScope.new(
+            :instructions(@ins_wrap),
+            :category_mask($HandlerCategory::last),
+            :action($HandlerAction::unwind_and_goto),
+            :goto($lbl_done)
+        ));
+    }
+    else {
+        push_ilist($il, $loop_il);
+    }
     nqp::push($il, $lbl_done);
 
     # Result, as needed.
@@ -941,7 +975,13 @@ sub arrange_args(@in) {
     @posit
 }
 
-QAST::MASTOperations.add_core_op('call', -> $qastcomp, $op {
+QAST::MASTOperations.add_core_op('call', sub ($qastcomp, $op) {
+    # Cheat for __MVM__ => nqp::foo
+    if nqp::substr($op.name, 0, 8) eq '&__MVM__' {
+        my $realname := nqp::substr($op.name, 8);
+        return $qastcomp.as_mast(QAST::Op.new( :op($realname), |$op.list ));
+    }
+    
     # Work out what callee is.
     my $callee;
     my @args := $op.list;
@@ -1177,7 +1217,7 @@ my %handler_names := nqp::hash(
     'PROCEED', $HandlerCategory::proceed,
     'SUCCEED', $HandlerCategory::succeed,
 );
-QAST::MASTOperations.add_core_op('handle', -> $qastcomp, $op {
+QAST::MASTOperations.add_core_op('handle', sub ($qastcomp, $op) {
     my @children := nqp::clone($op.list());
     if @children == 0 {
         nqp::die("The 'handle' op requires at least one child");
@@ -1786,6 +1826,13 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
 QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
+
+# MoarVM-specific compilation ops
+QAST::MASTOperations.add_core_moarop_mapping('masttofile', 'masttofile', 2);
+QAST::MASTOperations.add_core_moarop_mapping('masttocu', 'masttocu');
+QAST::MASTOperations.add_core_moarop_mapping('iscompunit', 'iscompunit');
+QAST::MASTOperations.add_core_moarop_mapping('compunitmainline', 'compunitmainline');
+QAST::MASTOperations.add_core_moarop_mapping('compunitcodes', 'compunitcodes');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??

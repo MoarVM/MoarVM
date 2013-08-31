@@ -189,6 +189,11 @@
 #define MVM_OP_assignunchecked 175
 #define MVM_OP_objprimspec 176
 #define MVM_OP_backtracestrings 177
+#define MVM_OP_masttofile 178
+#define MVM_OP_masttocu 179
+#define MVM_OP_iscompunit 180
+#define MVM_OP_compunitmainline 181
+#define MVM_OP_compunitcodes 182
 
 /* Op name defines for bank dev. */
 #define MVM_OP_sleep 0

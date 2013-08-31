@@ -94,7 +94,7 @@ typedef struct {
 } MAST_HandlerScope;
 
 /* Node types structure. */
-typedef struct {
+typedef struct _MASTNodeTypes {
     MVMObject *CompUnit;
     MVMObject *Frame;
     MVMObject *Op;
@@ -140,6 +140,8 @@ typedef MVMString VMSTR;
 #define ATPOS(vm, arr, i)           (MVM_repr_at_pos_o(vm, arr, i))
 #define ATPOS_I(vm, arr, i)         (MVM_repr_at_pos_i(vm, arr, i))
 #define ATPOS_S(vm, arr, i)         (MVM_repr_at_pos_s(vm, arr, i))
+#define ATPOS_I_C(vm, arr, i)       (MVM_repr_get_int(vm, MVM_repr_at_pos_o(vm, arr, i)))
+#define ATPOS_S_C(vm, arr, i)       (MVM_repr_get_str(vm, MVM_repr_at_pos_o(vm, arr, i)))
 #define BINDPOS(vm, arr, i, v)      (MVM_repr_bind_pos_o(vm, arr, i, v))
 #define BINDPOS_I(vm, arr, i, v)    (MVM_repr_bind_pos_i(vm, arr, i, v))
 #define BINDPOS_S(vm, arr, i, v)    (MVM_repr_bind_pos_s(vm, arr, i, v))

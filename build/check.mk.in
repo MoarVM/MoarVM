@@ -1,0 +1,52 @@
+CINCLUDES := -Isrc \
+             -isystem 3rdparty/libuv/include \
+             -isystem 3rdparty/libatomic_ops/src \
+             -isystem 3rdparty/libtommath \
+             -isystem 3rdparty/sha1 \
+             -isystem 3rdparty/linenoise \
+             -isystem 3rdparty
+
+CFLAGS := @ccdefflags@ -DMVM_TRACING=1
+
+SRCDIRS := src \
+           src/6model \
+           src/6model/reprs \
+           src/core \
+           src/gc \
+           src/gen \
+           src/io \
+           src/mast \
+           src/math \
+           src/platform \
+           src/platform/posix \
+           src/platform/win32 \
+           src/strings
+
+SOURCES := $(wildcard $(SRCDIRS:%=%/*.c))
+
+CLANGDIRS := $(SRCDIRS:src%=.clangcheck%/)
+GCCDIRS   := $(SRCDIRS:src%=.gcccheck%/)
+
+NOCLANG := c11-extensions padded
+NOGCC   :=
+
+clangcheck: $(SOURCES:src/%=.clangcheck/%)
+
+gcccheck: $(SOURCES:src/%=.gcccheck/%)
+
+.clangcheck: $(CLANGDIRS)
+
+.gcccheck: $(GCCDIRS)
+
+$(CLANGDIRS) $(GCCDIRS):
+	-@cd $(dir $(patsubst %/,%,$@)) && mkdir $(notdir $(patsubst %/,%,$@)) > @nul@ 2>&1
+
+$(SOURCES:src/%=.clangcheck/%): .clangcheck/%: src/% .clangcheck
+	clang -fsyntax-only -Werror -Weverything $(NOCLANG:%=-Wno-%) $(CFLAGS) $(CINCLUDES) $<
+	@@cat@ @nul@ > $@
+
+$(SOURCES:src/%=.gcccheck/%): .gcccheck/%: src/% .gcccheck
+	gcc -fsyntax-only -std=c99 -Werror -Wall -Wextra $(NOGCC:%=-Wno-%) $(CFLAGS) $(CINCLUDES) $<
+	@@cat@ @nul@ > $@
+
+include check.todo

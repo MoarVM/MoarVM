@@ -206,7 +206,7 @@ TERM
             %TP_DC,
             name  => 'libdyncall_s',
             rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
-            clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*.obj 3rdparty/dyncall/dyncallback/*.obj 3rdparty/dyncall/dynload/*.obj',
+            clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*@obj@ 3rdparty/dyncall/dyncallback/*@obj@ 3rdparty/dyncall/dynload/*@obj@',
         },
 
         dcb => { %TP_DCB, name => 'libdyncallback_s' },
@@ -232,7 +232,7 @@ our %COMPILERS = (
         ld => undef,
 
         ccmiscflags  => '',
-        ccwarnflags  => '-Wall -Wextra',
+        ccwarnflags  => '',
         ccoptiflags  => '-O3',
         ccdebugflags => '-g',
         ccinstflags  => '',
@@ -253,7 +253,7 @@ our %COMPILERS = (
         ld => undef,
 
         ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-        ccwarnflags  => '', #'-Weverything',
+        ccwarnflags  => '',
         ccoptiflags  =>  '-O3',
         ccdebugflags => '-g',
         ccinstflags  => '-fsanitize=address',
@@ -339,6 +339,22 @@ our %OS_MINGW32 = (
 
     make => 'gmake',
     defs => [ @{$OS_WIN32{defs}}, '_WIN32_WINNT=0x0600' ],
+
+    dll   => '%s.dll',
+    ldimp => '-l%s.dll',
+
+    ccshared => '',
+    ldshared => '-shared -Wl,--out-implib,lib$@.a',
+
+    -thirdparty => {
+        %{$OS_WIN32{-thirdparty}},
+
+        dc => {
+            %TP_DC,
+            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
+            clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
+        },
+    },
 );
 
 our %OS_POSIX = (
@@ -360,6 +376,8 @@ our %OS_LINUX = (
 our %OS_OPENBSD = (
     %OS_POSIX,
 
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_OPENBSD)' },
     },
@@ -368,6 +386,8 @@ our %OS_OPENBSD = (
 our %OS_NETBSD = (
     %OS_POSIX,
 
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
+
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_NETBSD)' },
     },
@@ -375,6 +395,8 @@ our %OS_NETBSD = (
 
 our %OS_FREEBSD = (
     %OS_POSIX,
+
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_FREEBSD)' },
@@ -395,9 +417,8 @@ our %OS_SOLARIS = (
 our %OS_DARWIN = (
     %OS_POSIX,
 
-    ldsys    => '-framework %s',
     defs     => [ qw( _DARWIN_USE_64_BIT_INODE=1 ) ],
-    syslibs  => [ qw( ApplicationServices CoreServices Foundation ) ],
+    syslibs  => [],
     usrlibs  => [ qw( pthread ) ],
 
     dll => 'lib%s.dylib',

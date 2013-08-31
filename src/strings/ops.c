@@ -922,7 +922,7 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
     MVMCharAtState state;
 
     if (offset < 0 || offset >= NUM_GRAPHS(a))
-        return 0;
+        return -1;
 
     state.search = MVM_string_get_codepoint_at_nocheck(tc, a, offset);
     state.result = -1;

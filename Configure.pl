@@ -103,13 +103,17 @@ $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 
+# macro defs
+$config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
+
 # generate CFLAGS
-my @cflags = ($config{ccmiscflags});
+my @cflags;
+push @cflags, $config{ccmiscflags};
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
-push @cflags, map { "$config{ccdef}$_" } @{$config{defs}};
+push @cflags, $config{ccdefflags};
 $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
@@ -282,6 +286,8 @@ sub setup_native {
         $os = 'posix';
     }
 
+    $defaults{os} = $os;
+
     my ($shell, $toolchain, $compiler, $overrides) = @{$::SYSTEMS{$os}};
     $shell     = $::SHELLS{$shell};
     $toolchain = $::TOOLCHAINS{$toolchain};
@@ -358,6 +364,8 @@ sub setup_cross {
         }
         else { hardfail("failed to parse triple '$$_'") }
     }
+
+    $defaults{os} = $host;
 
     $build = $::SYSTEMS{$build};
     $host  = $::SYSTEMS{$host};
@@ -508,8 +516,14 @@ turns on Address Sanitizer when compiling with C<clang>.  Defaults to off.
 
 =item --os <os>
 
-If not explicitly set, the operating system is provided by the Perl
-runtime.  In case of unknown operating systems, a POSIX userland is assumed.
+Set the operating system name which you are compiling to.
+
+Currently supported operating systems are C<posix>, C<linux>, C<darwin>,
+C<openbsd>, C<netbsd>, C<freebsd>, C<solaris>, C<win32>, C<cygwin> and
+C<mingw32>.
+
+If not explicitly set, the option will be provided by the Perl runtime.
+In case of unknown operating systems, a POSIX userland is assumed.
 
 =item --shell <shell>
 

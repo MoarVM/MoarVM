@@ -5,29 +5,13 @@
 # Separately cloned repos
 tools/nqp-cross-compiler/nqp/
 
+# clangcheck files
+.clangcheck
+.gcccheck
+tools/check.mk
+
 # Generated files
 Makefile
-3rdparty/apr/LibR/
-3rdparty/apr/.libs/
-3rdparty/apr/.make.dirs
-3rdparty/apr/Release/
-3rdparty/apr/build/
-3rdparty/apr/include/apr.h
-3rdparty/apr/test/
-3rdparty/apr/x64/
-3rdparty/apr/apr-1-config
-3rdparty/apr/apr-config.out
-3rdparty/apr/apr.exp
-3rdparty/apr/apr.pc
-3rdparty/apr/apr.spec
-3rdparty/apr/config.log
-3rdparty/apr/config.nice
-3rdparty/apr/config.status
-3rdparty/apr/export_vars.c
-3rdparty/apr/exports.c
-3rdparty/apr/include/arch/unix/apr_private.h
-3rdparty/apr/include/arch/unix/apr_private.h.in~
-3rdparty/apr/libtool
 3rdparty/libatomic_ops/autom4te.cache/
 3rdparty/libatomic_ops/config.log
 3rdparty/libatomic_ops/config.status
@@ -55,6 +39,7 @@ src/gen/
 *.ilk
 *.lo
 *.so
+*.dylib
 moarvm
 nqp-cc/*.moarvm
 nqp-cc/temp.output
@@ -68,3 +53,5 @@ UNIDATA/*
 /src/strings/unicode.c
 *.class
 tags
+
+nqp-cc/nqp/

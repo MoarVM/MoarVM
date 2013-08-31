@@ -24,9 +24,7 @@ static void verify_dirhandle_type(MVMThreadContext *tc, MVMObject *oshandle, MVM
 static wchar_t * UTF8ToUnicode(char *str)
 {
      const int         len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-     wchar_t * const result = (wchar_t *)calloc(len, sizeof(wchar_t));
-
-     memset(result, 0, len * sizeof(wchar_t));
+     wchar_t * const result = (wchar_t *)malloc(len * sizeof(wchar_t));
 
      MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
 
@@ -36,9 +34,7 @@ static wchar_t * UTF8ToUnicode(char *str)
 static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)calloc(len, sizeof(char));
-
-     memset(result, 0, len * sizeof(char));
+     char * const result = (char *)malloc(len * sizeof(char));
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
@@ -168,7 +164,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     free(wname);
 
     str_len  = wcslen(abs_dirname) ;
-    dir_name = (wchar_t *)calloc(str_len + 7, sizeof(wchar_t));
+    dir_name = (wchar_t *)malloc((str_len + 7) * sizeof(wchar_t));
 
     wcscpy(dir_name, L"\\\\?\\");
     wcscat(dir_name, abs_dirname);

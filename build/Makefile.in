@@ -1,9 +1,10 @@
-CC   = @cc@
-LD   = @ld@
-AR   = @ar@
-MAKE = @make@ @mkflags@
-RM   = @rm@
-CAT  = @cat@
+CC    = @cc@
+LD    = @ld@
+AR    = @ar@
+MAKE  = @make@ @mkflags@
+RM    = @rm@
+CAT   = @cat@
+SHELL = @sh@
 
 TRACING = 0
 NOISY = 0
@@ -97,6 +98,7 @@ OBJECTS = src/core/args@obj@ \
           src/6model/sc@obj@ \
           src/6model/serialization@obj@ \
           src/mast/compiler@obj@ \
+          src/mast/driver@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
           src/strings/ops@obj@ \
@@ -165,6 +167,8 @@ HEADERS = src/moarvm.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \
           src/6model/sc.h \
+          src/mast/compiler.h \
+          src/mast/driver.h \
           src/strings/unicode_gen.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
@@ -245,6 +249,9 @@ help:
 
 test:
 	@$(CAT) build/test.txt
+
+clangcheck gcccheck:
+	@$(MAKE) --no-print-directory -f tools/check.mk $@
 
 moarvm@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
@@ -329,7 +336,7 @@ distclean: realclean
 	$(MSG) remove executable and libraries
 	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
-	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
 
 sandwich:
 	@echo What? Make it yourself.

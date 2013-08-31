@@ -6,8 +6,25 @@
 #define O_RDONLY _O_RDONLY
 #endif
 
-/* Loads a compilation unit from a bytecode file, mapping it into
- * memory. */
+/* Creates a compilation unit from a byte array. */
+MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32 size) {
+    /* Create compilation unit data structure. */
+    MVMCompUnit *cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCompUnit);
+    cu->body.data_start = bytes;
+    cu->body.data_size  = size;
+
+    /* Process the input. */
+    MVMROOT(tc, cu, {
+        MVM_bytecode_unpack(tc, cu);
+    });
+
+    /* Resolve HLL config. */
+    cu->body.hll_config = MVM_hll_get_config_for(tc, cu->body.hll_name);
+
+    return cu;
+}
+
+/* Loads a compilation unit from a bytecode file, mapping it into memory. */
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     MVMCompUnit *cu          = NULL;
     void        *block       = NULL;
@@ -37,18 +54,6 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
 
-    /* Create compilation unit data structure. */
-    cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTCompUnit);
-    cu->body.data_start = (MVMuint8 *)block;
-    cu->body.data_size  = (MVMuint32)size;
-
-    /* Process the input. */
-    MVMROOT(tc, cu, {
-        MVM_bytecode_unpack(tc, cu);
-    });
-
-    /* Resolve HLL config. */
-    cu->body.hll_config = MVM_hll_get_config_for(tc, cu->body.hll_name);
-
-    return cu;
+    /* Turn it into a compilation unit. */
+    return MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
 }

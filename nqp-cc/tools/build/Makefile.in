@@ -140,8 +140,8 @@ QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/
 .pir.pbc:
 	$(PARROT) -o $@ $*.pir
     
-nqp-src/QASTMoar.nqp: tools/build/moarqast.pl ../lib/MAST/Ops.nqp ../lib/MAST/Nodes.nqp src/QASTRegexCompilerMAST.nqp src/QASTOperationsMAST.nqp src/QASTCompilerMAST.nqp
-	$(PERL) tools/build/moarqast.pl ../lib/MAST/Ops.nqp ../lib/MAST/Nodes.nqp src/QASTRegexCompilerMAST.nqp src/QASTOperationsMAST.nqp src/QASTCompilerMAST.nqp > nqp-src/QASTMoar.nqp
+nqp-src/QASTMoar.nqp: tools/build/moarqast.pl ../lib/MAST/Ops.nqp ../lib/MAST/Nodes.nqp src/QASTRegexCompilerMAST.nqp src/QASTOperationsMAST.nqp src/QASTCompilerMAST.nqp src/SelfHostQASTCompilerMAST.nqp
+	$(PERL) tools/build/moarqast.pl ../lib/MAST/Ops.nqp ../lib/MAST/Nodes.nqp src/QASTRegexCompilerMAST.nqp src/QASTOperationsMAST.nqp src/QASTCompilerMAST.nqp src/SelfHostQASTCompilerMAST.nqp > nqp-src/QASTMoar.nqp
 
 nqp-mo.pir: nqp-src/nqp-mo.pm $(CROSS_COMP_PBCS)
 	$(PRECOMPILE_NS) nqp-src/nqp-mo.pm
@@ -158,7 +158,7 @@ QRegexMoar.pir: nqp-src/QRegex.nqp QASTNodesMoar.pbc $(CROSS_COMP_PBCS)
 NQPHLLMoar.pir: nqp-src/NQPHLL.nqp QRegexMoar.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE) nqp-src/NQPHLL.nqp
 
-QASTMoar.pir: QRegexMoar.pbc NQPHLLMoar.pbc $(CROSS_COMP_PBCS)
+QASTMoar.pir: nqp-src/QASTMoar.nqp QRegexMoar.pbc NQPHLLMoar.pbc $(CROSS_COMP_PBCS)
 	$(PRECOMPILE) nqp-src/QASTMoar.nqp
 
 NQPP6QRegexMoar.pir: nqp-src/NQPP6QRegex.nqp QRegexMoar.pbc NQPHLLMoar.pbc QASTMoar.pbc $(CROSS_COMP_PBCS)
@@ -201,6 +201,9 @@ bench: all
 
 nqptest: all
 	prove -e "$(NQP) nqp-moar-cc.nqp" t/nqp
+
+selftest: all
+	prove -e "../moarvm nqp.moarvm" t/nqp
 
 ## cleaning
 

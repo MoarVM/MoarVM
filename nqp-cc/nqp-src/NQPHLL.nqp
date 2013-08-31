@@ -903,24 +903,31 @@ class HLL::Backend::MoarVM {
         nqp::getcomp('qast').to_mast($qast);
     }
 
-    method mbc($jast, *%adverbs) {
-        nqp::die("mbc NYI");
+    method mbc($mast, *%adverbs) {
+        my $assmblr := nqp::getcomp('MAST');
+        if %adverbs<target> eq 'mbc' && %adverbs<output> {
+            $assmblr.assemble_to_file($mast, %adverbs<output>);
+            nqp::null()
+        }
+        else {
+            $assmblr.assemble_and_load($mast);
+        }
     }
 
     method moar($cu, *%adverbs) {
-        nqp::die("NYI");
+        $cu
     }
 
     method is_compunit($cuish) {
-        nqp::die("NYI");
+        __MVM__iscompunit($cuish)
     }
-
+    
     method compunit_mainline($cu) {
-        nqp::die("NYI");
+        __MVM__compunitmainline($cu)
     }
-
+    
     method compunit_coderefs($cu) {
-        nqp::die("NYI");
+        __MVM__compunitcodes($cu)
     }
 }
 

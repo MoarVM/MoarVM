@@ -170,6 +170,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 /* Marks the representation data in an STable.*/
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    
+    /* May not be composed yet. */
+    if (repr_data == NULL)
+        return;
 
     if (repr_data->flattened_stables) {
         int i;
@@ -201,6 +205,10 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
 /* Marks the representation data in an STable.*/
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+
+    /* May not have survived to composition. */
+    if (repr_data == NULL)
+        return;
 
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
@@ -407,6 +415,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMint64 slot = try_get_slot(tc, repr_data, class_handle, name);
+    data = real_data(data);
     if (slot >= 0)
         return NULL != get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
     else
@@ -980,6 +989,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->at_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
 }
@@ -989,6 +999,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->bind_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
 }
@@ -998,6 +1009,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->set_elems(tc, STABLE(del), del, OBJECT_BODY(del), count);
 }
@@ -1007,6 +1019,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->push(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
@@ -1016,6 +1029,7 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->pop(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
@@ -1025,6 +1039,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->unshift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
@@ -1034,6 +1049,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->shift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
@@ -1043,6 +1059,7 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
         die_no_pos_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs->splice(tc, STABLE(del), del, OBJECT_BODY(del), target_array, offset, elems);
 }
@@ -1056,6 +1073,7 @@ void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
         die_no_ass_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     return REPR(del)->ass_funcs->at_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
@@ -1065,6 +1083,7 @@ MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
         die_no_ass_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     return REPR(del)->ass_funcs->at_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
@@ -1074,6 +1093,7 @@ void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
         die_no_ass_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     REPR(del)->ass_funcs->bind_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key, value_addr);
 }
@@ -1083,6 +1103,7 @@ void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
         die_no_ass_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     REPR(del)->ass_funcs->bind_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key, value);
 }
@@ -1092,6 +1113,7 @@ MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
         die_no_ass_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     return REPR(del)->ass_funcs->exists_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
@@ -1101,12 +1123,14 @@ void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
         die_no_ass_del(tc);
+    data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     REPR(del)->ass_funcs->delete_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = real_data(data);
     if (repr_data->pos_del_slot >= 0) {
         MVMObject *del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
         return REPR(del)->elems(tc, STABLE(del), del, OBJECT_BODY(del));

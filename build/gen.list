@@ -3,3 +3,6 @@ build/config.h.in
 
 Makefile
 build/Makefile.in
+
+tools/check.mk
+build/check.mk.in

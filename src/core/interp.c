@@ -1156,6 +1156,45 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 0).o = MVM_exception_backtrace_strings(tc, GET_REG(cur_op, 2).o);
                         cur_op += 4;
                         break;
+                    case MVM_OP_masttofile:
+                        MVM_mast_to_file(tc, GET_REG(cur_op, 0).o,
+                            GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                        cur_op += 6;
+                        break;
+                    case MVM_OP_masttocu: {
+                        /* This op will end up returning into the runloop to run
+                         * deserialization and load code, so make sure we're done
+                         * processing this op really. */
+                        MVMObject *node = GET_REG(cur_op, 2).o;
+                        MVMObject *types = GET_REG(cur_op, 4).o;
+                        MVMRegister *result_reg = &GET_REG(cur_op, 0);
+                        cur_op += 6;
+
+                        /* Set up return (really continuation after load) address
+                         * and enter bytecode loading process. */
+                        tc->cur_frame->return_address = cur_op;
+                        MVM_mast_to_cu(tc, node, types, result_reg);
+                        break;
+                    }
+                    case MVM_OP_iscompunit: {
+                        MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
+                        GET_REG(cur_op, 0).i64 = maybe_cu != NULL &&
+                            REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_compunitmainline: {
+                        MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
+                        if (REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit) {
+                            MVMCompUnit *cu = (MVMCompUnit *)maybe_cu;
+                            GET_REG(cur_op, 0).o = cu->body.coderefs[0];
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "compunitmainline requires an MVMCompUnit");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
@@ -1936,9 +1975,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_atkey_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
-                            STABLE(obj), obj, OBJECT_BODY(obj),
-                            (MVMObject *)GET_REG(cur_op, 4).s);
+                        if (IS_CONCRETE(obj))
+                            GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs->at_key_boxed(tc,
+                                STABLE(obj), obj, OBJECT_BODY(obj),
+                                (MVMObject *)GET_REG(cur_op, 4).s);
+                        else
+                            GET_REG(cur_op, 0).o = NULL;
                         cur_op += 6;
                         break;
                     }
@@ -2017,9 +2059,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_atpos_o: {
                         MVMObject *obj = GET_REG(cur_op, 2).o;
-                        REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
-                            OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
-                            &GET_REG(cur_op, 0), MVM_reg_obj);
+                        if (IS_CONCRETE(obj))
+                            REPR(obj)->pos_funcs->at_pos(tc, STABLE(obj), obj,
+                                OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+                                &GET_REG(cur_op, 0), MVM_reg_obj);
+                        else
+                            GET_REG(cur_op, 0).o = NULL;
                         cur_op += 6;
                         break;
                     }

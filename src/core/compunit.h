@@ -1,5 +1,2 @@
-/* Represents a compilation unit; essentially, the runtime representation
- * of a MAST::CompUnit. It may be mapped in from a file, created in memory
- * or something else. */
-
+MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32 size);
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename);
