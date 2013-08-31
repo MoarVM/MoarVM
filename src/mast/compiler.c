@@ -283,7 +283,10 @@ unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame) {
 
 /* Takes a 6model object type and turns it into a local/lexical type flag. */
 unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
-    MVMStorageSpec ss = REPR(type)->get_storage_spec(vm, STABLE(type));
+    MVMStorageSpec ss;
+    if (VM_OBJ_IS_NULL(type))
+        return MVM_reg_obj;
+    ss = REPR(type)->get_storage_spec(vm, STABLE(type));
     if (ss.inlineable) {
         switch (ss.boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
