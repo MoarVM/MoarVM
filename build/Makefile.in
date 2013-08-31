@@ -248,7 +248,7 @@ help:
 	@$(CAT) build/help.txt
 
 test:
-	cd nqp-cc && prove -e "../moarvm nqp.moarvm" t/nqp
+	@$(CAT) build/test.txt
 
 clangcheck gcccheck:
 	@$(MAKE) --no-print-directory -f tools/check.mk $@
