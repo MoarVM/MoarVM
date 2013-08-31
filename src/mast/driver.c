@@ -28,6 +28,8 @@ MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
 
 /* Compiles MAST down to bytecode, then loads it as a compilation unit. */
 MVMObject * MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types) {
+    MVMObject *loaded;
+    
     MVMROOT(tc, mast, {
         /* Get node types into struct. */
         MASTNodeTypes *mnt = node_types_struct(tc, types);
@@ -37,8 +39,12 @@ MVMObject * MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *typ
         char *bytecode = MVM_mast_compile(tc, mast, mnt, &size);
         free(mnt);
         
-        MVM_exception_throw_adhoc(tc, "MAST to compilation unit NYI");
+        /* Load it as a compilation unit; it is a kind of MVMObject, so cast
+         * it to that. */
+        loaded = (MVMObject *)MVM_cu_from_bytes(tc, (MVMuint8 *)bytecode, (MVMuint32)size);
     });
+    
+    return loaded;
 }
 
 /* Compiles MAST down to bytecode, then loads it as a compilation unit. */
