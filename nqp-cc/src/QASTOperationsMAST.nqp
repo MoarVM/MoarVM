@@ -1217,7 +1217,7 @@ my %handler_names := nqp::hash(
     'PROCEED', $HandlerCategory::proceed,
     'SUCCEED', $HandlerCategory::succeed,
 );
-QAST::MASTOperations.add_core_op('handle', -> $qastcomp, $op {
+QAST::MASTOperations.add_core_op('handle', sub ($qastcomp, $op) {
     my @children := nqp::clone($op.list());
     if @children == 0 {
         nqp::die("The 'handle' op requires at least one child");
