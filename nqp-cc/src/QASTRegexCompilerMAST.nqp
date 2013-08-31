@@ -929,7 +929,7 @@ class QAST::MASTRegexCompiler {
         my $sname := fresh_s();
         my @ins := [
             op('const_s', $sname, sval($node.name)),
-            op('findmeth', %*REG<method>, %*REG<cur>, sval('"!dba"')),
+            op('findmeth', %*REG<method>, %*REG<cur>, sval('!dba')),
             call(%*REG<method>, @flags, %*REG<cur>, %*REG<pos>, $sname)
         ];
         release($sname, $MVM_reg_str);
