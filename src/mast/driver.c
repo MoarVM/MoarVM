@@ -27,8 +27,9 @@ MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
 }
 
 /* Compiles MAST down to bytecode, then loads it as a compilation unit. */
-MVMObject * MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types) {
-    MVMObject *loaded;
+void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
+        MVMRegister *res) {
+    MVMCompUnit *loaded;
     
     MVMROOT(tc, mast, {
         /* Get node types into struct. */
@@ -41,10 +42,11 @@ MVMObject * MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *typ
         
         /* Load it as a compilation unit; it is a kind of MVMObject, so cast
          * it to that. */
-        loaded = (MVMObject *)MVM_cu_from_bytes(tc, (MVMuint8 *)bytecode, (MVMuint32)size);
+        loaded = MVM_cu_from_bytes(tc, (MVMuint8 *)bytecode, (MVMuint32)size);
     });
     
-    return loaded;
+    /* Stash loaded comp unit in result register. */
+    res->o = (MVMObject *)loaded;
 }
 
 /* Compiles MAST down to bytecode, then loads it as a compilation unit. */
