@@ -522,7 +522,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     unsigned char *identifier = (unsigned char *)malloc(elems);
 
     for (i = 0; i < elems; i++)
-        identifier[i] = (unsigned char)ATPOS_I(vm, flags, i);
+        identifier[i] = (unsigned char)ATPOS_I_C(vm, flags, i);
     HASH_FIND(hash_handle, ws->cur_frame->callsite_reuse_head, identifier, elems, entry);
     if (entry) {
         free(identifier);
@@ -539,7 +539,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     ws->callsite_pos += 2;
     for (i = 0; i < elems; i++)
         write_int8(ws->callsite_seg, ws->callsite_pos++,
-            (unsigned char)ATPOS_I(vm, flags, i));
+            (unsigned char)ATPOS_I_C(vm, flags, i));
     if (align)
         write_int8(ws->callsite_seg, ws->callsite_pos++, 0);
 
@@ -630,7 +630,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         arg_pos = 0;
         for (flag_pos = 0; flag_pos < num_flags; flag_pos++) {
             /* Handle any special flags. */
-            unsigned char flag = (unsigned char)ATPOS_I(vm, c->flags, flag_pos);
+            unsigned char flag = (unsigned char)ATPOS_I_C(vm, c->flags, flag_pos);
             if (flag & MVM_CALLSITE_ARG_NAMED) {
                 ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
                 write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_BANK_primitives);
@@ -929,7 +929,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         write_int16(ws->frame_seg, ws->frame_pos, lexical_type);
         ws->frame_pos += 2;
         write_int16(ws->frame_seg, ws->frame_pos,
-            get_string_heap_index(vm, ws, ATPOS_S(vm, f->lexical_names, i)));
+            get_string_heap_index(vm, ws, ATPOS_S_C(vm, f->lexical_names, i)));
         ws->frame_pos += 2;
     }
 
@@ -1214,7 +1214,7 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     for (i = 0; i < num_depscs; i++)
         write_int32(ws->scdep_seg, i * SC_DEP_SIZE,
             get_string_heap_index(vm, ws,
-                ATPOS_S(vm, ws->cu->sc_handles, i)));
+                ATPOS_S_C(vm, ws->cu->sc_handles, i)));
 
     /* Visit and compile each of the frames. */
     num_frames = (unsigned short)ELEMS(vm, cu->frames);
