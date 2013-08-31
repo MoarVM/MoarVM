@@ -950,6 +950,7 @@ class QAST::MASTRegexCompiler {
         # Resolve the op.
         my $bank;
         for MAST::Ops.WHO {
+            next if ~$_ eq '$allops';
             $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
         }
         nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
