@@ -36,13 +36,30 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMNFABody *lb = (MVMNFABody *)data;
-
+    MVMint64 i, j;
+    
+    MVM_gc_worklist_add(tc, worklist, &lb->fates);
+    
+    for (i = 0; i < lb->num_states; i++) {
+        MVMint64 edges = lb->num_state_edges[i];
+        for (j = 0; j < edges; j++) {
+            switch (lb->states[i][j].act) {
+                case MVM_NFA_EDGE_CHARLIST:
+                case MVM_NFA_EDGE_CHARLIST_NEG:
+                    MVM_gc_worklist_add(tc, worklist, &lb->states[i][j].arg.s);
+            }
+        }
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMNFA *nfa = (MVMNFA *)obj;
-
+    MVMint64 i;
+    for (i = 0; i < nfa->body.num_states; i++)
+        if (nfa->body.states[i])
+            free(nfa->body.states[i]);
+    free(nfa->body.num_state_edges);
 }
 
 /* Gets the storage specification for this representation. */
