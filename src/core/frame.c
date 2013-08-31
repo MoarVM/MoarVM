@@ -358,7 +358,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type) {
-    MVMFrame *cur_frame = tc->cur_frame;
+    MVMFrame *cur_frame = tc->cur_frame->caller;
     if (!name) {
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     }

@@ -1068,20 +1068,43 @@ class QAST::MASTCompiler {
         }
         elsif $scope eq 'contextual' {
             my $name_const := const_s($name);
-            if $*BINDVAL {
-                my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($MVM_reg_obj));
-            #    check_kinds($valmast.result_kind, $MVM_reg_obj);
-                $res_reg := $valmast.result_reg;
-                push_ilist(@ins, $valmast);
-                push_ilist(@ins, $name_const);
-                push_op(@ins, 'binddynlex', $name_const.result_reg, $res_reg);
-                # do NOT release your own result register.  ergh.
-                #$*REGALLOC.release_register($res_reg, $valmast.result_kind);
+            my $lex := $*BLOCK.lexical($name);
+            if $lex {
+                # In current frame; do as lexical does.
+                $res_kind := $*BLOCK.lexical_kind($name);
+                if $*BINDVAL {
+                    my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($res_kind));
+                    $res_reg := $valmast.result_reg;
+                    push_ilist(@ins, $valmast);
+                    push_op(@ins, 'bindlex', $lex, $res_reg);
+                }
+                elsif $decl ne 'param' {
+                    $res_reg := $*REGALLOC.fresh_register($res_kind);
+                    push_op(@ins, 'getlex', $res_reg, $lex);
+                }
+                else {
+                    $*REGALLOC.release_register($res_reg, $res_kind);
+                    $res_reg := $*REGALLOC.fresh_register($res_kind);
+                    push_op(@ins, 'getlex', $res_reg, $lex);
+                }
             }
             else {
-                push_ilist(@ins, $name_const);
-                $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
-                push_op(@ins, 'getdynlex', $res_reg, $name_const.result_reg);
+                # Need lookup.
+                if $*BINDVAL {
+                    my $valmast := self.as_mast_clear_bindval($*BINDVAL, :want($MVM_reg_obj));
+                #    check_kinds($valmast.result_kind, $MVM_reg_obj);
+                    $res_reg := $valmast.result_reg;
+                    push_ilist(@ins, $valmast);
+                    push_ilist(@ins, $name_const);
+                    push_op(@ins, 'binddynlex', $name_const.result_reg, $res_reg);
+                    # do NOT release your own result register.  ergh.
+                    #$*REGALLOC.release_register($res_reg, $valmast.result_kind);
+                }
+                else {
+                    push_ilist(@ins, $name_const);
+                    $res_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+                    push_op(@ins, 'getdynlex', $res_reg, $name_const.result_reg);
+                }
             }
             $*REGALLOC.release_register($name_const.result_reg, $MVM_reg_str);
             $res_kind := $MVM_reg_obj;
