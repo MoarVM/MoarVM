@@ -49,7 +49,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, dest_root, new_entry->key, current->key);
         MVM_ASSIGN_REF(tc, dest_root, new_entry->value, current->value);
-        extract_key(tc, &kdata, &klen, current->key);
+        extract_key(tc, &kdata, &klen, new_entry->key);
 
         HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
     }
