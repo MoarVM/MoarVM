@@ -32,6 +32,10 @@ struct MVMFrame {
     /* The args buffer. Actually a pointer into an area inside of *work, to
      * decrease number of allocations. */
     MVMRegister *args;
+    
+    /* Callsite that indicates how the current args buffer is being used, if
+     * it is. */
+    MVMCallsite *cur_args_callsite;
 
     /* The outer frame, thus forming the static chain. */
     MVMFrame *outer;

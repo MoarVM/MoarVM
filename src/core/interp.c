@@ -340,7 +340,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_prepargs:
+                        /* Look up callsite. */
                         cur_callsite = cu->body.callsites[GET_UI16(cur_op, 0)];
+                        
+                        /* Also need to store it in cur_frame to make sure that
+                         * the GC knows how to walk the args buffer, and must
+                         * clear it in case we trigger GC while setting it up. */
+                        tc->cur_frame->cur_args_callsite = cur_callsite;
+                        memset(tc->cur_frame->args, 0,
+                            sizeof(MVMRegister) * cu->body.max_callsite_size);
+                        
                         cur_op += 2;
                         break;
                     case MVM_OP_arg_i:
