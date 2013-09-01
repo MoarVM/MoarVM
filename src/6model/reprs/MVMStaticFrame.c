@@ -40,6 +40,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStaticFrameBody *dest_body = (MVMStaticFrameBody *)dest;
     
     dest_body->bytecode = src_body->bytecode;
+    dest_body->bytecode_size = src_body->bytecode_size;
     MVM_ASSIGN_REF(tc, dest_root, dest_body->cu, src_body->cu);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->cuuid, src_body->cuuid);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
