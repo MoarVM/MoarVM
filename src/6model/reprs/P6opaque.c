@@ -11,6 +11,8 @@ static MVMString *str_name       = NULL;
 static MVMString *str_type       = NULL;
 static MVMString *str_box_target = NULL;
 static MVMString *str_attribute  = NULL;
+static MVMString *str_pos_del    = NULL;
+static MVMString *str_ass_del    = NULL;
 
 /* If an object gets mixed in to, we need to be sure we look at is real body,
  * which may have been moved to hang off the specified pointer. */
@@ -619,10 +621,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     repr_data->gc_cleanup_slots      = malloc((total_attrs + 1) * sizeof(MVMuint16));
     memset(repr_data->name_to_index_mapping, 0, (mro_count + 1) * sizeof(MVMP6opaqueNameMap));
 
-    /* -1 indicates no unboxing possible for a type. */
+    /* -1 indicates no unboxing or delegate possible for a type. */
     repr_data->unbox_int_slot = -1;
     repr_data->unbox_num_slot = -1;
     repr_data->unbox_str_slot = -1;
+    repr_data->pos_del_slot   = -1;
+    repr_data->ass_del_slot   = -1;
 
     /* Second pass populates the rest of the REPR data. */
     mro_pos          = mro_count;
@@ -747,6 +751,28 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 repr_data->gc_obj_mark_offsets[cur_obj_attr] = cur_alloc_addr;
                 cur_obj_attr++;
                 /* XXX auto-viv stuff */
+            }
+            
+            /* Is it a positional or associative delegate? */
+            if (MVM_repr_exists_key(tc, attr_info, str_pos_del)) {
+                if (repr_data->pos_del_slot != -1)
+                    MVM_exception_throw_adhoc(tc,
+                        "Duplicate positional delegate attribute");
+                if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
+                    repr_data->pos_del_slot = cur_slot;
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "Positional delegate attribute must be a reference type");
+            }
+            if (MVM_repr_exists_key(tc, attr_info, str_ass_del)) {
+                if (repr_data->ass_del_slot != -1)
+                    MVM_exception_throw_adhoc(tc,
+                        "Duplicate associative delegate attribute");
+                if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
+                    repr_data->ass_del_slot = cur_slot;
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "Associative delegate attribute must be a reference type");
             }
 
             /* Add the required space for this type. */
@@ -1155,6 +1181,10 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
     str_attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_attribute);
+    str_pos_del = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "positional_delegate");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_pos_del);
+    str_ass_del = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "associative_delegate");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_ass_del);
 
     /* Allocate and populate the representation function table. */
     this_repr = malloc(sizeof(MVMREPROps));
