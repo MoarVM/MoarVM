@@ -11,6 +11,7 @@ typedef struct {
 
 typedef struct {
     MVMContainerConfigurer *configurer;
+    MVMString              *config_name;
 
     /* Inline handle to the hash in which this is stored. */
     UT_hash_handle hash_handle;
@@ -151,7 +152,9 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     if (!entry) {
         entry = malloc(sizeof(ContainerRegistry));
-        entry->configurer = configurer;
+        entry->config_name = name;
+        entry->configurer  = configurer;
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->config_name);
     }
 
     HASH_ADD_KEYPTR(hash_handle, container_registry, kdata, klen, entry);
