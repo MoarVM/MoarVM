@@ -222,7 +222,6 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMint32 bytes_read = 0;
     MVMint32 step_back  = 0; /* total reads = bytes_read + step_back */
-    MVMuint8 linebreaks = 0;
     MVMString *result;
     MVMOSHandle *handle;
     uv_fs_t req;
@@ -232,19 +231,16 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     verify_filehandle_type(tc, oshandle, &handle, "readline from filehandle");
 
     while (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0) {
-        if (ch == 10 || ch == 13) {
-            linebreaks++;
-            step_back++;
-            break;
-        }
-
         bytes_read++;
+
+        if (ch == 10 || ch == 13)
+            break;
     }
 
     /* have a look if it is a windows newline. */
     if (ch == 13) {
         if (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch == 10) {
-            linebreaks++;
+            bytes_read++;
         }
         step_back++;
     }
@@ -257,9 +253,6 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
         free(buf);
         MVM_exception_throw_adhoc(tc, "readline from filehandle failed: %s", uv_strerror(req.result));
     }
-
-    /* ignores line break. */
-    MVM_file_seek(tc, oshandle, linebreaks, SEEK_CUR);
 
                                                /* XXX should this take a type object? */
     result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
