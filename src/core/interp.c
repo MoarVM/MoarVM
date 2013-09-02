@@ -1608,200 +1608,138 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_abs_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
-                        MVMROOT(tc, a, {
-                            MVMObject *b = MVM_repr_alloc_init(tc, type);
-                            MVM_bigint_abs(tc, b, a);
-                            GET_REG(cur_op, 0).o = b;
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 4).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_abs(tc, result, GET_REG(cur_op, 2).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_neg_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
-                        MVMROOT(tc, a, {
-                            MVMObject *b = MVM_repr_alloc_init(tc, type);
-                            MVM_bigint_neg(tc, b, a);
-                            GET_REG(cur_op, 0).o = b;
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 4).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_neg(tc, result, GET_REG(cur_op, 2).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_add_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_add(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_add(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_sub_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_sub(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_sub(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_mul_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_mul(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_mul(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_div_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_div(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_div(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_mod_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_mod(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_mod(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_expmod_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *c = GET_REG(cur_op, 6).o, *type = GET_REG(cur_op, 8).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMROOT(tc, c, {
-                                    MVMObject *d = MVM_repr_alloc_init(tc, type);
-                                    MVM_bigint_expmod(tc, d, a, b, c);
-                                    GET_REG(cur_op, 0).o = d;
-                                });
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 8).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_expmod(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 10;
                         break;
                     }
                     case MVM_OP_gcd_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_gcd(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_gcd(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_lcm_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_lcm(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_lcm(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_bor_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_or(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_or(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_bxor_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_xor(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_xor(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_band_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_and(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_and(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_bnot_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
-                        MVMROOT(tc, a, {
-                            MVMObject *b = MVM_repr_alloc_init(tc, type);
-                            MVM_bigint_not(tc, b, a);
-                            GET_REG(cur_op, 0).o = b;
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 4).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_not(tc, result, GET_REG(cur_op, 2).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_blshift_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 6).o;
-                        MVMint64 b = GET_REG(cur_op, 4).i64;
-                        MVMROOT(tc, a, {
-                            MVMObject *c = MVM_repr_alloc_init(tc, type);
-                            MVM_bigint_shl(tc, c, a, b);
-                            GET_REG(cur_op, 0).o = c;
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_shl(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_brshift_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 6).o;
-                        MVMint64 b = GET_REG(cur_op, 4).i64;
-                        MVMROOT(tc, a, {
-                            MVMObject *c = MVM_repr_alloc_init(tc, type);
-                            MVM_bigint_shr(tc, c, a, b);
-                            GET_REG(cur_op, 0).o = c;
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_shr(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 8;
                         break;
                     }
                     case MVM_OP_pow_I: {
-                        MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o, *type = GET_REG(cur_op, 6).o;
-                        MVMROOT(tc, a, {
-                            MVMROOT(tc, b, {
-                                MVMObject *c = MVM_repr_alloc_init(tc, type);
-                                MVM_bigint_pow(tc, c, a, b);
-                                GET_REG(cur_op, 0).o = c;
-                            });
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 6).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_pow(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 10;
                         break;
                     }
@@ -1855,21 +1793,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_rand_I: {
-                        MVMObject *max = GET_REG(cur_op, 2).o, *type = GET_REG(cur_op, 4).o;
-                        MVMObject *rnd = MVM_repr_alloc_init(tc, type);
-                        MVM_bigint_rand(tc, rnd, max);
+                        MVMObject * const type = GET_REG(cur_op, 4).o;
+                        MVMObject *  const rnd = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_rand(tc, rnd, GET_REG(cur_op, 2).o);
                         GET_REG(cur_op, 0).o = rnd;
                         cur_op += 6;
                         break;
                     }
                     case MVM_OP_coerce_nI: {
-                        MVMnum64 n = GET_REG(cur_op, 2).n64;
-                        MVMObject *type = GET_REG(cur_op, 4).o;
-                        MVMROOT(tc, n, {
-                            MVMObject *a = MVM_repr_alloc_init(tc, type);
-                            MVM_bigint_from_num(tc, a, n);
-                            GET_REG(cur_op, 0).o = a;
-                        });
+                        MVMObject *   const type = GET_REG(cur_op, 4).o;
+                        MVMObject * const result = MVM_repr_alloc_init(tc, type);
+                        MVM_bigint_from_num(tc, result, GET_REG(cur_op, 2).n64);
+                        GET_REG(cur_op, 0).o = result;
                         cur_op += 6;
                         break;
                     }
