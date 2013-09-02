@@ -2884,12 +2884,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         uv_mutex_lock(&tc->instance->mutex_hll_syms);
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
-                            MVMROOT(tc, hll_name, {
-                                hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
-                                /* must re-get syms in case it moved */
-                                syms = tc->instance->hll_syms;
-                                MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
-                            });
+                            hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+                            /* must re-get syms in case it moved */
+                            syms = tc->instance->hll_syms;
+                            /* must re-get hll_name in case it moved */
+                            MVM_repr_bind_key_boxed(tc, syms, GET_REG(cur_op, 2).s, hash);
                             GET_REG(cur_op, 0).o = NULL;
                         }
                         else {
@@ -3378,11 +3377,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             MVM_exception_throw_adhoc(tc, "Can only push an SCRef with pushcompsc");
 
                         if (!tc->compiling_scs) {
-                            MVMROOT(tc, sc, {
-                                tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
-                            });
+                            tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
                         }
-                        MVM_repr_push_o(tc, tc->compiling_scs, sc);
+                        /* must re-get sc in case it moved */
+                        MVM_repr_push_o(tc, tc->compiling_scs, GET_REG(cur_op, 0).o);
                         cur_op += 2;
                         break;
                     }
