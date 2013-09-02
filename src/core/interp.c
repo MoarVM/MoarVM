@@ -1205,14 +1205,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_compunitcodes: {
-                        MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
+                        MVMObject *     const result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+                        MVMCompUnit * const maybe_cu = (MVMCompUnit *)GET_REG(cur_op, 2).o;
                         if (REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit) {
-                            MVMCompUnit * const cu      = (MVMCompUnit *)maybe_cu;
-                            const MVMuint32 num_frames  = cu->body.num_frames;
-                            MVMObject ** const coderefs = cu->body.coderefs;
+                            const MVMuint32 num_frames  = maybe_cu->body.num_frames;
+                            MVMObject ** const coderefs = maybe_cu->body.coderefs;
                             MVMuint32 i;
-
-                            MVMObject * const result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
 
                             for (i = 0; i < num_frames; i++) {
                                 MVM_repr_push_o(tc, result, coderefs[i]);
