@@ -2962,11 +2962,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     case MVM_OP_append_f:
-                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
-                        cur_op += 4;
+                        MVM_exception_throw_adhoc(tc, "append is not supported");
                         break;
                     case MVM_OP_rename_f:
-                        MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                        MVM_file_rename(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
                         cur_op += 4;
                         break;
                     case MVM_OP_delete_f:

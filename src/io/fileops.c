@@ -241,8 +241,9 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     if (ch == 13) {
         if (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch == 10) {
             bytes_read++;
+        } else {
+            step_back++;
         }
-        step_back++;
     }
 
     MVM_file_seek(tc, oshandle, -bytes_read - step_back, SEEK_CUR);
