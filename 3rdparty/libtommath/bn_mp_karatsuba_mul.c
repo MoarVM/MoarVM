@@ -60,7 +60,7 @@ int mp_karatsuba_mul (mp_int * a, mp_int * b, mp_int * c)
 
   /* init copy all the temps */
   if (mp_init_size (&x0, B) != MP_OKAY)
-    goto ERR;
+    goto LBL_ERR;
   if (mp_init_size (&x1, a->used - B) != MP_OKAY)
     goto X0;
   if (mp_init_size (&y0, B) != MP_OKAY)
@@ -157,7 +157,7 @@ Y1:mp_clear (&y1);
 Y0:mp_clear (&y0);
 X1:mp_clear (&x1);
 X0:mp_clear (&x0);
-ERR:
+LBL_ERR:
   return err;
 }
 #endif
