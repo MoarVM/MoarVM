@@ -1221,7 +1221,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                             GET_REG(cur_op, 0).o = result;
                         }
                         else {
-                            MVM_exception_throw_adhoc(tc, "compunitmainline requires an MVMCompUnit");
+                            MVM_exception_throw_adhoc(tc, "compunitcodes requires an MVMCompUnit");
                         }
                         cur_op += 4;
                         break;

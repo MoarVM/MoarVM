@@ -23,6 +23,7 @@ typedef struct MVMCompUnitBody MVMCompUnitBody;
 typedef struct MVMConcatState MVMConcatState;
 typedef struct MVMContainerConfigurer MVMContainerConfigurer;
 typedef struct MVMContainerSpec MVMContainerSpec;
+typedef struct MVMContainerRegistry MVMContainerRegistry;
 typedef struct MVMContext MVMContext;
 typedef struct MVMContextBody MVMContextBody;
 typedef struct MVMException MVMException;

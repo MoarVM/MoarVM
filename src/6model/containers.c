@@ -9,14 +9,6 @@ typedef struct {
     MVMObject *store_code;
 } CodePairContData;
 
-typedef struct {
-    MVMContainerConfigurer *configurer;
-    MVMString              *config_name;
-
-    /* Inline handle to the hash in which this is stored. */
-    UT_hash_handle hash_handle;
-} ContainerRegistry;
-
 /* Dummy, code pair fetch and store arg callsite. */
 static MVMCallsiteEntry fetch_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
 static MVMCallsiteEntry store_arg_flags[] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
@@ -133,31 +125,27 @@ static MVMContainerConfigurer * initialize_code_pair_spec(MVMThreadContext *tc) 
  * Container registry and configuration
  * ***************************************************************************/
 
-/* Container registry is a hash mapping names of container configurations
- * to function tables. */
-static ContainerRegistry *container_registry;
-
 /* Adds a container configurer to the registry. */
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         MVMContainerConfigurer *configurer) {
     void *kdata;
-    ContainerRegistry *entry;
+    MVMContainerRegistry *entry;
     size_t klen;
 
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "add container config needs concrete string");
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
 
-    HASH_FIND(hash_handle, container_registry, kdata, klen, entry);
+    HASH_FIND(hash_handle, tc->instance->container_registry, kdata, klen, entry);
 
     if (!entry) {
-        entry = malloc(sizeof(ContainerRegistry));
+        entry = malloc(sizeof(MVMContainerRegistry));
         entry->config_name = name;
         entry->configurer  = configurer;
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->config_name);
     }
 
-    HASH_ADD_KEYPTR(hash_handle, container_registry, kdata, klen, entry);
+    HASH_ADD_KEYPTR(hash_handle, tc->instance->container_registry, kdata, klen, entry);
 
     uv_mutex_unlock(&tc->instance->mutex_container_registry);
 }
@@ -165,12 +153,12 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 /* Gets a container configurer from the registry. */
 MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
     void *kdata;
-    ContainerRegistry *entry;
+    MVMContainerRegistry *entry;
     size_t klen;
 
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get container config needs concrete string");
 
-    HASH_FIND(hash_handle, container_registry, kdata, klen, entry);
+    HASH_FIND(hash_handle, tc->instance->container_registry, kdata, klen, entry);
     return entry != NULL ? entry->configurer : NULL;
 }
 
