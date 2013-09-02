@@ -2619,6 +2619,12 @@ static MVMOpInfo MVM_op_info_object[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_getcodecuid,
+        "getcodecuid",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 static MVMOpInfo MVM_op_info_io[] = {
     {
@@ -3183,7 +3189,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     2,
     53,
     57,
-    139,
+    140,
     49,
     21,
     20,

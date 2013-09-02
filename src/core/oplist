@@ -441,6 +441,7 @@ BANK 4 object
 0x88    markcodestatic      r(obj)
 0x89    markcodestub        r(obj)
 0x8A    getstaticcode       w(obj) r(obj)
+0x8B    getcodecuid         w(str) r(obj)
 
 BANK 5 io
 0x00    copy_f              r(str) r(str)

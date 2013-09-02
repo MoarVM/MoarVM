@@ -453,6 +453,7 @@
 #define MVM_OP_markcodestatic 136
 #define MVM_OP_markcodestub 137
 #define MVM_OP_getstaticcode 138
+#define MVM_OP_getcodecuid 139
 
 /* Op name defines for bank io. */
 #define MVM_OP_copy_f 0

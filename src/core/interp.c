@@ -1226,6 +1226,28 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
+                    case MVM_OP_compunitcodes: {
+                        MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
+                        if (REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit) {
+                            MVMCompUnit * const cu      = (MVMCompUnit *)maybe_cu;
+                            const MVMuint32 num_frames  = cu->body.num_frames;
+                            MVMObject ** const coderefs = cu->body.coderefs;
+                            MVMuint32 i;
+
+                            MVMObject * const result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+
+                            for (i = 0; i < num_frames; i++) {
+                                MVM_repr_push_o(tc, result, coderefs[i]);
+                            }
+
+                            GET_REG(cur_op, 0).o = result;
+                        }
+                        else {
+                            MVM_exception_throw_adhoc(tc, "compunitmainline requires an MVMCompUnit");
+                        }
+                        cur_op += 4;
+                        break;
+                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
