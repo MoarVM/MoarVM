@@ -47,8 +47,7 @@ static char* ANSIToUTF8(MVMuint16 acp, const char* str)
 #endif
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
-    static MVMObject *env_hash;
-
+    MVMObject *env_hash = tc->instance->env_hash;
     if (!env_hash) {
 #ifdef _WIN32
         MVMuint16     acp = GetACP(); /* We should get ACP at runtime. */
@@ -90,6 +89,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         }
 
         MVM_gc_root_temp_pop_n(tc, 2);
+        
+        tc->instance->env_hash = env_hash;
     }
     return env_hash;
 }

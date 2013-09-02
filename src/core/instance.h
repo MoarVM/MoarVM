@@ -116,6 +116,9 @@ struct MVMInstance {
     const char     *prog_name;
     /* cached parsed command line args */
     MVMObject      *clargs;
+    
+    /* Cached environment. */
+    MVMObject *env_hash;
 
     /* Hash of HLLConfig objects. */
     MVMHLLConfig *hll_configs;
