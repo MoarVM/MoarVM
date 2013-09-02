@@ -1226,28 +1226,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         cur_op += 4;
                         break;
                     }
-                    case MVM_OP_compunitcodes: {
-                        MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
-                        if (REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit) {
-                            MVMCompUnit * const cu      = (MVMCompUnit *)maybe_cu;
-                            const MVMuint32 num_frames  = cu->body.num_frames;
-                            MVMObject ** const coderefs = cu->body.coderefs;
-                            MVMuint32 i;
-
-                            MVMObject * const result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-
-                            for (i = 0; i < num_frames; i++) {
-                                MVM_repr_push_o(tc, result, coderefs[i]);
-                            }
-
-                            GET_REG(cur_op, 0).o = result;
-                        }
-                        else {
-                            MVM_exception_throw_adhoc(tc, "compunitmainline requires an MVMCompUnit");
-                        }
-                        cur_op += 4;
-                        break;
-                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_primitives, *(cur_op-1));
@@ -2961,7 +2939,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_existspos: {
-                        MVMObject *obj = GET_REG(cur_op, 2).o;
+                        MVMObject * const obj = GET_REG(cur_op, 2).o;
                         GET_REG(cur_op, 0).i64 = REPR(obj)->pos_funcs->exists_pos(tc,
                             STABLE(obj), obj, OBJECT_BODY(obj), GET_REG(cur_op, 4).i64);
                         cur_op += 6;
@@ -2969,7 +2947,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     case MVM_OP_gethllsym: {
                         MVMObject *syms = tc->instance->hll_syms, *hash;
-                        MVMString *hll_name = GET_REG(cur_op, 2).s;
+                        MVMString * const hll_name = GET_REG(cur_op, 2).s;
                         uv_mutex_lock(&tc->instance->mutex_hll_syms);
                         hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                         if (!hash) {
@@ -2989,7 +2967,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_freshcoderef: {
-                        MVMObject *cr = GET_REG(cur_op, 2).o;
+                        MVMObject * const cr = GET_REG(cur_op, 2).o;
                         MVMCode *ncr;
                         if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
                             MVM_exception_throw_adhoc(tc, "freshcoderef requires a coderef");
@@ -3001,7 +2979,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_markcodestatic: {
-                        MVMObject *cr = GET_REG(cur_op, 0).o;
+                        MVMObject * const cr = GET_REG(cur_op, 0).o;
                         if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
                             MVM_exception_throw_adhoc(tc, "markcodestatic requires a coderef");
                         ((MVMCode *)cr)->body.is_static = 1;
@@ -3009,7 +2987,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_markcodestub: {
-                        MVMObject *cr = GET_REG(cur_op, 0).o;
+                        MVMObject * const cr = GET_REG(cur_op, 0).o;
                         if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
                             MVM_exception_throw_adhoc(tc, "markcodestub requires a coderef");
                         ((MVMCode *)cr)->body.is_compiler_stub = 1;
@@ -3017,11 +2995,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     case MVM_OP_getstaticcode: {
-                        MVMObject *cr = GET_REG(cur_op, 2).o;
+                        MVMObject * const cr = GET_REG(cur_op, 2).o;
                         if (REPR(cr)->ID != MVM_REPR_ID_MVMCode
                                 || !((MVMCode *)cr)->body.is_static)
                             MVM_exception_throw_adhoc(tc, "getstaticcode requires a static coderef");
                         GET_REG(cur_op, 0).o = (MVMObject *)((MVMCode *)cr)->body.sf->body.static_code;
+                        cur_op += 4;
+                        break;
+                    }
+                    case MVM_OP_getcodecuid: {
+                        MVMObject * const cr = GET_REG(cur_op, 2).o;
+                        if (REPR(cr)->ID != MVM_REPR_ID_MVMCode
+                                || !((MVMCode *)cr)->body.is_static)
+                            MVM_exception_throw_adhoc(tc, "getcodecuid requires a static coderef");
+                        GET_REG(cur_op, 0).s = ((MVMCode *)cr)->body.sf->body.cuuid;
                         cur_op += 4;
                         break;
                     }
