@@ -6,23 +6,18 @@ class Op {
     has $.name;
     has @.operands;
 }
-class Bank {
-    has $.name;
-    has @.ops;
-}
 
 sub MAIN($file = "src/core/oplist") {
     # Parse the ops file and get the various op banks.
-    my @banks = parse_ops($file);
-    say "Parsed {+@banks} op banks with {[+] @banks>>.ops>>.elems } total ops";
+    my @ops = parse_ops($file);
+    say "Parsed {+@ops} total ops";
 
     # Generate header file.
     my $hf = open("src/core/ops.h", :w);
     $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $hf.say("");
-    $hf.say(bank_defines(@banks));
-    $hf.say(opcode_defines(@banks));
-    $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op);');
+    $hf.say(opcode_defines(@ops));
+    $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char op);');
     $hf.close;
 
     # Generate C file
@@ -38,8 +33,8 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('#include "moarvm.h"');
     $cf.say('#endif');
     $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
-    $cf.say(opcode_details(@banks));
-    $cf.say('MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {');
+    $cf.say(opcode_details(@ops));
+    $cf.say('MVMOpInfo * MVM_op_get_op(unsigned char op) {');
     $cf.say('    if (bank >= MVM_op_banks || op >= MVM_opcounts_by_bank[bank])');
     $cf.say('        return NULL;');
     $cf.say('    return &MVM_op_info[bank][op];');
@@ -50,8 +45,7 @@ sub MAIN($file = "src/core/oplist") {
     my $nf = open("lib/MAST/Ops.nqp", :w);
     $nf.say("# This file is generated from $file by tools/update_ops.p6.");
     $nf.say("");
-    $nf.say(bank_constants(@banks));
-    $nf.say(op_constants(@banks));
+    $nf.say(op_constants(@ops));
     $nf.close;
 
     say "Wrote ops.h, ops.c, and Ops.nqp";
@@ -59,42 +53,25 @@ sub MAIN($file = "src/core/oplist") {
 
 # Parses ops and produces a bunch of Op and Bank objects.
 sub parse_ops($file) {
-    my @banks;
-    my $cur_bank;
+    my @ops;
     for lines($file.IO) -> $line {
-        if $line ~~ /^BANK <.ws> (\d+) <.ws> (.+)$/ {
-            $cur_bank = +$0;
-            @banks[$cur_bank] //= Bank.new(name => ~$1);
-        }
-        elsif $line ~~ /^\#/ {
+        if $line ~~ /^\#/ {
             # comments is ignored.
         }
         elsif $line !~~ /^\s*$/ {
-            die "Op declaration before bank declaration" unless @banks[$cur_bank];
             my ($code, $name, @operands) = $line.split(/\s+/);
-            @banks[$cur_bank].ops.push(Op.new(
+            @ops.push(Op.new(
                 code     => :16($code.substr(2)),
                 name     => $name,
                 operands => @operands
             ));
         }
     }
-    return @banks;
-}
-
-# Generates MAST::OpBanks constants module.
-sub bank_constants(@banks) {
-    join "\n", gather {
-        take 'class MAST::OpBanks {';
-        for @banks.kv -> $i, $b {
-            take "    our \$$b.name() := $i;";
-        }
-        take '}';
-    }
+    return @ops;
 }
 
 # Generates MAST::Ops constants module.
-sub op_constants(@banks) {
+sub op_constants(@ops) {
     join "\n", gather {
         take 'class MAST::Operands {';
         take '    our $MVM_operand_literal     := 0;';
@@ -184,17 +161,6 @@ sub op_constants(@banks) {
             take '    }';
         }
         take '}';
-    }
-}
-
-# Creates the #defines for the banks.
-sub bank_defines(@banks) {
-    join "\n", gather {
-        take "/* Bank name defines. */";
-        for @banks.kv -> $i, $b {
-            take "#define MVM_OP_BANK_$b.name() $i";
-        }
-        take "";
     }
 }
 
