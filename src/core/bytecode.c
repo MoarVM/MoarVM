@@ -537,6 +537,9 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
  * has more than just the executive bytecode, but also various declarations,
  * like frames). Unpacks it and populates the compilation unit. */
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
+    /* Allocate directly in generation 2 so the object is not moving around. */
+    MVM_gc_allocate_gen2_default_set(tc);
+
     /* Dissect the bytecode into its parts. */
     ReaderState *rs = dissect_bytecode(tc, cu);
     MVMCompUnitBody *cu_body = &cu->body;
@@ -571,6 +574,9 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     /* Clean up reader state. */
     cleanup_all(tc, rs);
+
+    /* Restore normal GC allocation. */
+    MVM_gc_allocate_gen2_default_clear(tc);
 }
 
 /* returns the annotation for that bytecode offset */
