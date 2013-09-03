@@ -17,7 +17,7 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $hf.say("");
     $hf.say(opcode_defines(@ops)); 
-    $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char op);');
+    $hf.say('MVMOpInfo * MVM_op_get_op(unsigned short op);');
     $hf.close;
 
     # Generate C file
@@ -34,7 +34,7 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('#endif');
     $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $cf.say(opcode_details(@ops));
-    $cf.say('MVMOpInfo * MVM_op_get_op(unsigned char op) {');
+    $cf.say('MVMOpInfo * MVM_op_get_op(unsigned short op) {');
     $cf.say('    if (op >= MVM_op_counts)');
     $cf.say('        return NULL;');
     $cf.say('    return &MVM_op_infos[op];');
@@ -152,6 +152,7 @@ sub op_constants(@ops) {
             }
         });
         take '    ];';
+        take '}';
     }
 }
 
@@ -182,7 +183,7 @@ sub opcode_details(@ops) {
             take "    },"
         }
         take "};\n";
-        take "static MVMuint16 MVM_op_counts = {+@ops};\n";
+        take "static unsigned short MVM_op_counts = {+@ops};\n";
     }
 }
 

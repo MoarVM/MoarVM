@@ -3157,9 +3157,9 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static MVMuint16 MVM_op_counts = 525;
+static unsigned short MVM_op_counts = 525;
 
-MVMOpInfo * MVM_op_get_op(unsigned char op) {
+MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
         return NULL;
     return &MVM_op_infos[op];

@@ -559,7 +559,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         int        i;
 
         /* Look up opcode and get argument info. */
-        MVMuint16 op   = (MVMuint16)o->op;
+        unsigned short op   = o->op;
         info = MVM_op_get_op(op);
         if (!info)
             DIE(vm, "Invalid op specified in instruction %d", op);

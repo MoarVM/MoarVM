@@ -209,7 +209,7 @@ typedef STRING VMSTR;
 
 /* Information about an opcode. */
 typedef struct _MVMOpInfo {
-    unsigned char  opcode;
+    unsigned short opcode;
     const char    *name;
     unsigned char  num_operands;
     unsigned char  operands[MVM_MAX_OPERANDS];

@@ -527,4 +527,4 @@
 #define MVM_OP_popcompsc 530
 #define MVM_OP_scgetdesc 531
 
-MVMOpInfo * MVM_op_get_op(unsigned char op);
+MVMOpInfo * MVM_op_get_op(unsigned short op);
