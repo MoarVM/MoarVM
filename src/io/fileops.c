@@ -304,21 +304,18 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     return return_str;
 }
 
-static uv_buf_t tty_on_alloc(uv_handle_t *handle, size_t suggested_size) {
+static void tty_on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     const MVMint64 length = ((MVMOSHandleBody *)(handle->data))->length;
-    uv_buf_t buf;
 
-    buf.base = malloc(length);
-    buf.len = length;
-
-    return buf;
+    buf->base = malloc(length);
+    buf->len = length;
 }
 
-static void tty_on_read(uv_stream_t *handle, ssize_t nread, uv_buf_t buf) {
+static void tty_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
 
-    body->data = buf.base;
-    body->length = buf.len;
+    body->data = buf->base;
+    body->length = buf->len;
 }
 
 /* reads a string from a filehandle. */

@@ -44,14 +44,14 @@ MVMObject * MVM_socket_connect(MVMThreadContext *tc, MVMObject *type_object, MVM
         MVM_exception_throw_adhoc(tc, "Open socket needs a type object with MVMOSHandle REPR");
     }
 
-    dest = uv_ip4_addr(hostname_cstring, port);
+    uv_ip4_addr(hostname_cstring, port, &dest);
 
     free(hostname_cstring);
 
     socket = malloc(sizeof(uv_tcp_t));
     uv_tcp_init(tc->loop, socket);
 
-    if ((r = uv_tcp_connect(&connect, socket, dest, NULL)) < 0) {
+    if ((r = uv_tcp_connect(&connect, socket, &dest, NULL)) < 0) {
         MVM_exception_throw_adhoc(tc, "Open socket failed to connect: %s", uv_strerror(r));
     }
 
@@ -103,7 +103,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
 
     /* initialize the object */
     result    = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-    bind_addr = uv_ip4_addr(address_cstring, port);
+    uv_ip4_addr(address_cstring, port, &bind_addr);
 
     free(address_cstring);
 
@@ -112,7 +112,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
             MVMOSHandleBody * const body = &result->body;
             uv_tcp_t *server = malloc(sizeof(uv_tcp_t));
             uv_tcp_init(tc->loop, server);
-            uv_tcp_bind(server, bind_addr);
+            uv_tcp_bind(server, &bind_addr);
             body->handle = (uv_handle_t *)server;
             body->handle->data = body;   /* this is needed in tcp_stream_on_read function. */
             body->type = MVM_OSHANDLE_TCP;
@@ -123,7 +123,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
             MVMOSHandleBody * const body = &result->body;
             uv_udp_t *server = malloc(sizeof(uv_udp_t));
             uv_udp_init(tc->loop, server);
-            uv_udp_bind(server, bind_addr, 0);
+            uv_udp_bind(server, &bind_addr, 0);
             body->handle = (uv_handle_t *)server;
             body->handle->data = body;    /* this is needed in udp_stream_on_read function. */
             body->type = MVM_OSHANDLE_UDP;
@@ -202,29 +202,26 @@ MVMint64 MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMSt
     return (MVMint64)output_size;
 }
 
-static uv_buf_t stream_on_alloc(uv_handle_t *handle, size_t suggested_size) {
+static void stream_on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     const MVMint64 length = ((MVMOSHandleBody *)(handle->data))->length;
-    uv_buf_t buf;
 
-    buf.base = malloc(length);
-    buf.len = length;
-
-    return buf;
+    buf->base = malloc(length);
+    buf->len = length;
 }
 
-static void tcp_stream_on_read(uv_stream_t *handle, ssize_t nread, uv_buf_t buf) {
+static void tcp_stream_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
 
-    body->data = buf.base;
-    body->length = buf.len;
+    body->data = buf->base;
+    body->length = buf->len;
 }
 
-static void udp_stream_on_read(uv_udp_t *handle, ssize_t nread, uv_buf_t buf,
-    struct sockaddr* addr, unsigned flags) {
+static void udp_stream_on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf,
+    const struct sockaddr* addr, unsigned flags) {
     MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
 
-    body->data = buf.base;
-    body->length = buf.len;
+    body->data = buf->base;
+    body->length = buf->len;
 }
 
 /* reads a string from a filehandle. */
