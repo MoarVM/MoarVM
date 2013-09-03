@@ -559,7 +559,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         int        i;
 
         /* Look up opcode and get argument info. */
-        unsigned char op   = (unsigned char)o->op;
+        MVMuint16 op   = (MVMuint16)o->op;
         info = MVM_op_get_op(op);
         if (!info)
             DIE(vm, "Invalid op specified in instruction %d", op);
@@ -579,7 +579,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         /* Write opcode. */
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
-        write_int8(ws->bytecode_seg, ws->bytecode_pos++, op);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos++, op);
 
         /* Write operands. */
         for (i = 0; i < info->num_operands; i++)
@@ -616,7 +616,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         /* Emit callsite (may re-use existing one) and emit loading of it. */
         unsigned short callsite_id = get_callsite_id(vm, ws, c->flags);
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
-        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_prepargs);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_prepargs);
         write_int16(ws->bytecode_seg, ws->bytecode_pos, callsite_id);
         ws->bytecode_pos += 2;
 
@@ -633,7 +633,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             unsigned char flag = (unsigned char)ATPOS_I_C(vm, c->flags, flag_pos);
             if (flag & MVM_CALLSITE_ARG_NAMED) {
                 ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
-                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_argconst_s);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_argconst_s);
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_str, ATPOS(vm, c->args, arg_pos));
@@ -646,28 +646,28 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             /* Now go by flag type. */
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
             if (flag & MVM_CALLSITE_ARG_OBJ) {
-                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_o);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_o);
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj,
                     ATPOS(vm, c->args, arg_pos));
             }
             else if (flag & MVM_CALLSITE_ARG_STR) {
-                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_s);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_s);
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_str,
                     ATPOS(vm, c->args, arg_pos));
             }
             else if (flag & MVM_CALLSITE_ARG_INT) {
-                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_i);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_i);
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_int64,
                     ATPOS(vm, c->args, arg_pos));
             }
             else if (flag & MVM_CALLSITE_ARG_NUM) {
-                write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_n);
+                write_int16(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_arg_n);
                 write_int16(ws->bytecode_seg, ws->bytecode_pos, arg_pos);
                 ws->bytecode_pos += 2;
                 compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_num64,
@@ -729,7 +729,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         /* Emit the invocation op. */
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 6);
-        write_int8(ws->bytecode_seg, ws->bytecode_pos++, call_op);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos++, call_op);
         if (call_op != MVM_OP_invoke_v)
             compile_operand(vm, ws, MVM_operand_read_reg | res_type, c->result);
         compile_operand(vm, ws, MVM_operand_read_reg | MVM_operand_obj, c->target);
@@ -950,7 +950,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
                 && GET_Op(last_inst)->op != MVM_OP_return_o
             )) {
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
-        write_int8(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_return);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos++, MVM_OP_return);
     }
 
     /* Fill in bytecode length. */

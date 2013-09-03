@@ -1,7 +1,7 @@
 /* Representation for static code in the VM. */
 struct MVMStaticFrameBody {
     /* The start of the stream of bytecode for this routine. */
-    MVMuint16 *bytecode;
+    MVMuint8 *bytecode;
 
     /* The compilation unit this frame belongs to. */
     MVMCompUnit *cu;

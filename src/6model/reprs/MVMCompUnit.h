@@ -1,7 +1,7 @@
 /* Representation for a compilation unit in the VM. */
 struct MVMCompUnitBody {
     /* The start and size of the raw data for this compilation unit. */
-    MVMuint16  *data_start;
+    MVMuint8  *data_start;
     MVMuint32  data_size;
 
     /* The various static frames in the compilation unit, along with a

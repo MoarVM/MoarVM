@@ -18,10 +18,10 @@ static int tracing_enabled = 0;
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
     /* Points to the current opcode. */
-    MVMuint16 *cur_op = NULL;
+    MVMuint8 *cur_op = NULL;
 
     /* The current frame's bytecode start. */
-    MVMuint16 *bytecode_start = NULL;
+    MVMuint8 *bytecode_start = NULL;
 
     /* Points to the base of the current register set for the frame we
      * are presently in. */
@@ -48,6 +48,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
     /* Enter runloop. */
     while (1) {
+        const MVMuint16 op = *((MVMuint16 *)cur_op);
+
 #if MVM_TRACING
         if (tracing_enabled) {
             char *trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
@@ -56,8 +58,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             free(trace_line);
         }
 #endif
+        cur_op += 2;
+
         /* Primary dispatch by op. */
-        switch (*(cur_op++)) {
+        switch (op) {
             case MVM_OP_no_op:
                 break;
             case MVM_OP_goto:
