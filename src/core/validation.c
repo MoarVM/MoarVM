@@ -38,10 +38,10 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
 
     MVMCompUnit *cu = static_frame_body->cu;
     MVMuint32 bytecode_size = static_frame_body->bytecode_size;
-    MVMuint16 *bytecode_start = static_frame_body->bytecode;
-    MVMuint16 *bytecode_end = bytecode_start + bytecode_size;
+    MVMuint8 *bytecode_start = static_frame_body->bytecode;
+    MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
     /* current position in the bytestream */
-    MVMuint16 *cur_op = bytecode_start;
+    MVMuint8 *cur_op = bytecode_start;
     /* positions in the bytestream that are starts of ops and goto targets */
     MVMuint8 *labels = calloc(1, bytecode_size);
     MVMuint32 num_locals = static_frame_body->num_locals;
@@ -61,7 +61,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     /* printf("bytecode_size %d cur_op %d bytecode_end %d difference %d", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op)); */
     while (cur_op < bytecode_end - 1) {
         labels[cur_op - bytecode_start] |= MVM_val_op_boundary;
-        op_num = *(cur_op++);
+        op_num = *((MVMint16 *)cur_op);
+        cur_op += 2;
         operand_type_var = 0;
         op_info = MVM_op_get_op(op_num);
         if (!op_info) {
