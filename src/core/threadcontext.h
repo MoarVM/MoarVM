@@ -60,10 +60,10 @@ struct MVMThreadContext {
     MVMAllocationTarget allocate_in;
 
     /* Pointer to where the interpreter's current opcode is stored. */
-    MVMuint8 **interp_cur_op;
+    MVMuint16 **interp_cur_op;
 
     /* Pointer to where the interpreter's bytecode start pointer is stored. */
-    MVMuint8 **interp_bytecode_start;
+    MVMuint16 **interp_bytecode_start;
 
     /* Pointer to where the interpreter's base of the current register
      * set is stored. */

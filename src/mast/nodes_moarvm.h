@@ -24,7 +24,6 @@ typedef struct {
 /* MAST::Op */
 typedef struct {
     MVMP6opaque  p6o_header;
-    MVMint64     bank;
     MVMint64     op;
     MVMObject   *operands;
 } MAST_Op;

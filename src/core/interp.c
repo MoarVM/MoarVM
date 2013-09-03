@@ -18,10 +18,10 @@ static int tracing_enabled = 0;
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
     /* Points to the current opcode. */
-    MVMuint8 *cur_op = NULL;
+    MVMuint16 *cur_op = NULL;
 
     /* The current frame's bytecode start. */
-    MVMuint8 *bytecode_start = NULL;
+    MVMuint16 *bytecode_start = NULL;
 
     /* Points to the base of the current register set for the frame we
      * are presently in. */

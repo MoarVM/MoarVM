@@ -3160,7 +3160,7 @@ static MVMOpInfo MVM_op_infos[] = {
 static MVMuint16 MVM_op_counts = 525;
 
 MVMOpInfo * MVM_op_get_op(unsigned char op) {
-    if (op >= MVM_op_counts[op])
+    if (op >= MVM_op_counts)
         return NULL;
     return &MVM_op_infos[op];
 }

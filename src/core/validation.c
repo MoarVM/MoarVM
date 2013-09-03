@@ -38,16 +38,15 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
 
     MVMCompUnit *cu = static_frame_body->cu;
     MVMuint32 bytecode_size = static_frame_body->bytecode_size;
-    MVMuint8 *bytecode_start = static_frame_body->bytecode;
-    MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
+    MVMuint16 *bytecode_start = static_frame_body->bytecode;
+    MVMuint16 *bytecode_end = bytecode_start + bytecode_size;
     /* current position in the bytestream */
-    MVMuint8 *cur_op = bytecode_start;
+    MVMuint16 *cur_op = bytecode_start;
     /* positions in the bytestream that are starts of ops and goto targets */
-    MVMuint8 *labels = malloc(bytecode_size);
+    MVMuint8 *labels = calloc(1, bytecode_size);
     MVMuint32 num_locals = static_frame_body->num_locals;
     MVMuint32 branch_target;
-    MVMuint8 bank_num;
-    MVMuint8 op_num;
+    MVMuint16 op_num;
     MVMOpInfo *op_info;
     MVMuint32 operand_size;
     MVMuint16 operand_target;
@@ -59,28 +58,24 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     MVMuint32 operand_type_var;
     MVMint64 num_jumplist_labels = 0;
 
-    memset(labels, 0, bytecode_size);
-
     /* printf("bytecode_size %d cur_op %d bytecode_end %d difference %d", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op)); */
     while (cur_op < bytecode_end - 1) {
         labels[cur_op - bytecode_start] |= MVM_val_op_boundary;
-        bank_num = *(cur_op++);
         op_num = *(cur_op++);
         operand_type_var = 0;
-        op_info = MVM_op_get_op((unsigned char)bank_num, (unsigned char)op_num);
+        op_info = MVM_op_get_op(op_num);
         if (!op_info) {
             cleanup_all(tc, labels);
             MVM_exception_throw_adhoc(tc,
-                "Bytecode validation error: non-existent operation bank %u op %u",
-                bank_num, op_num);
+                "Bytecode validation error: non-existent operation op %u", op_num);
         }
         if (num_jumplist_labels != 0 && num_jumplist_labels-- != 0
-                && (bank_num != MVM_OP_BANK_primitives || op_num != MVM_OP_goto)) {
+                && op_num != MVM_OP_goto) {
             cleanup_all(tc, labels);
             MVM_exception_throw_adhoc(tc,
                 "jumplist op must be followed by an additional %d goto ops", num_jumplist_labels + 1);
         }
-        /*printf("validating op %s, (%d) bank %d", op_info->name, op_num, bank_num);*/
+        /*printf("validating op %s, (%d)", op_info->name, op_num);*/
         for (i = 0; i < op_info->num_operands; i++) {
             op_flags = op_info->operands[i];
             op_rw   = op_flags & MVM_operand_rw_mask;
@@ -92,7 +87,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
                     case MVM_operand_int32:     operand_size = 4; break;
                     case MVM_operand_int64:
                         operand_size = 8;
-                        if (bank_num == MVM_OP_BANK_primitives && op_num == MVM_OP_jumplist) {
+                        if (op_num == MVM_OP_jumplist) {
                             if (cur_op + operand_size > bytecode_end)
                                 throw_past_end(tc, labels);
                             num_jumplist_labels = GET_I64(cur_op, 0);
@@ -270,7 +265,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
     /* check that the last op is a return of some sort so we don't run off the */
     /* XXX TODO maybe also allow tailcalls of some sort, but currently compiler.c
      * adds the trailing return anyway, so... */
-    if (!bytecode_size || bank_num != MVM_OP_BANK_primitives
+    if (!bytecode_size
             || (   op_num != MVM_OP_return
                 && op_num != MVM_OP_return_i
                 && op_num != MVM_OP_return_n
