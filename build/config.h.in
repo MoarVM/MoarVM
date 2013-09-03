@@ -6,24 +6,6 @@
  * !!!
  */
 
- /* TODO: if we want something MVM_API for exporting.
-  * Please take a look at http://gcc.gnu.org/wiki/Visibility */
-
-/* This will eventually get really filled out from configuration.
- * For now, just hardcoded so more interesting things can be done. */
-
-/* Sized types. */
-#define MVMint8        signed char
-#define MVMuint8       unsigned char
-#define MVMint16       short
-#define MVMuint16      unsigned short
-#define MVMint32       int
-#define MVMuint32      unsigned int
-#define MVMint64       long long
-#define MVMuint64      unsigned long long
-#define MVMnum32       float
-#define MVMnum64       double
-
 /* Various compiler-specific pragmii. */
 #define MVM_NO_RETURN @noreturnspecifier@
 #define MVM_NO_RETURN_GCC @noreturnattribute@
