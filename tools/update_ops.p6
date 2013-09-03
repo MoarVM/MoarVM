@@ -16,6 +16,7 @@ sub MAIN($file = "src/core/oplist") {
     my $hf = open("src/core/ops.h", :w);
     $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $hf.say("");
+    $hf.say(opcode_defines(@ops)); 
     $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char op);');
     $hf.close;
 
@@ -34,7 +35,7 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $cf.say(opcode_details(@ops));
     $cf.say('MVMOpInfo * MVM_op_get_op(unsigned char op) {');
-    $cf.say('    if (op >= MVM_op_counts[op])');
+    $cf.say('    if (op >= MVM_op_counts)');
     $cf.say('        return NULL;');
     $cf.say('    return &MVM_op_infos[op];');
     $cf.say('}');
@@ -136,7 +137,7 @@ sub op_constants(@ops) {
         take '    my $MVM_operand_type_mask   := (15 * 8);';
         take '    our $allops := [';
         take join(",\n", gather {
-            for $ops -> $op {
+            for @ops -> $op {
                 my $operands = $op.operands.map(&operand_flags).join(",\n                    ");
                 $operands = $operands.subst('MVM', '$MVM', :g);
                 $operands = $operands.subst('|', '+|', :g);
@@ -151,12 +152,17 @@ sub op_constants(@ops) {
             }
         });
         take '    ];';
-        for @ops.kv -> $i, $op {
-            take '    for $allops[' ~ $i ~ '] -> $opname, $opdetails {';
-            take '        $' ~ '{$opname} := $opdetails;';
-            take '    }';
+    }
+}
+
+# Creates the #defines for the ops.
+sub opcode_defines(@ops) {
+    join "\n", gather {
+        take "/* Op name defines. */";
+        for @ops -> $op {
+            take "#define MVM_OP_$op.name() $op.code()";
         }
-        take '}';
+        take "";
     }
 }
 
@@ -175,7 +181,7 @@ sub opcode_details(@ops) {
             #else { take "        \{ }"; }
             take "    },"
         }
-        take "};";
+        take "};\n";
         take "static MVMuint16 MVM_op_counts = {+@ops};\n";
     }
 }
