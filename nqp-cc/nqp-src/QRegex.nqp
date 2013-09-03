@@ -551,8 +551,8 @@ role NQPCursorRole is export {
     # The array is valid until the next call to !cursor_start_all.
     my $NO_RESTART := 0;
     my $RESTART := 1;
-    my @start_result;
     method !cursor_start_all() {
+        my @start_result;
         my $new := nqp::create(self);
         my $sub := nqp::callercode();
         nqp::bindattr($new, $?CLASS, '$!shared', $!shared);
@@ -808,7 +808,7 @@ role NQPCursorRole is export {
 
     method !fresh_highexpect() {
         my @old := nqp::getattr($!shared, ParseShared, '@!highexpect');
-        nqp::bindattr($!shared, ParseShared, '@!highexpect', []);
+        nqp::bindattr($!shared, ParseShared, '@!highexpect', nqp::list_s());
         @old
     }
 
@@ -832,7 +832,7 @@ role NQPCursorRole is export {
             my int $litlen := $subcur.pos - $subcur.from;
             my str $target := nqp::getattr_s($!shared, ParseShared, '$!target');
             $cur."!cursor_pass"($!pos + $litlen, '')
-              if nqp::substr($target, $!pos, $litlen)
+              if nqp::substr($target, $!pos, $litlen) 
                    eq nqp::substr($target, $subcur.from, $litlen);
         }
         $cur;
@@ -843,7 +843,7 @@ role NQPCursorRole is export {
         my int $litlen := nqp::chars($str);
         my str $target := nqp::getattr_s($!shared, ParseShared, '$!target');
         $cur."!cursor_pass"($!pos + $litlen)
-          if $litlen < 1
+          if $litlen < 1 
               ||  ($i ?? nqp::lc(nqp::substr($target, $!pos, $litlen)) eq nqp::lc($str)
                       !! nqp::substr($target, $!pos, $litlen) eq $str);
         $cur;
@@ -858,7 +858,7 @@ role NQPCursorRole is export {
     method before($regex) {
         my int $orig_highwater := nqp::getattr_i($!shared, ParseShared, '$!highwater');
         my $orig_highexpect := nqp::getattr($!shared, ParseShared, '@!highexpect');
-        nqp::bindattr($!shared, ParseShared, '@!highexpect', []);
+        nqp::bindattr($!shared, ParseShared, '@!highexpect', nqp::list_s());
         my $cur := self."!cursor_start_cur"();
         nqp::bindattr_i($cur, $?CLASS, '$!pos', $!pos);
         nqp::getattr_i($regex($cur), $?CLASS, '$!pos') >= 0 ??
@@ -1074,7 +1074,7 @@ class NQPMatch is NQPCapture {
         if self.Bool() {
             my @chunks;
 
-            sub dump_match($key, $value) {
+            my sub dump_match(@chunks, $indent, $key, $value) {
                 nqp::push(@chunks, nqp::x(' ', $indent));
                 nqp::push(@chunks, '- ');
                 nqp::push(@chunks, $key);
@@ -1091,7 +1091,7 @@ class NQPMatch is NQPCapture {
                 }
             }
 
-            sub dump_match_array($key, @matches) {
+            my sub dump_match_array(@chunks, $indent, $key, @matches) {
                 nqp::push(@chunks, nqp::x(' ', $indent));
                 nqp::push(@chunks, '- ');
                 nqp::push(@chunks, $key);
@@ -1107,15 +1107,16 @@ class NQPMatch is NQPCapture {
             for self.list() {
                 if $_ {
                     nqp::islist($_)
-                        ?? dump_match_array($i, $_)
-                        !! dump_match($i, $_);
+                        ?? dump_match_array(@chunks, $indent, $i, $_)
+                        !! dump_match(@chunks, $indent, $i, $_);
                 }
+                $i := $i + 1;
             }
             for self.hash() {
                 if $_.value {
                     nqp::islist($_.value)
-                        ?? dump_match_array($_.key, $_.value)
-                        !! dump_match($_.key, $_.value);
+                        ?? dump_match_array(@chunks, $indent, $_.key, $_.value)
+                        !! dump_match(@chunks, $indent, $_.key, $_.value);
                 }
             }
             return join('', @chunks);
@@ -1128,17 +1129,19 @@ class NQPMatch is NQPCapture {
     method !dump_str($key) {
         sub dump_array($key, $item) {
             my $str := '';
-            if $item ~~ NQPCapture {
+            if nqp::istype($item, NQPCapture) {
                 $str := $str ~ $item."!dump_str"($key)
             }
-            elsif !nqp::isnull($item) {
+            elsif nqp::islist($item) {
+                $str := $str ~ "$key: list\n";
                 my $n := 0;
                 for $item { $str := $str ~ dump_array($key ~ "[$n]", $_); $n++ }
             }
             $str;
         }
         my $str := $key ~ ': ' ~ nqp::escape(self.Str) ~ ' @ ' ~ self.from ~ "\n";
-        $str := $str ~ dump_array($key, self.list);
+        my $n := 0;
+        for self.list { $str := $str ~ dump_array($key ~ '[' ~ $n ~ ']', $_); $n++ }
         for self.hash { $str := $str ~ dump_array($key ~ '<' ~ $_.key ~ '>', $_.value); }
         $str;
     }
@@ -1259,7 +1262,7 @@ class NQPRegexMethod {
     method new($code) {
         self.bless(:code($code));
     }
-    method ACCEPTS($target) {
+    multi method ACCEPTS(NQPRegexMethod:D $self: $target) {
         NQPCursor.parse($target, :rule(self))
     }
     method name() {
@@ -1272,7 +1275,7 @@ class NQPRegexMethod {
 nqp::setinvokespec(NQPRegexMethod, NQPRegexMethod, '$!code', nqp::null);
 
 class NQPRegex is NQPRegexMethod {
-    method ACCEPTS($target) {
+    multi method ACCEPTS(NQPRegex:D $self: $target) {
         NQPCursor.parse($target, :rule(self), :c(0))
     }
 }
