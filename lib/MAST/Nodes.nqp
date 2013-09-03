@@ -219,37 +219,31 @@ class MAST::Frame is MAST::Node {
     }
 }
 
-# An operation to be executed. Includes the operation code and the
-# operation bank it comes from. The operands must be either registers,
+# An operation to be executed. The operands must be either registers,
 # literals or labels (depending on what the instruction needs).
 class MAST::Op is MAST::Node {
-    has int $!bank;
     has int $!op;
     has @!operands;
 
-    method new(:$bank!, :$op!, *@operands) {
+    method new(:$op!, *@operands) {
         my $obj := nqp::create(self);
         for @operands {
             nqp::die("Operand not a MAST::Node") unless $_ ~~ MAST::Node;
         }
-        unless nqp::existskey(MAST::Ops.WHO, '$' ~ $bank) {
-            nqp::die("Invalid MAST op bank '$bank'");
-        }
-        unless nqp::existskey(MAST::Ops.WHO{'$' ~ $bank}, $op) {
+
+        unless nqp::existskey(MAST::Ops.WHO{'$allops'}, $op) {
             nqp::die("Invalid MAST op '$op'");
         }
-        nqp::bindattr_i($obj, MAST::Op, '$!bank', MAST::OpBanks.WHO{'$' ~ $bank});
-        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$' ~ $bank}{$op}{'code'});
+        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{$op}{'code'});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
         $obj
     }
 
-    method bank() { $!bank }
     method op() { $!op }
     method operands() { @!operands }
 
     method DUMP_lines(@lines, $indent) {
-        my $opname := MAST::Ops.WHO{'$allops'}[$!bank][$!op * 2];
+        my $opname := MAST::Ops.WHO{'$allops'}[$!op * 2];
         nqp::push(@lines, $indent~"MAST::Op: $opname, operands:");
         nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!operands;
     }
