@@ -100,16 +100,9 @@ class QAST::MASTOperations {
     my @kind_types := [0,1,1,1,1,2,2,3,4];
 
     method compile_mastop($qastcomp, $op, @args, :$returnarg = -1, :$opname = 'none', :$want) {
-        # Resolve the op.
-        my $bank := 0;
-        for MAST::Ops.WHO {
-            next if ~$_ eq '$allops';
-            $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
-        }
         $op := $op.name if nqp::istype($op, QAST::Op);
-        nqp::die("Unable to resolve MAST op '$op'") unless $bank;
 
-        my @operands := MAST::Ops.WHO{$bank}{$op}{"operands"};
+        my @operands := MAST::Ops.WHO{'$allops'}{$op}{"operands"};
         my $num_args := +@args;
         my $num_operands := +@operands;
         my $operand_num := 0;
@@ -232,7 +225,7 @@ class QAST::MASTOperations {
 
         # Add operation node.
         nqp::push(@all_ins, MAST::Op.new(
-            :bank(nqp::substr($bank, 1)), :op($op),
+            :op($op),
             |@arg_regs));
 
         # Build instruction list.
@@ -279,17 +272,8 @@ class QAST::MASTOperations {
     method moarop_mapper($moarop, $ret) {
         # do a little checking of input values
 
-        # Resolve the op.
-        my $bank;
-        my $self := self;
-        for MAST::Ops.WHO {
-            my $bankish := MAST::Ops.WHO{~$_};
-            $bank := ~$_ if nqp::ishash($bankish) && nqp::existskey($bankish, $moarop);
-        }
-        nqp::die("Unable to resolve moarop '$moarop'") unless $bank;
-
         if $ret != -1 {
-            my @operands := MAST::Ops.WHO{$bank}{$moarop}{"operands"};
+            my @operands := MAST::Ops.WHO{'$allops'}{$moarop}{"operands"};
             nqp::die("moarop $moarop return arg index out of range")
                 if $ret < -1 || $ret >= +@operands;
             nqp::die("moarop $moarop is not void")
@@ -981,7 +965,7 @@ QAST::MASTOperations.add_core_op('call', sub ($qastcomp, $op) {
         my $realname := nqp::substr($op.name, 8);
         return $qastcomp.as_mast(QAST::Op.new( :op($realname), |$op.list ));
     }
-    
+
     # Work out what callee is.
     my $callee;
     my @args := $op.list;
@@ -1394,7 +1378,7 @@ my %const_map := nqp::hash(
     'CCLASS_ALPHANUMERIC',  2048,
     'CCLASS_NEWLINE',       4096,
     'CCLASS_WORD',          8192,
-    
+
     'HLL_ROLE_NONE',        0,
     'HLL_ROLE_INT',         1,
     'HLL_ROLE_NUM',         2,
@@ -1402,7 +1386,7 @@ my %const_map := nqp::hash(
     'HLL_ROLE_ARRAY',       4,
     'HLL_ROLE_HASH',        5,
     'HLL_ROLE_CODE',        6,
-    
+
     'CONTROL_TAKE',         32,
     'CONTROL_LAST',         16,
     'CONTROL_NEXT',         4,
@@ -1410,7 +1394,7 @@ my %const_map := nqp::hash(
     'CONTROL_SUCCEED',      128,
     'CONTROL_PROCEED',      256,
     'CONTROL_WARN',         64,
-    
+
     'STAT_EXISTS',             0,
     'STAT_FILESIZE',           1,
     'STAT_ISDIR',              2,
@@ -1888,17 +1872,8 @@ sub resolve_condition_op($kind, $negated) {
 }
 
 sub push_op(@dest, $op, *@args) {
-    # Resolve the op.
-    my $bank;
-    for MAST::Ops.WHO {
-        next if ~$_ eq '$allops';
-        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
-    }
-    $op := $op.name if nqp::istype($op, QAST::Op);
-    nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
-#nqp::say($bank~"::"~$op);
     nqp::push(@dest, MAST::Op.new(
-        :bank(nqp::substr($bank, 1)), :op($op),
+        :op($op),
         |@args
     ));
 }

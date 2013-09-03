@@ -27,7 +27,6 @@ typedef struct {
 typedef struct {
     PMC    *st;
     PMC    *sc;
-    INTVAL  bank;
     INTVAL  op;
     PMC    *operands;
 } MAST_Op;

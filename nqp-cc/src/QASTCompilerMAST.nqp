@@ -246,7 +246,7 @@ class QAST::MASTCompiler {
 
     method to_mast($qast) {
         my $*MAST_COMPUNIT := MAST::CompUnit.new();
-        
+
         my $*file := nqp::ifnull(nqp::getlexdyn('$?FILES'), "<unknown file>");
 
         # map a QAST::Block's cuid to the MAST::Frame we
@@ -820,7 +820,7 @@ class QAST::MASTCompiler {
             # if this is the statement we've been asked to make the result
             if $result_count == $resultchild
             # or if we weren't given a particular result statement and we're on
-            # the last statement, 
+            # the last statement,
                     || $resultchild == -1 && $result_count == $final_stmt_idx {
                 # compile $_ with an explicit $want, either what's given or obj
                 $last_stmt := self.as_mast($_, :want($want // $MVM_reg_obj));
@@ -829,18 +829,18 @@ class QAST::MASTCompiler {
             else {
                 $last_stmt := self.as_mast($_);
             }
-            
+
             # Annotate with line number if we have one.
             if $_.node {
                 my $node := $_.node;
-                my $line := HLL::Compiler.lineof($node.orig(), $node.from(), :cache(1));            
+                my $line := HLL::Compiler.lineof($node.orig(), $node.from(), :cache(1));
                 nqp::push(@all_ins, MAST::Annotated.new(
                     :$*file, :$line, :instructions($last_stmt.instructions) ));
             }
             else {
                 nqp::splice(@all_ins, $last_stmt.instructions, +@all_ins, 0);
             }
-            
+
             if $use_result {
                 $result_stmt := $last_stmt;
             }
@@ -1194,7 +1194,7 @@ class QAST::MASTCompiler {
         my $reg := $*REGALLOC.fresh_i();
         MAST::InstructionList.new(
             [MAST::Op.new(
-                :bank('primitives'), :op('const_i64'),
+                :op('const_i64'),
                 $reg,
                 MAST::IVal.new( :value($iv.value) )
             )],
@@ -1206,7 +1206,7 @@ class QAST::MASTCompiler {
         my $reg := $*REGALLOC.fresh_n();
         MAST::InstructionList.new(
             [MAST::Op.new(
-                :bank('primitives'), :op('const_n64'),
+                :op('const_n64'),
                 $reg,
                 MAST::NVal.new( :value($nv.value) )
             )],
@@ -1218,7 +1218,7 @@ class QAST::MASTCompiler {
         my $reg := $*REGALLOC.fresh_s();
         MAST::InstructionList.new(
             [MAST::Op.new(
-                :bank('primitives'), :op('const_s'),
+                :op('const_s'),
                 $reg,
                 MAST::SVal.new( :value($val) )
             )],
@@ -1240,7 +1240,7 @@ class QAST::MASTCompiler {
         my $reg := $*REGALLOC.fresh_o();
         MAST::InstructionList.new(
             [MAST::Op.new(
-                :bank('primitives'), :op('getcode'),
+                :op('getcode'),
                 $reg,
                 $frame
             )],
@@ -1257,7 +1257,7 @@ class QAST::MASTCompiler {
         my $op     := $idx < 32768 ?? 'wval' !! 'wval_wide';
         MAST::InstructionList.new(
             [MAST::Op.new(
-                :bank('serialization'), :op($op),
+                :op($op),
                 $reg,
                 MAST::IVal.new( :value($sc_idx) ),
                 MAST::IVal.new( :value($idx) )
@@ -1300,17 +1300,9 @@ class QAST::MASTCompiler {
 
 #?start_redecl
 sub push_op(@dest, $op, *@args) {
-    # Resolve the op.
-    my $bank;
-    for MAST::Ops.WHO {
-        next if ~$_ eq '$allops';
-        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
-    }
     $op := $op.name if nqp::istype($op, QAST::Op);
-    nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
-#nqp::say($bank~"::"~$op);
     nqp::push(@dest, MAST::Op.new(
-        :bank(nqp::substr($bank, 1)), :op($op),
+        :op($op),
         |@args
     ));
 }
