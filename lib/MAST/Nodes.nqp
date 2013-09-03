@@ -234,7 +234,7 @@ class MAST::Op is MAST::Node {
         unless nqp::existskey(MAST::Ops.WHO{'$allops'}, $op) {
             nqp::die("Invalid MAST op '$op'");
         }
-        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{$op}{'code'});
+        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$allops'}{$op}{'code'});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
         $obj
     }
