@@ -8,7 +8,7 @@ class Op {
 }
 
 sub MAIN($file = "src/core/oplist") {
-    # Parse the ops file and get the various op banks.
+    # Parse the ops file to get the various ops.
     my @ops = parse_ops($file);
     say "Parsed {+@ops} total ops";
 
@@ -16,7 +16,6 @@ sub MAIN($file = "src/core/oplist") {
     my $hf = open("src/core/ops.h", :w);
     $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $hf.say("");
-    $hf.say(opcode_defines(@ops));
     $hf.say('MVMOpInfo * MVM_op_get_op(unsigned char op);');
     $hf.close;
 
@@ -35,9 +34,9 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $cf.say(opcode_details(@ops));
     $cf.say('MVMOpInfo * MVM_op_get_op(unsigned char op) {');
-    $cf.say('    if (bank >= MVM_op_banks || op >= MVM_opcounts_by_bank[bank])');
+    $cf.say('    if (op >= MVM_op_counts[op])');
     $cf.say('        return NULL;');
-    $cf.say('    return &MVM_op_info[bank][op];');
+    $cf.say('    return &MVM_op_infos[op];');
     $cf.say('}');
     $cf.close;
 
@@ -135,77 +134,47 @@ sub op_constants(@ops) {
         take '    my $MVM_operand_type_mask   := (15 * 8);';
         take '    our $allops := [';
         take join(",\n", gather {
-            for @banks -> $bank {
-                take "        [\n" ~ join(",\n", gather {
-                    for $bank.ops -> $op {
-                        my $operands = $op.operands.map(&operand_flags).join(",\n                    ");
-                        $operands = $operands.subst('MVM', '$MVM', :g);
-                        $operands = $operands.subst('|', '+|', :g);
-                        take join "\n", gather {
-                            take "            '$op.name()', nqp::hash(";
-                            take "                'code', $op.code(),";
-                            take "                'operands', [";
-                            take "                    $operands" if $operands;
-                            take "                ]";
-                            take "            )";
-                        };
-                    }
-                }) ~ "\n        ]";
+            for $ops -> $op {
+                my $operands = $op.operands.map(&operand_flags).join(",\n                    ");
+                $operands = $operands.subst('MVM', '$MVM', :g);
+                $operands = $operands.subst('|', '+|', :g);
+                take join "\n", gather {
+                    take "            '$op.name()', nqp::hash(";
+                    take "                'code', $op.code(),";
+                    take "                'operands', [";
+                    take "                    $operands" if $operands;
+                    take "                ]";
+                    take "            )";
+                };
             }
         });
         take '    ];';
-        for @banks.kv -> $i, $bank {
-            take "    our \$$bank.name() := nqp::hash();";
-            take '    for $allops['~$i~'] -> $opname, $opdetails {';
-            take '        $'~$bank.name()~'{$opname} := $opdetails;';
+        for @ops.kv -> $i, $op {
+            take '    for $allops[' ~ $i ~ '] -> $opname, $opdetails {';
+            take '        $' ~ '{$opname} := $opdetails;';
             take '    }';
         }
         take '}';
     }
 }
 
-# Creates the #defines for the ops.
-sub opcode_defines(@banks) {
-    join "\n", gather {
-        for @banks -> $b {
-            take "/* Op name defines for bank $b.name(). */";
-            for $b.ops -> $op {
-                take "#define MVM_OP_$op.name() $op.code()";
-            }
-            take "";
-        }
-    }
-}
-
 # Creates the static array of opcode info.
-sub opcode_details(@banks) {
+sub opcode_details(@ops) {
     join "\n", gather {
-        for @banks -> $b {
-            take "static MVMOpInfo MVM_op_info_{$b.name()}[] = \{";
-            for $b.ops -> $op {
-                take "    \{";
-                take "        MVM_OP_$op.name(),";
-                take "        \"$op.name()\",";
-                take "        $op.operands.elems(),";
-                if $op.operands {
-                    take "        \{ $op.operands.map(&operand_flags).join(', ') }";
-                }
-                #else { take "        \{ }"; }
-                take "    },"
+        take "static MVMOpInfo MVM_op_infos[] = \{";
+        for @ops -> $op {
+            take "    \{";
+            take "        MVM_OP_$op.name(),";
+            take "        \"$op.name()\",";
+            take "        $op.operands.elems(),";
+            if $op.operands {
+                take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }
-            take "};";
+            #else { take "        \{ }"; }
+            take "    },"
         }
-        take "\nstatic MVMOpInfo *MVM_op_info[] = \{";
-        for @banks -> $b {
-            take "    MVM_op_info_{$b.name()},";
-        }
-        take "\};\n";
-        take "static unsigned char MVM_op_banks = {+@banks};\n";
-        take "static unsigned char MVM_opcounts_by_bank[] = \{";
-        for @banks -> $b {
-            take "    {+$b.ops},";
-        }
-        take "\};\n";
+        take "};";
+        take "static MVMuint16 MVM_op_counts = {+@ops};\n";
     }
 }
 
