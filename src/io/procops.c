@@ -58,7 +58,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
 
-        env_hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+        env_hash = MVM_repr_alloc_init(tc,  MVM_hll_current(tc)->slurpy_hash_type);
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
 
         while ((env = environ[pos++]) != NULL) {
@@ -89,7 +89,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         }
 
         MVM_gc_root_temp_pop_n(tc, 2);
-        
+
         tc->instance->env_hash = env_hash;
     }
     return env_hash;
@@ -142,8 +142,6 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         });
 
         instance->clargs = clargs;
-
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->clargs);
     }
     return instance->clargs;
 }
