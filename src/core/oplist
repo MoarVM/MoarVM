@@ -1,4 +1,3 @@
-BANK 0 primitives
 0x00    no_op
 0x01    goto                ins
 0x02    if_i                r(int64) ins
@@ -183,11 +182,9 @@ BANK 0 primitives
 0xB5    compunitmainline    w(obj) r(obj)
 0xB6    compunitcodes       w(obj) r(obj)
 
-BANK 1 dev
 0x00    sleep               r(int64)
 0x01    say_I               r(obj)
 
-BANK 2 string
 0x00    concat_s            w(str) r(str) r(str)
 0x01    repeat_s            w(str) r(str) r(int64)
 0x02    substr_s            w(str) r(str) r(int64) r(int64)
@@ -242,7 +239,6 @@ BANK 2 string
 0x33    radix               w(obj) r(int64) r(str) r(int64) r(int64)
 0x34    eqatic_s            w(int64) r(str) r(str) r(int64)
 
-BANK 3 math
 0x00    sin_n               w(num64) r(num64)
 0x01    asin_n              w(num64) r(num64)
 0x02    cos_n               w(num64) r(num64)
@@ -301,7 +297,6 @@ BANK 3 math
 0x37    log_n               w(num64) r(num64)
 0x38    exp_n               w(num64) r(num64)
 
-BANK 4 object
 0x00    knowhow             w(obj)
 0x01    findmeth            w(obj) r(obj) str
 0x02    findmeth_s          w(obj) r(obj) r(str)
@@ -443,7 +438,6 @@ BANK 4 object
 0x8A    getstaticcode       w(obj) r(obj)
 0x8B    getcodecuid         w(str) r(obj)
 
-BANK 5 io
 0x00    copy_f              r(str) r(str)
 0x01    append_f            r(str) r(str)
 0x02    rename_f            r(str) r(str)
@@ -494,7 +488,6 @@ BANK 5 io
 0x2F    readline_fh         w(str) r(obj)
 0x30    readlineint_fh      w(str) r(obj) r(str)
 
-BANK 6 processthread
 0x00    procshell           w(obj) r(str)
 0x01    procshellbg         w(obj) r(str)
 0x02    procrun             w(obj) r(str)
@@ -517,7 +510,6 @@ BANK 6 processthread
 0x13    getenvhash          w(obj)
 0x14    compilemasttofile   r(obj) r(str)
 
-BANK 7 serialization
 0x00    sha1                w(str) r(str)
 0x01    createsc            w(obj) r(str)
 0x02    scsetobj            r(obj) r(int64) r(obj)

@@ -53,6 +53,7 @@ sub MAIN($file = "src/core/oplist") {
 # Parses ops and produces a bunch of Op and Bank objects.
 sub parse_ops($file) {
     my @ops;
+    my int $i = 0;
     for lines($file.IO) -> $line {
         if $line ~~ /^\#/ {
             # comments is ignored.
@@ -60,11 +61,12 @@ sub parse_ops($file) {
         elsif $line !~~ /^\s*$/ {
             my ($code, $name, @operands) = $line.split(/\s+/);
             @ops.push(Op.new(
-                code     => :16($code.substr(2)),
+                code     => $i,
                 name     => $name,
                 operands => @operands
             ));
         }
+        $i = $i + 1;
     }
     return @ops;
 }
