@@ -272,8 +272,10 @@ class QAST::MASTOperations {
     method moarop_mapper($moarop, $ret) {
         # do a little checking of input values
 
+        my $self := self;
+
         if $ret != -1 {
-            my @operands := MAST::Ops.WHO{'$allops'}{$moarop}{"operands"};
+            my @operands := MAST::Ops.WHO{'$allops'}{$moarop}{'operands'};
             nqp::die("moarop $moarop return arg index out of range")
                 if $ret < -1 || $ret >= +@operands;
             nqp::die("moarop $moarop is not void")

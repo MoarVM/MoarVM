@@ -16,7 +16,7 @@ sub MAIN($file = "src/core/oplist") {
     my $hf = open("src/core/ops.h", :w);
     $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $hf.say("");
-    $hf.say(opcode_defines(@ops)); 
+    $hf.say(opcode_defines(@ops));
     $hf.say('MVMOpInfo * MVM_op_get_op(unsigned short op);');
     $hf.close;
 
@@ -135,7 +135,7 @@ sub op_constants(@ops) {
         take '    my $MVM_operand_coderef     := (12 * 8);';
         take '    my $MVM_operand_callsite    := (13 * 8);';
         take '    my $MVM_operand_type_mask   := (15 * 8);';
-        take '    our $allops := [';
+        take '    our $allops := nqp::hash(';
         take join(",\n", gather {
             for @ops -> $op {
                 my $operands = $op.operands.map(&operand_flags).join(",\n                    ");
@@ -151,7 +151,7 @@ sub op_constants(@ops) {
                 };
             }
         });
-        take '    ];';
+        take '    );';
         take '}';
     }
 }

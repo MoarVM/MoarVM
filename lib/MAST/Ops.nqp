@@ -61,7 +61,7 @@ class MAST::Ops {
     my $MVM_operand_coderef     := (12 * 8);
     my $MVM_operand_callsite    := (13 * 8);
     my $MVM_operand_type_mask   := (15 * 8);
-    our $allops := [
+    our $allops := nqp::hash(
             'no_op', nqp::hash(
                 'code', 0,
                 'operands', [
@@ -3961,5 +3961,5 @@ class MAST::Ops {
                     $MVM_operand_read_reg +| $MVM_operand_obj
                 ]
             )
-    ];
+    );
 }
