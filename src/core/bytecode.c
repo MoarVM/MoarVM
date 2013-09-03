@@ -537,12 +537,13 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
  * has more than just the executive bytecode, but also various declarations,
  * like frames). Unpacks it and populates the compilation unit. */
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
+    ReaderState *rs;
+    MVMCompUnitBody *cu_body = &cu->body;
     /* Allocate directly in generation 2 so the object is not moving around. */
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Dissect the bytecode into its parts. */
-    ReaderState *rs = dissect_bytecode(tc, cu);
-    MVMCompUnitBody *cu_body = &cu->body;
+    rs = dissect_bytecode(tc, cu);
 
     /* Load the strings heap. */
     cu_body->strings = deserialize_strings(tc, cu, rs);
