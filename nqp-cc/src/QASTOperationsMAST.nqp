@@ -1874,6 +1874,8 @@ sub resolve_condition_op($kind, $negated) {
 }
 
 sub push_op(@dest, $op, *@args) {
+    $op := $op.name if nqp::istype($op, QAST::Op);
+
     nqp::push(@dest, MAST::Op.new(
         :op($op),
         |@args
