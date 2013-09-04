@@ -1109,8 +1109,8 @@ static MVMOpInfo MVM_op_info_primitives[] = {
 };
 static MVMOpInfo MVM_op_info_dev[] = {
     {
-        MVM_OP_sleep,
-        "sleep",
+        MVM_OP_microsleep,
+        "microsleep",
         1,
         { MVM_operand_read_reg | MVM_operand_int64 }
     },
@@ -3047,6 +3047,12 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         2,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_sleep,
+        "sleep",
+        2,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
 };
 static MVMOpInfo MVM_op_info_serialization[] = {
     {
@@ -3191,7 +3197,7 @@ static unsigned char MVM_opcounts_by_bank[] = {
     57,
     140,
     49,
-    21,
+    22,
     20,
 };
 

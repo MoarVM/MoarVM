@@ -36,7 +36,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'const_s', $r0, sval('In new thread'));
             op(@ins, 'say', $r0);
             op(@ins, 'const_i64', $r1, ival(1000000));
-            op(@ins, 'sleep', $r1);
+            op(@ins, 'microsleep', $r1);
             op(@ins, 'const_s', $r0, sval('In new thread after sleep'));
             op(@ins, 'say', $r0);
             op(@ins, 'return');
@@ -58,11 +58,11 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread, $code, $type);
         op(@ins, 'const_i64', $time, ival(500000));
-        op(@ins, 'sleep', $time);
+        op(@ins, 'microsleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread'));
         op(@ins, 'say', $str);
         op(@ins, 'const_i64', $time, ival(1000000));
-        op(@ins, 'sleep', $time);
+        op(@ins, 'microsleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread at end'));
         op(@ins, 'say', $str);
         op(@ins, 'return');
@@ -103,7 +103,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread, $code, $type);
         op(@ins, 'const_i64', $time, ival(500000));
-        op(@ins, 'sleep', $time);
+        op(@ins, 'microsleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread at end'));
         op(@ins, 'say', $str);
         op(@ins, 'return');
@@ -120,7 +120,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             op(@ins, 'const_s', $r0, sval('In new thread'));
             op(@ins, 'say', $r0);
             op(@ins, 'const_i64', $r1, ival(200000));
-            op(@ins, 'sleep', $r1);
+            op(@ins, 'microsleep', $r1);
             op(@ins, 'const_s', $r0, sval('In new thread after sleep'));
             op(@ins, 'say', $r0);
             op(@ins, 'return');

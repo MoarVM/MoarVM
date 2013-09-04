@@ -1,5 +1,6 @@
 #include "moarvm.h"
 #include "math.h"
+#include "platform/time.h"
 
 /* Macros for getting things from the bytecode stream. */
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
@@ -1236,11 +1237,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             /* Development operations. */
             case MVM_OP_BANK_dev: {
                 switch (*(cur_op++)) {
-                    case MVM_OP_sleep: {/* microseconds for now */
+                    case MVM_OP_microsleep:
                         MVM_platform_sleep(GET_REG(cur_op, 0).ui64 * 1000);
                         cur_op += 2;
                         break;
-                    }
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",
                                 MVM_OP_BANK_dev, *(cur_op-1));
@@ -3188,6 +3188,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     case MVM_OP_getenvhash:
                         GET_REG(cur_op, 0).o = MVM_proc_getenvhash(tc);
                         cur_op += 2;
+                        break;
+                    case MVM_OP_sleep:
+                        GET_REG(cur_op, 0).n64 = MVM_proc_sleep(tc, GET_REG(cur_op, 2).n64);
+                        cur_op += 4;
                         break;
                     default: {
                         MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) bank %u opcode %u",

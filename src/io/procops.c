@@ -1,6 +1,8 @@
 #include "moarvm.h"
 #include "platform/time.h"
 
+#include <math.h>
+
 /* MSVC compilers know about environ,
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
 #ifndef _WIN32
@@ -181,6 +183,15 @@ MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
 /* gets the system time since the epoch as floating point seconds */
 MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
     return (MVMnum64)MVM_platform_now() / 1000000000.0;
+}
+
+MVMnum64 MVM_proc_sleep(MVMThreadContext *tc, MVMnum64 seconds)
+{
+    MVMuint64 start, end;
+    start = MVM_platform_now();
+    MVM_platform_sleep((MVMuint64)ceil(seconds * 1e9));
+    end = MVM_platform_now();
+    return (end - start) / 1e9;
 }
 
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {

@@ -40,7 +40,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         nqp::push(@ins, $loop);
         op(@ins, 'mod_i', $modulus, $counter, $divisor);
         op(@ins, 'if_i', $modulus, $skipsleep);
-        op(@ins, 'sleep', $sleepms);
+        op(@ins, 'microsleep', $sleepms);
         nqp::push(@ins, $skipsleep);
         op(@ins, 'dec_i', $counter);
         op(@ins, 'if_i', $counter, $loop);
@@ -70,7 +70,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
             ));
         op(@ins, 'mod_i', $modulus, $counter, $divisor);
         op(@ins, 'if_i', $modulus, $skipsleep);
-        op(@ins, 'sleep', $sleepms);
+        op(@ins, 'microsleep', $sleepms);
         nqp::push(@ins, $skipsleep);
         op(@ins, 'dec_i', $counter);
         op(@ins, 'if_i', $counter, $loop);
