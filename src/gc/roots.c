@@ -44,6 +44,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->hll_syms);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
+    MVM_gc_worklist_add(tc, worklist, &tc->instance->env_hash);
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
@@ -205,6 +206,21 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &frame->work[i].o);
+    }
+    
+    /* Scan arg buffer if needed. */
+    if (frame->args && frame->cur_args_callsite) {
+        flag_map = frame->cur_args_callsite->arg_flags;
+        count = frame->cur_args_callsite->arg_count;
+        for (i = 0, flag = 0; i < count; i++, flag++) {
+            if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
+                /* Current position is name, then next is value. */
+                MVM_gc_worklist_add(tc, worklist, &frame->args[i].s);
+                i++;
+            }
+            if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
+                MVM_gc_worklist_add(tc, worklist, &frame->args[i].o);
+        }
     }
 
     /* Scan lexicals. */

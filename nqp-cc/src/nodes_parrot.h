@@ -27,7 +27,6 @@ typedef struct {
 typedef struct {
     PMC    *st;
     PMC    *sc;
-    INTVAL  bank;
     INTVAL  op;
     PMC    *operands;
 } MAST_Op;
@@ -209,7 +208,7 @@ typedef STRING VMSTR;
 
 /* Information about an opcode. */
 typedef struct _MVMOpInfo {
-    unsigned char  opcode;
+    unsigned short opcode;
     const char    *name;
     unsigned char  num_operands;
     unsigned char  operands[MVM_MAX_OPERANDS];

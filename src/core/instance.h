@@ -116,6 +116,9 @@ struct MVMInstance {
     const char     *prog_name;
     /* cached parsed command line args */
     MVMObject      *clargs;
+    
+    /* Cached environment. */
+    MVMObject *env_hash;
 
     /* Hash of HLLConfig objects. */
     MVMHLLConfig *hll_configs;
@@ -133,8 +136,8 @@ struct MVMInstance {
     MVMObject          *hll_syms;
     uv_mutex_t    mutex_hll_syms;
 
-    /* mutex for container registry */
-    uv_mutex_t    mutex_container_registry;
+    MVMContainerRegistry *container_registry;     /* Container registry */
+    uv_mutex_t      mutex_container_registry;     /* mutex for container registry */
 
     /* Hash of all known serialization contexts. Marked for GC iff
      * the item is unresolved. */

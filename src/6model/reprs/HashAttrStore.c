@@ -45,9 +45,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         size_t klen;
         void *kdata;
         MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
-        new_entry->key = current->key;
-        new_entry->value = current->value;
-        extract_key(tc, &kdata, &klen, current->key);
+        MVM_ASSIGN_REF(tc, dest_root, new_entry->key, current->key);
+        MVM_ASSIGN_REF(tc, dest_root, new_entry->value, current->value);
+        extract_key(tc, &kdata, &klen, new_entry->key);
 
         HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
     }
@@ -116,8 +116,8 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         }
         else
             entry->hash_handle.key = (void *)kdata;
-        entry->key = (MVMObject *)name;
-        entry->value = value_reg.o;
+        MVM_ASSIGN_REF(tc, root, entry->key, (MVMObject *)name);
+        MVM_ASSIGN_REF(tc, root, entry->value, value_reg.o);
     }
     else {
         MVM_exception_throw_adhoc(tc,

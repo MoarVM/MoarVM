@@ -1,9 +1,40 @@
 #! nqp
 
-plan(20);
+# Test nqp::op file operations.
+
+plan(40);
+
+ok( nqp::stat('t/nqp/CREDITS', nqp::const::STAT_EXISTS) == 1, 'nqp::stat exists');
+ok( nqp::stat('AARDVARKS', nqp::const::STAT_EXISTS) == 0, 'nqp::stat not exists');
+
+ok( nqp::stat('t', nqp::const::STAT_ISDIR) == 1, 'nqp::stat is directory');
+ok( nqp::stat('t/nqp/CREDITS', nqp::const::STAT_ISDIR) == 0, 'nqp::stat not directory');
+
+ok( nqp::stat('t/nqp/CREDITS', nqp::const::STAT_ISREG) == 1, 'nqp::stat is regular file');
+ok( nqp::stat('t', nqp::const::STAT_ISREG) == 0, 'nqp::stat not regular file');
+
+my $credits := nqp::open('t/nqp/CREDITS', 'r');
+ok( $credits, 'nqp::open for read');
+ok( nqp::tellfh($credits) == 0, 'nqp::tellfh start of file');
+my $line := nqp::readlinefh($credits);
+ok( nqp::chars($line) == 5, 'nqp::readlinefh line to read'); # =pod\n
+ok( nqp::tellfh($credits) == 5, 'nqp::tellfh line two');
+my $rest := nqp::readallfh($credits);
+ok( nqp::chars($rest) > 100, 'nqp::readallfh lines to read');
+ok( nqp::tellfh($credits) == nqp::chars($line) + nqp::chars($rest), 'nqp::tellfh end of file');
+
+ok( nqp::chars(nqp::readlinefh($credits)) == 0, 'nqp::readlinefh end of file');
+ok( nqp::chars(nqp::readlinefh($credits)) == 0, 'nqp::readlinefh end of file repeat');
+ok( nqp::chars(nqp::readallfh($credits)) == 0, 'nqp::readallfh end of file');
+ok( nqp::chars(nqp::readlinefh($credits)) == 0, 'nqp::readlinefh end of file repeat');
+ok( nqp::defined(nqp::closefh($credits)), 'nqp::closefh');
+
+ok( nqp::defined(nqp::getstdin()), 'nqp::getstdin');
+ok( nqp::defined(nqp::getstdout()), 'nqp::getstdout');
+ok( nqp::defined(nqp::getstderr()), 'nqp::getstderr');
 
 ## open, printfh, readallfh, closefh
-my $test-file := 'test-nqp-73';
+my $test-file := 'test-nqp-19';
 nqp::unlink($test-file) if nqp::stat($test-file, 0); # XXX let mvm die on nonexistent file
 
 my $fh := nqp::open($test-file, 'w');
@@ -77,14 +108,10 @@ nqp::chdir('..');
 nqp::rmdir($test-file ~ '-dir');
 nqp::unlink($test-file);
 
-$fh := nqp::open('t/nqp/77-readline.txt', 'r');
-ok(nqp::readlinefh($fh) eq 'line1', 'reading a line till CR');
-ok(nqp::readlinefh($fh) eq 'line2', 'reading a line till CRLF');
-ok(nqp::readlinefh($fh) eq 'line3', 'reading a line till LF');
-ok(nqp::readlinefh($fh) eq '',      'reading an empty line');
-ok(nqp::readlinefh($fh) eq 'line4', 'reading a line till EOF');
+$fh := nqp::open('t/nqp/19-readline.txt', 'r');
+ok(nqp::readlinefh($fh) eq "line1\r",   'reading a line till CR');
+ok(nqp::readlinefh($fh) eq "line2\r\n", 'reading a line till CRLF');
+ok(nqp::readlinefh($fh) eq "line3\n",   'reading a line till LF');
+ok(nqp::readlinefh($fh) eq "\n",          'reading an empty line');
+ok(nqp::readlinefh($fh) eq "line4",     'reading a line till EOF');
 nqp::closefh($fh);
-
-
-# vim: ft=perl6
-

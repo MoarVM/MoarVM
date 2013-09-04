@@ -1,6 +1,8 @@
 #include "moarvm.h"
 #include "platform/time.h"
 
+#include <math.h>
+
 /* MSVC compilers know about environ,
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
 #ifndef _WIN32
@@ -47,11 +49,10 @@ static char* ANSIToUTF8(MVMuint16 acp, const char* str)
 #endif
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
-    static MVMObject *env_hash;
-
+    MVMObject *env_hash = tc->instance->env_hash;
     if (!env_hash) {
 #ifdef _WIN32
-        MVMuint16     acp = GetACP(); /* We should get ACP at runtime. */
+        const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
 #endif
         MVMuint32     pos = 0;
         MVMString *needle = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "=", 1, MVM_encoding_type_ascii);
@@ -59,7 +60,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
 
-        env_hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+        env_hash = MVM_repr_alloc_init(tc,  MVM_hll_current(tc)->slurpy_hash_type);
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
 
         while ((env = environ[pos++]) != NULL) {
@@ -90,8 +91,75 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         }
 
         MVM_gc_root_temp_pop_n(tc, 2);
+
+        tc->instance->env_hash = env_hash;
     }
     return env_hash;
+}
+
+MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
+    MVMint64 result;
+    uv_process_t process;
+    uv_process_options_t process_options;
+    char   *args[4];
+    int i;
+
+    char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
+    const MVMuint64     size = MVM_repr_elems(tc, env);
+    char              **_env = malloc((size + 1) * sizeof(char *));
+    MVMIter    * const  iter = (MVMIter *)MVM_iter(tc, env);
+    MVMString  * const equal = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "=");
+
+#ifdef _WIN32
+    const char     comspec[] = "ComSpec";
+    const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
+    wchar_t * const wcomspec = ANSIToUnicode(acp, comspec);
+    wchar_t * const     wcmd = _wgetenv(wcomspec);
+    char    * const     _cmd = UnicodeToUTF8(wcmd);
+
+    free(wcomspec);
+
+    args[0] = _cmd;
+    args[1] = "/c";
+    args[2] = cmdin;
+    args[3] = NULL;
+#else
+    char sh[] = "/bin/sh";
+    args[0]   = sh;
+    args[1]   = "-c";
+    args[2]   = cmdin;
+    args[3]   = NULL;
+#endif
+    MVMROOT(tc, iter, {
+        i = 0;
+        while(MVM_iter_istrue(tc, iter)) {
+            MVMRegister value;
+            MVMString *env_str;
+            REPR(iter)->pos_funcs->shift(tc, STABLE(iter), (MVMObject *)iter, OBJECT_BODY(iter), &value, MVM_reg_obj);
+            env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, (MVMIter *)value.o), equal);
+            env_str = MVM_string_concatenate(tc, env_str, (MVMString *)MVM_iterval(tc, (MVMIter *)value.o));
+            _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str);
+        }
+        _env[size] = NULL;
+    });
+
+    process_options.args  = args;
+    process_options.cwd   = MVM_string_utf8_encode_C_string(tc, cwd);
+    process_options.flags = UV_PROCESS_DETACHED | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env   = _env;
+    result = uv_spawn(tc->loop, &process, &process_options);
+
+    free(cmdin);
+    i = 0;
+    while(_env[i])
+        free(_env[i++]);
+
+    free(_env);
+
+#ifdef _WIN32
+    free(_cmd);
+#endif
+    return result;
 }
 
 /* generates a random MVMint64, supposedly. */
@@ -109,7 +177,7 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
 
 /* gets the system time since the epoch truncated to integral seconds */
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
-    return MVM_platform_now() / 1000000000;
+    return (MVMint64)(MVM_platform_now() / 1000000000);
 }
 
 /* gets the system time since the epoch as floating point seconds */
@@ -141,8 +209,6 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         });
 
         instance->clargs = clargs;
-
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->clargs);
     }
     return instance->clargs;
 }

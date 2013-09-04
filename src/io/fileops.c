@@ -222,7 +222,6 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMint32 bytes_read = 0;
     MVMint32 step_back  = 0; /* total reads = bytes_read + step_back */
-    MVMuint8 linebreaks = 0;
     MVMString *result;
     MVMOSHandle *handle;
     uv_fs_t req;
@@ -232,21 +231,19 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     verify_filehandle_type(tc, oshandle, &handle, "readline from filehandle");
 
     while (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0) {
-        if (ch == 10 || ch == 13) {
-            linebreaks++;
-            step_back++;
-            break;
-        }
-
         bytes_read++;
+
+        if (ch == 10 || ch == 13)
+            break;
     }
 
     /* have a look if it is a windows newline. */
     if (ch == 13) {
         if (uv_fs_read(tc->loop, &req, handle->body.fd, &ch, 1, -1, NULL) > 0 && ch == 10) {
-            linebreaks++;
+            bytes_read++;
+        } else {
+            step_back++;
         }
-        step_back++;
     }
 
     MVM_file_seek(tc, oshandle, -bytes_read - step_back, SEEK_CUR);
@@ -257,9 +254,6 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
         free(buf);
         MVM_exception_throw_adhoc(tc, "readline from filehandle failed: %s", uv_strerror(req.result));
     }
-
-    /* ignores line break. */
-    MVM_file_seek(tc, oshandle, linebreaks, SEEK_CUR);
 
                                                /* XXX should this take a type object? */
     result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
@@ -310,21 +304,18 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     return return_str;
 }
 
-static uv_buf_t tty_on_alloc(uv_handle_t *handle, size_t suggested_size) {
+static void tty_on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     const MVMint64 length = ((MVMOSHandleBody *)(handle->data))->length;
-    uv_buf_t buf;
 
-    buf.base = malloc(length);
-    buf.len = length;
-
-    return buf;
+    buf->base = malloc(length);
+    buf->len = length;
 }
 
-static void tty_on_read(uv_stream_t *handle, ssize_t nread, uv_buf_t buf) {
+static void tty_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
 
-    body->data = buf.base;
-    body->length = buf.len;
+    body->data = buf->base;
+    body->length = buf->len;
 }
 
 /* reads a string from a filehandle. */

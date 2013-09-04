@@ -1,0 +1,64 @@
+=pod
+
+    Following in the steps of other open source projects that
+    eventually take over the world, here is the partial list
+    of people who have contributed to Rakudo and its supporting
+    works.  It is sorted by name and formatted to allow easy
+    grepping and beautification by scripts.
+    The fields are: name (N), email (E), web-address (W),
+    description (D), GitHub username (U) and snail-mail
+    address (S).
+
+        Thanks,
+
+        The NQP Team
+        PS: Yes, this looks remarkably like the Linux CREDITS format
+        PPS: This file is encoded in UTF-8
+
+----------
+N: Daniel Arbelo Arrocha
+U: darbelo
+E: arbelo@gmail.com
+D: Minor code contributions (plumage)
+
+N: Geoff Broadwell
+U: japhb
+E: geoff@broadwell.org
+D: Initial design and implementation of Plumage.
+
+N: Jonathan "Duke" Leto
+U: leto
+D: Perl 6 (Rakudo Perl) developer
+E: jonathan@leto.net
+
+N: Jonathan Scott Duff
+U: perlpilot
+D: Perl 6 (Rakudo Perl) developer
+E: duff@pobox.com
+
+N: Jonathan Worthington
+U: jnthn
+D: Replacing object model with 6model, new multi-dispatcher
+E: jnthn@jnthn.net
+
+N: Patrick R. Michaud
+U: pmichaud
+D: Perl 6 (Rakudo Perl) lead developer, pumpking
+E: pmichaud@pobox.com
+
+N: Stefan O'Rear
+U: sorear
+D: Lexical persistance, POD, and other miscellaneous contributions
+E: stefanor@cox.net
+
+N: Stephen Weeks
+U: tene
+E: tene@allalone.org
+D: Assorted contributions (plumage)
+
+N: Vasily Chekalkin
+U: bacek
+D: Work on bringing Settings to NQP based on Plumage's NQPUtils.
+E: bacek@bacek.com
+
+=cut

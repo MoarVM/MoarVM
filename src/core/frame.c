@@ -135,10 +135,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->work = NULL;
     }
 
-    /* Calculate args buffer position. */
+    /* Calculate args buffer position and make sure current call site starts
+     * empty. */
     frame->args = static_frame_body->work_size ?
         frame->work + static_frame_body->num_locals :
         NULL;
+    frame->cur_args_callsite = NULL;
 
     /* Outer. */
     if (outer) {
@@ -253,6 +255,9 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     if (prior)
         MVM_frame_dec_ref(tc, prior);
 
+    /* Arguments buffer no longer in use (saves GC visiting it). */
+    returner->cur_args_callsite = NULL;
+    
     /* Clear up argument processing leftovers, if any. */
     if (returner->work) {
         MVM_args_proc_cleanup_for_cache(tc, &returner->params);
@@ -358,7 +363,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type) {
-    MVMFrame *cur_frame = tc->cur_frame;
+    MVMFrame *cur_frame = tc->cur_frame->caller;
     if (!name) {
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     }

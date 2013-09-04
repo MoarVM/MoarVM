@@ -95,14 +95,9 @@ sub qast_test($qast_builder, *@pos, *%named) is export {
 }
 
 sub op(@ins, $op, *@args) is export {
-    my $bank;
-    for MAST::Ops.WHO {
-        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
-    }
-    nqp::die("unable to resolve MAST op '$op'") unless $bank;
     nqp::push(@ins, MAST::Op.new(
-            :bank(nqp::substr($bank, 1)), :op($op), |@args
-        ));
+        :op($op), |@args
+    ));
 }
 
 sub label($name) is export {

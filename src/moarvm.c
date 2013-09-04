@@ -64,14 +64,12 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create compiler registry */
     instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types->BOOTHash);
-    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->compiler_registry);
 
     /* Set up compiler registr mutex. */
     init_mutex(instance->mutex_compiler_registry, "compiler registry");
 
     /* Create hll symbol tables */
     instance->hll_syms = MVM_repr_alloc_init(instance->main_thread, instance->boot_types->BOOTHash);
-    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->hll_syms);
 
     /* Set up hll symbol tables mutex. */
     init_mutex(instance->mutex_hll_syms, "hll syms");

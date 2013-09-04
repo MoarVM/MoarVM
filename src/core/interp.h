@@ -30,7 +30,7 @@ union MVMRegister {
 
 /* Information about an opcode. */
 struct MVMOpInfo {
-    MVMuint8    opcode;
+    MVMuint16   opcode;
     const char *name;
     MVMuint8    num_operands;
     MVMuint8    operands[MVM_MAX_OPERANDS];

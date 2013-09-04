@@ -1313,6 +1313,40 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
     return result;
 }
 
+/* Reads in an array of integers. */
+static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIntArray);
+    MVMint32 elems, i;
+
+    /* Read the element count. */
+    assert_can_read(tc, reader, 4);
+    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+
+    /* Read in the elements. */
+    for (i = 0; i < elems; i++)
+        MVM_repr_bind_pos_i(tc, result, i, read_int_func(tc, reader));
+
+    return result;
+}
+
+/* Reads in an array of strings. */
+static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStrArray);
+    MVMint32 elems, i;
+
+    /* Read the element count. */
+    assert_can_read(tc, reader, 4);
+    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+
+    /* Read in the elements. */
+    for (i = 0; i < elems; i++)
+        MVM_repr_bind_pos_s(tc, result, i, read_str_func(tc, reader));
+
+    return result;
+}
+
 /* Reads in a code reference. */
 static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 sc_id, idx;
@@ -1358,6 +1392,10 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             return result;
         case REFVAR_VM_ARR_VAR:
             return read_array_var(tc, reader);
+		case REFVAR_VM_ARR_STR:
+            return read_array_str(tc, reader);
+		case REFVAR_VM_ARR_INT:
+            return read_array_int(tc, reader);
         case REFVAR_VM_HASH_STR_VAR:
             return read_hash_str_var(tc, reader);
         case REFVAR_STATIC_CODEREF:

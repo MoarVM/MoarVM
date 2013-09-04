@@ -99,19 +99,17 @@ class QAST::MASTOperations {
     my @kind_names := ['VOID','int8','int16','int32','int','num32','num','str','obj'];
     my @kind_types := [0,1,1,1,1,2,2,3,4];
 
+    my @operands_offsets := MAST::Ops.WHO<@offsets>;
+    my @operands_counts := MAST::Ops.WHO<@counts>;
+    my @operands_values := MAST::Ops.WHO<@values>;
+    my %op_codes := MAST::Ops.WHO<%codes>;
     method compile_mastop($qastcomp, $op, @args, :$returnarg = -1, :$opname = 'none', :$want) {
-        # Resolve the op.
-        my $bank := 0;
-        for MAST::Ops.WHO {
-            next if ~$_ eq '$allops';
-            $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
-        }
-        $op := $op.name if nqp::istype($op, QAST::Op);
-        nqp::die("Unable to resolve MAST op '$op'") unless $bank;
+        #$op := $op.name if nqp::istype($op, QAST::Op);
 
-        my @operands := MAST::Ops.WHO{$bank}{$op}{"operands"};
+        my $op_num := %op_codes{$op};
         my $num_args := +@args;
-        my $num_operands := +@operands;
+        my $num_operands := nqp::atpos_i(@operands_counts, $op_num);
+        my $operands_offset := nqp::atpos_i(@operands_offsets, $op_num);
         my $operand_num := 0;
         my $result_kind := $MVM_reg_void;
         my $result_reg := MAST::VOID;
@@ -128,7 +126,7 @@ class QAST::MASTOperations {
         # mark that we need to generate a result register at the end, and
         # advance to the second operand.
         if ($num_operands
-                && (@operands[0] +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
+                && (nqp::atpos_i(@operands_values, $operands_offset) +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
                     # allow the QASTree to define its own write register
                 && $num_args == $num_operands - 1) {
             $needs_write := 1;
@@ -146,7 +144,7 @@ class QAST::MASTOperations {
         my $arg_num := 0;
         # Compile provided args.
         for @args {
-            my $operand := @operands[$operand_num++];
+            my $operand := nqp::atpos_i(@operands_values, $operands_offset + $operand_num++);
             my $operand_kind := ($operand +& $MVM_operand_type_mask);
             my $constant_operand := !($operand +& $MVM_operand_rw_mask);
             my $arg := $operand_kind == $MVM_operand_type_var
@@ -218,7 +216,7 @@ class QAST::MASTOperations {
             # do this after the args to possibly reuse a register,
             # and so we know the type of result register for ops with type_var operands.
 
-            $result_kind := (@operands[0] +& $MVM_operand_type_mask) / 8;
+            $result_kind := (nqp::atpos_i(@operands_values, $operands_offset) +& $MVM_operand_type_mask) / 8;
 
             # fixup the variable typecode if there is one
             if ($type_var_kind && $result_kind == $MVM_operand_type_var / 8) {
@@ -232,7 +230,7 @@ class QAST::MASTOperations {
 
         # Add operation node.
         nqp::push(@all_ins, MAST::Op.new(
-            :bank(nqp::substr($bank, 1)), :op($op),
+            :op($op),
             |@arg_regs));
 
         # Build instruction list.
@@ -279,21 +277,16 @@ class QAST::MASTOperations {
     method moarop_mapper($moarop, $ret) {
         # do a little checking of input values
 
-        # Resolve the op.
-        my $bank;
         my $self := self;
-        for MAST::Ops.WHO {
-            my $bankish := MAST::Ops.WHO{~$_};
-            $bank := ~$_ if nqp::ishash($bankish) && nqp::existskey($bankish, $moarop);
-        }
-        nqp::die("Unable to resolve moarop '$moarop'") unless $bank;
 
         if $ret != -1 {
-            my @operands := MAST::Ops.WHO{$bank}{$moarop}{"operands"};
+            my $op_num := %op_codes{$moarop};
+            my $num_operands := nqp::atpos_i(@operands_counts, $op_num);
+            my $operands_offset := nqp::atpos_i(@operands_offsets, $op_num);
             nqp::die("moarop $moarop return arg index out of range")
-                if $ret < -1 || $ret >= +@operands;
+                if $ret < -1 || $ret >= $num_operands;
             nqp::die("moarop $moarop is not void")
-                if +@operands && (@operands[0] +& $MVM_operand_rw_mask) ==
+                if $num_operands && (nqp::atpos_i(@operands_values, $operands_offset) +& $MVM_operand_rw_mask) ==
                     $MVM_operand_write_reg;
         }
 
@@ -981,7 +974,7 @@ QAST::MASTOperations.add_core_op('call', sub ($qastcomp, $op) {
         my $realname := nqp::substr($op.name, 8);
         return $qastcomp.as_mast(QAST::Op.new( :op($realname), |$op.list ));
     }
-    
+
     # Work out what callee is.
     my $callee;
     my @args := $op.list;
@@ -1387,12 +1380,50 @@ my %const_map := nqp::hash(
     'CCLASS_NUMERIC',       8,
     'CCLASS_HEXADECIMAL',   16,
     'CCLASS_WHITESPACE',    32,
+    'CCLASS_PRINTING',      64,
     'CCLASS_BLANK',         256,
     'CCLASS_CONTROL',       512,
     'CCLASS_PUNCTUATION',   1024,
     'CCLASS_ALPHANUMERIC',  2048,
     'CCLASS_NEWLINE',       4096,
-    'CCLASS_WORD',          8192
+    'CCLASS_WORD',          8192,
+
+    'HLL_ROLE_NONE',        0,
+    'HLL_ROLE_INT',         1,
+    'HLL_ROLE_NUM',         2,
+    'HLL_ROLE_STR',         3,
+    'HLL_ROLE_ARRAY',       4,
+    'HLL_ROLE_HASH',        5,
+    'HLL_ROLE_CODE',        6,
+
+    'CONTROL_TAKE',         32,
+    'CONTROL_LAST',         16,
+    'CONTROL_NEXT',         4,
+    'CONTROL_REDO',         8,
+    'CONTROL_SUCCEED',      128,
+    'CONTROL_PROCEED',      256,
+    'CONTROL_WARN',         64,
+
+    'STAT_EXISTS',             0,
+    'STAT_FILESIZE',           1,
+    'STAT_ISDIR',              2,
+    'STAT_ISREG',              3,
+    'STAT_ISDEV',              4,
+    'STAT_CREATETIME',         5,
+    'STAT_ACCESSTIME',         6,
+    'STAT_MODIFYTIME',         7,
+    'STAT_CHANGETIME',         8,
+    'STAT_BACKUPTIME',         9,
+    'STAT_UID',                10,
+    'STAT_GID',                11,
+    'STAT_ISLNK',              12,
+    'STAT_PLATFORM_DEV',       -1,
+    'STAT_PLATFORM_INODE',     -2,
+    'STAT_PLATFORM_MODE',      -3,
+    'STAT_PLATFORM_NLINKS',    -4,
+    'STAT_PLATFORM_DEVTYPE',   -5,
+    'STAT_PLATFORM_BLOCKSIZE', -6,
+    'STAT_PLATFORM_BLOCKS',    -7,
 );
 QAST::MASTOperations.add_core_op('const', -> $qastcomp, $op {
     if nqp::existskey(%const_map, $op.name) {
@@ -1807,6 +1838,7 @@ QAST::MASTOperations.add_core_moarop_mapping('iscoderef', 'iscoderef');
 QAST::MASTOperations.add_core_moarop_mapping('markcodestatic', 'markcodestatic');
 QAST::MASTOperations.add_core_moarop_mapping('markcodestub', 'markcodestub');
 QAST::MASTOperations.add_core_moarop_mapping('getstaticcode', 'getstaticcode');
+QAST::MASTOperations.add_core_moarop_mapping('getcodecuid', 'getcodecuid');
 
 # language/compiler ops
 QAST::MASTOperations.add_core_moarop_mapping('getcomp', 'getcomp');
@@ -1824,7 +1856,7 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 
 # process related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
-QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
+QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
 
 # MoarVM-specific compilation ops
@@ -1849,17 +1881,9 @@ sub resolve_condition_op($kind, $negated) {
 }
 
 sub push_op(@dest, $op, *@args) {
-    # Resolve the op.
-    my $bank;
-    for MAST::Ops.WHO {
-        next if ~$_ eq '$allops';
-        $bank := ~$_ if nqp::existskey(MAST::Ops.WHO{~$_}, $op);
-    }
-    $op := $op.name if nqp::istype($op, QAST::Op);
-    nqp::die("Unable to resolve MAST op '$op'") unless nqp::defined($bank);
-#nqp::say($bank~"::"~$op);
+    #$op := $op.name if nqp::istype($op, QAST::Op);
     nqp::push(@dest, MAST::Op.new(
-        :bank(nqp::substr($bank, 1)), :op($op),
+        :op($op),
         |@args
     ));
 }

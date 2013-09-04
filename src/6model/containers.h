@@ -41,6 +41,16 @@ struct MVMContainerConfigurer {
     void (*configure_container_spec) (MVMThreadContext *tc, MVMSTable *st, MVMObject *config);
 };
 
+/* Container registry is a hash mapping names of container configurations
+ * to function tables. */
+struct MVMContainerRegistry {
+    MVMString             *config_name;
+    MVMContainerConfigurer *configurer;
+
+    /* Inline handle to the hash in which this is stored. */
+    UT_hash_handle hash_handle;
+};
+
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, MVMContainerConfigurer *configurer);
 MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
 void MVM_6model_containers_setup(MVMThreadContext *tc);

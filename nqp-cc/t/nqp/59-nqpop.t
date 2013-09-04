@@ -2,7 +2,7 @@
 
 # Test nqp::op pseudo-functions.
 
-plan(111);
+plan(113);
 
 
 ok( nqp::add_i(5,2) == 7, 'nqp::add_i');
@@ -94,6 +94,10 @@ ok( nqp::x('abc', 0) eq '', 'nqp::x');
 ok( nqp::not_i(0) == 1, 'nqp::not_i');
 ok( nqp::not_i(1) == 0, 'nqp::not_i');
 ok( nqp::not_i(-1) == 0, 'nqp::not_i');
+
+ok(nqp::escape("\b \n \r \f \t \" \\ \e foo") eq '\\b \\n \\r \\f \\t \\" \\\\ \e foo','nqp::escape');
+my $var := 'foo';
+ok(nqp::escape($var) eq 'foo','nqp::escape works with literal');
 
 ok( nqp::isnull(nqp::null()) == 1, 'nqp::isnull/nqp::null' );
 ok( nqp::isnull("hello") == 0, '!nqp::isnull(string)' );

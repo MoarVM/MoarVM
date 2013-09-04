@@ -2,26 +2,31 @@
 
 # check hash access methods
 
-plan(7);
+plan(10);
 
 my %h;
 
 %h<a> := 1;
-say("ok 1 # hash assignment with numeric value works");
+ok(1,"# hash assignment with numeric value works");
 
-say('ok ', %h<a> + 1, ' # hash access to numeric value');
+ok(%h<a> + 1 == 2, 'hash access to numeric value');
 
 %h<a> := 'ok 3';
-say(%h<a>, ' # hash access to string value');
+ok(%h<a> eq 'ok 3', 'hash access to string value');
 
 %h{1} := '4';
-say('ok ', %h{1}, ' # numeric hash access');
+ok(%h{1} == 4, 'numeric hash access');
 
-say('ok ', %h<1> + 1, ' # numbers stringify');
+ok(%h<1> + 1 eq "5", 'numbers stringify');
 
-%h{'b'} := 'ok 6 # curly braces and single quotes work';
-say(%h{'b'});
+%h{'b'} := 'ok 6';
+ok(%h{'b'} eq 'ok 6',"curly braces and single quotes work");
 
-%h{"foo"} := "ok 7 # curly braces and double quotes work";
-say(%h{"foo"});
+%h{"foo"} := "ok 7";
+ok(%h{"foo"} eq "ok 7","curly braces and double quotes work");
 
+%h<a> := 0;
+ok(%h<a> eq '0',"we can fetch false values");
+
+ok(%h<c> eq '',"a missing key behaves properly when used as string");
+ok(%h<c> == 0,"a missing key behaves properly when used as number");
