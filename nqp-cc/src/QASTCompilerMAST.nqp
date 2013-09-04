@@ -1300,7 +1300,7 @@ class QAST::MASTCompiler {
 
 #?start_redecl
 sub push_op(@dest, $op, *@args) {
-    $op := $op.name if nqp::istype($op, QAST::Op);
+    #$op := $op.name if nqp::istype($op, QAST::Op);
     nqp::push(@dest, MAST::Op.new(
         :op($op),
         |@args

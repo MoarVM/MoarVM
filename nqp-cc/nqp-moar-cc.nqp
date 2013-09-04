@@ -275,7 +275,7 @@ QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_num64, boxer($MVM_reg_num64, 'h
 QAST::MASTOperations.add_hll_box('nqp', $MVM_reg_str, boxer($MVM_reg_str, 'hllboxtype_s', 'box_s'));
 
 sub push_op(@dest, $op, *@args) {
-    $op := $op.name if nqp::istype($op, QAST::Op);
+    #$op := $op.name if nqp::istype($op, QAST::Op);
     nqp::push(@dest, MAST::Op.new(
         :op($op),
         |@args

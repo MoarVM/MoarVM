@@ -397,6 +397,12 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             return result;
         case REFVAR_VM_ARR_VAR:
             return read_array_var(tc, reader);
+		case REFVAR_VM_ARR_STR:
+            fail_deserialize(tc, reader,
+                "Serialization Error: Unimplemented case of read_ref");
+		case REFVAR_VM_ARR_INT:
+            fail_deserialize(tc, reader,
+                "Serialization Error: Unimplemented case of read_ref");
         case REFVAR_VM_HASH_STR_VAR:
             return read_hash_str_var(tc, reader);
         case REFVAR_STATIC_CODEREF:

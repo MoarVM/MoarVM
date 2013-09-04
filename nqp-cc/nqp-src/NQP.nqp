@@ -1613,7 +1613,7 @@ $ops.add_hll_op('nqp', 'falsey', -> $qastcomp, $op {
 # XXX TODO
 
 sub push_op(@dest, $op, *@args) {
-    $op := $op.name if nqp::istype($op, QAST::Op);
+    #$op := $op.name if nqp::istype($op, QAST::Op);
     nqp::push(@dest, MAST::Op.new(
         :op($op),
         |@args
