@@ -579,7 +579,8 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         /* Write opcode. */
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
-        write_int16(ws->bytecode_seg, ws->bytecode_pos++, op);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos, op);
+        ws->bytecode_pos += 2;
 
         /* Write operands. */
         for (i = 0; i < info->num_operands; i++)

@@ -10,7 +10,7 @@ class Op {
 sub MAIN($file = "src/core/oplist") {
     # Parse the ops file to get the various ops.
     my @ops = parse_ops($file);
-    say "Parsed {+@ops} total ops";
+    say "Parsed {+@ops} total ops from src/core/oplist";
 
     # Generate header file.
     my $hf = open("src/core/ops.h", :w);
@@ -48,26 +48,23 @@ sub MAIN($file = "src/core/oplist") {
     $nf.say(op_constants(@ops));
     $nf.close;
 
-    say "Wrote ops.h, ops.c, and Ops.nqp";
+    say "Wrote src/core/ops.h, src/core/ops.c, and lib/MAST/Ops.nqp";
 }
 
-# Parses ops and produces a bunch of Op and Bank objects.
+# Parses ops and produces a bunch of Op objects.
 sub parse_ops($file) {
     my @ops;
     my int $i = 0;
     for lines($file.IO) -> $line {
-        if $line ~~ /^\#/ {
-            # comments is ignored.
-        }
-        elsif $line !~~ /^\s*$/ {
-            my ($code, $name, @operands) = $line.split(/\s+/);
+        if $line !~~ /^\s*[\#|$]/ {
+            my ($name, @operands) = $line.split(/\s+/);
             @ops.push(Op.new(
                 code     => $i,
                 name     => $name,
                 operands => @operands
             ));
+            $i = $i + 1;
         }
-        $i = $i + 1;
     }
     return @ops;
 }
@@ -75,83 +72,58 @@ sub parse_ops($file) {
 # Generates MAST::Ops constants module.
 sub op_constants(@ops) {
     join "\n", gather {
-        take 'class MAST::Operands {';
-        take '    our $MVM_operand_literal     := 0;';
-        take '    our $MVM_operand_read_reg    := 1;';
-        take '    our $MVM_operand_write_reg   := 2;';
-        take '    our $MVM_operand_read_lex    := 3;';
-        take '    our $MVM_operand_write_lex   := 4;';
-        take '    our $MVM_operand_rw_mask     := 7;';
-        take '    our $MVM_reg_int8            := 1;';
-        take '    our $MVM_reg_int16           := 2;';
-        take '    our $MVM_reg_int32           := 3;';
-        take '    our $MVM_reg_int64           := 4;';
-        take '    our $MVM_reg_num32           := 5;';
-        take '    our $MVM_reg_num64           := 6;';
-        take '    our $MVM_reg_str             := 7;';
-        take '    our $MVM_reg_obj             := 8;';
-        take '    our $MVM_operand_int8        := ($MVM_reg_int8 * 8);';
-        take '    our $MVM_operand_int16       := ($MVM_reg_int16 * 8);';
-        take '    our $MVM_operand_int32       := ($MVM_reg_int32 * 8);';
-        take '    our $MVM_operand_int64       := ($MVM_reg_int64 * 8);';
-        take '    our $MVM_operand_num32       := ($MVM_reg_num32 * 8);';
-        take '    our $MVM_operand_num64       := ($MVM_reg_num64 * 8);';
-        take '    our $MVM_operand_str         := ($MVM_reg_str * 8);';
-        take '    our $MVM_operand_obj         := ($MVM_reg_obj * 8);';
-        take '    our $MVM_operand_ins         := (9 * 8);';
-        take '    our $MVM_operand_type_var    := (10 * 8);';
-        take '    our $MVM_operand_lex_outer   := (11 * 8);';
-        take '    our $MVM_operand_coderef     := (12 * 8);';
-        take '    our $MVM_operand_callsite    := (13 * 8);';
-        take '    our $MVM_operand_type_mask   := (15 * 8);';
-        take '}';
-        take "\n";
-        take 'class MAST::Ops {';
-        take '    my $MVM_operand_literal     := 0;';
-        take '    my $MVM_operand_read_reg    := 1;';
-        take '    my $MVM_operand_write_reg   := 2;';
-        take '    my $MVM_operand_read_lex    := 3;';
-        take '    my $MVM_operand_write_lex   := 4;';
-        take '    my $MVM_operand_rw_mask     := 7;';
-        take '    my $MVM_reg_int8            := 1;';
-        take '    my $MVM_reg_int16           := 2;';
-        take '    my $MVM_reg_int32           := 3;';
-        take '    my $MVM_reg_int64           := 4;';
-        take '    my $MVM_reg_num32           := 5;';
-        take '    my $MVM_reg_num64           := 6;';
-        take '    my $MVM_reg_str             := 7;';
-        take '    my $MVM_reg_obj             := 8;';
-        take '    my $MVM_operand_int8        := ($MVM_reg_int8 * 8);';
-        take '    my $MVM_operand_int16       := ($MVM_reg_int16 * 8);';
-        take '    my $MVM_operand_int32       := ($MVM_reg_int32 * 8);';
-        take '    my $MVM_operand_int64       := ($MVM_reg_int64 * 8);';
-        take '    my $MVM_operand_num32       := ($MVM_reg_num32 * 8);';
-        take '    my $MVM_operand_num64       := ($MVM_reg_num64 * 8);';
-        take '    my $MVM_operand_str         := ($MVM_reg_str * 8);';
-        take '    my $MVM_operand_obj         := ($MVM_reg_obj * 8);';
-        take '    my $MVM_operand_ins         := (9 * 8);';
-        take '    my $MVM_operand_type_var    := (10 * 8);';
-        take '    my $MVM_operand_lex_outer   := (11 * 8);';
-        take '    my $MVM_operand_coderef     := (12 * 8);';
-        take '    my $MVM_operand_callsite    := (13 * 8);';
-        take '    my $MVM_operand_type_mask   := (15 * 8);';
-        take '    our $allops := nqp::hash(';
-        take join(",\n", gather {
-            for @ops -> $op {
-                my $operands = $op.operands.map(&operand_flags).join(",\n                    ");
-                $operands = $operands.subst('MVM', '$MVM', :g);
-                $operands = $operands.subst('|', '+|', :g);
-                take join "\n", gather {
-                    take "            '$op.name()', nqp::hash(";
-                    take "                'code', $op.code(),";
-                    take "                'operands', [";
-                    take "                    $operands" if $operands;
-                    take "                ]";
-                    take "            )";
-                };
-            }
-        });
-        take '    );';
+        take "class MAST::OpCode \{\n"~
+        "    has \$!name;\n"~
+        "    has \$!code;\n"~
+        "    has \@!operands;\n"~
+        "}\n"~
+        "class MAST::Ops \{\n"~
+        "    my \$MVM_operand_literal     := 0;\n"~
+        "    my \$MVM_operand_read_reg    := 1;\n"~
+        "    my \$MVM_operand_write_reg   := 2;\n"~
+        "    my \$MVM_operand_read_lex    := 3;\n"~
+        "    my \$MVM_operand_write_lex   := 4;\n"~
+        "    my \$MVM_operand_rw_mask     := 7;\n"~
+        "    my \$MVM_reg_int8            := 1;\n"~
+        "    my \$MVM_reg_int16           := 2;\n"~
+        "    my \$MVM_reg_int32           := 3;\n"~
+        "    my \$MVM_reg_int64           := 4;\n"~
+        "    my \$MVM_reg_num32           := 5;\n"~
+        "    my \$MVM_reg_num64           := 6;\n"~
+        "    my \$MVM_reg_str             := 7;\n"~
+        "    my \$MVM_reg_obj             := 8;\n"~
+        "    my \$MVM_operand_int8        := (\$MVM_reg_int8 * 8);\n"~
+        "    my \$MVM_operand_int16       := (\$MVM_reg_int16 * 8);\n"~
+        "    my \$MVM_operand_int32       := (\$MVM_reg_int32 * 8);\n"~
+        "    my \$MVM_operand_int64       := (\$MVM_reg_int64 * 8);\n"~
+        "    my \$MVM_operand_num32       := (\$MVM_reg_num32 * 8);\n"~
+        "    my \$MVM_operand_num64       := (\$MVM_reg_num64 * 8);\n"~
+        "    my \$MVM_operand_str         := (\$MVM_reg_str * 8);\n"~
+        "    my \$MVM_operand_obj         := (\$MVM_reg_obj * 8);\n"~
+        "    my \$MVM_operand_ins         := (9 * 8);\n"~
+        "    my \$MVM_operand_type_var    := (10 * 8);\n"~
+        "    my \$MVM_operand_lex_outer   := (11 * 8);\n"~
+        "    my \$MVM_operand_coderef     := (12 * 8);\n"~
+        "    my \$MVM_operand_callsite    := (13 * 8);\n"~
+        "    my \$MVM_operand_type_mask   := (15 * 8);\n"~
+        "    our \$ops_list := nqp::list();\n"~
+        "    our \$operands_list := nqp::list();";
+        for @ops -> $op {
+            my $operands = $op.operands.map(&operand_flags).join(",\n        ");
+            $operands = $operands.subst('MVM', '$MVM', :g);
+            $operands = $operands.subst('|', '+|', :g);
+            my $name = $op.name();
+            my $code = $op.code();
+            take
+            "    our \$$name := $code;\n"~
+            "    nqp::push(\$ops_list, MAST::OpCode.new(\n"~
+            "        code => $code,\n"~
+            "        name => '$name')\n"~
+            "    );\n"~
+            "    nqp::push(\$operands_list, nqp::list_i("~
+            ($operands ?? "\n        $operands\n    "!!"")~
+            "));";
+        }
         take '}';
     }
 }

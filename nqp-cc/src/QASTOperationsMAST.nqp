@@ -99,12 +99,13 @@ class QAST::MASTOperations {
     my @kind_names := ['VOID','int8','int16','int32','int','num32','num','str','obj'];
     my @kind_types := [0,1,1,1,1,2,2,3,4];
 
+    my $operands_list := MAST::Ops.WHO{'$operands_list'};
     method compile_mastop($qastcomp, $op, @args, :$returnarg = -1, :$opname = 'none', :$want) {
         $op := $op.name if nqp::istype($op, QAST::Op);
 
-        my @operands := MAST::Ops.WHO{'$allops'}{$op}{"operands"};
+        my @operands := $operands_list[MAST::Ops.WHO{"\$$op"}];
         my $num_args := +@args;
-        my $num_operands := +@operands;
+        my $num_operands := nqp::elems(@operands);
         my $operand_num := 0;
         my $result_kind := $MVM_reg_void;
         my $result_reg := MAST::VOID;
@@ -275,11 +276,11 @@ class QAST::MASTOperations {
         my $self := self;
 
         if $ret != -1 {
-            my @operands := MAST::Ops.WHO{'$allops'}{$moarop}{'operands'};
+            my @operands := $operands_list[MAST::Ops.WHO{"\$$moarop"}];
             nqp::die("moarop $moarop return arg index out of range")
-                if $ret < -1 || $ret >= +@operands;
+                if $ret < -1 || $ret >= nqp::elems(@operands);
             nqp::die("moarop $moarop is not void")
-                if +@operands && (@operands[0] +& $MVM_operand_rw_mask) ==
+                if nqp::elems(@operands) && (@operands[0] +& $MVM_operand_rw_mask) ==
                     $MVM_operand_write_reg;
         }
 
@@ -1875,7 +1876,6 @@ sub resolve_condition_op($kind, $negated) {
 
 sub push_op(@dest, $op, *@args) {
     $op := $op.name if nqp::istype($op, QAST::Op);
-
     nqp::push(@dest, MAST::Op.new(
         :op($op),
         |@args

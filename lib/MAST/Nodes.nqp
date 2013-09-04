@@ -227,14 +227,7 @@ class MAST::Op is MAST::Node {
 
     method new(:$op!, *@operands) {
         my $obj := nqp::create(self);
-        for @operands {
-            nqp::die("Operand not a MAST::Node") unless $_ ~~ MAST::Node;
-        }
-
-        unless nqp::existskey(MAST::Ops.WHO{'$allops'}, $op) {
-            nqp::die("Invalid MAST op '$op'");
-        }
-        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{'$allops'}{$op}{'code'});
+        nqp::bindattr_i($obj, MAST::Op, '$!op', MAST::Ops.WHO{"\$$op"});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
         $obj
     }
@@ -243,7 +236,7 @@ class MAST::Op is MAST::Node {
     method operands() { @!operands }
 
     method DUMP_lines(@lines, $indent) {
-        my $opname := MAST::Ops.WHO{'$allops'}[$!op * 2];
+        my $opname := nqp::getattr(MAST::Ops.WHO{'$ops_list'}[$!op], MAST::OpCode, '$!name');
         nqp::push(@lines, $indent~"MAST::Op: $opname, operands:");
         nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!operands;
     }

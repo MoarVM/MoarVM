@@ -2061,11 +2061,6 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP___INVALID_1__,
-        "__INVALID_1__",
-        0,
-    },
-    {
         MVM_OP_setelemspos,
         "setelemspos",
         2,
@@ -3157,7 +3152,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 525;
+static unsigned short MVM_op_counts = 524;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
