@@ -41,8 +41,8 @@ MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
 }
 
 /* Decreases the reference count of a frame. If it hits zero, then we can
- * free it. */
-void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
+ * free it. Returns null for convenience. */
+MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     /* MVM_atomic_dec returns what the count was before it decremented it
      * to zero, so we look for 1 here. */
     while (MVM_atomic_decr(&frame->ref_count) == 1) {
@@ -70,7 +70,7 @@ void MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         if (outer_to_decr)
             frame = outer_to_decr; /* and loop */
         else
-            return;
+            return NULL;
     }
 }
 
@@ -253,7 +253,7 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
         prior = returner->static_info->body.prior_invocation;
     } while (!MVM_trycas(&returner->static_info->body.prior_invocation, prior, returner));
     if (prior)
-        MVM_frame_dec_ref(tc, prior);
+        prior = MVM_frame_dec_ref(tc, prior);
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
@@ -535,9 +535,8 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
         ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
         ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, f);
 
-        if (MVM_casptr(f->context_object, NULL, ctx) != NULL) {
-            MVM_frame_dec_ref(tc, f);
-            ((MVMContext *)ctx)->body.context = NULL;
+        if (MVM_casptr(&f->context_object, NULL, ctx) != NULL) {
+            ((MVMContext *)ctx)->body.context = MVM_frame_dec_ref(tc, f);
             ctx = f->context_object;
         }
     }

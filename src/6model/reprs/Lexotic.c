@@ -66,8 +66,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMLexotic *lex = (MVMLexotic *)obj;
     if (lex->body.frame) {
-        MVM_frame_dec_ref(tc, lex->body.frame);
-        lex->body.frame = NULL;
+        lex->body.frame = MVM_frame_dec_ref(tc, lex->body.frame);
     }
 }
 

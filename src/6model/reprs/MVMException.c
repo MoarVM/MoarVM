@@ -47,8 +47,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMException *ctx = (MVMException *)obj;
     if (ctx->body.origin) {
-        MVM_frame_dec_ref(tc, ctx->body.origin);
-        ctx->body.origin = NULL;
+        ctx->body.origin = MVM_frame_dec_ref(tc, ctx->body.origin);
     }
 }
 

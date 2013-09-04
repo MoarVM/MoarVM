@@ -73,8 +73,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCode *code_obj = (MVMCode *)obj;
     if (code_obj->body.outer) {
-        MVM_frame_dec_ref(tc, code_obj->body.outer);
-        code_obj->body.outer = NULL;
+        code_obj->body.outer = MVM_frame_dec_ref(tc, code_obj->body.outer);
     }
 }
 

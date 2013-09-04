@@ -141,8 +141,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_checked_free_null(body->lexical_names);
     }
     if (body->prior_invocation) {
-        MVM_frame_dec_ref(tc, body->prior_invocation);
-        body->prior_invocation = NULL;
+        body->prior_invocation = MVM_frame_dec_ref(tc, body->prior_invocation);
     }
 }
 

@@ -45,8 +45,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMContext *ctx = (MVMContext *)obj;
     if (ctx->body.context) {
-        MVM_frame_dec_ref(tc, ctx->body.context);
-        ctx->body.context = NULL;
+        ctx->body.context = MVM_frame_dec_ref(tc, ctx->body.context);
     }
 }
 

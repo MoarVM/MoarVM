@@ -2631,7 +2631,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (orig != ((MVMContext *)ctx)->body.context) {
                     MVM_frame_inc_ref(tc, ((MVMContext *)ctx)->body.context);
                     if (orig) {
-                        MVM_frame_dec_ref(tc, orig);
+                        orig = MVM_frame_dec_ref(tc, orig);
                     }
                 }
                 cur_op += 4;
