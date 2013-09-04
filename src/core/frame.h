@@ -74,6 +74,10 @@ struct MVMFrame {
 
     /* GC run sequence number that we last saw this frame during. */
     AO_t gc_seq_number;
+
+    /* Linked MVMContext object, so we can track the
+     * serialization context and such. */
+    MVMObject *context_object;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
@@ -117,3 +121,4 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code);
+MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);

@@ -154,4 +154,4 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     MVMString *data);
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str);
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc,
-    MVMObject *obj);
+    MVMObject *empty_string_heap);

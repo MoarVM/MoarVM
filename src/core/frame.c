@@ -527,3 +527,20 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
     }
     return code;
 }
+
+MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
+    MVMObject *ctx = f->context_object;
+
+    if (!ctx) {
+        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+        ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, f);
+
+        if (MVM_casptr(f->context_object, NULL, ctx) != NULL) {
+            MVM_frame_dec_ref(tc, f);
+            ((MVMContext *)ctx)->body.context = NULL;
+            ctx = f->context_object;
+        }
+    }
+
+    return ctx;
+}
