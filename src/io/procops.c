@@ -50,7 +50,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVMObject *env_hash = tc->instance->env_hash;
     if (!env_hash) {
 #ifdef _WIN32
-        MVMuint16     acp = GetACP(); /* We should get ACP at runtime. */
+        const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
 #endif
         MVMuint32     pos = 0;
         MVMString *needle = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "=", 1, MVM_encoding_type_ascii);
@@ -96,14 +96,46 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 }
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
+    MVMint64 result;
     uv_process_t process;
     uv_process_options_t process_options;
-    char *command = MVM_string_utf8_encode_C_string(tc, cmd);
-    process_options.args  = &command;
+    char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
+    const MVMuint64     size = MVM_repr_elems(tc, env);
+    const char * const *_env = malloc(size + 1);
+    char   *args[4];
+
+#ifdef _WIN32
+    const char     comspec[] = "ComSpec";
+    const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
+    wchar_t * const wcomspec = ANSIToUnicode(acp, comspec);
+    wchar_t * const     wcmd = _wgetenv(wcomspec);
+    char    * const     _cmd = UnicodeToUTF8(wcmd);
+
+    free(wcomspec);
+
+    args[0] = _cmd;
+    args[1] = "/c";
+    args[2] = cmdin;
+    args[3] = NULL;
+#else
+    char sh[] = "/bin/sh";
+    args[0]   = sh;
+    args[1]   = "-c";
+    args[2]   = cmdin;
+    args[3]   = NULL;
+#endif
+
+    process_options.args  = args;
     process_options.cwd   = MVM_string_utf8_encode_C_string(tc, cwd);
     process_options.flags = UV_PROCESS_DETACHED | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
     process_options.env   = NULL;
-    return uv_spawn(tc->loop, &process, &process_options);
+    result = uv_spawn(tc->loop, &process, &process_options);
+    free(cmdin);
+
+#ifdef _WIN32
+    free(_cmd);
+#endif
+    return result;
 }
 
 /* generates a random MVMint64, supposedly. */
