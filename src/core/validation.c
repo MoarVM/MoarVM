@@ -64,7 +64,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
         cur_op += 2;
         operand_type_var = 0;
         op_info = MVM_op_get_op(op_num);
-    printf("bytecode_size %d cur_op %d bytecode_end %d difference %d\n", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op));
+    /*printf("bytecode_size %d cur_op %d bytecode_end %d difference %d\n", bytecode_size, (int)cur_op, (int)bytecode_end, (int)(bytecode_end - cur_op));*/
         if (!op_info) {
             cleanup_all(tc, labels);
             MVM_exception_throw_adhoc(tc,
@@ -76,7 +76,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_fram
             MVM_exception_throw_adhoc(tc,
                 "jumplist op must be followed by an additional %d goto ops", num_jumplist_labels + 1);
         }
-        printf("validating op %s, (%d)\n", op_info->name, op_num);
+        /*printf("validating op %s, (%d)\n", op_info->name, op_num);*/
         for (i = 0; i < op_info->num_operands; i++) {
             op_flags = op_info->operands[i];
             op_rw   = op_flags & MVM_operand_rw_mask;
