@@ -95,6 +95,17 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     return env_hash;
 }
 
+MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
+    uv_process_t process;
+    uv_process_options_t process_options;
+    char *command = MVM_string_utf8_encode_C_string(tc, cmd);
+    process_options.args  = &command;
+    process_options.cwd   = MVM_string_utf8_encode_C_string(tc, cwd);
+    process_options.flags = UV_PROCESS_DETACHED | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env   = NULL;
+    return uv_spawn(tc->loop, &process, &process_options);
+}
+
 /* generates a random MVMint64, supposedly. */
 /* XXX the internet says this may block... */
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
