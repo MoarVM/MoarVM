@@ -175,7 +175,7 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
 
 /* gets the system time since the epoch truncated to integral seconds */
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
-    return MVM_platform_now() / 1000000000;
+    return (MVMint64)(MVM_platform_now() / 1000000000);
 }
 
 /* gets the system time since the epoch as floating point seconds */
