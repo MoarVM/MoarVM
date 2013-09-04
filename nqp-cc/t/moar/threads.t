@@ -31,12 +31,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         sub thread_code() {
             my $frame := MAST::Frame.new();
             my $r0 := local($frame, str);
-            my $r1 := local($frame, int);
+            my $r1 := local($frame, num);
             my @ins := $frame.instructions;
             op(@ins, 'const_s', $r0, sval('In new thread'));
             op(@ins, 'say', $r0);
-            op(@ins, 'const_i64', $r1, ival(1000000));
-            op(@ins, 'microsleep', $r1);
+            op(@ins, 'const_n64', $r1, nval(1000000));
+            op(@ins, 'sleep', $r1);
             op(@ins, 'const_s', $r0, sval('In new thread after sleep'));
             op(@ins, 'say', $r0);
             op(@ins, 'return');
@@ -51,18 +51,18 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $code   := local($frame, NQPMu);
         my $thread := local($frame, NQPMu);
         my $str    := local($frame, str);
-        my $time   := local($frame, int);
+        my $time   := local($frame, num);
 
         op(@ins, 'const_s', $str, sval('Before thread'));
         op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread, $code, $type);
-        op(@ins, 'const_i64', $time, ival(500000));
-        op(@ins, 'microsleep', $time);
+        op(@ins, 'const_n64', $time, nval(500000));
+        op(@ins, 'sleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread'));
         op(@ins, 'say', $str);
-        op(@ins, 'const_i64', $time, ival(1000000));
-        op(@ins, 'microsleep', $time);
+        op(@ins, 'const_n64', $time, nval(1000000));
+        op(@ins, 'sleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread at end'));
         op(@ins, 'say', $str);
         op(@ins, 'return');
@@ -93,7 +93,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $code   := local($frame, NQPMu);
         my $thread := local($frame, NQPMu);
         my $str    := local($frame, str);
-        my $time   := local($frame, int);
+        my $time   := local($frame, num);
         my $lex := lexical($frame, str, '$lex');
 
         op(@ins, 'const_s', $str, sval('Lexical from outer'));
@@ -102,8 +102,8 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         op(@ins, 'say', $str);
         op(@ins, 'getcode', $code, $thread_code);
         op(@ins, 'newthread', $thread, $code, $type);
-        op(@ins, 'const_i64', $time, ival(500000));
-        op(@ins, 'microsleep', $time);
+        op(@ins, 'const_n64', $time, ival(500000));
+        op(@ins, 'sleep', $time);
         op(@ins, 'const_s', $str, sval('In main thread at end'));
         op(@ins, 'say', $str);
         op(@ins, 'return');
@@ -115,12 +115,12 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         sub thread_code() {
             my $frame := MAST::Frame.new();
             my $r0 := local($frame, str);
-            my $r1 := local($frame, int);
+            my $r1 := local($frame, num);
             my @ins := $frame.instructions;
             op(@ins, 'const_s', $r0, sval('In new thread'));
             op(@ins, 'say', $r0);
-            op(@ins, 'const_i64', $r1, ival(200000));
-            op(@ins, 'microsleep', $r1);
+            op(@ins, 'const_n64', $r1, nval(200000));
+            op(@ins, 'sleep', $r1);
             op(@ins, 'const_s', $r0, sval('In new thread after sleep'));
             op(@ins, 'say', $r0);
             op(@ins, 'return');

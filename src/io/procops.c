@@ -185,15 +185,6 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
     return (MVMnum64)MVM_platform_now() / 1000000000.0;
 }
 
-MVMnum64 MVM_proc_sleep(MVMThreadContext *tc, MVMnum64 seconds)
-{
-    MVMuint64 start, end;
-    start = MVM_platform_now();
-    MVM_platform_sleep((MVMuint64)ceil(seconds * 1e9));
-    end = MVM_platform_now();
-    return (end - start) / 1e9;
-}
-
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
     if (!instance->clargs) {

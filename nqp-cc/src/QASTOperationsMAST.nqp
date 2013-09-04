@@ -981,7 +981,7 @@ QAST::MASTOperations.add_core_op('call', sub ($qastcomp, $op) {
         my $realname := nqp::substr($op.name, 8);
         return $qastcomp.as_mast(QAST::Op.new( :op($realname), |$op.list ));
     }
-    
+
     # Work out what callee is.
     my $callee;
     my @args := $op.list;
@@ -1394,7 +1394,7 @@ my %const_map := nqp::hash(
     'CCLASS_ALPHANUMERIC',  2048,
     'CCLASS_NEWLINE',       4096,
     'CCLASS_WORD',          8192,
-    
+
     'HLL_ROLE_NONE',        0,
     'HLL_ROLE_INT',         1,
     'HLL_ROLE_NUM',         2,
@@ -1402,7 +1402,7 @@ my %const_map := nqp::hash(
     'HLL_ROLE_ARRAY',       4,
     'HLL_ROLE_HASH',        5,
     'HLL_ROLE_CODE',        6,
-    
+
     'CONTROL_TAKE',         32,
     'CONTROL_LAST',         16,
     'CONTROL_NEXT',         4,
@@ -1410,7 +1410,7 @@ my %const_map := nqp::hash(
     'CONTROL_SUCCEED',      128,
     'CONTROL_PROCEED',      256,
     'CONTROL_WARN',         64,
-    
+
     'STAT_EXISTS',             0,
     'STAT_FILESIZE',           1,
     'STAT_ISDIR',              2,
@@ -1863,7 +1863,7 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 
 # process related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
-QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep');
+QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
 
 # MoarVM-specific compilation ops

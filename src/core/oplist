@@ -184,7 +184,7 @@ BANK 0 primitives
 0xB6    compunitcodes       w(obj) r(obj)
 
 BANK 1 dev
-0x00    microsleep          r(int64)
+0x00    sleep               r(num64)
 0x01    say_I               r(obj)
 
 BANK 2 string
@@ -516,7 +516,6 @@ BANK 6 processthread
 0x12    loadbytecode        w(str) r(str)
 0x13    getenvhash          w(obj)
 0x14    compilemasttofile   r(obj) r(str)
-0x15    sleep               w(num64) r(num64)
 
 BANK 7 serialization
 0x00    sha1                w(str) r(str)

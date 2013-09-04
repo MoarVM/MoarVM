@@ -1390,10 +1390,10 @@ class MAST::Ops {
             )
         ],
         [
-            'microsleep', nqp::hash(
+            'sleep', nqp::hash(
                 'code', 0,
                 'operands', [
-                    $MVM_operand_read_reg +| $MVM_operand_int64
+                    $MVM_operand_read_reg +| $MVM_operand_num64
                 ]
             ),
             'say_I', nqp::hash(
@@ -3835,13 +3835,6 @@ class MAST::Ops {
                 'operands', [
                     $MVM_operand_read_reg +| $MVM_operand_obj,
                     $MVM_operand_read_reg +| $MVM_operand_str
-                ]
-            ),
-            'sleep', nqp::hash(
-                'code', 21,
-                'operands', [
-                    $MVM_operand_write_reg +| $MVM_operand_num64,
-                    $MVM_operand_read_reg +| $MVM_operand_num64
                 ]
             )
         ],

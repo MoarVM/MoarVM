@@ -196,7 +196,7 @@
 #define MVM_OP_compunitcodes 182
 
 /* Op name defines for bank dev. */
-#define MVM_OP_microsleep 0
+#define MVM_OP_sleep 0
 #define MVM_OP_say_I 1
 
 /* Op name defines for bank string. */
@@ -528,7 +528,6 @@
 #define MVM_OP_loadbytecode 18
 #define MVM_OP_getenvhash 19
 #define MVM_OP_compilemasttofile 20
-#define MVM_OP_sleep 21
 
 /* Op name defines for bank serialization. */
 #define MVM_OP_sha1 0
