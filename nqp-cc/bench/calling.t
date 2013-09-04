@@ -35,7 +35,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $sleepms := local($frame, num);
         op(@ins, 'const_i64', $divisor, ival(10 *1000 *1000));
         op(@ins, 'const_i64', $counter, ival(100 *1000 *1000));
-        op(@ins, 'const_n64', $sleepms, nval(1000 *1000)); # microseconds
+        op(@ins, 'const_n64', $sleepms, nval(0.001)); # microseconds
         my $loop := label('loop');
         my $skipsleep := label('skipsleep');
         nqp::push(@ins, $loop);
@@ -60,7 +60,7 @@ mast_frame_output_is(-> $frame, @ins, $cu {
 
         op(@ins, 'const_i64', $divisor, ival(1 *1000 *1000));
         op(@ins, 'const_i64', $counter, ival(10 *1000 *1000));
-        op(@ins, 'const_n64', $sleepms, ival(2000 *1000)); # microseconds
+        op(@ins, 'const_n64', $sleepms, nval(0.002)); # microseconds
         my $loop := label('loop');
         my $skipsleep := label('skipsleep');
         nqp::push(@ins, $loop);

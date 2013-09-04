@@ -17,15 +17,19 @@ MVMuint64 MVM_platform_now(void)
 
 void MVM_platform_sleep(MVMuint64 nanos)
 {
-    MVMuint64 now, end;
+    MVMuint64 now;
     DWORD millis;
+    const MVMuint64 end = MVM_platform_now() + nanos;
 
-    end = MVM_platform_now() + nanos;
     millis = (DWORD)((nanos + E6 - 1) / E6);
-    do {
+
+    while(1) {
         Sleep(millis);
         now = MVM_platform_now();
+
+        if (now >= end)
+            break;
+
         millis = (DWORD)((end - now) / E6);
     }
-    while(now < end);
 }
