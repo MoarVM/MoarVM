@@ -104,7 +104,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
-    const char        **_env = malloc(size + 1);
+    char              **_env = malloc(size + 1);
     MVMIter    * const  iter = (MVMIter *)MVM_iter(tc, env);
     MVMString  * const equal = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "=");
 
