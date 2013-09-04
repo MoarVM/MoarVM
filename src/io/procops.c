@@ -144,7 +144,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     process_options.args  = args;
     process_options.cwd   = MVM_string_utf8_encode_C_string(tc, cwd);
     process_options.flags = UV_PROCESS_DETACHED | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
-    process_options.env   = NULL;
+    process_options.env   = _env;
     result = uv_spawn(tc->loop, &process, &process_options);
 
     free(cmdin);
