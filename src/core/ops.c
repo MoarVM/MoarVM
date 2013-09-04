@@ -9,7 +9,7 @@
 #include "moarvm.h"
 #endif
 /* This file is generated from src/core/oplist by tools/update_ops.p6. */
-static MVMOpInfo MVM_op_info_primitives[] = {
+static MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_no_op,
         "no_op",
@@ -1106,8 +1106,6 @@ static MVMOpInfo MVM_op_info_primitives[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
-};
-static MVMOpInfo MVM_op_info_dev[] = {
     {
         MVM_OP_sleep,
         "sleep",
@@ -1120,8 +1118,6 @@ static MVMOpInfo MVM_op_info_dev[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
-};
-static MVMOpInfo MVM_op_info_string[] = {
     {
         MVM_OP_concat_s,
         "concat_s",
@@ -1440,8 +1436,6 @@ static MVMOpInfo MVM_op_info_string[] = {
         4,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
-};
-static MVMOpInfo MVM_op_info_math[] = {
     {
         MVM_OP_sin_n,
         "sin_n",
@@ -1784,8 +1778,6 @@ static MVMOpInfo MVM_op_info_math[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
-};
-static MVMOpInfo MVM_op_info_object[] = {
     {
         MVM_OP_knowhow,
         "knowhow",
@@ -2067,11 +2059,6 @@ static MVMOpInfo MVM_op_info_object[] = {
         "splice",
         4,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
-    },
-    {
-        MVM_OP___INVALID_1__,
-        "__INVALID_1__",
-        0,
     },
     {
         MVM_OP_setelemspos,
@@ -2625,8 +2612,6 @@ static MVMOpInfo MVM_op_info_object[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
-};
-static MVMOpInfo MVM_op_info_io[] = {
     {
         MVM_OP_copy_f,
         "copy_f",
@@ -2921,8 +2906,6 @@ static MVMOpInfo MVM_op_info_io[] = {
         3,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
-};
-static MVMOpInfo MVM_op_info_processthread[] = {
     {
         MVM_OP_procshell,
         "procshell",
@@ -3047,8 +3030,6 @@ static MVMOpInfo MVM_op_info_processthread[] = {
         2,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
-};
-static MVMOpInfo MVM_op_info_serialization[] = {
     {
         MVM_OP_sha1,
         "sha1",
@@ -3171,32 +3152,10 @@ static MVMOpInfo MVM_op_info_serialization[] = {
     },
 };
 
-static MVMOpInfo *MVM_op_info[] = {
-    MVM_op_info_primitives,
-    MVM_op_info_dev,
-    MVM_op_info_string,
-    MVM_op_info_math,
-    MVM_op_info_object,
-    MVM_op_info_io,
-    MVM_op_info_processthread,
-    MVM_op_info_serialization,
-};
+static unsigned short MVM_op_counts = 524;
 
-static unsigned char MVM_op_banks = 8;
-
-static unsigned char MVM_opcounts_by_bank[] = {
-    183,
-    2,
-    53,
-    57,
-    140,
-    49,
-    21,
-    20,
-};
-
-MVMOpInfo * MVM_op_get_op(unsigned char bank, unsigned char op) {
-    if (bank >= MVM_op_banks || op >= MVM_opcounts_by_bank[bank])
+MVMOpInfo * MVM_op_get_op(unsigned short op) {
+    if (op >= MVM_op_counts)
         return NULL;
-    return &MVM_op_info[bank][op];
+    return &MVM_op_infos[op];
 }

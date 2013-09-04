@@ -152,8 +152,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 *linelocs = malloc(bytecode_size);
     MVMuint32 lineno = 0;
     MVMuint32 lineloc;
-    MVMuint8 bank_num;
-    MVMuint8 op_num;
+    MVMuint16 op_num;
     MVMOpInfo *op_info;
     MVMuint32 operand_size;
     unsigned char op_rw;
@@ -177,9 +176,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         /* mark that this point in the bytestream is an op boundary */
         labels[lineloc] |= MVM_val_op_boundary;
 
-        bank_num = *(cur_op++);
-        op_num = *(cur_op++);
-        op_info = MVM_op_get_op((unsigned char)bank_num, (unsigned char)op_num);
+        op_num = *((MVMint16 *)cur_op);
+        cur_op += 2;
+        op_info = MVM_op_get_op(op_num);
         a("%-12s ", op_info->name);
 
         for (i = 0; i < op_info->num_operands; i++) {
