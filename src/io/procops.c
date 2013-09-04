@@ -100,6 +100,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     uv_process_t process;
     uv_process_options_t process_options;
     char   *args[4];
+    int i;
 
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
@@ -128,7 +129,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     args[3]   = NULL;
 #endif
     MVMROOT(tc, iter, {
-        int i = 0;
+        i = 0;
         while(MVM_iter_istrue(tc, iter)) {
             MVMRegister value;
             MVMString *env_str;
@@ -145,7 +146,13 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     process_options.flags = UV_PROCESS_DETACHED | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
     process_options.env   = NULL;
     result = uv_spawn(tc->loop, &process, &process_options);
+
     free(cmdin);
+    i = 0;
+    while(_env[i])
+        free(_env[i++]);
+
+    free(_env);
 
 #ifdef _WIN32
     free(_cmd);
