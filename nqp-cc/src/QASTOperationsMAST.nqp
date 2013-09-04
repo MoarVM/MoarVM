@@ -122,7 +122,7 @@ class QAST::MASTOperations {
         # mark that we need to generate a result register at the end, and
         # advance to the second operand.
         if ($num_operands
-                && (@operands[0] +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
+                && (nqp::atpos_i(@operands, 0) +& $MVM_operand_rw_mask) == $MVM_operand_write_reg
                     # allow the QASTree to define its own write register
                 && $num_args == $num_operands - 1) {
             $needs_write := 1;
@@ -140,7 +140,7 @@ class QAST::MASTOperations {
         my $arg_num := 0;
         # Compile provided args.
         for @args {
-            my $operand := @operands[$operand_num++];
+            my $operand := nqp::atpos_i(@operands, $operand_num++);
             my $operand_kind := ($operand +& $MVM_operand_type_mask);
             my $constant_operand := !($operand +& $MVM_operand_rw_mask);
             my $arg := $operand_kind == $MVM_operand_type_var
@@ -212,7 +212,7 @@ class QAST::MASTOperations {
             # do this after the args to possibly reuse a register,
             # and so we know the type of result register for ops with type_var operands.
 
-            $result_kind := (@operands[0] +& $MVM_operand_type_mask) / 8;
+            $result_kind := (nqp::atpos_i(@operands, 0) +& $MVM_operand_type_mask) / 8;
 
             # fixup the variable typecode if there is one
             if ($type_var_kind && $result_kind == $MVM_operand_type_var / 8) {
@@ -280,7 +280,7 @@ class QAST::MASTOperations {
             nqp::die("moarop $moarop return arg index out of range")
                 if $ret < -1 || $ret >= nqp::elems(@operands);
             nqp::die("moarop $moarop is not void")
-                if nqp::elems(@operands) && (@operands[0] +& $MVM_operand_rw_mask) ==
+                if nqp::elems(@operands) && (nqp::atpos_i(@operands, 0) +& $MVM_operand_rw_mask) ==
                     $MVM_operand_write_reg;
         }
 
