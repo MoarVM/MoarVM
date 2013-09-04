@@ -99,10 +99,13 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     MVMint64 result;
     uv_process_t process;
     uv_process_options_t process_options;
+    char   *args[4];
+
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
-    const char * const *_env = malloc(size + 1);
-    char   *args[4];
+    const char        **_env = malloc(size + 1);
+    MVMIter    * const  iter = (MVMIter *)MVM_iter(tc, env);
+    MVMString  * const equal = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "=");
 
 #ifdef _WIN32
     const char     comspec[] = "ComSpec";
@@ -124,6 +127,18 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     args[2]   = cmdin;
     args[3]   = NULL;
 #endif
+    MVMROOT(tc, iter, {
+        int i = 0;
+        while(MVM_iter_istrue(tc, iter)) {
+            MVMRegister value;
+            MVMString *env_str;
+            REPR(iter)->pos_funcs->shift(tc, STABLE(iter), (MVMObject *)iter, OBJECT_BODY(iter), &value, MVM_reg_obj);
+            env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, (MVMIter *)value.o), equal);
+            env_str = MVM_string_concatenate(tc, env_str, (MVMString *)MVM_iterval(tc, (MVMIter *)value.o));
+            _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str);
+        }
+        _env[size] = NULL;
+    });
 
     process_options.args  = args;
     process_options.cwd   = MVM_string_utf8_encode_C_string(tc, cwd);
