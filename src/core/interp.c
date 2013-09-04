@@ -1,5 +1,6 @@
 #include "moarvm.h"
 #include "math.h"
+#include "platform/time.h"
 
 /* Macros for getting things from the bytecode stream. */
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
@@ -1225,16 +1226,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 break;
             }
-            case MVM_OP_sleep: {/* microseconds for now */
-#ifdef _WIN32
-                Sleep((DWORD)(GET_REG(cur_op, 0).i64 / 1000));
-#else
-                const MVMint64 t = GET_REG(cur_op, 0).i64;
-                struct timeval tv;
-                tv.tv_sec  = t / 1000000;
-                tv.tv_usec = t % 1000000;
-                select(0, NULL, NULL, NULL, &tv);
-#endif
+            case MVM_OP_sleep: {
+                MVM_platform_sleep((MVMuint64)ceil(GET_REG(cur_op, 0).n64 * 1e9));
                 cur_op += 2;
                 break;
             }

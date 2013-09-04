@@ -26,15 +26,16 @@ sub recursive() {
     nqp::push(@ins, $ret);
     op(@ins, 'return');
     return $frame;
+}
 
 mast_frame_output_is(-> $frame, @ins, $cu {
         my $counter := local($frame, int);
         my $divisor := local($frame, int);
         my $modulus := local($frame, int);
-        my $sleepms := local($frame, int);
+        my $sleepms := local($frame, num);
         op(@ins, 'const_i64', $divisor, ival(10 *1000 *1000));
         op(@ins, 'const_i64', $counter, ival(100 *1000 *1000));
-        op(@ins, 'const_i64', $sleepms, ival(1000 *1000)); # microseconds
+        op(@ins, 'const_n64', $sleepms, nval(0.001)); # microseconds
         my $loop := label('loop');
         my $skipsleep := label('skipsleep');
         nqp::push(@ins, $loop);
@@ -53,13 +54,13 @@ mast_frame_output_is(-> $frame, @ins, $cu {
         my $counter := local($frame, int);
         my $divisor := local($frame, int);
         my $modulus := local($frame, int);
-        my $sleepms := local($frame, int);
+        my $sleepms := local($frame, num);
         my $func := local($frame, NQPMu);
         my $callee := callee();
 
         op(@ins, 'const_i64', $divisor, ival(1 *1000 *1000));
         op(@ins, 'const_i64', $counter, ival(10 *1000 *1000));
-        op(@ins, 'const_i64', $sleepms, ival(2000 *1000)); # microseconds
+        op(@ins, 'const_n64', $sleepms, nval(0.002)); # microseconds
         my $loop := label('loop');
         my $skipsleep := label('skipsleep');
         nqp::push(@ins, $loop);

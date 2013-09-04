@@ -1721,7 +1721,7 @@ class MAST::Ops {
         name => 'sleep')
     );
     nqp::push($operands_list, nqp::list_i(
-        $MVM_operand_read_reg +| $MVM_operand_int64
+        $MVM_operand_read_reg +| $MVM_operand_num64
     ));
     our $say_I := 184;
     nqp::push($ops_list, MAST::OpCode.new(

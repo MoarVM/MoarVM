@@ -1110,7 +1110,7 @@ static MVMOpInfo MVM_op_infos[] = {
         MVM_OP_sleep,
         "sleep",
         1,
-        { MVM_operand_read_reg | MVM_operand_int64 }
+        { MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
         MVM_OP_say_I,

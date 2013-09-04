@@ -36,7 +36,7 @@ ok(nqp::istype((try oops()), NQPMu), "statement prefix form of try works");
 $ok := 1;
 sub bar() {
     CATCH { $ok := 0; }
-    return;
+    return 1;
 }
 bar();
 ok($ok, "CATCH blocks ignore control exceptions");

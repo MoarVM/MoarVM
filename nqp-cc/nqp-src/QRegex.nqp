@@ -1262,7 +1262,7 @@ class NQPRegexMethod {
     method new($code) {
         self.bless(:code($code));
     }
-    multi method ACCEPTS($target) {
+    multi method ACCEPTS(NQPRegexMethod:D $self: $target) {
         NQPCursor.parse($target, :rule(self))
     }
     method name() {
@@ -1275,7 +1275,7 @@ class NQPRegexMethod {
 nqp::setinvokespec(NQPRegexMethod, NQPRegexMethod, '$!code', nqp::null);
 
 class NQPRegex is NQPRegexMethod {
-    multi method ACCEPTS($target) {
+    multi method ACCEPTS(NQPRegex:D $self: $target) {
         NQPCursor.parse($target, :rule(self), :c(0))
     }
 }
