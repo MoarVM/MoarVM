@@ -105,15 +105,15 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     int i;
 
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
+    char   * const      _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
     char              **_env = malloc((size + 1) * sizeof(char *));
     MVMIter    * const  iter = (MVMIter *)MVM_iter(tc, env);
     MVMString  * const equal = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "=");
 
 #ifdef _WIN32
-    const char     comspec[] = "ComSpec";
     const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
-    wchar_t * const wcomspec = ANSIToUnicode(acp, comspec);
+    wchar_t * const wcomspec = ANSIToUnicode(acp, "ComSpec");
     wchar_t * const     wcmd = _wgetenv(wcomspec);
     char    * const     _cmd = UnicodeToUTF8(wcmd);
 
@@ -121,15 +121,14 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
     args[0] = _cmd;
     args[1] = "/c";
-    args[2] = cmdin;
-    args[3] = NULL;
 #else
-    char sh[] = "/bin/sh";
-    args[0]   = sh;
+    args[0]   = "/bin/sh";
     args[1]   = "-c";
+#endif
+
     args[2]   = cmdin;
     args[3]   = NULL;
-#endif
+
     MVMROOT(tc, iter, {
         i = 0;
         while(MVM_iter_istrue(tc, iter)) {
@@ -144,21 +143,23 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     });
 
     process_options.args  = args;
-    process_options.cwd   = MVM_string_utf8_encode_C_string(tc, cwd);
+    process_options.cwd   = _cwd;
     process_options.flags = UV_PROCESS_DETACHED | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
     process_options.env   = _env;
     result = uv_spawn(tc->loop, &process, &process_options);
 
+#ifdef _WIN32
+    free(_cmd);
+#endif
+
     free(cmdin);
+    free(_cwd);
+
     i = 0;
     while(_env[i])
         free(_env[i++]);
 
     free(_env);
-
-#ifdef _WIN32
-    free(_cmd);
-#endif
     return result;
 }
 
