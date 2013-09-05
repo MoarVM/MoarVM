@@ -213,14 +213,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
          * deletion. It's okay for us to muck around in
          * another thread's fromspace while it's mutating
          * tospace, really. */
-        MVMSTable *st = tc->instance->stables_to_free;
-        while (st) {
-            MVMSTable *st_to_free = st;
-            st = (MVMSTable *)st_to_free->header.forwarder;
-            st_to_free->header.forwarder = NULL;
-            MVM_6model_stable_gc_free(tc, st_to_free);
-        }
-        tc->instance->stables_to_free = NULL;
+        MVM_gc_collect_free_stables(tc);
 
         /* Set it to zero (we're guaranteed the only ones
          * trying to write to it here). */
@@ -441,4 +434,5 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
     MVM_gc_collect_free_nursery_uncopied(tc, tc->nursery_alloc);
     MVM_gc_collect_cleanup_gen2roots(tc);
     MVM_gc_collect_free_gen2_unmarked(tc);
+    MVM_gc_collect_free_stables(tc);
 }
