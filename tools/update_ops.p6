@@ -124,7 +124,7 @@ BEGIN {
         join(',', @counts)~');
     MAST::Ops.WHO<@values> := nqp::list_i('~
         join(',', @values)~');
-    MAST::Ops.WHO<@codes> := nqp::hash('~ 
+    MAST::Ops.WHO<%codes> := nqp::hash('~ 
         join(",", @ops.map({ "'"~$_.name~"',"~$_.code }))~');
 }';
 }
