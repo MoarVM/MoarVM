@@ -205,7 +205,26 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
             MVM_casptr(&other->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_NONE);
         }
     }
-    MVM_atomic_decr(&tc->instance->gc_ack);
+    /* Signal acknowledgement of completing the cleanup,
+     * except for STables, and if we're the final to do
+     * so, free the STables, which have been linked. */
+    if (MVM_atomic_decr(&tc->instance->gc_ack) == 2) {
+        /* Free any STables that have been marked for 
+         * deletion. It's okay for us to muck around in
+         * another thread's fromspace while it's mutating
+         * tospace, really. */
+        MVMSTable *st = tc->instance->stables_to_free;
+        while (st) {
+            MVM_6model_stable_gc_free(tc, st);
+            st = (MVMSTable *)st->header.forwarder;
+        }
+        tc->instance->stables_to_free = NULL;
+
+        /* Set it to zero (we're guaranteed the only ones
+         * trying to write to it here). */
+        tc->instance->gc_ack = 0;
+        MVM_barrier();
+    }
 }
 
 /* Called by a thread to indicate it is about to enter a blocking operation.
@@ -351,8 +370,11 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         if (tc->instance->gc_finish != 0)
             MVM_panic(MVM_exitcode_gcorch, "finish votes was %d\n", tc->instance->gc_finish);
 
-        tc->instance->gc_ack = tc->instance->gc_finish = num_threads + 1;
+        /* gc_ack gets an extra so the final acknowledger
+         * can also free the STables. */
+        tc->instance->gc_ack = (tc->instance->gc_finish = num_threads + 1) + 1;
         GCORCH_LOG(tc, "Thread %d run %d : finish votes is %d\n", (int)tc->instance->gc_finish);
+        MVM_barrier();
 
         /* signal to the rest to start */
         if (MVM_atomic_decr(&tc->instance->gc_start) != 1)
@@ -395,4 +417,26 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     /* MVM_platform_yield();*/
     }
     run_gc(tc, MVMGCWhatToDo_NoInstance);
+}
+
+/* Run the global destruction phase. */
+void MVM_gc_global_destruction(MVMThreadContext *tc) {
+    char *nursery_tmp;
+
+    /* Must wait until we're the only thread... */
+    while (tc->instance->num_user_threads) {
+        GC_SYNC_POINT(tc);
+        MVM_platform_yield();
+    }
+
+    /* Fake a nursery collection run by swapping the semi-
+     * space nurseries. */
+    nursery_tmp = tc->nursery_fromspace;
+    tc->nursery_fromspace = tc->nursery_tospace;
+    tc->nursery_tospace = nursery_tmp;
+
+    /* Run the objects' finalizers */
+    MVM_gc_collect_free_nursery_uncopied(tc, tc->nursery_alloc);
+    MVM_gc_collect_cleanup_gen2roots(tc);
+    MVM_gc_collect_free_gen2_unmarked(tc);
 }

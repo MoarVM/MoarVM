@@ -20,7 +20,7 @@ typedef struct {
     ThreadWork *target_work;
 } WorkToPass;
 
-/* Foward decls. */
+/* Forward decls. */
 static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, WorkToPass *wtp, MVMuint8 gen);
 static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable **item_ptr);
 static void pass_leftover_work(MVMThreadContext *tc, WorkToPass *wtp);
@@ -485,6 +485,15 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
     }
 }
 
+/* Save dead STable pointers to delete later.. */
+static void MVM_gc_collect_enqueue_stable_for_deletion(MVMThreadContext *tc, MVMSTable *st) {
+    MVMSTable *old_head;
+    do {
+        old_head = tc->instance->stables_to_free;
+        st->header.forwarder = (MVMCollectable *)old_head;
+    } while (!MVM_trycas(&tc->instance->stables_to_free, old_head, st));
+}
+
 /* Some objects, having been copied, need no further attention. Others
  * need to do some additional freeing, however. This goes through the
  * fromspace and does any needed work to free uncopied things (this may
@@ -512,15 +521,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             /* Type object; doesn't have anything extra that needs freeing. */
         }
         else if (item->flags & MVM_CF_STABLE) {
-            /* Dead STables are a little interesting. Of course, there is
-             * stuff to free, but there's also an ordering issue: we need
-             * to make sure we don't toss these until we freed up all the
-             * other things, since the size data held in the STable may be
-             * needed in order to finish walking the fromspace! So we will
-             * add them to a list and then free them all at the end. */
-            if (dead) {
-                MVM_panic(MVM_exitcode_gcnursery, "Can't free STables in the GC yet");
-            }
+            MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)item);
         }
         else {
             printf("item flags: %d\n", item->flags);
@@ -603,7 +604,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         /* Type object; doesn't have anything extra that needs freeing. */
                     }
                     else if (col->flags & MVM_CF_STABLE) {
-                        MVM_panic(MVM_exitcode_gcnursery, "Can't free STables in gen2 GC yet");
+                        MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);
                     }
                     else {
                         printf("item flags: %d\n", col->flags);

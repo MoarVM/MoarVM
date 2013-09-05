@@ -497,3 +497,4 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
 MVMint64 MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
 MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args);
+void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);

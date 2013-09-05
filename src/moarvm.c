@@ -143,9 +143,14 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     free(dump);
 }
 
-/* Destroys a VM instance. */
+/* Destroys a VM instance. This must be called only from
+ * the main thread. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVMuint16 i;
+
+    /* Run the GC global destruction phase. After this,
+     * no 6model object pointers should be accessed. */
+    //MVM_gc_global_destruction(instance->main_thread);
 
     /* Free various instance-wide storage. */
     MVM_checked_free_null(instance->boot_types);
@@ -153,14 +158,13 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_checked_free_null(instance->repr_registry);
     MVM_HASH_DESTROY(hash_handle, MVMREPRHashEntry, instance->repr_name_to_id_hash);
 
+    /* Clean up GC permanent roots related resources. */
+    uv_mutex_destroy(&instance->mutex_permroots);
+    MVM_checked_free_null(instance->permroots);
+
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);
 
-    /* Clean up GC permanent roots related resources. */
-    uv_mutex_destroy(&instance->mutex_permroots);
-    free(instance->permroots);
-
     /* Clear up VM instance memory. */
     free(instance);
-
 }

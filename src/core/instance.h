@@ -104,6 +104,8 @@ struct MVMInstance {
     AO_t gc_finish;
     /* The number of threads that have yet to acknowledge the finish. */
     AO_t gc_ack;
+    /* Linked list (via forwarder) of STables to free. */
+    MVMSTable *stables_to_free;
 
     /* MVMThreads completed starting, running, and/or exited. */
     MVMThread *threads;

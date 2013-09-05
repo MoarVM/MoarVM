@@ -106,5 +106,7 @@ int main(int argc, char *argv[])
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
 
+    MVM_vm_destroy_instance(instance);
+
     return EXIT_SUCCESS;
 }

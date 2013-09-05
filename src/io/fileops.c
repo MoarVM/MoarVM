@@ -174,12 +174,18 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 
 /* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
-    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
-    MVMOSHandle    * const result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-    char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
-    char            * const fmode = MVM_string_utf8_encode_C_string(tc, mode);
+    MVMOSHandle    *result;
+    char            *fname;
+    char            *fmode;
     uv_fs_t req;
     int flag;
+
+    MVMROOT(tc, filename, {
+        MVMROOT(tc, mode, {
+            result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIO);
+    });});
+    fname = MVM_string_utf8_encode_C_string(tc, filename);
+    fmode = MVM_string_utf8_encode_C_string(tc, mode);
 
     if (0 == strcmp("r", fmode))
         flag = O_RDONLY;
@@ -188,7 +194,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     else if (0 == strcmp("wa", fmode))
         flag = O_CREAT | O_WRONLY | O_APPEND;
     else {
-        free(fmode);
+        free(fname);
         MVM_exception_throw_adhoc(tc, "Invalid open mode: %d", fmode);
     }
 
