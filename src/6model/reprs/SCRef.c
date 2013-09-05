@@ -63,8 +63,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     for (i = 0; i < sc->num_stables; i++)
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
 
-    /* Maintain backlink (yes, this is ugly). */
-    sc->sc = (MVMSerializationContext *)((char *)data - sizeof(MVMObject));
     MVM_gc_worklist_add(tc, worklist, &sc->sc);
 }
 
@@ -79,7 +77,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
     /* Free manually managed STable list memory and body. */
     MVM_checked_free_null(sc->body->root_stables);
-    free(sc->body);
+    MVM_checked_free_null(sc->body);
 }
 
 /* Gets the storage specification for this representation. */

@@ -977,7 +977,8 @@ void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
         /* Allocate new memory. */
         size_t  new_size = STABLE(new_type)->size - sizeof(MVMObject);
         void   *new = malloc(new_size);
-        memset(new, 0, new_size);
+        memset((char *)new + (STABLE(obj)->size - sizeof(MVMObject)),
+            0, new_size - (STABLE(obj)->size - sizeof(MVMObject)));
 
         /* Copy existing to new.
          * XXX Need more care here, as may have to re-barrier pointers. */

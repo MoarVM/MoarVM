@@ -92,10 +92,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMArray *arr = (MVMArray *)obj;
-    if (arr->body.slots.any) {
-        free(arr->body.slots.any);
-        arr->body.slots.any = NULL;
-    }
+    MVM_checked_free_null(arr->body.slots.any);
 }
 
 /* Gets the storage specification for this representation. */

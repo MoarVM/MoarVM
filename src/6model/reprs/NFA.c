@@ -57,10 +57,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMNFA *nfa = (MVMNFA *)obj;
     MVMint64 i;
     for (i = 0; i < nfa->body.num_states; i++)
-        if (nfa->body.states[i])
-            free(nfa->body.states[i]);
-    free(nfa->body.states);
-    free(nfa->body.num_state_edges);
+        if (nfa->body.num_state_edges[i])
+            MVM_checked_free_null(nfa->body.states[i]);
+    MVM_checked_free_null(nfa->body.states);
+    MVM_checked_free_null(nfa->body.num_state_edges);
 }
 
 /* Gets the storage specification for this representation. */

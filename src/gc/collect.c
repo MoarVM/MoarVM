@@ -513,7 +513,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             /* Object instance. If dead, call gc_free if needed. Scan is
              * incremented by object size. */
             MVMObject *obj = (MVMObject *)item;
-/*            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %d in the nursery\n", item);*/
+            GCCOLL_LOG(tc, "Thread %d run %d : collecting an object %d in the nursery with reprid %d\n", item, REPR(obj)->ID);
             if (dead && REPR(obj)->gc_free)
                 REPR(obj)->gc_free(tc, obj);
         }
@@ -609,7 +609,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     }
                     else if (col->flags & MVM_CF_STABLE) {
                         if (col->sc == (MVMSerializationContext *)1) {
-                            /* we marked it dead last time, kill it. */
+                            /* We marked it dead last time, kill it. */
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }
                         else {
@@ -621,7 +621,8 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 /* There will definitely be another gc run, so mark it as "died last time". */
                                 col->sc = (MVMSerializationContext *)1;
                             }
-                            goto skip_freelist_update;
+                            /* Skip the freelist updating. */
+                            continue;
                         }
                     }
                     else {
@@ -635,7 +636,6 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
 
                     /* Update the pointer to the insert position to point to us */
                     freelist_insert_pos = (char ***)cur_ptr;
-                    skip_freelist_update: ;
                 }
 
                 /* Move to the next object. */
