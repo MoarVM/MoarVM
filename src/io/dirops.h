@@ -3,4 +3,5 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path);
 MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname);
 MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle);
+MVMString * MVM_dir_cwd(MVMThreadContext *tc);
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir);

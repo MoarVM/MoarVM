@@ -1462,7 +1462,7 @@ QAST::MASTOperations.add_core_moarop_mapping('closefh', 'close_fh', 0);
 QAST::MASTOperations.add_core_moarop_mapping('chmod', 'chmod_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('unlink', 'delete_f', 0);
 QAST::MASTOperations.add_core_moarop_mapping('rmdir', 'rmdir', 0);
-# QAST::MASTOperations.add_core_moarop_mapping('cwd', ?);
+QAST::MASTOperations.add_core_moarop_mapping('cwd', 'cwd');
 QAST::MASTOperations.add_core_moarop_mapping('chdir', 'chdir', 0);
 QAST::MASTOperations.add_core_moarop_mapping('mkdir', 'mkdir', 0);
 QAST::MASTOperations.add_core_moarop_mapping('rename', 'rename_f', 0);
@@ -1858,6 +1858,7 @@ QAST::MASTOperations.add_core_moarop_mapping('nfarunalt', 'nfarunalt', 0);
 QAST::MASTOperations.add_core_moarop_mapping('exit', 'exit', 0);
 QAST::MASTOperations.add_core_moarop_mapping('sleep', 'sleep', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getenvhash', 'getenvhash');
+QAST::MASTOperations.add_core_moarop_mapping('shell', 'shell');
 
 # MoarVM-specific compilation ops
 QAST::MASTOperations.add_core_moarop_mapping('masttofile', 'masttofile', 2);

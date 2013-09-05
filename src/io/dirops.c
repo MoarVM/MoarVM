@@ -262,6 +262,23 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
 #endif
 }
 
+MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
+#ifdef _WIN32
+    char path[MAX_PATH];
+    const max_path = MAX_PATH;
+#else
+    char path[PATH_MAX];
+    const max_path = PATH_MAX;
+#endif
+    int r;
+
+    if ((r = uv_cwd(path, max_path)) < 0) {
+        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(r));
+    }
+
+    return MVM_string_utf8_decode(tc, tc->instance->VMString, path, strlen(path));
+}
+
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
     char * const dirstring = MVM_string_utf8_encode_C_string(tc, dir);
 

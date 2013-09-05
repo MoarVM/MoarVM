@@ -3119,6 +3119,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_proc_getenvhash(tc);
                 cur_op += 2;
                 break;
+            case MVM_OP_shell:
+                GET_REG(cur_op, 0).i64 = MVM_proc_spawn(tc, GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o);
+                cur_op += 8;
+                break;
+            case MVM_OP_cwd:
+                GET_REG(cur_op, 0).s = MVM_dir_cwd(tc);
+                cur_op += 2;
+                break;
             case MVM_OP_sha1:
                 GET_REG(cur_op, 0).s = MVM_sha1(tc,
                     GET_REG(cur_op, 2).s);
