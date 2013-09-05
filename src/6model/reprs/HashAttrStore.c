@@ -67,17 +67,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHashAttrStore *h = (MVMHashAttrStore *)obj;
-    MVMHashEntry *current, *tmp;
-
-    /* The macros already check for null. Also, must not delete the head
-     * node until after calling clear, or we look into freed memory. */
-    HASH_ITER(hash_handle, h->body.hash_head, current, tmp) {
-        if (current != h->body.hash_head)
-            free(current);
-    }
-    HASH_CLEAR(hash_handle, h->body.hash_head);
-    if (h->body.hash_head)
-        free(h->body.hash_head);
+    MVM_HASH_DESTROY(hash_handle, MVMHashEntry, h->body.hash_head);
 }
 
 static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,

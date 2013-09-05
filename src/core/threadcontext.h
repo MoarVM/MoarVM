@@ -76,6 +76,7 @@ struct MVMThreadContext {
     /* The frame we're currently executing. */
     MVMFrame *cur_frame;
 
+    /* libuv event loop */
     uv_loop_t *loop;
 
     /* The usecapture op can, without allocating, have a way to talk about the

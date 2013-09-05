@@ -129,18 +129,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
-    {
-        MVMLexicalHashEntry *current, *tmp;
-
-        /* The macros already check for null. Also, must not delete the head
-         * node until after calling clear, or we look into freed memory. */
-        HASH_ITER(hash_handle, body->lexical_names, current, tmp) {
-            if (current != body->lexical_names)
-                free(current);
-        }
-        HASH_CLEAR(hash_handle, body->lexical_names);
-        MVM_checked_free_null(body->lexical_names);
-    }
+    MVM_HASH_DESTROY(hash_handle, MVMLexicalHashEntry, body->lexical_names);
     if (body->prior_invocation) {
         body->prior_invocation = MVM_frame_dec_ref(tc, body->prior_invocation);
     }

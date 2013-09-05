@@ -221,8 +221,6 @@ void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsi
 
 /* Cleans up all allocated memory related to a frame. */
 void cleanup_frame(VM, FrameState *fs) {
-    CallsiteReuseEntry *current, *tmp;
-
     if (fs->local_types)
         free(fs->local_types);
     if (fs->lexical_types)
@@ -230,15 +228,7 @@ void cleanup_frame(VM, FrameState *fs) {
     if (fs->handlers)
         free(fs->handlers);
 
-    /* the macros already check for null */
-    HASH_ITER(hash_handle, fs->callsite_reuse_head, current, tmp)
-        if (current != fs->callsite_reuse_head)
-            free(current);
-
-    HASH_CLEAR(hash_handle, fs->callsite_reuse_head);
-    if (fs->callsite_reuse_head)
-        free(fs->callsite_reuse_head);
-
+    MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, fs->callsite_reuse_head);
     free(fs);
 }
 

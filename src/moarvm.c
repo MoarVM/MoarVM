@@ -147,7 +147,11 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
 void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVMuint16 i;
 
-    /* TODO: Lots of cleanup. */
+    /* Free various instance-wide storage. */
+    MVM_checked_free_null(instance->boot_types);
+    MVM_checked_free_null(instance->str_consts);
+    MVM_checked_free_null(instance->repr_registry);
+    MVM_HASH_DESTROY(hash_handle, MVMREPRHashEntry, instance->repr_name_to_id_hash);
 
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);

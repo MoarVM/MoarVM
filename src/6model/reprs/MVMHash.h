@@ -56,3 +56,13 @@ if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) { \
 else { \
     MVM_exception_throw_adhoc(tc, error); \
 }
+
+#define MVM_HASH_DESTROY(hash_handle, hashentry_type, head_node) do { \
+    hashentry_type *current, *tmp; \
+    HASH_ITER(hash_handle, head_node, current, tmp) { \
+        if (current != head_node) \
+            free(current); \
+    } \
+    HASH_CLEAR(hash_handle, head_node); \
+    MVM_checked_free_null(head_node); \
+} while (0)
