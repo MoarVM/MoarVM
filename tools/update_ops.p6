@@ -41,6 +41,13 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('}');
     $cf.close;
 
+    # Generate cgoto labels header.
+    my $lf = open('src/core/oplabels.h', :w);
+    $lf.say("/* This file is generated from $file by tools/update_ops.p6. */");
+    $lf.say("");
+    $lf.say(op_labels(@ops));
+    $lf.close;
+
     # Generate NQP Ops file.
     my $nf = open("lib/MAST/Ops.nqp", :w);
     $nf.say("# This file is generated from $file by tools/update_ops.p6.");
@@ -48,7 +55,7 @@ sub MAIN($file = "src/core/oplist") {
     $nf.say(op_constants(@ops));
     $nf.close;
 
-    say "Wrote src/core/ops.h, src/core/ops.c, and lib/MAST/Ops.nqp";
+    say "Wrote src/core/ops.h, src/core/ops.c, src/core/oplabels.h and lib/MAST/Ops.nqp";
 }
 
 # Parses ops and produces a bunch of Op objects.
@@ -127,6 +134,12 @@ BEGIN {
     MAST::Ops.WHO<%codes> := nqp::hash('~
         join(",\n    ", @ops.map({ "'"~$_.name~"', "~$_.code }))~');
 }';
+}
+
+# Generate labels for cgoto dispatch
+sub op_labels(@ops) {
+    my @labels = @ops.map({ sprintf('&&OP_%s', $_.name) });
+    return "static const void * const LABELS[] = \{\n    { join(",\n    ", @labels) }\n\};";
 }
 
 # Creates the #defines for the ops.
