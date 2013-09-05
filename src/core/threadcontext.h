@@ -152,6 +152,9 @@ struct MVMThreadContext {
 
     /* Any serialization contexts we are compiling. */
     MVMObject     *compiling_scs;
+
+    /* Random number generator state. */
+    MVMuint64 rand_state[2];
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);

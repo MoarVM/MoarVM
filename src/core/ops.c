@@ -3162,9 +3162,15 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_seed,
+        "seed",
+        1,
+        { MVM_operand_read_reg | MVM_operand_int64 }
+    },
 };
 
-static unsigned short MVM_op_counts = 526;
+static unsigned short MVM_op_counts = 527;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

@@ -527,5 +527,6 @@
 #define MVM_OP_scgetdesc 523
 #define MVM_OP_shell 524
 #define MVM_OP_cwd 525
+#define MVM_OP_seed 526
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);

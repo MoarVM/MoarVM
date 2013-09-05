@@ -1,5 +1,6 @@
 #include "moarvm.h"
 #include "platform/time.h"
+#include "tinymt64.h"
 
 #include <math.h>
 
@@ -163,17 +164,20 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     return result;
 }
 
-/* generates a random MVMint64, supposedly. */
-/* XXX the internet says this may block... */
+/* generates a random int64 */
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
-    return 42;  /* chosen by fair dice roll
-                 * yes, I've got one with that many sides
-                 */
+    MVMuint64 result = tinymt64_generate_uint64(tc->rand_state);
+    return *(MVMint64 *)&result;
 }
 
-/* extremely naively generates a number between 0 and 1 */
+/* generates a number between 0 and 1 */
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
-    return 0.42; /* see above */
+    return tinymt64_generate_double(tc->rand_state);
+}
+
+/* seed random number generator */
+void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
+    return tinymt64_init(tc->rand_state, (MVMuint64)seed);
 }
 
 /* gets the system time since the epoch truncated to integral seconds */

@@ -3078,6 +3078,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc);
                 cur_op += 2;
                 break;
+            case MVM_OP_seed:
+                MVM_proc_seed(tc, GET_REG(cur_op, 0).i64);
+                cur_op += 2;
+                break;
             case MVM_OP_time_i:
                 GET_REG(cur_op, 0).i64 = MVM_proc_time_i(tc);
                 cur_op += 2;
