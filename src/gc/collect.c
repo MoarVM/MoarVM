@@ -521,7 +521,11 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             /* Type object; doesn't have anything extra that needs freeing. */
         }
         else if (item->flags & MVM_CF_STABLE) {
-            MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)item);
+            MVMSTable *st = (MVMSTable *)item;
+            if (dead) {
+/*            GCCOLL_LOG(tc, "Thread %d run %d : enqueuing an STable %d in the nursery to be freed\n", item);*/
+                MVM_gc_collect_enqueue_stable_for_deletion(tc, st);
+            }
         }
         else {
             printf("item flags: %d\n", item->flags);
