@@ -1879,6 +1879,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                 cur_op += 4;
                 goto NEXT;
+            OP(atkey_i):
+            OP(atkey_n):
+                MVM_exception_throw_adhoc(tc, "atkey_i/n NYI");
             OP(atkey_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMObject *result = REPR(obj)->ass_funcs->at_key_boxed(tc,
@@ -1901,6 +1904,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(bindkey_i):
+            OP(bindkey_n):
+                MVM_exception_throw_adhoc(tc, "bindkey_i/n NYI");
             OP(bindkey_s): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->ass_funcs->bind_key_boxed(tc, STABLE(obj), obj,
