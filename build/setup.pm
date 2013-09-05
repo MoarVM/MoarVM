@@ -29,6 +29,12 @@ our %TP_LN = (
     src  => [ '3rdparty/linenoise' ],
 );
 
+our %TP_MT = (
+    name => 'tinymt',
+    path => '3rdparty/tinymt',
+    src  => [ '3rdparty/tinymt' ],
+);
+
 our %TP_DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
@@ -68,7 +74,7 @@ our %THIRDPARTY = (
     tom => { %TP_TOM },
     sha => { %TP_SHA },
     ln  => { %TP_LN },
-
+    mt  => { %TP_MT },
     dc  => { %TP_DC },
     dcb => { %TP_DCB },
     dl  => { %TP_DL },

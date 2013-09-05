@@ -24,6 +24,7 @@ CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libtommath \
             @ccinc@3rdparty/sha1 \
             @ccinc@3rdparty/linenoise \
+            @ccinc@3rdparty/tinymt \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -316,6 +317,10 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) linking $@
 	$(CMD)@lnrule@ $(NOOUT)
 
+@mtlib@: @mtobjects@
+	$(MSG) linking $@
+	$(CMD)@mtrule@ $(NOOUT)
+
 @dclib@:
 	$(MSG) building dyncall...
 	$(CMD)@dcrule@ $(NOOUT)
@@ -336,6 +341,7 @@ realclean: clean
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 
 distclean: realclean
