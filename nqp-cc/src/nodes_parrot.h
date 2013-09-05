@@ -254,3 +254,20 @@ typedef enum {
   #define MVM_BIGENDIAN       1
  #endif
 #endif
+
+#define MVM_checked_free_null(addr) do { \
+    if (addr) { \
+        free(addr); \
+        addr = NULL; \
+    } \
+} while (0)
+
+#define MVM_HASH_DESTROY(hash_handle, hashentry_type, head_node) do { \
+    hashentry_type *current, *tmp; \
+    HASH_ITER(hash_handle, head_node, current, tmp) { \
+        if (current != head_node) \
+            free(current); \
+    } \
+    HASH_CLEAR(hash_handle, head_node); \
+    MVM_checked_free_null(head_node); \
+} while (0)
