@@ -226,6 +226,7 @@ class MAST::Op is MAST::Node {
     has @!operands;
 
     my %op_codes := MAST::Ops.WHO<%codes>;
+    my @op_names := MAST::Ops.WHO<@codes>;
     method new(:$op!, *@operands) {
         my $obj := nqp::create(self);
         nqp::bindattr_i($obj, MAST::Op, '$!op', %op_codes{$op});
@@ -237,7 +238,7 @@ class MAST::Op is MAST::Node {
     method operands() { @!operands }
 
     method DUMP_lines(@lines, $indent) {
-        my $opname := nqp::getattr(MAST::Ops.WHO{'$ops_list'}[$!op], MAST::OpCode, '$!name');
+        my $opname := @op_names[$!op];
         nqp::push(@lines, $indent~"MAST::Op: $opname, operands:");
         nqp::push(@lines, $_.DUMP($indent ~ '  ')) for @!operands;
     }
