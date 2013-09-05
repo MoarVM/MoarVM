@@ -119,13 +119,13 @@ sub op_constants(@ops) {
 class MAST::Ops {}
 BEGIN {
     MAST::Ops.WHO<@offsets> := nqp::list_i('~
-        join(',', @offsets)~');
+        join(",\n", @offsets)~');
     MAST::Ops.WHO<@counts> := nqp::list_i('~
-        join(',', @counts)~');
+        join(",\n", @counts)~');
     MAST::Ops.WHO<@values> := nqp::list_i('~
-        join(',', @values)~');
-    MAST::Ops.WHO<%codes> := nqp::hash('~ 
-        join(",", @ops.map({ "'"~$_.name~"',"~$_.code }))~');
+        join(",\n", @values)~');
+    MAST::Ops.WHO<%codes> := nqp::hash('~
+        join(",\n", @ops.map({ "'"~$_.name~"',"~$_.code }))~');
 }';
 }
 
