@@ -1,7 +1,5 @@
 #include "moarvm.h"
 
-#define POOL(tc) (*(tc->interp_cu))->body.pool
-
 static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 
     /* work on only MVMOSHandle of type MVM_OSHANDLE_FILE */

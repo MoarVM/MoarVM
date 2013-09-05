@@ -15,8 +15,6 @@ extern char **environ;
 #  endif
 #endif
 
-#define POOL(tc) (*(tc->interp_cu))->body.pool
-
 #ifdef _WIN32
 static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 {

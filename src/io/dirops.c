@@ -265,10 +265,10 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
 MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
 #ifdef _WIN32
     char path[MAX_PATH];
-    const max_path = MAX_PATH;
+    const size_t max_path = MAX_PATH;
 #else
     char path[PATH_MAX];
-    const max_path = PATH_MAX;
+    const size_t max_path = PATH_MAX;
 #endif
     int r;
 
