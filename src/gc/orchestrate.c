@@ -215,8 +215,10 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
          * tospace, really. */
         MVMSTable *st = tc->instance->stables_to_free;
         while (st) {
-            MVM_6model_stable_gc_free(tc, st);
-            st = (MVMSTable *)st->header.forwarder;
+            MVMSTable *st_to_free = st;
+            st = (MVMSTable *)st_to_free->header.forwarder;
+            st_to_free->header.forwarder = NULL;
+            MVM_6model_stable_gc_free(tc, st_to_free);
         }
         tc->instance->stables_to_free = NULL;
 

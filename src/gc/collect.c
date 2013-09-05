@@ -604,7 +604,21 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         /* Type object; doesn't have anything extra that needs freeing. */
                     }
                     else if (col->flags & MVM_CF_STABLE) {
-                        MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);
+                        if (col->sc == (MVMSerializationContext *)1) {
+                            /* we marked it dead last time, kill it. */
+                            MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
+                        }
+                        else {
+                            if (tc->gc_status == MVMGCStatus_NONE) {
+                                /* We're in global destruction, so enqueue to the end
+                                 * like we do in the nursery */
+                                MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);
+                            } else {
+                                /* There will definitely be another gc run, so mark it as "died last time". */
+                                col->sc = (MVMSerializationContext *)1;
+                            }
+                            goto skip_freelist_update;
+                        }
                     }
                     else {
                         printf("item flags: %d\n", col->flags);
@@ -617,6 +631,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
 
                     /* Update the pointer to the insert position to point to us */
                     freelist_insert_pos = (char ***)cur_ptr;
+                    skip_freelist_update: ;
                 }
 
                 /* Move to the next object. */
