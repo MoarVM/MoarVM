@@ -23,13 +23,17 @@
 #else
 #define DISPATCH(op) switch (op)
 #define OP(name) case MVM_OP_ ## name
-#define NEXT RUNLOOP
+#define NEXT runloop
 #endif
 
 static int tracing_enabled = 0;
 
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
+#if MVM_CGOTO
+#include "oplabels.h"
+#endif
+
     /* Points to the current opcode. */
     MVMuint8 *cur_op = NULL;
 
@@ -60,11 +64,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     initial_invoke(tc, invoke_data);
 
     /* Enter runloop. */
-    RUNLOOP: {
-#if MVM_CGOTO
-#include "oplabels.h"
-#endif
-
+    runloop: {
 #if MVM_TRACING
         if (tracing_enabled) {
             char *trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
@@ -246,37 +246,32 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(return_i):
                 MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
                     MVM_RETURN_CALLER_FRAME);
-                if (MVM_frame_try_return(tc))
-                    goto NEXT;
-                else
-                    goto return_label;
+                if (MVM_frame_try_return(tc) == 0)
+                    return;
+                goto NEXT;
             OP(return_n):
                 MVM_args_set_result_num(tc, GET_REG(cur_op, 0).n64,
                     MVM_RETURN_CALLER_FRAME);
-                if (MVM_frame_try_return(tc))
-                    goto NEXT;
-                else
-                    goto return_label;
+                if (MVM_frame_try_return(tc) == 0)
+                    return;
+                goto NEXT;
             OP(return_s):
                 MVM_args_set_result_str(tc, GET_REG(cur_op, 0).s,
                     MVM_RETURN_CALLER_FRAME);
-                if (MVM_frame_try_return(tc))
-                    goto NEXT;
-                else
-                    goto return_label;
+                if (MVM_frame_try_return(tc) == 0)
+                    return;
+                goto NEXT;
             OP(return_o):
                 MVM_args_set_result_obj(tc, GET_REG(cur_op, 0).o,
                     MVM_RETURN_CALLER_FRAME);
-                if (MVM_frame_try_return(tc))
-                    goto NEXT;
-                else
-                    goto return_label;
+                if (MVM_frame_try_return(tc) == 0)
+                    return;
+                goto NEXT;
             OP(return):
                 MVM_args_assert_void_return_ok(tc, MVM_RETURN_CALLER_FRAME);
-                if (MVM_frame_try_return(tc))
-                    goto NEXT;
-                else
-                    goto return_label;
+                if (MVM_frame_try_return(tc) == 0)
+                    return;
+                goto NEXT;
             OP(const_i8):
             OP(const_i16):
             OP(const_i32):
@@ -3326,15 +3321,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
-#if !MVM_CGOTO
-            default:
-                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-1));
-                goto NEXT;
-#endif
         }
     }
 
-    return_label:;
+    MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));
 }
 
 void MVM_interp_enable_tracing() {
