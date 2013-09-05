@@ -41,6 +41,10 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     if (instance->CallCapture)
         tc->cur_usecapture = MVM_repr_alloc_init(tc, instance->CallCapture);
 
+    /* Initialize random number generator state. */
+    tc->rand_state[0] = 'T';
+    tc->rand_state[1] = 'M';
+
     return tc;
 }
 
