@@ -331,7 +331,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         static_frame = (MVMStaticFrame *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStaticFrame);
         MVM_ASSIGN_REF(tc, cu, frames[i], static_frame);
         static_frame_body = &static_frame->body;
-        
+
         bytecode_pos = read_int32(pos, 0);
         bytecode_size = read_int32(pos, 4);
         if (bytecode_pos >= rs->bytecode_size) {
@@ -350,9 +350,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         static_frame_body->num_lexicals = read_int32(pos, 12);
 
         /* Get compilation unit unique ID and name. */
-        /* XXX do these need MVM_ASSIGN_REF? */
-        static_frame_body->cuuid = get_heap_string(tc, cu, rs, pos, 16);
-        static_frame_body->name  = get_heap_string(tc, cu, rs, pos, 18);
+        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->cuuid, get_heap_string(tc, cu, rs, pos, 16));
+        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->name, get_heap_string(tc, cu, rs, pos, 18));
 
         /* Add frame outer fixup to fixup list. */
         rs->frame_outer_fixups[i] = read_int16(pos, 20);
@@ -390,11 +389,15 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
             /* Read in data. */
             ensure_can_read(tc, cu, rs, pos, 4 * static_frame_body->num_lexicals);
+            if (static_frame_body->num_lexicals) {
+                static_frame_body->lexical_names_list = malloc(sizeof(MVMLexicalHashEntry *) * static_frame_body->num_lexicals);
+            }
             for (j = 0; j < static_frame_body->num_lexicals; j++) {
                 MVMString *name = get_heap_string(tc, cu, rs, pos, 4 * j + 2);
                 MVMLexicalHashEntry *entry = calloc(1, sizeof(MVMLexicalHashEntry));
 
                 MVM_ASSIGN_REF(tc, static_frame, entry->key, name);
+                static_frame_body->lexical_names_list[j] = entry;
                 entry->value = j;
 
                 static_frame_body->lexical_types[j] = read_int16(pos, 4 * j);

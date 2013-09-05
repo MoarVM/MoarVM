@@ -128,6 +128,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_checked_free_null(body->static_env);
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
+    MVM_checked_free_null(body->lexical_names_list);
     {
         MVMLexicalHashEntry *current, *tmp;
 

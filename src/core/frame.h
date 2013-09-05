@@ -1,7 +1,7 @@
 /* Lexical hash entry for ->lexical_names on a frame. */
 struct MVMLexicalHashEntry {
     /* key string */
-    struct _MVMString *key;
+    MVMString *key;
     
     /* index of the lexical entry. */
     MVMuint32 value;

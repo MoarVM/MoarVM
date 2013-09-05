@@ -70,8 +70,9 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         if (outer_to_decr)
             frame = outer_to_decr; /* and loop */
         else
-            return NULL;
+            break;
     }
+    return NULL;
 }
 
 /* Takes a static frame and a thread context. Invokes the static frame. */

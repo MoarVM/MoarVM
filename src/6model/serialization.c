@@ -242,7 +242,8 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
     }
 
     /* Add dependency. */
-    /* XXX MVM_repr_push_o(tc, writer->root.dependent_scs, sc); */
+    writer->root.dependent_scs = realloc(writer->root.dependent_scs, sizeof(MVMSerializationContext *) * (writer->root.num_dependencies + 1));
+    writer->root.dependent_scs[writer->root.num_dependencies] = sc;
     write_int32(writer->root.dependencies_table, offset,
         add_string_to_heap(tc, writer, MVM_sc_get_handle(tc, sc)));
     write_int32(writer->root.dependencies_table, offset + 4,
@@ -416,15 +417,15 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
-static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMFrame *ctx) {
+static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
     if (OBJ_IS_NULL(ctx->header.sc)) {
         /* Make sure we should chase a level down. */
-        if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ((MVMObject *)ctx)->body.code_object, 0))) {
+        if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ((MVMContext *)ctx)->body.context->code_ref, 0))) {
             return 0;
         }
         else {
             MVM_repr_push_o(tc, writer->contexts_list, ctx);
-            MVM_ASSIGN_REF(tc, ctx, ctx.header->sc, writer->root.sc);
+            MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
             return (MVMint32)MVM_repr_elems(tc, writer->contexts_list);
         }
     }
@@ -449,7 +450,8 @@ static MVMint32 get_serialized_outer_context_idx(MVMThreadContext *tc, MVMSerial
         return 0;
     if (((MVMCode *)closure)->body.outer == NULL)
         return 0;
-    return get_serialized_context_idx(tc, writer, ((MVMCode *)closure)->body.outer);
+    return get_serialized_context_idx(tc, writer, MVM_frame_context_wrapper(tc,
+        ((MVMCode *)closure)->body.outer));
 }
 
 /* Takes a closure that needs to be serialized. Makes an entry in the closures
@@ -533,14 +535,12 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTHash)) {
         discrim = REFVAR_VM_HASH_STR_VAR;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTHash)) {
-        MVMObject *code_sc = ref->header.sc;
-        MVMObject *static_cr = ((MVMCode *);
-        if (code_sc && static_cr) {
+    else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode) {
+        if (ref->header.sc && ((MVMCode *)ref)->body.is_static) {
             /* Static code reference. */
             discrim = REFVAR_STATIC_CODEREF;
         }
-        else if (code_sc) {
+        else if (ref->header.sc) {
             /* Closure, but already seen and serialization already handled. */
             discrim = REFVAR_CLONED_CODEREF;
         }
@@ -563,7 +563,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 
     /* Now take appropriate action. */
     switch (discrim) {
-        case REFVAR_NULL: goto REFVAR_VM_NULL;
+        case REFVAR_NULL: break;
         case REFVAR_OBJECT:
             write_obj_ref(tc, writer, ref);
             break;
@@ -605,7 +605,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 /* Writing function for references to STables. */
 static void write_stable_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint32 sc_id, idx;
-    get_stable_ref_info(tc, writer, st->stable_pmc, &sc_id, &idx);
+    get_stable_ref_info(tc, writer, st, &sc_id, &idx);
     expand_storage_if_needed(tc, writer, 8);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
     *(writer->cur_write_offset) += 4;
@@ -848,10 +848,11 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     /* Grab lexpad, which we'll serialize later on. */
     MVMFrame  *frame     = ((MVMContext *)ctx)->body.context;
     MVMStaticFrame *sf   = frame->static_info;
+    MVMLexicalHashEntry **lexnames = sf->body.lexical_names_list;
 
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, ctx, 1);
-    MVMObject *static_code_sc  = static_code_ref->header.sc;
+    MVMSerializationContext *static_code_sc  = static_code_ref->header.sc;
     if (OBJ_IS_NULL(static_code_sc))
         MVM_exception_throw_adhoc(tc,
             "Serialization Error: closure outer is a code object not in an SC");
@@ -875,7 +876,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     if (frame->outer)
         write_int32(writer->root.contexts_table, offset + 12,
             get_serialized_context_idx(tc, writer,
-                MVM_frame_context_wrapper(frame->outer)));
+                MVM_frame_context_wrapper(tc, frame->outer)));
     else
         write_int32(writer->root.contexts_table, offset + 12, 0);
 
@@ -888,29 +889,33 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     writer->cur_write_limit  = &(writer->contexts_data_alloc);
 
     /* Serialize lexicals. */
-    writer->write_int(tc, writer, MVM_repr_elems(tc, lexpad));
-    while (MVM_iter_istrue(tc, lexiter)) {
-        MVMString *sym = MVM_iterkey_s(tc, lexiter);
-        writer->write_str(tc, writer, sym);
-        switch (MVM_repr_at_key_int(tc, lexinfo, sym) & 3) {
-            case REGNO_INT:
-                writer->write_int(tc, writer,
-                    MVM_repr_at_key_int(tc, lexpad, sym));
+    
+    writer->write_int(tc, writer, sf->body.num_lexicals);
+    for (i = 0; i < sf->body.num_lexicals; i++) {
+        writer->write_str(tc, writer, lexnames[i]->key);
+        switch (sf->body.lexical_types[i]) {
+            case MVM_reg_int8:
+            case MVM_reg_int16:
+            case MVM_reg_int32:
+                MVM_exception_throw_adhoc(tc, "unsupported lexical type");
+            case MVM_reg_int64:
+                writer->write_int(tc, writer, frame->env[i].i64);
                 break;
-            case REGNO_NUM:
-                writer->write_num(tc, writer,
-                    VTABLE_get_number_keyed_str(tc, lexpad, sym));
+            case MVM_reg_num32:
+                MVM_exception_throw_adhoc(tc, "unsupported lexical type");
+            case MVM_reg_num64:
+                writer->write_num(tc, writer, frame->env[i].n64);
                 break;
-            case REGNO_STR:
-                writer->write_str(tc, writer,
-                    VTABLE_get_string_keyed_str(tc, lexpad, sym));
+            case MVM_reg_str:
+                writer->write_str(tc, writer, frame->env[i].s);
+                break;
+            case MVM_reg_obj:
+                writer->write_ref(tc, writer, frame->env[i].o);
                 break;
             default:
-                writer->write_ref(tc, writer,
-                    VTABLE_get_pmc_keyed_str(tc, lexpad, sym));
+                MVM_exception_throw_adhoc(tc, "unsupported lexical type");
         }
     }
-    
     MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
 }
 
@@ -944,7 +949,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
         /* Serialize any contexts on the todo list. */
         while (writer->contexts_list_pos < contexts_todo) {
             serialize_context(tc, writer, MVM_repr_at_pos_o(tc,
-                writer->contexts_list, writer->contexts_list_pos)));
+                writer->contexts_list, writer->contexts_list_pos));
             writer->contexts_list_pos++;
             work_todo = 1;
         }
@@ -969,7 +974,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->codes_list          = sc->body->root_codes;
     writer->contexts_list       = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
     writer->root.string_heap    = empty_string_heap;
-    writer->root.dependent_scs  = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+    writer->root.dependent_scs  = malloc(sizeof(MVMSerializationContext *));
     writer->seen_strings        = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
 
     /* Allocate initial memory space for storing serialized tables and data. */
