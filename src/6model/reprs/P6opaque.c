@@ -215,32 +215,23 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
-            free(cur_map_entry->names);
-            free(cur_map_entry->slots);
+            MVM_checked_free_null(cur_map_entry->names);
+            MVM_checked_free_null(cur_map_entry->slots);
             cur_map_entry++;
         }
-        free(repr_data->name_to_index_mapping);
+        MVM_checked_free_null(repr_data->name_to_index_mapping);
     }
 
-    if (repr_data->attribute_offsets)
-        free(repr_data->attribute_offsets);
-    if (repr_data->flattened_stables)
-        free(repr_data->flattened_stables);
-    if (repr_data->auto_viv_values)
-        free(repr_data->auto_viv_values);
-    if (repr_data->unbox_slots)
-        free(repr_data->unbox_slots);
-    if (repr_data->gc_obj_mark_offsets)
-        free(repr_data->gc_obj_mark_offsets);
-    if (repr_data->initialize_slots)
-        free(repr_data->initialize_slots);
-    if (repr_data->gc_mark_slots)
-        free(repr_data->gc_mark_slots);
-    if (repr_data->gc_cleanup_slots)
-        free(repr_data->gc_cleanup_slots);
+    MVM_checked_free_null(repr_data->attribute_offsets);
+    MVM_checked_free_null(repr_data->flattened_stables);
+    MVM_checked_free_null(repr_data->auto_viv_values);
+    MVM_checked_free_null(repr_data->unbox_slots);
+    MVM_checked_free_null(repr_data->gc_obj_mark_offsets);
+    MVM_checked_free_null(repr_data->initialize_slots);
+    MVM_checked_free_null(repr_data->gc_mark_slots);
+    MVM_checked_free_null(repr_data->gc_cleanup_slots);
 
-    free(st->REPR_data);
-    st->REPR_data = NULL;
+    MVM_checked_free_null(st->REPR_data);
 }
 
 /* Helper for complaining about attribute access errors. */
