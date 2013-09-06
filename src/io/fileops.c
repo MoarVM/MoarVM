@@ -174,18 +174,11 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 
 /* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
-    MVMOSHandle    *result;
-    char            *fname;
-    char            *fmode;
+    char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
+    char            * const fmode = MVM_string_utf8_encode_C_string(tc, mode);
+    MVMOSHandle    * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIO);
     uv_fs_t req;
     int flag;
-
-    MVMROOT(tc, filename, {
-        MVMROOT(tc, mode, {
-            result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIO);
-    });});
-    fname = MVM_string_utf8_encode_C_string(tc, filename);
-    fmode = MVM_string_utf8_encode_C_string(tc, mode);
 
     if (0 == strcmp("r", fmode))
         flag = O_RDONLY;
