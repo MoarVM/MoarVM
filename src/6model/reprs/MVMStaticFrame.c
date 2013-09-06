@@ -41,9 +41,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     
     dest_body->bytecode = src_body->bytecode;
     dest_body->bytecode_size = src_body->bytecode_size;
+
     MVM_ASSIGN_REF(tc, dest_root, dest_body->cu, src_body->cu);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->cuuid, src_body->cuuid);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
+
     dest_body->num_locals = src_body->num_locals;
     dest_body->num_lexicals = src_body->num_lexicals;
     {
@@ -72,18 +74,38 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         }
     }
 
-    /* XXX start out with blank static env? */
-    dest_body->static_env = calloc(1, src_body->env_size);
+    /* Static environment needs to be copied, and any objects WB'd. */
+    if (src_body->env_size) {
+        MVMuint16 *type_map = src_body->lexical_types;
+        MVMuint16  count    = src_body->num_lexicals;
+        MVMuint16  i;
+        
+        dest_body->static_env = malloc(src_body->env_size);
+        memcpy(dest_body->static_env, src_body->static_env, src_body->env_size);
+        
+        for (i = 0; i < count; i++) {
+            if (type_map[i] == MVM_reg_str) {
+                MVM_WB(tc, dest_root, dest_body->static_env[i].s);
+            }
+            else if (type_map[i] == MVM_reg_obj) {
+                MVM_WB(tc, dest_root, dest_body->static_env[i].o);
+            }
+        }
+    }
     dest_body->env_size = src_body->env_size;
-    dest_body->invoked = 0;
     dest_body->work_size = src_body->work_size;
-    dest_body->prior_invocation = NULL; /* XXX ? */
+    
+    if (src_body->prior_invocation)
+        dest_body->prior_invocation = MVM_frame_inc_ref(tc, src_body->prior_invocation);    
+    if (src_body->outer)
+        MVM_ASSIGN_REF(tc, dest_root, dest_body->outer, src_body->outer);
+    
+    dest_body->static_code = NULL; /* XXX ? */
+
     dest_body->num_handlers = src_body->num_handlers;
     dest_body->handlers = malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
     memcpy(dest_body->handlers, src_body->handlers, src_body->num_handlers * sizeof(MVMFrameHandler));
-    if (src_body->outer)
-        MVM_ASSIGN_REF(tc, dest_root, dest_body->outer, src_body->outer);
-    dest_body->static_code = NULL; /* XXX ? */
+    dest_body->invoked = 0;
     dest_body->pool_index = src_body->pool_index;
     dest_body->num_annotations = src_body->num_annotations;
     dest_body->annotations_data = src_body->annotations_data;
