@@ -4,6 +4,7 @@
 class Op {
     has $.code;
     has $.name;
+    has $.mark;
     has @.operands;
 }
 
@@ -64,10 +65,18 @@ sub parse_ops($file) {
     my int $i = 0;
     for lines($file.IO) -> $line {
         if $line !~~ /^\s*[\#|$]/ {
-            my ($name, @operands) = $line.split(/\s+/);
+            my ($name, $mark, @operands) = $line.split(/\s+/);
+
+            # Look for validation .
+            unless $mark ~~ /^ <[:.+*-]> \w $/ {
+                @operands.unshift($mark) if $mark;
+                $mark = '  ';
+            }
+
             @ops.push(Op.new(
                 code     => $i,
                 name     => $name,
+                mark     => $mark,
                 operands => @operands
             ));
             $i = $i + 1;
@@ -163,6 +172,7 @@ sub opcode_details(@ops) {
             take "    \{";
             take "        MVM_OP_$op.name(),";
             take "        \"$op.name()\",";
+            take "        \"$op.mark()\",";
             take "        $op.operands.elems(),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";

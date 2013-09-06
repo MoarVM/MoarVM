@@ -1,5 +1,5 @@
 no_op
-goto                ins
+goto             .j ins
 if_i                r(int64) ins
 unless_i            r(int64) ins
 if_n                r(num64) ins
@@ -37,11 +37,11 @@ bindlex_ns          str r(str)
 bindlex_no          str r(obj)
 getlex_ng           w(obj) r(str)
 bindlex_ng          r(str) r(obj)
-return_i            r(int64)
-return_n            r(num64)
-return_s            r(str)
-return_o            r(obj)
-return
+return_i         .r r(int64)
+return_n         .r r(num64)
+return_s         .r r(str)
+return_o         .r r(obj)
+return           .r
 const_i8            w(int8) int8
 const_i16           w(int16) int16
 const_i32           w(int32) int32
@@ -63,16 +63,16 @@ inc_u               w(int64)
 dec_i               w(int64)
 dec_u               w(int64)
 getcode             w(obj) coderef
-prepargs            callsite
-arg_i               int16 r(int64)
-arg_n               int16 r(num64)
-arg_s               int16 r(str)
-arg_o               int16 r(obj)
-invoke_v            r(obj)
-invoke_i            w(int64) r(obj)
-invoke_n            w(num64) r(obj)
-invoke_s            w(str) r(obj)
-invoke_o            w(obj) r(obj)
+prepargs         +a callsite
+arg_i            *a int16 r(int64)
+arg_n            *a int16 r(num64)
+arg_s            *a int16 r(str)
+arg_o            *a int16 r(obj)
+invoke_v         -a r(obj)
+invoke_i         -a w(int64) r(obj)
+invoke_n         -a w(num64) r(obj)
+invoke_s         -a w(str) r(obj)
+invoke_o         -a w(obj) r(obj)
 add_n               w(num64) r(num64) r(num64)
 sub_n               w(num64) r(num64) r(num64)
 mul_n               w(num64) r(num64) r(num64)
@@ -91,9 +91,9 @@ lt_n                w(int64) r(num64) r(num64)
 le_n                w(int64) r(num64) r(num64)
 gt_n                w(int64) r(num64) r(num64)
 ge_n                w(int64) r(num64) r(num64)
-argconst_i          int16 int64
-argconst_n          int16 num64
-argconst_s          int16 str
+argconst_i       *a int16 int64
+argconst_n       *a int16 num64
+argconst_s       *a int16 str
 checkarity          int16 int16
 param_rp_i          w(int64) int16
 param_rp_n          w(num64) int16
@@ -122,7 +122,7 @@ brshift_i           w(int64) r(int64) r(int64)
 pow_i               w(int64) r(int64) r(int64)
 pow_n               w(num64) r(num64) r(num64)
 takeclosure         w(obj) r(obj)
-jumplist            int64 r(int64)
+jumplist         :j int64 r(int64)
 caller              w(obj) r(int64)
 getdynlex           w(obj) r(str)
 binddynlex          r(str) r(obj)

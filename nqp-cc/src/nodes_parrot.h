@@ -210,6 +210,7 @@ typedef STRING VMSTR;
 typedef struct _MVMOpInfo {
     unsigned short opcode;
     const char    *name;
+    char           mark[2];
     unsigned char  num_operands;
     unsigned char  operands[MVM_MAX_OPERANDS];
 } MVMOpInfo;
