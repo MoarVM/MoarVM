@@ -2868,6 +2868,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 ncr = (MVMCode *)(GET_REG(cur_op, 0).o = MVM_repr_clone(tc, cr));
                 MVMROOT(tc, ncr, {
                     ncr->body.sf = (MVMStaticFrame *)MVM_repr_clone(tc, (MVMObject *)ncr->body.sf);
+                    MVM_ASSIGN_REF(tc, ncr, ncr->body.sf->body.static_code, ncr);
                 });
                 cur_op += 4;
                 goto NEXT;

@@ -45,6 +45,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_ASSIGN_REF(tc, dest_root, dest_body->cu, src_body->cu);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->cuuid, src_body->cuuid);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
+    MVM_ASSIGN_REF(tc, dest_root, dest_body->static_code, src_body->static_code);
 
     dest_body->num_locals = src_body->num_locals;
     dest_body->num_lexicals = src_body->num_lexicals;
@@ -99,8 +100,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         dest_body->prior_invocation = MVM_frame_inc_ref(tc, src_body->prior_invocation);    
     if (src_body->outer)
         MVM_ASSIGN_REF(tc, dest_root, dest_body->outer, src_body->outer);
-    
-    dest_body->static_code = NULL; /* XXX ? */
 
     dest_body->num_handlers = src_body->num_handlers;
     dest_body->handlers = malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
