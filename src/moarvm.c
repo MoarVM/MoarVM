@@ -24,7 +24,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* No user threads when we start, and next thread to be created gets ID 1
      * (the main thread got ID 0). */
     instance->num_user_threads    = 0;
-    instance->next_user_thread_id = 1;
+    MVM_store(&instance->next_user_thread_id, 1);
 
     /* Set up the permanent roots storage. */
     instance->num_permroots   = 0;
@@ -55,10 +55,10 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create main thread object, and also make it the start of the all threads
      * linked list. */
-    instance->threads =
-        instance->main_thread->thread_obj = (MVMThread *)
+    MVM_store(&instance->threads,
+        (instance->main_thread->thread_obj = (MVMThread *)
             REPR(instance->boot_types->BOOTThread)->allocate(
-                instance->main_thread, STABLE(instance->boot_types->BOOTThread));
+                instance->main_thread, STABLE(instance->boot_types->BOOTThread))));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
 

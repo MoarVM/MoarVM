@@ -77,6 +77,7 @@ struct MVMFrame {
 
     /* Linked MVMContext object, so we can track the
      * serialization context and such. */
+    /* note: used atomically */
     MVMObject *context_object;
 };
 

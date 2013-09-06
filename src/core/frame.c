@@ -14,7 +14,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     MVM_validate_static_frame(tc, static_frame);
 
     /* Obtain an index to each threadcontext's pool table */
-    static_frame_body->pool_index = MVM_atomic_incr(&tc->instance->num_frame_pools);
+    static_frame_body->pool_index = MVM_incr(&tc->instance->num_frame_pools);
     if (static_frame_body->pool_index >= tc->frame_pool_table_size) {
         /* Grow the threadcontext's pool table */
         MVMuint32 old_size = tc->frame_pool_table_size;
@@ -36,21 +36,21 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
 /* Increases the reference count of a frame. */
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
-    MVM_atomic_incr(&frame->ref_count);
+    MVM_incr(&frame->ref_count);
     return frame;
 }
 
 /* Decreases the reference count of a frame. If it hits zero, then we can
  * free it. Returns null for convenience. */
 MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
-    /* MVM_atomic_dec returns what the count was before it decremented it
+    /* MVM_dec returns what the count was before it decremented it
      * to zero, so we look for 1 here. */
-    while (MVM_atomic_decr(&frame->ref_count) == 1) {
+    while (MVM_decr(&frame->ref_count) == 1) {
         MVMuint32 pool_index = frame->static_info->body.pool_index;
         MVMFrame *node = tc->frame_pool_table[pool_index];
         MVMFrame *outer_to_decr = frame->outer;
 
-        if (node && node->ref_count >= MVMFramePoolLengthLimit) {
+        if (node && MVM_load(&node->ref_count) >= MVMFramePoolLengthLimit) {
             /* There's no room on the free list, so destruction.*/
             if (frame->env) {
                 free(frame->env);
@@ -64,7 +64,7 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
             free(frame);
         }
         else { /* Unshift it to the free list */
-            frame->ref_count = (frame->outer = node) ? node->ref_count + 1 : 1;
+            MVM_store(&frame->ref_count, (frame->outer = node) ? MVM_load(&node->ref_count) + 1 : 1);
             tc->frame_pool_table[pool_index] = frame;
         }
         if (outer_to_decr)
@@ -192,8 +192,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Initial reference count is 1 by virtue of it being the currently
      * executing frame. */
-    frame->ref_count = 1;
-    frame->gc_seq_number = 0;
+    MVM_store(&frame->ref_count, 1);
+    MVM_store(&frame->gc_seq_number, 0);
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
@@ -530,7 +530,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
 }
 
 MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
-    MVMObject *ctx = f->context_object;
+    MVMObject *ctx = (MVMObject *)MVM_load(&f->context_object);
 
     if (!ctx) {
         ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
@@ -538,7 +538,7 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
 
         if (MVM_casptr(&f->context_object, NULL, ctx) != NULL) {
             ((MVMContext *)ctx)->body.context = MVM_frame_dec_ref(tc, f);
-            ctx = f->context_object;
+            ctx = (MVMObject *)MVM_load(&f->context_object);
         }
     }
 

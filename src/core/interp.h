@@ -4,6 +4,8 @@
  * that every call down to the allocator is also a sync point, so this
  * really only means we need to do this enough to make sure tight native
  * loops trigger it. */
+/* Don't use a MVM_load(&tc->gc_status) here for performance, it's okay
+ * if the interrupt is delayed a bit. */
 #define GC_SYNC_POINT(tc) \
     if (tc->gc_status) { \
         MVM_gc_enter_from_interrupt(tc); \

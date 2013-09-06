@@ -2,9 +2,9 @@
 
 #define GCCOLL_DEBUG 0
 #ifdef _MSC_VER
-# define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number, __VA_ARGS__)
+# define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, MVM_load(&(tc)->instance->gc_seq_number), __VA_ARGS__)
 #else
-# define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, (tc)->instance->gc_seq_number , ##__VA_ARGS__)
+# define GCCOLL_LOG(tc, msg, ...) if (GCCOLL_DEBUG) printf((msg), (tc)->thread_id, MVM_load(&(tc)->instance->gc_seq_number) , ##__VA_ARGS__)
 #endif
 
 /* Combines a piece of work that will be passed to another thread with the
@@ -373,7 +373,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
         target_tc = tc->instance->main_thread;
     }
     else {
-        MVMThread *t = tc->instance->threads;
+        MVMThread *t = (MVMThread *)MVM_load(&tc->instance->threads);
         do {
             if (t->body.tc->thread_id == target) {
                 target_tc = t->body.tc;
@@ -390,8 +390,8 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
         work->last_by_sender = tc->gc_sent_items;
     }
     /* queue it up to check if the check list isn't clear */
-    if (!tc->gc_next_to_check) {
-        tc->gc_next_to_check = work;
+    if (!MVM_load(&tc->gc_next_to_check)) {
+        MVM_store(&tc->gc_next_to_check, work);
     }
     tc->gc_sent_items = work;
 
@@ -480,7 +480,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
         MVMuint32 i;
         for (i = 0; i < head->num_items; i++)
             MVM_gc_worklist_add(tc, worklist, head->items[i]);
-        head->completed = 1;
+        MVM_store(&head->completed, 1);
         head = next;
     }
 }
@@ -625,7 +625,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }
                         else {
-                            if (tc->gc_status == MVMGCStatus_NONE) {
+                            if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
                                 /* We're in global destruction, so enqueue to the end
                                  * like we do in the nursery */
                                 MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);

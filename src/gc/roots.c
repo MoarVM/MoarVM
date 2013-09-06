@@ -172,9 +172,9 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
  * GC worklist. */
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
     MVMFrame *cur_frame = start_frame;
-    MVMuint32 cur_seq_number = tc->instance->gc_seq_number;
+    MVMuint32 cur_seq_number = MVM_load(&tc->instance->gc_seq_number);
     /* If we already saw the frame this run, skip it. */
-    MVMuint32 orig_seq = cur_frame->gc_seq_number;
+    MVMuint32 orig_seq = MVM_load(&cur_frame->gc_seq_number);
     if (orig_seq == cur_seq_number)
         return;
     if (MVM_cas(&cur_frame->gc_seq_number, orig_seq, cur_seq_number) != orig_seq)

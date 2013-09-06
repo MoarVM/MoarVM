@@ -40,7 +40,7 @@ struct MVMGCWorklist {
 
 #define MVM_gc_worklist_add_frame(tc, worklist, frame) \
     do { \
-        if ((frame) && (tc)->instance->gc_seq_number != (frame)->gc_seq_number) { \
+        if ((frame) && MVM_load(&(tc)->instance->gc_seq_number) != MVM_load(&(frame)->gc_seq_number)) { \
             if (worklist->frames == worklist->frames_alloc) \
                 MVM_gc_worklist_add_frame_slow(tc, worklist, (frame)); \
             else \

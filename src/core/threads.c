@@ -90,7 +90,7 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         child->body.tc = child_tc;
         MVM_ASSIGN_REF(tc, child, child->body.invokee, invokee);
         child_tc->thread_obj = child;
-        child_tc->thread_id = MVM_atomic_incr(&tc->instance->next_user_thread_id);
+        child_tc->thread_id = MVM_incr(&tc->instance->next_user_thread_id);
 
         /* Create the thread. Note that we take a reference to the current frame,
          * since it must survive to be the dynamic scope of where the thread was

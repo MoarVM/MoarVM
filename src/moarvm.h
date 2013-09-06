@@ -96,17 +96,17 @@ MVM_PUBLIC void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
 MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 
 /* Returns original. Use only on AO_t-sized values (including pointers). */
-#define MVM_atomic_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))
-#define MVM_atomic_decr(addr) AO_fetch_and_sub1_full((volatile AO_t *)(addr))
-#define MVM_atomic_add(addr, add) AO_fetch_and_add_full((volatile AO_t *)(addr), (AO_t)(add))
+#define MVM_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))
+#define MVM_decr(addr) AO_fetch_and_sub1_full((volatile AO_t *)(addr))
+#define MVM_add(addr, add) AO_fetch_and_add_full((volatile AO_t *)(addr), (AO_t)(add))
 
 /* Returns non-zero for success. Use for both AO_t numbers and pointers. */
 #define MVM_trycas(addr, old, new) AO_compare_and_swap_full((volatile AO_t *)(addr), (AO_t)(old), (AO_t)(new))
 
 /* Returns the old value dereferenced at addr. */
-#define MVM_cas(addr, old, new) AO_fetch_compare_and_swap_full(addr, old, new)
+#define MVM_cas(addr, old, new) AO_fetch_compare_and_swap_full((addr), (old), (new))
 
-/* Returns the old value dereferenced at addr. Provided for a tiny bit of type safety. */
+/* Returns the old pointer value dereferenced at addr. Provided for a tiny bit of type safety. */
 #define MVM_casptr(addr, old, new) ((void *)MVM_cas((AO_t *)(addr), (AO_t)(old), (AO_t)(new)))
 
 /* Full memory barrier. */
@@ -114,8 +114,13 @@ MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 
 /* Convenience shortcut for use in gc_free routines. */
 #define MVM_checked_free_null(addr) do { \
-    if (addr) { \
-        free(addr); \
-        addr = NULL; \
+    if ((addr)) { \
+        free((addr)); \
+        (addr) = NULL; \
     } \
 } while (0)
+
+/* Need to use these to assign to or read from any memory locations on
+ * which the other atomic operation macros are used... */
+#define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
+#define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
