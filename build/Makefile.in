@@ -2,9 +2,13 @@ CC    = @cc@
 LD    = @ld@
 AR    = @ar@
 MAKE  = @make@ @mkflags@
+PERL  = @perl@
 RM    = @rm@
 CAT   = @cat@
 SHELL = @sh@
+
+CONFIG    = @config@
+ADDCONFIG =
 
 TRACING = 0
 CGOTO = 0
@@ -251,6 +255,10 @@ help:
 
 test:
 	@$(CAT) build/test.txt
+
+reconfig: realclean
+	$(MSG) reconfiguring with [ $(CONFIG) $(ADDCONFIG) ]
+	$(CMD)$(PERL) Configure.pl $(CONFIG) $(ADDCONFIG)
 
 clangcheck gcccheck:
 	@$(MAKE) --no-print-directory -f tools/check.mk $@

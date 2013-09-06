@@ -22,6 +22,8 @@ my %args;
 my %defaults;
 my %config;
 
+my @args = @ARGV;
+
 GetOptions(\%args, qw(
     help|?
     debug! optimize! instrument!
@@ -59,7 +61,9 @@ else {
     }->{$^O} // $^O);
 }
 
-$config{name} = $NAME;
+$config{name}   = $NAME;
+$config{perl}   = $^X;
+$config{config} = join ' ', @args;
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -77,9 +81,9 @@ $config{syslibs}   //= [];
 $config{usrlibs}   //= [];
 $config{platform}  //= '';
 $config{crossconf} //= '';
-$config{dllimport} //= '',
-$config{dllexport} //= '',
-$config{dlllocal}  //= '',
+$config{dllimport} //= '';
+$config{dllexport} //= '';
+$config{dlllocal}  //= '';
 
 # assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};
