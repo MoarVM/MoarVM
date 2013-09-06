@@ -17,8 +17,8 @@ my $credits := nqp::open('t/nqp/CREDITS', 'r');
 ok( $credits, 'nqp::open for read');
 ok( nqp::tellfh($credits) == 0, 'nqp::tellfh start of file');
 my $line := nqp::readlinefh($credits);
-ok( nqp::chars($line) == 5, 'nqp::readlinefh line to read'); # =pod\n
-ok( nqp::tellfh($credits) == 5, 'nqp::tellfh line two');
+ok( nqp::chars($line) == 5 || nqp::chars($line) == 6, 'nqp::readlinefh line to read'); # =pod\n, optionally \r\n on windows
+ok( nqp::tellfh($credits) == 5 || nqp::tellfh($credits) == 6, 'nqp::tellfh line two');
 my $rest := nqp::readallfh($credits);
 ok( nqp::chars($rest) > 100, 'nqp::readallfh lines to read');
 ok( nqp::tellfh($credits) == nqp::chars($line) + nqp::chars($rest), 'nqp::tellfh end of file');
