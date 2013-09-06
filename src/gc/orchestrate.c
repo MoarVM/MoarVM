@@ -339,15 +339,17 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         add_work(tc, tc);
 
-        /* grab our child */
+        /* grab our child (if we created one) */
         signal_child(tc);
 
         do {
-            MVMThread * const threads = (MVMThread *)MVM_load(&tc->instance->threads);
+            MVMThread *threads = (MVMThread *)MVM_load(&tc->instance->threads);
             if (threads && threads != last_starter) {
-                MVMThread *head;
+                MVMThread *head = threads;
                 MVMuint32 add;
-                while (!MVM_trycas(&tc->instance->threads, (head = tc->instance->threads), NULL));
+                while ((threads = (MVMThread *)MVM_casptr(&tc->instance->threads, head, NULL)) != head) {
+                    head = threads;
+                }
 
                 add = signal_all_but(tc, head, last_starter);
                 last_starter = head;
