@@ -209,7 +209,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
      * except for STables, and if we're the final to do
      * so, free the STables, which have been linked. */
     if (MVM_decr(&tc->instance->gc_ack) == 2) {
-        /* Free any STables that have been marked for 
+        /* Free any STables that have been marked for
          * deletion. It's okay for us to muck around in
          * another thread's fromspace while it's mutating
          * tospace, really. */
@@ -343,7 +343,8 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         signal_child(tc);
 
         do {
-            if (MVM_load(&tc->instance->threads) && (MVMThread *)MVM_load(&tc->instance->threads) != last_starter) {
+            MVMThread * const threads = (MVMThread *)MVM_load(&tc->instance->threads);
+            if (threads && threads != last_starter) {
                 MVMThread *head;
                 MVMuint32 add;
                 while (!MVM_trycas(&tc->instance->threads, (head = tc->instance->threads), NULL));
