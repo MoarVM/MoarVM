@@ -14,7 +14,7 @@
 #define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
-#define NEXT_OP (cur_op += 2, *(MVMuint16 *)(cur_op - 2))
+#define NEXT_OP (op = *(MVMuint16 *)(cur_op), cur_op += 2, op)
 
 #if MVM_CGOTO
 #define DISPATCH(op)
@@ -65,6 +65,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
     /* Enter runloop. */
     runloop: {
+        MVMuint16 op;
+
 #if MVM_TRACING
         if (tracing_enabled) {
             char *trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
@@ -3331,10 +3333,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+#if !MVM_CGOTO
+            default:
+                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));
+#endif
         }
     }
 
-    MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));
     return_label:
     /* Need to clear these pointer pointers since they may be rooted
      * by some GC procedure. */
