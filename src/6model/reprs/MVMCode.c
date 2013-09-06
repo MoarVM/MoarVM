@@ -44,7 +44,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMCodeBody *src_body  = (MVMCodeBody *)src;
     MVMCodeBody *dest_body = (MVMCodeBody *)dest;
-    dest_body->sf = src_body->sf;
+    MVM_ASSIGN_REF(tc, dest_body, dest_body->sf, src_body->sf);
     if (src_body->outer) {
         dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
     }
