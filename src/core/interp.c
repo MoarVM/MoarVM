@@ -247,30 +247,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_args_set_result_int(tc, GET_REG(cur_op, 0).i64,
                     MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
-                    return;
+                    goto return_label;
                 goto NEXT;
             OP(return_n):
                 MVM_args_set_result_num(tc, GET_REG(cur_op, 0).n64,
                     MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
-                    return;
+                    goto return_label;
                 goto NEXT;
             OP(return_s):
                 MVM_args_set_result_str(tc, GET_REG(cur_op, 0).s,
                     MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
-                    return;
+                    goto return_label;
                 goto NEXT;
             OP(return_o):
                 MVM_args_set_result_obj(tc, GET_REG(cur_op, 0).o,
                     MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
-                    return;
+                    goto return_label;
                 goto NEXT;
             OP(return):
                 MVM_args_assert_void_return_ok(tc, MVM_RETURN_CALLER_FRAME);
                 if (MVM_frame_try_return(tc) == 0)
-                    return;
+                    goto return_label;
                 goto NEXT;
             OP(const_i8):
             OP(const_i16):
@@ -3335,6 +3335,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     }
 
     MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));
+    return_label:
+    /* Need to clear these pointer pointers since they may be rooted
+     * by some GC procedure. */
+    tc->interp_cur_op         = NULL;
+    tc->interp_bytecode_start = NULL;
+    tc->interp_reg_base       = NULL;
+    tc->interp_cu             = NULL;
+    MVM_barrier();
 }
 
 void MVM_interp_enable_tracing() {
