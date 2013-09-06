@@ -39,10 +39,15 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
         /* Get node types into struct. */
         MASTNodeTypes *mnt = node_types_struct(tc, types);
         
-        /* Turn the MAST tree into bytecode. */
+        /* Turn the MAST tree into bytecode. Switch to gen2 GC allocation to be
+         * sure nothing moves, though we'd really rather not have compiler
+         * temporaries live longer. */
         unsigned int size;
-        char *bytecode = MVM_mast_compile(tc, mast, mnt, &size);
+        char *bytecode;
+        MVM_gc_allocate_gen2_default_set(tc);
+        bytecode = MVM_mast_compile(tc, mast, mnt, &size);
         free(mnt);
+        MVM_gc_allocate_gen2_default_clear(tc);
         
         /* Load it as a compilation unit; it is a kind of MVMObject, so cast
          * it to that. */
