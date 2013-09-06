@@ -67,7 +67,7 @@ sub parse_ops($file) {
         if $line !~~ /^\s*[\#|$]/ {
             my ($name, $mark, @operands) = $line.split(/\s+/);
 
-            # Look for validation .
+            # Look for validation mark.
             unless $mark ~~ /^ <[:.+*-]> \w $/ {
                 @operands.unshift($mark) if $mark;
                 $mark = '  ';
