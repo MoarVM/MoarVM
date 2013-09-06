@@ -289,7 +289,7 @@ cgoto:
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=0 CGOTO=1 NOISY="$(NOISY)"
 
-no-tracing no-cgoto:
+switch no-tracing no-cgoto:
 	$(MSG) enable regular dispatch
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=0 CGOTO=0 NOISY="$(NOISY)"
