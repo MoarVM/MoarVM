@@ -8,8 +8,12 @@ Makefile targets:
         test    dummy target
                 ( use the nqp-cc test suite instead )
 
-     tracing    rebuild executable with tracing enabled
-  no-tracing    rebuild executable with tracing disabled
+      switch    rebuild executable with switch dispatch [default]
+     tracing    rebuild executable with tracing dispatch
+       cgoto    rebuild executable with computed goto dispatch
+
+  no-tracing    alias for switch
+    no-cgoto    alias for switch
 
        clean    remove build files
    realclean    additionally remove auxiliary and 3rdparty files
@@ -19,6 +23,14 @@ Makefile targets:
                 configuration files
                 ( should remove all generated files )
 
+    reconfig    calls Configure.pl after doing a realclean
+                ( use CONFIG and ADDCONFIG to control options )
+
 Makefile options:
 
      NOISY=1    show actual commands instead of descriptions
+
+    CONFIG=?    passed to Configure.pl by reconfig
+
+ ADDCONFIG=?    passed to Configure.pl by reconfig in addition
+                to the previously passed arguments

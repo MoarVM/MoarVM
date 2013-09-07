@@ -165,7 +165,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMFrame *candidate = tc->cur_frame;
         frame->outer = NULL;
         while (candidate) {
-            if (candidate->static_info == static_frame_body->outer) {
+            if (candidate->static_info->body.bytecode == static_frame_body->outer->body.bytecode) {
                 frame->outer = candidate;
                 break;
             }

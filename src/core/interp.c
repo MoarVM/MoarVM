@@ -2868,6 +2868,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 ncr = (MVMCode *)(GET_REG(cur_op, 0).o = MVM_repr_clone(tc, cr));
                 MVMROOT(tc, ncr, {
                     ncr->body.sf = (MVMStaticFrame *)MVM_repr_clone(tc, (MVMObject *)ncr->body.sf);
+                    MVM_ASSIGN_REF(tc, ncr, ncr->body.sf->body.static_code, ncr);
                 });
                 cur_op += 4;
                 goto NEXT;
@@ -2890,8 +2891,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getstaticcode): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
-                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode
-                        || !((MVMCode *)cr)->body.is_static)
+                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
                     MVM_exception_throw_adhoc(tc, "getstaticcode requires a static coderef");
                 GET_REG(cur_op, 0).o = (MVMObject *)((MVMCode *)cr)->body.sf->body.static_code;
                 cur_op += 4;
@@ -2899,8 +2899,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getcodecuid): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
-                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode
-                        || !((MVMCode *)cr)->body.is_static)
+                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
                     MVM_exception_throw_adhoc(tc, "getcodecuid requires a static coderef");
                 GET_REG(cur_op, 0).s = ((MVMCode *)cr)->body.sf->body.cuuid;
                 cur_op += 4;

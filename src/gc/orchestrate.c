@@ -1,13 +1,6 @@
 #include "moarvm.h"
 #include <platform/threads.h>
 
-#define GCORCH_DEBUG 0
-#ifdef _MSC_VER
-# define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, MVM_load(&(tc)->instance->gc_seq_number), __VA_ARGS__)
-#else
-# define GCORCH_LOG(tc, msg, ...) if (GCORCH_DEBUG) printf((msg), (tc)->thread_id, MVM_load(&(tc)->instance->gc_seq_number) , ##__VA_ARGS__)
-#endif
-
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
 static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
@@ -36,18 +29,18 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                 /* Try to set it from running to interrupted - the common case. */
                 if (MVM_cas(&to_signal->gc_status, MVMGCStatus_NONE,
                         MVMGCStatus_INTERRUPT) == MVMGCStatus_NONE) {
-                    GCORCH_LOG(tc, "Thread %d run %d : Signalled thread %d to interrupt\n", to_signal->thread_id);
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Signalled thread %d to interrupt\n", to_signal->thread_id);
                     return 1;
                 }
                 break;
             case MVMGCStatus_INTERRUPT:
-                GCORCH_LOG(tc, "Thread %d run %d : thread %d already interrupted\n", to_signal->thread_id);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : thread %d already interrupted\n", to_signal->thread_id);
                 return 0;
             case MVMGCStatus_UNABLE:
                 /* Otherwise, it's blocked; try to set it to work Stolen. */
                 if (MVM_cas(&to_signal->gc_status, MVMGCStatus_UNABLE,
                         MVMGCStatus_STOLEN) == MVMGCStatus_UNABLE) {
-                    GCORCH_LOG(tc, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : A blocked thread %d spotted; work stolen\n", to_signal->thread_id);
                     add_work(tc, to_signal);
                     return 0;
                 }
@@ -55,7 +48,7 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
             /* this case occurs if a child thread is Stolen by its parent
              * before we get to it in the chain. */
             case MVMGCStatus_STOLEN:
-                GCORCH_LOG(tc, "Thread %d run %d : thread %d already stolen (it was a spawning child)\n", to_signal->thread_id);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : thread %d already stolen (it was a spawning child)\n", to_signal->thread_id);
                 return 0;
             default:
                 MVM_panic(MVM_exitcode_gcorch, "invalid status %d in GC orchestrate\n", MVM_load(&to_signal->gc_status));
@@ -82,16 +75,16 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
                 }
                 break;
             case MVM_thread_stage_exited:
-                GCORCH_LOG(tc, "Thread %d run %d : queueing to clear nursery of thread %d\n", t->body.tc->thread_id);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : queueing to clear nursery of thread %d\n", t->body.tc->thread_id);
                 add_work(tc, t->body.tc);
                 break;
             case MVM_thread_stage_clearing_nursery:
-                GCORCH_LOG(tc, "Thread %d run %d : queueing to destroy thread %d\n", t->body.tc->thread_id);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : queueing to destroy thread %d\n", t->body.tc->thread_id);
                 /* last GC run for this thread */
                 add_work(tc, t->body.tc);
                 break;
             case MVM_thread_stage_destroyed:
-                GCORCH_LOG(tc, "Thread %d run %d : found a destroyed thread\n");
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : found a destroyed thread\n");
                 /* will be cleaned up (removed from the lists) shortly */
                 break;
             default:
@@ -110,7 +103,7 @@ static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen, MVMuint32 *put_v
      * GC loop to process it. Note that since we're now doing GC stuff
      * again, we take back our vote to finish. */
     if (MVM_load(&tc->gc_in_tray)) {
-        GCORCH_LOG(tc, "Thread %d run %d : Was given extra work by another thread; doing it\n");
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Was given extra work by another thread; doing it\n");
         if (!*put_vote) {
             MVM_incr(&tc->instance->gc_finish);
             *put_vote = 1;
@@ -175,7 +168,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
             put_vote = 0;
         }
     }
-/*    GCORCH_LOG(tc, "Thread %d run %d : Discovered GC termination\n");*/
+/*    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Discovered GC termination\n");*/
 
     /* Reset GC status flags and cleanup sent items for any work threads. */
     /* This is also where thread destruction happens, and it needs to happen
@@ -185,12 +178,12 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
         MVMThread *thread_obj = other->thread_obj;
         cleanup_sent_items(other);
         if (MVM_load(&thread_obj->body.stage) == MVM_thread_stage_clearing_nursery) {
-            GCORCH_LOG(tc, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
             /* always free gen2 */
             MVM_gc_collect_free_gen2_unmarked(other);
-            GCORCH_LOG(tc, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
             MVM_gc_gen2_transfer(other, tc);
-            GCORCH_LOG(tc, "Thread %d run %d : destroying thread %d\n", other->thread_id);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : destroying thread %d\n", other->thread_id);
             MVM_tc_destroy(other);
             tc->gc_work[i].tc = thread_obj->body.tc = NULL;
             MVM_store(&thread_obj->body.stage, MVM_thread_stage_destroyed);
@@ -199,7 +192,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
             if (MVM_load(&thread_obj->body.stage) == MVM_thread_stage_exited) {
                 /* don't bother freeing gen2; we'll do it next time */
                 MVM_store(&thread_obj->body.stage, MVM_thread_stage_clearing_nursery);
-//                    GCORCH_LOG(tc, "Thread %d run %d : set thread %d clearing nursery stage to %d\n", other->thread_id, MVM_load(&thread_obj->body.stage));
+//                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : set thread %d clearing nursery stage to %d\n", other->thread_id, MVM_load(&thread_obj->body.stage));
             }
             MVM_cas(&other->gc_status, MVMGCStatus_STOLEN, MVMGCStatus_UNABLE);
             MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_NONE);
@@ -280,7 +273,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     for (i = 0, n = tc->gc_work_count ; i < n; i++) {
         MVMThreadContext *other = tc->gc_work[i].tc;
         tc->gc_work[i].limit = other->nursery_alloc;
-        GCORCH_LOG(tc, "Thread %d run %d : starting collection for thread %d\n",
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : starting collection for thread %d\n",
             other->thread_id);
         MVM_gc_collect(other, (other == tc ? what_to_do : MVMGCWhatToDo_NoInstance), gen);
     }
@@ -304,7 +297,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         MVM_gc_collect_free_nursery_uncopied(other, tc->gc_work[i].limit);
 
         if (gen == MVMGCGenerations_Both) {
-            GCORCH_LOG(tc, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
             MVM_gc_collect_cleanup_gen2roots(other);
             MVM_gc_collect_free_gen2_unmarked(other);
         }
@@ -317,7 +310,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
  * time has come to GC. */
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
-    GCORCH_LOG(tc, "Thread %d run %d : Entered from allocate\n");
+    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from allocate\n");
 
     /* Try to start the GC run. */
     if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
@@ -328,7 +321,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
          * extra responsibilities as well as doing the usual things.
          * First, increment GC sequence number. */
         MVM_incr(&tc->instance->gc_seq_number);
-        GCORCH_LOG(tc, "Thread %d run %d : GC thread elected coordinator: starting gc seq %d\n", MVM_load(&tc->instance->gc_seq_number));
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC thread elected coordinator: starting gc seq %d\n", MVM_load(&tc->instance->gc_seq_number));
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
@@ -354,7 +347,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
                 add = signal_all_but(tc, head, last_starter);
                 last_starter = head;
                 if (add) {
-                    GCORCH_LOG(tc, "Thread %d run %d : Found %d other threads\n", add);
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Found %d other threads\n", add);
                     MVM_add(&tc->instance->gc_start, add);
                     num_threads += add;
                 }
@@ -371,7 +364,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
          * can also free the STables. */
         MVM_store(&tc->instance->gc_finish, num_threads + 1);
         MVM_store(&tc->instance->gc_ack, num_threads + 2);
-        GCORCH_LOG(tc, "Thread %d run %d : finish votes is %d\n", (int)MVM_load(&tc->instance->gc_finish));
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : finish votes is %d\n", (int)MVM_load(&tc->instance->gc_finish));
 
         /* signal to the rest to start */
         if (MVM_decr(&tc->instance->gc_start) != 1)
@@ -382,7 +375,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
          * if we were interrupted to GC. */
-        GCORCH_LOG(tc, "Thread %d run %d : Lost coordinator election\n");
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Lost coordinator election\n");
         MVM_gc_enter_from_interrupt(tc);
     }
 }
@@ -402,7 +395,7 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     signal_child(tc);
 
     /* Count us in to the GC run. Wait for a vote to steal. */
-    GCORCH_LOG(tc, "Thread %d run %d : Entered from interrupt\n");
+    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
     /* Only want to decrement it if it's 2 or greater... */
     while ((curr = MVM_load(&tc->instance->gc_start)) < 2

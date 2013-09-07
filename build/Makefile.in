@@ -2,9 +2,13 @@ CC    = @cc@
 LD    = @ld@
 AR    = @ar@
 MAKE  = @make@ @mkflags@
+PERL  = @perl@
 RM    = @rm@
 CAT   = @cat@
 SHELL = @sh@
+
+CONFIG    = @config@
+ADDCONFIG =
 
 TRACING = 0
 CGOTO = 0
@@ -35,10 +39,12 @@ ARFLAGS   = @arflags@
 
 PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
                  src/platform/win32/time@obj@ \
-                 src/platform/win32/io@obj@
+                 src/platform/win32/io@obj@ \
+                 src/platform/win32/sys@obj@
 
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
-                 src/platform/posix/time@obj@
+                 src/platform/posix/time@obj@ \
+                 src/platform/posix/sys@obj@
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -183,6 +189,8 @@ HEADERS = src/moarvm.h \
           src/platform/time.h \
           src/platform/threads.h \
           src/platform/io.h \
+          src/platform/sys.h \
+          src/platform/bithacks.h \
           src/gen/config.h \
           3rdparty/uthash.h
 
@@ -252,6 +260,10 @@ help:
 test:
 	@$(CAT) build/test.txt
 
+reconfig: realclean
+	$(MSG) reconfiguring with [ $(CONFIG) $(ADDCONFIG) ]
+	$(CMD)$(PERL) Configure.pl $(CONFIG) $(ADDCONFIG)
+
 clangcheck gcccheck:
 	@$(MAKE) --no-print-directory -f tools/check.mk $@
 
@@ -281,7 +293,7 @@ cgoto:
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=0 CGOTO=1 NOISY="$(NOISY)"
 
-no-tracing no-cgoto:
+switch no-tracing no-cgoto:
 	$(MSG) enable regular dispatch
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=0 CGOTO=0 NOISY="$(NOISY)"
