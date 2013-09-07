@@ -44,7 +44,7 @@ typedef struct {
     MVMuint8         *cur_op;
     MVMOpInfo        *cur_info;
     const char       *cur_mark;
-    MVMuint32         cur_count;
+    MVMuint32         cur_instr;
     MVMuint32         remaining_jumplabels;
     MVMuint32         reg_type_var;
 } Validator;
@@ -106,31 +106,34 @@ static void read_op(Validator *val) {
     val->cur_info     = info;
     val->cur_mark     = info->mark;
     val->cur_op      += 2;
-    val->cur_count   += 1;
+    val->cur_instr   += 1;
 }
 
 
 static void unread_op(Validator *val) {
     val->cur_op    -= 2;
-    val->cur_count -= 1;
+    val->cur_instr -= 1;
 }
 
 
 static void validate_branch_targets(Validator *val) {
-    MVMuint32 i;
+    MVMuint32 pos, instr;
 
-    for (i = 0; i < val->bc_size; ++i) {
-        MVMuint32 flag = val->labels[i];
+    for (pos = 0, instr = (MVMuint32)-1; pos < val->bc_size; pos++) {
+        MVMuint32 flag = val->labels[pos];
+
+        if (flag & MVM_BC_op_boundary)
+            instr++;
+
         if ((flag & MVM_BC_branch_target) && !(flag & MVM_BC_op_boundary))
             fail(val, MSG "branch targets offset %" PRIu32
-                "within instruction %" PRIu32, i,
-                MVM_bytecode_offset_to_instr_idx(val->tc, val->frame, i));
+                "within instruction %" PRIu32, pos, instr);
     }
 }
 
 
 static void validate_final_return(Validator *val) {
-    if (!val->bc_size || val->cur_info->mark[1] != 'r')
+    if (!val->bc_size || val->cur_mark[1] != 'r')
         fail(val, MSG "missing final return instruction");
 }
 
@@ -312,7 +315,7 @@ static void validate_operands(Validator *val) {
 
 
 static void validate_sequence(Validator *val) {
-    int seq_id = val->cur_info->mark[1];
+    int seq_id = val->cur_mark[1];
 
     switch (seq_id) {
         case 'j':
@@ -365,7 +368,7 @@ terminate_seq:
 
 
 static void validate_block(Validator *val) {
-    int block_id = val->cur_info->mark[1];
+    int block_id = val->cur_mark[1];
 
     switch (block_id) {
         case 'a':
@@ -428,7 +431,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->cur_op    = fb->bytecode;
     val->cur_info  = NULL;
     val->cur_mark  = NULL;
-    val->cur_count = 0;
+    val->cur_instr = 0;
 
     val->remaining_jumplabels = 0;
     val->reg_type_var         = 0;
