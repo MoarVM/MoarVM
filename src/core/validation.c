@@ -45,6 +45,8 @@ typedef struct {
     MVMOpInfo        *cur_info;
     const char       *cur_mark;
     MVMuint32         cur_instr;
+    MVMCallsite      *cur_call;
+    MVMuint16         remaining_positionals;
     MVMuint32         remaining_jumplabels;
     MVMuint32         reg_type_var;
 } Validator;
@@ -82,7 +84,7 @@ static void ensure_op(Validator *val, MVMuint16 opcode) {
 
 
 static void ensure_no_remaining_jumplabels(Validator *val) {
-    if (val->remaining_jumplabels)
+    if (val->remaining_jumplabels != 0)
         fail(val, "%" PRIu32 " jumplist labels missing their goto ops",
                 val->remaining_jumplabels);
 }
@@ -288,12 +290,13 @@ static void validate_operand(Validator *val, MVMuint32 flags) {
 
 
 static void validate_operands(Validator *val) {
+    MVMuint8 *operands = val->cur_info->operands;
+
     val->reg_type_var = 0;
 
     switch (val->cur_info->opcode) {
         case MVM_OP_jumplist: {
-            MVMuint8 *operands = MVM_op_get_op(MVM_OP_jumplist)->operands;
-            MVMint64  count;
+            MVMint64 count;
 
             validate_literal_operand(val, operands[0]);
             count = GET_I64(val->cur_op, -8);
@@ -301,6 +304,7 @@ static void validate_operands(Validator *val) {
                 fail(val, MSG "illegal jumplist label count %" PRIi64, count);
 
             validate_reg_operand(val, operands[1]);
+
             break;
         }
 
@@ -318,10 +322,12 @@ static void validate_sequence(Validator *val) {
     int seq_id = val->cur_mark[1];
 
     switch (seq_id) {
-        case 'j':
+        case 'j': {
             ensure_op(val, MVM_OP_jumplist);
             validate_operands(val);
+            val->remaining_jumplabels = (MVMuint32)GET_I64(val->cur_op, -10);
             break;
+        }
 
         default:
             fail(val, MSG "unknown instruction sequence '%c'", seq_id);
@@ -354,6 +360,10 @@ static void validate_sequence(Validator *val) {
             case 'j':
                 ensure_op(val, MVM_OP_goto);
                 validate_operands(val);
+
+                val->remaining_jumplabels--;
+                if (val->remaining_jumplabels == 0)
+                    goto terminate_seq;
                 break;
         }
     }
@@ -371,10 +381,16 @@ static void validate_block(Validator *val) {
     int block_id = val->cur_mark[1];
 
     switch (block_id) {
-        case 'a':
+        case 'a': {
+            MVMuint16 index;
+
             ensure_op(val, MVM_OP_prepargs);
             validate_operands(val);
+            index = GET_UI16(val->cur_op, -2);
+            val->cur_call = val->cu->body.callsites[index];
+
             break;
+        }
 
         default:
             fail(val, MSG "unknown instruction block '%c'", block_id);
@@ -432,9 +448,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->cur_info  = NULL;
     val->cur_mark  = NULL;
     val->cur_instr = 0;
+    val->cur_call  = NULL;
 
-    val->remaining_jumplabels = 0;
-    val->reg_type_var         = 0;
+    val->remaining_positionals = 0;
+    val->remaining_jumplabels  = 0;
+    val->reg_type_var          = 0;
 
     while (val->cur_op < val->bc_end) {
         read_op(val);
