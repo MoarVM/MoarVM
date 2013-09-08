@@ -1195,7 +1195,7 @@ class HLL::Compiler does HLL::Backend::Default {
                 if nqp::can(self, 'handle-control') {
                     self.handle-control($_);
                 } else {
-#                    nqp::rethrow($_);
+                    nqp::rethrow($_);
                 }
                 $has_error := 1;
                 $error     := $_;

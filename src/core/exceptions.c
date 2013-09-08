@@ -34,7 +34,15 @@ static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
 /* Checks if an exception handler is already on the active handler stack,
  * so we don't re-trigger the same exception handler. */
 static MVMuint8 in_handler_stack(MVMThreadContext *tc, MVMFrameHandler *fh) {
-    /* XXX TODO: Implement this check. */
+    if (tc->active_handlers) {
+        MVMActiveHandler *ah = tc->active_handlers;
+        while (ah) {
+            if (ah->handler == fh)
+                return 1;
+            ah = ah->next_handler;
+        }
+    }
+
     return 0;
 }
 
@@ -57,7 +65,7 @@ static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f
         pc = (MVMuint32)(f->return_address - sf->body.bytecode);
     for (i = 0; i < sf->body.num_handlers; i++) {
         if (sf->body.handlers[i].category_mask & cat)
-            if (pc >= sf->body.handlers[i].start_offset && pc < sf->body.handlers[i].end_offset)
+            if (pc >= sf->body.handlers[i].start_offset && pc <= sf->body.handlers[i].end_offset)
                 if (!in_handler_stack(tc, &sf->body.handlers[i]))
                     return &sf->body.handlers[i];
     }
