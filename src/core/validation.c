@@ -49,7 +49,7 @@ typedef struct {
     MVMuint32         cur_instr;
     MVMCallsite      *cur_call;
     MVMuint16         cur_arg;
-    MVMuint16         skip_args;
+    MVMCallsiteEntry  expected_named_arg;
     MVMuint16         remaining_positionals;
     MVMuint32         remaining_jumplabels;
     MVMuint32         reg_type_var;
@@ -317,7 +317,7 @@ static void validate_operands(Validator *val) {
             validate_literal_operand(val, operands[0]);
             count = GET_I64(val->cur_op, -8);
             if (count < 0 || count > UINT32_MAX)
-                fail(val, MSG(val, "illegal jumplist label count %" PRIi64), 
+                fail(val, MSG(val, "illegal jumplist label count %" PRIi64),
                         count);
 
             validate_reg_operand(val, operands[1]);
@@ -395,38 +395,83 @@ terminate_seq:
 
 
 static void validate_arg(Validator *val) {
-    MVMuint16 index = val->cur_arg;
-    MVMuint16 count = val->cur_call->arg_count;
     MVMCallsiteEntry flags;
 
-    if (val->skip_args) {
-        val->skip_args--;
-        return;
+    if (val->expected_named_arg) {
+        flags = val->expected_named_arg;
+        val->expected_named_arg = 0;
+    }
+    else {
+        MVMuint16 index = val->cur_arg++;
+        MVMuint16 count = val->cur_call->arg_count;
+
+        if (index >= count)
+            fail (val, MSG(val, "argument index %" PRIu16
+                    " not in range 0..%" PRIu16), index, count - 1);
+
+        flags = val->cur_call->arg_flags[index];
+
+        switch (flags & ~MVM_CALLSITE_ARG_MASK) {
+            case 0: /* positionals */
+            case MVM_CALLSITE_ARG_FLAT:
+            case MVM_CALLSITE_ARG_FLAT_NAMED:
+                val->remaining_positionals--;
+                break;
+
+            case MVM_CALLSITE_ARG_NAMED:
+                val->expected_named_arg = flags & MVM_CALLSITE_ARG_MASK;
+                goto named_arg;
+
+            default:
+                fail(val, MSG(val, "invalid argument flags (%i) at index %"
+                        PRIu16), (int)(flags & ~MVM_CALLSITE_ARG_MASK), index);
+        }
     }
 
-    if (index >= count)
-        fail (val, MSG(val, "argument index %" PRIu16
-                " not in range 0..%" PRIu16), index, count - 1);
+    goto regular_arg;
 
-    flags = val->cur_call->arg_flags[index];
+named_arg:
+    if (val->cur_info->opcode != MVM_OP_argconst_s)
+        fail(val, MSG(val, "expected instuction 'argconst_s' but got '%s'"),
+                val->cur_info->name);
+    return;
 
-    switch (flags & ~MVM_CALLSITE_ARG_MASK) {
-        case 0: /* positionals */
-        case MVM_CALLSITE_ARG_FLAT:
-        case MVM_CALLSITE_ARG_FLAT_NAMED:
-            val->remaining_positionals--;
+regular_arg:
+    switch (val->cur_info->opcode) {
+        case MVM_OP_arg_o:
+            if(!(flags & MVM_CALLSITE_ARG_OBJ))
+                goto fail_arg;
             break;
 
-        case MVM_CALLSITE_ARG_NAMED:
-            val->skip_args = 1;
+        case MVM_OP_arg_s:
+            if(!(flags & MVM_CALLSITE_ARG_STR))
+                goto fail_arg;
+            break;
+
+        case MVM_OP_argconst_s:
+            if(!(flags & MVM_CALLSITE_ARG_STR))
+                goto fail_arg;
+            break;
+
+        case MVM_OP_arg_i:
+            if(!(flags & MVM_CALLSITE_ARG_INT))
+                goto fail_arg;
+            break;
+
+        case MVM_OP_arg_n:
+            if(!(flags & MVM_CALLSITE_ARG_NUM))
+                goto fail_arg;
             break;
 
         default:
-            fail(val, MSG(val, "invalid argument flags (%i) at index %" PRIu16),
-                    flags & ~MVM_CALLSITE_ARG_MASK, index);
-    }
+            fail(val, MSG(val,
+                    "unexpected instruction '%s' during argument preparation"),
+                    val->cur_info->name);
 
-    val->cur_arg++;
+        fail_arg:
+            fail(val, MSG(val, "invalid argument (%i) for instruction %s"),
+                    (int)flags, val->cur_info->name);
+    }
 }
 
 
@@ -442,9 +487,17 @@ static void validate_block(Validator *val) {
             index = GET_UI16(val->cur_op, -2);
             val->cur_call  = val->cu->body.callsites[index];
             val->cur_arg   = 0;
-            val->skip_args = 0;
+            val->expected_named_arg    = 0;
             val->remaining_positionals = val->cur_call->num_pos;
 
+#if 0
+{
+    int i = 0;
+    printf("Callsite %i:\n", (int)index);
+    for(; i < val->cur_call->arg_count; ++i)
+        printf("%i\n", (int)val->cur_call->arg_flags[i]);
+}
+#endif
             break;
         }
 
@@ -509,7 +562,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->cur_call  = NULL;
     val->cur_arg   = 0;
 
-    val->skip_args             = 0;
+    val->expected_named_arg    = 0;
     val->remaining_positionals = 0;
     val->remaining_jumplabels  = 0;
     val->reg_type_var          = 0;
