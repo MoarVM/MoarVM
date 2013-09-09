@@ -968,9 +968,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(die): {
                 MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
                 MVMException *ex = (MVMException *)ex_obj;
+                MVMRegister *resume_result = &GET_REG(cur_op, 0);
+
                 ex->body.category = MVM_EX_CAT_CATCH;
                 MVM_ASSIGN_REF(tc, ex_obj, ex->body.message, GET_REG(cur_op, 2).s);
-                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, &GET_REG(cur_op, 0));
+                cur_op += 4;
+                ex->body.goto_offset = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
+                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, resume_result);
                 goto NEXT;
             }
             OP(newlexotic): {
@@ -3346,6 +3350,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "rethrow requires an MVMException");
+                }
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(resume): {
+                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
+                MVMException *ex = (MVMException *)ex_obj;
+                
+                MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
+                if (REPR(got_ex_obj)->ID == MVM_REPR_ID_MVMException) {
+                    MVMException *got_ex = (MVMException *)got_ex_obj;
+                    
+                    ex->body.origin      = MVM_frame_inc_ref(tc, got_ex->body.origin);
+                    ex->body.goto_offset = got_ex->body.goto_offset;
+                    MVM_exception_resume(tc, ex_obj);
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "resume requires an MVMException");
                 }
                 cur_op += 2;
                 goto NEXT;

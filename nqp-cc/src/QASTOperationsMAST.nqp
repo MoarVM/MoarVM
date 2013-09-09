@@ -1198,7 +1198,7 @@ QAST::MASTOperations.add_core_moarop_mapping('backtracestrings', 'backtracestrin
 # XXX backtrace
 QAST::MASTOperations.add_core_moarop_mapping('throw', 'throwdyn');
 QAST::MASTOperations.add_core_moarop_mapping('rethrow', 'rethrow');
-# XXX resume
+QAST::MASTOperations.add_core_moarop_mapping('resume', 'resume');
 
 my %handler_names := nqp::hash(
     'CATCH',   $HandlerCategory::catch,

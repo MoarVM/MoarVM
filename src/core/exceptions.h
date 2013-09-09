@@ -61,6 +61,7 @@ struct MVMActiveHandler {
 MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
+void MVM_exception_resume(MVMThreadContext *tc, MVMObject *exObj);
 MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);
 void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFrame *f);
 MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) MVM_NO_RETURN_GCC;

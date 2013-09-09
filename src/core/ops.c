@@ -2960,9 +2960,15 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_resume,
+        "resume",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
-static unsigned short MVM_op_counts = 492;
+static unsigned short MVM_op_counts = 493;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

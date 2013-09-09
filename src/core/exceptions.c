@@ -326,6 +326,20 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     run_handler(tc, lh, ex_obj);
 }
 
+void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
+    MVMException *ex;
+    MVMActiveHandler *ah;
+
+    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+        ex = (MVMException *)ex_obj;
+    else
+        MVM_exception_throw_adhoc(tc, "Can only resume an exception object");
+
+    ah                       = (MVMActiveHandler *)ex->body.origin->special_return_data;
+    ah->frame                = (void *)ex->body.origin;
+    ah->handler->goto_offset = ex->body.goto_offset;
+}
+
 /* Creates a new lexotic. */
 MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     MVMLexotic *lexotic;
