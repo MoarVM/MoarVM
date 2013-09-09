@@ -4,8 +4,6 @@
  * - args of prepargs, getcode
  * - any cu->strings index (28 currently)
  * - cur_frame->args indexes
- * - whether the argument assign op is the right type for the arg flag
- *   corresponding to the argsite.
  */
 
 /* Macros for getting things from the bytecode stream. */
@@ -490,14 +488,6 @@ static void validate_block(Validator *val) {
             val->expected_named_arg    = 0;
             val->remaining_positionals = val->cur_call->num_pos;
 
-#if 0
-{
-    int i = 0;
-    printf("Callsite %i:\n", (int)index);
-    for(; i < val->cur_call->arg_count; ++i)
-        printf("%i\n", (int)val->cur_call->arg_flags[i]);
-}
-#endif
             break;
         }
 
