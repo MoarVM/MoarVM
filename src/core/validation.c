@@ -20,7 +20,9 @@
 #define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
 
-#define MSG "Bytecode validation error: "
+#define MSG(val, msg) "Bytecode validation error at offset %" PRIu32 \
+    ", instruction %" PRIu32 ":\n" msg, \
+    (MVMuint32)((val)->cur_op - (val)->bc_start), (val)->cur_instr
 
 enum {
     MARK_regular  = ' ',
@@ -67,19 +69,19 @@ static void fail(Validator *val, const char *msg, ...) {
 
 
 static void fail_illegal_mark(Validator *val) {
-    fail(val, MSG "illegal op mark '%.2s'", val->cur_mark);
+    fail(val, MSG(val, "illegal op mark '%.2s'"), val->cur_mark);
 }
 
 
 static void ensure_bytes(Validator *val, MVMuint32 count) {
     if (val->cur_op + count > val->bc_end)
-        fail(val, MSG "truncated stream");
+        fail(val, MSG(val, "truncated stream"));
 }
 
 
 static void ensure_op(Validator *val, MVMuint16 opcode) {
     if (val->cur_info->opcode != opcode) {
-        fail(val, MSG "expected op %s but got %s",
+        fail(val, MSG(val, "expected op %s but got %s"),
                 MVM_op_get_op(opcode)->name, val->cur_info->name);
     }
 }
@@ -87,14 +89,14 @@ static void ensure_op(Validator *val, MVMuint16 opcode) {
 
 static void ensure_no_remaining_jumplabels(Validator *val) {
     if (val->remaining_jumplabels != 0)
-        fail(val, MSG "%" PRIu32 " jumplist labels missing their goto ops",
+        fail(val, MSG(val, "%" PRIu32 " jumplist labels missing their goto ops"),
                 val->remaining_jumplabels);
 }
 
 
 static void ensure_no_remaining_positionals(Validator *val) {
     if (val->remaining_positionals != 0)
-        fail(val, MSG "callsite expects %" PRIu16 " more positionals",
+        fail(val, MSG(val, "callsite expects %" PRIu16 " more positionals"),
                 val->remaining_positionals);
 }
 
@@ -116,7 +118,7 @@ printf(" %u %s %.2s\n", val->cur_instr, info->name, info->mark);
 #endif
 
     if (!info)
-        fail(val, MSG "invalid opcode %u", opcode);
+        fail(val, MSG(val, "invalid opcode %u"), opcode);
 
     val->labels[pos] |= MVM_BC_op_boundary;
     val->cur_info     = info;
@@ -142,15 +144,15 @@ static void validate_branch_targets(Validator *val) {
             instr++;
 
         if ((flag & MVM_BC_branch_target) && !(flag & MVM_BC_op_boundary))
-            fail(val, MSG "branch targets offset %" PRIu32
-                "within instruction %" PRIu32, pos, instr);
+            fail(val, MSG(val, "branch targets offset %" PRIu32
+                "within instruction %" PRIu32), pos, instr);
     }
 }
 
 
 static void validate_final_return(Validator *val) {
     if (!val->bc_size || val->cur_mark[1] != 'r')
-        fail(val, MSG "missing final return instruction");
+        fail(val, MSG(val, "missing final return instruction"));
 }
 
 
@@ -172,10 +174,10 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
 
         case MVM_operand_obj:
         case MVM_operand_type_var:
-            fail(val, MSG "operand type %i can't be a literal", type);
+            fail(val, MSG(val, "operand type %i can't be a literal"), type);
 
         default:
-            fail(val, MSG "unknown operand type %i", type);
+            fail(val, MSG(val, "unknown operand type %i"), type);
     }
 
     ensure_bytes(val, size);
@@ -185,8 +187,8 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
             MVMuint16 index = GET_UI16(val->cur_op, 0);
             MVMuint32 count = val->cu->body.num_callsites;
             if (index >= count)
-                fail(val, MSG "callsite index %" PRIu16
-                        " out of range 0..%" PRIu32, index, count - 1);
+                fail(val, MSG(val, "callsite index %" PRIu16
+                        " out of range 0..%" PRIu32), index, count - 1);
             break;
         }
 
@@ -194,8 +196,8 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
             MVMuint16 index = GET_UI16(val->cur_op, 0);
             MVMuint32 count = val->cu->body.num_frames;
             if (index >= count)
-                fail(val, MSG "coderef index %" PRIu16
-                        " out of range 0..%" PRIu32, index, count - 1);
+                fail(val, MSG(val, "coderef index %" PRIu16
+                        " out of range 0..%" PRIu32), index, count - 1);
             break;
         }
 
@@ -203,16 +205,16 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
             MVMuint16 index = GET_UI16(val->cur_op, 0);
             MVMuint32 count = val->cu->body.num_strings;
             if (index >= count)
-                fail(val, MSG "string index %" PRIu16
-                        " out of range 0..%" PRIu32, index, count - 1);
+                fail(val, MSG(val, "string index %" PRIu16
+                        " out of range 0..%" PRIu32), index, count - 1);
             break;
         }
 
         case MVM_operand_ins: {
             MVMuint32 offset = GET_UI32(val->cur_op, 0);
             if (offset >= val->bc_size)
-                fail(val, MSG "branch instruction offset %" PRIu32
-                        " out of range 0..%" PRIu32, offset, val->bc_size - 1);
+                fail(val, MSG(val, "branch instruction offset %" PRIu32
+                        " out of range 0..%" PRIu32), offset, val->bc_size - 1);
             val->labels[offset] |= MVM_BC_branch_target;
         }
     }
@@ -230,8 +232,8 @@ static void validate_reg_operand(Validator *val, MVMuint32 flags) {
 
     reg = GET_REG(val->cur_op, 0);
     if (reg >= val->loc_count)
-        fail(val, MSG "register operand index %" PRIu16
-                " out of range 0..%" PRIu32, reg, val->loc_count - 1);
+        fail(val, MSG(val, "register operand index %" PRIu16
+                " out of range 0..%" PRIu32), reg, val->loc_count - 1);
 
     reg_type = val->loc_types[reg] << 3;
 
@@ -245,7 +247,7 @@ static void validate_reg_operand(Validator *val, MVMuint32 flags) {
     }
 
     if (reg_type != operand_type)
-        fail(val, MSG "operand type %i does not match register type %i",
+        fail(val, MSG(val, "operand type %i does not match register type %i"),
                 operand_type, reg_type);
 
 next_operand:
@@ -266,14 +268,14 @@ static void validate_lex_operand(Validator *val, MVMuint32 flags) {
     for (i = frame_index; i; i--) {
         frame = frame->body.outer;
         if (!frame)
-            fail(val, MSG "lexical operand requires %" PRIu16
-                    " more enclosing scopes", i);
+            fail(val, MSG(val, "lexical operand requires %" PRIu16
+                    " more enclosing scopes"), i);
     }
 
     lex_count = frame->body.num_lexicals;
     if (lex_index >= lex_count)
-        fail(val, MSG "lexical operand index %" PRIu16
-                " out of range 0.. %" PRIu16, lex_index, lex_count - 1);
+        fail(val, MSG(val, "lexical operand index %" PRIu16
+                " out of range 0.. %" PRIu16), lex_index, lex_count - 1);
 
     val->cur_op += 4;
 }
@@ -298,7 +300,7 @@ static void validate_operand(Validator *val, MVMuint32 flags) {
             break;
 
         default:
-            fail(val, MSG "invalid instruction rw flag %i", rw);
+            fail(val, MSG(val, "invalid instruction rw flag %i"), rw);
     }
 }
 
@@ -315,7 +317,8 @@ static void validate_operands(Validator *val) {
             validate_literal_operand(val, operands[0]);
             count = GET_I64(val->cur_op, -8);
             if (count < 0 || count > UINT32_MAX)
-                fail(val, MSG "illegal jumplist label count %" PRIi64, count);
+                fail(val, MSG(val, "illegal jumplist label count %" PRIi64), 
+                        count);
 
             validate_reg_operand(val, operands[1]);
 
@@ -344,7 +347,7 @@ static void validate_sequence(Validator *val) {
         }
 
         default:
-            fail(val, MSG "unknown instruction sequence '%c'", seq_id);
+            fail(val, MSG(val, "unknown instruction sequence '%c'"), seq_id);
     }
 
     while (val->cur_op < val->bc_end) {
@@ -402,8 +405,8 @@ static void validate_arg(Validator *val) {
     }
 
     if (index >= count)
-        fail (val, MSG "argument index %" PRIu16 " not in range 0..%" PRIu16,
-                index, count - 1);
+        fail (val, MSG(val, "argument index %" PRIu16
+                " not in range 0..%" PRIu16), index, count - 1);
 
     flags = val->cur_call->arg_flags[index];
 
@@ -419,7 +422,7 @@ static void validate_arg(Validator *val) {
             break;
 
         default:
-            fail(val, MSG "invalid argument flags (%i) at index %"  PRIu16,
+            fail(val, MSG(val, "invalid argument flags (%i) at index %" PRIu16),
                     flags & ~MVM_CALLSITE_ARG_MASK, index);
     }
 
@@ -446,7 +449,7 @@ static void validate_block(Validator *val) {
         }
 
         default:
-            fail(val, MSG "unknown instruction block '%c'", block_id);
+            fail(val, MSG(val, "unknown instruction block '%c'"), block_id);
     }
 
     while (val->cur_op < val->bc_end) {
@@ -457,7 +460,7 @@ static void validate_block(Validator *val) {
         id   = val->cur_mark[1];
 
         if (id != block_id)
-            fail(val, MSG "expected instruction marked '%c' but got '%c'",
+            fail(val, MSG(val, "expected instruction marked '%c' but got '%c'"),
                     block_id, id);
 
         switch (type) {
