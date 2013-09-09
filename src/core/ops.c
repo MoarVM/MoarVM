@@ -3448,6 +3448,7 @@ static MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_rethrow,
         "rethrow",
+        "  ",
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
