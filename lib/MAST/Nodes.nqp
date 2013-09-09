@@ -226,7 +226,7 @@ class MAST::Op is MAST::Node {
     has @!operands;
 
     my %op_codes := MAST::Ops.WHO<%codes>;
-    my @op_names := MAST::Ops.WHO<@codes>;
+    my @op_names := MAST::Ops.WHO<@names>;
     method new(:$op!, *@operands) {
         my $obj := nqp::create(self);
         nqp::bindattr_i($obj, MAST::Op, '$!op', %op_codes{$op});
