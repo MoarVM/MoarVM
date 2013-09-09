@@ -3332,6 +3332,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(rethrow): {
+                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
+                MVMException *ex = (MVMException *)ex_obj;
+                ex->body.category = MVM_EX_CAT_CATCH;
+                
+                MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
+                if (REPR(got_ex_obj)->ID == MVM_REPR_ID_MVMException) {
+                    MVMException *got_ex = (MVMException *)got_ex_obj;
+                    
+                    MVM_ASSIGN_REF(tc, ex_obj, ex->body.message, got_ex->body.message);
+                    MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, NULL);
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "rethrow requires an MVMException");
+                }
+                cur_op += 2;
+                goto NEXT;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

@@ -311,7 +311,8 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 @uvlib@: $(UV_OBJECTS)
-	@uvrule@
+	$(MSG) linking $@
+	$(CMD)@uvrule@ $(NOOUT)
 
 @laolib@:
 	$(MSG) linking $@

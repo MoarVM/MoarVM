@@ -493,7 +493,8 @@ BEGIN {
     1183,
     1184,
     1188,
-    1189);
+    1189,
+    1190);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     1,
     2,
@@ -983,6 +984,7 @@ BEGIN {
     1,
     1,
     4,
+    1,
     1,
     1);
     MAST::Ops.WHO<@values> := nqp::list_i(72,
@@ -2174,7 +2176,8 @@ BEGIN {
     57,
     65,
     58,
-    33);
+    33,
+    65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'goto', 1,
     'if_i', 2,
@@ -2665,7 +2668,8 @@ BEGIN {
     'popcompsc', 487,
     'shell', 488,
     'cwd', 489,
-    'seed', 490);
+    'seed', 490,
+    'rethrow', 491);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'goto',
     'if_i',
@@ -3156,5 +3160,6 @@ BEGIN {
     'popcompsc',
     'shell',
     'cwd',
-    'seed');
+    'seed',
+    'rethrow');
 }
