@@ -412,6 +412,7 @@ our %OS_FREEBSD = (
 our %OS_SOLARIS = (
     %OS_POSIX,
 
+    defs     => [ qw( _XOPEN_SOURCE=500 _XOPEN_SOURCE_EXTENDED=1  __EXTENSIONS__=1  _REENTRANT _FILE_OFFSET_BITS=64 ) ],
     syslibs => [ qw( socket sendfile nsl pthread kstat m rt ) ],
     mknoisy => '',
     ccmiscflags => '-mt',
