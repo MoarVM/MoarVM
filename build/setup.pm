@@ -414,6 +414,7 @@ our %OS_SOLARIS = (
 
     syslibs => [ qw( socket sendfile nsl pthread kstat m rt ) ],
     mknoisy => '',
+    ccmiscflags => '-mt',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
