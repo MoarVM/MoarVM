@@ -246,6 +246,9 @@ UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
             3rdparty/libuv/src/unix/proctitle@obj@ \
             $(UV_UNIX)
 
+UV_SOLARIS = 3rdparty/libuv/src/unix/sunos@obj@ \
+	    $(UV_UNIX)
+
 UV_OBJECTS = @uvobjects@
 
 TOM_OBJECTS = @tomobjects@
