@@ -412,7 +412,7 @@ our %OS_FREEBSD = (
 our %OS_SOLARIS = (
     %OS_POSIX,
 
-    syslibs => [ qw( socket sendfile nsl pthread m rt ) ],
+    syslibs => [ qw( socket sendfile nsl pthread kstat m rt ) ],
     mknoisy => '',
 
     -thirdparty => {
