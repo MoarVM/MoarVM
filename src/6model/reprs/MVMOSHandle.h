@@ -22,7 +22,7 @@ struct MVMOSHandleBody {
 #else
         DIR     *dir_handle;
 #endif
-    };
+    } u;
     MVMuint8        eof;
     MVMuint8 encoding_type;
 };

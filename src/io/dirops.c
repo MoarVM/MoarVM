@@ -212,7 +212,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     }
 
     result->body.type          = MVM_OSHANDLE_DIR;
-    result->body.dir_handle    = dir_handle;
+    result->body.u.dir_handle    = dir_handle;
     result->body.encoding_type = MVM_encoding_type_utf8;
 
 #endif
@@ -258,7 +258,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_dirhandle_type(tc, oshandle, &handle, "read from dirhandle");
 
-    ret = readdir_r(handle->body.dir_handle, &entry, &result);
+    ret = readdir_r(handle->body.u.dir_handle, &entry, &result);
 
     if (ret == 0) {
         if (result == NULL) {
@@ -277,7 +277,7 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
     verify_dirhandle_type(tc, oshandle, &handle, "close dirhandle");
 #ifdef _WIN32
     if(handle->body.dir_name) {
-        free(handle->body.dir_name);
+        free(handle->body.u.dir_name);
         handle->body.dir_name = NULL;
     }
 
@@ -285,7 +285,7 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
         MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
 #else
 
-    if (closedir(handle->body.dir_handle) == -1)
+    if (closedir(handle->body.u.dir_handle) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", errno);
 #endif
 }
