@@ -336,7 +336,21 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     else
         MVM_exception_throw_adhoc(tc, "Can only resume an exception object");
 
-    ah                       = (MVMActiveHandler *)ex->body.origin->special_return_data;
+    if (ex->body.origin->special_return == unwind_after_handler) {
+        /* A handler was already installed, just use it. */
+        ah = (MVMActiveHandler *)ex->body.origin->special_return_data;
+    }
+    else {
+        /* We need to allocate/register a handler and set some defaults. */
+        ah                                   = malloc(sizeof(MVMActiveHandler));
+        ah->ex_obj                           = ex_obj;
+        ah->next_handler                     = tc->active_handlers;
+        tc->active_handlers                  = ah;
+        tc->cur_frame->return_value          = NULL;
+        tc->cur_frame->return_type           = MVM_RETURN_VOID;
+        ex->body.origin->special_return_data = (void *)ah;
+    }
+
     ah->frame                = (void *)MVM_frame_inc_ref(tc, ex->body.origin);
     ah->handler->goto_offset = ex->body.goto_offset;
 }
