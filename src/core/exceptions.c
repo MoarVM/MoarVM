@@ -151,10 +151,10 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
                 MVM_panic(1, "Exception object creation NYI");
 
             /* Install active handler record. */
-            ah->frame = MVM_frame_inc_ref(tc, lh.frame);
-            ah->handler = lh.handler;
-            ah->ex_obj = ex_obj;
-            ah->next_handler = tc->active_handlers;
+            ah->frame           = MVM_frame_inc_ref(tc, lh.frame);
+            ah->handler         = lh.handler;
+            ah->ex_obj          = ex_obj;
+            ah->next_handler    = tc->active_handlers;
             tc->active_handlers = ah;
 
             /* Set up special return to unwinding after running the
