@@ -151,7 +151,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
                 MVM_panic(1, "Exception object creation NYI");
 
             /* Install active handler record. */
-            ah->frame = lh.frame;
+            ah->frame = MVM_frame_inc_ref(tc, lh.frame);
             ah->handler = lh.handler;
             ah->ex_obj = ex_obj;
             ah->next_handler = tc->active_handlers;
@@ -188,6 +188,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     *tc->interp_cur_op = *tc->interp_bytecode_start + ah->handler->goto_offset;
 
     /* Clean up. */
+    MVM_frame_dec_ref(tc, ah->frame);
     free(ah);
 }
 
@@ -336,7 +337,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVM_exception_throw_adhoc(tc, "Can only resume an exception object");
 
     ah                       = (MVMActiveHandler *)ex->body.origin->special_return_data;
-    ah->frame                = (void *)ex->body.origin;
+    ah->frame                = (void *)MVM_frame_inc_ref(tc, ex->body.origin);
     ah->handler->goto_offset = ex->body.goto_offset;
 }
 
