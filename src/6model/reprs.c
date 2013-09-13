@@ -126,53 +126,45 @@ MVMStorageSpec default_get_value_storage_spec(MVMThreadContext *tc, MVMSTable *s
 }
 GCC_DIAG_ON(return-type)
 
-/* Set default attribute functions on a REPR that lacks them. */
-static void add_default_attr_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
-    repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
-    repr->attr_funcs->get_attribute = default_get_attribute;
-    repr->attr_funcs->bind_attribute = default_bind_attribute;
-    repr->attr_funcs->is_attribute_initialized = default_is_attribute_initialized;
-    repr->attr_funcs->hint_for = default_hint_for;
-}
+MVMREPROps_Attribute MVM_REPR_DEFAULT_ATTR_FUNCS = {
+    default_get_attribute,
+    default_bind_attribute,
+    default_hint_for,
+    default_is_attribute_initialized,
+};
 
-/* Set default boxing functions on a REPR that lacks them. */
-static void add_default_box_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
-    repr->box_funcs = malloc(sizeof(MVMREPROps_Boxing));
-    repr->box_funcs->set_int = default_set_int;
-    repr->box_funcs->get_int = default_get_int;
-    repr->box_funcs->set_num = default_set_num;
-    repr->box_funcs->get_num = default_get_num;
-    repr->box_funcs->set_str = default_set_str;
-    repr->box_funcs->get_str = default_get_str;
-    repr->box_funcs->get_boxed_ref = default_get_boxed_ref;
-}
+MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS = {
+    default_set_int,
+    default_get_int,
+    default_set_num,
+    default_get_num,
+    default_set_str,
+    default_get_str,
+    default_get_boxed_ref,
+};
 
-/* Set default positional functions on a REPR that lacks them. */
-static void add_default_pos_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
-    repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    repr->pos_funcs->at_pos = default_at_pos;
-    repr->pos_funcs->bind_pos = default_bind_pos;
-    repr->pos_funcs->set_elems = default_set_elems;
-    repr->pos_funcs->exists_pos = default_exists_pos;
-    repr->pos_funcs->push = default_push;
-    repr->pos_funcs->pop = default_pop;
-    repr->pos_funcs->unshift = default_unshift;
-    repr->pos_funcs->shift = default_shift;
-    repr->pos_funcs->splice = default_splice;
-    repr->pos_funcs->get_elem_storage_spec = default_get_elem_storage_spec;
-}
+MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS = {
+    default_at_pos,
+    default_bind_pos,
+    default_set_elems,
+    default_exists_pos,
+    default_push,
+    default_pop,
+    default_unshift,
+    default_shift,
+    default_splice,
+    default_get_elem_storage_spec,
+};
 
-/* Set default associative functions on a REPR that lacks them. */
-static void add_default_ass_funcs(MVMThreadContext *tc, MVMREPROps *repr) {
-    repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
-    repr->ass_funcs->at_key_ref = default_at_key_ref;
-    repr->ass_funcs->at_key_boxed = default_at_key_boxed;
-    repr->ass_funcs->bind_key_ref = default_bind_key_ref;
-    repr->ass_funcs->bind_key_boxed = default_bind_key_boxed;
-    repr->ass_funcs->exists_key = default_exists_key;
-    repr->ass_funcs->delete_key = default_delete_key;
-    repr->ass_funcs->get_value_storage_spec = default_get_value_storage_spec;
-}
+MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS = {
+    default_at_key_ref,
+    default_at_key_boxed,
+    default_bind_key_ref,
+    default_bind_key_boxed,
+    default_exists_key,
+    default_delete_key,
+    default_get_value_storage_spec,
+};
 
 /* Registers a representation. It this is ever made public, it should first be
  * made thread-safe, and it should check if the name is already registered. */
@@ -206,16 +198,17 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
 
     /* Add default "not implemented" function table implementations. */
+    /* FIXME: needs to go if we want static REPRs */
     if (!repr->elems)
         repr->elems = default_elems;
     if (!repr->attr_funcs)
-        add_default_attr_funcs(tc, repr);
+        repr->attr_funcs = &MVM_REPR_DEFAULT_ATTR_FUNCS;
     if (!repr->box_funcs)
-        add_default_box_funcs(tc, repr);
+        repr->box_funcs = &MVM_REPR_DEFAULT_BOX_FUNCS;
     if (!repr->pos_funcs)
-        add_default_pos_funcs(tc, repr);
+        repr->pos_funcs = &MVM_REPR_DEFAULT_POS_FUNCS;
     if (!repr->ass_funcs)
-        add_default_ass_funcs(tc, repr);
+        repr->ass_funcs = &MVM_REPR_DEFAULT_ASS_FUNCS;
 }
 
 #define repr_registrar(tc, name, init) \

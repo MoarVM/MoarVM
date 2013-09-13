@@ -58,3 +58,17 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMException            22
 #define MVM_REPR_ID_MVMStaticFrame          23
 #define MVM_REPR_ID_MVMCompUnit             24
+
+/* FIXME: these should be const */
+
+/* Default attribute functions for a REPR that lacks them. */
+extern MVMREPROps_Attribute MVM_REPR_DEFAULT_ATTR_FUNCS;
+
+/* Default boxing functions for a REPR that lacks them. */
+extern MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS;
+
+/* Default positional functions for a REPR that lacks them. */
+extern MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS;
+
+/* Default associative functions for a REPR that lacks them. */
+extern MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS;
