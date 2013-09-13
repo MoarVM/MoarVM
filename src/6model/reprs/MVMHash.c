@@ -1,17 +1,15 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMHash);
     });
@@ -171,26 +169,43 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 /* Initializes the representation. */
 MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_mark = gc_mark;
-    this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
-    this_repr->ass_funcs->at_key_ref = at_key_ref;
-    this_repr->ass_funcs->at_key_boxed = at_key_boxed;
-    this_repr->ass_funcs->bind_key_ref = bind_key_ref;
-    this_repr->ass_funcs->bind_key_boxed = bind_key_boxed;
-    this_repr->ass_funcs->exists_key = exists_key;
-    this_repr->ass_funcs->delete_key = delete_key;
-    this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
-    this_repr->compose = compose;
-    this_repr->elems = elems;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    return this_repr;
+    return &this_repr;
 }
+
+static MVMREPROps_Associative ass_funcs = {
+    at_key_ref,
+    at_key_boxed,
+    bind_key_ref,
+    bind_key_boxed,
+    exists_key,
+    delete_key,
+    get_value_storage_spec,
+};
+
+static MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    initialize,
+    copy_to,
+    NULL, /* attr_funcs */
+    NULL, /* box_funcs  */
+    NULL, /* pos_funcs */
+    &ass_funcs,
+    elems,
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    deserialize_stable_size,
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    NULL, /* name */
+    0, /* ID */
+    0, /* refs_frames */
+};
