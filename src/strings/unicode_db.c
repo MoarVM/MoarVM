@@ -32945,7 +32945,7 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[287] = {
     {"Case_Folding",4},{"casefolding",4}
 };
 
-static MVMUnicodeNameHashEntry **unicode_property_values_hashes;
+static MVMUnicodeNameRegistry **unicode_property_values_hashes;
 static const MVMUnicodeNamedValue unicode_property_value_keypairs[2083] = {
     {"V1_1",117440513},{"V2_0",117440514},{"V2_1",117440515},{"V3_0",117440516},{"V3_1",117440517},{"V3_2",117440518},
     {"V4_0",117440519},{"V4_1",117440520},{"V5_0",117440521},{"V5_1",117440522},{"V5_2",117440523},{"V6_0",117440524},
@@ -34232,7 +34232,7 @@ static MVMint32 codepoint_extents[86][2] = {
     Okay not to be threadsafe since its value is deterministic
         and I don't care about the tiny potential for a memory leak
         in the event of a race condition. */
-static MVMUnicodeNameHashEntry *codepoints_by_name = NULL;
+static MVMUnicodeNameRegistry *codepoints_by_name = NULL;
 static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
@@ -34250,7 +34250,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                     && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
                     if (name) {
-                        MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                        MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
                         entry->name = (char *)name;
                         entry->codepoint = codepoint;
                         HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
@@ -34266,7 +34266,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             case 2: {
                 const char *name = codepoint_names[codepoint_table_index];
                 if (name) {
-                    MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                    MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
                     entry->name = (char *)name;
                     entry->codepoint = codepoint;
                     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);

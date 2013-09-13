@@ -30,9 +30,12 @@ struct MVMStringConsts {
     MVMString *Num;
 };
 
-struct MVMREPRHashEntry {
+struct MVMReprRegistry {
+    /* name of the REPR */
+    MVMString *name;
+
     /* index of the REPR */
-    MVMuint32 value;
+    MVMuint32 id;
 
     /* the uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
@@ -87,7 +90,7 @@ struct MVMInstance {
     MVMuint32 num_reprs;
 
     /* Hash mapping representation names to IDs. */
-    MVMREPRHashEntry *repr_name_to_id_hash;
+    MVMReprRegistry *repr_name_to_id_hash;
 
     /* Number of permanent GC roots we've got, allocated space for, and
      * a list of the addresses to them. The mutex controls writing to the
@@ -122,7 +125,7 @@ struct MVMInstance {
     const char     *prog_name;
     /* cached parsed command line args */
     MVMObject      *clargs;
-    
+
     /* Cached environment. */
     MVMObject *env_hash;
 

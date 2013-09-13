@@ -198,15 +198,15 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             MVMROOT(tc, ctx_hash, {
                 MVMContext *ctx = (MVMContext *)target;
                 MVMFrame *frame = ctx->body.context;
-                MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names;
-                MVMLexicalHashEntry *current;
-                MVMLexicalHashEntry *tmp;
+                MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names;
+                MVMLexicalRegistry *current;
+                MVMLexicalRegistry *tmp;
                 HASH_ITER(hash_handle, lexical_names, current, tmp) {
                     /* XXX For now, just the symbol names is enough. */
                     MVM_repr_bind_key_boxed(tc, ctx_hash, (MVMString *)current->key, NULL);
                 }
             });
-            
+
             /* Call ourselves recursively to get the iterator for this
             * hash. */
             iterator = (MVMIter *)MVM_iter(tc, ctx_hash);

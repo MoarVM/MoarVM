@@ -258,7 +258,7 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
-    
+
     /* Clear up argument processing leftovers, if any. */
     if (returner->work) {
         MVM_args_proc_cleanup_for_cache(tc, &returner->params);
@@ -338,11 +338,11 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
     MVMFrame *cur_frame = tc->cur_frame;
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
-        MVMLexicalHashEntry *lexical_names = cur_frame->static_info->body.lexical_names;
+        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
             /* Indexes were formerly stored off-by-one
              * to avoid semi-predicate issue. */
-            MVMLexicalHashEntry *entry;
+            MVMLexicalRegistry *entry;
 
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
@@ -370,9 +370,9 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     }
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
-        MVMLexicalHashEntry *lexical_names = cur_frame->static_info->body.lexical_names;
+        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
-            MVMLexicalHashEntry *entry;
+            MVMLexicalRegistry *entry;
 
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
@@ -468,9 +468,9 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
 
 /* Returns the storage unit for the lexical in the specified frame. */
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalHashEntry *lexical_names = f->static_info->body.lexical_names;
+    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
-        MVMLexicalHashEntry *entry;
+        MVMLexicalRegistry *entry;
         MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry)
@@ -482,9 +482,9 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
 
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalHashEntry *lexical_names = f->static_info->body.lexical_names;
+    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
-        MVMLexicalHashEntry *entry;
+        MVMLexicalRegistry *entry;
         MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry) {

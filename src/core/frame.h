@@ -1,8 +1,8 @@
 /* Lexical hash entry for ->lexical_names on a frame. */
-struct MVMLexicalHashEntry {
+struct MVMLexicalRegistry {
     /* key string */
     MVMString *key;
-    
+
     /* index of the lexical entry. */
     MVMuint32 value;
 
@@ -32,7 +32,7 @@ struct MVMFrame {
     /* The args buffer. Actually a pointer into an area inside of *work, to
      * decrease number of allocations. */
     MVMRegister *args;
-    
+
     /* Callsite that indicates how the current args buffer is being used, if
      * it is. */
     MVMCallsite *cur_args_callsite;

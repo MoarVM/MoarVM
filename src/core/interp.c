@@ -853,7 +853,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMuint8 found = 0;
                     MVM_string_flatten(tc, name);
                     if (sf->body.lexical_names) {
-                        MVMLexicalHashEntry *entry;
+                        MVMLexicalRegistry *entry;
                         MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
                         if (entry && sf->body.lexical_types[entry->value] == MVM_reg_obj) {
                             MVM_ASSIGN_REF(tc, sf, sf->body.static_env[entry->value].o, val);
@@ -3346,10 +3346,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMException *ex = (MVMException *)ex_obj;
                 MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
                 ex->body.category = MVM_EX_CAT_CATCH;
-                
+
                 if (REPR(got_ex_obj)->ID == MVM_REPR_ID_MVMException) {
                     MVMException *got_ex = (MVMException *)got_ex_obj;
-                    
+
                     MVM_ASSIGN_REF(tc, ex_obj, ex->body.message, got_ex->body.message);
                     MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, NULL);
                 }
@@ -3362,11 +3362,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(resume): {
                 MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
                 MVMException *ex = (MVMException *)ex_obj;
-                
+
                 MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
                 if (REPR(got_ex_obj)->ID == MVM_REPR_ID_MVMException) {
                     MVMException *got_ex = (MVMException *)got_ex_obj;
-                    
+
                     ex->body.origin      = MVM_frame_inc_ref(tc, got_ex->body.origin);
                     ex->body.goto_offset = got_ex->body.goto_offset;
                     MVM_exception_resume(tc, ex_obj);

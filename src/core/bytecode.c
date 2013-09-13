@@ -390,11 +390,11 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             /* Read in data. */
             ensure_can_read(tc, cu, rs, pos, 4 * static_frame_body->num_lexicals);
             if (static_frame_body->num_lexicals) {
-                static_frame_body->lexical_names_list = malloc(sizeof(MVMLexicalHashEntry *) * static_frame_body->num_lexicals);
+                static_frame_body->lexical_names_list = malloc(sizeof(MVMLexicalRegistry *) * static_frame_body->num_lexicals);
             }
             for (j = 0; j < static_frame_body->num_lexicals; j++) {
                 MVMString *name = get_heap_string(tc, cu, rs, pos, 4 * j + 2);
-                MVMLexicalHashEntry *entry = calloc(1, sizeof(MVMLexicalHashEntry));
+                MVMLexicalRegistry *entry = calloc(1, sizeof(MVMLexicalRegistry));
 
                 MVM_ASSIGN_REF(tc, static_frame, entry->key, name);
                 static_frame_body->lexical_names_list[j] = entry;
@@ -605,6 +605,6 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
             ba->line_number = read_int32(cur_anno, 6);
         }
     }
-    
+
     return ba;
 }

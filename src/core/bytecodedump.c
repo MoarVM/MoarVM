@@ -98,7 +98,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     for (k = 0; k < cu->body.num_frames; k++) {
         MVMStaticFrame *frame = cu->body.frames[k];
-        MVMLexicalHashEntry *current, *tmp;
+        MVMLexicalRegistry *current, *tmp;
         char **lexicals = malloc(sizeof(char *) * frame->body.num_lexicals);
         frame_lexicals[k] = lexicals;
 
