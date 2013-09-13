@@ -38,7 +38,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMStaticFrameBody *src_body  = (MVMStaticFrameBody *)src;
     MVMStaticFrameBody *dest_body = (MVMStaticFrameBody *)dest;
-
+    
     dest_body->bytecode = src_body->bytecode;
     dest_body->bytecode_size = src_body->bytecode_size;
 
@@ -58,13 +58,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         dest_body->lexical_types = lexical_types;
     }
     {
-        MVMLexicalRegistry *current, *tmp;
+        MVMLexicalHashEntry *current, *tmp;
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
         HASH_ITER(hash_handle, src_body->lexical_names, current, tmp) {
             size_t klen;
             void *kdata;
-            MVMLexicalRegistry *new_entry = malloc(sizeof(MVMLexicalRegistry));
+            MVMLexicalHashEntry *new_entry = malloc(sizeof(MVMLexicalHashEntry));
 
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, dest_root, new_entry->key, current->key);
@@ -80,10 +80,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMuint16 *type_map = src_body->lexical_types;
         MVMuint16  count    = src_body->num_lexicals;
         MVMuint16  i;
-
+        
         dest_body->static_env = malloc(src_body->env_size);
         memcpy(dest_body->static_env, src_body->static_env, src_body->env_size);
-
+        
         for (i = 0; i < count; i++) {
             if (type_map[i] == MVM_reg_str) {
                 MVM_WB(tc, dest_root, dest_body->static_env[i].s);
@@ -95,9 +95,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
     dest_body->env_size = src_body->env_size;
     dest_body->work_size = src_body->work_size;
-
+    
     if (src_body->prior_invocation)
-        dest_body->prior_invocation = MVM_frame_inc_ref(tc, src_body->prior_invocation);
+        dest_body->prior_invocation = MVM_frame_inc_ref(tc, src_body->prior_invocation);    
     if (src_body->outer)
         MVM_ASSIGN_REF(tc, dest_root, dest_body->outer, src_body->outer);
 
@@ -113,7 +113,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
-    MVMLexicalRegistry *current, *tmp;
+    MVMLexicalHashEntry *current, *tmp;
 
     /* mvmobjects */
     MVM_gc_worklist_add(tc, worklist, &body->cu);
@@ -150,7 +150,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
-    MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
+    MVM_HASH_DESTROY(hash_handle, MVMLexicalHashEntry, body->lexical_names);
     if (body->prior_invocation) {
         body->prior_invocation = MVM_frame_dec_ref(tc, body->prior_invocation);
     }

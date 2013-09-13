@@ -169,19 +169,15 @@ MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS = {
 /* Registers a representation. It this is ever made public, it should first be
  * made thread-safe, and it should check if the name is already registered. */
 static void register_repr(MVMThreadContext *tc, const char *name, MVMREPROps *repr) {
-    MVMString *name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
+    MVMString *name_str;
 
     /* Allocate an ID. */
     MVMuint32 ID = tc->instance->num_reprs;
 
     /* Allocate a hash entry for the name-to-ID.
         Could one day be unified with MVMREPROps, I suppose. */
-    MVMReprRegistry *entry = calloc(sizeof(MVMReprRegistry), 1);
-    entry->name   = name_str;
-    entry->id = ID;
-
-    /* Name should become a permanent GC root. */
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
+    MVMREPRHashEntry *entry = calloc(sizeof(MVMREPRHashEntry), 1);
+    entry->value = ID;
 
     /* Bump the repr count */
     tc->instance->num_reprs++;
@@ -192,6 +188,18 @@ static void register_repr(MVMThreadContext *tc, const char *name, MVMREPROps *re
      */
     repr->ID = ID;
     repr->name = name;
+
+    /* Name should become a permanent GC root. */
+    /* FIXME: evil hack */
+    {
+        MVMCollectable **box = ID < MVM_REPR_CORE_COUNT
+                ? (MVMCollectable **)(tc->instance->repr_names + ID)
+                : malloc(sizeof *box);
+
+        name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
+        *box = &name_str->common.header;
+        MVM_gc_root_add_permanent(tc, box);
+    }
 
     /* Enter into registry. */
     if (tc->instance->repr_registry)
@@ -254,7 +262,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
 /* Get a representation's ID from its name. Note that the IDs may change so
  * it's best not to store references to them in e.g. the bytecode stream. */
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
-    MVMReprRegistry *entry;
+    MVMREPRHashEntry *entry;
 
     MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->repr_name_to_id_hash, name, entry)
@@ -262,7 +270,7 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
     if (entry == NULL)
         MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",
             MVM_string_utf8_encode_C_string(tc, name));
-    return entry->id;
+    return entry->value;
 }
 
 /* Gets a representation by ID. */

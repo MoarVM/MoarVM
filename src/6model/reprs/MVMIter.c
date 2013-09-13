@@ -166,10 +166,10 @@ static MVMREPROps this_repr = {
     allocate,
     initialize,
     copy_to,
-    NULL, /* attr_funcs */
-    NULL, /* box_funcs */
+    &MVM_REPR_DEFAULT_ATTR_FUNCS,
+    &MVM_REPR_DEFAULT_BOX_FUNCS,
     &pos_funcs,
-    NULL, /* ass_funcs */
+    &MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,
     get_storage_spec,
     NULL, /* change_type */
@@ -214,15 +214,15 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             MVMROOT(tc, ctx_hash, {
                 MVMContext *ctx = (MVMContext *)target;
                 MVMFrame *frame = ctx->body.context;
-                MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names;
-                MVMLexicalRegistry *current;
-                MVMLexicalRegistry *tmp;
+                MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names;
+                MVMLexicalHashEntry *current;
+                MVMLexicalHashEntry *tmp;
                 HASH_ITER(hash_handle, lexical_names, current, tmp) {
                     /* XXX For now, just the symbol names is enough. */
                     MVM_repr_bind_key_boxed(tc, ctx_hash, (MVMString *)current->key, NULL);
                 }
             });
-
+            
             /* Call ourselves recursively to get the iterator for this
             * hash. */
             iterator = (MVMIter *)MVM_iter(tc, ctx_hash);

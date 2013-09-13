@@ -13,8 +13,8 @@ struct MVMStaticFrameBody {
     MVMuint16 *lexical_types;
 
     /* Lexicals name map. */
-    MVMLexicalRegistry *lexical_names;
-    MVMLexicalRegistry **lexical_names_list;
+    MVMLexicalHashEntry *lexical_names;
+    MVMLexicalHashEntry **lexical_names_list;
 
     /* The environment for this frame, which lives beyond its execution. */
 
