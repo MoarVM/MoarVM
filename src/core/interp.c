@@ -1952,10 +1952,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).o == GET_REG(cur_op, 4).o ? 1 : 0;
                 cur_op += 6;
                 goto NEXT;
-            OP(reprname):
-                GET_REG(cur_op, 0).s = REPR(GET_REG(cur_op, 2).o)->name;
+            OP(reprname): {
+                MVMREPROps *repr = REPR(GET_REG(cur_op, 2).o);
+                /* FIXME: lookup REPR names from cache */
+                GET_REG(cur_op, 0).s = repr->ID < MVM_REPR_CORE_COUNT
+                        ? tc->instance->repr_names[repr->ID]
+                        : MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(isconcrete): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 GET_REG(cur_op, 0).i64 = obj && IS_CONCRETE(obj) ? 1 : 0;

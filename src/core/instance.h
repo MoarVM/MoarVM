@@ -1,3 +1,6 @@
+/* FIXME: should be defined in 6model/reprs.h */
+#define MVM_REPR_CORE_COUNT 25
+
 /* The various "bootstrap" types, based straight off of some core
  * representations. They are used during the 6model bootstrap. */
 struct MVMBootTypes {
@@ -150,4 +153,8 @@ struct MVMInstance {
     /* Hash of filenames of compunits loaded from disk. */
     MVMLoadedCompUnitName *loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
+
+    /* Cache of REPR names */
+    /* FIXME: wants to be variably-sized if we want to dynamically add REPRs */
+    MVMString *repr_names[MVM_REPR_CORE_COUNT];
 };

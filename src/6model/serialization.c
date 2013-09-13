@@ -733,7 +733,14 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     /* Make STables table entry. */
-    write_int32(writer->root.stables_table, offset, add_string_to_heap(tc, writer, st->REPR->name));
+
+    /* FIXME: no REPR name cache yet */
+    if (st->REPR->ID >= MVM_REPR_CORE_COUNT)
+        MVM_exception_throw_adhoc(tc,
+                "cannot yet serialize STable with non-core REPR %" PRIu32,
+                st->REPR->ID);
+
+    write_int32(writer->root.stables_table, offset, add_string_to_heap(tc, writer, tc->instance->repr_names[st->REPR->ID]));
     write_int32(writer->root.stables_table, offset + 4, writer->stables_data_offset);
 
     /* Increment count of stables in the table. */
@@ -889,7 +896,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     writer->cur_write_limit  = &(writer->contexts_data_alloc);
 
     /* Serialize lexicals. */
-    
+
     writer->write_int(tc, writer, sf->body.num_lexicals);
     for (i = 0; i < sf->body.num_lexicals; i++) {
         writer->write_str(tc, writer, lexnames[i]->key);
@@ -1742,7 +1749,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
             fail_deserialize(tc, reader, "Missing deserialize REPR function for %s",
-                MVM_string_ascii_encode(tc, REPR(obj)->name, NULL));
+                REPR(obj)->name);
     }
 }
 

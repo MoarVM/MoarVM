@@ -473,7 +473,7 @@ struct MVMREPROps {
     void (*compose) (MVMThreadContext *tc, MVMSTable *st, MVMObject *info);
 
     /* The representation's name. */
-    MVMString *name;
+    const char *name;
 
     /* The representation's ID. */
     MVMuint32 ID;

@@ -6,13 +6,13 @@ GCC_DIAG_OFF(return-type)
 static MVMuint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support elems",
-        MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        st->REPR->name);
 }
 GCC_DIAG_ON(return-type)
 MVM_NO_RETURN
-static void die_no_attrs(MVMThreadContext *tc, MVMString *repr_name) {
+static void die_no_attrs(MVMThreadContext *tc, const char *repr_name) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) does not support attribute storage", MVM_string_utf8_encode_C_string(tc, repr_name));
+        "This representation (%s) does not support attribute storage", repr_name);
 }
 static void default_get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister *result, MVMuint16 kind) {
     die_no_attrs(tc, st->REPR->name);
@@ -30,36 +30,36 @@ static MVMint64 default_hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject 
 }
 static void default_set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot box a native int", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        "This representation (%s) cannot box a native int", st->REPR->name);
 }
 static MVMint64 default_get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to a native int", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        "This representation (%s) cannot unbox to a native int", st->REPR->name);
 }
 static void default_set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot box a native num", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        "This representation (%s) cannot box a native num", st->REPR->name);
 }
 static MVMnum64 default_get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to a native num", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        "This representation (%s) cannot unbox to a native num", st->REPR->name);
 }
 static void default_set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot box a native string", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        "This representation (%s) cannot box a native string", st->REPR->name);
 }
 static MVMString * default_get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to a native string", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        "This representation (%s) cannot unbox to a native string", st->REPR->name);
 }
 static void * default_get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) cannot unbox to other types", MVM_string_utf8_encode_C_string(tc, st->REPR->name));
+        "This representation (%s) cannot unbox to other types", st->REPR->name);
 }
 MVM_NO_RETURN
-static void die_no_pos(MVMThreadContext *tc, MVMString *repr_name) {
+static void die_no_pos(MVMThreadContext *tc, const char *repr_name) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) does not support positional access", MVM_string_utf8_encode_C_string(tc, repr_name));
+        "This representation (%s) does not support positional access", repr_name);
 }
 static void default_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
@@ -94,9 +94,9 @@ static void default_splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     die_no_pos(tc, st->REPR->name);
 }
 MVM_NO_RETURN
-static void die_no_ass(MVMThreadContext *tc, MVMString *repr_name) {
+static void die_no_ass(MVMThreadContext *tc, const char *repr_name) {
     MVM_exception_throw_adhoc(tc,
-        "This representation (%s) does not support associative access", MVM_string_utf8_encode_C_string(tc, repr_name));
+        "This representation (%s) does not support associative access", repr_name);
 }
 GCC_DIAG_OFF(return-type)
 void * default_at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -168,7 +168,9 @@ MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS = {
 
 /* Registers a representation. It this is ever made public, it should first be
  * made thread-safe, and it should check if the name is already registered. */
-static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *repr) {
+static void register_repr(MVMThreadContext *tc, const char *name, MVMREPROps *repr) {
+    MVMString *name_str;
+
     /* Allocate an ID. */
     MVMuint32 ID = tc->instance->num_reprs;
 
@@ -181,11 +183,23 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     tc->instance->num_reprs++;
 
     /* Stash ID and name. */
+    /* FIXME: these should already be present
+     *        we'll need a 2nd function if we want to add REPRs dynamically
+     */
     repr->ID = ID;
     repr->name = name;
 
     /* Name should become a permanent GC root. */
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&repr->name);
+    /* FIXME: evil hack */
+    {
+        MVMCollectable **box = ID < MVM_REPR_CORE_COUNT
+                ? (MVMCollectable **)(tc->instance->repr_names + ID)
+                : malloc(sizeof *box);
+
+        name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
+        *box = &name_str->common.header;
+        MVM_gc_root_add_permanent(tc, box);
+    }
 
     /* Enter into registry. */
     if (tc->instance->repr_registry)
@@ -194,8 +208,8 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
     else
         tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
     tc->instance->repr_registry[ID] = repr;
-    MVM_string_flatten(tc, name);
-    MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
+    MVM_string_flatten(tc, name_str);
+    MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name_str, entry);
 
     /* Add default "not implemented" function table implementations. */
     /* FIXME: needs to go if we want static REPRs */
@@ -212,8 +226,7 @@ static void register_repr(MVMThreadContext *tc, MVMString *name, MVMREPROps *rep
 }
 
 #define repr_registrar(tc, name, init) \
-    register_repr((tc), MVM_string_ascii_decode_nt((tc), \
-    (tc)->instance->VMString, (name)), init((tc)))
+    register_repr((tc), (name), init((tc)))
 
 /* Initializes the representations registry, building up all of the various
  * representations. */

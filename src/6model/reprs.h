@@ -59,6 +59,12 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMStaticFrame          23
 #define MVM_REPR_ID_MVMCompUnit             24
 
+/* FIXME: defined in core/instance.h */
+#if 0
+#define MVM_REPR_CORE_COUNT                 25
+#endif
+
+
 /* FIXME: these should be const */
 
 /* Default attribute functions for a REPR that lacks them. */
