@@ -1,12 +1,12 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -149,24 +149,42 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMHashAttrStore);
 }
 
+static MVMREPROps_Attribute attr_funcs = {
+    get_attribute,
+    bind_attribute,
+    hint_for,
+    is_attribute_initialized
+};
+
+static MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    initialize,
+    copy_to,
+    &attr_funcs,
+    NULL, /* box_funcs, */
+    NULL, /* pos_funcs */
+    NULL, /* ass_funcs */
+    NULL, /* elems */
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    deserialize_stable_size,
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    NULL, /* name */
+    0, /* ID */
+    0, /* refs_frames */
+};
+
 /* Initializes the representation. */
 MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_mark = gc_mark;
-    this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
-    this_repr->attr_funcs->get_attribute = get_attribute;
-    this_repr->attr_funcs->bind_attribute = bind_attribute;
-    this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;
-    this_repr->attr_funcs->hint_for = hint_for;
-    this_repr->compose = compose;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    return this_repr;
+    return &this_repr;
 }
