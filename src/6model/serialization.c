@@ -774,7 +774,9 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     write_int_func(tc, writer, st->container_spec != NULL);
     if (st->container_spec) {
         /* Write container spec name. */
-        write_str_func(tc, writer, st->container_spec->name);
+        write_str_func(tc, writer,
+            MVM_string_ascii_decode_nt(tc, tc->instance->VMString,
+                st->container_spec->name));
 
         /* Give container spec a chance to serialize any data it wishes. */
         st->container_spec->serialize(tc, st, writer);
@@ -889,7 +891,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     writer->cur_write_limit  = &(writer->contexts_data_alloc);
 
     /* Serialize lexicals. */
-    
+
     writer->write_int(tc, writer, sf->body.num_lexicals);
     for (i = 0; i < sf->body.num_lexicals; i++) {
         writer->write_str(tc, writer, lexnames[i]->key);
@@ -1711,7 +1713,10 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Container spec. */
     if (read_int_func(tc, reader)) {
-        fail_deserialize(tc, reader, "Container spec deserialization NYI");
+        MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc,
+            read_str_func(tc, reader));
+        cc->set_container_spec(tc, st);
+        st->container_spec->deserialize(tc, st, reader);
     }
 
     /* Invocation spec. */
