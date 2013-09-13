@@ -619,7 +619,6 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     char        *output_b64  = NULL;
     MVMint32  output_size = 0;
     MVMint32  offset      = 0;
-    MVMint32  version     = writer->root.version;
     MVMString *result;
 
     /* Calculate total size. */
@@ -722,7 +721,6 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
-    MVMint32 version = writer->root.version;
     MVMint64  i;
 
     /* Ensure there's space in the STables table; grow if not. */
@@ -783,14 +781,12 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     /* Invocation spec. */
-    if (writer->root.version >= 5) {
-        write_int_func(tc, writer, st->invocation_spec != NULL);
-        if (st->invocation_spec) {
-            write_ref_func(tc, writer, st->invocation_spec->class_handle);
-            write_str_func(tc, writer, st->invocation_spec->attr_name);
-            write_int_func(tc, writer, st->invocation_spec->hint);
-            write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
-        }
+    write_int_func(tc, writer, st->invocation_spec != NULL);
+    if (st->invocation_spec) {
+        write_ref_func(tc, writer, st->invocation_spec->class_handle);
+        write_str_func(tc, writer, st->invocation_spec->attr_name);
+        write_int_func(tc, writer, st->invocation_spec->hint);
+        write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
     }
 
     /* Store offset we save REPR data at. */
@@ -965,7 +961,6 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
     MVMString *result   = NULL;
     MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, (MVMObject *)sc);
-    MVMint32   version  = CURRENT_VERSION;
 
     /* Set up writer with some initial settings. */
     MVMSerializationWriter *writer = calloc(1, sizeof(MVMSerializationWriter));
