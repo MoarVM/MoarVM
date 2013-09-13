@@ -149,6 +149,11 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMHashAttrStore);
 }
 
+/* Initializes the representation. */
+MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
+    return &this_repr;
+}
+
 static MVMREPROps_Attribute attr_funcs = {
     get_attribute,
     bind_attribute,
@@ -183,8 +188,3 @@ static MVMREPROps this_repr = {
     0, /* ID */
     0, /* refs_frames */
 };
-
-/* Initializes the representation. */
-MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
-    return &this_repr;
-}
