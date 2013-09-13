@@ -1,17 +1,15 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMKnowHOWAttributeREPR);
     });
@@ -72,17 +70,33 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 /* Initializes the representation. */
 MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->gc_mark = gc_mark;
-    this_repr->compose = compose;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    this_repr->deserialize = deserialize;
-    return this_repr;
+    return &this_repr;
 }
+
+static MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    initialize,
+    copy_to,
+    NULL, /* attr_funcs */
+    NULL, /* box_funcs  */
+    NULL, /* pos_funcs */
+    NULL, /* ass_funcs */
+    NULL, /* elems */
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    deserialize,
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    deserialize_stable_size,
+    gc_mark,
+    NULL, /* gc_free */
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    NULL, /* name */
+    0, /* ID */
+    0, /* refs_frames */
+};
