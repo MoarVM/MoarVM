@@ -4,7 +4,7 @@
 #define REFVAR_VM_HASH_STR_VAR 10
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static MVMREPROps this_repr;
 
 /* Some strings. */
 static MVMString *str_name       = NULL;
@@ -79,12 +79,10 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = 0; /* Is updated later. */
     });
@@ -172,7 +170,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 /* Marks the representation data in an STable.*/
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    
+
     /* May not be composed yet. */
     if (repr_data == NULL)
         return;
@@ -743,7 +741,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 cur_obj_attr++;
                 /* XXX auto-viv stuff */
             }
-            
+
             /* Is it a positional or associative delegate? */
             if (MVM_repr_exists_key(tc, attr_info, str_pos_del)) {
                 if (repr_data->pos_del_slot != -1)
@@ -1178,53 +1176,73 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     str_ass_del = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "associative_delegate");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_ass_del);
 
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_mark = gc_mark;
-    this_repr->gc_free = gc_free;
-    this_repr->gc_mark_repr_data = gc_mark_repr_data;
-    this_repr->gc_free_repr_data = gc_free_repr_data;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->change_type = change_type;
-    this_repr->compose = compose;
-    this_repr->attr_funcs = malloc(sizeof(MVMREPROps_Attribute));
-    memset(this_repr->attr_funcs, 0, sizeof(MVMREPROps_Attribute));
-    this_repr->attr_funcs->get_attribute = get_attribute;
-    this_repr->attr_funcs->bind_attribute = bind_attribute;
-    this_repr->attr_funcs->is_attribute_initialized = is_attribute_initialized;
-    this_repr->attr_funcs->hint_for = hint_for;
-    this_repr->box_funcs = malloc(sizeof(MVMREPROps_Boxing));
-    this_repr->box_funcs->set_int = set_int;
-    this_repr->box_funcs->get_int = get_int;
-    this_repr->box_funcs->set_num = set_num;
-    this_repr->box_funcs->get_num = get_num;
-    this_repr->box_funcs->set_str = set_str;
-    this_repr->box_funcs->get_str = get_str;
-    this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
-    this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    this_repr->pos_funcs->at_pos = at_pos;
-    this_repr->pos_funcs->bind_pos = bind_pos;
-    this_repr->pos_funcs->set_elems = set_elems;
-    this_repr->pos_funcs->push = push;
-    this_repr->pos_funcs->pop = pop;
-    this_repr->pos_funcs->unshift = unshift;
-    this_repr->pos_funcs->shift = shift;
-    this_repr->pos_funcs->splice = splice;
-    this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
-    this_repr->ass_funcs->at_key_ref = at_key_ref;
-    this_repr->ass_funcs->at_key_boxed = at_key_boxed;
-    this_repr->ass_funcs->bind_key_ref = bind_key_ref;
-    this_repr->ass_funcs->bind_key_boxed = bind_key_boxed;
-    this_repr->ass_funcs->exists_key = exists_key;
-    this_repr->ass_funcs->delete_key = delete_key;
-    this_repr->elems = elems;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    this_repr->deserialize_repr_data = deserialize_repr_data;
-    this_repr->deserialize = deserialize;
-    return this_repr;
+    return &this_repr;
 }
+
+static MVMREPROps_Attribute attr_funcs = {
+    get_attribute,
+    bind_attribute,
+    hint_for,
+    is_attribute_initialized
+};
+
+static MVMREPROps_Boxing box_funcs = {
+    set_int,
+    get_int,
+    set_num,
+    get_num,
+    set_str,
+    get_str,
+    get_boxed_ref,
+};
+
+static MVMREPROps_Positional pos_funcs = {
+    at_pos,
+    bind_pos,
+    set_elems,
+    NULL,
+    push,
+    pop,
+    unshift,
+    shift,
+    splice,
+    NULL
+};
+
+static MVMREPROps_Associative ass_funcs = {
+    at_key_ref,
+    at_key_boxed,
+    bind_key_ref,
+    bind_key_boxed,
+    exists_key,
+    delete_key,
+    NULL,
+};
+
+static MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    initialize,
+    copy_to,
+    &MVM_REPR_DEFAULT_ATTR_FUNCS,
+    &box_funcs,
+    &MVM_REPR_DEFAULT_POS_FUNCS,
+    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    elems,
+    get_storage_spec,
+    change_type,
+    NULL, /* serialize */
+    deserialize, /* deserialize */
+    NULL, /* serialize_repr_data */
+    deserialize_repr_data,
+    deserialize_stable_size,
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    gc_mark_repr_data,
+    gc_free_repr_data,
+    compose,
+    "P6opaque", /* name */
+    0,  /* ID */
+    0, /* refs_frames */
+};

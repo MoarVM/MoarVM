@@ -117,7 +117,7 @@ static MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
-    NULL, /* name */
-    0, /* ID */
+    "KnowHOWREPR", /* name */
+    0,  /* ID */
     0, /* refs_frames */
 };

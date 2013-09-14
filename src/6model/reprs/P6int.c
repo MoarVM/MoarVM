@@ -1,12 +1,12 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, this_repr, HOW);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -82,22 +82,43 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 /* Initializes the representation. */
 MVMREPROps * MVMP6int_initialize(MVMThreadContext *tc) {
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->copy_to = copy_to;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->box_funcs = malloc(sizeof(MVMREPROps_Boxing));
-    this_repr->box_funcs->set_int = set_int;
-    this_repr->box_funcs->get_int = get_int;
-    this_repr->box_funcs->set_num = set_num;
-    this_repr->box_funcs->get_num = get_num;
-    this_repr->box_funcs->set_str = set_str;
-    this_repr->box_funcs->get_str = get_str;
-    this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
-    this_repr->compose = compose;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    this_repr->deserialize = deserialize;
-    return this_repr;
+    return &this_repr;
 }
+
+static MVMREPROps_Boxing box_funcs = {
+    set_int,
+    get_int,
+    set_num,
+    get_num,
+    set_str,
+    get_str,
+    get_boxed_ref,
+};
+
+static MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    NULL, /* initialize */
+    copy_to,
+    &MVM_REPR_DEFAULT_ATTR_FUNCS,
+    &box_funcs,
+    &MVM_REPR_DEFAULT_POS_FUNCS,
+    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    NULL, /* elems */
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    deserialize, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    deserialize_stable_size,
+    NULL, /* gc_mark */
+    NULL, /* gc_free */
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    "P6int", /* name */
+    0,  /* ID */
+    0, /* refs_frames */
+};

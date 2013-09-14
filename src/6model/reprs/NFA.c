@@ -1,17 +1,15 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMNFA);
     });
@@ -37,9 +35,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMNFABody *lb = (MVMNFABody *)data;
     MVMint64 i, j;
-    
+
     MVM_gc_worklist_add(tc, worklist, &lb->fates);
-    
+
     for (i = 0; i < lb->num_states; i++) {
         MVMint64 edges = lb->num_state_edges[i];
         for (j = 0; j < edges; j++) {
@@ -84,22 +82,36 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 /* Initializes the representation. */
 MVMREPROps * MVMNFA_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    if (!this_repr) {
-        this_repr = malloc(sizeof(MVMREPROps));
-        memset(this_repr, 0, sizeof(MVMREPROps));
-        this_repr->type_object_for = type_object_for;
-        this_repr->allocate = allocate;
-        this_repr->initialize = initialize;
-        this_repr->copy_to = copy_to;
-        this_repr->gc_mark = gc_mark;
-        this_repr->gc_free = gc_free;
-        this_repr->get_storage_spec = get_storage_spec;
-        this_repr->compose = compose;
-        this_repr->deserialize_stable_size = deserialize_stable_size;
-    }
-    return this_repr;
+    return &this_repr;
 }
+
+static MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    initialize,
+    copy_to,
+    &MVM_REPR_DEFAULT_ATTR_FUNCS,
+    &MVM_REPR_DEFAULT_BOX_FUNCS,
+    &MVM_REPR_DEFAULT_POS_FUNCS,
+    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    NULL, /* elems */
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    deserialize_stable_size,
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    "NFA", /* name */
+    0,  /* ID */
+    0, /* refs_frames */
+};
 
 MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMObject *nfa_type) {
     MVMObject  *nfa_obj;

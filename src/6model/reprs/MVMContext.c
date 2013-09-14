@@ -56,7 +56,7 @@ static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
     MVMContextBody *body = (MVMContextBody *)data; \
     MVMFrame *frame = body->context; \
     MVMObject *result = NULL; \
-    MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names, *entry; \
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry; \
     if (!lexical_names) { \
        MVM_exception_throw_adhoc(tc, \
             "Lexical with name '%s' does not exist in this frame", \
@@ -100,7 +100,7 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMContextBody *body = (MVMContextBody *)data;
     MVMFrame *frame = body->context;
-    MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
     MVMString *name = (MVMString *)key;
     if (!lexical_names)
         return 0;
@@ -174,7 +174,7 @@ static MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
-    NULL, /* name */
-    0, /* ID */
+    "MVMContext", /* name */
+    0,  /* ID */
     0, /* refs_frames */
 };

@@ -855,7 +855,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     /* Grab lexpad, which we'll serialize later on. */
     MVMFrame  *frame     = ((MVMContext *)ctx)->body.context;
     MVMStaticFrame *sf   = frame->static_info;
-    MVMLexicalHashEntry **lexnames = sf->body.lexical_names_list;
+    MVMLexicalRegistry **lexnames = sf->body.lexical_names_list;
 
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, ctx, 1);

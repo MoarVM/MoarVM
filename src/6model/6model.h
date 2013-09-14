@@ -106,7 +106,7 @@ struct MVMCollectable {
 
     /* Collectable flags (see MVMCollectableFlags). */
     MVMuint16 flags;
-    
+
     /* Object size, in bytes. */
     MVMuint16 size;
 
