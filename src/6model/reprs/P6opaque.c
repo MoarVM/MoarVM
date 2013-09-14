@@ -1243,6 +1243,6 @@ static MVMREPROps this_repr = {
     gc_free_repr_data,
     compose,
     "P6opaque", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_P6opaque,
     0, /* refs_frames */
 };

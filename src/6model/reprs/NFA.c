@@ -109,7 +109,7 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "NFA", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_NFA,
     0, /* refs_frames */
 };
 

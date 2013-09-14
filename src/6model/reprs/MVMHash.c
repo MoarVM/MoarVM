@@ -206,6 +206,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "VMHash", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMHash,
     0, /* refs_frames */
 };

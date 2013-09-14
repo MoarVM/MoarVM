@@ -85,6 +85,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "MVMCFunction", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMCFunction,
     0, /* refs_frames */
 };

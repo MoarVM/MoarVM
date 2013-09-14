@@ -88,6 +88,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "MVMOSHandle", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMOSHandle,
     0, /* refs_frames */
 };

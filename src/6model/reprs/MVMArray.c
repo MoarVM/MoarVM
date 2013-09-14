@@ -837,6 +837,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "VMArray", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMArray,
     0, /* refs_frames */
 };

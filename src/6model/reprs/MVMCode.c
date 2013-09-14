@@ -119,6 +119,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "MVMCode", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMCode,
     1, /* refs_frames */
 };

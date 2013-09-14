@@ -120,6 +120,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "MVMString", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMString,
     0, /* refs_frames */
 };

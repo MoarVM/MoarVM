@@ -119,6 +119,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "P6num", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_P6num,
     0, /* refs_frames */
 };

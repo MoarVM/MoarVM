@@ -111,6 +111,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "Lexotic", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_Lexotic,
     1, /* refs_frames */
 };

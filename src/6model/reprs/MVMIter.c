@@ -185,7 +185,7 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "VMIter", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMIter,
     0, /* refs_frames */
 };
 

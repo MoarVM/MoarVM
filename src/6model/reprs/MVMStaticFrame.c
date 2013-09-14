@@ -198,6 +198,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "MVMStaticFrame", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMStaticFrame,
     1, /* refs_frames */
 };

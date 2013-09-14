@@ -92,6 +92,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "VMException", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMException,
     1, /* refs_frames */
 };

@@ -185,6 +185,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "HashAttrStore", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_HashAttrStore,
     0, /* refs_frames */
 };

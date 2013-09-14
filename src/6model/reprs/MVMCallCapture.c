@@ -109,6 +109,6 @@ static MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "MVMCallCapture", /* name */
-    0,  /* ID */
+    MVM_REPR_ID_MVMCallCapture,
     1, /* refs_frames */
 };
