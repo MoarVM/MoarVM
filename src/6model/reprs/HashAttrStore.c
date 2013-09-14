@@ -167,9 +167,9 @@ static MVMREPROps this_repr = {
     initialize,
     copy_to,
     &attr_funcs,
-    NULL, /* box_funcs, */
-    NULL, /* pos_funcs */
-    NULL, /* ass_funcs */
+    &MVM_REPR_DEFAULT_BOX_FUNCS,
+    &MVM_REPR_DEFAULT_POS_FUNCS,
+    &MVM_REPR_DEFAULT_ASS_FUNCS,
     NULL, /* elems */
     get_storage_spec,
     NULL, /* change_type */
