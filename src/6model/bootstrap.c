@@ -62,16 +62,18 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVM_args_proc_cleanup(tc, &arg_ctx);
     if (REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object with REPR KnowHOWREPR");
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&self);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_arg);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name_arg);
+
+    /* See if we were given a name; put it into the meta-object if so. */
+    name = name_arg.exists ? name_arg.arg.s : str_anon;
+
+    /* See if we have a representation name; if not default to P6opaque. */
+    repr_name = repr_arg.exists ? repr_arg.arg.s : str_P6opaque;
 
     /* We first create a new HOW instance. */
     HOW  = REPR(self)->allocate(tc, STABLE(self));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&HOW);
-
-    /* See if we have a representation name; if not default to P6opaque. */
-    repr_name = repr_arg.exists ? repr_arg.arg.s : str_P6opaque;
+    REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
+    MVM_ASSIGN_REF(tc, HOW, ((MVMKnowHOWREPR *)HOW)->body.name, name);
 
     /* Create a new type object of the desired REPR. (Note that we can't
      * default to KnowHOWREPR here, since it doesn't know how to actually
@@ -80,21 +82,17 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     type_object = repr_to_use->type_object_for(tc, HOW);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_object);
 
-    /* See if we were given a name; put it into the meta-object if so. */
-    name = name_arg.exists ? name_arg.arg.s : str_anon;
-    REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
-    MVM_ASSIGN_REF(tc, HOW, ((MVMKnowHOWREPR *)HOW)->body.name, name);
-
     /* Set .WHO to an empty hash. */
     BOOTHash = tc->instance->boot_types->BOOTHash;
     stash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&stash);
     REPR(stash)->initialize(tc, STABLE(stash), stash, OBJECT_BODY(stash));
     MVM_ASSIGN_REF(tc, STABLE(type_object), STABLE(type_object)->WHO, stash);
 
     /* Return the type object. */
     MVM_args_set_result_obj(tc, type_object, MVM_RETURN_CURRENT_FRAME);
 
-    MVM_gc_root_temp_pop_n(tc, 5);
+    MVM_gc_root_temp_pop_n(tc, 3);
 }
 
 /* Adds a method. */
@@ -172,10 +170,11 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     STABLE(type_obj)->type_check_cache_length = 1;
     STABLE(type_obj)->type_check_cache        = malloc(sizeof(MVMObject *));
     MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->type_check_cache[0], type_obj);
+    attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
 
     /* Next steps will allocate, so make sure we keep hold of the type
      * object and ourself. */
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&self);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_obj);
 
     /* Use any attribute information to produce attribute protocol
@@ -203,8 +202,6 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     REPR(attr_info_list)->initialize(tc, STABLE(attr_info_list), attr_info_list,
         OBJECT_BODY(attr_info_list));
     MVM_repr_push_o(tc, type_info, attr_info_list);
-    attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attributes);
     num_attrs = REPR(attributes)->elems(tc, STABLE(attributes),
         attributes, OBJECT_BODY(attributes));
     for (i = 0; i < num_attrs; i++) {
@@ -245,7 +242,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVM_repr_compose(tc, type_obj, repr_info_hash);
 
     /* Clear temporary roots. */
-    MVM_gc_root_temp_pop_n(tc, 10);
+    MVM_gc_root_temp_pop_n(tc, 9);
 
     /* Return type object. */
     MVM_args_set_result_obj(tc, type_obj, MVM_RETURN_CURRENT_FRAME);
@@ -385,7 +382,6 @@ static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVM_args_proc_cleanup(tc, &arg_ctx);
 
     /* Anchor all the things. */
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&self);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&name_arg);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_arg);
 
@@ -399,7 +395,7 @@ static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     ((MVMKnowHOWAttributeREPR *)obj)->body.box_target = bt_arg.exists ? bt_arg.arg.i64 : 0;
 
     /* Return produced object. */
-    MVM_gc_root_temp_pop_n(tc, 3);
+    MVM_gc_root_temp_pop_n(tc, 2);
     MVM_args_set_result_obj(tc, obj, MVM_RETURN_CURRENT_FRAME);
 }
 
@@ -500,11 +496,9 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
         repr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
         MVMROOT(tc, repr_info, {
             MVMObject *arr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
-            MVMROOT(tc, arr_info, {
-                MVM_repr_bind_key_boxed(tc, repr_info, str_array, arr_info);
-                MVM_repr_bind_key_boxed(tc, arr_info, str_type, type);
-                REPR(array)->compose(tc, STABLE(array), repr_info);
-            });
+            MVM_repr_bind_key_boxed(tc, arr_info, str_type, type);
+            MVM_repr_bind_key_boxed(tc, repr_info, str_array, arr_info);
+            MVM_repr_compose(tc, array, repr_info);
         });
 
         /* Also give it a boolification spec. */
@@ -519,11 +513,9 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
 /* Sets up the core serialization context. It is marked as the SC of various
  * rooted objects, which means in turn it will never be collected. */
 static void setup_core_sc(MVMThreadContext *tc) {
-    MVMString *handle;
-    MVMSerializationContext *sc;
-
-    handle = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "__6MODEL_CORE__");
-    sc = (MVMSerializationContext *)MVM_sc_create(tc, handle);
+    MVMString *handle = MVM_string_ascii_decode_nt(tc,
+        tc->instance->VMString, "__6MODEL_CORE__");
+    MVMSerializationContext * const sc = (MVMSerializationContext *)MVM_sc_create(tc, handle);
 
 #define knowhow_init(tc, sc, index, variable) do { \
     MVM_sc_set_object(tc, sc, index, variable); \
@@ -532,16 +524,14 @@ static void setup_core_sc(MVMThreadContext *tc) {
     MVM_sc_set_stable_sc(tc, STABLE(variable), sc); \
 } while (0)
 
-    MVMROOT(tc, sc, {
-        /* KnowHOW */
-        knowhow_init(tc, sc, 0, tc->instance->KnowHOW);
+    /* KnowHOW */
+    knowhow_init(tc, sc, 0, tc->instance->KnowHOW);
 
-        /* KnowHOW.HOW */
-        knowhow_init(tc, sc, 1, STABLE(tc->instance->KnowHOW)->HOW);
+    /* KnowHOW.HOW */
+    knowhow_init(tc, sc, 1, STABLE(tc->instance->KnowHOW)->HOW);
 
-        /* KnowHOWAttribute */
-        knowhow_init(tc, sc, 2, tc->instance->KnowHOWAttribute);
-    });
+    /* KnowHOWAttribute */
+    knowhow_init(tc, sc, 2, tc->instance->KnowHOWAttribute);
 }
 
 /* Drives the overall bootstrap process. */
