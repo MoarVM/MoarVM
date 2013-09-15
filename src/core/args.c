@@ -370,9 +370,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     if (!type || IS_CONCRETE(type)) { \
         MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
     } \
-    box = REPR(type)->allocate(tc, STABLE(type)); \
-    if (REPR(box)->initialize) \
-        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+    box = MVM_repr_alloc_init(tc, type); \
     REPR(box)->box_funcs->set_func(tc, STABLE(box), box, \
         OBJECT_BODY(box), arg_info.arg.reg_member); \
     stmt1; \
