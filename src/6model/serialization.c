@@ -1716,7 +1716,11 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Invocation spec. */
     if (read_int_func(tc, reader)) {
-        fail_deserialize(tc, reader, "Invocation spec deserialization NYI");
+        st->invocation_spec = (MVMInvocationSpec *)malloc(sizeof(MVMInvocationSpec));
+        st->invocation_spec->class_handle = read_ref_func(tc, reader);
+        st->invocation_spec->attr_name = read_str_func(tc, reader);
+        st->invocation_spec->hint = read_int_func(tc, reader);
+        st->invocation_spec->invocation_handler = read_ref_func(tc, reader);
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */
