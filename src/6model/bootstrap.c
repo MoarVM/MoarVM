@@ -47,40 +47,42 @@ static void create_stub_VMString(MVMThreadContext *tc) {
 
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
 static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
-    MVMObject   *self, *HOW, *type_object, *BOOTHash, *stash;
-    MVMArgInfo   repr_arg, name_arg;
-    MVMString   *repr_name, *name;
-    MVMREPROps  *repr_to_use;
+    MVMObject *self, *HOW, *type_object, *BOOTHash, *stash;
+    MVMArgInfo repr_arg, name_arg;
+    MVMString *repr_name, *name;
+    MVMREPROps *repr_to_use;
 
     /* Get arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
+    self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
     repr_arg = MVM_args_get_named_str(tc, &arg_ctx, str_repr, MVM_ARG_OPTIONAL);
     name_arg = MVM_args_get_named_str(tc, &arg_ctx, str_name, MVM_ARG_OPTIONAL);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     if (REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object with REPR KnowHOWREPR");
 
-    /* See if we were given a name; put it into the meta-object if so. */
-    name = name_arg.exists ? name_arg.arg.s : str_anon;
-
     /* See if we have a representation name; if not default to P6opaque. */
     repr_name = repr_arg.exists ? repr_arg.arg.s : str_P6opaque;
+    repr_to_use = MVM_repr_get_by_name(tc, repr_name);
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name_arg);
 
     /* We first create a new HOW instance. */
-    HOW  = REPR(self)->allocate(tc, STABLE(self));
+    HOW = REPR(self)->allocate(tc, STABLE(self));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&HOW);
-    REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
-    MVM_ASSIGN_REF(tc, HOW, ((MVMKnowHOWREPR *)HOW)->body.name, name);
 
     /* Create a new type object of the desired REPR. (Note that we can't
      * default to KnowHOWREPR here, since it doesn't know how to actually
      * store attributes, it's just for bootstrapping knowhow's. */
-    repr_to_use = MVM_repr_get_by_name(tc, repr_name);
     type_object = repr_to_use->type_object_for(tc, HOW);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_object);
+
+    /* See if we were given a name; put it into the meta-object if so. */
+    name = name_arg.exists ? name_arg.arg.s : str_anon;
+    REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
+    MVM_ASSIGN_REF(tc, HOW, ((MVMKnowHOWREPR *)HOW)->body.name, name);
 
     /* Set .WHO to an empty hash. */
     BOOTHash = tc->instance->boot_types->BOOTHash;
@@ -92,7 +94,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     /* Return the type object. */
     MVM_args_set_result_obj(tc, type_object, MVM_RETURN_CURRENT_FRAME);
 
-    MVM_gc_root_temp_pop_n(tc, 3);
+    MVM_gc_root_temp_pop_n(tc, 4);
 }
 
 /* Adds a method. */
