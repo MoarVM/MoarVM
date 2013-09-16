@@ -187,12 +187,10 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTHash);
     repr_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info);
-    REPR(repr_info)->initialize(tc, STABLE(repr_info), repr_info, OBJECT_BODY(repr_info));
 
     /* ...which contains an array per MRO entry (just us)... */
     type_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_info);
-    REPR(type_info)->initialize(tc, STABLE(type_info), type_info, OBJECT_BODY(type_info));
     MVM_repr_push_o(tc, repr_info, type_info);
 
     /* ...which in turn contains this type... */
@@ -201,8 +199,6 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     /* ...then an array of hashes per attribute... */
     attr_info_list = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_info_list);
-    REPR(attr_info_list)->initialize(tc, STABLE(attr_info_list), attr_info_list,
-        OBJECT_BODY(attr_info_list));
     MVM_repr_push_o(tc, type_info, attr_info_list);
     num_attrs = REPR(attributes)->elems(tc, STABLE(attributes),
         attributes, OBJECT_BODY(attributes));
@@ -297,8 +293,6 @@ static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow
 /* Bootstraps the KnowHOW type. */
 static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     MVMObject *VMString  = tc->instance->VMString;
-    MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
-    MVMObject *BOOTHash  = tc->instance->boot_types->BOOTHash;
 
     /* Create our KnowHOW type object. Note we don't have a HOW just yet, so
      * pass in NULL. */

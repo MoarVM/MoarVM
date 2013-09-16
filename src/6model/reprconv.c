@@ -11,20 +11,24 @@ void MVM_repr_init(MVMThreadContext *tc, MVMObject *obj) {
 
 MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
     MVMObject *obj = REPR(type)->allocate(tc, STABLE(type));
-    MVMROOT(tc, obj, {
-        MVM_repr_init(tc, obj);
-    });
+
+    if (REPR(obj)->initialize) {
+        MVMROOT(tc, obj, {
+            REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        });
+    }
+
     return obj;
 }
 
 MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj) {
     MVMObject *res;
-    MVMROOT(tc, obj, {
-        res = REPR(obj)->allocate(tc, STABLE(obj));
-        MVMROOT(tc, res, {
-            REPR(obj)->copy_to(tc, STABLE(obj), OBJECT_BODY(obj), res, OBJECT_BODY(res));
-        });
-    });
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
+    res = REPR(obj)->allocate(tc, STABLE(obj));
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&res);
+    REPR(obj)->copy_to(tc, STABLE(obj), OBJECT_BODY(obj), res, OBJECT_BODY(res));
+    MVM_gc_root_temp_pop_n(tc, 2);
     return res;
 }
 

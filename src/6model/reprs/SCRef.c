@@ -33,11 +33,9 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     root_objects = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_ASSIGN_REF(tc, root, sc->root_objects, root_objects);
-    REPR(root_objects)->initialize(tc, STABLE(root_objects), root_objects, OBJECT_BODY(root_objects));
 
     root_codes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_ASSIGN_REF(tc, root, sc->root_codes, root_codes);
-    REPR(root_codes)->initialize(tc, STABLE(root_codes), root_codes, OBJECT_BODY(root_codes));
 
     MVM_gc_root_temp_pop_n(tc, 2);
 }

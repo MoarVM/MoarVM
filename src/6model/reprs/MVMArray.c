@@ -32,10 +32,6 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st);
 }
 
-/* Initialize a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-}
-
 /* Copies the body of one object to another. The result has the space
  * needed for the current number of elements, which may not be the
  * entire allocated slot size. */
@@ -816,7 +812,7 @@ static MVMREPROps_Positional pos_funcs = {
 static MVMREPROps this_repr = {
     type_object_for,
     allocate,
-    initialize,
+    NULL, /* initialize */
     copy_to,
     &MVM_REPR_DEFAULT_ATTR_FUNCS,
     &MVM_REPR_DEFAULT_BOX_FUNCS,

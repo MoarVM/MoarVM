@@ -22,10 +22,6 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st);
 }
 
-/* Initializes a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-}
-
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMExceptionBody *src_body  = (MVMExceptionBody *)src;
@@ -71,7 +67,7 @@ MVMREPROps * MVMException_initialize(MVMThreadContext *tc) {
 static MVMREPROps this_repr = {
     type_object_for,
     allocate,
-    initialize,
+    NULL, /* initialize */
     copy_to,
     &MVM_REPR_DEFAULT_ATTR_FUNCS,
     &MVM_REPR_DEFAULT_BOX_FUNCS,
