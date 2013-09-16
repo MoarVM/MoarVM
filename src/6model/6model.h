@@ -141,7 +141,7 @@ struct MVMObjectStooge {
 /* This is used to identify an attribute for various types of cache. */
 struct MVMAttributeIdentifier {
     MVMObject         *class_handle;   /* Class handle */
-    MVMString *attr_name;      /* Name of the attribute. */
+    MVMString         *attr_name;      /* Name of the attribute. */
     MVMint64           hint;           /* Hint for use in static/gradual typing. */
 };
 

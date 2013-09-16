@@ -171,37 +171,20 @@ MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS = {
 static void register_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
 
-    /* Allocate an ID. */
-    const MVMuint32 ID = tc->instance->num_reprs;
+    const MVMuint32 ID = repr->ID;
 
     /* Allocate a hash entry for the name-to-ID.
         Could one day be unified with MVMREPROps, I suppose. */
     MVMReprRegistry *entry = malloc(sizeof(MVMReprRegistry));
-    entry->name   = name;
     entry->id = ID;
 
+    tc->instance->repr_names[ID] = name;
+
     /* Name should become a permanent GC root. */
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->repr_names[ID]);
 
     /* Bump the repr count */
     tc->instance->num_reprs++;
-
-    /* Stash ID and name. */
-    /* FIXME: these should already be present
-     *        we'll need a 2nd function if we want to add REPRs dynamically
-     */
-    repr->ID = ID;
-
-    /* Name should become a permanent GC root. */
-    /* FIXME: evil hack */
-    {
-        MVMCollectable **box = ID < MVM_REPR_CORE_COUNT
-                ? (MVMCollectable **)(tc->instance->repr_names + ID)
-                : malloc(sizeof *box);
-
-        *box = &name->common.header;
-        MVM_gc_root_add_permanent(tc, box);
-    }
 
     /* Enter into registry. */
     if (tc->instance->repr_registry)
@@ -210,6 +193,7 @@ static void register_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     else
         tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
     tc->instance->repr_registry[ID] = repr;
+
     MVM_string_flatten(tc, name);
     MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
 

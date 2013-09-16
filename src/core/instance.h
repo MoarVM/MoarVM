@@ -31,9 +31,6 @@ struct MVMStringConsts {
 };
 
 struct MVMReprRegistry {
-    /* name of the REPR */
-    MVMString *name;
-
     /* index of the REPR */
     MVMuint32 id;
 
