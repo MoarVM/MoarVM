@@ -54,4 +54,4 @@ struct MVMLoadedCompUnitName {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMCompUnit_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMCompUnit_initialize(MVMThreadContext *tc);

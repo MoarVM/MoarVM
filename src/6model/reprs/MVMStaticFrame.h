@@ -76,4 +76,4 @@ struct MVMStaticFrame {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc);

@@ -23,7 +23,7 @@ struct MVMHash {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_ACTION(tc, hash, name, entry, action, member, size) \
     action(hash_handle, hash, \

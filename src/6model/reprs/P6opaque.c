@@ -4,7 +4,7 @@
 #define REFVAR_VM_HASH_STR_VAR 10
 
 /* This representation's function pointer table. */
-static MVMREPROps this_repr;
+static const MVMREPROps this_repr;
 
 /* Some strings. */
 static MVMString *str_name       = NULL;
@@ -1161,7 +1161,7 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
     str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "name");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_name);
@@ -1179,14 +1179,14 @@ MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static MVMREPROps_Attribute attr_funcs = {
+static const MVMREPROps_Attribute attr_funcs = {
     get_attribute,
     bind_attribute,
     hint_for,
     is_attribute_initialized
 };
 
-static MVMREPROps_Boxing box_funcs = {
+static const MVMREPROps_Boxing box_funcs = {
     set_int,
     get_int,
     set_num,
@@ -1196,7 +1196,7 @@ static MVMREPROps_Boxing box_funcs = {
     get_boxed_ref,
 };
 
-static MVMREPROps_Positional pos_funcs = {
+static const MVMREPROps_Positional pos_funcs = {
     at_pos,
     bind_pos,
     set_elems,
@@ -1209,7 +1209,7 @@ static MVMREPROps_Positional pos_funcs = {
     NULL
 };
 
-static MVMREPROps_Associative ass_funcs = {
+static const MVMREPROps_Associative ass_funcs = {
     at_key_ref,
     at_key_boxed,
     bind_key_ref,
@@ -1219,7 +1219,7 @@ static MVMREPROps_Associative ass_funcs = {
     NULL,
 };
 
-static MVMREPROps this_repr = {
+static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     initialize,

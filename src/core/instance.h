@@ -81,7 +81,7 @@ struct MVMInstance {
     MVMStringConsts *str_consts;
 
     /* An array mapping representation IDs to function tables. */
-    MVMREPROps **repr_registry;
+    const MVMREPROps **repr_registry;
 
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;

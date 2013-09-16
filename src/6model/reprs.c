@@ -3,7 +3,7 @@
 
 /* Default REPR function handlers. */
 GCC_DIAG_OFF(return-type)
-static MVMuint64 default_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+MVMuint64 MVM_REPR_DEFAULT_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support elems",
         st->REPR->name);
@@ -126,14 +126,14 @@ MVMStorageSpec default_get_value_storage_spec(MVMThreadContext *tc, MVMSTable *s
 }
 GCC_DIAG_ON(return-type)
 
-MVMREPROps_Attribute MVM_REPR_DEFAULT_ATTR_FUNCS = {
+const MVMREPROps_Attribute MVM_REPR_DEFAULT_ATTR_FUNCS = {
     default_get_attribute,
     default_bind_attribute,
     default_hint_for,
     default_is_attribute_initialized,
 };
 
-MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS = {
+const MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS = {
     default_set_int,
     default_get_int,
     default_set_num,
@@ -143,7 +143,7 @@ MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS = {
     default_get_boxed_ref,
 };
 
-MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS = {
+const MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS = {
     default_at_pos,
     default_bind_pos,
     default_set_elems,
@@ -156,7 +156,7 @@ MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS = {
     default_get_elem_storage_spec,
 };
 
-MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS = {
+const MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS = {
     default_at_key_ref,
     default_at_key_boxed,
     default_bind_key_ref,
@@ -168,7 +168,7 @@ MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS = {
 
 /* Registers a representation. It this is ever made public, it should first be
  * made thread-safe, and it should check if the name is already registered. */
-static void register_repr(MVMThreadContext *tc, MVMREPROps *repr) {
+static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
 
     const MVMuint32 ID = repr->ID;
@@ -196,11 +196,6 @@ static void register_repr(MVMThreadContext *tc, MVMREPROps *repr) {
 
     MVM_string_flatten(tc, name);
     MVM_HASH_BIND(tc, tc->instance->repr_name_to_id_hash, name, entry);
-
-    /* Add default "not implemented" function table implementations. */
-    /* FIXME: needs to go if we want static REPRs */
-    if (!repr->elems)
-        repr->elems = default_elems;
 }
 
 #define repr_registrar(tc, init) \
@@ -252,11 +247,11 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
 }
 
 /* Gets a representation by ID. */
-MVMREPROps * MVM_repr_get_by_id(MVMThreadContext *tc, MVMuint32 id) {
+const MVMREPROps * MVM_repr_get_by_id(MVMThreadContext *tc, MVMuint32 id) {
     return tc->instance->repr_registry[id];
 }
 
 /* Gets a representation by name. */
-MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name) {
+const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name) {
     return tc->instance->repr_registry[MVM_repr_name_to_id(tc, name)];
 }

@@ -98,4 +98,4 @@ struct MVMP6opaqueREPRData {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc);

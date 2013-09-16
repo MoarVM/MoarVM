@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps this_repr;
+static const MVMREPROps this_repr;
 
 /* Some strings. */
 static MVMString *str_array = NULL;
@@ -786,7 +786,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
     str_array = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "array");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_array);
@@ -796,7 +796,7 @@ MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static MVMREPROps_Positional pos_funcs = {
+static const MVMREPROps_Positional pos_funcs = {
     at_pos,
     bind_pos,
     set_elems,
@@ -809,7 +809,7 @@ static MVMREPROps_Positional pos_funcs = {
     get_elem_storage_spec
 };
 
-static MVMREPROps this_repr = {
+static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */

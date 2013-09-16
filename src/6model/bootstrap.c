@@ -24,7 +24,7 @@ static void create_stub_VMString(MVMThreadContext *tc) {
     /* Need to create the REPR function table "in advance"; the
      * MVMString REPR specially knows not to duplicately create
      * this. */
-    MVMREPROps *repr = MVMString_initialize(tc);
+    const MVMREPROps *repr = MVMString_initialize(tc);
 
     /* Now we can create a type object; note we have no HOW yet,
      * though. */
@@ -50,7 +50,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVMObject *self, *HOW, *type_object, *BOOTHash, *stash;
     MVMArgInfo repr_arg, name_arg;
     MVMString *repr_name, *name;
-    MVMREPROps *repr_to_use;
+    const MVMREPROps *repr_to_use;
 
     /* Get arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
@@ -296,7 +296,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
 
     /* Create our KnowHOW type object. Note we don't have a HOW just yet, so
      * pass in NULL. */
-    MVMREPROps *REPR    = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWREPR);
+    const MVMREPROps *REPR    = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWREPR);
     MVMObject  *knowhow = REPR->type_object_for(tc, NULL);
 
     /* We create a KnowHOW instance that can describe itself. This means
@@ -365,7 +365,7 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
 static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject   *self, *obj;
     MVMArgInfo   type_arg, name_arg, bt_arg;
-    MVMREPROps  *repr;
+    const MVMREPROps  *repr;
 
     /* Process arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
@@ -448,7 +448,7 @@ static void attr_box_target(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegi
 static void create_KnowHOWAttribute(MVMThreadContext *tc) {
     MVMObject      *knowhow_how, *meta_obj, *type_obj;
     MVMString      *name_str;
-    MVMREPROps     *repr;
+    const MVMREPROps     *repr;
 
     /* Create meta-object. */
     meta_obj = MVM_repr_alloc_init(tc, STABLE(tc->instance->KnowHOW)->HOW);
@@ -482,7 +482,7 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
 static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject *type) {
     MVMBoolificationSpec *bs;
     MVMObject  *repr_info;
-    MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
+    const MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
     MVMObject  *array = repr->type_object_for(tc, NULL);
     MVMROOT(tc, array, {
         /* Give it a meta-object. */
@@ -544,7 +544,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
      * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
      * CallCapture, BOOTIO and BOOTException types. */
 #define create_stub_boot_type(tc, reprid, slot, makeboolspec, boolspec) do { \
-    MVMREPROps *repr = MVM_repr_get_by_id(tc, reprid); \
+    const MVMREPROps *repr = MVM_repr_get_by_id(tc, reprid); \
     MVMObject *type = tc->instance->slot = repr->type_object_for(tc, NULL); \
     if (makeboolspec) { \
         MVMBoolificationSpec *bs; \

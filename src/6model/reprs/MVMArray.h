@@ -39,7 +39,7 @@ struct MVMArray {
 #define MVM_ARRAY_N32   7
 
 /* Function for REPR setup. */
-MVMREPROps * MVMArray_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc);
 
 /* Array REPR data specifies the type of array elements we have. */
 struct MVMArrayREPRData {

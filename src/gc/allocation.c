@@ -51,7 +51,7 @@ void * MVM_gc_allocate_zeroed(MVMThreadContext *tc, size_t size) {
 
 /* Allocates a new STable, based on the specified thread context, REPR
  * and meta-object. */
-MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, MVMREPROps *repr, MVMObject *how) {
+MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr, MVMObject *how) {
     MVMSTable *st;
     MVMROOT(tc, how, {
         st                = MVM_gc_allocate_zeroed(tc, sizeof(MVMSTable));

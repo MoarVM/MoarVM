@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps this_repr;
+static const MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
@@ -140,11 +140,11 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static MVMREPROps_Positional pos_funcs = {
+static const MVMREPROps_Positional pos_funcs = {
     at_pos,
     bind_pos,
     set_elems,
@@ -157,7 +157,7 @@ static MVMREPROps_Positional pos_funcs = {
     get_elem_storage_spec
 };
 
-static MVMREPROps this_repr = {
+static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */

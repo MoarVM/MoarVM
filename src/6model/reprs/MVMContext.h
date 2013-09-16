@@ -8,4 +8,4 @@ struct MVMContext {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMContext_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMContext_initialize(MVMThreadContext *tc);

@@ -18,4 +18,4 @@ struct MVMLexotic {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMLexotic_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMLexotic_initialize(MVMThreadContext *tc);

@@ -1953,7 +1953,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(reprname): {
-                MVMREPROps *repr = REPR(GET_REG(cur_op, 2).o);
+                const MVMREPROps *repr = REPR(GET_REG(cur_op, 2).o);
                 /* FIXME: lookup REPR names from cache */
                 GET_REG(cur_op, 0).s = repr->ID < MVM_REPR_CORE_COUNT
                         ? tc->instance->repr_names[repr->ID]
@@ -2447,7 +2447,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(newtype): {
                 MVMObject *type_obj, *how = GET_REG(cur_op, 2).o;
                 MVMString *repr_name = GET_REG(cur_op, 4).s;
-                MVMREPROps *repr = MVM_repr_get_by_name(tc, repr_name);
+                const MVMREPROps *repr = MVM_repr_get_by_name(tc, repr_name);
                 GET_REG(cur_op, 0).o = repr->type_object_for(tc, how);
                 cur_op += 6;
                 goto NEXT;

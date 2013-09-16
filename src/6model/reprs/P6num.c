@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps this_repr;
+static const MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
@@ -81,11 +81,11 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static MVMREPROps_Boxing box_funcs = {
+static const MVMREPROps_Boxing box_funcs = {
     set_int,
     get_int,
     set_num,
@@ -95,7 +95,7 @@ static MVMREPROps_Boxing box_funcs = {
     get_boxed_ref,
 };
 
-static MVMREPROps this_repr = {
+static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */
@@ -104,7 +104,7 @@ static MVMREPROps this_repr = {
     &box_funcs,
     &MVM_REPR_DEFAULT_POS_FUNCS,
     &MVM_REPR_DEFAULT_ASS_FUNCS,
-    NULL, /* elems */
+    MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
     NULL, /* serialize */

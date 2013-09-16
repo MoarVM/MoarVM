@@ -18,4 +18,4 @@ struct MVMCallCapture {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMCallCapture_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMCallCapture_initialize(MVMThreadContext *tc);

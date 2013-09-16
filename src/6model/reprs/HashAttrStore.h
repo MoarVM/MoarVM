@@ -10,4 +10,4 @@ struct MVMHashAttrStore {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc);

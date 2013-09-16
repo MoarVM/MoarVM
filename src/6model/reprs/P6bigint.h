@@ -11,4 +11,4 @@ struct MVMP6bigint {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc);

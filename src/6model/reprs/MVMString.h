@@ -88,4 +88,4 @@ struct MVMString {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMString_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMString_initialize(MVMThreadContext *tc);

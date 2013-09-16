@@ -28,8 +28,8 @@
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name);
-MVMREPROps * MVM_repr_get_by_id(MVMThreadContext *tc, MVMuint32 id);
-MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
+const MVMREPROps * MVM_repr_get_by_id(MVMThreadContext *tc, MVMuint32 id);
+const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 
 /* Core representation IDs (determined by the order we add them
  * to the registery in reprs.c). */
@@ -64,17 +64,17 @@ MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_CORE_COUNT                 25
 #endif
 
-
-/* FIXME: these should be const */
-
 /* Default attribute functions for a REPR that lacks them. */
-extern MVMREPROps_Attribute MVM_REPR_DEFAULT_ATTR_FUNCS;
+extern const MVMREPROps_Attribute MVM_REPR_DEFAULT_ATTR_FUNCS;
 
 /* Default boxing functions for a REPR that lacks them. */
-extern MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS;
+extern const MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS;
 
 /* Default positional functions for a REPR that lacks them. */
-extern MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS;
+extern const MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS;
 
 /* Default associative functions for a REPR that lacks them. */
-extern MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS;
+extern const MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS;
+
+/* Default elems function for a REPR that lacks it. */
+MVMuint64 MVM_REPR_DEFAULT_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);

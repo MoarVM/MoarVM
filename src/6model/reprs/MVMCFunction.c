@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps this_repr;
+static const MVMREPROps this_repr;
 
 /* Invocation protocol handler. */
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
@@ -53,11 +53,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMCFunction_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMCFunction_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static MVMREPROps this_repr = {
+static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */
@@ -66,7 +66,7 @@ static MVMREPROps this_repr = {
     &MVM_REPR_DEFAULT_BOX_FUNCS,
     &MVM_REPR_DEFAULT_POS_FUNCS,
     &MVM_REPR_DEFAULT_ASS_FUNCS,
-    NULL, /* elems */
+    MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
     NULL, /* serialize */

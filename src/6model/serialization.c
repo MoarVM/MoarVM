@@ -1515,7 +1515,7 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
         char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
 
         /* Read in and look up representation. */
-        MVMREPROps *repr = MVM_repr_get_by_name(tc,
+        const MVMREPROps *repr = MVM_repr_get_by_name(tc,
             read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
 
         /* Allocate and store stub STable. */
