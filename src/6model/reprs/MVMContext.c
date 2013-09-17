@@ -152,7 +152,7 @@ static const MVMREPROps this_repr = {
         bind_key_boxed,
         exists_key,
         delete_key,
-        get_value_storage_spec,
+        get_value_storage_spec
     },   /* ass_funcs */
     elems,
     get_storage_spec,

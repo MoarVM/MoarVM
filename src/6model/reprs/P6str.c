@@ -103,7 +103,7 @@ static const MVMREPROps this_repr = {
         get_num,
         set_str,
         get_str,
-        get_boxed_ref,
+        get_boxed_ref
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,

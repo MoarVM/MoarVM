@@ -1197,7 +1197,7 @@ static const MVMREPROps this_repr = {
         get_num,
         set_str,
         get_str,
-        get_boxed_ref,
+        get_boxed_ref
     },    /* box_funcs */
     {
         at_pos,
@@ -1218,7 +1218,7 @@ static const MVMREPROps this_repr = {
         bind_key_boxed,
         exists_key,
         delete_key,
-        NULL,
+        NULL
     },    /* ass_funcs */
     elems,
     get_storage_spec,
