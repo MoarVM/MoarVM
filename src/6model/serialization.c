@@ -615,10 +615,10 @@ static void write_stable_ref_func(MVMThreadContext *tc, MVMSerializationWriter *
 
 /* Concatenates the various output segments into a single binary MVMString. */
 static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWriter *writer) {
-    char        *output      = NULL;
-    char        *output_b64  = NULL;
-    MVMint32  output_size = 0;
-    MVMint32  offset      = 0;
+    char      *output      = NULL;
+    char      *output_b64  = NULL;
+    MVMint32   output_size = 0;
+    MVMint32   offset      = 0;
     MVMString *result;
 
     /* Calculate total size. */
@@ -959,11 +959,16 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 }
 
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
+    MVMSerializationWriter *writer;
     MVMString *result   = NULL;
     MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, sc->body->root_objects);
+    
+    /* We don't sufficiently root things in here for the GC, so enforce gen2
+     * allocation. */
+    MVM_gc_allocate_gen2_default_set(tc);
 
     /* Set up writer with some initial settings. */
-    MVMSerializationWriter *writer = calloc(1, sizeof(MVMSerializationWriter));
+    writer                      = calloc(1, sizeof(MVMSerializationWriter));
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
     writer->stables_list        = sc->body->root_stables;
@@ -1015,6 +1020,9 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     free(writer->root.objects_table);
     free(writer->root.objects_data);
     free(writer);
+    
+    /* Exit gen2 allocation. */
+    MVM_gc_allocate_gen2_default_clear(tc);
 
     return result;
 }
