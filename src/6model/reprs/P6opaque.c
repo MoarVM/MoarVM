@@ -299,7 +299,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         }
         case MVM_reg_int64: {
             if (attr_st)
-                result_reg->i64 = attr_st->REPR->box_funcs->get_int(tc, attr_st, root,
+                result_reg->i64 = attr_st->REPR->box_funcs.get_int(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot]);
             else
                 MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
@@ -307,7 +307,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         }
         case MVM_reg_num64: {
             if (attr_st)
-                result_reg->n64 = attr_st->REPR->box_funcs->get_num(tc, attr_st, root,
+                result_reg->n64 = attr_st->REPR->box_funcs.get_num(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot]);
             else
                 MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
@@ -315,7 +315,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         }
         case MVM_reg_str: {
             if (attr_st)
-                result_reg->s = attr_st->REPR->box_funcs->get_str(tc, attr_st, root,
+                result_reg->s = attr_st->REPR->box_funcs.get_str(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot]);
             else
                 MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
@@ -366,7 +366,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         }
         case MVM_reg_int64: {
             if (attr_st)
-                attr_st->REPR->box_funcs->set_int(tc, attr_st, root,
+                attr_st->REPR->box_funcs.set_int(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot],
                     value_reg.i64);
             else
@@ -375,7 +375,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         }
         case MVM_reg_num64: {
             if (attr_st)
-                attr_st->REPR->box_funcs->set_num(tc, attr_st, root,
+                attr_st->REPR->box_funcs.set_num(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot],
                     value_reg.n64);
             else
@@ -384,7 +384,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         }
         case MVM_reg_str: {
             if (attr_st)
-                attr_st->REPR->box_funcs->set_str(tc, attr_st, root,
+                attr_st->REPR->box_funcs.set_str(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot],
                     value_reg.s);
             else
@@ -431,7 +431,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     data = real_data(data);
     if (repr_data->unbox_int_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
-        st->REPR->box_funcs->set_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot], value);
+        st->REPR->box_funcs.set_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot], value);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -446,7 +446,7 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     data = real_data(data);
     if (repr_data->unbox_int_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
-        return st->REPR->box_funcs->get_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
+        return st->REPR->box_funcs.get_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -461,7 +461,7 @@ static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     data = real_data(data);
     if (repr_data->unbox_num_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_num_slot];
-        st->REPR->box_funcs->set_num(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_num_slot], value);
+        st->REPR->box_funcs.set_num(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_num_slot], value);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -476,7 +476,7 @@ static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     data = real_data(data);
     if (repr_data->unbox_num_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_num_slot];
-        return st->REPR->box_funcs->get_num(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_num_slot]);
+        return st->REPR->box_funcs.get_num(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_num_slot]);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -491,7 +491,7 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     data = real_data(data);
     if (repr_data->unbox_str_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_str_slot];
-        st->REPR->box_funcs->set_str(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_str_slot], value);
+        st->REPR->box_funcs.set_str(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_str_slot], value);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -506,7 +506,7 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     data = real_data(data);
     if (repr_data->unbox_str_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_str_slot];
-        return st->REPR->box_funcs->get_str(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_str_slot]);
+        return st->REPR->box_funcs.get_str(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_str_slot]);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -562,7 +562,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
 
     /* Find attribute information. */
-    info = REPR(info_hash)->ass_funcs->at_key_boxed(tc, STABLE(info_hash), info_hash,
+    info = REPR(info_hash)->ass_funcs.at_key_boxed(tc, STABLE(info_hash), info_hash,
         OBJECT_BODY(info_hash), (MVMObject *)str_attribute);
     if (info == NULL)
         MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute protocol in compose");
@@ -649,11 +649,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVMObject *attr_info = MVM_repr_at_pos_o(tc, attr_list, i);
 
             /* Extract name, type and if it's a box target. */
-            MVMObject *name_obj = REPR(attr_info)->ass_funcs->at_key_boxed(tc,
+            MVMObject *name_obj = REPR(attr_info)->ass_funcs.at_key_boxed(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_name);
-            MVMObject *type = REPR(attr_info)->ass_funcs->at_key_boxed(tc,
+            MVMObject *type = REPR(attr_info)->ass_funcs.at_key_boxed(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type);
-            MVMint64 is_box_target = REPR(attr_info)->ass_funcs->exists_key(tc,
+            MVMint64 is_box_target = REPR(attr_info)->ass_funcs.exists_key(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target);
             MVMint8 inlined = 0;
 
@@ -1007,7 +1007,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->at_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
+    REPR(del)->pos_funcs.at_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
 }
 
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
@@ -1017,7 +1017,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->bind_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
+    REPR(del)->pos_funcs.bind_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
 }
 
 static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
@@ -1027,7 +1027,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->set_elems(tc, STABLE(del), del, OBJECT_BODY(del), count);
+    REPR(del)->pos_funcs.set_elems(tc, STABLE(del), del, OBJECT_BODY(del), count);
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
@@ -1037,7 +1037,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->push(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
+    REPR(del)->pos_funcs.push(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
 
 static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
@@ -1047,7 +1047,7 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->pop(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
+    REPR(del)->pos_funcs.pop(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
 
 static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
@@ -1057,7 +1057,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->unshift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
+    REPR(del)->pos_funcs.unshift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
 
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
@@ -1067,7 +1067,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->shift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
+    REPR(del)->pos_funcs.shift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
 
 static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
@@ -1077,7 +1077,7 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         die_no_pos_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
-    REPR(del)->pos_funcs->splice(tc, STABLE(del), del, OBJECT_BODY(del), target_array, offset, elems);
+    REPR(del)->pos_funcs.splice(tc, STABLE(del), del, OBJECT_BODY(del), target_array, offset, elems);
 }
 
 static void die_no_ass_del(MVMThreadContext *tc) {
@@ -1091,7 +1091,7 @@ void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         die_no_ass_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    return REPR(del)->ass_funcs->at_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key);
+    return REPR(del)->ass_funcs.at_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
 MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -1101,7 +1101,7 @@ MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
         die_no_ass_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    return REPR(del)->ass_funcs->at_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key);
+    return REPR(del)->ass_funcs.at_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
 void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
@@ -1111,7 +1111,7 @@ void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         die_no_ass_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    REPR(del)->ass_funcs->bind_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key, value_addr);
+    REPR(del)->ass_funcs.bind_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key, value_addr);
 }
 
 void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
@@ -1121,7 +1121,7 @@ void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         die_no_ass_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    REPR(del)->ass_funcs->bind_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key, value);
+    REPR(del)->ass_funcs.bind_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key, value);
 }
 
 MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -1131,7 +1131,7 @@ MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         die_no_ass_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    return REPR(del)->ass_funcs->exists_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
+    return REPR(del)->ass_funcs.exists_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
 void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
@@ -1141,7 +1141,7 @@ void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         die_no_ass_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    REPR(del)->ass_funcs->delete_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
+    REPR(del)->ass_funcs.delete_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -1179,55 +1179,47 @@ const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static const MVMREPROps_Attribute attr_funcs = {
-    get_attribute,
-    bind_attribute,
-    hint_for,
-    is_attribute_initialized
-};
-
-static const MVMREPROps_Boxing box_funcs = {
-    set_int,
-    get_int,
-    set_num,
-    get_num,
-    set_str,
-    get_str,
-    get_boxed_ref,
-};
-
-static const MVMREPROps_Positional pos_funcs = {
-    at_pos,
-    bind_pos,
-    set_elems,
-    NULL,
-    push,
-    pop,
-    unshift,
-    shift,
-    splice,
-    NULL
-};
-
-static const MVMREPROps_Associative ass_funcs = {
-    at_key_ref,
-    at_key_boxed,
-    bind_key_ref,
-    bind_key_boxed,
-    exists_key,
-    delete_key,
-    NULL,
-};
-
 static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     initialize,
     copy_to,
-    &attr_funcs,
-    &box_funcs,
-    &pos_funcs,
-    &ass_funcs,
+    {
+        get_attribute,
+        bind_attribute,
+        hint_for,
+        is_attribute_initialized
+    },    /* attr_funcs */
+    {
+        set_int,
+        get_int,
+        set_num,
+        get_num,
+        set_str,
+        get_str,
+        get_boxed_ref,
+    },    /* box_funcs */
+    {
+        at_pos,
+        bind_pos,
+        set_elems,
+        NULL,
+        push,
+        pop,
+        unshift,
+        shift,
+        splice,
+        NULL
+    },    /* pos_funcs */
+    {
+        at_key_ref,
+        at_key_boxed,
+        bind_key_ref,
+        bind_key_boxed,
+        exists_key,
+        delete_key,
+        NULL,
+    },    /* ass_funcs */
     elems,
     get_storage_spec,
     change_type,

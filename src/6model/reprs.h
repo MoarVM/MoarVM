@@ -65,16 +65,88 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #endif
 
 /* Default attribute functions for a REPR that lacks them. */
-extern const MVMREPROps_Attribute MVM_REPR_DEFAULT_ATTR_FUNCS;
+#define MVM_REPR_DEFAULT_ATTR_FUNCS \
+{ \
+    MVM_REPR_DEFAULT_GET_ATTRIBUTE, \
+    MVM_REPR_DEFAULT_BIND_ATTRIBUTE, \
+    MVM_REPR_DEFAULT_HINT_FOR, \
+    MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED \
+}
 
 /* Default boxing functions for a REPR that lacks them. */
-extern const MVMREPROps_Boxing MVM_REPR_DEFAULT_BOX_FUNCS;
+#define MVM_REPR_DEFAULT_BOX_FUNCS \
+{ \
+    MVM_REPR_DEFAULT_SET_INT, \
+    MVM_REPR_DEFAULT_GET_INT, \
+    MVM_REPR_DEFAULT_SET_NUM, \
+    MVM_REPR_DEFAULT_GET_NUM, \
+    MVM_REPR_DEFAULT_SET_STR, \
+    MVM_REPR_DEFAULT_GET_STR, \
+    MVM_REPR_DEFAULT_GET_BOXED_REF \
+}
 
 /* Default positional functions for a REPR that lacks them. */
-extern const MVMREPROps_Positional MVM_REPR_DEFAULT_POS_FUNCS;
+#define MVM_REPR_DEFAULT_POS_FUNCS \
+{ \
+    MVM_REPR_DEFAULT_AT_POS, \
+    MVM_REPR_DEFAULT_BIND_POS, \
+    MVM_REPR_DEFAULT_SET_ELEMS, \
+    MVM_REPR_DEFAULT_EXISTS_POS, \
+    MVM_REPR_DEFAULT_PUSH, \
+    MVM_REPR_DEFAULT_POP, \
+    MVM_REPR_DEFAULT_UNSHIFT, \
+    MVM_REPR_DEFAULT_SHIFT, \
+    MVM_REPR_DEFAULT_SPLICE, \
+    MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC \
+}
 
 /* Default associative functions for a REPR that lacks them. */
-extern const MVMREPROps_Associative MVM_REPR_DEFAULT_ASS_FUNCS;
+#define MVM_REPR_DEFAULT_ASS_FUNCS \
+{ \
+    MVM_REPR_DEFAULT_AT_KEY_REF, \
+    MVM_REPR_DEFAULT_AT_KEY_BOXED, \
+    MVM_REPR_DEFAULT_BIND_KEY_REF, \
+    MVM_REPR_DEFAULT_BIND_KEY_BOXED, \
+    MVM_REPR_DEFAULT_EXISTS_KEY, \
+    MVM_REPR_DEFAULT_DELETE_KEY, \
+    MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC \
+}
 
-/* Default elems function for a REPR that lacks it. */
+/* Default elems REPR function for a REPR that lacks it. */
 MVMuint64 MVM_REPR_DEFAULT_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
+
+/* Default attribute access REPR function for a REPR that lacks it. */
+void MVM_REPR_DEFAULT_GET_ATTRIBUTE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister *result, MVMuint16 kind);
+void MVM_REPR_DEFAULT_BIND_ATTRIBUTE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister value, MVMuint16 kind);
+MVMint64 MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint);
+MVMint64 MVM_REPR_DEFAULT_HINT_FOR(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_handle, MVMString *name);
+
+/* Default boxing REPR function for a REPR that lacks it. */
+void MVM_REPR_DEFAULT_SET_INT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value);
+MVMint64 MVM_REPR_DEFAULT_GET_INT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
+void MVM_REPR_DEFAULT_SET_NUM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value);
+MVMnum64 MVM_REPR_DEFAULT_GET_NUM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
+void MVM_REPR_DEFAULT_SET_STR(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value);
+MVMString * MVM_REPR_DEFAULT_GET_STR(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
+void * MVM_REPR_DEFAULT_GET_BOXED_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id);
+
+/* Default positional indexing REPR function for a REPR that lacks it. */
+void MVM_REPR_DEFAULT_AT_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_BIND_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_SET_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count);
+MVMint64 MVM_REPR_DEFAULT_EXISTS_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index);
+void MVM_REPR_DEFAULT_PUSH(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_POP(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_UNSHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_SHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind);
+MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st);
+
+/* Default associative indexing REPR function for a REPR that lacks it. */
+void MVM_REPR_DEFAULT_SPLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems);
+void * MVM_REPR_DEFAULT_AT_KEY_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
+MVMObject * MVM_REPR_DEFAULT_AT_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
+void MVM_REPR_DEFAULT_BIND_KEY_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr);
+void MVM_REPR_DEFAULT_BIND_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value);
+MVMuint64 MVM_REPR_DEFAULT_EXISTS_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
+void MVM_REPR_DEFAULT_DELETE_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
+MVMStorageSpec MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st);

@@ -154,22 +154,20 @@ const MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static const MVMREPROps_Attribute attr_funcs = {
-    get_attribute,
-    bind_attribute,
-    hint_for,
-    is_attribute_initialized
-};
-
 static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     initialize,
     copy_to,
-    &attr_funcs,
-    &MVM_REPR_DEFAULT_BOX_FUNCS,
-    &MVM_REPR_DEFAULT_POS_FUNCS,
-    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    {
+        get_attribute,
+        bind_attribute,
+        hint_for,
+        is_attribute_initialized
+    },   /* attr_funcs */
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    MVM_REPR_DEFAULT_POS_FUNCS,
+    MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */

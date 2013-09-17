@@ -85,25 +85,23 @@ const MVMREPROps * MVMP6int_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static const MVMREPROps_Boxing box_funcs = {
-    set_int,
-    get_int,
-    set_num,
-    get_num,
-    set_str,
-    get_str,
-    get_boxed_ref,
-};
-
 static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */
     copy_to,
-    &MVM_REPR_DEFAULT_ATTR_FUNCS,
-    &box_funcs,
-    &MVM_REPR_DEFAULT_POS_FUNCS,
-    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    {
+        set_int,
+        get_int,
+        set_num,
+        get_num,
+        set_str,
+        get_str,
+        get_boxed_ref,
+    },    /* box_funcs */
+    MVM_REPR_DEFAULT_POS_FUNCS,
+    MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */

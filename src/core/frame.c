@@ -400,7 +400,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
                 if (REPR(result)->initialize)
                     REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
-                REPR(result)->box_funcs->set_int(tc, STABLE(result), result,
+                REPR(result)->box_funcs.set_int(tc, STABLE(result), result,
                     OBJECT_BODY(result), lex_reg->i64);
                 MVM_gc_root_temp_pop(tc);
                 break;
@@ -412,7 +412,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
                 if (REPR(result)->initialize)
                     REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
-                REPR(result)->box_funcs->set_num(tc, STABLE(result), result,
+                REPR(result)->box_funcs.set_num(tc, STABLE(result), result,
                     OBJECT_BODY(result), lex_reg->n64);
                 MVM_gc_root_temp_pop(tc);
                 break;
@@ -424,7 +424,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
                 if (REPR(result)->initialize)
                     REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
-                REPR(result)->box_funcs->set_str(tc, STABLE(result), result,
+                REPR(result)->box_funcs.set_str(tc, STABLE(result), result,
                     OBJECT_BODY(result), lex_reg->s);
                 MVM_gc_root_temp_pop(tc);
                 break;
@@ -447,15 +447,15 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
     }
     switch (type) {
         case MVM_reg_int64:
-            lex_reg->i64 = REPR(value)->box_funcs->get_int(tc,
+            lex_reg->i64 = REPR(value)->box_funcs.get_int(tc,
                 STABLE(value), value, OBJECT_BODY(value));
             break;
         case MVM_reg_num64:
-            lex_reg->n64 = REPR(value)->box_funcs->get_num(tc,
+            lex_reg->n64 = REPR(value)->box_funcs.get_num(tc,
                 STABLE(value), value, OBJECT_BODY(value));
             break;
         case MVM_reg_str:
-            lex_reg->s = REPR(value)->box_funcs->get_str(tc,
+            lex_reg->s = REPR(value)->box_funcs.get_str(tc,
                 STABLE(value), value, OBJECT_BODY(value));
             break;
         case MVM_reg_obj:
@@ -516,7 +516,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
         }
         if (is->class_handle) {
             MVMRegister dest;
-            REPR(code)->attr_funcs->get_attribute(tc,
+            REPR(code)->attr_funcs.get_attribute(tc,
                 STABLE(code), code, OBJECT_BODY(code),
                 is->class_handle, is->attr_name,
                 is->hint, &dest, MVM_reg_obj);

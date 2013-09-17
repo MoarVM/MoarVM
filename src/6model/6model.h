@@ -404,16 +404,16 @@ struct MVMREPROps {
     void (*copy_to) (MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest);
 
     /* Attribute access REPR function table. */
-    const MVMREPROps_Attribute *attr_funcs;
+    MVMREPROps_Attribute attr_funcs;
 
     /* Boxing REPR function table. */
-    const MVMREPROps_Boxing *box_funcs;
+    MVMREPROps_Boxing box_funcs;
 
     /* Positional indexing REPR function table. */
-    const MVMREPROps_Positional *pos_funcs;
+    MVMREPROps_Positional pos_funcs;
 
     /* Associative indexing REPR function table. */
-    const MVMREPROps_Associative *ass_funcs;
+    MVMREPROps_Associative ass_funcs;
 
     /* Gets the number of elements, for any aggregate types. */
     MVMuint64 (*elems) (MVMThreadContext *tc, MVMSTable *st,

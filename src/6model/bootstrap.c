@@ -286,7 +286,7 @@ static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow
 
     /* Add into the table. */
     method_table = knowhow_how->body.methods;
-    REPR(method_table)->ass_funcs->bind_key_boxed(tc, STABLE(method_table),
+    REPR(method_table)->ass_funcs.bind_key_boxed(tc, STABLE(method_table),
         method_table, OBJECT_BODY(method_table), name_str, code_obj);
 }
 

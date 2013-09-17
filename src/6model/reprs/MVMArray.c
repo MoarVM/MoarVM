@@ -698,7 +698,7 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         }
         for (i = 0; i < elems1; i++) {
             MVMRegister to_copy;
-            REPR(from)->pos_funcs->at_pos(tc, STABLE(from), from,
+            REPR(from)->pos_funcs.at_pos(tc, STABLE(from), from,
                 OBJECT_BODY(from), i, &to_copy, kind);
             bind_pos(tc, st, root, data, start + offset + i, to_copy, kind);
         }
@@ -717,10 +717,10 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
 
-    MVMObject *info = REPR(info_hash)->ass_funcs->at_key_boxed(tc, STABLE(info_hash),
+    MVMObject *info = REPR(info_hash)->ass_funcs.at_key_boxed(tc, STABLE(info_hash),
         info_hash, OBJECT_BODY(info_hash), (MVMObject *)str_array);
     if (info != NULL) {
-        MVMObject *type = REPR(info)->ass_funcs->at_key_boxed(tc, STABLE(info),
+        MVMObject *type = REPR(info)->ass_funcs.at_key_boxed(tc, STABLE(info),
             info, OBJECT_BODY(info), (MVMObject *)str_type);
         if (type != NULL) {
             MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -796,28 +796,26 @@ const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static const MVMREPROps_Positional pos_funcs = {
-    at_pos,
-    bind_pos,
-    set_elems,
-    exists_pos,
-    push,
-    pop,
-    unshift,
-    shift,
-    splice,
-    get_elem_storage_spec
-};
-
 static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */
     copy_to,
-    &MVM_REPR_DEFAULT_ATTR_FUNCS,
-    &MVM_REPR_DEFAULT_BOX_FUNCS,
-    &pos_funcs,
-    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    {
+        at_pos,
+        bind_pos,
+        set_elems,
+        exists_pos,
+        push,
+        pop,
+        unshift,
+        shift,
+        splice,
+        get_elem_storage_spec
+    },    /* pos_funcs */
+    MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,
     get_storage_spec,
     NULL, /* change_type */

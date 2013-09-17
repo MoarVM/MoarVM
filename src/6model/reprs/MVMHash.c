@@ -172,25 +172,23 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static const MVMREPROps_Associative ass_funcs = {
-    at_key_ref,
-    at_key_boxed,
-    bind_key_ref,
-    bind_key_boxed,
-    exists_key,
-    delete_key,
-    get_value_storage_spec,
-};
-
 static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     initialize,
     copy_to,
-    &MVM_REPR_DEFAULT_ATTR_FUNCS,
-    &MVM_REPR_DEFAULT_BOX_FUNCS,
-    &MVM_REPR_DEFAULT_POS_FUNCS,
-    &ass_funcs,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    MVM_REPR_DEFAULT_POS_FUNCS,
+    {
+        at_key_ref,
+        at_key_boxed,
+        bind_key_ref,
+        bind_key_boxed,
+        exists_key,
+        delete_key,
+        get_value_storage_spec,
+    },    /* ass_funcs */
     elems,
     get_storage_spec,
     NULL, /* change_type */

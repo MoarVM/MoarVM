@@ -175,10 +175,10 @@ static const MVMREPROps this_repr = {
     allocate,
     NULL, /* initialize */
     copy_to,
-    &MVM_REPR_DEFAULT_ATTR_FUNCS,
-    &MVM_REPR_DEFAULT_BOX_FUNCS,
-    &MVM_REPR_DEFAULT_POS_FUNCS,
-    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    MVM_REPR_DEFAULT_POS_FUNCS,
+    MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */

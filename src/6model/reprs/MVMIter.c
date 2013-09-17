@@ -92,7 +92,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             body->array_state.index++;
             if (body->array_state.index >= body->array_state.limit)
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
+            REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
             return;
         case MVM_ITER_MODE_HASH:
             if (!body->hash_state.curr) {
@@ -144,28 +144,26 @@ const MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
-static const MVMREPROps_Positional pos_funcs = {
-    at_pos,
-    bind_pos,
-    set_elems,
-    NULL, /* exists_pos */
-    push,
-    pop,
-    unshift,
-    shift,
-    splice,
-    get_elem_storage_spec
-};
-
 static const MVMREPROps this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */
     copy_to,
-    &MVM_REPR_DEFAULT_ATTR_FUNCS,
-    &MVM_REPR_DEFAULT_BOX_FUNCS,
-    &pos_funcs,
-    &MVM_REPR_DEFAULT_ASS_FUNCS,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    {
+        at_pos,
+        bind_pos,
+        set_elems,
+        NULL, /* exists_pos */
+        push,
+        pop,
+        unshift,
+        shift,
+        splice,
+        get_elem_storage_spec
+    },    /* pos_funcs */
+    MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,
     get_storage_spec,
     NULL, /* change_type */
@@ -263,7 +261,7 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
         if (body->array_state.index == -1)
             MVM_exception_throw_adhoc(tc, "You have not yet advanced in the array iterator");
         target = body->target;
-        REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, MVM_reg_obj);
+        REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, MVM_reg_obj);
     }
     else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
         if (!iterator->body.hash_state.curr)

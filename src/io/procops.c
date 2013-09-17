@@ -133,7 +133,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
         while(MVM_iter_istrue(tc, iter)) {
             MVMRegister value;
             MVMString *env_str;
-            REPR(iter)->pos_funcs->shift(tc, STABLE(iter), (MVMObject *)iter, OBJECT_BODY(iter), &value, MVM_reg_obj);
+            REPR(iter)->pos_funcs.shift(tc, STABLE(iter), (MVMObject *)iter, OBJECT_BODY(iter), &value, MVM_reg_obj);
             env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, (MVMIter *)value.o), equal);
             env_str = MVM_string_concatenate(tc, env_str, (MVMString *)MVM_iterval(tc, (MVMIter *)value.o));
             _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str);
