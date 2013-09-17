@@ -384,6 +384,7 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
 
     /* Write elements, as key,value,key,value etc. */
     while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
+        MVM_repr_shift_o(tc, iter);
         write_str_func(tc, writer, MVM_iterkey_s(tc, (MVMIter *)iter));
         write_ref_func(tc, writer, MVM_iterval(tc, (MVMIter *)iter));
     }
