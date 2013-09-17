@@ -514,7 +514,7 @@ scobjcount          w(int64) r(obj)
 setobjsc            r(obj) r(obj)
 getobjsc            w(obj) r(obj)
 serialize           w(str) r(obj) r(obj)
-deserialize         w(str) r(str) r(obj) r(obj) r(obj) r(obj)
+deserialize         r(str) r(obj) r(obj) r(obj) r(obj)
 wval                w(obj) int16 int16
 wval_wide           w(obj) int16 int64
 scwbdisable         w(obj)
