@@ -960,7 +960,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
     MVMString *result   = NULL;
-    MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, (MVMObject *)sc);
+    MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, sc->body->root_objects);
 
     /* Set up writer with some initial settings. */
     MVMSerializationWriter *writer = calloc(1, sizeof(MVMSerializationWriter));
