@@ -116,6 +116,34 @@ void MVM_repr_push_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *pushee) {
         value, MVM_reg_obj);
 }
 
+MVMint64 MVM_repr_shift_i(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_int64);
+    return value.i64;
+}
+
+MVMnum64 MVM_repr_shift_n(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_num64);
+    return value.n64;
+}
+
+MVMString * MVM_repr_shift_s(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_str);
+    return value.s;
+}
+
+MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs->shift(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_obj);
+    return value.o;
+}
+
 MVMObject * MVM_repr_at_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
     return REPR(obj)->ass_funcs->at_key_boxed(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), (MVMObject *)key);
