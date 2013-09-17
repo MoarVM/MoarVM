@@ -147,11 +147,9 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr) {
     tc->instance->num_reprs++;
 
     /* Enter into registry. */
-    if (tc->instance->repr_registry)
-        tc->instance->repr_registry = realloc((MVMREPROps *)tc->instance->repr_registry,
-            tc->instance->num_reprs * sizeof(MVMREPROps *)); /* TODO: don't realloc every time */
-    else
-        tc->instance->repr_registry = malloc(tc->instance->num_reprs * sizeof(MVMREPROps *));
+    /* TODO: don't realloc every time */
+    tc->instance->repr_registry = realloc(tc->instance->repr_registry,
+            tc->instance->num_reprs * sizeof *tc->instance->repr_registry);
     tc->instance->repr_registry[ID] = repr;
 
     MVM_string_flatten(tc, name);
