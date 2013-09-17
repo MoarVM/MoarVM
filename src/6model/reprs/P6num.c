@@ -80,6 +80,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     ((MVMP6numBody *)data)->value = reader->read_num(tc, reader);
 }
 
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    writer->write_num(tc, writer, ((MVMP6numBody *)data)->value);
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
@@ -99,5 +103,6 @@ MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc) {
     this_repr->compose = compose;
     this_repr->deserialize_stable_size = deserialize_stable_size;
     this_repr->deserialize = deserialize;
+    this_repr->serialize = serialize;
     return this_repr;
 }
