@@ -842,7 +842,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
             REPR(obj)->serialize(tc, STABLE(obj), OBJECT_BODY(obj), writer);
         else
             MVM_exception_throw_adhoc(tc,
-                "Missing serialize REPR function");
+                "REPR '%s' is missing serialize REPR function", REPR(obj)->name);
     }
 }
 
@@ -970,7 +970,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVMSerializationWriter *writer;
     MVMString *result   = NULL;
     MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, sc->body->root_objects);
-    
+
     /* We don't sufficiently root things in here for the GC, so enforce gen2
      * allocation. */
     MVM_gc_allocate_gen2_default_set(tc);
@@ -1028,7 +1028,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     free(writer->root.objects_table);
     free(writer->root.objects_data);
     free(writer);
-    
+
     /* Exit gen2 allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
 
