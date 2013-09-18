@@ -142,6 +142,8 @@ struct MVMSerializationWriter {
     
     /* Various writing functions. */
     void (*write_int) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
+    void (*write_int32) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 value);
+    void (*write_int16) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint16 value);
     void (*write_num) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
     void (*write_str) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
     void (*write_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *value);
