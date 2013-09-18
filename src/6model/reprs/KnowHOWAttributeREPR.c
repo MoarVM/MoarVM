@@ -63,6 +63,12 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMKnowHOWAttributeREPR);
 }
 
+/* Serializes the data. */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMKnowHOWAttributeREPRBody *body = (MVMKnowHOWAttributeREPRBody *)data;
+    writer->write_str(tc, writer, body->name);
+}
+
 /* Deserializes the data. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMKnowHOWAttributeREPRBody *body = (MVMKnowHOWAttributeREPRBody *)data;
@@ -82,6 +88,7 @@ MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc) {
     this_repr->get_storage_spec = get_storage_spec;
     this_repr->gc_mark = gc_mark;
     this_repr->compose = compose;
+    this_repr->serialize = serialize;
     this_repr->deserialize_stable_size = deserialize_stable_size;
     this_repr->deserialize = deserialize;
     return this_repr;
