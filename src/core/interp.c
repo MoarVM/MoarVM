@@ -3166,12 +3166,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(scsetobj): {
-                MVMObject *sc = GET_REG(cur_op, 0).o;
+                MVMObject *sc  = GET_REG(cur_op, 0).o;
+                MVMObject *obj = GET_REG(cur_op, 4).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to scsetobj");
                 MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
-                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
+                    GET_REG(cur_op, 2).i64, obj);
+                if (STABLE(obj)->header.sc == NULL)
+                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, STABLE(obj));
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3261,18 +3264,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(deserialize): {
-                MVMString *blob = GET_REG(cur_op, 2).s;
-                MVMObject *sc   = GET_REG(cur_op, 4).o;
-                MVMObject *sh   = GET_REG(cur_op, 6).o;
-                MVMObject *cr   = GET_REG(cur_op, 8).o;
-                MVMObject *conf = GET_REG(cur_op, 10).o;
+                MVMString *blob = GET_REG(cur_op, 0).s;
+                MVMObject *sc   = GET_REG(cur_op, 2).o;
+                MVMObject *sh   = GET_REG(cur_op, 4).o;
+                MVMObject *cr   = GET_REG(cur_op, 6).o;
+                MVMObject *conf = GET_REG(cur_op, 8).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to deserialize");
                 MVM_serialization_deserialize(tc, (MVMSerializationContext *)sc,
                     sh, cr, conf, blob);
-                GET_REG(cur_op, 0).s = blob;
-                cur_op += 12;
+                cur_op += 10;
                 goto NEXT;
             }
             OP(wval): {

@@ -18,6 +18,11 @@ void MVM_repr_push_n(MVMThreadContext *tc, MVMObject *obj, MVMnum64 pushee);
 void MVM_repr_push_s(MVMThreadContext *tc, MVMObject *obj, MVMString *pushee);
 void MVM_repr_push_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *pushee);
 
+MVMint64 MVM_repr_shift_i(MVMThreadContext *tc, MVMObject *obj);
+MVMnum64 MVM_repr_shift_n(MVMThreadContext *tc, MVMObject *obj);
+MVMString * MVM_repr_shift_s(MVMThreadContext *tc, MVMObject *obj);
+MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj);
+
 MVMObject * MVM_repr_at_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 void MVM_repr_bind_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val);
 MVMint64 MVM_repr_exists_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key);

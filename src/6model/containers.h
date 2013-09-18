@@ -4,6 +4,9 @@
  * native lexical or object field. The function table determines the way it
  * behaves. */
 struct MVMContainerSpec {
+    /* Name of this container specification. */
+    char *name;
+
     /* Fetches a value out of a container. Used for decontainerization. */
     void (*fetch) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 
@@ -14,9 +17,6 @@ struct MVMContainerSpec {
      * assumes an optimizer or something else already did it). Used for
      * assignment. */
     void (*store_unchecked) (MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
-
-    /* Name of this container specification. */
-    MVMString *name;
 
     /* Marks container data, if any. */
     void (*gc_mark_data) (MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist);
@@ -44,7 +44,7 @@ struct MVMContainerConfigurer {
 /* Container registry is a hash mapping names of container configurations
  * to function tables. */
 struct MVMContainerRegistry {
-    MVMString             *config_name;
+    MVMString              *name;
     MVMContainerConfigurer *configurer;
 
     /* Inline handle to the hash in which this is stored. */

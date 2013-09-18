@@ -384,6 +384,7 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
 
     /* Write elements, as key,value,key,value etc. */
     while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
+        MVM_repr_shift_o(tc, iter);
         write_str_func(tc, writer, MVM_iterkey_s(tc, (MVMIter *)iter));
         write_ref_func(tc, writer, MVM_iterval(tc, (MVMIter *)iter));
     }
@@ -615,11 +616,10 @@ static void write_stable_ref_func(MVMThreadContext *tc, MVMSerializationWriter *
 
 /* Concatenates the various output segments into a single binary MVMString. */
 static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWriter *writer) {
-    char        *output      = NULL;
-    char        *output_b64  = NULL;
-    MVMint32  output_size = 0;
-    MVMint32  offset      = 0;
-    MVMint32  version     = writer->root.version;
+    char      *output      = NULL;
+    char      *output_b64  = NULL;
+    MVMint32   output_size = 0;
+    MVMint32   offset      = 0;
     MVMString *result;
 
     /* Calculate total size. */
@@ -722,7 +722,6 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
-    MVMint32 version = writer->root.version;
     MVMint64  i;
 
     /* Ensure there's space in the STables table; grow if not. */
@@ -781,21 +780,21 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     write_int_func(tc, writer, st->container_spec != NULL);
     if (st->container_spec) {
         /* Write container spec name. */
-        write_str_func(tc, writer, st->container_spec->name);
+        write_str_func(tc, writer,
+            MVM_string_ascii_decode_nt(tc, tc->instance->VMString,
+                st->container_spec->name));
 
         /* Give container spec a chance to serialize any data it wishes. */
         st->container_spec->serialize(tc, st, writer);
     }
 
     /* Invocation spec. */
-    if (writer->root.version >= 5) {
-        write_int_func(tc, writer, st->invocation_spec != NULL);
-        if (st->invocation_spec) {
-            write_ref_func(tc, writer, st->invocation_spec->class_handle);
-            write_str_func(tc, writer, st->invocation_spec->attr_name);
-            write_int_func(tc, writer, st->invocation_spec->hint);
-            write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
-        }
+    write_int_func(tc, writer, st->invocation_spec != NULL);
+    if (st->invocation_spec) {
+        write_ref_func(tc, writer, st->invocation_spec->class_handle);
+        write_str_func(tc, writer, st->invocation_spec->attr_name);
+        write_int_func(tc, writer, st->invocation_spec->hint);
+        write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
     }
 
     /* Store offset we save REPR data at. */
@@ -968,12 +967,16 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 }
 
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
+    MVMSerializationWriter *writer;
     MVMString *result   = NULL;
-    MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, (MVMObject *)sc);
-    MVMint32   version  = CURRENT_VERSION;
+    MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, sc->body->root_objects);
+    
+    /* We don't sufficiently root things in here for the GC, so enforce gen2
+     * allocation. */
+    MVM_gc_allocate_gen2_default_set(tc);
 
     /* Set up writer with some initial settings. */
-    MVMSerializationWriter *writer = calloc(1, sizeof(MVMSerializationWriter));
+    writer                      = calloc(1, sizeof(MVMSerializationWriter));
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
     writer->stables_list        = sc->body->root_stables;
@@ -1025,6 +1028,9 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     free(writer->root.objects_table);
     free(writer->root.objects_data);
     free(writer);
+    
+    /* Exit gen2 allocation. */
+    MVM_gc_allocate_gen2_default_clear(tc);
 
     return result;
 }
@@ -1718,12 +1724,19 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Container spec. */
     if (read_int_func(tc, reader)) {
-        fail_deserialize(tc, reader, "Container spec deserialization NYI");
+        MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc,
+            read_str_func(tc, reader));
+        cc->set_container_spec(tc, st);
+        st->container_spec->deserialize(tc, st, reader);
     }
 
     /* Invocation spec. */
     if (read_int_func(tc, reader)) {
-        fail_deserialize(tc, reader, "Invocation spec deserialization NYI");
+        st->invocation_spec = (MVMInvocationSpec *)malloc(sizeof(MVMInvocationSpec));
+        st->invocation_spec->class_handle = read_ref_func(tc, reader);
+        st->invocation_spec->attr_name = read_str_func(tc, reader);
+        st->invocation_spec->hint = read_int_func(tc, reader);
+        st->invocation_spec->invocation_handler = read_ref_func(tc, reader);
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */

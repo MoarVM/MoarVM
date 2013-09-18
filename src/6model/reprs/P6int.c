@@ -80,6 +80,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     ((MVMP6intBody *)data)->value = reader->read_int(tc, reader);
 }
 
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    writer->write_int(tc, writer, ((MVMP6intBody *)data)->value);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMP6int_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -105,7 +109,7 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
+    serialize,
     deserialize, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */

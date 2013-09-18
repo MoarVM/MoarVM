@@ -70,7 +70,16 @@ static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVM_ASSIGN_REF(tc, st, data->store_code, reader->read_ref(tc, reader));
 }
 
-static MVMContainerSpec *code_pair_spec = NULL;
+static MVMContainerSpec code_pair_spec = {
+    "code_pair",
+    code_pair_fetch,
+    code_pair_store,
+    code_pair_store,
+    code_pair_gc_mark_data,
+    code_pair_gc_free_data,
+    code_pair_serialize,
+    code_pair_deserialize
+};
 
 static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
     CodePairContData *data = malloc(sizeof(CodePairContData));
@@ -78,7 +87,7 @@ static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
     data->fetch_code   = NULL;
     data->store_code   = NULL;
     st->container_data = data;
-    st->container_spec = code_pair_spec;
+    st->container_spec = &code_pair_spec;
 }
 
 static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
@@ -102,24 +111,10 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
     });
 }
 
-static MVMContainerConfigurer * initialize_code_pair_spec(MVMThreadContext *tc) {
-    MVMContainerConfigurer *cc      = malloc(sizeof(MVMContainerConfigurer));
-
-    code_pair_spec                  = malloc(sizeof(MVMContainerSpec));
-    code_pair_spec->name            = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair");
-    code_pair_spec->fetch           = code_pair_fetch;
-    code_pair_spec->store           = code_pair_store;
-    code_pair_spec->store_unchecked = code_pair_store;
-    code_pair_spec->gc_mark_data    = code_pair_gc_mark_data;
-    code_pair_spec->gc_free_data    = code_pair_gc_free_data;
-    code_pair_spec->serialize       = code_pair_serialize;
-    code_pair_spec->deserialize     = code_pair_deserialize;
-
-    cc->set_container_spec          = code_pair_set_container_spec;
-    cc->configure_container_spec    = code_pair_configure_container_spec;
-
-    return cc;
-}
+static MVMContainerConfigurer ContainerConfigurer = {
+    code_pair_set_container_spec,
+    code_pair_configure_container_spec
+};
 
 /* ***************************************************************************
  * Container registry and configuration
@@ -140,9 +135,9 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     if (!entry) {
         entry = malloc(sizeof(MVMContainerRegistry));
-        entry->config_name = name;
+        entry->name = name;
         entry->configurer  = configurer;
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->config_name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     }
 
     HASH_ADD_KEYPTR(hash_handle, tc->instance->container_registry, kdata, klen, entry);
@@ -167,6 +162,5 @@ MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, M
 void MVM_6model_containers_setup(MVMThreadContext *tc) {
     /* Add built-in configurations. */
     MVM_6model_add_container_config(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"),
-        initialize_code_pair_spec(tc));
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"), &ContainerConfigurer);
 }

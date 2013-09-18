@@ -85,6 +85,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         reader->read_str(tc, reader));
 }
 
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    writer->write_str(tc, writer, ((MVMP6strBody *)data)->value);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -110,7 +114,7 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
+    serialize,
     deserialize, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */

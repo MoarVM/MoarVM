@@ -512,22 +512,38 @@ static void setup_core_sc(MVMThreadContext *tc) {
     MVMString *handle = MVM_string_ascii_decode_nt(tc,
         tc->instance->VMString, "__6MODEL_CORE__");
     MVMSerializationContext * const sc = (MVMSerializationContext *)MVM_sc_create(tc, handle);
+    MVMint32 obj_index = 0;
+    MVMint32 st_index  = 0;
 
-#define knowhow_init(tc, sc, index, variable) do { \
-    MVM_sc_set_object(tc, sc, index, variable); \
+#define add_to_sc_with_st(tc, sc, variable) do { \
+    MVM_sc_set_object(tc, sc, obj_index++, variable); \
     MVM_sc_set_obj_sc(tc, variable, sc); \
-    MVM_sc_set_stable(tc, sc, index, STABLE(variable)); \
+    MVM_sc_set_stable(tc, sc, st_index++, STABLE(variable)); \
     MVM_sc_set_stable_sc(tc, STABLE(variable), sc); \
+} while (0)
+#define add_to_sc_with_st_and_mo(tc, sc, variable) do { \
+    add_to_sc_with_st(tc, sc, variable); \
+    MVM_sc_set_object(tc, sc, obj_index++, STABLE(variable)->HOW); \
+    MVM_sc_set_obj_sc(tc, STABLE(variable)->HOW, sc); \
 } while (0)
 
     /* KnowHOW */
-    knowhow_init(tc, sc, 0, tc->instance->KnowHOW);
+    add_to_sc_with_st(tc, sc, tc->instance->KnowHOW);
 
     /* KnowHOW.HOW */
-    knowhow_init(tc, sc, 1, STABLE(tc->instance->KnowHOW)->HOW);
+    add_to_sc_with_st(tc, sc, STABLE(tc->instance->KnowHOW)->HOW);
 
     /* KnowHOWAttribute */
-    knowhow_init(tc, sc, 2, tc->instance->KnowHOWAttribute);
+    add_to_sc_with_st(tc, sc, tc->instance->KnowHOWAttribute);
+
+    /* BOOT* */
+    add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types->BOOTArray);
+    add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types->BOOTHash);
+    add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types->BOOTIter);
+    add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types->BOOTInt);
+    add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types->BOOTNum);
+    add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types->BOOTStr);
+    add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types->BOOTCode);
 }
 
 /* Drives the overall bootstrap process. */
