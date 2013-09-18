@@ -99,6 +99,31 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Serializes the bigint. */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    mp_int *i = &((MVMP6bigintBody *)data)->i;
+    int len;
+    char *buf;
+    MVMString *str;
+    mp_radix_size(i, 10, &len);
+    buf = (char *)malloc(len);
+    mp_toradix_n(i, buf, 10, len);
+
+    /* len - 1 because buf is \0-terminated */
+    str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1); 
+
+    writer->write_str(tc, writer, str);
+    free(buf);
+}
+
+/* Deserializes the bigint. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    const char *buf = MVM_string_utf8_encode_C_string(tc, reader->read_str(tc, reader));
+    mp_init(&body->i);
+    mp_read_radix(&body->i, buf, 10);
+}
+
 /* Initializes the representation. */
 MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc) {
     this_repr = malloc(sizeof(MVMREPROps));
@@ -116,5 +141,7 @@ MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc) {
     this_repr->box_funcs->get_str = get_str;
     this_repr->box_funcs->get_boxed_ref = get_boxed_ref;
     this_repr->compose = compose;
+    this_repr->serialize = serialize;
+    this_repr->deserialize = deserialize;
     return this_repr;
 }
