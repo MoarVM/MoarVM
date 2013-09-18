@@ -1,3 +1,25 @@
+# This is the authorative list of MoarVM instructions.
+#
+# Changes to this file need to be followed by a call to
+# tools/update_ops.p6 to update various auto-generated files.
+#
+# Each entry specifies an opname, an optional annotation used by the
+# bytecode validator as well as the op arguments:
+#
+#   [opname]  [annotation?]  [args...]
+#
+# A basic annotation is a single char prefixed by '.', eg '.r'
+# for return ops.
+#
+# Using a ':' marks the beginning of an op sequence that is followed
+# by several '.' annoted ops, eg ':j' for a jumplist that is followed
+# by '.j' annotated goto ops.
+#
+# Using a '+' marks the beginning and '-' the end of a block that may
+# only contain matching '.' annotated ops, eg '+a' for prepargs and
+# '-a' for invoke_o with ops like arg_i or arg_o annotated as '.a'
+# inbetween.
+
 no_op
 goto             .j ins
 if_i                r(int64) ins
