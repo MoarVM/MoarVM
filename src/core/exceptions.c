@@ -433,6 +433,6 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         exit(1);
 }
 
-void MVM_crash_on_error() {
+void MVM_crash_on_error(void) {
     crash_on_error = 1;
 }

@@ -34,6 +34,7 @@ union MVMRegister {
 struct MVMOpInfo {
     MVMuint16   opcode;
     const char *name;
+    char        mark[2];
     MVMuint8    num_operands;
     MVMuint8    operands[MVM_MAX_OPERANDS];
 };
