@@ -109,5 +109,6 @@ MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc) {
     this_repr->gc_mark = gc_mark;
     this_repr->deserialize_stable_size = deserialize_stable_size;
     this_repr->deserialize = deserialize;
+    this_repr->serialize = serialize;
     return this_repr;
 }
