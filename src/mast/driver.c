@@ -70,17 +70,21 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
     }
 }
 
-/* Compiles MAST down to bytecode, then loads it as a compilation unit. */
+/* Compiles MAST down to bytecode, then writes it to disk. */
 void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, MVMString *filename) {
     MVMROOT(tc, mast, {
+        MVMObject *fh;
         /* Get node types into struct. */
         MASTNodeTypes *mnt = node_types_struct(tc, types);
         
         /* Turn the MAST tree into bytecode. */
         unsigned int size;
-        char *bytecode = MVM_mast_compile(tc, mast, mnt, &size);
+        char *bytecode      = MVM_mast_compile(tc, mast, mnt, &size);
+        MVMString *encoding = MVM_string_ascii_decode(tc, tc->instance->VMString, "ascii", 5);
+        MVMString *output   = MVM_string_ascii_decode(tc, tc->instance->VMString, bytecode, size);
         free(mnt);
-        
-        MVM_exception_throw_adhoc(tc, "MAST to file NYI");
+
+        /* Write the bytecode to disk. MVM_file_spew does all the error checking and reporting. */
+        MVM_file_spew(tc, output, filename, encoding);
     });
 }

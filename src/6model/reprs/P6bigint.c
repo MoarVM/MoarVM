@@ -99,6 +99,32 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Serializes the bigint. */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    mp_int *i = &((MVMP6bigintBody *)data)->i;
+    int len;
+    char *buf;
+    MVMString *str;
+    mp_radix_size(i, 10, &len);
+    buf = (char *)malloc(len);
+    mp_toradix_n(i, buf, 10, len);
+
+    /* len - 1 because buf is \0-terminated */
+    str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
+
+    writer->write_str(tc, writer, str);
+    free(buf);
+}
+
+/* Deserializes the bigint. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    MVMuint64 output_size;
+    const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
+    mp_init(&body->i);
+    mp_read_radix(&body->i, buf, output_size);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -124,8 +150,8 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
-    NULL, /* deserialize */
+    serialize,
+    deserialize,
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
