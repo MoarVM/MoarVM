@@ -175,7 +175,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
     if (REPR(box)->initialize) \
         REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
-    REPR(box)->box_funcs->set_func(tc, STABLE(box), box, OBJECT_BODY(box), result); \
+    REPR(box)->box_funcs.set_func(tc, STABLE(box), box, OBJECT_BODY(box), result); \
     if (is_object) MVM_gc_root_temp_pop_n(tc, 2); \
     else MVM_gc_root_temp_pop(tc); \
     dest = box; \
@@ -370,11 +370,13 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     if (!type || IS_CONCRETE(type)) { \
         MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
     } \
-    box = MVM_repr_alloc_init(tc, type); \
-    REPR(box)->box_funcs->set_func(tc, STABLE(box), box, \
+    box = REPR(type)->allocate(tc, STABLE(type)); \
+    if (REPR(box)->initialize) \
+        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+    REPR(box)->box_funcs.set_func(tc, STABLE(box), box, \
         OBJECT_BODY(box), arg_info.arg.reg_member); \
     stmt1; \
-    REPR(result)->action_funcs->action_func(tc, STABLE(result), result, \
+    REPR(result)->action_funcs.action_func(tc, STABLE(result), result, \
         OBJECT_BODY(result), target1, target2); \
 } while (0)
 
@@ -469,7 +471,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
 
         switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
-                REPR(result)->ass_funcs->bind_key_boxed(tc, STABLE(result),
+                REPR(result)->ass_funcs.bind_key_boxed(tc, STABLE(result),
                     result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg.o);
                 break;
             }

@@ -77,7 +77,7 @@ static void from_num(MVMnum64 d, mp_int *a) {
 }
 
 static mp_int * get_bigint(MVMThreadContext *tc, MVMObject *obj) {
-    return (mp_int *)REPR(obj)->box_funcs->get_boxed_ref(tc, STABLE(obj), obj,
+    return (mp_int *)REPR(obj)->box_funcs.get_boxed_ref(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
 }
 

@@ -3,7 +3,7 @@
 MVMCodepoint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     unsigned char *cname = MVM_string_ascii_encode(tc, name, &size);
-    MVMUnicodeNameHashEntry *result;
+    MVMUnicodeNameRegistry *result;
     if (!codepoints_by_name) {
         generate_codepoints_by_name(tc);
     }
@@ -30,13 +30,13 @@ MVMCodepoint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint32 
 }
 
 /* XXX make all the statics members of the global MVM instance instead? */
-static MVMUnicodeNameHashEntry *property_codes_by_names_aliases;
+static MVMUnicodeNameRegistry *property_codes_by_names_aliases;
 
 void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
     while (num_names--) {
-        MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+        MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
         entry->name = (char *)unicode_property_keypairs[num_names].name;
         entry->codepoint = unicode_property_keypairs[num_names].value;
         HASH_ADD_KEYPTR(hash_handle, property_codes_by_names_aliases,
@@ -47,7 +47,7 @@ void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
 MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     unsigned char *cname = MVM_string_ascii_encode(tc, name, &size);
-    MVMUnicodeNameHashEntry *result;
+    MVMUnicodeNameRegistry *result;
     if (!property_codes_by_names_aliases) {
         generate_property_codes_by_names_aliases(tc);
     }
@@ -58,12 +58,12 @@ MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
 
 static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
     /* XXX make this synchronized, I guess... */
-    MVMUnicodeNameHashEntry **hash_array = calloc(sizeof(MVMUnicodeNameHashEntry *), MVMNUMPROPERTYCODES);
+    MVMUnicodeNameRegistry **hash_array = calloc(sizeof(MVMUnicodeNameRegistry *), MVMNUMPROPERTYCODES);
     MVMuint32 index = 0;
-    MVMUnicodeNameHashEntry *entry = NULL, *binaries = NULL;
+    MVMUnicodeNameRegistry *entry = NULL, *binaries = NULL;
     for ( ; index < num_unicode_property_value_keypairs; index++) {
         MVMint32 property_code = unicode_property_value_keypairs[index].value >> 24;
-        entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+        entry = malloc(sizeof(MVMUnicodeNameRegistry));
         entry->name = (char *)unicode_property_value_keypairs[index].name;
         entry->codepoint = unicode_property_value_keypairs[index].value & 0xFFFFFF;
         HASH_ADD_KEYPTR(hash_handle, hash_array[property_code],
@@ -78,13 +78,13 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
                     {"No",0}, {"no",0}, {"False",0}, {"false",0}, {"f",0}, {"n",0} };
                 MVMuint8 i;
                 for (i = 0; i < 8; i++) {
-                    entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                    entry = malloc(sizeof(MVMUnicodeNameRegistry));
                     entry->name = (char *)yes[i].name;
                     entry->codepoint = yes[i].value;
                     HASH_ADD_KEYPTR(hash_handle, binaries, yes[i].name, strlen(yes[i].name), entry);
                 }
                 for (i = 0; i < 8; i++) {
-                    entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                    entry = malloc(sizeof(MVMUnicodeNameRegistry));
                     entry->name = (char *)no[i].name;
                     entry->codepoint = no[i].value;
                     HASH_ADD_KEYPTR(hash_handle, binaries, no[i].name, strlen(no[i].name), entry);
@@ -99,7 +99,7 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
 MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
     MVMuint64 size;
     unsigned char *cname = MVM_string_ascii_encode(tc, name, &size);
-    MVMUnicodeNameHashEntry *result;
+    MVMUnicodeNameRegistry *result;
 
     if (property_code < 0 || property_code >= MVMNUMPROPERTYCODES)
         return 0;

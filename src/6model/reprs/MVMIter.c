@@ -1,17 +1,15 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static const MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMIter);
     });
@@ -22,10 +20,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st);
-}
-
-/* Initialize a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
 }
 
 /* Copies the body of one object to another. */
@@ -98,7 +92,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             body->array_state.index++;
             if (body->array_state.index >= body->array_state.limit)
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
+            REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
             return;
         case MVM_ITER_MODE_HASH:
             if (!body->hash_state.curr) {
@@ -146,32 +140,48 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_mark = gc_mark;
-    this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    this_repr->pos_funcs->at_pos = at_pos;
-    this_repr->pos_funcs->bind_pos = bind_pos;
-    this_repr->pos_funcs->set_elems = set_elems;
-    this_repr->pos_funcs->push = push;
-    this_repr->pos_funcs->pop = pop;
-    this_repr->pos_funcs->unshift = unshift;
-    this_repr->pos_funcs->shift = shift;
-    this_repr->pos_funcs->splice = splice;
-    this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
-    this_repr->compose = compose;
-    this_repr->elems = elems;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    return this_repr;
+const MVMREPROps * MVMIter_initialize(MVMThreadContext *tc) {
+    return &this_repr;
 }
+
+static const MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    NULL, /* initialize */
+    copy_to,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    {
+        at_pos,
+        bind_pos,
+        set_elems,
+        NULL, /* exists_pos */
+        push,
+        pop,
+        unshift,
+        shift,
+        splice,
+        get_elem_storage_spec
+    },    /* pos_funcs */
+    MVM_REPR_DEFAULT_ASS_FUNCS,
+    elems,
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    deserialize_stable_size,
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    "VMIter", /* name */
+    MVM_REPR_ID_MVMIter,
+    0, /* refs_frames */
+};
 
 MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
     MVMIter *iterator;
@@ -198,15 +208,15 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             MVMROOT(tc, ctx_hash, {
                 MVMContext *ctx = (MVMContext *)target;
                 MVMFrame *frame = ctx->body.context;
-                MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names;
-                MVMLexicalHashEntry *current;
-                MVMLexicalHashEntry *tmp;
+                MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names;
+                MVMLexicalRegistry *current;
+                MVMLexicalRegistry *tmp;
                 HASH_ITER(hash_handle, lexical_names, current, tmp) {
                     /* XXX For now, just the symbol names is enough. */
                     MVM_repr_bind_key_boxed(tc, ctx_hash, (MVMString *)current->key, NULL);
                 }
             });
-            
+
             /* Call ourselves recursively to get the iterator for this
             * hash. */
             iterator = (MVMIter *)MVM_iter(tc, ctx_hash);
@@ -251,7 +261,7 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
         if (body->array_state.index == -1)
             MVM_exception_throw_adhoc(tc, "You have not yet advanced in the array iterator");
         target = body->target;
-        REPR(target)->pos_funcs->at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, MVM_reg_obj);
+        REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, MVM_reg_obj);
     }
     else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
         if (!iterator->body.hash_state.curr)

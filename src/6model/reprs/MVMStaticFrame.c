@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static const MVMREPROps this_repr;
 
 /* Invocation protocol handler. */
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
@@ -11,12 +11,10 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. Also sets the invocation protocol handler in the STable. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->invoke = invoke_handler;
         st->size = sizeof(MVMStaticFrame);
@@ -30,15 +28,11 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st);
 }
 
-/* Initializes a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-}
-
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMStaticFrameBody *src_body  = (MVMStaticFrameBody *)src;
     MVMStaticFrameBody *dest_body = (MVMStaticFrameBody *)dest;
-    
+
     dest_body->bytecode = src_body->bytecode;
     dest_body->bytecode_size = src_body->bytecode_size;
 
@@ -58,13 +52,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         dest_body->lexical_types = lexical_types;
     }
     {
-        MVMLexicalHashEntry *current, *tmp;
+        MVMLexicalRegistry *current, *tmp;
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
         HASH_ITER(hash_handle, src_body->lexical_names, current, tmp) {
             size_t klen;
             void *kdata;
-            MVMLexicalHashEntry *new_entry = malloc(sizeof(MVMLexicalHashEntry));
+            MVMLexicalRegistry *new_entry = malloc(sizeof(MVMLexicalRegistry));
 
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, dest_root, new_entry->key, current->key);
@@ -80,10 +74,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMuint16 *type_map = src_body->lexical_types;
         MVMuint16  count    = src_body->num_lexicals;
         MVMuint16  i;
-        
+
         dest_body->static_env = malloc(src_body->env_size);
         memcpy(dest_body->static_env, src_body->static_env, src_body->env_size);
-        
+
         for (i = 0; i < count; i++) {
             if (type_map[i] == MVM_reg_str) {
                 MVM_WB(tc, dest_root, dest_body->static_env[i].s);
@@ -95,9 +89,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
     dest_body->env_size = src_body->env_size;
     dest_body->work_size = src_body->work_size;
-    
+
     if (src_body->prior_invocation)
-        dest_body->prior_invocation = MVM_frame_inc_ref(tc, src_body->prior_invocation);    
+        dest_body->prior_invocation = MVM_frame_inc_ref(tc, src_body->prior_invocation);
     if (src_body->outer)
         MVM_ASSIGN_REF(tc, dest_root, dest_body->outer, src_body->outer);
 
@@ -113,7 +107,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
-    MVMLexicalHashEntry *current, *tmp;
+    MVMLexicalRegistry *current, *tmp;
 
     /* mvmobjects */
     MVM_gc_worklist_add(tc, worklist, &body->cu);
@@ -150,7 +144,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
-    MVM_HASH_DESTROY(hash_handle, MVMLexicalHashEntry, body->lexical_names);
+    MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
     if (body->prior_invocation) {
         body->prior_invocation = MVM_frame_dec_ref(tc, body->prior_invocation);
     }
@@ -172,18 +166,34 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->refs_frames = 1;
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_mark = gc_mark;
-    this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->compose = compose;
-    return this_repr;
+const MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc) {
+    return &this_repr;
 }
+
+static const MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    NULL, /* initialize */
+    copy_to,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    MVM_REPR_DEFAULT_POS_FUNCS,
+    MVM_REPR_DEFAULT_ASS_FUNCS,
+    MVM_REPR_DEFAULT_ELEMS,
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    NULL, /* deserialize_stable_size */
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    "MVMStaticFrame", /* name */
+    MVM_REPR_ID_MVMStaticFrame,
+    1, /* refs_frames */
+};

@@ -1,3 +1,6 @@
+/* FIXME: should be defined in 6model/reprs.h */
+#define MVM_REPR_CORE_COUNT 25
+
 /* The various "bootstrap" types, based straight off of some core
  * representations. They are used during the 6model bootstrap. */
 struct MVMBootTypes {
@@ -27,9 +30,9 @@ struct MVMStringConsts {
     MVMString *Num;
 };
 
-struct MVMREPRHashEntry {
+struct MVMReprRegistry {
     /* index of the REPR */
-    MVMuint32 value;
+    MVMuint32 id;
 
     /* the uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
@@ -78,13 +81,13 @@ struct MVMInstance {
     MVMStringConsts *str_consts;
 
     /* An array mapping representation IDs to function tables. */
-    MVMREPROps **repr_registry;
+    const MVMREPROps **repr_registry;
 
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;
 
     /* Hash mapping representation names to IDs. */
-    MVMREPRHashEntry *repr_name_to_id_hash;
+    MVMReprRegistry *repr_name_to_id_hash;
 
     /* Number of permanent GC roots we've got, allocated space for, and
      * a list of the addresses to them. The mutex controls writing to the
@@ -119,7 +122,7 @@ struct MVMInstance {
     const char     *prog_name;
     /* cached parsed command line args */
     MVMObject      *clargs;
-    
+
     /* Cached environment. */
     MVMObject *env_hash;
 
@@ -150,4 +153,8 @@ struct MVMInstance {
     /* Hash of filenames of compunits loaded from disk. */
     MVMLoadedCompUnitName *loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
+
+    /* Cache of REPR names */
+    /* FIXME: wants to be variably-sized if we want to dynamically add REPRs */
+    MVMString *repr_names[MVM_REPR_CORE_COUNT];
 };

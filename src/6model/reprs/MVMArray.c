@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static const MVMREPROps this_repr;
 
 /* Some strings. */
 static MVMString *str_array = NULL;
@@ -10,19 +10,17 @@ static MVMString *str_type  = NULL;
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable        *st;
-    MVMObject        *obj;
-    MVMArrayREPRData *repr_data;
+    MVMSTable        *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(MVMArray);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
 
-        repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
         repr_data->slot_type = MVM_ARRAY_OBJ;
         repr_data->elem_size = sizeof(MVMObject *);
+
+        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        st->size = sizeof(MVMArray);
         st->REPR_data = repr_data;
     });
 
@@ -32,10 +30,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st);
-}
-
-/* Initialize a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
 }
 
 /* Copies the body of one object to another. The result has the space
@@ -704,7 +698,7 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         }
         for (i = 0; i < elems1; i++) {
             MVMRegister to_copy;
-            REPR(from)->pos_funcs->at_pos(tc, STABLE(from), from,
+            REPR(from)->pos_funcs.at_pos(tc, STABLE(from), from,
                 OBJECT_BODY(from), i, &to_copy, kind);
             bind_pos(tc, st, root, data, start + offset + i, to_copy, kind);
         }
@@ -723,10 +717,10 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
 
-    MVMObject *info = REPR(info_hash)->ass_funcs->at_key_boxed(tc, STABLE(info_hash),
+    MVMObject *info = REPR(info_hash)->ass_funcs.at_key_boxed(tc, STABLE(info_hash),
         info_hash, OBJECT_BODY(info_hash), (MVMObject *)str_array);
     if (info != NULL) {
-        MVMObject *type = REPR(info)->ass_funcs->at_key_boxed(tc, STABLE(info),
+        MVMObject *type = REPR(info)->ass_funcs.at_key_boxed(tc, STABLE(info),
             info, OBJECT_BODY(info), (MVMObject *)str_type);
         if (type != NULL) {
             MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -795,7 +789,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *) st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 i;
-    
+
     body->elems = reader->read_int(tc, reader);
     body->ssize = body->elems;
     if (body->ssize)
@@ -872,39 +866,51 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     /* Set up some constant strings we'll need. */
     str_array = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "array");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_array);
     str_type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
 
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_mark = gc_mark;
-    this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->pos_funcs = malloc(sizeof(MVMREPROps_Positional));
-    this_repr->pos_funcs->at_pos = at_pos;
-    this_repr->pos_funcs->bind_pos = bind_pos;
-    this_repr->pos_funcs->set_elems = set_elems;
-    this_repr->pos_funcs->exists_pos = exists_pos;
-    this_repr->pos_funcs->push = push;
-    this_repr->pos_funcs->pop = pop;
-    this_repr->pos_funcs->unshift = unshift;
-    this_repr->pos_funcs->shift = shift;
-    this_repr->pos_funcs->splice = splice;
-    this_repr->pos_funcs->get_elem_storage_spec = get_elem_storage_spec;
-    this_repr->compose = compose;
-    this_repr->elems = elems;
-    this_repr->deserialize_stable_size = deserialize_stable_size;
-    this_repr->deserialize_repr_data = deserialize_repr_data;
-    this_repr->deserialize = deserialize;
-    this_repr->serialize = serialize;
-    return this_repr;
+    return &this_repr;
 }
+
+static const MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    NULL, /* initialize */
+    copy_to,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    {
+        at_pos,
+        bind_pos,
+        set_elems,
+        exists_pos,
+        push,
+        pop,
+        unshift,
+        shift,
+        splice,
+        get_elem_storage_spec
+    },    /* pos_funcs */
+    MVM_REPR_DEFAULT_ASS_FUNCS,
+    elems,
+    get_storage_spec,
+    NULL, /* change_type */
+    serialize,
+    deserialize,
+    NULL, /* serialize_repr_data */
+    deserialize_repr_data,
+    deserialize_stable_size,
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    "VMArray", /* name */
+    MVM_REPR_ID_MVMArray,
+    0, /* refs_frames */
+};

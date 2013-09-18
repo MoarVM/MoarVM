@@ -156,7 +156,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_checked_free_null(instance->boot_types);
     MVM_checked_free_null(instance->str_consts);
     MVM_checked_free_null(instance->repr_registry);
-    MVM_HASH_DESTROY(hash_handle, MVMREPRHashEntry, instance->repr_name_to_id_hash);
+    MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_name_to_id_hash);
 
     /* Clean up GC permanent roots related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);

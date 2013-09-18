@@ -12,4 +12,4 @@ struct MVMCFunction {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMCFunction_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMCFunction_initialize(MVMThreadContext *tc);

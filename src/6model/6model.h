@@ -106,7 +106,7 @@ struct MVMCollectable {
 
     /* Collectable flags (see MVMCollectableFlags). */
     MVMuint16 flags;
-    
+
     /* Object size, in bytes. */
     MVMuint16 size;
 
@@ -141,7 +141,7 @@ struct MVMObjectStooge {
 /* This is used to identify an attribute for various types of cache. */
 struct MVMAttributeIdentifier {
     MVMObject         *class_handle;   /* Class handle */
-    MVMString *attr_name;      /* Name of the attribute. */
+    MVMString         *attr_name;      /* Name of the attribute. */
     MVMint64           hint;           /* Hint for use in static/gradual typing. */
 };
 
@@ -159,7 +159,7 @@ struct MVMSTable {
     MVMCollectable header;
 
     /* The representation operation table. */
-    MVMREPROps *REPR;
+    const MVMREPROps *REPR;
 
     /* Any data specific to this type that the REPR wants to keep. */
     void *REPR_data;
@@ -404,16 +404,16 @@ struct MVMREPROps {
     void (*copy_to) (MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest);
 
     /* Attribute access REPR function table. */
-    MVMREPROps_Attribute *attr_funcs;
+    MVMREPROps_Attribute attr_funcs;
 
     /* Boxing REPR function table. */
-    MVMREPROps_Boxing *box_funcs;
+    MVMREPROps_Boxing box_funcs;
 
     /* Positional indexing REPR function table. */
-    MVMREPROps_Positional *pos_funcs;
+    MVMREPROps_Positional pos_funcs;
 
     /* Associative indexing REPR function table. */
-    MVMREPROps_Associative *ass_funcs;
+    MVMREPROps_Associative ass_funcs;
 
     /* Gets the number of elements, for any aggregate types. */
     MVMuint64 (*elems) (MVMThreadContext *tc, MVMSTable *st,
@@ -473,7 +473,7 @@ struct MVMREPROps {
     void (*compose) (MVMThreadContext *tc, MVMSTable *st, MVMObject *info);
 
     /* The representation's name. */
-    MVMString *name;
+    const char *name;
 
     /* The representation's ID. */
     MVMuint32 ID;

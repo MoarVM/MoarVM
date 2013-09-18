@@ -732,7 +732,14 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     /* Make STables table entry. */
-    write_int32(writer->root.stables_table, offset, add_string_to_heap(tc, writer, st->REPR->name));
+
+    /* FIXME: no REPR name cache yet */
+    if (st->REPR->ID >= MVM_REPR_CORE_COUNT)
+        MVM_exception_throw_adhoc(tc,
+                "cannot yet serialize STable with non-core REPR %" PRIu32,
+                st->REPR->ID);
+
+    write_int32(writer->root.stables_table, offset, add_string_to_heap(tc, writer, tc->instance->repr_names[st->REPR->ID]));
     write_int32(writer->root.stables_table, offset + 4, writer->stables_data_offset);
 
     /* Increment count of stables in the table. */
@@ -835,8 +842,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
             REPR(obj)->serialize(tc, STABLE(obj), OBJECT_BODY(obj), writer);
         else
             MVM_exception_throw_adhoc(tc,
-                "Missing serialize REPR function for REPR %s",
-                MVM_string_ascii_encode(tc, REPR(obj)->name, NULL));
+                "Missing serialize REPR function for REPR %s", REPR(obj)->name);
     }
 }
 
@@ -848,7 +854,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     /* Grab lexpad, which we'll serialize later on. */
     MVMFrame  *frame     = ((MVMContext *)ctx)->body.context;
     MVMStaticFrame *sf   = frame->static_info;
-    MVMLexicalHashEntry **lexnames = sf->body.lexical_names_list;
+    MVMLexicalRegistry **lexnames = sf->body.lexical_names_list;
 
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, ctx, 1);
@@ -964,7 +970,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVMSerializationWriter *writer;
     MVMString *result   = NULL;
     MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, sc->body->root_objects);
-    
+
     /* We don't sufficiently root things in here for the GC, so enforce gen2
      * allocation. */
     MVM_gc_allocate_gen2_default_set(tc);
@@ -1022,7 +1028,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     free(writer->root.objects_table);
     free(writer->root.objects_data);
     free(writer);
-    
+
     /* Exit gen2 allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
 
@@ -1515,7 +1521,7 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
         char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
 
         /* Read in and look up representation. */
-        MVMREPROps *repr = MVM_repr_get_by_name(tc,
+        const MVMREPROps *repr = MVM_repr_get_by_name(tc,
             read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
 
         /* Allocate and store stub STable. */
@@ -1756,7 +1762,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
             fail_deserialize(tc, reader, "Missing deserialize REPR function for %s",
-                MVM_string_ascii_encode(tc, REPR(obj)->name, NULL));
+                REPR(obj)->name);
     }
 }
 

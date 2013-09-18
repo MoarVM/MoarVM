@@ -9,4 +9,4 @@ struct MVMP6num {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc);

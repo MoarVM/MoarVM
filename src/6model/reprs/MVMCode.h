@@ -13,4 +13,4 @@ struct MVMCode {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMCode_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMCode_initialize(MVMThreadContext *tc);

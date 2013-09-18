@@ -1,17 +1,15 @@
 #include "moarvm.h"
 
 /* This representation's function pointer table. */
-static MVMREPROps *this_repr;
+static const MVMREPROps this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. Also sets the invocation protocol handler in the STable. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st;
-    MVMObject *obj;
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
-    st = MVM_gc_allocate_stable(tc, this_repr, HOW);
     MVMROOT(tc, st, {
-        obj = MVM_gc_allocate_type_object(tc, st);
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMContext);
     });
@@ -22,10 +20,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_gc_allocate_object(tc, st);
-}
-
-/* Initializes a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
 }
 
 /* Copies the body of one object to another. */
@@ -58,7 +52,7 @@ static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
     MVMContextBody *body = (MVMContextBody *)data; \
     MVMFrame *frame = body->context; \
     MVMObject *result = NULL; \
-    MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names, *entry; \
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry; \
     if (!lexical_names) { \
        MVM_exception_throw_adhoc(tc, \
             "Lexical with name '%s' does not exist in this frame", \
@@ -102,7 +96,7 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMContextBody *body = (MVMContextBody *)data;
     MVMFrame *frame = body->context;
-    MVMLexicalHashEntry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
     MVMString *name = (MVMString *)key;
     if (!lexical_names)
         return 0;
@@ -139,27 +133,42 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 /* Initializes the representation. */
-MVMREPROps * MVMContext_initialize(MVMThreadContext *tc) {
-    /* Allocate and populate the representation function table. */
-    this_repr = malloc(sizeof(MVMREPROps));
-    memset(this_repr, 0, sizeof(MVMREPROps));
-    this_repr->refs_frames = 1;
-    this_repr->type_object_for = type_object_for;
-    this_repr->allocate = allocate;
-    this_repr->initialize = initialize;
-    this_repr->copy_to = copy_to;
-    this_repr->gc_mark = gc_mark;
-    this_repr->gc_free = gc_free;
-    this_repr->get_storage_spec = get_storage_spec;
-    this_repr->ass_funcs = malloc(sizeof(MVMREPROps_Associative));
-    this_repr->ass_funcs->at_key_ref = at_key_ref;
-    this_repr->ass_funcs->at_key_boxed = at_key_boxed;
-    this_repr->ass_funcs->bind_key_ref = bind_key_ref;
-    this_repr->ass_funcs->bind_key_boxed = bind_key_boxed;
-    this_repr->ass_funcs->exists_key = exists_key;
-    this_repr->ass_funcs->delete_key = delete_key;
-    this_repr->ass_funcs->get_value_storage_spec = get_value_storage_spec;
-    this_repr->compose = compose;
-    this_repr->elems = elems;
-    return this_repr;
+const MVMREPROps * MVMContext_initialize(MVMThreadContext *tc) {
+    return &this_repr;
 }
+
+static const MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    NULL, /* initialize */
+    copy_to,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    MVM_REPR_DEFAULT_BOX_FUNCS,
+    MVM_REPR_DEFAULT_POS_FUNCS,
+    {
+        at_key_ref,
+        at_key_boxed,
+        bind_key_ref,
+        bind_key_boxed,
+        exists_key,
+        delete_key,
+        get_value_storage_spec
+    },   /* ass_funcs */
+    elems,
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    NULL, /* deserialize_stable_size */
+    gc_mark,
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    "MVMContext", /* name */
+    MVM_REPR_ID_MVMContext,
+    0, /* refs_frames */
+};

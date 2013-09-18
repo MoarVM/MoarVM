@@ -33,4 +33,4 @@ struct MVMThread {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMThread_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMThread_initialize(MVMThreadContext *tc);

@@ -42,4 +42,4 @@ typedef enum {
 }  MVMOSHandleTypes;
 
 /* Function for REPR setup. */
-MVMREPROps * MVMOSHandle_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMOSHandle_initialize(MVMThreadContext *tc);

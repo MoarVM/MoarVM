@@ -28,7 +28,7 @@ struct MVMIter {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMIter_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMIter_initialize(MVMThreadContext *tc);
 
 MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target);
 MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter);

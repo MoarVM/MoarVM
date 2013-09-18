@@ -15,4 +15,4 @@ struct MVMKnowHOWAttributeREPR {
 };
 
 /* Function for REPR setup. */
-MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMKnowHOWAttributeREPR_initialize(MVMThreadContext *tc);
