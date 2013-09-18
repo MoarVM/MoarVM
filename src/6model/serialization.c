@@ -842,7 +842,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
             REPR(obj)->serialize(tc, STABLE(obj), OBJECT_BODY(obj), writer);
         else
             MVM_exception_throw_adhoc(tc,
-                "REPR '%s' is missing serialize REPR function", REPR(obj)->name);
+                "Missing serialize REPR function for REPR %s", REPR(obj)->name);
     }
 }
 

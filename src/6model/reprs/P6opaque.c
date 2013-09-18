@@ -939,6 +939,30 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     }
 }
 
+/* Serializes the object's body. */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    MVMuint16 num_attributes = repr_data->num_attributes;
+    MVMuint16 i;
+
+    if (!repr_data->name_to_index_mapping)
+        MVM_exception_throw_adhoc(tc,
+            "Representation must be composed before it can be serialized");
+
+    for (i = 0; i < num_attributes; i++) {
+        MVMuint16  a_offset = repr_data->attribute_offsets[i];
+        MVMSTable *a_st     = repr_data->flattened_stables[i];
+        if (a_st) {
+            if (a_st->REPR->serialize)
+                a_st->REPR->serialize(tc, a_st, (char *)data + a_offset, writer);
+            else
+                MVM_exception_throw_adhoc(tc, "Missing serialize REPR function for REPR %s", a_st->REPR->name);
+        }
+        else
+            writer->write_ref(tc, writer, get_obj_at_offset(data, a_offset));
+    }
+}
+
 /* Performs a change of type, where possible. */
 void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
     MVMP6opaqueREPRData *cur_repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
@@ -1223,7 +1247,7 @@ static const MVMREPROps this_repr = {
     elems,
     get_storage_spec,
     change_type,
-    NULL, /* serialize */
+    serialize,
     deserialize, /* deserialize */
     NULL, /* serialize_repr_data */
     deserialize_repr_data,
