@@ -9,4 +9,6 @@
 
 #if defined _WIN32
 #define MVM_platform_thread_exit(status) ExitThread(0)
+#else
+#define MVM_platform_thread_exit(status) pthread_exit(status)
 #endif
