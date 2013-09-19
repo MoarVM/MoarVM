@@ -817,6 +817,8 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject * const BOOTInt = tc->instance->boot_types->BOOTInt;
+    MVMObject * const    slot = MVM_repr_alloc_init(tc, BOOTInt);
+
     MVMuint16 i, num_classes;
 
     if (!repr_data->name_to_index_mapping)
@@ -869,7 +871,6 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
         writer->write_int16(tc, writer, REFVAR_VM_HASH_STR_VAR);
         writer->write_int32(tc, writer, num_attrs);
         for (j = 0; j < num_attrs; j++) {
-            MVMObject * slot = MVM_repr_alloc_init(tc, BOOTInt);
             MVM_repr_set_int(tc, slot, repr_data->name_to_index_mapping[i].slots[j]);
             writer->write_str(tc, writer, repr_data->name_to_index_mapping[i].names[j]);
             writer->write_ref(tc, writer, slot);
@@ -1173,7 +1174,7 @@ static void die_no_ass_del(MVMThreadContext *tc) {
     MVM_exception_throw_adhoc(tc, "This type does not support associative operations");
 }
 
-void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
@@ -1183,7 +1184,7 @@ void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     return REPR(del)->ass_funcs.at_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
-MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
@@ -1193,7 +1194,7 @@ MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
     return REPR(del)->ass_funcs.at_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
-void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
+static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
@@ -1203,7 +1204,7 @@ void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     REPR(del)->ass_funcs.bind_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key, value_addr);
 }
 
-void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
@@ -1213,7 +1214,7 @@ void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     REPR(del)->ass_funcs.bind_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key, value);
 }
 
-MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
@@ -1223,7 +1224,7 @@ MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     return REPR(del)->ass_funcs.exists_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
 }
 
-void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)

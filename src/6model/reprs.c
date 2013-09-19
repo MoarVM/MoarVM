@@ -113,7 +113,7 @@ void MVM_REPR_DEFAULT_BIND_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObj
     die_no_ass(tc, st->REPR->name);
 }
 GCC_DIAG_OFF(return-type)
-MVMuint64 MVM_REPR_DEFAULT_EXISTS_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+MVMint64 MVM_REPR_DEFAULT_EXISTS_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     die_no_ass(tc, st->REPR->name);
 }
 GCC_DIAG_ON(return-type)

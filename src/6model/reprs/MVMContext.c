@@ -93,7 +93,7 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
         "MVMContext representation does not support elems");
 }
 
-static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMContextBody *body = (MVMContextBody *)data;
     MVMFrame *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;

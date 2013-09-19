@@ -115,7 +115,7 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     return HASH_CNT(hash_handle, body->hash_head);
 }
 
-static MVMuint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMHashBody *body = (MVMHashBody *)data;
     void *kdata;
     MVMHashEntry *entry;
