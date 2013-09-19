@@ -288,6 +288,20 @@ static void write_int_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
     *(writer->cur_write_offset) += 8;
 }
 
+/* Writing function for native 32-bit integers. */
+static void write_int32_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 value) {
+    expand_storage_if_needed(tc, writer, 4);
+    write_int64(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
+    *(writer->cur_write_offset) += 4;
+}
+
+/* Writing function for native 16-bit integers. */
+static void write_int16_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint16 value) {
+    expand_storage_if_needed(tc, writer, 2);
+    write_int64(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
+    *(writer->cur_write_offset) += 2;
+}
+
 /* Writing function for native numbers. */
 static void write_num_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value) {
     expand_storage_if_needed(tc, writer, 8);
@@ -1007,6 +1021,8 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
 
     /* Populate write functions table. */
     writer->write_int        = write_int_func;
+    writer->write_int16      = write_int16_func;
+    writer->write_int32      = write_int32_func;
     writer->write_num        = write_num_func;
     writer->write_str        = write_str_func;
     writer->write_ref        = write_ref_func;
