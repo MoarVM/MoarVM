@@ -291,14 +291,14 @@ static void write_int_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
 /* Writing function for native 32-bit integers. */
 static void write_int32_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 value) {
     expand_storage_if_needed(tc, writer, 4);
-    write_int64(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
     *(writer->cur_write_offset) += 4;
 }
 
 /* Writing function for native 16-bit integers. */
 static void write_int16_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint16 value) {
     expand_storage_if_needed(tc, writer, 2);
-    write_int64(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
+    write_int16(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
     *(writer->cur_write_offset) += 2;
 }
 
@@ -572,9 +572,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     }
 
     /* Write the discriminator. */
-    expand_storage_if_needed(tc, writer, 2);
-    write_int16(*(writer->cur_write_buffer), *(writer->cur_write_offset), discrim);
-    *(writer->cur_write_offset) += 2;
+    write_int16_func(tc, writer, discrim);
 
     /* Now take appropriate action. */
     switch (discrim) {
