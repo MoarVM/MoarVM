@@ -153,7 +153,7 @@ static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegist
 static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     MVMObject *self, *type_obj, *method_table, *attributes, *BOOTArray, *BOOTHash,
               *repr_info_hash, *repr_info, *type_info, *attr_info_list, *parent_info;
-    MVMint64   num_attrs, i;
+    MVMuint64   num_attrs, i;
 
     /* Get arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;

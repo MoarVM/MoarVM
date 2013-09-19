@@ -52,7 +52,7 @@ static int parse_flag(const char *arg)
         return NOT_A_FLAG;
 
     found = bsearch(arg, FLAGS, sizeof FLAGS / sizeof *FLAGS, sizeof *FLAGS, cmp_flag);
-    return found ? found - FLAGS : UNKNOWN_FLAG;
+    return found ? (int)(found - FLAGS) : UNKNOWN_FLAG;
 }
 
 int main(int argc, char *argv[])

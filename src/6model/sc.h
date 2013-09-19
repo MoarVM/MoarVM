@@ -14,7 +14,7 @@ void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMST
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
 void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *code);
 void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *code_list);
-MVMint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc);
+MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc);
 void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc);
 void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc);
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle);

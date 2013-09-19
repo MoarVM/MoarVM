@@ -124,7 +124,7 @@ static void unwind_to_frame(MVMThreadContext *tc, MVMFrame *target) {
 }
 
 /* Dummy, 0-arg callsite for invoking handlers. */
-static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
+static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
 
 /* Runs an exception handler (which really means updating interpreter state
  * so that when we return to the runloop, we're in the handler). If there is

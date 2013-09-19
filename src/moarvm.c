@@ -103,7 +103,7 @@ static void string_consts(MVMThreadContext *tc) {
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Dummy, 0-arg callsite. */
-    static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
+    static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
 
     /* Create initial frame, which sets up all of the interpreter state also. */
     MVM_frame_invoke(tc, (MVMStaticFrame *)data, &no_arg_callsite, NULL, NULL, NULL);
@@ -146,8 +146,6 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
 /* Destroys a VM instance. This must be called only from
  * the main thread. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
-    MVMuint16 i;
-
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);

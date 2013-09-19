@@ -1,7 +1,7 @@
 #include "moarvm.h"
 
 /* Dummy, 0-arg callsite. */
-static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
+static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
 
 /* Handles loading of bytecode, including triggering the deserialize and load
  * special frames. Takes place in two steps, with a callback between them which

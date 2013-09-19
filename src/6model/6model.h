@@ -370,7 +370,7 @@ struct MVMREPROps_Associative {
         MVMObject *root, void *data, MVMObject *key, MVMObject *value);
 
     /* Returns a true value of the key exists, and a false one if not. */
-    MVMuint64 (*exists_key) (MVMThreadContext *tc, MVMSTable *st,
+    MVMint64 (*exists_key) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *key);
 
     /* Deletes the specified key. */

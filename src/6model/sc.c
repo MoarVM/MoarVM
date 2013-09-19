@@ -5,7 +5,6 @@
  * their to-resolve list after installing itself in the appropriate slot. */
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContext     *sc;
-    MVMCompUnit                 *cur_cu;
     MVMSerializationContextBody *scb;
 
     /* Allocate. */
@@ -180,7 +179,7 @@ void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMST
 /* Given an SC and an index, fetch the code ref stored there. */
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject *roots = sc->body->root_codes;
-    MVMint64   count = MVM_repr_elems(tc, roots);
+    MVMuint64   count = MVM_repr_elems(tc, roots);
     if (idx < count)
         return MVM_repr_at_pos_o(tc, roots, idx);
     else
@@ -191,7 +190,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 /* Given an SC, an index and a code ref, store it and the index. */
 void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *code) {
     MVMObject *roots = sc->body->root_codes;
-    MVMint64   count = MVM_repr_elems(tc, roots);
+    MVMuint64   count = MVM_repr_elems(tc, roots);
     MVM_repr_bind_pos_o(tc, roots, idx, code);
 }
 
@@ -201,7 +200,7 @@ void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVM
 }
 
 /* Gets the number of objects in the SC. */
-MVMint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc) {
+MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc) {
     return MVM_repr_elems(tc, sc->body->root_objects);
 }
 

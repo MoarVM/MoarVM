@@ -6,7 +6,7 @@
 
 /* Dummy, invocant-arg callsite. */
 static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1 };
+static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 0 };
 
 /* Special return structure for boolification handling. */
 typedef struct {

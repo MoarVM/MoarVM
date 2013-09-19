@@ -12,8 +12,8 @@ typedef struct {
 /* Dummy, code pair fetch and store arg callsite. */
 static MVMCallsiteEntry fetch_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
 static MVMCallsiteEntry store_arg_flags[] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     fetch_arg_callsite = { fetch_arg_flags, 1, 1 };
-static MVMCallsite     store_arg_callsite = { store_arg_flags, 2, 2 };
+static MVMCallsite     fetch_arg_callsite = { fetch_arg_flags, 1, 1, 0 };
+static MVMCallsite     store_arg_callsite = { store_arg_flags, 2, 2, 0 };
 
 static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
