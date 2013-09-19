@@ -66,6 +66,99 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
+/* Serializes the data. */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMNFABody *body = (MVMNFABody *)data;
+    MVMint64 i, j;
+
+    /* Write fates. */
+    writer->write_ref(tc, writer, body->fates);
+
+    /* Write number of states. */
+    writer->write_int(tc, writer, body->num_states);
+
+    /* Write state edge list counts. */
+    for (i = 0; i < body->num_states; i++)
+        writer->write_int(tc, writer, body->num_state_edges[i]);
+
+    /* Write state graph. */
+    for (i = 0; i < body->num_states; i++) {
+        for (j = 0; j < body->num_state_edges[i]; j++) {
+            writer->write_int(tc, writer, body->states[i][j].act);
+            writer->write_int(tc, writer, body->states[i][j].to);
+            switch (body->states[i][j].act) {
+                case MVM_NFA_EDGE_FATE:
+                case MVM_NFA_EDGE_CODEPOINT:
+                case MVM_NFA_EDGE_CODEPOINT_NEG:
+                case MVM_NFA_EDGE_CHARCLASS:
+                case MVM_NFA_EDGE_CHARCLASS_NEG:
+                    writer->write_int(tc, writer, body->states[i][j].arg.i);
+                    break;
+                case MVM_NFA_EDGE_CHARLIST:
+                case MVM_NFA_EDGE_CHARLIST_NEG:
+                    writer->write_str(tc, writer, body->states[i][j].arg.s);
+                    break;
+                case MVM_NFA_EDGE_CODEPOINT_I:
+                case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+                    writer->write_int(tc, writer, body->states[i][j].arg.uclc.lc);
+                    writer->write_int(tc, writer, body->states[i][j].arg.uclc.uc);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/* Deserializes the data. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMNFABody *body = (MVMNFABody *)data;
+    MVMint64 i, j;
+
+    /* Read fates. */
+    body->fates = reader->read_ref(tc, reader);
+
+    /* Read number of states. */
+    body->num_states = reader->read_int(tc, reader);
+
+    if (body->num_states > 0) {
+        /* Read state edge list counts. */
+        body->num_state_edges = malloc(body->num_states * sizeof(MVMint64));
+        for (i = 0; i < body->num_states; i++)
+            body->num_state_edges[i] = reader->read_int(tc, reader);
+
+        /* Read state graph. */
+        body->states = malloc(body->num_states * sizeof(MVMNFAStateInfo *));
+        for (i = 0; i < body->num_states; i++) {
+            MVMint64 edges = body->num_state_edges[i];
+            if (edges > 0)
+                body->states[i] = malloc(edges * sizeof(MVMNFAStateInfo));
+            for (j = 0; j < edges; j++) {
+                body->states[i][j].act = reader->read_int(tc, reader);
+                body->states[i][j].to = reader->read_int(tc, reader);
+                switch (body->states[i][j].act) {
+                    case MVM_NFA_EDGE_FATE:
+                    case MVM_NFA_EDGE_CODEPOINT:
+                    case MVM_NFA_EDGE_CODEPOINT_NEG:
+                    case MVM_NFA_EDGE_CHARCLASS:
+                    case MVM_NFA_EDGE_CHARCLASS_NEG:
+                        body->states[i][j].arg.i = reader->read_int(tc, reader);
+                        break;
+                    case MVM_NFA_EDGE_CHARLIST:
+                    case MVM_NFA_EDGE_CHARLIST_NEG:
+                        body->states[i][j].arg.s = reader->read_str(tc, reader);
+                        break;
+                    case MVM_NFA_EDGE_CODEPOINT_I:
+                    case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+                        body->states[i][j].arg.uclc.lc = reader->read_int(tc, reader);
+                        body->states[i][j].arg.uclc.uc = reader->read_int(tc, reader);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
@@ -93,8 +186,8 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
-    NULL, /* deserialize */
+    serialize,
+    deserialize,
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
