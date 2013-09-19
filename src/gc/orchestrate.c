@@ -243,7 +243,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
             MVMGCStatus_NONE) != MVMGCStatus_UNABLE) {
         /* We can't, presumably because a GC run is going on. We should wait
          * for that to finish before we go on, but without chewing CPU. */
-        MVM_platform_yield();
+        MVM_platform_thread_yield();
     }
 }
 
@@ -328,7 +328,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         /* need to wait for other threads to reset their gc_status. */
         while (MVM_load(&tc->instance->gc_ack))
-            MVM_platform_yield();
+            MVM_platform_thread_yield();
 
         add_work(tc, tc);
 
@@ -400,12 +400,12 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     /* Only want to decrement it if it's 2 or greater... */
     while ((curr = MVM_load(&tc->instance->gc_start)) < 2
             || !MVM_trycas(&tc->instance->gc_start, curr, curr - 1)) {
-    /* MVM_platform_yield();*/
+    /* MVM_platform_thread_yield();*/
     }
 
     /* Wait for all threads to indicate readiness to collect. */
     while (MVM_load(&tc->instance->gc_start)) {
-    /* MVM_platform_yield();*/
+    /* MVM_platform_thread_yield();*/
     }
     run_gc(tc, MVMGCWhatToDo_NoInstance);
 }
@@ -417,7 +417,7 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
     /* Must wait until we're the only thread... */
     while (tc->instance->num_user_threads) {
         GC_SYNC_POINT(tc);
-        MVM_platform_yield();
+        MVM_platform_thread_yield();
     }
 
     /* Fake a nursery collection run by swapping the semi-

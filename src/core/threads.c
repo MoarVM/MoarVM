@@ -1,4 +1,5 @@
 #include "moarvm.h"
+#include <platform/threads.h>
 
 /* Temporary structure for passing data to thread start. */
 typedef struct {
@@ -65,11 +66,7 @@ static void start_thread(void *data) {
     free(ts);
 
     /* Exit the thread, now it's completed. */
-#ifdef _WIN32
-    ExitThread(0);
-#else
-    pthread_exit(NULL);
-#endif
+    MVM_platform_thread_exit(NULL);
 }
 
 MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject *result_type) {
