@@ -122,7 +122,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMuint64 output_size;
     const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
     mp_init(&body->i);
-    mp_read_radix(&body->i, buf, output_size);
+    mp_read_radix(&body->i, buf, 10);
 }
 
 /* Initializes the representation. */
