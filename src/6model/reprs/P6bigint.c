@@ -107,7 +107,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVMString *str;
     mp_radix_size(i, 10, &len);
     buf = (char *)malloc(len);
-    mp_toradix_n(i, buf, 10, len);
+    mp_toradix(i, buf, 10);
 
     /* len - 1 because buf is \0-terminated */
     str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
