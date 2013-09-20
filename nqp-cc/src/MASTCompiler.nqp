@@ -3,7 +3,7 @@ use MASTOps;
 
 class MAST::Compiler {
     method compile($node, $target_file) {
-        if (pir::new__Ps('Env')<MVMCCDEBUG>) { say($node.DUMP); }
+        if (pir::new__Ps('Env')<MVMCCDEBUG>) { say($node.dump); }
         pir::mvm_compiler_setup__vPPPPPPPPPPPP(
             MAST::CompUnit,
             MAST::Frame,

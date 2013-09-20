@@ -59,7 +59,7 @@ sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx, :$clargs = 
         my $fh := pir::new__Ps('FileHandle');
         $fh.open("$desc_file.mastdump", "w");
         $fh.encoding('utf8');
-        $fh.print("MAST: \n" ~ $comp_unit.DUMP());
+        $fh.print("MAST: \n" ~ $comp_unit.dump());
         $fh.close();
     }
     MAST::Compiler.compile($comp_unit, 'temp.moarvm');
