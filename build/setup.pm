@@ -241,7 +241,7 @@ our %COMPILERS = (
         ccwarnflags  => '',
         ccoptiflags  => '-O3',
         ccdebugflags => '-g',
-        ccinstflags  => '',
+        ccinstflags  => '-pg',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
