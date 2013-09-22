@@ -3,7 +3,7 @@
 #define line_length 1024
 static void append_string(char **out, MVMuint32 *size,
         MVMuint32 *length, char *str, ...) {
-    char *string = calloc(line_length, 1);
+    char string[line_length];
     MVMuint32 len;
     va_list args;
     va_start(args, str);
@@ -20,7 +20,6 @@ static void append_string(char **out, MVMuint32 *size,
 
     memcpy(*out + *length, string, len);
     *length = *length + len;
-    free(string);
 }
 
 static const char * get_typename(MVMuint16 type) {
