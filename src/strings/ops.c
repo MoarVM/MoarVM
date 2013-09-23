@@ -1137,7 +1137,7 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
 
 /* Checks if the character at the specified offset is a member of the
  * indicated character class. */
-MVMint64 MVM_string_iscclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
+MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
     switch (cclass) {
         case MVM_CCLASS_ANY:
             return 1;
@@ -1228,7 +1228,7 @@ MVMint64 MVM_string_iscclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s
 }
 
 /* Searches for the next char that is in the specified character class. */
-MVMint64 MVM_string_findcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
+MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
     MVMint64 length = NUM_GRAPHS(s);
     MVMint64 end    = offset + count;
     MVMint64 pos;
@@ -1236,14 +1236,14 @@ MVMint64 MVM_string_findcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString 
     end = length < end ? length : end;
 
     for (pos = offset; pos < end; pos++)
-        if (MVM_string_iscclass(tc, cclass, s, pos) > 0)
+        if (MVM_string_is_cclass(tc, cclass, s, pos) > 0)
             return pos;
 
     return end;
 }
 
 /* Searches for the next char that is not in the specified character class. */
-MVMint64 MVM_string_findnotcclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
+MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
     MVMint64 length = NUM_GRAPHS(s);
     MVMint64 end    = offset + count;
     MVMint64 pos;
@@ -1251,7 +1251,7 @@ MVMint64 MVM_string_findnotcclass(MVMThreadContext *tc, MVMint64 cclass, MVMStri
     end = length < end ? length : end;
 
     for (pos = offset; pos < end; pos++)
-        if (MVM_string_iscclass(tc, cclass, s, pos) == 0)
+        if (MVM_string_is_cclass(tc, cclass, s, pos) == 0)
             return pos;
 
     return end;

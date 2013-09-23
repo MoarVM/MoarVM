@@ -408,12 +408,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
                 else if (act == MVM_NFA_EDGE_CHARCLASS) {
                     MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_iscclass(tc, arg, target, offset))
+                    if (MVM_string_is_cclass(tc, arg, target, offset))
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CHARCLASS_NEG) {
                     MVMint64 arg = edge_info[i].arg.i;
-                    if (!MVM_string_iscclass(tc, arg, target, offset))
+                    if (!MVM_string_is_cclass(tc, arg, target, offset))
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CHARLIST) {

@@ -1426,19 +1426,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(iscclass):
-                GET_REG(cur_op, 0).i64 = MVM_string_iscclass(tc,
+                GET_REG(cur_op, 0).i64 = MVM_string_is_cclass(tc,
                     GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
                     GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
             OP(findcclass):
-                GET_REG(cur_op, 0).i64 = MVM_string_findcclass(tc,
+                GET_REG(cur_op, 0).i64 = MVM_string_find_cclass(tc,
                     GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
                     GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                 cur_op += 10;
                 goto NEXT;
             OP(findnotcclass):
-                GET_REG(cur_op, 0).i64 = MVM_string_findnotcclass(tc,
+                GET_REG(cur_op, 0).i64 = MVM_string_find_not_cclass(tc,
                     GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
                     GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                 cur_op += 10;
