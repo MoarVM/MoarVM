@@ -9,7 +9,7 @@ MVMuint64 MVM_REPR_DEFAULT_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject 
         st->REPR->name);
 }
 GCC_DIAG_ON(return-type)
-MVM_NO_RETURN
+MVM_NO_RETURN static void die_no_attrs(MVMThreadContext *tc, const char *repr_name) MVM_NO_RETURN_GCC;
 static void die_no_attrs(MVMThreadContext *tc, const char *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support attribute storage", repr_name);
@@ -56,7 +56,7 @@ void * MVM_REPR_DEFAULT_GET_BOXED_REF(MVMThreadContext *tc, MVMSTable *st, MVMOb
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) cannot unbox to other types", st->REPR->name);
 }
-MVM_NO_RETURN
+MVM_NO_RETURN static void die_no_pos(MVMThreadContext *tc, const char *repr_name) MVM_NO_RETURN_GCC;
 static void die_no_pos(MVMThreadContext *tc, const char *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support positional access", repr_name);
@@ -93,7 +93,7 @@ GCC_DIAG_ON(return-type)
 void MVM_REPR_DEFAULT_SPLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
     die_no_pos(tc, st->REPR->name);
 }
-MVM_NO_RETURN
+MVM_NO_RETURN static void die_no_ass(MVMThreadContext *tc, const char *repr_name) MVM_NO_RETURN_GCC;
 static void die_no_ass(MVMThreadContext *tc, const char *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support associative access", repr_name);
