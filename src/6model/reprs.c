@@ -128,15 +128,15 @@ MVMStorageSpec MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC(MVMThreadContext *tc, MVM
 GCC_DIAG_ON(return-type)
 
 /* Registers a representation. */
-static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr,
-        MVMString *name) {
+static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMString *name) {
+    MVMReprRegistry *entry;
 
     if (!name)
         name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString,
                 repr->name);
 
     /* Fill a registry entry. */
-    MVMReprRegistry *entry = malloc(sizeof *entry);
+    entry = malloc(sizeof(MVMReprRegistry));
     entry->name = name;
     entry->repr = repr;
 
@@ -231,7 +231,7 @@ static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
 
     if (entry == NULL)
         MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",
-            MVM_string_utf8_encode_C_string(tc, name));
+            MVM_string_ascii_encode_any(tc, name));
 
     return entry;
 }
