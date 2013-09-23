@@ -185,7 +185,7 @@ MVMint64 MVM_socket_send_string(MVMThreadContext *tc, MVMObject *oshandle, MVMSt
 
     verify_socket_type(tc, oshandle, &handle, "send string to socket");
 
-    output = MVM_encode_string_to_C_buffer(tc, tosend, start, length, &output_size, handle->body.encoding_type);
+    output = MVM_string_encode(tc, tosend, start, length, &output_size, handle->body.encoding_type);
 
     buf.base = output;
     buf.len  = output_size;
@@ -258,7 +258,7 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
             break;
     }
 
-    result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
+    result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
 
     free(buf);
 

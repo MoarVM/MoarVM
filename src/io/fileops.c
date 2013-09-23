@@ -255,7 +255,7 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 
                                                /* XXX should this take a type object? */
-    result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
+    result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
     free(buf);
 
     return result;
@@ -279,7 +279,7 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
         if (*line)
             add_history(line);
 
-        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+        return_str = MVM_string_decode(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
 
         free(line);
     }
@@ -294,7 +294,7 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
             linenoiseHistoryAdd(line);
         }
 
-        return_str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
+        return_str = MVM_string_decode(tc, tc->instance->VMString, line, strlen(line), handle->body.encoding_type);
 
         free(line);
     }
@@ -360,7 +360,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
         handle->body.eof = 1;
     }
                                                /* XXX should this take a type object? */
-    result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
+    result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
 
     free(buf);
 
@@ -396,7 +396,7 @@ MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
             MVM_exception_throw_adhoc(tc, "Readall from filehandle failed: %s", uv_strerror(req.result));
         }
                                                    /* XXX should this take a type object? */
-        result = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
+        result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
         free(buf);
     }
     else {
@@ -428,7 +428,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
 
     verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
 
-    output = MVM_encode_string_to_C_buffer(tc, str, 0, -1, &output_size, handle->body.encoding_type);
+    output = MVM_string_encode(tc, str, 0, -1, &output_size, handle->body.encoding_type);
 
     switch (handle->body.type) {
         case MVM_OSHANDLE_HANDLE: {
@@ -684,7 +684,7 @@ MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
-    const MVMuint8 encoding_flag = MVM_find_encoding_by_name(tc, encoding_name);
+    const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, encoding_name);
 
     verify_filehandle_type(tc, oshandle, &handle, "setencoding");
 

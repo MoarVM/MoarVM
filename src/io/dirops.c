@@ -234,9 +234,9 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 
     if (ret == 0) {
         if (result == NULL) {
-            return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
+            return MVM_string_decode(tc, tc->instance->VMString, "", 0, handle->body.encoding_type);
         }
-        return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, entry.d_name, strlen(entry.d_name), handle->body.encoding_type);
+        return MVM_string_decode(tc, tc->instance->VMString, entry.d_name, strlen(entry.d_name), handle->body.encoding_type);
     }
 
     MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %d", errno);

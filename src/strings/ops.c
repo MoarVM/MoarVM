@@ -697,7 +697,7 @@ case_change_func(MVM_string_lc, MVM_unicode_case_change_type_lower, "lc needs a 
 case_change_func(MVM_string_tc, MVM_unicode_case_change_type_title, "tc needs a concrete string")
 
 /* decodes a C buffer to an MVMString, dependent on the encoding type flag */
-MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc,
+MVMString * MVM_string_decode(MVMThreadContext *tc,
         MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
 
     /* someday make 0 mean "try really hard to detect the encoding */
@@ -716,7 +716,7 @@ MVMString * MVM_decode_C_buffer_to_string(MVMThreadContext *tc,
 }
 
 /* encodes an MVMString to a C buffer, dependent on the encoding type flag */
-MVMuint8 * MVM_encode_string_to_C_buffer(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
+MVMuint8 * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_encode_substr(tc, s, output_size, start, length);
@@ -1261,7 +1261,7 @@ static MVMint16   encoding_name_init   = 0;
 static MVMString *encoding_utf8_name   = NULL;
 static MVMString *encoding_ascii_name  = NULL;
 static MVMString *encoding_latin1_name = NULL;
-MVMuint8 MVM_find_encoding_by_name(MVMThreadContext *tc, MVMString *name) {
+MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     if (!encoding_name_init) {
         encoding_utf8_name   = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8");
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf8_name);
