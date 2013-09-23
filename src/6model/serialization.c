@@ -1888,5 +1888,5 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
 
     /* Free the C-MVMString and put result into a new MVMString. */
     free(cstr);
-    return MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, output, 40, MVM_encoding_type_ascii);
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, output, 40);
 }

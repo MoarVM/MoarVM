@@ -48,13 +48,14 @@ static char* ANSIToUTF8(MVMuint16 acp, const char* str)
 #endif
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
-    MVMObject *env_hash = tc->instance->env_hash;
+    MVMInstance * const instance = tc->instance;
+    MVMObject          *env_hash = instance->env_hash;
     if (!env_hash) {
 #ifdef _WIN32
         const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
 #endif
         MVMuint32     pos = 0;
-        MVMString *needle = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, "=", 1, MVM_encoding_type_ascii);
+        MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, "=", 1);
         char      *env;
 
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
@@ -64,10 +65,10 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
         while ((env = environ[pos++]) != NULL) {
 #ifndef _WIN32
-            MVMString    *str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, env, strlen(env), MVM_encoding_type_utf8);
+            MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, env, strlen(env));
 #else
             char * const _env = ANSIToUTF8(acp, env);
-            MVMString    *str = MVM_decode_C_buffer_to_string(tc, tc->instance->VMString, _env, strlen(_env), MVM_encoding_type_utf8);
+            MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, _env, strlen(_env));
 
 #endif
 
@@ -91,7 +92,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
         MVM_gc_root_temp_pop_n(tc, 2);
 
-        tc->instance->env_hash = env_hash;
+        instance->env_hash = env_hash;
     }
     return env_hash;
 }
@@ -108,7 +109,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     const MVMuint64     size = MVM_repr_elems(tc, env);
     char              **_env = malloc((size + 1) * sizeof(char *));
     MVMIter    * const  iter = (MVMIter *)MVM_iter(tc, env);
-    MVMString  * const equal = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "=");
+    MVMString  * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, "=", 1);
 
 #ifdef _WIN32
     const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
@@ -188,29 +189,30 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
 }
 
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
-    MVMInstance *instance = tc->instance;
-    if (!instance->clargs) {
-        MVMObject *clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVMInstance * const instance = tc->instance;
+    MVMObject            *clargs = instance->clargs;
+    if (!clargs) {
+        clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
         MVMROOT(tc, clargs, {
             MVMint64 count;
 
             MVMString *prog_string = MVM_string_utf8_decode(tc,
-                tc->instance->VMString,
+                instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
             MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
-                tc->instance->boot_types->BOOTStr, prog_string));
+                instance->boot_types->BOOTStr, prog_string));
 
             for (count = 0; count < instance->num_clargs; count++) {
                 char *raw = instance->raw_clargs[count];
                 MVMString *string = MVM_string_utf8_decode(tc,
-                    tc->instance->VMString,
+                    instance->VMString,
                     instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
                 MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
-                    tc->instance->boot_types->BOOTStr, string));
+                    instance->boot_types->BOOTStr, string));
             }
         });
 
         instance->clargs = clargs;
     }
-    return instance->clargs;
+    return clargs;
 }
