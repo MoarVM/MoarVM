@@ -59,10 +59,8 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMStaticFrame          23
 #define MVM_REPR_ID_MVMCompUnit             24
 
-/* FIXME: defined in core/instance.h */
-#if 0
 #define MVM_REPR_CORE_COUNT                 25
-#endif
+#define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
 #define MVM_REPR_DEFAULT_ATTR_FUNCS \
@@ -111,6 +109,15 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
     MVM_REPR_DEFAULT_DELETE_KEY, \
     MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC \
 }
+
+/* Register a representation at runtime, setting repr->ID to a dynamically
+ * assigned value.
+ *
+ * Returns nonzero if the representation had to be added and zero if it was
+ * already present, in which case the MVMREPROps structure is unused
+ * and may be deallocated.
+ */
+int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr);
 
 /* Default elems REPR function for a REPR that lacks it. */
 MVMuint64 MVM_REPR_DEFAULT_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);

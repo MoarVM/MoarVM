@@ -744,14 +744,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     /* Make STables table entry. */
-
-    /* FIXME: no REPR name cache yet */
-    if (st->REPR->ID >= MVM_REPR_CORE_COUNT)
-        MVM_exception_throw_adhoc(tc,
-                "cannot yet serialize STable with non-core REPR %" PRIu32,
-                st->REPR->ID);
-
-    write_int32(writer->root.stables_table, offset, add_string_to_heap(tc, writer, tc->instance->repr_names[st->REPR->ID]));
+    write_int32(writer->root.stables_table, offset, add_string_to_heap(tc, writer, tc->instance->repr_list[st->REPR->ID]->name));
     write_int32(writer->root.stables_table, offset + 4, writer->stables_data_offset);
 
     /* Increment count of stables in the table. */

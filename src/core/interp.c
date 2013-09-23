@@ -1954,10 +1954,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(reprname): {
                 const MVMREPROps *repr = REPR(GET_REG(cur_op, 2).o);
-                /* FIXME: lookup REPR names from cache */
-                GET_REG(cur_op, 0).s = repr->ID < MVM_REPR_CORE_COUNT
-                        ? tc->instance->repr_names[repr->ID]
-                        : MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
+                GET_REG(cur_op, 0).s = tc->instance->repr_list[repr->ID]->name;
                 cur_op += 4;
                 goto NEXT;
             }

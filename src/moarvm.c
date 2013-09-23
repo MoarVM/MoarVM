@@ -32,6 +32,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
+    /* Set up REPR registry mutex. */
+    init_mutex(instance->mutex_repr_registry, "REPR registry");
+
     /* Set up HLL config mutex. */
     init_mutex(instance->mutex_hllconfigs, "hll configs");
 
@@ -150,11 +153,14 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);
 
+    /* Cleanup REPR registry */
+    uv_mutex_destroy(&instance->mutex_repr_registry);
+    MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_hash);
+    MVM_checked_free_null(instance->repr_list);
+
     /* Free various instance-wide storage. */
     MVM_checked_free_null(instance->boot_types);
     MVM_checked_free_null(instance->str_consts);
-    MVM_checked_free_null(instance->repr_registry);
-    MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_name_to_id_hash);
 
     /* Clean up GC permanent roots related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
