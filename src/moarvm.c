@@ -158,13 +158,35 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_hash);
     MVM_checked_free_null(instance->repr_list);
 
-    /* Free various instance-wide storage. */
-    MVM_checked_free_null(instance->boot_types);
-    MVM_checked_free_null(instance->str_consts);
-
     /* Clean up GC permanent roots related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
     MVM_checked_free_null(instance->permroots);
+
+    /* Clean up Hash of HLLConfig. */
+    uv_mutex_destroy(&instance->mutex_hllconfigs);
+    MVM_HASH_DESTROY(hash_handle, MVMHLLConfig, instance->hll_configs);
+
+    /* Clean up Hash of all known serialization contexts. */
+    uv_mutex_destroy(&instance->mutex_sc_weakhash);
+    MVM_HASH_DESTROY(hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
+
+    /* Clean up Hash of filenames of compunits loaded from disk. */
+    uv_mutex_destroy(&instance->mutex_loaded_compunits);
+    MVM_HASH_DESTROY(hash_handle, MVMLoadedCompUnitName, instance->loaded_compunits);
+
+    /* Clean up Container registry. */
+    uv_mutex_destroy(&instance->mutex_container_registry);
+    MVM_HASH_DESTROY(hash_handle, MVMContainerRegistry, instance->container_registry);
+
+    /* Clean up Hash of compiler objects keyed by name. */
+    uv_mutex_destroy(&instance->mutex_compiler_registry);
+
+    /* Clean up Hash of hashes of symbol tables per hll. */
+    uv_mutex_destroy(&instance->mutex_hll_syms);
+
+    /* Free various instance-wide storage. */
+    MVM_checked_free_null(instance->boot_types);
+    MVM_checked_free_null(instance->str_consts);
 
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);
