@@ -1,4 +1,6 @@
 .clangcheck/6model/serialization.c: NOCLANG += sign-conversion unused-macros unused-function
 .clangcheck/6model/bootstrap.c: NOCLANG += sign-conversion unused-variable shorten-64-to-32
 .clangcheck/6model/6model.c: NOCLANG += missing-noreturn
-.clangcheck/6model/reprs.c: NOCLANG += missing-noreturn unused-parameter
+.clangcheck/6model/reprs.c: NOCLANG += missing-noreturn
+
+.gcccheck/6model/bootstrap.c: NOGCC += unused-variable unused-but-set-variable
