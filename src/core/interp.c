@@ -1144,7 +1144,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(assign): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                const MVMContainerSpec *spec = STABLE(cont)->container_spec;
                 MVMRegister value;
                 cur_op += 4;
                 if (spec) {
@@ -1158,7 +1158,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(assignunchecked): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                const MVMContainerSpec *spec = STABLE(cont)->container_spec;
                 MVMRegister value;
                 cur_op += 4;
                 if (spec) {
@@ -2827,7 +2827,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setcontspec): {
                 MVMSTable *st = STABLE(GET_REG(cur_op, 0).o);
-                MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, GET_REG(cur_op, 2).s);
+                const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, GET_REG(cur_op, 2).s);
                 if (st->container_spec) {
                     MVM_exception_throw_adhoc(tc,
                         "Cannot change a type's container specification");

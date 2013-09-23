@@ -70,7 +70,7 @@ static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVM_ASSIGN_REF(tc, st, data->store_code, reader->read_ref(tc, reader));
 }
 
-static MVMContainerSpec code_pair_spec = {
+static const MVMContainerSpec code_pair_spec = {
     "code_pair",
     code_pair_fetch,
     code_pair_store,
@@ -111,7 +111,7 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
     });
 }
 
-static MVMContainerConfigurer ContainerConfigurer = {
+static const MVMContainerConfigurer ContainerConfigurer = {
     code_pair_set_container_spec,
     code_pair_configure_container_spec
 };
@@ -122,7 +122,7 @@ static MVMContainerConfigurer ContainerConfigurer = {
 
 /* Adds a container configurer to the registry. */
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
-        MVMContainerConfigurer *configurer) {
+        const MVMContainerConfigurer *configurer) {
     void *kdata;
     MVMContainerRegistry *entry;
     size_t klen;
@@ -146,7 +146,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 }
 
 /* Gets a container configurer from the registry. */
-MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
+const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
     void *kdata;
     MVMContainerRegistry *entry;
     size_t klen;

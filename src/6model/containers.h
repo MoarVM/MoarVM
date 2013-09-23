@@ -45,14 +45,14 @@ struct MVMContainerConfigurer {
  * to function tables. */
 struct MVMContainerRegistry {
     MVMString              *name;
-    MVMContainerConfigurer *configurer;
+    const MVMContainerConfigurer *configurer;
 
     /* Inline handle to the hash in which this is stored. */
     UT_hash_handle hash_handle;
 };
 
-void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, MVMContainerConfigurer *configurer);
-MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
+void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, const MVMContainerConfigurer *configurer);
+const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
 void MVM_6model_containers_setup(MVMThreadContext *tc);
 
 /* Macro for decontainerization. */

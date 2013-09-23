@@ -1731,7 +1731,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Container spec. */
     if (read_int_func(tc, reader)) {
-        MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc,
+        const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc,
             read_str_func(tc, reader));
         cc->set_container_spec(tc, st);
         st->container_spec->deserialize(tc, st, reader);

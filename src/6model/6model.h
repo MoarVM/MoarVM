@@ -213,7 +213,7 @@ struct MVMSTable {
     /* If this is a container, then this contains information needed in
      * order to fetch the value in it. If not, it'll be null, which can
      * be taken as a "not a container" indication. */
-    MVMContainerSpec *container_spec;
+    const MVMContainerSpec *container_spec;
 
     /* Data that the container spec may need to function. */
     /* Any data specific to this type that the REPR wants to keep. */
