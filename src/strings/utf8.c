@@ -82,9 +82,6 @@ incidental or consequential. Your only option other than accepting
 this is not to use the software at all.
 */
 
-#include <stddef.h>
-#include <stdint.h>
-
 enum
 {
     CP_CHAR            = 1 << 0,

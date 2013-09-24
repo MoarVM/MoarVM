@@ -115,7 +115,7 @@ MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 /* Convenience shortcut for use in gc_free routines. */
 #define MVM_checked_free_null(addr) do { \
     if ((addr)) { \
-        free((addr)); \
+        free((void *)(addr)); \
         (addr) = NULL; \
     } \
 } while (0)
