@@ -161,13 +161,13 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 
     /* Handle null case. */
     if (!obj) {
-        res_reg->s = tc->instance->str_consts->empty;
+        res_reg->s = tc->instance->str_consts.empty;
         return;
     }
 
     /* Check if there is a Str method. */
     strmeth = MVM_6model_find_method_cache_only(tc, obj,
-        tc->instance->str_consts->Str);
+        tc->instance->str_consts.Str);
     if (strmeth) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
@@ -182,7 +182,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 
     /* Otherwise, guess something appropriate. */
     if (!IS_CONCRETE(obj))
-        res_reg->s = tc->instance->str_consts->empty;
+        res_reg->s = tc->instance->str_consts.empty;
     else {
         MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (REPR(obj)->ID == MVM_REPR_ID_MVMString)
@@ -225,7 +225,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
 
     /* Check if there is a Num method. */
     nummeth = MVM_6model_find_method_cache_only(tc, obj,
-        tc->instance->str_consts->Num);
+        tc->instance->str_consts.Num);
     if (nummeth) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */

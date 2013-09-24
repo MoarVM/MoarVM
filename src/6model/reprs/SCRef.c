@@ -25,7 +25,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
-    MVMObject *BOOTArray = tc->instance->boot_types->BOOTArray;
+    MVMObject *BOOTArray = tc->instance->boot_types.BOOTArray;
     MVMObject *root_objects, *root_codes;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);

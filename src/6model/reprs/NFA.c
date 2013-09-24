@@ -477,7 +477,7 @@ MVMObject * MVM_nfa_run_proto(MVMThreadContext *tc, MVMObject *nfa, MVMString *t
     MVMint64 *fates = nqp_nfa_run(tc, (MVMNFABody *)OBJECT_BODY(nfa), target, offset, &total_fates);
 
     /* Copy results into an integer array. */
-    MVMObject *fateres = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIntArray);
+    MVMObject *fateres = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
     for (i = 0; i < total_fates; i++)
         MVM_repr_bind_pos_i(tc, fateres, i, fates[i]);
     free(fates);

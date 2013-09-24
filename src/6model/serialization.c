@@ -529,25 +529,25 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     if (ref == NULL) {
         discrim = REFVAR_NULL;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTInt)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTInt)) {
         discrim = REFVAR_VM_INT;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTNum)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTNum)) {
         discrim = REFVAR_VM_NUM;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTStr)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStr)) {
         discrim = REFVAR_VM_STR;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTArray)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTArray)) {
         discrim = REFVAR_VM_ARR_VAR;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTIntArray)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTIntArray)) {
         discrim = REFVAR_VM_ARR_INT;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTStrArray)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStrArray)) {
         discrim = REFVAR_VM_ARR_STR;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types->BOOTHash)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTHash)) {
         discrim = REFVAR_VM_HASH_STR_VAR;
     }
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode) {
@@ -726,7 +726,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
             "Serialization error: failed to convert to base64");
 
     /* Make a MVMString containing it. */
-    result = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types->BOOTStr, output_b64);
+    result = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types.BOOTStr, output_b64);
     free(output_b64);
     return result;
 }
@@ -987,10 +987,10 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->stables_list        = sc->body->root_stables;
     writer->objects_list        = sc->body->root_objects;
     writer->codes_list          = sc->body->root_codes;
-    writer->contexts_list       = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+    writer->contexts_list       = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     writer->root.string_heap    = empty_string_heap;
     writer->root.dependent_scs  = malloc(sizeof(MVMSerializationContext *));
-    writer->seen_strings        = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+    writer->seen_strings        = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
 
     /* Allocate initial memory space for storing serialized tables and data. */
     writer->dependencies_table_alloc = DEP_TABLE_ENTRY_SIZE * 4;
@@ -1206,7 +1206,7 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader);
 
 /* Reads in an array of variant references. */
 static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     MVMint32 elems, i;
 
     /* Read the element count. */
@@ -1223,7 +1223,7 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
 
 /* Reads in an hash with string keys and variant references. */
 static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
     MVMint32 elems, i;
 
     /* Read the element count. */
@@ -1245,7 +1245,7 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
 
 /* Reads in an array of integers. */
 static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIntArray);
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
     MVMint32 elems, i;
 
     /* Read the element count. */
@@ -1262,7 +1262,7 @@ static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *
 
 /* Reads in an array of strings. */
 static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStrArray);
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
     MVMint32 elems, i;
 
     /* Read the element count. */
@@ -1309,15 +1309,15 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
         case REFVAR_VM_NULL:
             return NULL;
         case REFVAR_VM_INT:
-            result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTInt);
+            result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTInt);
             MVM_repr_set_int(tc, result, read_int_func(tc, reader));
             return result;
         case REFVAR_VM_NUM:
-            result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTNum);
+            result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTNum);
             MVM_repr_set_num(tc, result, read_num_func(tc, reader));
             return result;
         case REFVAR_VM_STR:
-            result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStr);
+            result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStr);
             MVM_repr_set_str(tc, result, read_str_func(tc, reader));
             return result;
         case REFVAR_VM_ARR_VAR:

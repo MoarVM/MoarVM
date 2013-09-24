@@ -239,11 +239,11 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
 
     cur_frame = ex->body.origin;
-    arr = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+    arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
     MVMROOT(tc, arr, {
         while (cur_frame != NULL) {
-            MVMObject *pobj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStr);
+            MVMObject *pobj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStr);
             MVMROOT(tc, pobj, {
                 MVM_repr_set_str(tc, pobj, cur_frame->static_info->body.name);
                 MVM_repr_push_o(tc, arr, pobj);

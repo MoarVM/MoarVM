@@ -136,7 +136,7 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
 
 /* open a filehandle; takes a type object */
 MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
-    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
+    MVMObject * const type_object = tc->instance->boot_types.BOOTIO;
     MVMOSHandle *result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
 #ifdef _WIN32
     char *name;

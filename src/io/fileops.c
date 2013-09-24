@@ -176,7 +176,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
     char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
     char            * const fmode = MVM_string_utf8_encode_C_string(tc, mode);
-    MVMOSHandle    * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTIO);
+    MVMOSHandle    * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     uv_fs_t req;
     int flag;
 
@@ -627,7 +627,7 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 
 /* return an OSHandle representing one of the standard streams */
 static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
-    MVMObject * const type_object = tc->instance->boot_types->BOOTIO;
+    MVMObject * const type_object = tc->instance->boot_types.BOOTIO;
     MVMOSHandle * const    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     MVMOSHandleBody * const body  = &result->body;
 

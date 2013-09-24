@@ -533,7 +533,7 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
     MVMObject *ctx = (MVMObject *)MVM_load(&f->context_object);
 
     if (!ctx) {
-        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
         ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, f);
 
         if (MVM_casptr(&f->context_object, NULL, ctx) != NULL) {

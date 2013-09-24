@@ -16,7 +16,6 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up instance data structure. */
     instance = calloc(1, sizeof(MVMInstance));
-    instance->boot_types = calloc(1, sizeof(MVMBootTypes));
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(instance);
@@ -60,19 +59,19 @@ MVMInstance * MVM_vm_create_instance(void) {
      * linked list. */
     MVM_store(&instance->threads,
         (instance->main_thread->thread_obj = (MVMThread *)
-            REPR(instance->boot_types->BOOTThread)->allocate(
-                instance->main_thread, STABLE(instance->boot_types->BOOTThread))));
+            REPR(instance->boot_types.BOOTThread)->allocate(
+                instance->main_thread, STABLE(instance->boot_types.BOOTThread))));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
 
     /* Create compiler registry */
-    instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types->BOOTHash);
+    instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types.BOOTHash);
 
     /* Set up compiler registr mutex. */
     init_mutex(instance->mutex_compiler_registry, "compiler registry");
 
     /* Create hll symbol tables */
-    instance->hll_syms = MVM_repr_alloc_init(instance->main_thread, instance->boot_types->BOOTHash);
+    instance->hll_syms = MVM_repr_alloc_init(instance->main_thread, instance->boot_types.BOOTHash);
 
     /* Set up hll symbol tables mutex. */
     init_mutex(instance->mutex_hll_syms, "hll syms");
@@ -88,18 +87,16 @@ MVMInstance * MVM_vm_create_instance(void) {
 
 /* Sets up some string constants. */
 static void string_consts(MVMThreadContext *tc) {
-    MVMStringConsts *s = malloc(sizeof(MVMStringConsts));
+    MVMInstance * const instance = tc->instance;
 
-    s->empty = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->empty);
+    instance->str_consts.empty = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.empty);
 
-    s->Str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Str");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->Str);
+    instance->str_consts.Str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Str");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.Str);
 
-    s->Num = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Num");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&s->Num);
-
-    tc->instance->str_consts = s;
+    instance->str_consts.Num = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Num");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.Num);
 }
 
 /* This callback is passed to the interpreter code. It takes care of making
@@ -183,10 +180,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of hashes of symbol tables per hll. */
     uv_mutex_destroy(&instance->mutex_hll_syms);
-
-    /* Free various instance-wide storage. */
-    MVM_checked_free_null(instance->boot_types);
-    MVM_checked_free_null(instance->str_consts);
 
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);

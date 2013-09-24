@@ -328,7 +328,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         ensure_can_read(tc, cu, rs, pos, FRAME_HEADER_SIZE);
 
         /* Allocate frame and get/check bytecode start/length. */
-        static_frame = (MVMStaticFrame *)MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTStaticFrame);
+        static_frame = (MVMStaticFrame *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStaticFrame);
         MVM_ASSIGN_REF(tc, cu, frames[i], static_frame);
         static_frame_body = &static_frame->body;
 
@@ -529,7 +529,7 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     cu_body->coderefs = malloc(cu_body->num_frames * sizeof(MVMObject *));
 
-    code_type = tc->instance->boot_types->BOOTCode;
+    code_type = tc->instance->boot_types.BOOTCode;
     for (i = 0; i < cu_body->num_frames; i++) {
         MVM_ASSIGN_REF(tc, cu, cu_body->coderefs[i], REPR(code_type)->allocate(tc, STABLE(code_type)));
         MVM_ASSIGN_REF(tc, cu_body->coderefs[i], ((MVMCode *)cu_body->coderefs[i])->body.sf, cu_body->frames[i]);

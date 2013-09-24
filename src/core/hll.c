@@ -14,13 +14,13 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     if (!entry) {
         entry = calloc(sizeof(MVMHLLConfig), 1);
         entry->name = name;
-        entry->int_box_type = tc->instance->boot_types->BOOTInt;
-        entry->num_box_type = tc->instance->boot_types->BOOTNum;
-        entry->str_box_type = tc->instance->boot_types->BOOTStr;
-        entry->slurpy_array_type = tc->instance->boot_types->BOOTArray;
-        entry->slurpy_hash_type = tc->instance->boot_types->BOOTHash;
-        entry->array_iterator_type = tc->instance->boot_types->BOOTIter;
-        entry->hash_iterator_type = tc->instance->boot_types->BOOTIter;
+        entry->int_box_type = tc->instance->boot_types.BOOTInt;
+        entry->num_box_type = tc->instance->boot_types.BOOTNum;
+        entry->str_box_type = tc->instance->boot_types.BOOTStr;
+        entry->slurpy_array_type = tc->instance->boot_types.BOOTArray;
+        entry->slurpy_hash_type = tc->instance->boot_types.BOOTHash;
+        entry->array_iterator_type = tc->instance->boot_types.BOOTIter;
+        entry->hash_iterator_type = tc->instance->boot_types.BOOTIter;
         HASH_ADD_KEYPTR(hash_handle, tc->instance->hll_configs, kdata, klen, entry);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->int_box_type);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->num_box_type);

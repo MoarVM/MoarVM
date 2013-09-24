@@ -200,7 +200,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
                 instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
             MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
-                instance->boot_types->BOOTStr, prog_string));
+                instance->boot_types.BOOTStr, prog_string));
 
             for (count = 0; count < instance->num_clargs; count++) {
                 char *raw = instance->raw_clargs[count];
@@ -208,7 +208,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
                     instance->VMString,
                     instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
                 MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
-                    instance->boot_types->BOOTStr, string));
+                    instance->boot_types.BOOTStr, string));
             }
         });
 

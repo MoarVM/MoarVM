@@ -375,7 +375,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
         end_pos = agraphs;
 
     if (start_pos == end_pos)
-        return tc->instance->str_consts->empty;
+        return tc->instance->str_consts.empty;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
@@ -768,7 +768,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
                 /* Gather an empty string if the delimiter is found at the end. */
                 if (sep_length && start == end) {
                     MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
-                    MVM_repr_set_str(tc, pobj, tc->instance->str_consts->empty);
+                    MVM_repr_set_str(tc, pobj, tc->instance->str_consts.empty);
                     MVM_repr_push_o(tc, result, pobj);
                 }
             }

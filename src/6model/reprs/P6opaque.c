@@ -816,7 +816,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMObject * const BOOTInt = tc->instance->boot_types->BOOTInt;
+    MVMObject * const BOOTInt = tc->instance->boot_types.BOOTInt;
     MVMObject * const    slot = MVM_repr_alloc_init(tc, BOOTInt);
 
     MVMuint16 i, num_classes;

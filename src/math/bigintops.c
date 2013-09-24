@@ -401,7 +401,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     }
 
     /* initialize the object */
-    result = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
     MVM_repr_push_o(tc, result, value_obj);
     MVM_repr_push_o(tc, result, base_obj);

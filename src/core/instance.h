@@ -75,10 +75,10 @@ struct MVMInstance {
     MVMObject *CallCapture;
 
     /* Set of bootstrapping types. */
-    MVMBootTypes *boot_types;
+    MVMBootTypes boot_types;
 
     /* Set of string constants. */
-    MVMStringConsts *str_consts;
+    MVMStringConsts str_consts;
 
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;

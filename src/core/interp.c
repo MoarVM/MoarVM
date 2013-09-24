@@ -966,7 +966,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(die): {
-                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
+                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
                 MVMException *ex = (MVMException *)ex_obj;
                 MVMRegister *resume_result = &GET_REG(cur_op, 0);
 
@@ -2396,23 +2396,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(bootint):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTInt;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTInt;
                 cur_op += 2;
                 goto NEXT;
             OP(bootnum):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTNum;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTNum;
                 cur_op += 2;
                 goto NEXT;
             OP(bootstr):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTStr;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTStr;
                 cur_op += 2;
                 goto NEXT;
             OP(bootarray):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTArray;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTArray;
                 cur_op += 2;
                 goto NEXT;
             OP(boothash):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTHash;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTHash;
                 cur_op += 2;
                 goto NEXT;
             OP(sethllconfig):
@@ -2490,7 +2490,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(setmethcache): {
-                MVMObject *cache = REPR(tc->instance->boot_types->BOOTHash)->allocate(tc, STABLE(tc->instance->boot_types->BOOTHash));
+                MVMObject *cache = REPR(tc->instance->boot_types.BOOTHash)->allocate(tc, STABLE(tc->instance->boot_types.BOOTHash));
                 MVMObject *iter = MVM_iter(tc, GET_REG(cur_op, 2).o);
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
@@ -2683,7 +2683,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 uv_mutex_lock(&tc->instance->mutex_hll_syms);
                 hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                 if (!hash) {
-                    hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+                    hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                     /* must re-get syms in case it moved */
                     syms = tc->instance->hll_syms;
                     hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
@@ -2703,7 +2703,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 uv_mutex_lock(&tc->instance->mutex_hll_syms);
                 hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                 if (!hash) {
-                    hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+                    hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                     /* must re-get syms in case it moved */
                     syms = tc->instance->hll_syms;
                     hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
@@ -2740,7 +2740,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(ctx): {
-                MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+                MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
                 ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, tc->cur_frame);
                 GET_REG(cur_op, 0).o = ctx;
                 cur_op += 2;
@@ -2753,7 +2753,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
                 }
                 if ((frame = ((MVMContext *)this_ctx)->body.context->outer)) {
-                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
                     ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
                     GET_REG(cur_op, 0).o = ctx;
                 }
@@ -2770,7 +2770,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
                 }
                 if ((frame = ((MVMContext *)this_ctx)->body.context->caller)) {
-                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTContext);
+                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
                     ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
                 }
                 GET_REG(cur_op, 0).o = ctx;
@@ -2798,15 +2798,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(bootintarray):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTIntArray;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTIntArray;
                 cur_op += 2;
                 goto NEXT;
             OP(bootnumarray):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTNumArray;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTNumArray;
                 cur_op += 2;
                 goto NEXT;
             OP(bootstrarray):
-                GET_REG(cur_op, 0).o = tc->instance->boot_types->BOOTStrArray;
+                GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTStrArray;
                 cur_op += 2;
                 goto NEXT;
             OP(hlllist):
@@ -2852,7 +2852,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
                 if (!hash) {
                     MVMROOT(tc, hll_name, {
-                        hash = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTHash);
+                        hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                         /* must re-get syms in case it moved */
                         syms = tc->instance->hll_syms;
                         MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
@@ -3020,7 +3020,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(connect_sk):
                 GET_REG(cur_op, 0).o = MVM_socket_connect(tc,
-                    tc->instance->boot_types->BOOTIO,
+                    tc->instance->boot_types.BOOTIO,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64,
                     GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                 cur_op += 10;
@@ -3031,7 +3031,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(bind_sk):
                 GET_REG(cur_op, 0).o = MVM_socket_bind(tc,
-                    tc->instance->boot_types->BOOTIO,
+                    tc->instance->boot_types.BOOTIO,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64,
                     GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                 cur_op += 10;
@@ -3323,7 +3323,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 if (!tc->compiling_scs) {
                     MVMROOT(tc, sc, {
-                        tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTArray);
+                        tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                     });
                 }
                 MVM_repr_push_o(tc, tc->compiling_scs, sc);
@@ -3341,7 +3341,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(rethrow): {
-                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
+                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
                 MVMException *ex = (MVMException *)ex_obj;
                 MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
                 ex->body.category = MVM_EX_CAT_CATCH;
@@ -3359,7 +3359,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(resume): {
-                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types->BOOTException);
+                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
                 MVMException *ex = (MVMException *)ex_obj;
 
                 MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
