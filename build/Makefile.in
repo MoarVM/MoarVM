@@ -101,6 +101,8 @@ OBJECTS = src/core/args@obj@ \
           src/6model/reprs/P6bigint@obj@ \
           src/6model/reprs/NFA@obj@ \
           src/6model/reprs/MVMException@obj@ \
+          src/6model/reprs/VMBlob@obj@ \
+          src/6model/reprs/VMPtr@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
