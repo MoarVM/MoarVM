@@ -4,6 +4,9 @@
 
 #include <math.h>
 
+/* concatenating with "" ensures that only literal strings are accepted as argument. */
+#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
+
 /* MSVC compilers know about environ,
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
 #ifndef _WIN32
@@ -55,7 +58,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
 #endif
         MVMuint32     pos = 0;
-        MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, "=", 1);
+        MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, STR_WITH_LEN("="));
         char      *env;
 
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
@@ -109,7 +112,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     const MVMuint64     size = MVM_repr_elems(tc, env);
     char              **_env = malloc((size + 1) * sizeof(char *));
     MVMIter    * const  iter = (MVMIter *)MVM_iter(tc, env);
-    MVMString  * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, "=", 1);
+    MVMString  * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("="));
 
 #ifdef _WIN32
     const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */

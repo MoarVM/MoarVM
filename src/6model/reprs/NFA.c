@@ -145,7 +145,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                         break;
                     case MVM_NFA_EDGE_CHARLIST:
                     case MVM_NFA_EDGE_CHARLIST_NEG:
-                        body->states[i][j].arg.s = reader->read_str(tc, reader);
+                        MVM_ASSIGN_REF(tc, root, body->states[i][j].arg.s, reader->read_str(tc, reader));
                         break;
                     case MVM_NFA_EDGE_CODEPOINT_I:
                     case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
