@@ -177,7 +177,7 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     return 1;
 }
 
-#define register_core_repr(name) \
+#define register_static_repr(name) \
     register_repr(tc, MVM##name##_initialize(tc), NULL)
 
 /* Initializes the representations registry, building up all of the various
@@ -187,35 +187,69 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
             MVM_REPR_MAX_COUNT * sizeof *tc->instance->repr_list);
 
     /* Add all core representations. */
-    register_core_repr(String);
-    register_core_repr(Array);
-    register_core_repr(Hash);
-    register_core_repr(CFunction);
-    register_core_repr(KnowHOWREPR);
-    register_core_repr(P6opaque);
-    register_core_repr(Code);
-    register_core_repr(OSHandle);
-    register_core_repr(P6int);
-    register_core_repr(P6num);
-    register_core_repr(Uninstantiable);
-    register_core_repr(HashAttrStore);
-    register_core_repr(KnowHOWAttributeREPR);
-    register_core_repr(P6str);
-    register_core_repr(Thread);
-    register_core_repr(Iter);
-    register_core_repr(Context);
-    register_core_repr(SCRef);
-    register_core_repr(Lexotic);
-    register_core_repr(CallCapture);
-    register_core_repr(P6bigint);
-    register_core_repr(NFA);
-    register_core_repr(Exception);
-    register_core_repr(StaticFrame);
-    register_core_repr(CompUnit);
-    register_core_repr(Blob);
-    register_core_repr(Ptr);
+    register_static_repr(String);
+    register_static_repr(Array);
+    register_static_repr(Hash);
+    register_static_repr(CFunction);
+    register_static_repr(KnowHOWREPR);
+    register_static_repr(P6opaque);
+    register_static_repr(Code);
+    register_static_repr(OSHandle);
+    register_static_repr(P6int);
+    register_static_repr(P6num);
+    register_static_repr(Uninstantiable);
+    register_static_repr(HashAttrStore);
+    register_static_repr(KnowHOWAttributeREPR);
+    register_static_repr(P6str);
+    register_static_repr(Thread);
+    register_static_repr(Iter);
+    register_static_repr(Context);
+    register_static_repr(SCRef);
+    register_static_repr(Lexotic);
+    register_static_repr(CallCapture);
+    register_static_repr(P6bigint);
+    register_static_repr(NFA);
+    register_static_repr(Exception);
+    register_static_repr(StaticFrame);
+    register_static_repr(CompUnit);
+    register_static_repr(Blob);
+    register_static_repr(Ptr);
 
-    tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
+    /* Add all C representations. */
+    register_static_repr(CVoid);
+    register_static_repr(CChar);
+    register_static_repr(CUChar);
+    register_static_repr(CShort);
+    register_static_repr(CUShort);
+    register_static_repr(CInt);
+    register_static_repr(CUInt);
+    register_static_repr(CLong);
+    register_static_repr(CULong);
+    register_static_repr(CLLong);
+    register_static_repr(CULLong);
+    register_static_repr(CInt8);
+    register_static_repr(CUInt8);
+    register_static_repr(CInt16);
+    register_static_repr(CUInt16);
+    register_static_repr(CInt32);
+    register_static_repr(CUInt32);
+    register_static_repr(CInt64);
+    register_static_repr(CUInt64);
+    register_static_repr(CIntPtr);
+    register_static_repr(CUIntPtr);
+    register_static_repr(CIntMax);
+    register_static_repr(CUIntMax);
+    register_static_repr(CFloat);
+    register_static_repr(CDouble);
+    register_static_repr(CLDouble);
+    register_static_repr(CPtr);
+    register_static_repr(CFPtr);
+    register_static_repr(CArray);
+    register_static_repr(CStruct);
+    register_static_repr(CUnion);
+    register_static_repr(CFlexStruct);
+
+    tc->instance->num_reprs = MVM_REPR_CORE_COUNT + MVM_REPR_NATIVE_COUNT;
 }
 
 static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,

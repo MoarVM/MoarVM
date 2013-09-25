@@ -1,5 +1,8 @@
 #include "moarvm.h"
 
+#define ALIGNOF(type) \
+    ((MVMuint16)offsetof(struct { char dummy; type member; }, member))
+
 MVMObject * MVM_native_bloballoc(MVMThreadContext *tc, MVMuint64 size) {
     MVMPtr *ptr = (MVMPtr *)MVM_gc_allocate_object(tc,
             STABLE(tc->instance->raw_types.RawPtr));
@@ -26,14 +29,23 @@ MVMObject * MVM_native_ptrcast(MVMThreadContext *tc, MVMObject *src,
 }
 
 MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
-    MVM_exception_throw_adhoc(tc, "TODO");
+    switch(REPR(obj)->ID) {
+        default:
+            MVM_exception_throw_adhoc(tc, "not a C type");
+    }
 }
 
 MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
-    MVM_exception_throw_adhoc(tc, "TODO");
+    switch(REPR(obj)->ID) {
+        default:
+            MVM_exception_throw_adhoc(tc, "not a C type");
+    }
 }
 
 MVMuint64 MVM_native_coffsetof(MVMThreadContext *tc, MVMObject *obj,
         MVMString *member) {
+    if (REPR(obj)->ID != MVM_REPR_ID_CStruct)
+        MVM_exception_throw_adhoc(tc, "not a C struct");
+
     MVM_exception_throw_adhoc(tc, "TODO");
 }

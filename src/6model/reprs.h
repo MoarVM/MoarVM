@@ -64,7 +64,7 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_VMPtr                   26
 
 #define MVM_REPR_CORE_COUNT                 27
-#define MVM_REPR_MAX_COUNT                  64
+#define MVM_REPR_MAX_COUNT                  128
 
 /* Default attribute functions for a REPR that lacks them. */
 #define MVM_REPR_DEFAULT_ATTR_FUNCS \

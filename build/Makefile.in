@@ -117,6 +117,38 @@ OBJECTS = src/core/args@obj@ \
           src/strings/utf16@obj@ \
           src/math/bigintops@obj@ \
           src/native/ops@obj@ \
+          src/native/CArray@obj@ \
+          src/native/CChar@obj@ \
+          src/native/CDouble@obj@ \
+          src/native/CFlexStruct@obj@ \
+          src/native/CFloat@obj@ \
+          src/native/CFPtr@obj@ \
+          src/native/CInt@obj@ \
+          src/native/CInt16@obj@ \
+          src/native/CInt32@obj@ \
+          src/native/CInt64@obj@ \
+          src/native/CInt8@obj@ \
+          src/native/CIntMax@obj@ \
+          src/native/CIntPtr@obj@ \
+          src/native/CLDouble@obj@ \
+          src/native/CLLong@obj@ \
+          src/native/CLong@obj@ \
+          src/native/CPtr@obj@ \
+          src/native/CShort@obj@ \
+          src/native/CStruct@obj@ \
+          src/native/CUChar@obj@ \
+          src/native/CUInt@obj@ \
+          src/native/CUInt16@obj@ \
+          src/native/CUInt32@obj@ \
+          src/native/CUInt64@obj@ \
+          src/native/CUInt8@obj@ \
+          src/native/CUIntMax@obj@ \
+          src/native/CUIntPtr@obj@ \
+          src/native/CULLong@obj@ \
+          src/native/CULong@obj@ \
+          src/native/CUnion@obj@ \
+          src/native/CUShort@obj@ \
+          src/native/CVoid@obj@ \
           src/moarvm@obj@ \
           @platform@
 
@@ -190,6 +222,8 @@ HEADERS = src/moarvm.h \
           src/strings/utf16.h \
           src/math/bigintops.h \
           src/native/ops.h \
+          src/native/reprs.h \
+          src/native/cscalar-template.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \

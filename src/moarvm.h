@@ -89,6 +89,7 @@ typedef double   MVMnum64;
 #include "math/bigintops.h"
 #include "mast/driver.h"
 #include "native/ops.h"
+#include "native/reprs.h"
 
 /* Top level VM API functions. */
 MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);
