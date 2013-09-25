@@ -113,9 +113,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 /* Register a representation at runtime, setting repr->ID to a dynamically
  * assigned value.
  *
- * Returns nonzero if the representation had to be added and zero if it was
- * already present, in which case the MVMREPROps structure is unused
- * and may be deallocated.
+ * Returns nonzero if the representation has been added successfully and
+ * zero if a representation with the same name is already present.
+ * In that case, the MVMREPROps structure is unused and may be deallocated.
  */
 int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr);
 

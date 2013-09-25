@@ -160,13 +160,7 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry);
     if (entry) {
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
-
-        /* Identify REPRs by address of name string */
-        if (entry->repr->name == repr->name)
-            return 0;
-
-        MVM_exception_throw_adhoc(tc, "A different representation with "
-                "name %s has already been registered", repr->name);
+        return 0;
     }
 
     if (!(tc->instance->num_reprs < MVM_REPR_MAX_COUNT)) {
