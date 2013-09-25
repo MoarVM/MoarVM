@@ -3459,9 +3459,23 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_bloballoc,
+        "bloballoc",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_ptrcast,
+        "ptrcast",
+        "  ",
+        4,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
 };
 
-static unsigned short MVM_op_counts = 493;
+static unsigned short MVM_op_counts = 495;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

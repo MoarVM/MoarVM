@@ -1864,6 +1864,10 @@ QAST::MASTOperations.add_core_moarop_mapping('rand_i', 'rand_i');
 QAST::MASTOperations.add_core_moarop_mapping('rand_n', 'rand_n');
 QAST::MASTOperations.add_core_moarop_mapping('seed', 'seed');
 
+# native and ctypes related ops
+QAST::MASTOperations.add_core_moarop_mapping('bloballoc', 'bloballoc');
+QAST::MASTOperations.add_core_moarop_mapping('ptrcast', 'ptrcast');
+
 # MoarVM-specific compilation ops
 QAST::MASTOperations.add_core_moarop_mapping('masttofile', 'masttofile', 2);
 QAST::MASTOperations.add_core_moarop_mapping('masttocu', 'masttocu');
