@@ -3390,6 +3390,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(csizeof): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = MVM_native_csizeof(tc, obj);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(calignof): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = MVM_native_calignof(tc, obj);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(coffsetof): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMString *member = GET_REG(cur_op, 4).s;
+                GET_REG(cur_op, 0).i64 = MVM_native_coffsetof(tc, obj, member);
+                cur_op += 6;
+                goto NEXT;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

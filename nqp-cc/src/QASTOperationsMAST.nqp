@@ -1867,6 +1867,9 @@ QAST::MASTOperations.add_core_moarop_mapping('seed', 'seed');
 # native and ctypes related ops
 QAST::MASTOperations.add_core_moarop_mapping('bloballoc', 'bloballoc');
 QAST::MASTOperations.add_core_moarop_mapping('ptrcast', 'ptrcast');
+QAST::MASTOperations.add_core_moarop_mapping('csizeof', 'csizeof');
+QAST::MASTOperations.add_core_moarop_mapping('calignof', 'calignof');
+QAST::MASTOperations.add_core_moarop_mapping('coffsetof', 'coffsetof');
 
 # MoarVM-specific compilation ops
 QAST::MASTOperations.add_core_moarop_mapping('masttofile', 'masttofile', 2);

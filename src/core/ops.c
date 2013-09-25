@@ -3473,9 +3473,30 @@ static MVMOpInfo MVM_op_infos[] = {
         4,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_csizeof,
+        "csizeof",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_calignof,
+        "calignof",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_coffsetof,
+        "coffsetof",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 
-static unsigned short MVM_op_counts = 495;
+static unsigned short MVM_op_counts = 498;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

@@ -496,5 +496,8 @@
 #define MVM_OP_resume 492
 #define MVM_OP_bloballoc 493
 #define MVM_OP_ptrcast 494
+#define MVM_OP_csizeof 495
+#define MVM_OP_calignof 496
+#define MVM_OP_coffsetof 497
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);

@@ -24,3 +24,16 @@ MVMObject * MVM_native_ptrcast(MVMThreadContext *tc, MVMObject *src,
         MVMObject *type, MVMint64 offset) {
     MVM_exception_throw_adhoc(tc, "TODO");
 }
+
+MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
+    MVM_exception_throw_adhoc(tc, "TODO");
+}
+
+MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
+    MVM_exception_throw_adhoc(tc, "TODO");
+}
+
+MVMuint64 MVM_native_coffsetof(MVMThreadContext *tc, MVMObject *obj,
+        MVMString *member) {
+    MVM_exception_throw_adhoc(tc, "TODO");
+}
