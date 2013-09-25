@@ -2,6 +2,9 @@
 *~
 *.bak
 
+# Private files
+__*
+
 # Separately cloned repos
 tools/nqp-cross-compiler/nqp/
 
