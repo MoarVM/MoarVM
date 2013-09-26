@@ -60,22 +60,6 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     }
 }
 
-static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
-    MVM_exception_throw_adhoc(tc,
-        "P6bigint representation cannot box a native num");
-}
-static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVM_exception_throw_adhoc(tc,
-        "P6bigint representation cannot unbox to a native num");
-}
-static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
-    MVM_exception_throw_adhoc(tc,
-        "P6bigint representation cannot box a native string");
-}
-static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVM_exception_throw_adhoc(tc,
-        "P6bigint representation cannot unbox to a native string");
-}
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     if (repr_id == MVM_REPR_ID_P6bigint)
         return &((MVMP6bigintBody *)data)->i;
@@ -139,10 +123,10 @@ static const MVMREPROps this_repr = {
     {
         set_int,
         get_int,
-        set_num,
-        get_num,
-        set_str,
-        get_str,
+        MVM_REPR_DEFAULT_SET_NUM,
+        MVM_REPR_DEFAULT_GET_NUM,
+        MVM_REPR_DEFAULT_SET_STR,
+        MVM_REPR_DEFAULT_GET_STR,
         get_boxed_ref
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,

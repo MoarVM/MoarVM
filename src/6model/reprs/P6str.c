@@ -29,31 +29,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_ASSIGN_REF(tc, dest_root, dest_body->value, src_body->value);
 }
 
-static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
-    MVM_exception_throw_adhoc(tc,
-        "P6str representation cannot box a native integer");
-}
-static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVM_exception_throw_adhoc(tc,
-        "P6str representation cannot unbox to a native integer");
-}
-static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
-    MVM_exception_throw_adhoc(tc,
-        "P6str representation cannot box a native num");
-}
-static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVM_exception_throw_adhoc(tc,
-        "P6str representation cannot unbox to a native num");
-}
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVM_ASSIGN_REF(tc, root, ((MVMP6strBody *)data)->value, value);
 }
+
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     return ((MVMP6strBody *)data)->value;
-}
-static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
-    MVM_exception_throw_adhoc(tc,
-        "P6str representation cannot unbox to other types");
 }
 
 /* Gets the storage specification for this representation. */
@@ -101,13 +82,13 @@ static const MVMREPROps this_repr = {
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     {
-        set_int,
-        get_int,
-        set_num,
-        get_num,
+        MVM_REPR_DEFAULT_SET_INT,
+        MVM_REPR_DEFAULT_GET_INT,
+        MVM_REPR_DEFAULT_SET_NUM,
+        MVM_REPR_DEFAULT_GET_NUM,
         set_str,
         get_str,
-        get_boxed_ref
+        MVM_REPR_DEFAULT_GET_BOXED_REF
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,
