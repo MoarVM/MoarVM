@@ -135,11 +135,20 @@ MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
         case MVM_REPR_ID_CPtr:      return sizeof(void *);
         case MVM_REPR_ID_CFPtr:     return sizeof(func *);
 
-        case MVM_REPR_ID_CArray:
+        case MVM_REPR_ID_CArray: {
+            MVMCArrayBody *body = &((MVMCArray *)obj)->body;
+
+            if (!body->elem_size)
+                MVM_exception_throw_adhoc(tc,
+                        "cannot get size of uncomposed C array");
+
+            return body->elem_count * body->elem_size;
+        }
+
         case MVM_REPR_ID_CStruct:
         case MVM_REPR_ID_CUnion:
         case MVM_REPR_ID_CFlexStruct:
-            MVM_exception_throw_adhoc(tc, "TODO");
+            MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
 
         default:
             MVM_exception_throw_adhoc(tc, "not a C type");
@@ -179,11 +188,18 @@ MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
         case MVM_REPR_ID_CPtr:      return ALIGNOF(void *);
         case MVM_REPR_ID_CFPtr:     return ALIGNOF(func *);
 
-        case MVM_REPR_ID_CArray:
+        case MVM_REPR_ID_CArray: {
+            if (!STABLE(obj)->REPR_data)
+                MVM_exception_throw_adhoc(tc,
+                        "cannot get alignment of uncomposed C array");
+
+            return MVM_native_calignof(tc, STABLE(obj)->REPR_data);
+        }
+
         case MVM_REPR_ID_CStruct:
         case MVM_REPR_ID_CUnion:
         case MVM_REPR_ID_CFlexStruct:
-            MVM_exception_throw_adhoc(tc, "TODO");
+            MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
 
         default:
             MVM_exception_throw_adhoc(tc, "not a C type");
@@ -195,5 +211,5 @@ MVMuint64 MVM_native_coffsetof(MVMThreadContext *tc, MVMObject *obj,
     if (REPR(obj)->ID != MVM_REPR_ID_CStruct)
         MVM_exception_throw_adhoc(tc, "not a C struct");
 
-    MVM_exception_throw_adhoc(tc, "TODO");
+    MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
 }
