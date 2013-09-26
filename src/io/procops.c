@@ -116,11 +116,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
 #ifdef _WIN32
     const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
-    wchar_t * const wcomspec = ANSIToUnicode(acp, "ComSpec");
-    wchar_t * const     wcmd = _wgetenv(wcomspec);
-    char    * const     _cmd = UnicodeToUTF8(wcmd);
-
-    free(wcomspec);
+    char    * const     _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
 
     args[0] = _cmd;
     args[1] = "/c";
