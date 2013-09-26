@@ -33,40 +33,30 @@
 
 #define MVM_REPR_NATIVE_COUNT   32
 
-typedef union {
-    MVMPtrBody VMPTRBODY;
-    struct {
-        void *cobj;
-        MVMBlob *blob;
-        MVMuint64 elem_count;
-        MVMuint64 elem_size;
-    };
-} MVMCArrayBody;
+typedef struct {
+    MVMuint64  elem_count;
+    MVMuint64  elem_size;
+    MVMObject *elem_type;
+} MVMCArraySpec;
 
+#if 0
 typedef union {
-    MVMPtr VMPTR;
-    struct {
-        MVMObject common;
-        MVMCArrayBody body;
-    };
-} MVMCArray;
-
-typedef union {
-    MVMPtrBody VMPTRBODY;
+    MVMPtrBody PTR;
     struct {
         void *cobj;
         MVMBlob *blob;
         MVMCArray *flexibles;
-    };
+    } FS;
 } MVMCFlexStructBody;
 
 typedef union {
-    MVMPtr VMPTR;
+    MVMPtr PTR;
     struct {
         MVMObject common;
         MVMCFlexStructBody body;
-    };
+    } FS;
 } MVMCFlexStruct;
+#endif
 
 const MVMREPROps * MVMCVoid_initialize(MVMThreadContext *tc);
 const MVMREPROps * MVMCChar_initialize(MVMThreadContext *tc);

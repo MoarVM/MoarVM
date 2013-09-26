@@ -12,7 +12,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
-        st->size = sizeof(MVMCArray);
+        st->size = sizeof(MVMPtr);
     });
 
     return st->WHAT;
@@ -24,32 +24,30 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data) {
-    MVMCArrayBody *body = data;
-    MVMObject *type = st->REPR_data;
+    MVMPtrBody *body = data;
 
-    if (!type)
+    if (!st->REPR_data)
         MVM_exception_throw_adhoc(tc,
                 "cannot initialize C array from uncomposed type object");
 
     body->cobj = NULL;
     body->blob = NULL;
-    body->elem_count = 0;
-    body->elem_size = MVM_native_csizeof(tc, type);
 }
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
-    MVMCArrayBody *body = data;
-    MVMObject *type = st->REPR_data;
+    MVMPtrBody *body = data;
+    MVMCArraySpec *spec = st->REPR_data;
+    MVMObject *type = spec->elem_type;
 
-    if (index < 0 || index >= body->elem_count)
+    if (index < 0 || index >= spec->elem_count)
         MVM_exception_throw_adhoc(tc, "C array index out of bounds");
 
     switch (kind) {
         case MVM_reg_obj:
             MVMROOT(tc, root, {
-                MVMPtr *ptr = (MVMPtr *)MVM_repr_alloc_init(tc, st->REPR_data);
-                ptr->body.cobj = (char *)body->cobj + index * body->elem_size;
+                MVMPtr *ptr = (MVMPtr *)MVM_repr_alloc_init(tc, spec->elem_type);
+                ptr->body.cobj = (char *)body->cobj + index * spec->elem_size;
                 MVM_ASSIGN_REF(tc, ptr, ptr->body.blob, body->blob);
                 value->o = (MVMObject *)ptr;
             });
@@ -57,7 +55,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
         case MVM_reg_int64: {
             MVMPtrBody dummy = {
-                (char *)body->cobj + index * body->elem_size, NULL
+                (char *)body->cobj + index * spec->elem_size, NULL
             };
 
             value->i64 = REPR(type)->box_funcs.get_int(tc, STABLE(type), root,
@@ -67,7 +65,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
         case MVM_reg_num64: {
             MVMPtrBody dummy = {
-                (char *)body->cobj + index * body->elem_size,  NULL
+                (char *)body->cobj + index * spec->elem_size,  NULL
             };
 
             value->n64 = REPR(type)->box_funcs.get_num(tc, STABLE(type), root,
@@ -83,10 +81,11 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
-    MVMCArrayBody *body = data;
-    MVMObject *type = st->REPR_data;
+    MVMPtrBody *body = data;
+    MVMCArraySpec *spec = st->REPR_data;
+    MVMObject *type = spec->elem_type;
 
-    if (index < 0 || index >= body->elem_count)
+    if (index < 0 || index >= spec->elem_count)
         MVM_exception_throw_adhoc(tc, "C array index out of bounds");
 
     switch (kind) {
@@ -95,7 +94,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
         case MVM_reg_int64: {
             MVMPtrBody dummy = {
-                (char *)body->cobj + index * body->elem_size, NULL
+                (char *)body->cobj + index * spec->elem_size, NULL
             };
 
             REPR(type)->box_funcs.set_int(tc, STABLE(type), root,
@@ -105,7 +104,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
         case MVM_reg_num64: {
             MVMPtrBody dummy = {
-                (char *)body->cobj + index * body->elem_size, NULL
+                (char *)body->cobj + index * spec->elem_size, NULL
             };
 
             REPR(type)->box_funcs.set_num(tc, STABLE(type), root,
@@ -121,29 +120,12 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
 static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMuint64 count) {
-    MVMCArrayBody *body = data;
-
-    if (body->elem_count != 0)
-        MVM_exception_throw_adhoc(tc, "cannot resize C array");
-
-    if (count == 0)
-        MVM_exception_throw_adhoc(tc, "C array size must be non-zero");
-
-    if (body->blob) {
-        MVMBlobBody *blob_body = &body->blob->body;
-
-        if ((char *)body->cobj + body->elem_size * count
-                > blob_body->storage + blob_body->size)
-            MVM_exception_throw_adhoc(tc, "blob overflow");
-    }
-
-    body->elem_count = count;
+    MVM_exception_throw_adhoc(tc, "cannot resize C array");
 }
 
 static MVMint64 exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMint64 index) {
-    MVMCArrayBody *body = data;
-    return 0 <= index && index < body->elem_count;
+    return 0 <= index && index < ((MVMCArraySpec *)st->REPR_data)->elem_count;
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
@@ -183,7 +165,7 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc,
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data) {
-    return ((MVMCArrayBody *)data)->elem_count;
+    return ((MVMCArraySpec *)st->REPR_data)->elem_count;
 }
 
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -198,7 +180,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data,
         MVMGCWorklist *worklist) {
-    MVMCArrayBody *body = data;
+    MVMPtrBody *body = data;
 
     if (body->blob)
         MVM_gc_worklist_add(tc, worklist, &body->blob);
@@ -206,12 +188,27 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data,
 
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st,
         MVMGCWorklist *worklist) {
-    if (st->REPR_data)
-        MVM_gc_worklist_add(tc, worklist, &st->REPR_data);
+    MVMCArraySpec *spec = st->REPR_data;
+
+    if (spec)
+        MVM_gc_worklist_add(tc, worklist, &spec->elem_type);
+}
+
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_checked_free_null(st->REPR_data);
 }
 
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-    MVM_ASSIGN_REF(tc, st, st->REPR_data, info);
+    MVMCArraySpec *spec;
+    MVMObject *type  = MVM_repr_at_pos_o(tc, info, 0);
+    MVMObject *count = MVM_repr_at_pos_o(tc, info, 1);
+
+    spec = malloc(sizeof *spec);
+    spec->elem_count = MVM_repr_get_int(tc, count);;
+    spec->elem_size  = MVM_native_csizeof(tc, type);
+    MVM_ASSIGN_REF(tc, st, spec->elem_type, type);
+
+    st->REPR_data = spec;
 }
 
 static const MVMREPROps this_repr = {
@@ -246,7 +243,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_free */
     NULL, /* gc_cleanup */
     gc_mark_repr_data,
-    NULL, /* gc_free_repr_data */
+    gc_free_repr_data,
     compose,
     "CArray",
     MVM_REPR_ID_CArray,

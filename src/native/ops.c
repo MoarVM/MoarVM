@@ -136,13 +136,13 @@ MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
         case MVM_REPR_ID_CFPtr:     return sizeof(func *);
 
         case MVM_REPR_ID_CArray: {
-            MVMCArrayBody *body = &((MVMCArray *)obj)->body;
+            MVMCArraySpec *spec = STABLE(obj)->REPR_data;
 
-            if (!body->elem_size)
+            if (!spec)
                 MVM_exception_throw_adhoc(tc,
                         "cannot get size of uncomposed C array");
 
-            return body->elem_count * body->elem_size;
+            return spec->elem_count * spec->elem_size;
         }
 
         case MVM_REPR_ID_CStruct:
