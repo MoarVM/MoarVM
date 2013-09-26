@@ -1,2 +1,8 @@
+#include "moarvm.h"
+
 #define REPR_NAME CChar
-#include "cscalar-template.h"
+#define CTYPE signed char
+#define VMTYPE int
+#define CAN_BOX_INT
+
+#include "CScalar.h"

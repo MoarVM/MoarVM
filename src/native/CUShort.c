@@ -1,2 +1,8 @@
+#include "moarvm.h"
+
 #define REPR_NAME CUShort
-#include "cscalar-template.h"
+#define CTYPE unsigned short
+#define VMTYPE int
+#define CAN_BOX_INT
+
+#include "CScalar.h"

@@ -1,2 +1,8 @@
+#include "moarvm.h"
+
 #define REPR_NAME CIntMax
-#include "cscalar-template.h"
+#define CTYPE intmax_t
+#define VMTYPE int
+#define CAN_BOX_INT
+
+#include "CScalar.h"

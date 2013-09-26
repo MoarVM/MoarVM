@@ -223,7 +223,7 @@ HEADERS = src/moarvm.h \
           src/math/bigintops.h \
           src/native/ops.h \
           src/native/reprs.h \
-          src/native/cscalar-template.h \
+          src/native/CScalar.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \

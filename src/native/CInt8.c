@@ -1,2 +1,8 @@
+#include "moarvm.h"
+
 #define REPR_NAME CInt8
-#include "cscalar-template.h"
+#define CTYPE int8_t
+#define VMTYPE int
+#define CAN_BOX_INT
+
+#include "CScalar.h"

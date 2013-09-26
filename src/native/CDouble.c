@@ -1,2 +1,8 @@
+#include "moarvm.h"
+
 #define REPR_NAME CDouble
-#include "cscalar-template.h"
+#define CTYPE double
+#define VMTYPE num
+#define CAN_BOX_NUM
+
+#include "CScalar.h"
