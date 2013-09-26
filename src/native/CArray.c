@@ -25,20 +25,22 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data) {
     MVMCArrayBody *body = data;
+    MVMObject *type = st->REPR_data;
 
-    if (!st->REPR_data)
+    if (!type)
         MVM_exception_throw_adhoc(tc,
                 "cannot initialize C array from uncomposed type object");
 
     body->cobj = NULL;
     body->blob = NULL;
     body->elem_count = 0;
-    body->elem_size = MVM_native_csizeof(tc, st->REPR_data);
+    body->elem_size = MVM_native_csizeof(tc, type);
 }
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMCArrayBody *body = data;
+    MVMObject *type = st->REPR_data;
 
     if (index < 0 || index >= body->elem_count)
         MVM_exception_throw_adhoc(tc, "C array index out of bounds");
@@ -53,21 +55,36 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
             });
             return;
 
-        case MVM_reg_int64:
-        case MVM_reg_num64:
-            break;
+        case MVM_reg_int64: {
+            MVMPtrBody dummy = {
+                (char *)body->cobj + index * body->elem_size, NULL
+            };
+
+            value->i64 = REPR(type)->box_funcs.get_int(tc, STABLE(type), root,
+                    &dummy);
+            return;
+        }
+
+        case MVM_reg_num64: {
+            MVMPtrBody dummy = {
+                (char *)body->cobj + index * body->elem_size,  NULL
+            };
+
+            value->n64 = REPR(type)->box_funcs.get_num(tc, STABLE(type), root,
+                    &dummy);
+            return;
+        }
 
         default:
             MVM_exception_throw_adhoc(tc,
                     "unsupported result kind for C array at_pos");
     }
-
-    MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
 }
 
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMCArrayBody *body = data;
+    MVMObject *type = st->REPR_data;
 
     if (index < 0 || index >= body->elem_count)
         MVM_exception_throw_adhoc(tc, "C array index out of bounds");
@@ -76,16 +93,30 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         case MVM_reg_obj:
             MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
 
-        case MVM_reg_int64:
-        case MVM_reg_num64:
-            break;
+        case MVM_reg_int64: {
+            MVMPtrBody dummy = {
+                (char *)body->cobj + index * body->elem_size, NULL
+            };
 
-        default:
+            REPR(type)->box_funcs.set_int(tc, STABLE(type), root,
+                    &dummy, value.i64);
+            return;
+        }
+
+        case MVM_reg_num64: {
+            MVMPtrBody dummy = {
+                (char *)body->cobj + index * body->elem_size, NULL
+            };
+
+            REPR(type)->box_funcs.set_num(tc, STABLE(type), root,
+                    &dummy, value.n64);
+            return;
+        }
+
+        default: fail:
             MVM_exception_throw_adhoc(tc,
                     "unsupported argument kind for C array bind_pos");
     }
-
-    MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
 }
 
 static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
