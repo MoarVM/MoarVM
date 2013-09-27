@@ -1945,7 +1945,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getwhere):
-                GET_REG(cur_op, 2).i64 = (MVMint64)GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).o;
                 cur_op += 4;
                 goto NEXT;
             OP(eqaddr):
