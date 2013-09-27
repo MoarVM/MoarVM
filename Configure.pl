@@ -63,7 +63,7 @@ else {
 
 $config{name}   = $NAME;
 $config{perl}   = $^X;
-$config{config} = join ' ', @args;
+$config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
