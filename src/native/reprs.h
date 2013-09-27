@@ -52,6 +52,14 @@ typedef struct {
     MVMCMemberSpec *members;
 } MVMCStructSpec;
 
+typedef struct {
+    MVMuint64 size;
+    MVMuint64 align;
+    MVMuint64 member_count;
+    MVMString **member_names;
+    MVMObject **member_types;
+} MVMCUnionSpec;
+
 #if 0
 typedef union {
     MVMPtrBody PTR;
