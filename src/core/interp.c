@@ -3409,6 +3409,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(assignnodecont): {
+                MVMObject *cont  = GET_REG(cur_op, 0).o;
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                const MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                cur_op += 4;
+                if (spec) {
+                    spec->store(tc, cont, obj);
+                } else {
+                    MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+                }
+                goto NEXT;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

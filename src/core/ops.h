@@ -499,5 +499,6 @@
 #define MVM_OP_csizeof 495
 #define MVM_OP_calignof 496
 #define MVM_OP_coffsetof 497
+#define MVM_OP_assignnodecont 498
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);

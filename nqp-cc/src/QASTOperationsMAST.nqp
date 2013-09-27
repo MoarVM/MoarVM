@@ -1870,6 +1870,7 @@ QAST::MASTOperations.add_core_moarop_mapping('ptrcast', 'ptrcast');
 QAST::MASTOperations.add_core_moarop_mapping('csizeof', 'csizeof');
 QAST::MASTOperations.add_core_moarop_mapping('calignof', 'calignof');
 QAST::MASTOperations.add_core_moarop_mapping('coffsetof', 'coffsetof');
+QAST::MASTOperations.add_core_moarop_mapping('assignnodecont', 'assignnodecont');
 
 # MoarVM-specific compilation ops
 QAST::MASTOperations.add_core_moarop_mapping('masttofile', 'masttofile', 2);
