@@ -114,6 +114,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
+void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type);

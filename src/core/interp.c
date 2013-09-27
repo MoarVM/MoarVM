@@ -730,6 +730,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = pow(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
                 cur_op += 6;
                 goto NEXT;
+            OP(capturelex):
+                MVM_frame_capturelex(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
             OP(takeclosure):
                 GET_REG(cur_op, 0).o = MVM_frame_takeclosure(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;

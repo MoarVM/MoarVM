@@ -309,6 +309,21 @@ MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc) {
     return return_or_unwind(tc, 1);
 }
 
+/* Given the specified code object, sets its outer to the current scope. */
+void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
+    MVMCode *code_obj;
+
+    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+        MVM_exception_throw_adhoc(tc,
+            "Can only perform takeclosure on object with representation MVMCode");
+
+    /* XXX Following is vulnerable to a race condition. */
+    code_obj = (MVMCode *)code;
+    if (code_obj->body.outer)
+        MVM_frame_dec_ref(tc, code_obj->body.outer);
+    code_obj->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
+}
+
 /* Given the specified code object, copies it and returns a copy which
  * captures a closure over the current scope. */
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
