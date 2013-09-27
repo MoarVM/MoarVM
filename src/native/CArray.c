@@ -46,7 +46,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     switch (kind) {
         case MVM_reg_obj:
             MVMROOT(tc, root, {
-                MVMPtr *ptr = (MVMPtr *)MVM_repr_alloc_init(tc, spec->elem_type);
+                MVMPtr *ptr = (MVMPtr *)MVM_repr_alloc_init(tc, type);
                 ptr->body.cobj = (char *)body->cobj + index * spec->elem_size;
                 MVM_ASSIGN_REF(tc, ptr, ptr->body.blob, body->blob);
                 value->o = (MVMObject *)ptr;
