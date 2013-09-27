@@ -39,7 +39,7 @@ static char * UnicodeToUTF8(const wchar_t *str)
      return result;
 }
 
-static char* ANSIToUTF8(MVMuint16 acp, const char* str)
+static char * ANSIToUTF8(MVMuint16 acp, const char * str)
 {
     wchar_t * const wstr = ANSIToUnicode(acp, str);
     char  * const result = UnicodeToUTF8(wstr);
@@ -193,6 +193,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     if (!clargs) {
         clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
         MVMROOT(tc, clargs, {
+            const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
 
             MVMString *prog_string = MVM_string_utf8_decode(tc,
@@ -201,11 +202,10 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
                 instance->boot_types.BOOTStr, prog_string));
 
-            for (count = 0; count < instance->num_clargs; count++) {
-                char *raw = instance->raw_clargs[count];
+            for (count = 0; count < num_clargs; count++) {
+                char *raw_clarg = instance->raw_clargs[count];
                 MVMString *string = MVM_string_utf8_decode(tc,
-                    instance->VMString,
-                    instance->raw_clargs[count], strlen(instance->raw_clargs[count]));
+                    instance->VMString, raw_clarg, strlen(raw_clarg));
                 MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
                     instance->boot_types.BOOTStr, string));
             }
