@@ -145,7 +145,16 @@ MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
             return spec->elem_count * spec->elem_size;
         }
 
-        case MVM_REPR_ID_CStruct:
+        case MVM_REPR_ID_CStruct: {
+            MVMCStructSpec *spec = STABLE(obj)->REPR_data;
+
+            if (!spec)
+                MVM_exception_throw_adhoc(tc,
+                        "cannot get size of uncomposed C struct");
+
+            return spec->size;
+        }
+
         case MVM_REPR_ID_CUnion:
         case MVM_REPR_ID_CFlexStruct:
             MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
@@ -196,7 +205,16 @@ MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
             return MVM_native_calignof(tc, STABLE(obj)->REPR_data);
         }
 
-        case MVM_REPR_ID_CStruct:
+        case MVM_REPR_ID_CStruct: {
+            MVMCStructSpec *spec = STABLE(obj)->REPR_data;
+
+            if (!spec)
+                MVM_exception_throw_adhoc(tc,
+                        "cannot get alignment of uncomposed C struct");
+
+            return spec->align;
+        }
+
         case MVM_REPR_ID_CUnion:
         case MVM_REPR_ID_CFlexStruct:
             MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);

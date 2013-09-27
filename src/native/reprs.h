@@ -39,6 +39,19 @@ typedef struct {
     MVMObject *elem_type;
 } MVMCArraySpec;
 
+typedef struct {
+    MVMObject *type;
+    MVMuint64 offset;
+} MVMCMemberSpec;
+
+typedef struct {
+    MVMuint64 size;
+    MVMuint64 align;
+    MVMuint64 member_count;
+    MVMString **member_names;
+    MVMCMemberSpec *members;
+} MVMCStructSpec;
+
 #if 0
 typedef union {
     MVMPtrBody PTR;
