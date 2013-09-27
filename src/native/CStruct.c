@@ -172,7 +172,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st,
 
         for (i = 0; i < spec->member_count; i++) {
             MVM_gc_worklist_add(tc, worklist, &spec->member_names[i]);
-            MVM_gc_worklist_add(tc, worklist, &spec->members[i]);
+            MVM_gc_worklist_add(tc, worklist, &spec->members[i].type);
         }
     }
 
