@@ -226,8 +226,20 @@ MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
 
 MVMuint64 MVM_native_coffsetof(MVMThreadContext *tc, MVMObject *obj,
         MVMString *member) {
+    MVMCStructSpec *spec = STABLE(obj)->REPR_data;
+    MVMint64 hint;
+
     if (REPR(obj)->ID != MVM_REPR_ID_CStruct)
         MVM_exception_throw_adhoc(tc, "not a C struct");
 
-    MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
+    if (!spec)
+        MVM_exception_throw_adhoc(tc,
+                "cannot get offsets from uncomposed C struct");
+
+    hint = REPR(obj)->attr_funcs.hint_for(tc, STABLE(obj), NULL, member);
+
+    if (hint < 0)
+        MVM_exception_throw_adhoc(tc, "unknown attribute");
+
+    return spec->members[hint].offset;
 }
