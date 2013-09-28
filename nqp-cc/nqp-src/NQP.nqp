@@ -1702,7 +1702,7 @@ class NQP::Actions is HLL::Actions {
                 :op('if'),
                 QAST::Var.new( :scope('lexical'), :name('@ARGS') ),
                 QAST::Op.new(
-                    :op('call'), QAST::BVal.new( :value($*MAIN_SUB) ),
+                    :op('call'), :name('&' ~ $*MAIN_SUB.name),
                     QAST::Var.new( :scope('lexical'), :name('@ARGS'), :flat(1) )
                 )
             ));
