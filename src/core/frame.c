@@ -159,9 +159,15 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name,
                 static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
     }
+    else if (static_frame_body->static_code && static_frame_body->static_code->body.outer) {
+        /* We're lacking an outer, but our static code object may have one.
+         * This comes up in the case of cloned protoregexes, for example. */
+        frame->outer = static_frame_body->static_code->body.outer;
+    }
     else if (static_frame_body->outer) {
-        /* We need an outer, but none was provided by a closure. See if
-         * we can find an appropriate frame on the current call stack. */
+        /* Look down call stack.
+         * XXX Should auto-close at this point, as that should be the
+         * only time we get here now. */
         MVMFrame *candidate = tc->cur_frame;
         frame->outer = NULL;
         while (candidate) {
