@@ -171,12 +171,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
             candidate = candidate->caller;
         }
-        if (!frame->outer) {
-            frame->outer = static_frame_body->outer->body.prior_invocation;
-            if (!frame->outer)
-                MVM_exception_throw_adhoc(tc,
-                    "Cannot locate an outer frame for the call");
-        }
+        if (!frame->outer)
+            MVM_exception_throw_adhoc(tc,
+                "Cannot locate an outer frame for the call");
     }
     else {
         frame->outer = NULL;
@@ -247,14 +244,6 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller;
     MVMFrame *prior;
-
-    /* Decrement the frame reference of the prior invocation, and then
-     * set us as it. */
-    do {
-        prior = returner->static_info->body.prior_invocation;
-    } while (!MVM_trycas(&returner->static_info->body.prior_invocation, prior, returner));
-    if (prior)
-        prior = MVM_frame_dec_ref(tc, prior);
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
