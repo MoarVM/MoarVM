@@ -200,7 +200,7 @@ class QAST::MASTCompiler {
         method return_kind(*@value) {
             if @value {
                 nqp::die("inconsistent immediate block return type")
-                    if $!qast.blocktype eq 'immediate' &&
+                    if ($!qast.blocktype eq 'immediate' || $!qast.blocktype eq 'immediate_static') &&
                         nqp::defined($!return_kind) && @value[0] != $!return_kind;
                 $!return_kind := @value[0];
             }
@@ -754,7 +754,7 @@ class QAST::MASTCompiler {
             nqp::splice($frame.instructions, @pre, 0, 0);
         }
 
-        if $node.blocktype eq 'immediate' {
+        if $node.blocktype eq 'immediate' || $node.blocktype eq 'immediate_static' {
             return self.as_mast(
                 QAST::Op.new( :op('call'),
                     :returns(@return_types[$block.return_kind]),
@@ -763,8 +763,8 @@ class QAST::MASTCompiler {
         elsif $node.blocktype eq 'raw' {
             return MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void);
         }
-        elsif $node.blocktype && $node.blocktype ne 'declaration' {
-            nqp::die("Unhandled blocktype $node.blocktype");
+        elsif $node.blocktype && $node.blocktype ne 'declaration' && $node.blocktype ne 'declaration_static' {
+            nqp::die("Unhandled blocktype " ~ $node.blocktype);
         }
         # note: we're now in the outer $*BLOCK/etc. contexts
         # blocktype declaration (default)

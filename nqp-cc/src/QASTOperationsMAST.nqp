@@ -484,7 +484,8 @@ for <if unless> -> $op_name {
         # value to be passed.
         my @comp_ops;
         sub needs_cond_passed($n) {
-            nqp::istype($n, QAST::Block) && $n.arity > 0 && $n.blocktype eq 'immediate'
+            nqp::istype($n, QAST::Block) && $n.arity > 0 && 
+                ($n.blocktype eq 'immediate' || $n.blocktype eq 'immediate_static')
         }
         my $cond_temp_lbl := needs_cond_passed($op[1]) || needs_cond_passed($op[2])
             ?? $qastcomp.unique('__im_cond_')
@@ -805,6 +806,9 @@ QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
     }
     if @operands[1].blocktype eq 'immediate' {
         @operands[1].blocktype('declaration');
+    }
+    elsif @operands[1].blocktype eq 'immediate_static' {
+        @operands[1].blocktype('declaration_static');
     }
 
     # Create result temporary if we'll need one.
