@@ -147,17 +147,17 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (outer) {
         /* We were provided with an outer frame; just ensure that it is
          * based on the correct static frame. */
-    //    if (outer->static_info == static_frame_body->outer)
+        if (outer->static_info == static_frame_body->outer)
             frame->outer = outer;
-    //    else
-    //        MVM_exception_throw_adhoc(tc,
-    //            "Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
-    //            outer->static_info,
-    //            MVM_string_utf8_encode_C_string(tc, MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name),
-    //            outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
-    //            static_frame_body->outer,
-    //            MVM_string_utf8_encode_C_string(tc, MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name),
-    //            static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
+        else
+            MVM_exception_throw_adhoc(tc,
+                "Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+                outer->static_info,
+                MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name,
+                outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
+                static_frame_body->outer,
+                MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name,
+                static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
     }
     else if (static_frame_body->outer) {
         /* We need an outer, but none was provided by a closure. See if
