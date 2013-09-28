@@ -2524,6 +2524,10 @@ class NQP::Actions is HLL::Actions {
                             QAST::Var.new( :name('&' ~ $name), :scope('lexical') )
                         ));
                         
+                        # Static code object needs re-capturing also, as it's
+                        # our-scoped.
+                        $past.blocktype('declaration_static');
+                        
                         # Also need to make sure it gets a code object so it's
                         # in the SC.
                         $*W.create_code($past, $name, 0);
@@ -2566,7 +2570,7 @@ class NQP::Actions is HLL::Actions {
         }
         else {
             $past := $<blockoid>.ast;
-            $past.blocktype('declaration');
+            $past.blocktype('declaration_static');
             if $*RETURN_USED {
                 $past[1] := wrap_return_handler($past[1]);
             }
@@ -2850,7 +2854,7 @@ class NQP::Actions is HLL::Actions {
                         :name('!protoregex'),
                         :op('callmethod')
                     ),
-                    :blocktype('declaration'),
+                    :blocktype('declaration_static'),
                     :node($/)
                 );
                 $*W.pkg_add_method($*PACKAGE, 'add_method', $name,
@@ -2872,7 +2876,9 @@ class NQP::Actions is HLL::Actions {
             $regex.name($name);
             
             if $*PKGDECL && nqp::can($*PACKAGE.HOW, 'add_method') {
-                # Add the actual method.
+                # Add the actual method, marking it as a static declaration
+                # since it's reachable through the method table.
+                $block.blocktype('declaration_static');
                 $*W.pkg_add_method($*PACKAGE, 'add_method', $name, $code);
             }
 
