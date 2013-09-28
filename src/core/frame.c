@@ -243,7 +243,6 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller;
-    MVMFrame *prior;
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
