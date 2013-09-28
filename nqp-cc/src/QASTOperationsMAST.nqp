@@ -1810,7 +1810,13 @@ QAST::MASTOperations.add_core_op('locallifetime', -> $qastcomp, $op {
 });
 
 # code object related opcodes
-QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
+# XXX explicit takeclosure will go away under new model; for now, no-op it.
+QAST::MASTOperations.add_core_op('takeclosure', -> $qastcomp, $op {
+    unless +@($op) == 1 {
+        nqp::die('takeclosure op requires one argument');
+    }
+    $qastcomp.as_mast($op[0])
+});
 QAST::MASTOperations.add_core_moarop_mapping('getcodeobj', 'getcodeobj');
 QAST::MASTOperations.add_core_moarop_mapping('setcodeobj', 'setcodeobj', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');
