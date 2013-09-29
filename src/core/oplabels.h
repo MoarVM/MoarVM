@@ -124,6 +124,7 @@ static const void * const LABELS[] = {
     &&OP_brshift_i,
     &&OP_pow_i,
     &&OP_pow_n,
+    &&OP_capturelex,
     &&OP_takeclosure,
     &&OP_jumplist,
     &&OP_caller,

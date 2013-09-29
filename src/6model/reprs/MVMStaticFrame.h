@@ -39,9 +39,6 @@ struct MVMStaticFrameBody {
     /* Count of lexicals. */
     MVMuint32 num_lexicals;
 
-    /* The frame of the prior invocation of this static frame. */
-    MVMFrame *prior_invocation;
-
     /* The number of exception handlers this frame has. */
     MVMuint32 num_handlers;
 

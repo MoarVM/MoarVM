@@ -730,6 +730,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = pow(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
                 cur_op += 6;
                 goto NEXT;
+            OP(capturelex):
+                MVM_frame_capturelex(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
             OP(takeclosure):
                 GET_REG(cur_op, 0).o = MVM_frame_takeclosure(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
@@ -3341,21 +3345,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(rethrow): {
-                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-                MVMException *ex = (MVMException *)ex_obj;
-                MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
-                ex->body.category = MVM_EX_CAT_CATCH;
-
-                if (REPR(got_ex_obj)->ID == MVM_REPR_ID_MVMException) {
-                    MVMException *got_ex = (MVMException *)got_ex_obj;
-
-                    MVM_ASSIGN_REF(tc, ex_obj, ex->body.message, got_ex->body.message);
-                    MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, NULL);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "rethrow requires an MVMException");
-                }
-                cur_op += 2;
+                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, GET_REG(cur_op, 0).o, NULL);
                 goto NEXT;
             }
             OP(resume): {
