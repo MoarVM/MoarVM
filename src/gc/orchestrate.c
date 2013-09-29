@@ -202,12 +202,6 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
      * except for STables, and if we're the final to do
      * so, free the STables, which have been linked. */
     if (MVM_decr(&tc->instance->gc_ack) == 2) {
-        /* Free any STables that have been marked for
-         * deletion. It's okay for us to muck around in
-         * another thread's fromspace while it's mutating
-         * tospace, really. */
-        MVM_gc_collect_free_stables(tc);
-
         /* Set it to zero (we're guaranteed the only ones
          * trying to write to it here). */
         MVM_store(&tc->instance->gc_ack, 0);
@@ -371,6 +365,11 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             MVM_panic(MVM_exitcode_gcorch, "start votes was %d\n", MVM_load(&tc->instance->gc_finish));
 
         run_gc(tc, MVMGCWhatToDo_All);
+        
+        /* Free any STables that have been marked for deletion. It's okay for
+         * us to muck around in another thread's fromspace while it's mutating
+         * tospace, really. */
+        MVM_gc_collect_free_stables(tc);
     }
     else {
         /* Another thread beat us to starting the GC sync process. Thus, act as
