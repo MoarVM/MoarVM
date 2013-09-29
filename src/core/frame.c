@@ -75,6 +75,37 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     return NULL;
 }
 
+/* Provides auto-close functionality, for the handful of cases where we have
+ * not ever been in the outer frame of something we're invoking. In this case,
+ * we fake up a frame based on the static lexical environment. */
+MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
+    MVMFrame *result;
+
+    /* First, see if we can find one on the call stack; return it if so. */
+    MVMFrame *candidate = tc->cur_frame;
+    while (candidate) {
+        if (candidate->static_info->body.bytecode == needed->body.bytecode)
+            return candidate;
+        candidate = candidate->caller;
+    }
+
+    /* If not, fake up a frame See if it also needs an outer. */
+    result = MVM_frame_create_context_only(tc, needed, (MVMObject *)needed->body.static_code);
+    if (needed->body.outer) {
+        /* See if the static code object has an outer. */
+        MVMCode *outer_code = needed->body.outer->body.static_code;
+        if (outer_code->body.outer) {
+            /* Yes, just take it. */
+            result->outer = MVM_frame_inc_ref(tc, outer_code->body.outer);
+        }
+        else {
+            /* Otherwise, recursively auto-close. */
+            result->outer = MVM_frame_inc_ref(tc, autoclose(tc, needed->body.outer));
+        }
+    }
+    return result;
+}
+
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
@@ -166,10 +197,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->outer = static_frame_body->static_code->body.outer;
     }
     else if (static_frame_body->outer) {
-        /* XXX Should auto-close at this point, as that should be the
-         * only time we get here now. */
-        MVM_exception_throw_adhoc(tc,
-            "Cannot locate an outer frame for the call");
+        frame->outer = autoclose(tc, static_frame_body->outer);
     }
     else {
         frame->outer = NULL;
