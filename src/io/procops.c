@@ -100,8 +100,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
     MVMint64 result;
-    uv_process_t process;
-    uv_process_options_t process_options;
+    uv_process_t process = {0};
+    uv_process_options_t process_options = {0};
     char   *args[4];
     int i;
     MVMIter *iter;
