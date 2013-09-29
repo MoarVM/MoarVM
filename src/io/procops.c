@@ -52,51 +52,48 @@ static char * ANSIToUTF8(MVMuint16 acp, const char * str)
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
-    MVMObject          *env_hash = instance->env_hash;
-    if (!env_hash) {
+    MVMObject   *       env_hash;
+
 #ifdef _WIN32
-        const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
+    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
 #endif
-        MVMuint32     pos = 0;
-        MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, STR_WITH_LEN("="));
-        char      *env;
-
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
-
-        env_hash = MVM_repr_alloc_init(tc,  MVM_hll_current(tc)->slurpy_hash_type);
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
-
-        while ((env = environ[pos++]) != NULL) {
+    MVMuint32     pos = 0;
+    MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, STR_WITH_LEN("="));
+    char      *env;
+    
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
+    
+    env_hash = MVM_repr_alloc_init(tc,  MVM_hll_current(tc)->slurpy_hash_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
+    
+    while ((env = environ[pos++]) != NULL) {
 #ifndef _WIN32
-            MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, env, strlen(env));
+        MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, env, strlen(env));
 #else
-            char * const _env = ANSIToUTF8(acp, env);
-            MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, _env, strlen(_env));
-
+        char * const _env = ANSIToUTF8(acp, env);
+        MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, _env, strlen(_env));
 #endif
 
-            MVMuint32 index = MVM_string_index(tc, str, needle, 0);
+        MVMuint32 index = MVM_string_index(tc, str, needle, 0);
 
-            MVMString *key, *val;
+        MVMString *key, *val;
 
 #ifdef _WIN32
-            free(_env);
+        free(_env);
 #endif
-            MVM_gc_root_temp_push(tc, (MVMCollectable **)&str);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&str);
 
-            key  = MVM_string_substring(tc, str, 0, index);
-            MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+        key  = MVM_string_substring(tc, str, 0, index);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
 
-            val  = MVM_string_substring(tc, str, index + 1, -1);
-            MVM_repr_bind_key_boxed(tc, env_hash, key, (MVMObject *)val);
-
-            MVM_gc_root_temp_pop_n(tc, 2);
-        }
+        val  = MVM_string_substring(tc, str, index + 1, -1);
+        MVM_repr_bind_key_boxed(tc, env_hash, key, (MVMObject *)val);
 
         MVM_gc_root_temp_pop_n(tc, 2);
-
-        instance->env_hash = env_hash;
     }
+
+    MVM_gc_root_temp_pop_n(tc, 2);
+
     return env_hash;
 }
 
