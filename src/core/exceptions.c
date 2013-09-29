@@ -322,7 +322,8 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
 
-    ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+    if (!ex->body.origin)
+        ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
 
     run_handler(tc, lh, ex_obj);
 }
