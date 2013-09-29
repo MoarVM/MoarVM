@@ -71,6 +71,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
     attrs = GetFileAttributesW(wpathname);
 
     if (attrs == INVALID_FILE_ATTRIBUTES) {
+        free(wpathname);
         errno = ENOENT;
         return -1;
     }
@@ -80,6 +81,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
 
     if (DeleteFileW(wpathname) == 0) {
         DWORD LastError = GetLastError();
+        free(wpathname);
 
         if (LastError == ERROR_FILE_NOT_FOUND) {
             errno = ENOENT;
@@ -91,6 +93,8 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
 
         return -1;
     }
+
+    free(wpathname);
 
     return 0;
 }

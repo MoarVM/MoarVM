@@ -164,8 +164,6 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     int str_len;
     wchar_t *wname;
     wchar_t *dir_name;
-    wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
-    wchar_t *lpp_part;
 
     if (REPR(type_object)->ID != MVM_REPR_ID_MVMOSHandle || IS_CONCRETE(type_object)) {
         MVM_exception_throw_adhoc(tc, "Open dir needs a type object with MVMOSHandle REPR");
@@ -177,7 +175,9 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
 
     str_len = wcslen(wname);
 
-    if (str_len > MAX_PATH - 2) { // the length of later appended '\* is 2
+    if (str_len > MAX_PATH - 2) { // the length of later appended '\*' is 2
+        wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
+        wchar_t *lpp_part;
 
         /* You cannot use the "\\?\" prefix with a relative path,
          * relative paths are always limited to a total of MAX_PATH characters.
