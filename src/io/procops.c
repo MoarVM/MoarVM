@@ -98,11 +98,15 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     return env_hash;
 }
 
+static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
+    *((MVMint64 *)req->data) = exit_status;
+    uv_close((uv_handle_t *)req, NULL);
+}
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
-    MVMint64 result;
+    MVMint64 result, spawn_result;
     uv_process_t process = {0};
     uv_process_options_t process_options = {0};
-    char   *args[4];
+    char   *args[3];
     int i;
     MVMIter *iter;
 
@@ -116,15 +120,14 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
     char    * const     _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
 
-    args[0] = _cmd;
-    args[1] = "/c";
+    args[0] = "/c";
 #else
-    args[0]   = "/bin/sh";
-    args[1]   = "-c";
+    _cmd    = "/bin/sh";
+    args[0] = "-c";
 #endif
 
-    args[2]   = cmdin;
-    args[3]   = NULL;
+    args[1]   = cmdin;
+    args[2]   = NULL;
 
     MVMROOT(tc, equal, {
     MVMROOT(tc, env, {
@@ -143,12 +146,20 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     });
     });
 
-    process_options.args  = args;
-    process_options.cwd   = _cwd;
-    process_options.flags = UV_PROCESS_DETACHED | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
-    process_options.env   = _env;
-    result = uv_spawn(tc->loop, &process, &process_options);
-
+    process.data            = &result;
+    process_options.file    = _cmd;
+    process_options.args    = args;
+    process_options.cwd     = _cwd;
+    process_options.flags   = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env     = _env;
+    process_options.exit_cb = spawn_on_exit;
+    
+    spawn_result = uv_spawn(tc->loop, &process, &process_options);
+    if (spawn_result)
+        result = spawn_result;
+    else
+        uv_run(tc->loop, UV_RUN_DEFAULT);
+    
 #ifdef _WIN32
     free(_cmd);
 #endif
