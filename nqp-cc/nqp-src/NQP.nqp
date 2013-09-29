@@ -2476,6 +2476,10 @@ class NQP::Actions is HLL::Actions {
                     $proto.add_dispatchee($code);
                     
                     # Ensure we emit the code block.
+                    # XXX We'll mark it static so the code object inside the
+                    # proto is captured correctly. Technically this is wrong,
+                    # as the multi may be nested in another sub.
+                    $past.blocktype('declaration_static');
                     my $BLOCK := $*W.cur_lexpad();
 					$BLOCK[0].push($past);
                 }
