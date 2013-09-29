@@ -1,6 +1,5 @@
 #include "moarvm.h"
 #include "gcc_diag.h"
-#include "bithacks.h"
 
 /* Default REPR function handlers. */
 GCC_DIAG_OFF(return-type)
@@ -214,42 +213,13 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_static_repr(CompUnit);
     register_static_repr(Blob);
     register_static_repr(Ptr);
-
-    /* Add all C representations. */
-    register_static_repr(CVoid);
-    register_static_repr(CChar);
-    register_static_repr(CUChar);
-    register_static_repr(CShort);
-    register_static_repr(CUShort);
-    register_static_repr(CInt);
-    register_static_repr(CUInt);
-    register_static_repr(CLong);
-    register_static_repr(CULong);
-    register_static_repr(CLLong);
-    register_static_repr(CULLong);
-    register_static_repr(CInt8);
-    register_static_repr(CUInt8);
-    register_static_repr(CInt16);
-    register_static_repr(CUInt16);
-    register_static_repr(CInt32);
-    register_static_repr(CUInt32);
-    register_static_repr(CInt64);
-    register_static_repr(CUInt64);
-    register_static_repr(CIntPtr);
-    register_static_repr(CUIntPtr);
-    register_static_repr(CIntMax);
-    register_static_repr(CUIntMax);
-    register_static_repr(CFloat);
-    register_static_repr(CDouble);
-    register_static_repr(CLDouble);
-    register_static_repr(CPtr);
-    register_static_repr(CFPtr);
+    register_static_repr(CScalar);
     register_static_repr(CArray);
     register_static_repr(CStruct);
     register_static_repr(CUnion);
     register_static_repr(CFlexStruct);
 
-    tc->instance->num_reprs = MVM_REPR_CORE_COUNT + MVM_REPR_NATIVE_COUNT;
+    tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }
 
 static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,

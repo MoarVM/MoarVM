@@ -5,4 +5,4 @@
 #define VMTYPE int
 #define CAN_BOX_INT
 
-#include "CScalar.h"
+#include "template.h"

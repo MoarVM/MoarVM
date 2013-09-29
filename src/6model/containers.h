@@ -62,3 +62,5 @@ void MVM_6model_containers_setup(MVMThreadContext *tc);
     else\
         ((dest).o = src); \
     } while(0)
+
+#include "native/containers.h"

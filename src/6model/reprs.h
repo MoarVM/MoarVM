@@ -26,6 +26,7 @@
 #include "6model/reprs/MVMCompUnit.h"
 #include "6model/reprs/VMBlob.h"
 #include "6model/reprs/VMPtr.h"
+#include "native/reprs.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -62,9 +63,14 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMCompUnit             24
 #define MVM_REPR_ID_VMBlob                  25
 #define MVM_REPR_ID_VMPtr                   26
+#define MVM_REPR_ID_CScalar                 27
+#define MVM_REPR_ID_CArray                  28
+#define MVM_REPR_ID_CStruct                 29
+#define MVM_REPR_ID_CUnion                  30
+#define MVM_REPR_ID_CFlexStruct             31
 
-#define MVM_REPR_CORE_COUNT                 27
-#define MVM_REPR_MAX_COUNT                  128
+#define MVM_REPR_CORE_COUNT                 32
+#define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
 #define MVM_REPR_DEFAULT_ATTR_FUNCS \

@@ -157,10 +157,45 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
     return entry != NULL ? entry->configurer : NULL;
 }
 
+#define register_static_container(name) \
+    MVM_6model_add_container_config(tc, \
+            MVM_string_ascii_decode_nt(tc, tc->instance->VMString, #name), \
+            &MVM_CONTAINER_CONF_ ## name)
+
 /* Does initial setup work of the container registry, including registering
  * the various built-in container types. */
 void MVM_6model_containers_setup(MVMThreadContext *tc) {
     /* Add built-in configurations. */
     MVM_6model_add_container_config(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"), &ContainerConfigurer);
+
+    /* Add containers for C types. */
+    register_static_container(CChar);
+    register_static_container(CDouble);
+    register_static_container(CFloat);
+    register_static_container(CFPtr);
+    register_static_container(CInt);
+    register_static_container(CInt16);
+    register_static_container(CInt32);
+    register_static_container(CInt64);
+    register_static_container(CInt8);
+    register_static_container(CIntMax);
+    register_static_container(CIntPtr);
+    register_static_container(CLDouble);
+    register_static_container(CLLong);
+    register_static_container(CLong);
+    register_static_container(CPtr);
+    register_static_container(CShort);
+    register_static_container(CUChar);
+    register_static_container(CUInt);
+    register_static_container(CUInt16);
+    register_static_container(CUInt32);
+    register_static_container(CUInt64);
+    register_static_container(CUInt8);
+    register_static_container(CUIntMax);
+    register_static_container(CUIntPtr);
+    register_static_container(CULLong);
+    register_static_container(CULong);
+    register_static_container(CUShort);
+    register_static_container(CVoid);
 }
