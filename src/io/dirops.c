@@ -100,7 +100,28 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
 
 #ifdef _WIN32
     /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
-    wchar_t * const wpathname = UTF8ToUnicode(pathname);
+    wchar_t *wpathname = UTF8ToUnicode(pathname);
+    int str_len = wcslen(wpathname);
+
+    if (str_len > MAX_PATH) {
+        wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
+        wchar_t *lpp_part;
+
+        /* You cannot use the "\\?\" prefix with a relative path,
+         * relative paths are always limited to a total of MAX_PATH characters.
+         * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
+        if (!GetFullPathNameW(wpathname, 4096, abs_dirname, &lpp_part)) {
+            MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
+        }
+
+        free(wpathname);
+
+        str_len  = wcslen(abs_dirname);
+        wpathname = (wchar_t *)malloc((str_len + 4) * sizeof(wchar_t));
+        wcscpy(wpathname, L"\\\\?\\");
+        wcscat(wpathname, abs_dirname);
+    }
+
     if (!mkdir_p(wpathname, mode)) {
         DWORD error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS) {
@@ -154,20 +175,27 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     wname = UTF8ToUnicode(name);
     free(name);
 
-    /* You cannot use the "\\?\" prefix with a relative path,
-     * relative paths are always limited to a total of MAX_PATH characters.
-     * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
-    if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
-        MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
+    str_len = wcslen(wname);
+
+    if (str_len > MAX_PATH - 2) { // the length of later appended '\* is 2
+
+        /* You cannot use the "\\?\" prefix with a relative path,
+         * relative paths are always limited to a total of MAX_PATH characters.
+         * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
+        if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
+            MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
+        }
+
+        free(wname);
+
+        str_len  = wcslen(abs_dirname);
+        dir_name = (wchar_t *)malloc((str_len + 7) * sizeof(wchar_t));
+        wcscpy(dir_name, L"\\\\?\\");
+        wcscat(dir_name, abs_dirname);
+    } else {
+        dir_name = (wchar_t *)malloc((str_len + 3) * sizeof(wchar_t));
     }
 
-    free(wname);
-
-    str_len  = wcslen(abs_dirname) ;
-    dir_name = (wchar_t *)malloc((str_len + 7) * sizeof(wchar_t));
-
-    wcscpy(dir_name, L"\\\\?\\");
-    wcscat(dir_name, abs_dirname);
     wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
                                    * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx */
 
