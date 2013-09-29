@@ -166,21 +166,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->outer = static_frame_body->static_code->body.outer;
     }
     else if (static_frame_body->outer) {
-        /* Look down call stack.
-         * XXX Should auto-close at this point, as that should be the
+        /* XXX Should auto-close at this point, as that should be the
          * only time we get here now. */
-        MVMFrame *candidate = tc->cur_frame;
-        frame->outer = NULL;
-        while (candidate) {
-            if (candidate->static_info->body.bytecode == static_frame_body->outer->body.bytecode) {
-                frame->outer = candidate;
-                break;
-            }
-            candidate = candidate->caller;
-        }
-        if (!frame->outer)
-            MVM_exception_throw_adhoc(tc,
-                "Cannot locate an outer frame for the call");
+        MVM_exception_throw_adhoc(tc,
+            "Cannot locate an outer frame for the call");
     }
     else {
         frame->outer = NULL;
