@@ -106,7 +106,6 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     MVMint64 result, spawn_result;
     uv_process_t process = {0};
     uv_process_options_t process_options = {0};
-    char   *args[3];
     int i;
 
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
@@ -118,15 +117,18 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 #ifdef _WIN32
     const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
     char    * const     _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
-
+    char   *args[3];
     args[0] = "/c";
+    args[1] = cmdin;
+    args[2] = NULL;
 #else
     char * const _cmd = "/bin/sh";
-    args[0] = "-c";
+    char   *args[4];
+    args[0] = "/bin/sh";
+    args[1] = "-c";
+    args[2] = cmdin;
+    args[3] = NULL;
 #endif
-
-    args[1]   = cmdin;
-    args[2]   = NULL;
 
     MVMROOT(tc, iter, {
         MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("="));
