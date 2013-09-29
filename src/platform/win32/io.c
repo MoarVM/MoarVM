@@ -46,7 +46,9 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
     /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
     wchar_t *wpathname = UTF8ToUnicode(pathname);
     int str_len = wcslen(wpathname);
+    int r;
     DWORD attrs;
+
 
     if (str_len > MAX_PATH) {
         wchar_t  abs_wpathname[4096]; /* 4096 should be enough for absolute path */
@@ -77,9 +79,17 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
     }
     else if (attrs & FILE_ATTRIBUTE_READONLY) {
         (void)SetFileAttributesW(wpathname, attrs & ~FILE_ATTRIBUTE_READONLY);
+
+        r = DeleteFileW(wpathname);
+        if (r == 0) {
+            (void)SetFileAttributesW(wpathname, attrs);
+        }
+
+    } else {
+        r = DeleteFileW(wpathname);
     }
 
-    if (DeleteFileW(wpathname) == 0) {
+    if (r == 0) {
         DWORD LastError = GetLastError();
         free(wpathname);
 
