@@ -1272,15 +1272,19 @@ QAST::MASTOperations.add_core_op('handle', sub ($qastcomp, $op) {
     push_op($il, 'set', $hblocal, $hbmast.result_reg);
     $*REGALLOC.release_register($hbmast.result_reg, $MVM_reg_obj);
 
-    # Wrap instructions to try up in a handler.
+    # Wrap instructions to try up in a handler and evaluate to the result
+    # of the protected code of the exception handler.
     my $protil := $qastcomp.as_mast($protected, :want($MVM_reg_obj));
+    my $uwlbl  := MAST::Label.new( :name($qastcomp.unique('handle_unwind_')) );
     my $endlbl := MAST::Label.new( :name($qastcomp.unique('handle_end_')) );
+    push_op($protil.instructions, 'goto', $endlbl);
     nqp::push($il, MAST::HandlerScope.new(
-        :instructions($protil.instructions), :goto($endlbl), :block($hblocal),
+        :instructions($protil.instructions), :goto($uwlbl), :block($hblocal),
         :category_mask($mask), :action($HandlerAction::invoke_and_we'll_see)));
+    nqp::push($il, $uwlbl);
+    push_op($il, 'takehandlerresult', $protil.result_reg);
     nqp::push($il, $endlbl);
 
-    # XXX Result not quite right here yet.
     MAST::InstructionList.new($il, $protil.result_reg, $MVM_reg_obj)
 });
 
