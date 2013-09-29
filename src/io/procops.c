@@ -108,13 +108,12 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     uv_process_options_t process_options = {0};
     char   *args[3];
     int i;
-    MVMIter *iter;
 
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
     char   * const      _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
+    MVMIter * const     iter = (MVMIter *)MVM_iter(tc, env);
     char              **_env = malloc((size + 1) * sizeof(char *));
-    MVMString  * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("="));
 
 #ifdef _WIN32
     const MVMuint16      acp = GetACP(); /* We should get ACP at runtime. */
@@ -129,10 +128,9 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     args[1]   = cmdin;
     args[2]   = NULL;
 
-    MVMROOT(tc, equal, {
-    MVMROOT(tc, env, {
-        iter = (MVMIter *)MVM_iter(tc, env);
-        MVMROOT(tc, iter, {
+    MVMROOT(tc, iter, {
+        MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("="));
+        MVMROOT(tc, equal, {
             MVMString *env_str;
             i = 0;
             while(MVM_iter_istrue(tc, iter)) {
@@ -143,7 +141,6 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
             }
             _env[size] = NULL;
         });
-    });
     });
 
     process.data            = &result;
