@@ -451,7 +451,8 @@ class QAST::MASTCompiler {
         # are 0 = static lex, 1 = container, 2 = state container.
         my %*BLOCK_LEX_VALUES;
 
-        # Compile the block.
+        # Compile the block; make sure $*BLOCK is clear.
+        my $*BLOCK;
         self.as_mast($cu[0]);
 
         # If we are in compilation mode, or have pre-deserialization or
