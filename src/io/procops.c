@@ -104,12 +104,12 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     uv_process_options_t process_options;
     char   *args[4];
     int i;
+    MVMIter *iter;
 
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
     char   * const      _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
     char              **_env = malloc((size + 1) * sizeof(char *));
-    MVMIter    * const  iter = (MVMIter *)MVM_iter(tc, env);
     MVMString  * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("="));
 
 #ifdef _WIN32
@@ -126,16 +126,21 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     args[2]   = cmdin;
     args[3]   = NULL;
 
-    MVMROOT(tc, iter, {
-        MVMString *env_str;
-        i = 0;
-        while(MVM_iter_istrue(tc, iter)) {
-            MVM_repr_shift_o(tc, (MVMObject *)iter);
-            env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, iter), equal);
-            env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, MVM_iterval(tc, iter)));
-            _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str);
-        }
-        _env[size] = NULL;
+    MVMROOT(tc, equal, {
+    MVMROOT(tc, env, {
+        iter = (MVMIter *)MVM_iter(tc, env);
+        MVMROOT(tc, iter, {
+            MVMString *env_str;
+            i = 0;
+            while(MVM_iter_istrue(tc, iter)) {
+                MVM_repr_shift_o(tc, (MVMObject *)iter);
+                env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, iter), equal);
+                env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, MVM_iterval(tc, iter)));
+                _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str);
+            }
+            _env[size] = NULL;
+        });
+    });
     });
 
     process_options.args  = args;
