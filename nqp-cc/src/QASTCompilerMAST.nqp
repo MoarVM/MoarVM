@@ -594,7 +594,7 @@ class QAST::MASTCompiler {
         # Create an empty frame and add it to the compilation unit.
         my $frame := MAST::Frame.new(
             :name($node.name || self.unique('frame_name_')),
-            :cuuid(self.unique('frame_cuuid_')));
+            :cuuid($node.cuid));
 
         $*MAST_COMPUNIT.add_frame($frame);
         my $outer;
