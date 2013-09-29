@@ -1101,6 +1101,13 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
+        MVM_OP_takehandlerresult,
+        "takehandlerresult",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_newlexotic,
         "newlexotic",
         "  ",
@@ -3468,7 +3475,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 494;
+static unsigned short MVM_op_counts = 495;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

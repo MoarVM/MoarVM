@@ -157,6 +157,7 @@ static const void * const LABELS[] = {
     &&OP_throwcatlex,
     &&OP_throwcatlexotic,
     &&OP_die,
+    &&OP_takehandlerresult,
     &&OP_newlexotic,
     &&OP_lexoticresult,
     &&OP_mod_n,

@@ -62,6 +62,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     while (cur_ah != NULL) {
         MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
     }
+    
+    /* Any exception handler result. */
+    MVM_gc_worklist_add(tc, worklist, &tc->last_handler_result);
 
     /* The usecapture object. */
     MVM_gc_worklist_add(tc, worklist, &tc->cur_usecapture);

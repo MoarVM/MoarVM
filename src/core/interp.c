@@ -981,6 +981,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, resume_result);
                 goto NEXT;
             }
+            OP(takehandlerresult): {
+                GET_REG(cur_op, 0).o = tc->last_handler_result;
+                tc->last_handler_result = NULL;
+                cur_op += 2;
+                goto NEXT;
+            }
             OP(newlexotic): {
                 GET_REG(cur_op, 0).o = MVM_exception_newlexotic(tc,
                     GET_UI32(cur_op, 2));
