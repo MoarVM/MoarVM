@@ -41,10 +41,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_ASSIGN_REF(tc, dest_root, dest_body->sf, src_body->sf);
     if (src_body->outer)
         dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
-    /* XXX should these next two really be copied? */
-    dest_body->is_static = dest_body->is_static;
-    dest_body->is_compiler_stub = dest_body->is_compiler_stub;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->code_object, src_body->code_object);
 }
 
 /* Adds held objects to the GC worklist. */
