@@ -87,7 +87,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
 
         val  = MVM_string_substring(tc, str, index + 1, -1);
-        MVM_repr_bind_key_boxed(tc, env_hash, key, (MVMObject *)val);
+        MVM_repr_bind_key_boxed(tc, env_hash, key,
+            MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, val));
 
         MVM_gc_root_temp_pop_n(tc, 2);
     }
@@ -131,7 +132,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
         while(MVM_iter_istrue(tc, iter)) {
             MVM_repr_shift_o(tc, (MVMObject *)iter);
             env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, iter), equal);
-            env_str = MVM_string_concatenate(tc, env_str, (MVMString *)MVM_iterval(tc, iter));
+            env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, MVM_iterval(tc, iter)));
             _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str);
         }
         _env[size] = NULL;
