@@ -122,7 +122,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
     args[0] = "/c";
 #else
-    _cmd    = "/bin/sh";
+    char * const _cmd = "/bin/sh";
     args[0] = "-c";
 #endif
 
