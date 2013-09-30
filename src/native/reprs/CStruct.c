@@ -76,18 +76,28 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st,
             return;
 
         case MVM_reg_int64: {
-            MVMPtrBody dummy = { (char *)body->cobj + offset, NULL };
+            MVMCScalarSpec *scalar_spec;
 
-            result->i64 = REPR(type)->box_funcs.get_int(tc, STABLE(type), root,
-                    &dummy);
+            if (STABLE(type)->REPR->ID != MVM_REPR_ID_CScalar)
+                MVM_exception_throw_adhoc(tc, "cannot get int from non-scalar");
+
+            scalar_spec = STABLE(type)->REPR_data;
+
+            result->i64 = scalar_spec->fetch_int(tc,
+                    (char *)body->cobj + offset);
             return;
         }
 
         case MVM_reg_num64: {
-            MVMPtrBody dummy = { (char *)body->cobj + offset,  NULL };
+            MVMCScalarSpec *scalar_spec;
 
-            result->n64 = REPR(type)->box_funcs.get_num(tc, STABLE(type), root,
-                    &dummy);
+            if (STABLE(type)->REPR->ID != MVM_REPR_ID_CScalar)
+                MVM_exception_throw_adhoc(tc, "cannot get num from non-scalar");
+
+            scalar_spec = STABLE(type)->REPR_data;
+
+            result->n64 = scalar_spec->fetch_num(tc,
+                    (char *)body->cobj + offset);
             return;
         }
 
@@ -119,18 +129,28 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st,
             MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
 
         case MVM_reg_int64: {
-            MVMPtrBody dummy = { (char *)body->cobj + offset, NULL };
+            MVMCScalarSpec *scalar_spec;
 
-            REPR(type)->box_funcs.set_int(tc, STABLE(type), root,
-                    &dummy, value.i64);
+            if (STABLE(type)->REPR->ID != MVM_REPR_ID_CScalar)
+                MVM_exception_throw_adhoc(tc, "cannot put int into non-scalar");
+
+            scalar_spec = STABLE(type)->REPR_data;
+
+            scalar_spec->store_int(tc,
+                    (char *)body->cobj + offset, value.i64);
             return;
         }
 
         case MVM_reg_num64: {
-            MVMPtrBody dummy = { (char *)body->cobj + offset, NULL };
+            MVMCScalarSpec *scalar_spec;
 
-            REPR(type)->box_funcs.set_num(tc, STABLE(type), root,
-                    &dummy, value.n64);
+            if (STABLE(type)->REPR->ID != MVM_REPR_ID_CScalar)
+                MVM_exception_throw_adhoc(tc, "cannot put int into non-scalar");
+
+            scalar_spec = STABLE(type)->REPR_data;
+
+            scalar_spec->store_num(tc,
+                    (char *)body->cobj + offset, value.n64);
             return;
         }
 
