@@ -1,11 +1,15 @@
 #include "moarvm.h"
 
+#define ALIGNOF(type) \
+    ((MVMuint16)offsetof(struct { char dummy; type member; }, member))
+
 typedef void func(void);
 
 static int isptr(MVMObject *obj) {
     switch (REPR(obj)->ID) {
         case MVM_REPR_ID_VMPtr:
         case MVM_REPR_ID_CScalar:
+        case MVM_REPR_ID_CPtr:
         case MVM_REPR_ID_CArray:
         case MVM_REPR_ID_CStruct:
         case MVM_REPR_ID_CUnion:
@@ -84,6 +88,9 @@ MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
             return spec->size;
         }
 
+        case MVM_REPR_ID_CPtr:
+            return sizeof(void *);
+
         case MVM_REPR_ID_CArray: {
             MVMCArraySpec *spec = STABLE(obj)->REPR_data;
 
@@ -133,6 +140,9 @@ MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
 
             return spec->align;
         }
+
+        case MVM_REPR_ID_CPtr:
+            return ALIGNOF(void *);
 
         case MVM_REPR_ID_CArray: {
             if (!STABLE(obj)->REPR_data)

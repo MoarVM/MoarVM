@@ -119,6 +119,7 @@ OBJECTS = src/core/args@obj@ \
           src/native/ops@obj@ \
           src/native/reprs/CArray@obj@ \
           src/native/reprs/CFlexStruct@obj@ \
+          src/native/reprs/CPtr@obj@ \
           src/native/reprs/CScalar@obj@ \
           src/native/reprs/CStruct@obj@ \
           src/native/reprs/CUnion@obj@ \
@@ -136,7 +137,6 @@ OBJECTS = src/core/args@obj@ \
           src/native/containers/CLDouble@obj@ \
           src/native/containers/CLLong@obj@ \
           src/native/containers/CLong@obj@ \
-          src/native/containers/CPtr@obj@ \
           src/native/containers/CShort@obj@ \
           src/native/containers/CUChar@obj@ \
           src/native/containers/CUInt@obj@ \

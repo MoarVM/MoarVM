@@ -184,7 +184,6 @@ void MVM_6model_containers_setup(MVMThreadContext *tc) {
     register_static_container(CLDouble);
     register_static_container(CLLong);
     register_static_container(CLong);
-    register_static_container(CPtr);
     register_static_container(CShort);
     register_static_container(CUChar);
     register_static_container(CUInt);

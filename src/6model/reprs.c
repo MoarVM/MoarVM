@@ -214,6 +214,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_static_repr(Blob);
     register_static_repr(Ptr);
     register_static_repr(CScalar);
+    register_static_repr(CPtr);
     register_static_repr(CArray);
     register_static_repr(CStruct);
     register_static_repr(CUnion);

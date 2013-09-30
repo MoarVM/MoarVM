@@ -54,6 +54,7 @@ typedef union {
 #endif
 
 const MVMREPROps * MVMCScalar_initialize(MVMThreadContext *tc);
+const MVMREPROps * MVMCPtr_initialize(MVMThreadContext *tc);
 const MVMREPROps * MVMCArray_initialize(MVMThreadContext *tc);
 const MVMREPROps * MVMCStruct_initialize(MVMThreadContext *tc);
 const MVMREPROps * MVMCUnion_initialize(MVMThreadContext *tc);
