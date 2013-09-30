@@ -1,8 +1,5 @@
 #include "moarvm.h"
 
-#define ALIGNOF(type) \
-    ((MVMuint16)offsetof(struct { char dummy; type member; }, member))
-
 typedef void func(void);
 
 static int isptr(MVMObject *obj) {
@@ -77,8 +74,15 @@ MVMObject * MVM_native_ptrcast(MVMThreadContext *tc, MVMObject *src,
 
 MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
     switch (REPR(obj)->ID) {
-        case MVM_REPR_ID_CScalar:
-            MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
+        case MVM_REPR_ID_CScalar: {
+            MVMuint64 *data = STABLE(obj)->container_data;
+
+            if (!data)
+                MVM_exception_throw_adhoc(tc,
+                        "cannot get size of incomplete CScalar");
+
+            return data[0];
+        }
 
         case MVM_REPR_ID_CArray: {
             MVMCArraySpec *spec = STABLE(obj)->REPR_data;
@@ -120,8 +124,15 @@ MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
 
 MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
     switch (REPR(obj)->ID) {
-        case MVM_REPR_ID_CScalar:
-            MVM_exception_throw_adhoc(tc, "TODO [%s:%u]", __FILE__, __LINE__);
+        case MVM_REPR_ID_CScalar: {
+            MVMuint64 *data = STABLE(obj)->container_data;
+
+            if (!data)
+                MVM_exception_throw_adhoc(tc,
+                        "cannot get alignment of incomplete CScalar");
+
+            return data[1];
+        }
 
         case MVM_REPR_ID_CArray: {
             if (!STABLE(obj)->REPR_data)

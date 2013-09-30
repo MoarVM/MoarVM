@@ -22,6 +22,9 @@
 #define VMTYPE_CT(RN, CT, VT) MVM ## VT ## 64
 #define CONFIGURER(RN, CT, VT) MVM_CONTAINER_CONF_ ## RN
 
+#define ALIGNOF(type) \
+    ((MVMuint16)offsetof(struct { char dummy; type member; }, member))
+
 static const MVMContainerSpecEx spec;
 
 static void set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -36,7 +39,8 @@ static void set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 static void configure_container_spec(MVMThreadContext *tc, MVMSTable *st,
         MVMObject *config) {
-    /* noop */
+    static const MVMuint64 DATA[] = { sizeof(CTYPE), ALIGNOF(CTYPE) };
+    st->container_data = DATA;
 }
 
 const MVMContainerConfigurer EVAL(CONFIGURER) = {
