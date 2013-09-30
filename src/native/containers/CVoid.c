@@ -1,13 +1,13 @@
 #include "moarvm.h"
 
-static const MVMContainerSpecEx spec;
+static const MVMContainerSpec container_spec;
 
 static void set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
     if (st->REPR->ID != MVM_REPR_ID_CScalar)
         MVM_exception_throw_adhoc(tc,
                 "can only make C scalar objects into CVoid containers");
 
-    st->container_spec = &spec.basic;
+    st->container_spec = &container_spec;
     st->container_data = NULL;
 }
 

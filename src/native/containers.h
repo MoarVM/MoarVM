@@ -1,13 +1,3 @@
-typedef struct {
-    MVMContainerSpec basic;
-    MVMint64 (*fetch_int)(MVMThreadContext *tc, MVMObject *cont);
-    void (*store_int)(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
-    MVMnum64 (*fetch_num)(MVMThreadContext *tc, MVMObject *cont);
-    void (*store_num)(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
-    MVMString * (*fetch_str)(MVMThreadContext *tc, MVMObject *cont);
-    void (*store_str)(MVMThreadContext *tc, MVMObject *cont, MVMString *value);
-} MVMContainerSpecEx;
-
 extern const MVMContainerConfigurer
     MVM_CONTAINER_CONF_CChar,
     MVM_CONTAINER_CONF_CDouble,

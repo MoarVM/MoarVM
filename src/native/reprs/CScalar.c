@@ -58,7 +58,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data,
 }
 
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-    /* noop */
+    MVMString *name = MVM_repr_get_str(tc, info);
+    const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, name);
+
+    /* TODO: verify that we got the name of a C scalar */
+
+    cc->set_container_spec(tc, st);
+    cc->configure_container_spec(tc, st, NULL);
 }
 
 static const MVMREPROps this_repr = {

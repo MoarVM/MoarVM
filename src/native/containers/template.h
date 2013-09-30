@@ -25,7 +25,8 @@
 #define ALIGNOF(type) \
     ((MVMuint16)offsetof(struct { char dummy; type member; }, member))
 
-static const MVMContainerSpecEx spec;
+static const MVMContainerSpec container_spec;
+static const MVMCScalarSpec scalar_spec;
 
 static void set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
     if (st->REPR->ID != MVM_REPR_ID_CScalar)
@@ -33,14 +34,13 @@ static void set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
                 "can only make C scalar objects into %s containers",
                 EVAL(NAME_STR));
 
-    st->container_spec = &spec.basic;
+    st->container_spec = &container_spec;
     st->container_data = NULL;
 }
 
 static void configure_container_spec(MVMThreadContext *tc, MVMSTable *st,
         MVMObject *config) {
-    static const MVMuint64 DATA[] = { sizeof(CTYPE), ALIGNOF(CTYPE) };
-    st->container_data = DATA;
+    st->REPR_data = (void *)&scalar_spec;
 }
 
 const MVMContainerConfigurer EVAL(CONFIGURER) = {
@@ -86,61 +86,56 @@ static void store_unchecked(MVMThreadContext *tc, MVMObject *cont,
     *(CTYPE *)ptr = (CTYPE)EVAL(REPR_GET)(tc, obj);
 }
 
-static MVMint64 fetch_int(MVMThreadContext *tc, MVMObject *cont) {
+static MVMint64 fetch_int(MVMThreadContext *tc, const void *storage) {
 #ifdef CAN_BOX_INT
-    return (MVMint64)*(CTYPE *)((MVMPtr *)cont)->body.cobj;
+    return (MVMint64)*(CTYPE *)storage;
 #else
     MVM_exception_throw_adhoc(tc, "cannot fetch int from " EVAL(NAME_STR));
 #endif
 }
 
-static void store_int(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+static void store_int(MVMThreadContext *tc, void *storage, MVMint64 value) {
 #ifdef CAN_BOX_INT
-    *(CTYPE *)((MVMPtr *)cont)->body.cobj = (CTYPE)value;
+    *(CTYPE *)storage = (CTYPE)value;
 #else
     MVM_exception_throw_adhoc(tc, "cannot store int into " EVAL(NAME_STR));
 #endif
+
 }
 
-static MVMnum64 fetch_num(MVMThreadContext *tc, MVMObject *cont) {
+static MVMnum64 fetch_num(MVMThreadContext *tc, const void *storage) {
 #ifdef CAN_BOX_NUM
-    return (MVMnum64)*(CTYPE *)((MVMPtr *)cont)->body.cobj;
+    return (MVMnum64)*(CTYPE *)storage;
 #else
     MVM_exception_throw_adhoc(tc, "cannot fetch num from " EVAL(NAME_STR));
 #endif
+
 }
 
-static void store_num(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
+static void store_num(MVMThreadContext *tc, void *storage, MVMnum64 value) {
 #ifdef CAN_BOX_NUM
-    *(CTYPE *)((MVMPtr *)cont)->body.cobj = (CTYPE)value;
+    *(CTYPE *)storage = (CTYPE)value;
 #else
     MVM_exception_throw_adhoc(tc, "cannot store num into " EVAL(NAME_STR));
 #endif
 }
 
-static MVMString * fetch_str(MVMThreadContext *tc, MVMObject *cont) {
-    MVM_exception_throw_adhoc(tc, "cannot fetch str from " EVAL(NAME_STR));
-}
+static const MVMContainerSpec container_spec = {
+    EVAL(NAME_STR),
+    fetch,
+    store,
+    store_unchecked,
+    gc_mark_data,
+    NULL, /* gc_free_data */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+};
 
-static void store_str(MVMThreadContext *tc, MVMObject *cont, MVMString *value) {
-    MVM_exception_throw_adhoc(tc, "cannot store str into " EVAL(NAME_STR));
-}
-
-static const MVMContainerSpecEx spec = {
-    { /* basic */
-        NULL, /* name */
-        fetch,
-        store,
-        store_unchecked,
-        gc_mark_data,
-        NULL, /* gc_free_data */
-        NULL, /* serialize */
-        NULL, /* deserialize */
-    },
+static const MVMCScalarSpec scalar_spec = {
+    sizeof(CTYPE),
+    ALIGNOF(CTYPE),
     fetch_int,
     store_int,
     fetch_num,
     store_num,
-    fetch_str,
-    store_str,
 };

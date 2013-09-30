@@ -75,13 +75,13 @@ MVMObject * MVM_native_ptrcast(MVMThreadContext *tc, MVMObject *src,
 MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
     switch (REPR(obj)->ID) {
         case MVM_REPR_ID_CScalar: {
-            MVMuint64 *data = STABLE(obj)->container_data;
+            MVMCScalarSpec *spec = STABLE(obj)->REPR_data;
 
-            if (!data)
+            if (!spec)
                 MVM_exception_throw_adhoc(tc,
-                        "cannot get size of incomplete CScalar");
+                        "cannot get size of uncomposed C scalar");
 
-            return data[0];
+            return spec->size;
         }
 
         case MVM_REPR_ID_CArray: {
@@ -125,13 +125,13 @@ MVMuint64 MVM_native_csizeof(MVMThreadContext *tc, MVMObject *obj) {
 MVMuint64 MVM_native_calignof(MVMThreadContext *tc, MVMObject *obj) {
     switch (REPR(obj)->ID) {
         case MVM_REPR_ID_CScalar: {
-            MVMuint64 *data = STABLE(obj)->container_data;
+            MVMCScalarSpec *spec = STABLE(obj)->REPR_data;
 
-            if (!data)
+            if (!spec)
                 MVM_exception_throw_adhoc(tc,
-                        "cannot get alignment of incomplete CScalar");
+                        "cannot get alignment of uncomposed C scalar");
 
-            return data[1];
+            return spec->align;
         }
 
         case MVM_REPR_ID_CArray: {

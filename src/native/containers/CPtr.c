@@ -1,6 +1,6 @@
 #include "moarvm.h"
 
-static const MVMContainerSpecEx spec;
+static const MVMContainerSpec container_spec;
 
 static int isctype(MVMObject *obj) {
     switch (REPR(obj)->ID) {
@@ -21,7 +21,7 @@ static void set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
         MVM_exception_throw_adhoc(tc,
                 "can only make C scalar objects into CPtr containers");
 
-    st->container_spec = &spec.basic;
+    st->container_spec = &container_spec;
     st->container_data = NULL;
 }
 
@@ -38,6 +38,7 @@ const MVMContainerConfigurer MVM_CONTAINER_CONF_CPtr = {
     configure_container_spec
 };
 
+#if 0
 
 static void * unbox(MVMObject *obj) {
     return ((MVMPtr *)obj)->body.cobj;
@@ -106,3 +107,5 @@ static const MVMContainerSpecEx spec = {
     NULL,
     NULL,
 };
+
+#endif

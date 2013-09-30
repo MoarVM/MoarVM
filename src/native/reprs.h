@@ -1,4 +1,13 @@
 typedef struct {
+    MVMuint64 size;
+    MVMuint64 align;
+    MVMint64 (*fetch_int)(MVMThreadContext *tc, const void *storage);
+    void (*store_int)(MVMThreadContext *tc, void *storage, MVMint64 value);
+    MVMnum64 (*fetch_num)(MVMThreadContext *tc, const void *storage);
+    void (*store_num)(MVMThreadContext *tc, void *storage, MVMnum64 value);
+} MVMCScalarSpec;
+
+typedef struct {
     MVMuint64  elem_count;
     MVMuint64  elem_size;
     MVMObject *elem_type;
