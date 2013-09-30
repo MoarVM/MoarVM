@@ -42,7 +42,6 @@ static MVMuint8 in_handler_stack(MVMThreadContext *tc, MVMFrameHandler *fh) {
             ah = ah->next_handler;
         }
     }
-
     return 0;
 }
 
@@ -159,8 +158,8 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
             /* Set up special return to unwinding after running the
              * handler. */
-            tc->cur_frame->return_value        = NULL;
-            tc->cur_frame->return_type         = MVM_RETURN_VOID;
+            tc->cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
+            tc->cur_frame->return_type         = MVM_RETURN_OBJ;
             tc->cur_frame->special_return      = unwind_after_handler;
             tc->cur_frame->special_return_data = ah;
 
@@ -322,7 +321,8 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
 
-    ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+    if (!ex->body.origin)
+        ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
 
     run_handler(tc, lh, ex_obj);
 }

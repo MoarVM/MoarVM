@@ -531,8 +531,10 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     code_type = tc->instance->boot_types.BOOTCode;
     for (i = 0; i < cu_body->num_frames; i++) {
-        MVM_ASSIGN_REF(tc, cu, cu_body->coderefs[i], REPR(code_type)->allocate(tc, STABLE(code_type)));
-        MVM_ASSIGN_REF(tc, cu_body->coderefs[i], ((MVMCode *)cu_body->coderefs[i])->body.sf, cu_body->frames[i]);
+        MVMCode *coderef = (MVMCode *)REPR(code_type)->allocate(tc, STABLE(code_type));
+        MVM_ASSIGN_REF(tc, cu, cu_body->coderefs[i], coderef);
+        MVM_ASSIGN_REF(tc, coderef, coderef->body.sf, cu_body->frames[i]);
+        MVM_ASSIGN_REF(tc, cu_body->frames[i], cu_body->frames[i]->body.static_code, coderef);
     }
 }
 

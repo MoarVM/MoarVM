@@ -90,8 +90,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->env_size = src_body->env_size;
     dest_body->work_size = src_body->work_size;
 
-    if (src_body->prior_invocation)
-        dest_body->prior_invocation = MVM_frame_inc_ref(tc, src_body->prior_invocation);
     if (src_body->outer)
         MVM_ASSIGN_REF(tc, dest_root, dest_body->outer, src_body->outer);
 
@@ -121,9 +119,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &current->key);
     }
 
-    /* prior invocation */
-    MVM_gc_worklist_add_frame(tc, worklist, body->prior_invocation);
-
     /* static env */
     if (body->static_env) {
         MVMuint16 *type_map = body->lexical_types;
@@ -145,9 +140,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
-    if (body->prior_invocation) {
-        body->prior_invocation = MVM_frame_dec_ref(tc, body->prior_invocation);
-    }
 }
 
 /* Gets the storage specification for this representation. */

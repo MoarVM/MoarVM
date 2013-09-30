@@ -1702,7 +1702,7 @@ class NQP::Actions is HLL::Actions {
                 :op('if'),
                 QAST::Var.new( :scope('lexical'), :name('@ARGS') ),
                 QAST::Op.new(
-                    :op('call'), QAST::BVal.new( :value($*MAIN_SUB) ),
+                    :op('call'), :name('&' ~ $*MAIN_SUB.name),
                     QAST::Var.new( :scope('lexical'), :name('@ARGS'), :flat(1) )
                 )
             ));
@@ -2227,7 +2227,7 @@ class NQP::Actions is HLL::Actions {
         # a fixed lexical, but for generic types it becomes a parameter. Also
         # for parametric types, pass along the role body block.
         if nqp::can($how, 'parametric') && $how.parametric($how) {
-            $past.blocktype('declaration');
+            $past.blocktype('declaration_static');
             my $params := QAST::Stmts.new(
                 QAST::Var.new( :name('$?CLASS'), :scope('lexical'), :decl('param') )
             );
@@ -2424,11 +2424,11 @@ class NQP::Actions is HLL::Actions {
         }
         else {
             $past := $<blockoid>.ast;
-            $past.blocktype('declaration');
             if $*RETURN_USED {
                 $past[1] := wrap_return_handler($past[1]);
             }
         }
+        $past.blocktype('declaration');
         my $block := $past;
 
         if $<deflongname> {
@@ -2476,6 +2476,10 @@ class NQP::Actions is HLL::Actions {
                     $proto.add_dispatchee($code);
                     
                     # Ensure we emit the code block.
+                    # XXX We'll mark it static so the code object inside the
+                    # proto is captured correctly. Technically this is wrong,
+                    # as the multi may be nested in another sub.
+                    $past.blocktype('declaration_static');
                     my $BLOCK := $*W.cur_lexpad();
 					$BLOCK[0].push($past);
                 }
@@ -2524,6 +2528,10 @@ class NQP::Actions is HLL::Actions {
                             QAST::Var.new( :name('&' ~ $name), :scope('lexical') )
                         ));
                         
+                        # Static code object needs re-capturing also, as it's
+                        # our-scoped.
+                        $past.blocktype('declaration_static');
+                        
                         # Also need to make sure it gets a code object so it's
                         # in the SC.
                         $*W.create_code($past, $name, 0);
@@ -2566,11 +2574,11 @@ class NQP::Actions is HLL::Actions {
         }
         else {
             $past := $<blockoid>.ast;
-            $past.blocktype('declaration');
             if $*RETURN_USED {
                 $past[1] := wrap_return_handler($past[1]);
             }
         }
+        $past.blocktype('declaration_static');
 
         # Always need an invocant.
         unless $past<signature_has_invocant> {
@@ -2850,7 +2858,7 @@ class NQP::Actions is HLL::Actions {
                         :name('!protoregex'),
                         :op('callmethod')
                     ),
-                    :blocktype('declaration'),
+                    :blocktype('declaration_static'),
                     :node($/)
                 );
                 $*W.pkg_add_method($*PACKAGE, 'add_method', $name,
@@ -2872,7 +2880,9 @@ class NQP::Actions is HLL::Actions {
             $regex.name($name);
             
             if $*PKGDECL && nqp::can($*PACKAGE.HOW, 'add_method') {
-                # Add the actual method.
+                # Add the actual method, marking it as a static declaration
+                # since it's reachable through the method table.
+                $block.blocktype('declaration_static');
                 $*W.pkg_add_method($*PACKAGE, 'add_method', $name, $code);
             }
 

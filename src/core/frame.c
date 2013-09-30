@@ -75,6 +75,37 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     return NULL;
 }
 
+/* Provides auto-close functionality, for the handful of cases where we have
+ * not ever been in the outer frame of something we're invoking. In this case,
+ * we fake up a frame based on the static lexical environment. */
+MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
+    MVMFrame *result;
+
+    /* First, see if we can find one on the call stack; return it if so. */
+    MVMFrame *candidate = tc->cur_frame;
+    while (candidate) {
+        if (candidate->static_info->body.bytecode == needed->body.bytecode)
+            return candidate;
+        candidate = candidate->caller;
+    }
+
+    /* If not, fake up a frame See if it also needs an outer. */
+    result = MVM_frame_create_context_only(tc, needed, (MVMObject *)needed->body.static_code);
+    if (needed->body.outer) {
+        /* See if the static code object has an outer. */
+        MVMCode *outer_code = needed->body.outer->body.static_code;
+        if (outer_code->body.outer) {
+            /* Yes, just take it. */
+            result->outer = MVM_frame_inc_ref(tc, outer_code->body.outer);
+        }
+        else {
+            /* Otherwise, recursively auto-close. */
+            result->outer = MVM_frame_inc_ref(tc, autoclose(tc, needed->body.outer));
+        }
+    }
+    return result;
+}
+
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
@@ -146,37 +177,27 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Outer. */
     if (outer) {
         /* We were provided with an outer frame; just ensure that it is
-         * based on the correct static frame. */
-    //    if (outer->static_info == static_frame_body->outer)
+         * based on the correct static frame (compare on bytecode address
+         * to come with nqp::freshcoderef). */
+        if (outer->static_info->body.bytecode == static_frame_body->outer->body.bytecode)
             frame->outer = outer;
-    //    else
-    //        MVM_exception_throw_adhoc(tc,
-    //            "Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
-    //            outer->static_info,
-    //            MVM_string_utf8_encode_C_string(tc, MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name),
-    //            outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
-    //            static_frame_body->outer,
-    //            MVM_string_utf8_encode_C_string(tc, MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name),
-    //            static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
+        else
+            MVM_exception_throw_adhoc(tc,
+                "Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+                outer->static_info,
+                MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name,
+                outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
+                static_frame_body->outer,
+                MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name,
+                static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
+    }
+    else if (static_frame_body->static_code && static_frame_body->static_code->body.outer) {
+        /* We're lacking an outer, but our static code object may have one.
+         * This comes up in the case of cloned protoregexes, for example. */
+        frame->outer = static_frame_body->static_code->body.outer;
     }
     else if (static_frame_body->outer) {
-        /* We need an outer, but none was provided by a closure. See if
-         * we can find an appropriate frame on the current call stack. */
-        MVMFrame *candidate = tc->cur_frame;
-        frame->outer = NULL;
-        while (candidate) {
-            if (candidate->static_info->body.bytecode == static_frame_body->outer->body.bytecode) {
-                frame->outer = candidate;
-                break;
-            }
-            candidate = candidate->caller;
-        }
-        if (!frame->outer) {
-            frame->outer = static_frame_body->outer->body.prior_invocation;
-            if (!frame->outer)
-                MVM_exception_throw_adhoc(tc,
-                    "Cannot locate an outer frame for the call");
-        }
+        frame->outer = autoclose(tc, static_frame_body->outer);
     }
     else {
         frame->outer = NULL;
@@ -246,15 +267,6 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller = returner->caller;
-    MVMFrame *prior;
-
-    /* Decrement the frame reference of the prior invocation, and then
-     * set us as it. */
-    do {
-        prior = returner->static_info->body.prior_invocation;
-    } while (!MVM_trycas(&returner->static_info->body.prior_invocation, prior, returner));
-    if (prior)
-        prior = MVM_frame_dec_ref(tc, prior);
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
@@ -307,6 +319,21 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
  * will be in a better place to give an error). */
 MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc) {
     return return_or_unwind(tc, 1);
+}
+
+/* Given the specified code object, sets its outer to the current scope. */
+void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
+    MVMCode *code_obj;
+
+    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+        MVM_exception_throw_adhoc(tc,
+            "Can only perform takeclosure on object with representation MVMCode");
+
+    /* XXX Following is vulnerable to a race condition. */
+    code_obj = (MVMCode *)code;
+    if (code_obj->body.outer)
+        MVM_frame_dec_ref(tc, code_obj->body.outer);
+    code_obj->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
 }
 
 /* Given the specified code object, copies it and returns a copy which

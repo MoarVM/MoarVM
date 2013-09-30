@@ -110,7 +110,9 @@ class QAST::MASTCompiler {
         has int $!param_idx;        # Current lexical parameter index
         has $!compiler;             # The QAST::MASTCompiler
         has @!params;               # List of QAST::Var param nodes
-        has $!return_kind;          # kind of return, tracked while emitting
+        has $!return_kind;          # Kind of return, tracked while emitting
+        has @!captured_inners;      # List of CUIDs of blocks we statically capture
+        has %!cloned_inners;        # Mapping of CUIDs of blocks we clone to register with the clone
 
         method new($qast, $outer, $compiler) {
             my $obj := nqp::create(self);
@@ -128,7 +130,9 @@ class QAST::MASTCompiler {
             %!lexicals := nqp::hash();
             %!lexical_kinds := nqp::hash();
             %!lexical_params := nqp::hash();
-            @!params := nqp::list()
+            @!params := nqp::list();
+            @!captured_inners := nqp::list();
+            %!cloned_inners := nqp::hash();
         }
 
         method add_param($var) {
@@ -200,7 +204,7 @@ class QAST::MASTCompiler {
         method return_kind(*@value) {
             if @value {
                 nqp::die("inconsistent immediate block return type")
-                    if $!qast.blocktype eq 'immediate' &&
+                    if ($!qast.blocktype eq 'immediate' || $!qast.blocktype eq 'immediate_static') &&
                         nqp::defined($!return_kind) && @value[0] != $!return_kind;
                 $!return_kind := @value[0];
             }
@@ -239,6 +243,19 @@ class QAST::MASTCompiler {
             }
             nqp::die("could not resolve lexical $name");
         }
+        
+        method capture_inner($block) {
+            nqp::push(@!captured_inners, $block.cuid)
+        }
+        method clone_inner($block) {
+            my $reg  := $*REGALLOC.fresh_register($MVM_reg_obj, 1);
+            my $cuid := $block.cuid;
+            %!cloned_inners{$cuid} := $reg;
+            %!local_names_by_index{$reg.index} := $cuid;
+            $reg
+        }
+        method captured_inners() { @!captured_inners }
+        method cloned_inners() { %!cloned_inners }
     }
 
     our $serno := 0;
@@ -434,7 +451,8 @@ class QAST::MASTCompiler {
         # are 0 = static lex, 1 = container, 2 = state container.
         my %*BLOCK_LEX_VALUES;
 
-        # Compile the block.
+        # Compile the block; make sure $*BLOCK is clear.
+        my $*BLOCK;
         self.as_mast($cu[0]);
 
         # If we are in compilation mode, or have pre-deserialization or
@@ -576,7 +594,7 @@ class QAST::MASTCompiler {
         # Create an empty frame and add it to the compilation unit.
         my $frame := MAST::Frame.new(
             :name($node.name || self.unique('frame_name_')),
-            :cuuid(self.unique('frame_cuuid_')));
+            :cuuid($node.cuid));
 
         $*MAST_COMPUNIT.add_frame($frame);
         my $outer;
@@ -628,12 +646,24 @@ class QAST::MASTCompiler {
             # fixup the end of this frame's instruction list with the return
             push_op($frame.instructions, $ret_op, |@ret_args);
 
-            # build up the frame prologue
+            # Build up the frame prologue. Start with lexical captures and clones.
             my @pre := nqp::list();
-            my $param_index := 0;
+            my $capture_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+            for $block.captured_inners() {
+                push_op(@pre, 'getcode', $capture_reg, %*MAST_FRAMES{$_});
+                push_op(@pre, 'capturelex', $capture_reg);
+            }
+            $*REGALLOC.release_register($capture_reg, $MVM_reg_obj);
+            for $block.cloned_inners() {
+                my $frame := %*MAST_FRAMES{$_.key};
+                my $reg   := $_.value;
+                push_op(@pre, 'getcode', $reg, $frame);
+                push_op(@pre, 'takeclosure', $reg, $reg);
+            }
 
             # Analyze parameters to get count of required/optional and make sure
             # all is in order.
+            my $param_index := 0;
             my int $pos_required := 0;
             my int $pos_optional := 0;
             my int $pos_slurpy   := 0;
@@ -754,25 +784,48 @@ class QAST::MASTCompiler {
             nqp::splice($frame.instructions, @pre, 0, 0);
         }
 
-        if $node.blocktype eq 'immediate' {
-            return self.as_mast(
-                QAST::Op.new( :op('call'),
-                    :returns(@return_types[$block.return_kind]),
-                    QAST::BVal.new( :value($node) ) ), :want($block.return_kind) );
-        }
-        elsif $node.blocktype eq 'raw' {
+        if $node.blocktype eq 'raw' || !nqp::istype($outer, BlockInfo) {
             return MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void);
         }
-        elsif $node.blocktype && $node.blocktype ne 'declaration' {
-            nqp::die("Unhandled blocktype $node.blocktype");
+        elsif $node.blocktype eq 'immediate' {
+            my $clone_reg := $*BLOCK.clone_inner($node);
+            my $res_reg   := $*REGALLOC.fresh_register($block.return_kind);
+            my @ins;
+            nqp::push(@ins, MAST::Call.new(
+                :target($clone_reg), :flags([]), :result($res_reg)
+            ));
+            MAST::InstructionList.new(@ins, $res_reg, $block.return_kind)
         }
-        # note: we're now in the outer $*BLOCK/etc. contexts
-        # blocktype declaration (default)
-        if $outer && $outer ~~ BlockInfo {
-            self.as_mast(QAST::BVal.new(:value($node)))
+        elsif $node.blocktype eq 'immediate_static' {
+            $*BLOCK.capture_inner($node);
+            my $code_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+            my $res_reg  := $*REGALLOC.fresh_register($block.return_kind);
+            my @ins;
+            push_op(@ins, 'getcode', $code_reg, %*MAST_FRAMES{$node.cuid});
+            nqp::push(@ins, MAST::Call.new(
+                :target($code_reg), :flags([]), :result($res_reg)
+            ));
+            MAST::InstructionList.new(@ins, $res_reg, $block.return_kind)
+        }
+        elsif $node.blocktype eq '' || $node.blocktype eq 'declaration' {
+            my $clone_reg := $*BLOCK.clone_inner($node);
+            MAST::InstructionList.new(nqp::list(), $clone_reg, $MVM_reg_obj)
+        }
+        elsif $node.blocktype eq 'declaration_static' {
+            $*BLOCK.capture_inner($node);
+            if $want ne 'v' {
+                my $clone_reg := $*BLOCK.clone_inner($node);
+                MAST::InstructionList.new(nqp::list(), $clone_reg, $MVM_reg_obj)
+            }
+            else {
+                my $code_reg := $*REGALLOC.fresh_register($MVM_reg_obj);
+                my @ins;
+                push_op(@ins, 'getcode', $code_reg, %*MAST_FRAMES{$node.cuid});
+                MAST::InstructionList.new(@ins, $code_reg, $MVM_reg_obj)
+            }
         }
         else {
-            MAST::InstructionList.new(nqp::list(), MAST::VOID, $MVM_reg_void)
+            nqp::die("Unhandled blocktype " ~ $node.blocktype);
         }
     }
 

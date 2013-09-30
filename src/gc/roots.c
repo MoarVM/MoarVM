@@ -44,7 +44,6 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->hll_syms);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->env_hash);
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
@@ -63,6 +62,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     while (cur_ah != NULL) {
         MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
     }
+    
+    /* Any exception handler result. */
+    MVM_gc_worklist_add(tc, worklist, &tc->last_handler_result);
 
     /* The usecapture object. */
     MVM_gc_worklist_add(tc, worklist, &tc->cur_usecapture);

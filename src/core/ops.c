@@ -870,6 +870,13 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
+        MVM_OP_capturelex,
+        "capturelex",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_takeclosure,
         "takeclosure",
         "  ",
@@ -1092,6 +1099,13 @@ static MVMOpInfo MVM_op_infos[] = {
         "  ",
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_takehandlerresult,
+        "takehandlerresult",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
         MVM_OP_newlexotic,
@@ -3503,7 +3517,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 499;
+static unsigned short MVM_op_counts = 501;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

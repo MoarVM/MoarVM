@@ -49,41 +49,6 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
-    MVMIterBody *body = (MVMIterBody *)data;
-    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
-}
-
-static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
-    MVMIterBody *body = (MVMIterBody *)data;
-    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
-}
-
-static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMIterBody *body = (MVMIterBody *)data;
-    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
-}
-
-static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
-    MVMIterBody *body = (MVMIterBody *)data;
-    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
-}
-
-static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
-    MVMIterBody *body = (MVMIterBody *)data;
-    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
-}
-
-static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
-    MVMIterBody *body = (MVMIterBody *)data;
-    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
-}
-
-static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
-    MVMIterBody *body = (MVMIterBody *)data;
-    MVM_exception_throw_adhoc(tc, "Invalid operation on iterator");
-}
-
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
     MVMObject *target = body->target;
@@ -152,19 +117,19 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
     {
-        at_pos,
-        bind_pos,
-        set_elems,
-        NULL, /* exists_pos */
-        push,
-        pop,
-        unshift,
+        MVM_REPR_DEFAULT_AT_POS,
+        MVM_REPR_DEFAULT_BIND_POS,
+        MVM_REPR_DEFAULT_SET_ELEMS,
+        MVM_REPR_DEFAULT_EXISTS_POS,
+        MVM_REPR_DEFAULT_PUSH,
+        MVM_REPR_DEFAULT_POP,
+        MVM_REPR_DEFAULT_UNSHIFT,
         shift,
         splice,
         get_elem_storage_spec
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
-    elems,
+    MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
     NULL, /* serialize */

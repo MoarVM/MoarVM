@@ -484,7 +484,8 @@ for <if unless> -> $op_name {
         # value to be passed.
         my @comp_ops;
         sub needs_cond_passed($n) {
-            nqp::istype($n, QAST::Block) && $n.arity > 0 && $n.blocktype eq 'immediate'
+            nqp::istype($n, QAST::Block) && $n.arity > 0 && 
+                ($n.blocktype eq 'immediate' || $n.blocktype eq 'immediate_static')
         }
         my $cond_temp_lbl := needs_cond_passed($op[1]) || needs_cond_passed($op[2])
             ?? $qastcomp.unique('__im_cond_')
@@ -805,6 +806,9 @@ QAST::MASTOperations.add_core_op('for', -> $qastcomp, $op {
     }
     if @operands[1].blocktype eq 'immediate' {
         @operands[1].blocktype('declaration');
+    }
+    elsif @operands[1].blocktype eq 'immediate_static' {
+        @operands[1].blocktype('declaration_static');
     }
 
     # Create result temporary if we'll need one.
@@ -1268,15 +1272,19 @@ QAST::MASTOperations.add_core_op('handle', sub ($qastcomp, $op) {
     push_op($il, 'set', $hblocal, $hbmast.result_reg);
     $*REGALLOC.release_register($hbmast.result_reg, $MVM_reg_obj);
 
-    # Wrap instructions to try up in a handler.
+    # Wrap instructions to try up in a handler and evaluate to the result
+    # of the protected code of the exception handler.
     my $protil := $qastcomp.as_mast($protected, :want($MVM_reg_obj));
+    my $uwlbl  := MAST::Label.new( :name($qastcomp.unique('handle_unwind_')) );
     my $endlbl := MAST::Label.new( :name($qastcomp.unique('handle_end_')) );
+    push_op($protil.instructions, 'goto', $endlbl);
     nqp::push($il, MAST::HandlerScope.new(
-        :instructions($protil.instructions), :goto($endlbl), :block($hblocal),
+        :instructions($protil.instructions), :goto($uwlbl), :block($hblocal),
         :category_mask($mask), :action($HandlerAction::invoke_and_we'll_see)));
+    nqp::push($il, $uwlbl);
+    push_op($il, 'takehandlerresult', $protil.result_reg);
     nqp::push($il, $endlbl);
 
-    # XXX Result not quite right here yet.
     MAST::InstructionList.new($il, $protil.result_reg, $MVM_reg_obj)
 });
 
@@ -1806,7 +1814,13 @@ QAST::MASTOperations.add_core_op('locallifetime', -> $qastcomp, $op {
 });
 
 # code object related opcodes
-QAST::MASTOperations.add_core_moarop_mapping('takeclosure', 'takeclosure');
+# XXX explicit takeclosure will go away under new model; for now, no-op it.
+QAST::MASTOperations.add_core_op('takeclosure', -> $qastcomp, $op {
+    unless +@($op) == 1 {
+        nqp::die('takeclosure op requires one argument');
+    }
+    $qastcomp.as_mast($op[0])
+});
 QAST::MASTOperations.add_core_moarop_mapping('getcodeobj', 'getcodeobj');
 QAST::MASTOperations.add_core_moarop_mapping('setcodeobj', 'setcodeobj', 0);
 QAST::MASTOperations.add_core_moarop_mapping('getcodename', 'getcodename');

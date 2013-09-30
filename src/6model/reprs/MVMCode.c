@@ -39,20 +39,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMCodeBody *src_body  = (MVMCodeBody *)src;
     MVMCodeBody *dest_body = (MVMCodeBody *)dest;
     MVM_ASSIGN_REF(tc, dest_root, dest_body->sf, src_body->sf);
-    if (src_body->outer) {
+    if (src_body->outer)
         dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
-    }
-    else {
-        /* XXX Hack (prior_invocation is a hack) for the sake of rules; can go
-         * away after the cleanup that removes prior_invocation. */
-        MVMStaticFrame *so = src_body->sf->body.outer;
-        if (so && so->body.prior_invocation)
-            dest_body->outer = MVM_frame_inc_ref(tc, so->body.prior_invocation);
-    }
-    /* XXX should these next two really be copied? */
-    dest_body->is_static = dest_body->is_static;
-    dest_body->is_compiler_stub = dest_body->is_compiler_stub;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->code_object, src_body->code_object);
 }
 
 /* Adds held objects to the GC worklist. */

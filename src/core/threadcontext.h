@@ -87,6 +87,9 @@ struct MVMThreadContext {
     /* Linked list of exception handlers that we're currently executing, topmost
      * one first in the list. */
     MVMActiveHandler *active_handlers;
+    
+    /* Result object of the last-run exception handler. */
+    MVMObject *last_handler_result;
 
     /* The VM instance that this thread belongs to. */
     MVMInstance *instance;
