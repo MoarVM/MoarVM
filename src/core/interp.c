@@ -3180,8 +3180,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         "Must provide an SCRef operand to scsetobj");
                 MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, obj);
-                if (STABLE(obj)->header.sc == NULL)
-                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, STABLE(obj));
+                if (STABLE(obj)->header.sc == NULL) {
+                    /* Need to claim the SC also; typical case for new type objects. */
+                    MVMSTable *st = STABLE(obj);
+                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
+                    MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+                }
                 cur_op += 6;
                 goto NEXT;
             }
