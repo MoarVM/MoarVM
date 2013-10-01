@@ -3356,6 +3356,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(scgetdesc): {
+                MVMObject *sc = GET_REG(cur_op, 2).o;
+                if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                    MVM_exception_throw_adhoc(tc,
+                        "Must provide an SCRef operand to scgethandle");
+                GET_REG(cur_op, 0).s = MVM_sc_get_description(tc,
+                    (MVMSerializationContext *)sc);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(rethrow): {
                 MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, GET_REG(cur_op, 0).o, NULL);
                 goto NEXT;

@@ -491,6 +491,7 @@ static const void * const LABELS[] = {
     &&OP_scwbenable,
     &&OP_pushcompsc,
     &&OP_popcompsc,
+    &&OP_scgetdesc,
     &&OP_shell,
     &&OP_cwd,
     &&OP_seed,

@@ -491,10 +491,11 @@
 #define MVM_OP_scwbenable 487
 #define MVM_OP_pushcompsc 488
 #define MVM_OP_popcompsc 489
-#define MVM_OP_shell 490
-#define MVM_OP_cwd 491
-#define MVM_OP_seed 492
-#define MVM_OP_rethrow 493
-#define MVM_OP_resume 494
+#define MVM_OP_scgetdesc 490
+#define MVM_OP_shell 491
+#define MVM_OP_cwd 492
+#define MVM_OP_seed 493
+#define MVM_OP_rethrow 494
+#define MVM_OP_resume 495
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);
