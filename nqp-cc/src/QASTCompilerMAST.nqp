@@ -557,12 +557,12 @@ class QAST::MASTCompiler {
             QAST::Op.new(
                 :op('bind'),
                 QAST::Var.new( :name('cur_sc'), :scope('local'), :decl('var') ),
-                QAST::Op.new( :op('createsc'), QAST::SVal.new( :value($sc.handle()) ) )
+                QAST::Op.new( :op('createsc'), QAST::SVal.new( :value(nqp::scgethandle($sc)) ) )
             ),
             QAST::Op.new(
                 :op('scsetdesc'),
                 QAST::Var.new( :name('cur_sc'), :scope('local') ),
-                QAST::SVal.new( :value($sc.description) )
+                QAST::SVal.new( :value(nqp::scgetdesc($sc)) )
             ),
             QAST::Op.new(
                 :op('bind'),
