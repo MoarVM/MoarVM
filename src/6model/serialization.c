@@ -864,7 +864,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     MVMLexicalRegistry **lexnames = sf->body.lexical_names_list;
 
     /* Locate the static code ref this context points to. */
-    MVMObject *static_code_ref = closure_to_static_code_ref(tc, ctx, 1);
+    MVMObject *static_code_ref = closure_to_static_code_ref(tc, frame->code_ref, 1);
     MVMSerializationContext *static_code_sc  = static_code_ref->header.sc;
     if (OBJ_IS_NULL(static_code_sc))
         MVM_exception_throw_adhoc(tc,
