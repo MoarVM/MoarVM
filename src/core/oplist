@@ -551,3 +551,12 @@ cwd                 w(str)
 seed                r(int64)
 rethrow             r(obj)
 resume              r(obj)
+
+# loadlib(id, path)
+# freelib(id)
+# findsym(id, name) -> sym
+# dropsym(sym)
+loadlib             r(str) r(str)
+freelib             r(str)
+findsym             w(obj) r(str) r(str)
+dropsym             r(obj)

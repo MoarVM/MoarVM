@@ -1885,6 +1885,10 @@ QAST::MASTOperations.add_core_moarop_mapping('iscompunit', 'iscompunit');
 QAST::MASTOperations.add_core_moarop_mapping('compunitmainline', 'compunitmainline');
 QAST::MASTOperations.add_core_moarop_mapping('compunitcodes', 'compunitcodes');
 
+# DLL-related ops
+QAST::MASTOperations.add_core_moarop_mapping('loadlib', 'loadlib');
+QAST::MASTOperations.add_core_moarop_mapping('freelib', 'freelib');
+
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
         $kind == $MVM_reg_int64 ?? 'unless_i' !!
