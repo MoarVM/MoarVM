@@ -20,6 +20,9 @@
 /* libatomic_ops */
 #include <atomic_ops.h>
 
+/* dynload */
+#include <dynload.h>
+
 /* forward declarations */
 #include "types.h"
 
@@ -63,6 +66,7 @@ typedef double   MVMnum64;
 #include "core/hll.h"
 #include "core/loadbytecode.h"
 #include "core/coerce.h"
+#include "core/dll.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"

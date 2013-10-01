@@ -145,6 +145,10 @@ struct MVMInstance {
     MVMContainerRegistry *container_registry;     /* Container registry */
     uv_mutex_t      mutex_container_registry;     /* mutex for container registry */
 
+    /* Hash of all loaded DLLs. */
+    MVMDLLRegistry  *dll_registry;
+    uv_mutex_t mutex_dll_registry;
+
     /* Hash of all known serialization contexts. Marked for GC iff
      * the item is unresolved. */
     MVMSerializationContextBody *sc_weakhash;

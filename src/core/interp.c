@@ -3388,6 +3388,32 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(loadlib): {
+                MVMString *name = GET_REG(cur_op, 0).s;
+                MVMString *path = GET_REG(cur_op, 2).s;
+                MVM_dll_load(tc, name, path);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(freelib): {
+                MVMString *name = GET_REG(cur_op, 0).s;
+                MVM_dll_free(tc, name);
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(findsym): {
+                MVMString *lib = GET_REG(cur_op, 2).s;
+                MVMString *sym = GET_REG(cur_op, 4).s;
+                GET_REG(cur_op, 0).o = NULL; /* TODO */
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(dropsym): {
+                MVMObject *symbol = GET_REG(cur_op, 0).o;
+                /* TODO */
+                cur_op += 2;
+                goto NEXT;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

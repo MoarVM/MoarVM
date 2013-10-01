@@ -497,5 +497,9 @@
 #define MVM_OP_seed 493
 #define MVM_OP_rethrow 494
 #define MVM_OP_resume 495
+#define MVM_OP_loadlib 496
+#define MVM_OP_freelib 497
+#define MVM_OP_findsym 498
+#define MVM_OP_dropsym 499
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);
