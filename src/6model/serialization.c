@@ -424,7 +424,9 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
     if (scr == NULL || scr->header.sc == NULL) {
         if (fatal)
             MVM_exception_throw_adhoc(tc,
-                "Serialization Error: missing static code ref for closure");
+                "Serialization Error: missing static code ref for closure '%s'",
+                MVM_string_utf8_encode_C_string(tc,
+                    (((MVMCode *)closure)->body.sf)->body.name));
         return NULL;
     }
     return scr;
