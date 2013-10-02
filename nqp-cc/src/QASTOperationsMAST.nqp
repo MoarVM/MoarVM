@@ -1634,6 +1634,7 @@ QAST::MASTOperations.add_core_moarop_mapping('scsetobj', 'scsetobj', 2);
 QAST::MASTOperations.add_core_moarop_mapping('scsetcode', 'scsetcode', 2);
 QAST::MASTOperations.add_core_moarop_mapping('scgetobj', 'scgetobj');
 QAST::MASTOperations.add_core_moarop_mapping('scgethandle', 'scgethandle');
+QAST::MASTOperations.add_core_moarop_mapping('scgetdesc', 'scgetdesc');
 QAST::MASTOperations.add_core_moarop_mapping('scgetobjidx', 'scgetobjidx');
 QAST::MASTOperations.add_core_moarop_mapping('scsetdesc', 'scsetdesc', 1);
 QAST::MASTOperations.add_core_moarop_mapping('scobjcount', 'scobjcount');

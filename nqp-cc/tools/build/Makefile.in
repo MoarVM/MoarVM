@@ -203,7 +203,7 @@ nqptest: all
 	prove -e "$(NQP) nqp-moar-cc.nqp" t/nqp
 
 selftest: all
-	prove -e "../moarvm nqp.moarvm" t/nqp
+	prove -e "../moarvm nqp.moarvm" t/nqp t/serialization
 
 ## cleaning
 

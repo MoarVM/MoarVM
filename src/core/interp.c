@@ -3180,18 +3180,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         "Must provide an SCRef operand to scsetobj");
                 MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, obj);
-                if (STABLE(obj)->header.sc == NULL)
-                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, STABLE(obj));
+                if (STABLE(obj)->header.sc == NULL) {
+                    /* Need to claim the SC also; typical case for new type objects. */
+                    MVMSTable *st = STABLE(obj);
+                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
+                    MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+                }
                 cur_op += 6;
                 goto NEXT;
             }
             OP(scsetcode): {
-                MVMObject *sc = GET_REG(cur_op, 0).o;
+                MVMObject *sc   = GET_REG(cur_op, 0).o;
+                MVMObject *code = GET_REG(cur_op, 4).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to scsetcode");
                 MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
-                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
+                    GET_REG(cur_op, 2).i64, code);
+                MVM_ASSIGN_REF(tc, code, code->header.sc, sc);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3348,6 +3354,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(scs)->pos_funcs.pop(tc, STABLE(scs), scs,
                     OBJECT_BODY(scs), &GET_REG(cur_op, 0), MVM_reg_obj);
                 cur_op += 2;
+                goto NEXT;
+            }
+            OP(scgetdesc): {
+                MVMObject *sc = GET_REG(cur_op, 2).o;
+                if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                    MVM_exception_throw_adhoc(tc,
+                        "Must provide an SCRef operand to scgethandle");
+                GET_REG(cur_op, 0).s = MVM_sc_get_description(tc,
+                    (MVMSerializationContext *)sc);
+                cur_op += 4;
                 goto NEXT;
             }
             OP(rethrow): {

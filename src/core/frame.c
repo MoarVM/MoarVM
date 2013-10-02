@@ -218,6 +218,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
+    
+    /* Make sure there's no frame context pointer. */
+    frame->context_object = NULL;
 
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
