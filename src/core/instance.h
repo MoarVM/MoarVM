@@ -20,6 +20,11 @@ struct MVMBootTypes {
     MVMObject *BOOTCompUnit;
 };
 
+/* Various raw types that don't need a HOW */
+typedef struct {
+    MVMObject *RawDLLSym;
+} MVMRawTypes;
+
 /* Various common string constants. */
 struct MVMStringConsts {
     MVMString *empty;
@@ -76,6 +81,9 @@ struct MVMInstance {
 
     /* Set of bootstrapping types. */
     MVMBootTypes boot_types;
+
+    /* Set of raw types. */
+    MVMRawTypes raw_types;
 
     /* Set of string constants. */
     MVMStringConsts str_consts;
