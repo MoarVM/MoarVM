@@ -28,8 +28,13 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src,
         MVMObject *dest_root, void *dest) {
-    *(MVMDLLSymBody *)dest = *(MVMDLLSymBody *)src;
-    /* XXX increase refcount! */
+    MVMDLLSymBody *src_body = src;
+    MVMDLLSymBody *dest_body = dest;
+
+    *dest_body = *src_body;
+
+    if (dest_body->dll)
+        MVM_incr(&dest_body->dll->refcount);
 }
 
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -47,6 +52,18 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, NULL);
+
+    MVMROOT(tc, st, {
+        MVMObject *WHAT = MVM_gc_allocate_type_object(tc, st);
+        tc->instance->raw_types.RawDLLSym = WHAT;
+        MVM_ASSIGN_REF(tc, st, st->WHAT, WHAT);
+        st->size = sizeof(MVMDLLSym);
+    });
+
+    MVM_gc_root_add_permanent(tc,
+            (MVMCollectable **)&tc->instance->raw_types.RawDLLSym);
+
     return &this_repr;
 }
 

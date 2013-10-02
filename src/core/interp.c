@@ -3388,13 +3388,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(findsym): {
                 MVMString *lib = GET_REG(cur_op, 2).s;
                 MVMString *sym = GET_REG(cur_op, 4).s;
-                GET_REG(cur_op, 0).o = NULL; /* TODO */
+                MVMObject *obj = MVM_dll_find_symbol(tc, lib, sym);
+                if (!obj)
+                    MVM_exception_throw_adhoc(tc, "symbol not found in DLL");
+
+                GET_REG(cur_op, 0).o = obj;
                 cur_op += 6;
                 goto NEXT;
             }
             OP(dropsym): {
-                MVMObject *symbol = GET_REG(cur_op, 0).o;
-                /* TODO */
+                MVM_dll_drop_symbol(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             }

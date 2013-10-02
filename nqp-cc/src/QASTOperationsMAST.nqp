@@ -1888,6 +1888,8 @@ QAST::MASTOperations.add_core_moarop_mapping('compunitcodes', 'compunitcodes');
 # DLL-related ops
 QAST::MASTOperations.add_core_moarop_mapping('loadlib', 'loadlib');
 QAST::MASTOperations.add_core_moarop_mapping('freelib', 'freelib');
+QAST::MASTOperations.add_core_moarop_mapping('findsym', 'findsym');
+QAST::MASTOperations.add_core_moarop_mapping('dropsym', 'dropsym');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
