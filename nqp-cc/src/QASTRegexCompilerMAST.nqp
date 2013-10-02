@@ -379,7 +379,7 @@ class QAST::MASTRegexCompiler {
             }
         }
 
-        nqp::push(@ins, op('inc_i', %*REG<pos>));
+        nqp::push(@ins, op('inc_i', %*REG<pos>)) unless $node.subtype eq 'zerowidth';
         release($i0, $MVM_reg_int64);
         @ins
     }

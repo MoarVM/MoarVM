@@ -3180,18 +3180,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         "Must provide an SCRef operand to scsetobj");
                 MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, obj);
-                if (STABLE(obj)->header.sc == NULL)
-                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, STABLE(obj));
+                if (STABLE(obj)->header.sc == NULL) {
+                    /* Need to claim the SC also; typical case for new type objects. */
+                    MVMSTable *st = STABLE(obj);
+                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
+                    MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+                }
                 cur_op += 6;
                 goto NEXT;
             }
             OP(scsetcode): {
-                MVMObject *sc = GET_REG(cur_op, 0).o;
+                MVMObject *sc   = GET_REG(cur_op, 0).o;
+                MVMObject *code = GET_REG(cur_op, 4).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to scsetcode");
                 MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
-                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
+                    GET_REG(cur_op, 2).i64, code);
+                MVM_ASSIGN_REF(tc, code, code->header.sc, sc);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3350,6 +3356,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(scgetdesc): {
+                MVMObject *sc = GET_REG(cur_op, 2).o;
+                if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+                    MVM_exception_throw_adhoc(tc,
+                        "Must provide an SCRef operand to scgethandle");
+                GET_REG(cur_op, 0).s = MVM_sc_get_description(tc,
+                    (MVMSerializationContext *)sc);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(rethrow): {
                 MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, GET_REG(cur_op, 0).o, NULL);
                 goto NEXT;
@@ -3369,6 +3385,35 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 else {
                     MVM_exception_throw_adhoc(tc, "resume requires an MVMException");
                 }
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(loadlib): {
+                MVMString *name = GET_REG(cur_op, 0).s;
+                MVMString *path = GET_REG(cur_op, 2).s;
+                MVM_dll_load(tc, name, path);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(freelib): {
+                MVMString *name = GET_REG(cur_op, 0).s;
+                MVM_dll_free(tc, name);
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(findsym): {
+                MVMString *lib = GET_REG(cur_op, 2).s;
+                MVMString *sym = GET_REG(cur_op, 4).s;
+                MVMObject *obj = MVM_dll_find_symbol(tc, lib, sym);
+                if (!obj)
+                    MVM_exception_throw_adhoc(tc, "symbol not found in DLL");
+
+                GET_REG(cur_op, 0).o = obj;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(dropsym): {
+                MVM_dll_drop_symbol(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             }

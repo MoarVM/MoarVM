@@ -3439,6 +3439,13 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_scgetdesc,
+        "scgetdesc",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_shell,
         "shell",
         "  ",
@@ -3469,6 +3476,34 @@ static MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_resume,
         "resume",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_loadlib,
+        "loadlib",
+        "  ",
+        2,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_freelib,
+        "freelib",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_findsym,
+        "findsym",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_dropsym,
+        "dropsym",
         "  ",
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
@@ -3517,7 +3552,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 501;
+static unsigned short MVM_op_counts = 506;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

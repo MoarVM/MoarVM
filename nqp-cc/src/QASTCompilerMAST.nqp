@@ -532,9 +532,9 @@ class QAST::MASTCompiler {
         my $sh_elems := nqp::elems($sh);
         my $i := 0;
         while $i < $sh_elems {
-            $sh_ast.push(nqp::isnull_s($sh[$i])
+            $sh_ast.push(nqp::isnull_s(nqp::atpos_s($sh, $i))
                 ?? QAST::Op.new( :op('null_s') )
-                !! QAST::SVal.new( :value($sh[$i]) ));
+                !! QAST::SVal.new( :value(nqp::atpos_s($sh, $i)) ));
             $i := $i + 1;
         }
 
@@ -557,12 +557,12 @@ class QAST::MASTCompiler {
             QAST::Op.new(
                 :op('bind'),
                 QAST::Var.new( :name('cur_sc'), :scope('local'), :decl('var') ),
-                QAST::Op.new( :op('createsc'), QAST::SVal.new( :value($sc.handle()) ) )
+                QAST::Op.new( :op('createsc'), QAST::SVal.new( :value(nqp::scgethandle($sc)) ) )
             ),
             QAST::Op.new(
                 :op('scsetdesc'),
                 QAST::Var.new( :name('cur_sc'), :scope('local') ),
-                QAST::SVal.new( :value($sc.description) )
+                QAST::SVal.new( :value(nqp::scgetdesc($sc)) )
             ),
             QAST::Op.new(
                 :op('bind'),

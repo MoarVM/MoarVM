@@ -211,6 +211,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_static_repr(Exception);
     register_static_repr(StaticFrame);
     register_static_repr(CompUnit);
+    register_static_repr(DLLSym);
     register_static_repr(Blob);
     register_static_repr(Ptr);
     register_static_repr(CScalar);

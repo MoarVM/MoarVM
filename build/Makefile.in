@@ -29,6 +29,7 @@ CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/sha1 \
             @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty/tinymt \
+            @ccinc@3rdparty/dyncall/dynload \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -62,6 +63,7 @@ OBJECTS = src/core/args@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
           src/core/coerce@obj@ \
+          src/core/dll@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
@@ -101,6 +103,7 @@ OBJECTS = src/core/args@obj@ \
           src/6model/reprs/P6bigint@obj@ \
           src/6model/reprs/NFA@obj@ \
           src/6model/reprs/MVMException@obj@ \
+          src/6model/reprs/VMDLLSym@obj@ \
           src/6model/reprs/VMBlob@obj@ \
           src/6model/reprs/VMPtr@obj@ \
           src/6model/6model@obj@ \
@@ -172,6 +175,7 @@ HEADERS = src/moarvm.h \
           src/core/hll.h \
           src/core/loadbytecode.h \
           src/core/coerce.h \
+          src/core/dll.h \
           src/io/fileops.h \
           src/io/socketops.h \
           src/io/dirops.h \
@@ -211,6 +215,9 @@ HEADERS = src/moarvm.h \
           src/6model/reprs/P6bigint.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \
+          src/6model/reprs/VMDLLSym.h \
+          src/6model/reprs/VMBlob.h \
+          src/6model/reprs/VMPtr.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \

@@ -1634,6 +1634,7 @@ QAST::MASTOperations.add_core_moarop_mapping('scsetobj', 'scsetobj', 2);
 QAST::MASTOperations.add_core_moarop_mapping('scsetcode', 'scsetcode', 2);
 QAST::MASTOperations.add_core_moarop_mapping('scgetobj', 'scgetobj');
 QAST::MASTOperations.add_core_moarop_mapping('scgethandle', 'scgethandle');
+QAST::MASTOperations.add_core_moarop_mapping('scgetdesc', 'scgetdesc');
 QAST::MASTOperations.add_core_moarop_mapping('scgetobjidx', 'scgetobjidx');
 QAST::MASTOperations.add_core_moarop_mapping('scsetdesc', 'scsetdesc', 1);
 QAST::MASTOperations.add_core_moarop_mapping('scobjcount', 'scobjcount');
@@ -1892,6 +1893,12 @@ QAST::MASTOperations.add_core_moarop_mapping('masttocu', 'masttocu');
 QAST::MASTOperations.add_core_moarop_mapping('iscompunit', 'iscompunit');
 QAST::MASTOperations.add_core_moarop_mapping('compunitmainline', 'compunitmainline');
 QAST::MASTOperations.add_core_moarop_mapping('compunitcodes', 'compunitcodes');
+
+# DLL-related ops
+QAST::MASTOperations.add_core_moarop_mapping('loadlib', 'loadlib');
+QAST::MASTOperations.add_core_moarop_mapping('freelib', 'freelib');
+QAST::MASTOperations.add_core_moarop_mapping('findsym', 'findsym');
+QAST::MASTOperations.add_core_moarop_mapping('dropsym', 'dropsym');
 
 sub resolve_condition_op($kind, $negated) {
     return $negated ??

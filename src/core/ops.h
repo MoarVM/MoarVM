@@ -491,16 +491,21 @@
 #define MVM_OP_scwbenable 487
 #define MVM_OP_pushcompsc 488
 #define MVM_OP_popcompsc 489
-#define MVM_OP_shell 490
-#define MVM_OP_cwd 491
-#define MVM_OP_seed 492
-#define MVM_OP_rethrow 493
-#define MVM_OP_resume 494
-#define MVM_OP_bloballoc 495
-#define MVM_OP_ptrcast 496
-#define MVM_OP_csizeof 497
-#define MVM_OP_calignof 498
-#define MVM_OP_coffsetof 499
-#define MVM_OP_assignnodecont 500
+#define MVM_OP_scgetdesc 490
+#define MVM_OP_shell 491
+#define MVM_OP_cwd 492
+#define MVM_OP_seed 493
+#define MVM_OP_rethrow 494
+#define MVM_OP_resume 495
+#define MVM_OP_loadlib 496
+#define MVM_OP_freelib 497
+#define MVM_OP_findsym 498
+#define MVM_OP_dropsym 499
+#define MVM_OP_bloballoc 500
+#define MVM_OP_ptrcast 501
+#define MVM_OP_csizeof 502
+#define MVM_OP_calignof 503
+#define MVM_OP_coffsetof 504
+#define MVM_OP_assignnodecont 505
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);
