@@ -260,6 +260,9 @@ install: all
 	$(MKPATH) $(PREFIX)/bin
 	$(CP) moar@exe@ $(PREFIX)/bin
 	$(CHMOD) 755 $(PREFIX)/bin/moar@exe@
+	$(MKPATH) $(PREFIX)/lib/MAST
+	$(CP) lib/MAST/Nodes.nqp $(PREFIX)/lib/MAST
+	$(CP) lib/MAST/Ops.nqp $(PREFIX)/lib/MAST
 
 lib: @moar@
 
