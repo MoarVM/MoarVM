@@ -1295,6 +1295,9 @@ class QAST::MASTCompiler {
     multi method as_mast(QAST::WVal $node, :$want) {
         my $val    := $node.value;
         my $sc     := nqp::getobjsc($val);
+        if nqp::isnull($sc) {
+            nqp::die("Object of type " ~ $val.HOW.name($val) ~ " in QAST::WVal, but not in SC");
+        }
         my $idx    := nqp::scgetobjidx($sc, $val);
         my $sc_idx := $*MAST_COMPUNIT.sc_idx($sc);
         my $reg    := $*REGALLOC.fresh_o();
