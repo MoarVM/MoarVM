@@ -21,6 +21,8 @@ enum {
     FLAG_DUMP,
     FLAG_HELP,
     FLAG_TRACING,
+
+    OPT_LIBPATH
 };
 
 static const char *const FLAGS[] = {
@@ -31,12 +33,13 @@ static const char *const FLAGS[] = {
 };
 
 static const char USAGE[] = "\
-USAGE: moar [--dump] [--crash] " TRACING_OPT "input.moarvm [program args]\n\
+USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]\n\
        moar [--help]\n\
 \n\
     --help     display this message\n\
     --dump     dump the bytecode to stdout instead of executing\n\
-    --crash    abort instead of exiting on unhandled exception"
+    --crash    abort instead of exiting on unhandled exception\n\
+    --libpath  specify path loadbytecode should search in"
     TRACING_USAGE;
 
 static int cmp_flag(const void *key, const void *value)
@@ -44,21 +47,36 @@ static int cmp_flag(const void *key, const void *value)
     return strcmp(key, *(char **)value);
 }
 
+static int starts_with(const char *str, const char *want) {
+    size_t str_len  = strlen(str);
+    size_t want_len = strlen(want);
+    return str_len < want_len
+        ? 0
+        : strncmp(str, want, want_len) == 0;
+}
+
 static int parse_flag(const char *arg)
 {
     const char *const *found;
 
-    if(!arg || arg[0] != '-')
+    if (!arg || arg[0] != '-')
         return NOT_A_FLAG;
 
     found = bsearch(arg, FLAGS, sizeof FLAGS / sizeof *FLAGS, sizeof *FLAGS, cmp_flag);
-    return found ? (int)(found - FLAGS) : UNKNOWN_FLAG;
+
+    if (found)
+        return (int)(found - FLAGS);
+    else if (starts_with(arg, "--libpath="))
+        return OPT_LIBPATH;
+    else
+        return UNKNOWN_FLAG;
 }
 
 int main(int argc, char *argv[])
 {
     MVMInstance *instance;
     const char  *input_file;
+    const char  *lib_path = NULL;
 
     int dump = 0;
     int argi = 1;
@@ -84,6 +102,10 @@ int main(int argc, char *argv[])
             continue;
 #endif
 
+            case OPT_LIBPATH:
+            lib_path = argv[argi] + strlen("--libpath=");
+            continue;
+
             default:
             fprintf(stderr, "ERROR: Unknown flag %s.\n\n%s\n", argv[argi], USAGE);
             return EXIT_FAILURE;
@@ -102,6 +124,7 @@ int main(int argc, char *argv[])
     instance->num_clargs = argc - argi;
     instance->raw_clargs = argv + argi;
     instance->prog_name  = input_file;
+    instance->lib_path   = lib_path;
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);

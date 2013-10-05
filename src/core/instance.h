@@ -125,6 +125,8 @@ struct MVMInstance {
     const char     *prog_name;
     /* cached parsed command line args */
     MVMObject      *clargs;
+    /* Any --libpath=... option, to prefix in loadbytecode lookups. */
+    const char     *lib_path;
 
     /* Hash of HLLConfig objects. */
     MVMHLLConfig *hll_configs;
