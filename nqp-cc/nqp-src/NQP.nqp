@@ -130,7 +130,7 @@ class NQP::World is HLL::World {
                     QAST::VM.new(
                         :parrot(QAST::SVal.new( :value('ModuleLoader.pbc') )),
                         :jvm(QAST::SVal.new( :value('ModuleLoader.class') )),
-                        :maor(QAST::SVal.new( :value('ModuleLoader.moarvm') ))
+                        :moar(QAST::SVal.new( :value('ModuleLoader.moarvm') ))
                     )),
                 QAST::Op.new(
                    :op('callmethod'), :name('load_module'),
