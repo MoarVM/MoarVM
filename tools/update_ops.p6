@@ -31,7 +31,7 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('#include "nodes_parrot.h"');
     $cf.say('#include "../../src/core/ops.h"');
     $cf.say('#else');
-    $cf.say('#include "moarvm.h"');
+    $cf.say('#include "moar.h"');
     $cf.say('#endif');
     $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $cf.say(opcode_details(@ops));

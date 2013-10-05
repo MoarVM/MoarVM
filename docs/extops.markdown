@@ -18,7 +18,7 @@ worth testing whether it's faster on some platforms and compilers.
 
 Many opcodes are self-contained (they don't call other C functions, and some
 don't even make system calls), but lots and lots of them do call functions.
-Since the ./moarvm binary is statically-linked (mostly), the link-time code
+Since the ./moar binary is statically-linked (mostly), the link-time code
 generation and optimization by modern compilers should do a pretty good job of
 making such things optimal [please excuse the truism].  However, in the case of
 dynamically loaded extensions to the VM that need to dynamically load native
@@ -151,7 +151,7 @@ generate the appropriate loading/installing code.
 core/bytecode.c excerpt - nqp::extop_install:
 
 ```C
-#include "moarvm.h"
+#include "moar.h"
 
 typedef struct _MVMExtOpRecord {
 
@@ -279,7 +279,7 @@ my $z = rakudo::concatenationize(rakudo::additivitation(44, 66), "blah");
 # for the concat custom op.
 ```
 
-moarvm.h excerpt (note the injecting of 1 offset if it's not the result reg):
+moar.h excerpt (note the injecting of 1 offset if it's not the result reg):
 
 ```C
 #define REG(idx) \
@@ -294,7 +294,7 @@ convenience type-check, not a rigorous one to actually enforce that the
 register type signature passed to the runtime opcode installation routine
 in the HLL code actually matches the one defined/used in the C source code.
 
-moarvm.h excerpt (continued):
+moar.h excerpt (continued):
 
 ```C
 
@@ -312,7 +312,7 @@ typedef MVM_CUSTOM_OP((*MVMCustomOp));
 rakudo_ops.c
 
 ```C
-#include "moarvm.h"
+#include "moar.h"
 
 MVM_CUSTOM_OP(MVM_rakudo_op_additivitation, {
     REG(0).i = REG(1).i + REG(2).i;

@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 static const MVMREPROps this_repr;
 

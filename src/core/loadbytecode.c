@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Dummy, 0-arg callsite. */
 static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };

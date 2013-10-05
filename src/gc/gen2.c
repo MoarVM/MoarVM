@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Creates a new second generation allocator. */
 MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i) {

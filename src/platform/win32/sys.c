@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include "bithacks.h"
 #include "platform/sys.h"
 

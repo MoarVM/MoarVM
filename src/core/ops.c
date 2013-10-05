@@ -6,7 +6,7 @@
 #include "nodes_parrot.h"
 #include "../../src/core/ops.h"
 #else
-#include "moarvm.h"
+#include "moar.h"
 #endif
 /* This file is generated from src/core/oplist by tools/update_ops.p6. */
 static MVMOpInfo MVM_op_infos[] = {

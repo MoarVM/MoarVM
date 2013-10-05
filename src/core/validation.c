@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* TODO: validate
  * - args of prepargs, getcode

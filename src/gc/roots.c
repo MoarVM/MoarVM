@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 
@@ -62,7 +62,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     while (cur_ah != NULL) {
         MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
     }
-    
+
     /* Any exception handler result. */
     MVM_gc_worklist_add(tc, worklist, &tc->last_handler_result);
 
@@ -71,10 +71,10 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* List of SCs currently being compiled. */
     MVM_gc_worklist_add(tc, worklist, &tc->compiling_scs);
-    
+
     /* compunit variable pointer */
     MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
-    
+
     /* its current frame */
     MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
 }
@@ -213,7 +213,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &frame->work[i].o);
     }
-    
+
     /* Scan arg buffer if needed. */
     if (frame->args && frame->cur_args_callsite) {
         flag_map = frame->cur_args_callsite->arg_flags;

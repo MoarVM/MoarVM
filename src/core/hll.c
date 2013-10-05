@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     void *kdata;

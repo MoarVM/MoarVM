@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     MVMString *colon = MVM_string_ascii_decode_nt(

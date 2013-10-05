@@ -11,7 +11,7 @@ use Pod::Usage;
 use build::setup;
 use build::auto;
 
-my $NAME    = 'moarvm';
+my $NAME    = 'moar';
 my $GENLIST = 'build/gen.list';
 
 # configuration logic

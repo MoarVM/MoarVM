@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Some constants. */
 #define HEADER_SIZE             88
@@ -143,6 +143,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     /* Allocate reader state. */
     rs = malloc(sizeof(ReaderState));
+    memset(rs, 0, sizeof(ReaderState));
     rs->version = version;
 
     /* Locate SC dependencies segment. */

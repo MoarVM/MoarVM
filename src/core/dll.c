@@ -1,5 +1,4 @@
-#include "moarvm.h"
-#include <dynload.h>
+#include "moar.h"
 
 int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     MVMDLLRegistry *entry;

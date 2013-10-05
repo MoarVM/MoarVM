@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /*  TODO:
 - add a tunable global determining at what depth it should

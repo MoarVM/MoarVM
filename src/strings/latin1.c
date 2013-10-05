@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 #define LATIN1_CHAR_TO_CP(character) codepoints[character];
 

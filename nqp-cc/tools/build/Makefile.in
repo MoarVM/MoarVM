@@ -139,7 +139,7 @@ QASTRegexCompilerMAST.pbc: MASTNodes.pbc MASTOps.pbc QASTOperationsMAST.pbc src/
 
 .pir.pbc:
 	$(PARROT) -o $@ $*.pir
-    
+
 nqp-src/QASTMoar.nqp: tools/build/moarqast.pl ../lib/MAST/Ops.nqp ../lib/MAST/Nodes.nqp src/QASTRegexCompilerMAST.nqp src/QASTOperationsMAST.nqp src/QASTCompilerMAST.nqp src/SelfHostQASTCompilerMAST.nqp
 	$(PERL) tools/build/moarqast.pl ../lib/MAST/Ops.nqp ../lib/MAST/Nodes.nqp src/QASTRegexCompilerMAST.nqp src/QASTOperationsMAST.nqp src/QASTCompilerMAST.nqp src/SelfHostQASTCompilerMAST.nqp > nqp-src/QASTMoar.nqp
 
@@ -203,7 +203,7 @@ nqptest: all
 	prove -e "$(NQP) nqp-moar-cc.nqp" t/nqp
 
 selftest: all
-	prove -e "../moarvm nqp.moarvm" t/nqp t/serialization
+	prove -e "../moar nqp.moarvm" t/nqp t/serialization
 
 ## cleaning
 

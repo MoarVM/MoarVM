@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 #define BOM_UTF16LE "\xff\xfe"
 #define BOM_UTF16BE "\xfe\xff"

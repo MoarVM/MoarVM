@@ -16,12 +16,12 @@ nqp::setinvokespec(Foo,Foo,'$!here_we_keep_the_code_ref',nqp::null());
 nqp::setinvokespec(Bar,Foo,'$!other_place_we_could_keep_the_code_ref_in',nqp::null());
 
 my $foo := Foo.new();
-$foo.set_code_ref(sub() {123});
-$foo.set_code_ref_differently(sub() {456});
+$foo.set_code_ref(sub () {123});
+$foo.set_code_ref_differently(sub () {456});
 ok($foo() == 123,"basic setinvokespec");
 
 my $bar := Bar.new();
-$bar.set_code_ref(sub() {1001});
-$bar.set_code_ref_differently(sub() {1002});
+$bar.set_code_ref(sub () {1001});
+$bar.set_code_ref_differently(sub () {1002});
 ok($bar() == 1002,"setinvokespec with a attribute in a subclass");
 

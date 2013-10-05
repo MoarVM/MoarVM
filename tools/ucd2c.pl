@@ -898,7 +898,7 @@ not be used in advertising or otherwise to promote the sale, use or
 other dealings in these Data Files or Software without prior written
 authorization of the copyright holder. */
 
-#include "moarvm.h"
+#include "moar.h"
 '}
 sub read_file {
     my $fname = shift;

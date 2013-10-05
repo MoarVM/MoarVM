@@ -1,4 +1,4 @@
-#include <moarvm.h>
+#include <moar.h>
 #include <platform/io.h>
 
 /* undocumented, so check if these really hold */

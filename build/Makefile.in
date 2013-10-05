@@ -121,10 +121,10 @@ OBJECTS = src/core/args@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
           src/math/bigintops@obj@ \
-          src/moarvm@obj@ \
+          src/moar@obj@ \
           @platform@
 
-HEADERS = src/moarvm.h \
+HEADERS = src/moar.h \
           src/types.h \
           src/bithacks.h \
           src/6model/6model.h \
@@ -263,7 +263,7 @@ THIRDPARTY = @thirdpartylibs@
 
 .SUFFIXES: .c @obj@
 
-all: moarvm@exe@
+all: moar@exe@
 
 lib: @moar@
 
@@ -280,7 +280,7 @@ reconfig: realclean
 clangcheck gcccheck:
 	@$(MAKE) --no-print-directory -f tools/check.mk $@
 
-moarvm@exe@: $(MAIN_OBJECTS) @moar@
+moar@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) $(MAIN_LIBS)
 
@@ -372,7 +372,7 @@ realclean: clean
 
 distclean: realclean
 	$(MSG) remove executable and libraries
-	-$(CMD)$(RM) moarvm@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
 

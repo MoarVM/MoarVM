@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include "platform/time.h"
 
 #include <errno.h>

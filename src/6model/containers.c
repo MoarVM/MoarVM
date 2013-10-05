@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* ***************************************************************************
  * CodePair container configuration: container with FETCH/STORE code refs

@@ -10,13 +10,9 @@ class Foo {
 
 my $x := Foo.new();
 
-if $x.bar() == 42 {
-    say("ok 1");
-}
+ok($x.bar() == 42);
 
-if $x.bar(5) == 10 {
-    say("ok 2");
-}
+ok($x.bar(5) == 10);
 
 class Baz is Foo {
     multi method bar() { 37 }
@@ -24,9 +20,7 @@ class Baz is Foo {
 
 my $y := Baz.new();
 
-if $y.bar() == 37 {
-    say("ok 3");
-}
+ok($y.bar() == 37);
 
 class Quux is Foo {
     proto method bar() { * }
@@ -35,6 +29,4 @@ class Quux is Foo {
 
 my $z := Quux.new();
 
-if $z.bar() == 37 {
-    say("ok 4");
-}
+ok($z.bar() == 37);
