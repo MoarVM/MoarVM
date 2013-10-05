@@ -460,7 +460,7 @@ class NQP::World is HLL::World {
                     try {
                         $wrapper[0].push(QAST::Op.new(
                             :op('bind'),
-                            QAST::Var.new( :name($_.key), :scope('lexical'), :isdecl('var') ),
+                            QAST::Var.new( :name($_.key), :scope('lexical'), :decl('var') ),
                             QAST::WVal.new( :value(($_.value)<value>) )
                         ));
                     };
