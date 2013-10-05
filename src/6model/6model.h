@@ -25,6 +25,15 @@
 /* This flag is set if we consider the method cache authoritative. */
 #define MVM_METHOD_CACHE_AUTHORITATIVE     4
 
+/* HLL type roles. */
+#define MVM_HLL_ROLE_NONE                   0
+#define MVM_HLL_ROLE_INT                    1
+#define MVM_HLL_ROLE_NUM                    2
+#define MVM_HLL_ROLE_STR                    3
+#define MVM_HLL_ROLE_ARRAY                  4
+#define MVM_HLL_ROLE_HASH                   5
+#define MVM_HLL_ROLE_CODE                   6
+
 /* Hint value to indicate the absence of an attribute lookup or method
  * dispatch hint. */
 #define MVM_NO_HINT -1
@@ -231,6 +240,12 @@ struct MVMSTable {
 
     /* The underlying package stash. */
     MVMObject *WHO;
+    
+    /* The HLL that this type is owned by, if any. */
+    MVMHLLConfig *hll_owner;
+    
+    /* The role that the type plays in the HLL, if any. */
+    MVMint64 hll_role;
 };
 
 /* The representation operations table. Note that representations are not
