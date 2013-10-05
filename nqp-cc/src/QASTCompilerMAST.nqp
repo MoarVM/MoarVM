@@ -706,7 +706,7 @@ class QAST::MASTCompiler {
                 nqp::die("Param scope must be 'local' or 'lexical'")
                     if $scope ne 'lexical' && $scope ne 'local';
 
-                my $param_kind := self.type_to_register_kind($var.returns // NQPMu);
+                my $param_kind := self.type_to_register_kind($var.returns);
                 my $opslot := @kind_to_op_slot[$param_kind];
 
                 my $opname_index := ($var.named ?? 8 !! 0) + ($var.default ?? 4 !! 0) + $opslot;
