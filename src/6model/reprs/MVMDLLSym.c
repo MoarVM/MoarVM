@@ -37,12 +37,22 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src,
         MVM_incr(&dest_body->dll->refcount);
 }
 
+static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMint64 value) {
+    MVM_exception_throw_adhoc(tc, "cannot set address of DLL symbols");
+}
+
+static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data) {
+    return (MVMint64)((MVMDLLSymBody *)data)->address;
+}
+
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
 
     spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
+    spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
 
     return spec;
 }
@@ -73,7 +83,15 @@ static const MVMREPROps this_repr = {
     initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
-    MVM_REPR_DEFAULT_BOX_FUNCS,
+    { /* box_funcs */
+        set_int,
+        get_int,
+        MVM_REPR_DEFAULT_SET_NUM,
+        MVM_REPR_DEFAULT_GET_NUM,
+        MVM_REPR_DEFAULT_SET_STR,
+        MVM_REPR_DEFAULT_GET_STR,
+        MVM_REPR_DEFAULT_GET_BOXED_REF
+    },
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,
