@@ -19,7 +19,7 @@ class MAST::Compiler {
             MAST::HandlerScope);
         pir::mvm_compile__vPs($node, $target_file);
         if (pir::new__Ps('Env')<MVMCCDEBUG>) {
-            pir::spawnw__Is("moarvm --dump $target_file > $target_file.mvmdump");
+            pir::spawnw__Is("moar --dump $target_file > $target_file.mvmdump");
         }
     }
 }

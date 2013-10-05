@@ -1,4 +1,4 @@
-#include <moarvm.h>
+#include <moar.h>
 #include <sha1.h>
 
 #ifndef MAX
@@ -728,7 +728,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
             "Serialization error: failed to convert to base64");
 
     /* Make a MVMString containing it. */
-    result = MVM_string_ascii_decode_nt(tc, tc->instance->boot_types.BOOTStr, output_b64);
+    result = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
     free(output_b64);
     return result;
 }

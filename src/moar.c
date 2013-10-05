@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 #define init_mutex(loc, name) do { \
     if ((init_stat = uv_mutex_init(&loc)) < 0) { \

@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include <platform/threads.h>
 
 /* If we have the job of doing GC for a thread, we add it to our work
@@ -365,7 +365,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             MVM_panic(MVM_exitcode_gcorch, "start votes was %d\n", MVM_load(&tc->instance->gc_finish));
 
         run_gc(tc, MVMGCWhatToDo_All);
-        
+
         /* Free any STables that have been marked for deletion. It's okay for
          * us to muck around in another thread's fromspace while it's mutating
          * tospace, really. */

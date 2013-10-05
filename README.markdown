@@ -41,7 +41,7 @@ To run what is passing of the NQP test suite so far, do:
 Very soon, you will be able to run some NQP code by doing:
 
     cd nqp-cc
-    ../moarvm nqp.moarvm -e 'say("Alive!")'
+    ../moar nqp.moarvm -e 'say("Alive!")'
 
 Note that at present, you need a working Parrot and NQP in order to run the
 cross-compiler. In the future, NQP will be self-hosting on MoarVM and that

@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Allocates a new GC worklist. */
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc) {

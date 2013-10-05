@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include <platform/threads.h>
 
 /* Temporary structure for passing data to thread start. */

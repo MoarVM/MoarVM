@@ -3,7 +3,7 @@ use QASTCompilerMAST;
 use NQPP6QRegex;
 pir::load_bytecode__vs('dumper.pbc');
 
-my $moarvm;
+my $moar;
 my $del;
 my $copy;
 my $outputnull;
@@ -17,7 +17,7 @@ my $os := %conf<platform>;
 #my $os := %conf<os.name>;
 #?endif
 if nqp::lc($os) ~~ /^(win|mswin)/ {
-    $moarvm := '..\\moarvm';
+    $moar := '..\\moar';
     $del := 'del /Q';
     $copy := 'copy /Y';
     $outputnull := 'NUL';
@@ -25,7 +25,7 @@ if nqp::lc($os) ~~ /^(win|mswin)/ {
 }
 else {
     # unix
-    $moarvm := '../moarvm';
+    $moar := '../moar';
     $del := 'rm -f';
     $copy := 'cp';
     $outputnull := '/dev/null';
@@ -67,8 +67,8 @@ sub mast_output_is($comp_unit, $expected, $desc, :$timeit, :$approx, :$clargs = 
 
     # Invoke and redirect output to a file.
     my $start := nqp::time_n();
-    pir::spawnw__Is("$moarvm --dump temp.moarvm > $quote$desc_file.mvmdump$quote") if $DEBUG;
-    pir::spawnw__Is("$moarvm temp.moarvm $clargs > temp.output");
+    pir::spawnw__Is("$moar --dump temp.moarvm > $quote$desc_file.mvmdump$quote") if $DEBUG;
+    pir::spawnw__Is("$moar temp.moarvm $clargs > temp.output");
     my $end := nqp::time_n();
 
     # Read it and check it is OK.

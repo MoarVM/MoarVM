@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include <math.h>
 
 static MVMnum64 mp_get_double(mp_int *a) {

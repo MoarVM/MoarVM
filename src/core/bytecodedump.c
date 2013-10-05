@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 #define line_length 1024
 static void append_string(char **out, MVMuint32 *size,

@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 static void verify_socket_type(MVMThreadContext *tc, MVMObject *oshandle, MVMOSHandle **handle, const char *msg) {
 

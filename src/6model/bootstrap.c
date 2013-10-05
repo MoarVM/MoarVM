@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* This file implements the various steps involved in getting 6model
  * bootstrapped from the ground up - that is, getting to having a

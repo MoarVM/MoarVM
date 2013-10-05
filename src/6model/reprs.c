@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include "gcc_diag.h"
 #include "bithacks.h"
 

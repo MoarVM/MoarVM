@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include <stdarg.h>
 
 static int crash_on_error = 0;
