@@ -23,6 +23,7 @@ struct MVMBootTypes {
 /* Various raw types that don't need a HOW */
 typedef struct {
     MVMObject *RawDLLSym;
+    MVMObject *RawUnsafePtr;
 } MVMRawTypes;
 
 /* Various common string constants. */

@@ -103,4 +103,6 @@ typedef struct MVMThreadContext MVMThreadContext;
 typedef struct MVMUnicodeNamedValue MVMUnicodeNamedValue;
 typedef struct MVMUnicodeNameRegistry MVMUnicodeNameRegistry;
 typedef struct MVMUninstantiable MVMUninstantiable;
+typedef struct MVMUnsafePtr MVMUnsafePtr;
+typedef struct MVMUnsafePtrBody MVMUnsafePtrBody;
 typedef struct MVMWorkThread MVMWorkThread;
