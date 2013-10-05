@@ -65,6 +65,7 @@ OBJECTS = src/core/args@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
+          src/core/ptr@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
@@ -144,6 +145,7 @@ HEADERS = src/moarvm.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \
+          src/core/ptr.h \
           src/io/fileops.h \
           src/io/socketops.h \
           src/io/dirops.h \

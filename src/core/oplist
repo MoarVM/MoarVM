@@ -562,3 +562,6 @@ freelib             r(str)
 findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
+
+# bloballoc(size) -> blob
+bloballoc           w(obj) r(int64)

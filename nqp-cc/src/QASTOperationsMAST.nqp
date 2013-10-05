@@ -1893,6 +1893,9 @@ QAST::MASTOperations.add_core_moarop_mapping('findsym', 'findsym');
 QAST::MASTOperations.add_core_moarop_mapping('dropsym', 'dropsym');
 QAST::MASTOperations.add_core_moarop_mapping('loadext', 'loadext');
 
+# Pointer-related ops
+QAST::MASTOperations.add_core_moarop_mapping('bloballoc', 'bloballoc');
+
 sub resolve_condition_op($kind, $negated) {
     return $negated ??
         $kind == $MVM_reg_int64 ?? 'unless_i' !!

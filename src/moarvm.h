@@ -68,6 +68,7 @@ typedef double   MVMnum64;
 #include "core/coerce.h"
 #include "core/dll.h"
 #include "core/ext.h"
+#include "core/ptr.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"

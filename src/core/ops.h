@@ -502,5 +502,6 @@
 #define MVM_OP_findsym 498
 #define MVM_OP_dropsym 499
 #define MVM_OP_loadext 500
+#define MVM_OP_bloballoc 501
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);
