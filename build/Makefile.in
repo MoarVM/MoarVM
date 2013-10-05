@@ -253,11 +253,11 @@ THIRDPARTY = @thirdpartylibs@
 
 .SUFFIXES: .c @obj@
 
+all: moar@exe@
+
 install: all
 	$(MKPATH) $(PREFIX)/bin
 	$(CP) moar@exe@ $(PREFIX)/bin
-
-all: moar@exe@
 
 lib: @moar@
 
