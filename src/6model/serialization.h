@@ -100,9 +100,8 @@ struct MVMSerializationWriter {
     /* Serialization root data. */
     MVMSerializationRoot root;
 
-    /* The stables, objects, code refs and contexts lists we're working
-     * through/adding to. */
-    MVMSTable **stables_list;
+    /* The objects, code refs and contexts lists we're working through/adding
+     * to. */
     MVMObject  *objects_list;
     MVMObject  *codes_list;
     MVMObject  *contexts_list;

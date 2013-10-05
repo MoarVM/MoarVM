@@ -946,7 +946,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 
         /* Serialize any STables on the todo list. */
         while (writer->stables_list_pos < stables_todo) {
-            serialize_stable(tc, writer, writer->stables_list[writer->stables_list_pos]);
+            serialize_stable(tc, writer, writer->root.sc->body->root_stables[writer->stables_list_pos]);
             writer->stables_list_pos++;
             work_todo = 1;
         }
@@ -986,7 +986,6 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer                      = calloc(1, sizeof(MVMSerializationWriter));
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
-    writer->stables_list        = sc->body->root_stables;
     writer->objects_list        = sc->body->root_objects;
     writer->codes_list          = sc->body->root_codes;
     writer->contexts_list       = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
