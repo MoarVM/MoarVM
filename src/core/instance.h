@@ -24,6 +24,7 @@ struct MVMBootTypes {
 typedef struct {
     MVMObject *RawDLLSym;
     MVMObject *RawUnsafePtr;
+    MVMObject *RawMemBlob;
 } MVMRawTypes;
 
 /* Various common string constants. */

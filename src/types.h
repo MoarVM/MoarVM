@@ -56,6 +56,8 @@ typedef struct MVMLexicalRegistry MVMLexicalRegistry;
 typedef struct MVMLexotic MVMLexotic;
 typedef struct MVMLexoticBody MVMLexoticBody;
 typedef struct MVMLoadedCompUnitName MVMLoadedCompUnitName;
+typedef struct MVMMemBlob MVMMemBlob;
+typedef struct MVMMemBlobBody MVMMemBlobBody;
 typedef struct MVMNFA MVMNFA;
 typedef struct MVMNFABody MVMNFABody;
 typedef struct MVMNFAStateInfo MVMNFAStateInfo;
