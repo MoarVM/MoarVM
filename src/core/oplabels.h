@@ -500,5 +500,6 @@ static const void * const LABELS[] = {
     &&OP_loadlib,
     &&OP_freelib,
     &&OP_findsym,
-    &&OP_dropsym
+    &&OP_dropsym,
+    &&OP_loadext
 };

@@ -3417,6 +3417,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(loadext): {
+                MVMString *lib = GET_REG(cur_op, 0).s;
+                MVMString *ext = GET_REG(cur_op, 2).s;
+                MVM_ext_load(tc, lib, ext);
+                cur_op += 4;
+                goto NEXT;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

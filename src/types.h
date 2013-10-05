@@ -31,6 +31,7 @@ typedef struct MVMDLLSym MVMDLLSym;
 typedef struct MVMDLLSymBody MVMDLLSymBody;
 typedef struct MVMException MVMException;
 typedef struct MVMExceptionBody MVMExceptionBody;
+typedef struct MVMExtRegistry MVMExtRegistry;
 typedef struct MVMFrame MVMFrame;
 typedef struct MVMFrameHandler MVMFrameHandler;
 typedef struct MVMGen2Allocator MVMGen2Allocator;

@@ -40,6 +40,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up DLL registry mutex. */
     init_mutex(instance->mutex_dll_registry, "REPR registry");
 
+    /* Set up extension registry mutex. */
+    init_mutex(instance->mutex_ext_registry, "extension registry");
+
     /* Set up weak reference hash mutex. */
     init_mutex(instance->mutex_sc_weakhash, "sc weakhash");
 
@@ -169,6 +172,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up Hash of DLLs. */
     uv_mutex_destroy(&instance->mutex_dll_registry);
     MVM_HASH_DESTROY(hash_handle, MVMDLLRegistry, instance->dll_registry);
+
+    /* Clean up Hash of extensions. */
+    uv_mutex_destroy(&instance->mutex_ext_registry);
+    MVM_HASH_DESTROY(hash_handle, MVMExtRegistry, instance->ext_registry);
 
     /* Clean up Hash of all known serialization contexts. */
     uv_mutex_destroy(&instance->mutex_sc_weakhash);
