@@ -8,6 +8,7 @@ CAT    = @cat@
 SHELL  = @sh@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
+CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 
 CONFIG    = @config@
 ADDCONFIG =
@@ -258,6 +259,7 @@ all: moar@exe@
 install: all
 	$(MKPATH) $(PREFIX)/bin
 	$(CP) moar@exe@ $(PREFIX)/bin
+	$(CHMOD) 755 $(PREFIX)/bin/moar@exe@
 
 lib: @moar@
 
