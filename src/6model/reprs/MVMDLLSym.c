@@ -22,7 +22,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data) {
     MVMDLLSymBody *body = data;
 
-    body->ptr = NULL;
+    body->address = NULL;
     body->dll = NULL;
 }
 

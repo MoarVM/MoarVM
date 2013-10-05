@@ -1,5 +1,5 @@
 struct MVMDLLSymBody {
-    void *ptr;
+    void *address;
     MVMDLLRegistry *dll;
 };
 

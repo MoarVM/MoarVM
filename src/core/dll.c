@@ -78,7 +78,7 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
     MVMDLLRegistry *entry;
     MVMDLLSym *obj;
     char *csym;
-    void *ptr;
+    void *address;
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
@@ -98,17 +98,17 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
     }
 
     csym = MVM_string_utf8_encode_C_string(tc, sym);
-    ptr = dlFindSymbol(entry->lib, csym);
+    address = dlFindSymbol(entry->lib, csym);
     free(csym);
 
-    if (!ptr) {
+    if (!address) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
         return NULL;
     }
 
     obj = (MVMDLLSym *)MVM_repr_alloc_init(tc,
             tc->instance->raw_types.RawDLLSym);
-    obj->body.ptr = ptr;
+    obj->body.address = address;
     obj->body.dll = entry;
 
     entry->refcount++;
@@ -133,6 +133,6 @@ void MVM_dll_drop_symbol(MVMThreadContext *tc, MVMObject *obj) {
 
     MVM_decr(&dll->refcount);
 
-    sym->body.ptr = NULL;
+    sym->body.address = NULL;
     sym->body.dll = NULL;
 }
