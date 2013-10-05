@@ -457,13 +457,14 @@ class NQP::World is HLL::World {
             my %symbols := @!BLOCKS[$i].symtable();
             for %symbols {
                 if !%seen{$_.key} && nqp::existskey($_.value, 'value') {
-                    try {
+                    my $value := ($_.value)<value>;
+                    unless nqp::isnull(nqp::getobjsc($value)) {
                         $wrapper[0].push(QAST::Op.new(
                             :op('bind'),
                             QAST::Var.new( :name($_.key), :scope('lexical'), :decl('var') ),
-                            QAST::WVal.new( :value(($_.value)<value>) )
+                            QAST::WVal.new( :value($value) )
                         ));
-                    };
+                    }
                     %seen{$_.key} := 1;
                 }
             }
