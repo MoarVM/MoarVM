@@ -35,7 +35,11 @@ static MVMString * figure_filename(MVMThreadContext *tc, MVMString *orig) {
             else {
                 memcpy(new_path + lib_path_len, orig_cstr, orig_len);
             }
-            result = MVM_string_utf8_decode(tc, tc->instance->VMString, new_path, new_len);
+            MVMROOT(tc, orig, {
+                result = MVM_string_utf8_decode(tc, tc->instance->VMString, new_path, new_len);
+                if (!MVM_file_exists(tc, result))
+                    result = orig;
+            });
             free(new_path);
             return result;
         }
