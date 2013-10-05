@@ -7,8 +7,7 @@ knowhow ModuleLoader {
 
         # Put any explicitly specified path on the start of the list.
         my $explicit;
-        # XXX TODO: Exceptions.
-        #try { $explicit := %*COMPILING<%?OPTIONS>{$explicit_path}; }
+        try { $explicit := nqp::ifnull(nqp::ifnull(%*COMPILING, {})<%?OPTIONS>, {}){$explicit_path}; }
         if !nqp::isnull($explicit) && nqp::defined($explicit) {
             nqp::push(@search_paths, $explicit);
         }
@@ -32,10 +31,10 @@ knowhow ModuleLoader {
         my $path := nqp::join('/', nqp::split('::', $module_name)) ~ '.moarvm';
         my @prefixes := self.search_path('module-path');
         for @prefixes -> $prefix {
-            #if nqp::stat("$prefix/$path", 0) {
+            if nqp::stat("$prefix/$path", 0) {
                 $path := "$prefix/$path";
-            #    last;
-            #}
+                last;
+            }
         }
         if nqp::existskey(%modules_loaded, $path) {
             $module_ctx := %modules_loaded{$path};
