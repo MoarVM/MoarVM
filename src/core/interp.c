@@ -2459,6 +2459,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(isint): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = obj && REPR(obj)->ID == MVM_REPR_ID_P6int ? 1 : 0;
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(isnum): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = obj && REPR(obj)->ID == MVM_REPR_ID_P6num ? 1 : 0;
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(isstr): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = obj && REPR(obj)->ID == MVM_REPR_ID_P6str ? 1 : 0;
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(islist): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 GET_REG(cur_op, 0).i64 = obj && REPR(obj)->ID == MVM_REPR_ID_MVMArray ? 1 : 0;
