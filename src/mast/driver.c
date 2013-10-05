@@ -73,18 +73,28 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
 /* Compiles MAST down to bytecode, then writes it to disk. */
 void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, MVMString *filename) {
     MVMROOT(tc, mast, {
-        MVMObject *fh;
+        FILE *fh;
+        char *c_filename;
+        
         /* Get node types into struct. */
         MASTNodeTypes *mnt = node_types_struct(tc, types);
 
         /* Turn the MAST tree into bytecode. */
         unsigned int size;
-        char *bytecode      = MVM_mast_compile(tc, mast, mnt, &size);
-        MVMString *encoding = MVM_string_ascii_decode(tc, tc->instance->VMString, "ascii", 5);
-        MVMString *output   = MVM_string_ascii_decode(tc, tc->instance->VMString, bytecode, size);
+        char *bytecode = MVM_mast_compile(tc, mast, mnt, &size);
         free(mnt);
-
-        /* Write the bytecode to disk. MVM_file_spew does all the error checking and reporting. */
-        MVM_file_spew(tc, output, filename, encoding);
+        
+        /* Write it out to a file. (Not using VM-level IO for this right now;
+         * may want to do that, but really we just want to shove the bytes out
+         * to disk, without having to go via string subsystem, etc. */
+        c_filename = MVM_string_utf8_encode_C_string(tc, filename);
+        if (fh = fopen(c_filename, "wb+")) {
+            fwrite(bytecode, 1, size, fh);
+            fclose(fh);
+            free(c_filename);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "Unable to write bytecode to '%s'", c_filename);
+        }
     });
 }
