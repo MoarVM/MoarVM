@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include "platform/time.h"
 #include "tinymt64.h"
 
@@ -60,12 +60,12 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVMuint32     pos = 0;
     MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, STR_WITH_LEN("="));
     char      *env;
-    
+
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
-    
+
     env_hash = MVM_repr_alloc_init(tc,  MVM_hll_current(tc)->slurpy_hash_type);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
-    
+
     while ((env = environ[pos++]) != NULL) {
 #ifndef _WIN32
         MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, env, strlen(env));
@@ -152,13 +152,13 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     process_options.flags   = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
     process_options.env     = _env;
     process_options.exit_cb = spawn_on_exit;
-    
+
     spawn_result = uv_spawn(tc->loop, &process, &process_options);
     if (spawn_result)
         result = spawn_result;
     else
         uv_run(tc->loop, UV_RUN_DEFAULT);
-    
+
 #ifdef _WIN32
     free(_cmd);
 #endif

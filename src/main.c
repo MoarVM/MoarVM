@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <moarvm.h>
+#include <moar.h>
 
 #if MVM_TRACING
 #  define TRACING_OPT "[--tracing] "
@@ -31,8 +31,8 @@ static const char *const FLAGS[] = {
 };
 
 static const char USAGE[] = "\
-USAGE: moarvm [--dump] [--crash] " TRACING_OPT "input.moarvm [program args]\n\
-       moarvm [--help]\n\
+USAGE: moar [--dump] [--crash] " TRACING_OPT "input.moarvm [program args]\n\
+       moar [--help]\n\
 \n\
     --help     display this message\n\
     --dump     dump the bytecode to stdout instead of executing\n\

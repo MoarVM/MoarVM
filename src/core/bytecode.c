@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Some constants. */
 #define HEADER_SIZE             88

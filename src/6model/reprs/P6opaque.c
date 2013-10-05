@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 #define P6OMAX(x, y) ((y) > (x) ? (y) : (x))
 #define REFVAR_VM_HASH_STR_VAR 10

@@ -1,5 +1,5 @@
-#include "moarvm.h"
-#include "nodes_moarvm.h"
+#include "moar.h"
+#include "nodes_moar.h"
 #include "mast/compiler.h"
 
 /* Dummy, 0-arg callsite. */
@@ -24,7 +24,7 @@ MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
         grab_type(Lexical);
         grab_type(Call);
         grab_type(Annotated);
-        grab_type(HandlerScope); 
+        grab_type(HandlerScope);
     });
     return result;
 }
@@ -34,11 +34,11 @@ MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
 void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
         MVMRegister *res) {
     MVMCompUnit *loaded;
-    
+
     MVMROOT(tc, mast, {
         /* Get node types into struct. */
         MASTNodeTypes *mnt = node_types_struct(tc, types);
-        
+
         /* Turn the MAST tree into bytecode. Switch to gen2 GC allocation to be
          * sure nothing moves, though we'd really rather not have compiler
          * temporaries live longer. */
@@ -48,15 +48,15 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
         bytecode = MVM_mast_compile(tc, mast, mnt, &size);
         free(mnt);
         MVM_gc_allocate_gen2_default_clear(tc);
-        
+
         /* Load it as a compilation unit; it is a kind of MVMObject, so cast
          * it to that. */
         loaded = MVM_cu_from_bytes(tc, (MVMuint8 *)bytecode, (MVMuint32)size);
     });
-    
+
     /* Stash loaded comp unit in result register. */
     res->o = (MVMObject *)loaded;
-    
+
     /* If there's a deserialization frame, need to run that. */
     if (loaded->body.deserialize_frame) {
         /* Set up special return to delegate to running the load frame,
@@ -76,7 +76,7 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
         MVMObject *fh;
         /* Get node types into struct. */
         MASTNodeTypes *mnt = node_types_struct(tc, types);
-        
+
         /* Turn the MAST tree into bytecode. */
         unsigned int size;
         char *bytecode      = MVM_mast_compile(tc, mast, mnt, &size);

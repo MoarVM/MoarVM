@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's

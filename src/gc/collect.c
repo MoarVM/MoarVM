@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Combines a piece of work that will be passed to another thread with the
  * ID of the target thread to pass it to. */
@@ -150,7 +150,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     gen2 = tc->gen2;
 
     MVM_gc_worklist_mark_frame_roots(tc, worklist);
-    
+
     while ((item_ptr = MVM_gc_worklist_get(tc, worklist))) {
         /* Dereference the object we're considering. */
         MVMCollectable *item = *item_ptr;
@@ -524,7 +524,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             printf("item flags: %d\n", item->flags);
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: impossible case encountered in GC free");
         }
-        
+
         /* Go to the next item. */
         scan = (char *)scan + item->size;
     }

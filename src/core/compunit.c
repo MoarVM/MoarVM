@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include "platform/mmap.h"
 
 #ifdef _WIN32

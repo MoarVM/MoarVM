@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 #include "platform/sys.h"
 
 #if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 6

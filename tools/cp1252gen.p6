@@ -35,7 +35,7 @@ my @orig = (
 
 my $fh = open("src/strings/latin1.c", :w);
 
-$fh.say('#include "moarvm.h"');
+$fh.say('#include "moar.h"');
 $fh.say('
 #define LATIN1_CHAR_TO_CP(character) codepoints[character];
 

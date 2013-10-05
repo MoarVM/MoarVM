@@ -40,7 +40,7 @@ src/gen/
 *.lo
 *.so
 *.dylib
-moarvm
+moar
 nqp-cc/*.moarvm
 nqp-cc/temp.output
 nqp-cc/*.mvmdump

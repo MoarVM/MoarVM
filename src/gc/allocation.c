@@ -3,7 +3,7 @@
  * GC-able object will be allocated separately and freed explicitly by
  * its REPR gc_free routine. */
 
-#include "moarvm.h"
+#include "moar.h"
 
 /* Allocate the specified amount of memory from the nursery. Will
  * trigger a GC run if there is not enough. */

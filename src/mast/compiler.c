@@ -7,8 +7,8 @@
 #include "../../src/core/ops.h"
 #include "../../3rdparty/uthash.h"
 #else
-#include "moarvm.h"
-#include "nodes_moarvm.h"
+#include "moar.h"
+#include "nodes_moar.h"
 #define MOARVM_IN_COMPILER
 #endif
 

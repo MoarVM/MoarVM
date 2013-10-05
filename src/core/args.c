@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */

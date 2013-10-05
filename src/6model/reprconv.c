@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Representation function convenience accessors. Could potentially be made into
  * macros in the future, but hopefully the compiler is smart enough to inline

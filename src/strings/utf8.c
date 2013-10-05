@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* The below section has an MIT-style license, included here.
 

@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Creates a new serialization context with the specified handle. If any
  * compilation units are waiting for an SC with this handle, removes it from

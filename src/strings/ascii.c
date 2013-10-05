@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* Decodes the specified number of bytes of ASCII into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */

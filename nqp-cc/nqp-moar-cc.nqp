@@ -74,10 +74,10 @@ class HLL::Backend::MoarVM {
 #            my $os := %conf<os.name>;
 #?endif
             if nqp::lc($os) ~~ /^(win|mswin)/ {
-                pir::spawnw__Is("..\\moarvm temp.moarvm");
+                pir::spawnw__Is("..\\moar temp.moarvm");
             }
             else {
-                pir::spawnw__Is("../moarvm temp.moarvm");
+                pir::spawnw__Is("../moar temp.moarvm");
             }
         }
     }

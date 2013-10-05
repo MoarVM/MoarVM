@@ -1,4 +1,4 @@
-#include <moarvm.h>
+#include <moar.h>
 
 /* Called when the write barrier macro detects we need to trigger
  * the write barrier. Arguments are the same as to the barrier macro

@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
