@@ -1,4 +1,4 @@
-plan(6);
+plan(7);
 
 role TheRole {
     has $!a;
@@ -20,7 +20,9 @@ ok($obj_m.override_me() eq "class method", "sanity (2)");
 
 $obj_m.HOW.mixin($obj_m, TheRole);
 
-ok($obj_m.role_meth() eq "called role method", "role method mxied in");
+ok(nqp::istype($obj_m, TheRole),"after mixing in a role the object is still the old type");
+
+ok($obj_m.role_meth() eq "called role method", "role method mixed in");
 
 $obj_m.set_attr("stout");
 ok($obj_m.get_attr() eq "stout", "attributes from role work properly");
