@@ -102,7 +102,8 @@ class NQP::World is HLL::World {
                         :op('loadbytecode'),
                         QAST::VM.new(
                             :parrot(QAST::SVal.new( :value('ModuleLoader.pbc') )),
-                            :jvm(QAST::SVal.new( :value('ModuleLoader.class') ))
+                            :jvm(QAST::SVal.new( :value('ModuleLoader.class') )),
+                            :moar(QAST::SVal.new( :value('ModuleLoader.moarvm') ))
                         )),
                     $set_outer
                 )));
@@ -128,7 +129,8 @@ class NQP::World is HLL::World {
                     :op('loadbytecode'),
                     QAST::VM.new(
                         :parrot(QAST::SVal.new( :value('ModuleLoader.pbc') )),
-                        :jvm(QAST::SVal.new( :value('ModuleLoader.class') ))
+                        :jvm(QAST::SVal.new( :value('ModuleLoader.class') )),
+                        :maor(QAST::SVal.new( :value('ModuleLoader.moarvm') ))
                     )),
                 QAST::Op.new(
                    :op('callmethod'), :name('load_module'),
@@ -491,7 +493,9 @@ class NQP::World is HLL::World {
         }
         QAST::VM.new(
             loadlibs => @loadlibs,
-            jvm => QAST::Op.new( :op('null') ) );
+            jvm => QAST::Op.new( :op('null') ),
+            moar => QAST::Op.new( :op('null') )
+        );
     }
     
     # Adds some initial tasks.
@@ -506,7 +510,8 @@ class NQP::World is HLL::World {
                     QAST::VM.new( :pirop('get_class Ps'), QAST::SVal.new( :value('LexPad') ) ),
                     QAST::VM.new( :pirop('get_class Ps'), QAST::SVal.new( :value('NQPLexPad') ) )
                 ))),
-            :jvm(QAST::Op.new( :op('null') ))
+            :jvm(QAST::Op.new( :op('null') )),
+            :moar(QAST::Op.new( :op('null') ))
         )));
     }
     
@@ -1993,7 +1998,8 @@ class NQP::Actions is HLL::Actions {
                     QAST::SVal.new( :value('handled') ),
                     QAST::IVal.new( :value(1) )
                 )),
-                :jvm(QAST::Op.new( :op('null') ))
+                :jvm(QAST::Op.new( :op('null') )),
+                :moar(QAST::Op.new( :op('null') ))
             ),
             default_for('$'));
     }
@@ -2030,7 +2036,8 @@ class NQP::Actions is HLL::Actions {
                         QAST::SVal.new( :value('handled') ),
                         QAST::IVal.new( :value(1) )
                     )),
-                    :jvm(QAST::Op.new( :op('null') ))
+                    :jvm(QAST::Op.new( :op('null') )),
+                    :moar(QAST::Op.new( :op('null') ))
                 ),
                 default_for('$')
             ));

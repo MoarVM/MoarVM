@@ -928,15 +928,6 @@ class QAST::MASTCompiler {
         elsif $node.supports('mast') {
             return $node.alternative('mast');
         }
-        elsif $node.supports('jvm') {
-            # Currently, NQP spits out very generic code in the JVM option, so we
-            # will pretend we are a JVM for now. This means we should be able to
-            # get a fairly long way on a stock NQP, rather than needing secret
-            # hacks. :-)
-            return nqp::defined($want)
-                ?? self.as_mast($node.alternative('jvm'), :$want)
-                !! self.as_mast($node.alternative('jvm'));
-        }
         else {
             nqp::die("To compile on the MoarVM backend, QAST::VM must have an alternative 'moar' or 'moarop'");
         }
