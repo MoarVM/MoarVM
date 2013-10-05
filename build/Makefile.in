@@ -1,11 +1,13 @@
-CC    = @cc@
-LD    = @ld@
-AR    = @ar@
-MAKE  = @make@ @mkflags@
-PERL  = @perl@
-RM    = @rm@
-CAT   = @cat@
-SHELL = @sh@
+CC     = @cc@
+LD     = @ld@
+AR     = @ar@
+MAKE   = @make@ @mkflags@
+PERL   = @perl@
+RM     = @rm@
+CAT    = @cat@
+SHELL  = @sh@
+CP     = $(PERL) -MExtUtils::Command -e cp
+MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 
 CONFIG    = @config@
 ADDCONFIG =
@@ -21,6 +23,7 @@ NOERR =
 
 @mknoisy@
 
+PREFIX    = @prefix@
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libuv/src \
@@ -249,6 +252,10 @@ TOM_OBJECTS = @tomobjects@
 THIRDPARTY = @thirdpartylibs@
 
 .SUFFIXES: .c @obj@
+
+install: all
+	$(MKPATH) $(PREFIX)/bin
+	$(CP) moar@exe@ $(PREFIX)/bin
 
 all: moar@exe@
 
