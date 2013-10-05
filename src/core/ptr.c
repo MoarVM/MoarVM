@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 MVMObject * MVM_ptr_alloc_blob(MVMThreadContext *tc, MVMuint64 size) {
     MVMMemBlob *blob;

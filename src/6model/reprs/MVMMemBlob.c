@@ -1,4 +1,4 @@
-#include "moarvm.h"
+#include "moar.h"
 
 enum { PTR_ALIGN = offsetof(struct { char dummy; void *ptr; }, ptr) };
 
