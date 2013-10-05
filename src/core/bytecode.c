@@ -143,6 +143,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     /* Allocate reader state. */
     rs = malloc(sizeof(ReaderState));
+    memset(rs, 0, sizeof(ReaderState));
     rs->version = version;
 
     /* Locate SC dependencies segment. */
