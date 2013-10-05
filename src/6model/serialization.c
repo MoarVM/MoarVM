@@ -1803,7 +1803,12 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->codes_list = codes_static;
     scodes = (MVMint32)MVM_repr_elems(tc, codes_static);
 
-    /* TODO: Mark all the static code refs we've been provided with as static. */
+    /* Mark all the static code refs we've been provided with as static. */
+     for (i = 0; i < scodes; i++) {
+        MVMObject *scr = MVM_repr_at_pos_o(tc, reader->codes_list, i);
+        ((MVMCode *)scr)->body.is_static = 1;
+        MVM_sc_set_obj_sc(tc, scr, sc);
+    }
 
     /* During deserialization, we allocate directly in generation 2. This
      * is because these objects are almost certainly going to be long lived,
