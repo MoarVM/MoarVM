@@ -183,10 +183,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             continue;
         }
 
-        /* If the pointer is already into tospace, we already updated it,
-         * so we're done. */
-        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc_limit)
+        /* If the pointer is already into tospace (the bit we've already copied
+         * into), we already updated it, so we're done. If it's in to-space but
+         * *ahead* of our copy offset then it's an out-of-date pointer and we
+         * have some kind of corruption. */
+        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc)
             continue;
+        if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
+            MVM_panic(1, "Heap corruption detected: pointer to past fromspace");
 
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
