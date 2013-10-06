@@ -169,9 +169,9 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 
 #define autobox(tc, target, result, box_type_obj, is_object, set_func, dest) do { \
     MVMObject *box, *box_type; \
+    if (is_object) MVM_gc_root_temp_push(tc, (MVMCollectable **)&result); \
     box_type = target->static_info->body.cu->body.hll_config->box_type_obj; \
     box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
-    if (is_object) MVM_gc_root_temp_push(tc, (MVMCollectable **)&result); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
     if (REPR(box)->initialize) \
         REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
