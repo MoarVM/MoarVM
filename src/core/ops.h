@@ -502,5 +502,7 @@
 #define MVM_OP_resume 498
 #define MVM_OP_settypehll 499
 #define MVM_OP_settypehllrole 500
+#define MVM_OP_usecompileehllconfig 501
+#define MVM_OP_usecompilerhllconfig 502
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);

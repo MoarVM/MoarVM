@@ -556,3 +556,5 @@ rethrow             r(obj)
 resume              r(obj)
 settypehll          r(obj) r(str)
 settypehllrole      r(obj) r(int64)
+usecompileehllconfig
+usecompilerhllconfig

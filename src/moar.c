@@ -161,7 +161,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
-    MVM_HASH_DESTROY(hash_handle, MVMHLLConfig, instance->hll_configs);
+    MVM_HASH_DESTROY(hash_handle, MVMHLLConfig, instance->compiler_hll_configs);
+    MVM_HASH_DESTROY(hash_handle, MVMHLLConfig, instance->compilee_hll_configs);
 
     /* Clean up Hash of all known serialization contexts. */
     uv_mutex_destroy(&instance->mutex_sc_weakhash);

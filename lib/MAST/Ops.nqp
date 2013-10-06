@@ -503,7 +503,9 @@ BEGIN {
     1199,
     1200,
     1201,
-    1203);
+    1203,
+    1205,
+    1205);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     1,
     2,
@@ -1004,7 +1006,9 @@ BEGIN {
     1,
     1,
     2,
-    2);
+    2,
+    0,
+    0);
     MAST::Ops.WHO<@values> := nqp::list_i(72,
     33,
     72,
@@ -2710,7 +2714,9 @@ BEGIN {
     'rethrow', 497,
     'resume', 498,
     'settypehll', 499,
-    'settypehllrole', 500);
+    'settypehllrole', 500,
+    'usecompileehllconfig', 501,
+    'usecompilerhllconfig', 502);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'goto',
     'if_i',
@@ -3211,5 +3217,7 @@ BEGIN {
     'rethrow',
     'resume',
     'settypehll',
-    'settypehllrole');
+    'settypehllrole',
+    'usecompileehllconfig',
+    'usecompilerhllconfig');
 }

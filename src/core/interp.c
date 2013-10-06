@@ -3415,6 +3415,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 STABLE(GET_REG(cur_op, 0).o)->hll_role = GET_REG(cur_op, 2).i64;
                 cur_op += 4;
                 goto NEXT;
+            OP(usecompileehllconfig):
+                MVM_hll_enter_compilee_mode(tc);
+                goto NEXT;
+            OP(usecompilerhllconfig):
+                MVM_hll_leave_compilee_mode(tc);
+                goto NEXT;
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

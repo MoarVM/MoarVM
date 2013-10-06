@@ -3515,9 +3515,21 @@ static MVMOpInfo MVM_op_infos[] = {
         2,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_usecompileehllconfig,
+        "usecompileehllconfig",
+        "  ",
+        0,
+    },
+    {
+        MVM_OP_usecompilerhllconfig,
+        "usecompilerhllconfig",
+        "  ",
+        0,
+    },
 };
 
-static unsigned short MVM_op_counts = 501;
+static unsigned short MVM_op_counts = 503;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

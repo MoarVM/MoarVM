@@ -1869,6 +1869,8 @@ QAST::MASTOperations.add_core_moarop_mapping('sethllconfig', 'sethllconfig');
 QAST::MASTOperations.add_core_moarop_mapping('loadbytecode', 'loadbytecode');
 QAST::MASTOperations.add_core_moarop_mapping('settypehll', 'settypehll', 0);
 QAST::MASTOperations.add_core_moarop_mapping('settypehllrole', 'settypehllrole', 0);
+QAST::MASTOperations.add_core_moarop_mapping('usecompileehllconfig', 'usecompileehllconfig');
+QAST::MASTOperations.add_core_moarop_mapping('usecompilerhllconfig', 'usecompilerhllconfig');
 
 # regex engine related opcodes
 QAST::MASTOperations.add_core_moarop_mapping('nfafromstatelist', 'nfafromstatelist');

@@ -9,7 +9,10 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
 
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 
-    HASH_FIND(hash_handle, tc->instance->hll_configs, kdata, klen, entry);
+    if (tc->instance->hll_compilee_depth)
+        HASH_FIND(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
+    else
+        HASH_FIND(hash_handle, tc->instance->compiler_hll_configs, kdata, klen, entry);
 
     if (!entry) {
         entry = calloc(sizeof(MVMHLLConfig), 1);
@@ -21,7 +24,10 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->slurpy_hash_type = tc->instance->boot_types.BOOTHash;
         entry->array_iterator_type = tc->instance->boot_types.BOOTIter;
         entry->hash_iterator_type = tc->instance->boot_types.BOOTIter;
-        HASH_ADD_KEYPTR(hash_handle, tc->instance->hll_configs, kdata, klen, entry);
+        if (tc->instance->hll_compilee_depth)
+            HASH_ADD_KEYPTR(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
+        else
+            HASH_ADD_KEYPTR(hash_handle, tc->instance->compiler_hll_configs, kdata, klen, entry);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->int_box_type);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->num_box_type);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->str_box_type);
@@ -67,4 +73,18 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
 /* Gets the current HLL configuration. */
 MVMHLLConfig *MVM_hll_current(MVMThreadContext *tc) {
     return (*tc->interp_cu)->body.hll_config;
+}
+
+/* Enter a level of compilee HLL configuration mode. */
+void MVM_hll_enter_compilee_mode(MVMThreadContext *tc) {
+    uv_mutex_lock(&tc->instance->mutex_hllconfigs);
+    tc->instance->hll_compilee_depth++;
+    uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
+}
+
+/* Leave a level of compilee HLL configuration mode. */
+void MVM_hll_leave_compilee_mode(MVMThreadContext *tc) {
+    uv_mutex_lock(&tc->instance->mutex_hllconfigs);
+    tc->instance->hll_compilee_depth--;
+    uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
 }

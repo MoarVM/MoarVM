@@ -501,5 +501,7 @@ static const void * const LABELS[] = {
     &&OP_rethrow,
     &&OP_resume,
     &&OP_settypehll,
-    &&OP_settypehllrole
+    &&OP_settypehllrole,
+    &&OP_usecompileehllconfig,
+    &&OP_usecompilerhllconfig
 };
