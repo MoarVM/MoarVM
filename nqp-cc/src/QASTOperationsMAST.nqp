@@ -986,6 +986,7 @@ QAST::MASTOperations.add_core_op('call', sub ($qastcomp, $op) {
         $callee := $qastcomp.as_mast(QAST::Var.new( :name($op.name), :scope('lexical') ));
     }
     elsif +@args {
+        @args := nqp::clone(@args);
         $callee := $qastcomp.as_mast(@args.shift());
     }
     else {
