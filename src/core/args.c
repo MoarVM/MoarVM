@@ -418,7 +418,9 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 break;
             }
             case MVM_CALLSITE_ARG_STR: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
                 box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, str_box_type, "str", set_str, s, reg.o = box, pos_funcs, push, reg, MVM_reg_obj);
+                MVM_gc_root_temp_pop(tc);
                 break;
             }
             default:
@@ -489,8 +491,9 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
             }
             case MVM_CALLSITE_ARG_STR: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
                 box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, str_box_type, "str", set_str, s, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
-                MVM_gc_root_temp_pop(tc);
+                MVM_gc_root_temp_pop_n(tc, 2);
                 break;
             }
             default:
