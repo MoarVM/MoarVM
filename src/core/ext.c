@@ -135,8 +135,8 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     }
 
     entry = malloc(sizeof *entry);
-    entry->func = func;
     entry->name = name;
+    entry->func = func;
     entry->info.name = cname;
     entry->info.opcode = (MVMuint16)-1;
     entry->info.mark[0] = '.';
@@ -150,4 +150,31 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);
 
     return 1;
+}
+
+const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
+        MVMExtOpRecord *record) {
+    MVMExtOpRegistry *entry;
+
+    /* Already resolved. */
+    if (record->info)
+        return record->info;
+
+    uv_mutex_lock(&tc->instance->mutex_extop_registry);
+
+    MVM_string_flatten(tc, record->name);
+    MVM_HASH_GET(tc, tc->instance->extop_registry, record->name, entry);
+
+    if (!entry) {
+        uv_mutex_unlock(&tc->instance->mutex_extop_registry);
+        return NULL;
+    }
+
+    /* Resolve record. */
+    record->info = &entry->info;
+    record->func = entry->func;
+
+    uv_mutex_unlock(&tc->instance->mutex_extop_registry);
+
+    return record->info;
 }

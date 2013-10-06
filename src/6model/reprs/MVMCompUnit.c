@@ -46,6 +46,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &body->coderefs[i]);
     }
 
+    /* Add extop names to the worklist. */
+    for (i = 0; i < body->num_extops; i++)
+        MVM_gc_worklist_add(tc, worklist, &body->extops[i].name);
+
     /* Add strings to the worklists. */
     for (i = 0; i < body->num_strings; i++)
         MVM_gc_worklist_add(tc, worklist, &body->strings[i]);

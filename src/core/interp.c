@@ -3427,13 +3427,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
-                cu->body.extops[op - MVM_OP_EXT_BASE].func(tc);
+                MVMExtOpRecord *record = &cu->body.extops[op - MVM_OP_EXT_BASE];
+
+                record->func(tc);
+                cur_op += record->operand_bytes;
                 goto NEXT;
             }
 #else
             default: {
-                if (op >= MVM_OP_EXT_BASE && (op - MVM_OP_EXT_BASE) < cu->body.num_extops) {
-                    cu->body.extops[op - MVM_OP_EXT_BASE].func(tc);
+                if (op >= MVM_OP_EXT_BASE
+                        && (op - MVM_OP_EXT_BASE) < cu->body.num_extops) {
+                    MVMExtOpRecord *record =
+                            &cu->body.extops[op - MVM_OP_EXT_BASE];
+
+                    record->func(tc);
+                    cur_op += record->operand_bytes;
                     goto NEXT;
                 }
 
