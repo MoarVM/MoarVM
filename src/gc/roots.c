@@ -79,9 +79,6 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* compunit variable pointer */
     MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
-
-    /* its current frame */
-    MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
