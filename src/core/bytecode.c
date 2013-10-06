@@ -1,11 +1,21 @@
 #include "moar.h"
 
 /* Some constants. */
-#define HEADER_SIZE             88
-#define MIN_BYTECODE_VERSION    1
-#define MAX_BYTECODE_VERSION    1
-#define FRAME_HEADER_SIZE       7 * 4 + 3 * 2
-#define FRAME_HANDLER_SIZE      4 * 4 + 2 * 2
+#define HEADER_SIZE                 92
+#define MIN_BYTECODE_VERSION        1
+#define MAX_BYTECODE_VERSION        1
+#define FRAME_HEADER_SIZE           7 * 4 + 3 * 2
+#define FRAME_HANDLER_SIZE          4 * 4 + 2 * 2
+#define SCDEP_HEADER_OFFSET         12
+#define EXTOP_HEADER_OFFSET         20
+#define FRAME_HEADER_OFFSET         28
+#define CALLSITE_HEADER_OFFSET      36
+#define STRING_HEADER_OFFSET        44
+#define SCDATA_HEADER_OFFSET        52
+#define BYTECODE_HEADER_OFFSET      60
+#define ANNOTATION_HEADER_OFFSET    68
+#define HLL_NAME_HEADER_OFFSET      76
+#define SPECIAL_FRAME_HEADER_OFFSET 80
 
 /* Describes the current reader state. */
 typedef struct {
@@ -19,6 +29,10 @@ typedef struct {
     /* The SC dependencies segment. */
     MVMuint8  *sc_seg;
     MVMuint32  expected_scs;
+
+    /* The extension ops segment. */
+    MVMuint8 *extop_seg;
+    MVMuint32 expected_extops;
 
     /* The frame segment. */
     MVMuint8  *frame_seg;
@@ -147,44 +161,56 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->version = version;
 
     /* Locate SC dependencies segment. */
-    offset = read_int32(cu_body->data_start, 12);
+    offset = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Serialization contexts segment starts after end of stream");
     }
     rs->sc_seg       = cu_body->data_start + offset;
-    rs->expected_scs = read_int32(cu_body->data_start, 16);
+    rs->expected_scs = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET + 4);
+
+    /* Locate extension ops segment. */
+    offset = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET);
+    if (offset > cu_body->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Extension ops segment starts after end of stream");
+    }
+    rs->extop_seg       = cu_body->data_start + offset;
+    rs->expected_extops = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET + 4);
 
     /* Locate frames segment. */
-    offset = read_int32(cu_body->data_start, 20);
+    offset = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
     }
     rs->frame_seg       = cu_body->data_start + offset;
-    rs->expected_frames = read_int32(cu_body->data_start, 24);
+    rs->expected_frames = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET + 4);
 
     /* Locate callsites segment. */
-    offset = read_int32(cu_body->data_start, 28);
+    offset = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
     }
     rs->callsite_seg       = cu_body->data_start + offset;
-    rs->expected_callsites = read_int32(cu_body->data_start, 32);
+    rs->expected_callsites = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET + 4);
 
     /* Locate strings segment. */
-    offset = read_int32(cu_body->data_start, 40);
+    offset = read_int32(cu_body->data_start, STRING_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
     }
     rs->string_seg       = cu_body->data_start + offset;
-    rs->expected_strings = read_int32(cu_body->data_start, 44);
+    rs->expected_strings = read_int32(cu_body->data_start, STRING_HEADER_OFFSET + 4);
+
+    /* TODO: SC data segment supposedly goes here.
+     *       For now, just reserve 8 bytes. */
 
     /* Locate bytecode segment. */
-    offset = read_int32(cu_body->data_start, 56);
-    size = read_int32(cu_body->data_start, 60);
+    offset = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
@@ -193,8 +219,8 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->bytecode_size = size;
 
     /* Locate annotations segment. */
-    offset = read_int32(cu_body->data_start, 64);
-    size = read_int32(cu_body->data_start, 68);
+    offset = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
@@ -203,13 +229,13 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->annotation_size = size;
 
     /* Locate HLL name */
-    rs->hll_str_idx = read_int32(cu_body->data_start, 72);
+    rs->hll_str_idx = read_int32(cu_body->data_start, HLL_NAME_HEADER_OFFSET);
 
     /* Locate special frame indexes. Note, they are 0 for none, and the
      * index + 1 if there is one. */
-    rs->main_frame = read_int32(cu_body->data_start, 76);
-    rs->load_frame = read_int32(cu_body->data_start, 80);
-    rs->deserialize_frame = read_int32(cu_body->data_start, 84);
+    rs->main_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET);
+    rs->load_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 4);
+    rs->deserialize_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 8);
     if (rs->main_frame > rs->expected_frames
             || rs->load_frame > rs->expected_frames
             || rs->deserialize_frame > rs->expected_frames) {
