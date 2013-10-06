@@ -161,6 +161,10 @@ struct MVMInstance {
     MVMExtRegistry  *ext_registry;
     uv_mutex_t mutex_ext_registry;
 
+    /* Hash of all registered extension ops. */
+    MVMExtOpRegistry *extop_registry;
+    uv_mutex_t  mutex_extop_registry;
+
     /* Hash of all known serialization contexts. Marked for GC iff
      * the item is unresolved. */
     MVMSerializationContextBody *sc_weakhash;
