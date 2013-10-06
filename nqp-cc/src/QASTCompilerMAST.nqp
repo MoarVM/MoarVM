@@ -706,7 +706,7 @@ class QAST::MASTCompiler {
                 nqp::die("Param scope must be 'local' or 'lexical'")
                     if $scope ne 'lexical' && $scope ne 'local';
 
-                my $param_kind := self.type_to_register_kind($var.returns // NQPMu);
+                my $param_kind := self.type_to_register_kind($var.returns);
                 my $opslot := @kind_to_op_slot[$param_kind];
 
                 my $opname_index := ($var.named ?? 8 !! 0) + ($var.default ?? 4 !! 0) + $opslot;
@@ -927,15 +927,6 @@ class QAST::MASTCompiler {
         }
         elsif $node.supports('mast') {
             return $node.alternative('mast');
-        }
-        elsif $node.supports('jvm') {
-            # Currently, NQP spits out very generic code in the JVM option, so we
-            # will pretend we are a JVM for now. This means we should be able to
-            # get a fairly long way on a stock NQP, rather than needing secret
-            # hacks. :-)
-            return nqp::defined($want)
-                ?? self.as_mast($node.alternative('jvm'), :$want)
-                !! self.as_mast($node.alternative('jvm'));
         }
         else {
             nqp::die("To compile on the MoarVM backend, QAST::VM must have an alternative 'moar' or 'moarop'");
@@ -1304,6 +1295,9 @@ class QAST::MASTCompiler {
     multi method as_mast(QAST::WVal $node, :$want) {
         my $val    := $node.value;
         my $sc     := nqp::getobjsc($val);
+        if nqp::isnull($sc) {
+            nqp::die("Object of type " ~ $val.HOW.name($val) ~ " in QAST::WVal, but not in SC");
+        }
         my $idx    := nqp::scgetobjidx($sc, $val);
         my $sc_idx := $*MAST_COMPUNIT.sc_idx($sc);
         my $reg    := $*REGALLOC.fresh_o();

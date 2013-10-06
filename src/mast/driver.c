@@ -81,8 +81,11 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
 
         /* Turn the MAST tree into bytecode. */
         unsigned int size;
-        char *bytecode = MVM_mast_compile(tc, mast, mnt, &size);
+        char *bytecode;
+        MVM_gc_allocate_gen2_default_set(tc);
+        bytecode = MVM_mast_compile(tc, mast, mnt, &size);
         free(mnt);
+        MVM_gc_allocate_gen2_default_clear(tc);
         
         /* Write it out to a file. (Not using VM-level IO for this right now;
          * may want to do that, but really we just want to shove the bytes out

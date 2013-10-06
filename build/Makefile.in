@@ -1,11 +1,14 @@
-CC    = @cc@
-LD    = @ld@
-AR    = @ar@
-MAKE  = @make@ @mkflags@
-PERL  = @perl@
-RM    = @rm@
-CAT   = @cat@
-SHELL = @sh@
+CC     = @cc@
+LD     = @ld@
+AR     = @ar@
+MAKE   = @make@ @mkflags@
+PERL   = @perl@
+RM     = @rm@
+CAT    = @cat@
+SHELL  = @sh@
+CP     = $(PERL) -MExtUtils::Command -e cp
+MKPATH = $(PERL) -MExtUtils::Command -e mkpath
+CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 
 CONFIG    = @config@
 ADDCONFIG =
@@ -21,6 +24,7 @@ NOERR =
 
 @mknoisy@
 
+PREFIX    = @prefix@
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libuv/src \
@@ -259,6 +263,14 @@ THIRDPARTY = @thirdpartylibs@
 .SUFFIXES: .c @obj@
 
 all: moar@exe@
+
+install: all
+	$(MKPATH) $(PREFIX)/bin
+	$(CP) moar@exe@ $(PREFIX)/bin
+	$(CHMOD) 755 $(PREFIX)/bin/moar@exe@
+	$(MKPATH) $(PREFIX)/lib/MAST
+	$(CP) lib/MAST/Nodes.nqp $(PREFIX)/lib/MAST
+	$(CP) lib/MAST/Ops.nqp $(PREFIX)/lib/MAST
 
 lib: @moar@
 

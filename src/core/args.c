@@ -476,15 +476,21 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
                 break;
             }
             case MVM_CALLSITE_ARG_INT: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
                 box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, int_box_type, "int", set_int, i64, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
+                MVM_gc_root_temp_pop(tc);
                 break;
             }
             case MVM_CALLSITE_ARG_NUM: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
                 box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, num_box_type, "num", set_num, n64, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
+                MVM_gc_root_temp_pop(tc);
                 break;
             }
             case MVM_CALLSITE_ARG_STR: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
                 box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, str_box_type, "str", set_str, s, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
+                MVM_gc_root_temp_pop(tc);
                 break;
             }
             default:

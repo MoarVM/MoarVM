@@ -39,6 +39,7 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
  * but that isn't permanent. */
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *current, *tmp;
+    MVMLoadedCompUnitName       *current_lcun, *tmp_lcun;
 
     MVM_gc_worklist_add(tc, worklist, &tc->instance->threads);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
@@ -51,6 +52,10 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         /* mark the string handle pointer iff it hasn't yet been resolved */
         if (!current->sc)
             MVM_gc_worklist_add(tc, worklist, &current->handle);
+    }
+    
+    HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun) {
+        MVM_gc_worklist_add(tc, worklist, &current_lcun->filename);
     }
 }
 
@@ -240,7 +245,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan arguments in case there was a flattening. Don't need to if
      * there wasn't a flattening because orig args is a subset of locals. */
-    if (frame->params.args && frame->params.callsite->has_flattening) {
+    if (frame->params.arg_flags && frame->params.callsite->has_flattening) {
         MVMArgProcContext *ctx = &frame->params;
         flag_map = ctx->arg_flags;
         count = ctx->arg_count;

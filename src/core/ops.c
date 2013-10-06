@@ -2585,6 +2585,27 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
+        MVM_OP_isint,
+        "isint",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_isnum,
+        "isnum",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_isstr,
+        "isstr",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_islist,
         "islist",
         "  ",
@@ -3481,6 +3502,32 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_settypehll,
+        "settypehll",
+        "  ",
+        2,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_settypehllrole,
+        "settypehllrole",
+        "  ",
+        2,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_usecompileehllconfig,
+        "usecompileehllconfig",
+        "  ",
+        0,
+    },
+    {
+        MVM_OP_usecompilerhllconfig,
+        "usecompilerhllconfig",
+        "  ",
+        0,
+    },
+    {
         MVM_OP_loadlib,
         "loadlib",
         "  ",
@@ -3517,7 +3564,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 501;
+static unsigned short MVM_op_counts = 508;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

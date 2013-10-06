@@ -7,8 +7,7 @@ knowhow ModuleLoader {
 
         # Put any explicitly specified path on the start of the list.
         my $explicit;
-        # XXX TODO: Exceptions.
-        #try { $explicit := %*COMPILING<%?OPTIONS>{$explicit_path}; }
+        try { $explicit := nqp::ifnull(nqp::ifnull(%*COMPILING, {})<%?OPTIONS>, {}){$explicit_path}; }
         if !nqp::isnull($explicit) && nqp::defined($explicit) {
             nqp::push(@search_paths, $explicit);
         }
@@ -32,10 +31,10 @@ knowhow ModuleLoader {
         my $path := nqp::join('/', nqp::split('::', $module_name)) ~ '.moarvm';
         my @prefixes := self.search_path('module-path');
         for @prefixes -> $prefix {
-            #if nqp::stat("$prefix/$path", 0) {
+            if nqp::stat("$prefix/$path", 0) {
                 $path := "$prefix/$path";
-            #    last;
-            #}
+                last;
+            }
         }
         if nqp::existskey(%modules_loaded, $path) {
             $module_ctx := %modules_loaded{$path};
@@ -43,8 +42,13 @@ knowhow ModuleLoader {
         else {
             my $*CTXSAVE := self;
             my $*MAIN_CTX := ModuleLoader;
+            my $boot_mode;
+            try { $boot_mode := nqp::ifnull(nqp::ifnull(%*COMPILING, {})<%?OPTIONS>, {})<bootstrap>; }
+            $boot_mode := !nqp::isnull($boot_mode) && $boot_mode;
             my $preserve_global := nqp::getcurhllsym('GLOBAL');
+            __MVM__usecompileehllconfig() if $boot_mode;
             nqp::loadbytecode($path);
+            __MVM__usecompilerhllconfig() if $boot_mode;
             nqp::bindcurhllsym('GLOBAL', $preserve_global);
             %modules_loaded{$path} := $module_ctx := $*MAIN_CTX;
         }
@@ -140,8 +144,13 @@ knowhow ModuleLoader {
             unless nqp::existskey(%settings_loaded, $path) {
                 my $*CTXSAVE := self;
                 my $*MAIN_CTX := ModuleLoader;
+                my $boot_mode;
+                try { $boot_mode := nqp::ifnull(nqp::ifnull(%*COMPILING, {})<%?OPTIONS>, {})<bootstrap>; }
+                $boot_mode := !nqp::isnull($boot_mode) && $boot_mode;
                 my $preserve_global := nqp::getcurhllsym('GLOBAL');
+                __MVM__usecompileehllconfig() if $boot_mode;
                 nqp::loadbytecode($path);
+                __MVM__usecompilerhllconfig() if $boot_mode;
                 nqp::bindcurhllsym('GLOBAL', $preserve_global);
                 unless nqp::defined($*MAIN_CTX) {
                     nqp::die("Unable to load setting $setting_name; maybe it is missing a YOU_ARE_HERE?");
@@ -155,6 +164,10 @@ knowhow ModuleLoader {
         $setting;
     }
 }
+
+# Following is hack for cross-compiling; will go away with nqp-cc.
+sub __MVM__usecompileehllconfig() {}
+sub __MVM__usecompilerhllconfig() {}
 
 # Since this *is* the module loader, we can't locate it the normal way by
 # GLOBAL merging. So instead we stash it away in the Parrot namespace tree.

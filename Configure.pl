@@ -31,6 +31,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s
     shared use-readline
     build=s host=s big-endian
+    prefix=s
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -64,6 +65,8 @@ else {
 $config{name}   = $NAME;
 $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
+
+$config{prefix} = $args{prefix} // '.';
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -479,12 +482,12 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--shared] [--use-readline]
+                   [--shared] [--use-readline] [--prefix]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--shared] [--big-endian]
+                   [--shared] [--big-endian] [--prefix]
 
 =head1 OPTIONS
 
@@ -577,5 +580,9 @@ Set up cross-compilation.
 
 Set byte order of host system in case of cross compilation. With native
 builds, the byte order is auto-detected.
+
+=item --prefix
+
+Install files in subdirectory /bin of the supplied path.
 
 =back

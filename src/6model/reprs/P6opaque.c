@@ -165,6 +165,12 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVMSTable *st     = repr_data->flattened_stables[repr_data->gc_cleanup_slots[i]];
         st->REPR->gc_cleanup(tc, st, (char *)data + offset);
     }
+    
+    /* If we replaced the object body, free the replacement. */
+    if (((MVMP6opaque *)obj)->body.replaced) {
+        free(((MVMP6opaque *)obj)->body.replaced);
+        ((MVMP6opaque *)obj)->body.replaced = NULL;
+    }
 }
 
 /* Marks the representation data in an STable.*/
