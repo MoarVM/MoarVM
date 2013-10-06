@@ -181,6 +181,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/P6bigint.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \
+          src/6model/reprs/MVMCompUnit.h \
           src/6model/reprs/MVMDLLSym.h \
           src/6model/sc.h \
           src/mast/compiler.h \
