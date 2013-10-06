@@ -3424,9 +3424,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-#if !MVM_CGOTO
-            default:
-                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));
+#if MVM_CGOTO
+            OP_CALL_EXTOP: {
+                /* Bounds checking? Never heard of that. */
+                cu->body.extops[op - MVM_OP_EXT_BASE].func(tc);
+                goto NEXT;
+            }
+#else
+            default: {
+                if (op >= MVM_OP_EXT_BASE && (op - MVM_OP_EXT_BASE) < cu->body.num_extops) {
+                    cu->body.extops[op - MVM_OP_EXT_BASE].func(tc);
+                    goto NEXT;
+                }
+
+                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", op);
+            }
 #endif
         }
     }

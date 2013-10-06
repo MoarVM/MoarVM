@@ -1,3 +1,8 @@
+typedef struct {
+    MVMExtOpFunc *func;
+    MVMOpInfo    *info;
+} MVMExtOpCUEntry;
+
 /* Representation for a compilation unit in the VM. */
 struct MVMCompUnitBody {
     /* The start and size of the raw data for this compilation unit. */
@@ -17,6 +22,11 @@ struct MVMCompUnitBody {
     MVMCallsite **callsites;
     MVMuint32     num_callsites;
     MVMuint16     max_callsite_size;
+
+    /* The extension ops used by the compilation unit.
+     * Initialized by user code in load_frame. */
+    MVMExtOpCUEntry *extops;
+    MVMuint16        num_extops;
 
     /* The string heap and number of strings. */
     MVMString **strings;

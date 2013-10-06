@@ -72,6 +72,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     body->load_frame = NULL;
     body->deserialize_frame = NULL;
     MVM_checked_free_null(body->callsites);
+    MVM_checked_free_null(body->extops);
     MVM_checked_free_null(body->strings);
     MVM_checked_free_null(body->scs);
     MVM_checked_free_null(body->scs_to_resolve);
