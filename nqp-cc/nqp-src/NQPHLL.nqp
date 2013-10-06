@@ -917,7 +917,11 @@ class HLL::Backend::MoarVM {
             nqp::null()
         }
         else {
-            $assmblr.assemble_and_load($mast);
+            my $boot_mode := %adverbs<bootstrap> ?? 1 !! 0;
+            __MVM__usecompileehllconfig() if $boot_mode;
+            my $result := $assmblr.assemble_and_load($mast);
+            __MVM__usecompilerhllconfig() if $boot_mode;
+            $result
         }
     }
 
