@@ -190,7 +190,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc)
             continue;
         if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
-            MVM_panic(1, "Heap corruption detected: pointer to past fromspace");
+            MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
 
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
