@@ -1181,8 +1181,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(objprimspec): {
                 MVMObject *type = GET_REG(cur_op, 2).o;
-                MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
-                GET_REG(cur_op, 0).i64 = ss.boxed_primitive;
+                if (type) {
+                    MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+                    GET_REG(cur_op, 0).i64 = ss.boxed_primitive;
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                }
                 cur_op += 4;
                 goto NEXT;
             }
