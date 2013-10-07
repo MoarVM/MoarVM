@@ -328,6 +328,143 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     }
 }
 
+/* Loads the extension op records. */
+static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMExtOpRecord *extops;
+    MVMuint32 num = rs->expected_extops;
+    MVMuint8 *pos;
+    MVMuint32 i;
+
+    if (num == 0)
+        return NULL;
+
+    extops = calloc(num, sizeof *extops);
+
+    pos = rs->extop_seg;
+    for (i = 0; i < num; i++) {
+        MVMuint32 name_idx;
+        MVMuint16 operand_bytes = 0;
+        MVMuint8 *operand_descriptor = extops[i].operand_descriptor;
+
+        /* Read name string index. */
+        ensure_can_read(tc, cu, rs, pos, 4);
+        name_idx = read_int32(pos, 0);
+        pos += 4;
+
+        /* Lookup name string. */
+        if (name_idx >= cu->body.num_strings) {
+            cleanup_all(tc, rs);
+            MVM_exception_throw_adhoc(tc,
+                    "String heap index beyond end of string heap");
+        }
+        extops[i].name = cu->body.strings[name_idx];
+
+        /* Read operand descriptor. */
+        ensure_can_read(tc, cu, rs, pos, 8);
+        memcpy(operand_descriptor, pos, 8);
+        pos += 8;
+
+        /* Validate operand descriptor.
+         * TODO: Unify with validation in MVM_ext_register_extop? */
+        {
+            MVMuint8 j = 0;
+
+            for(; j < 8; j++) {
+                MVMuint8 flags = operand_descriptor[j];
+
+                if (!flags)
+                    break;
+
+                switch (flags & MVM_operand_rw_mask) {
+                    case MVM_operand_literal:
+                        goto check_literal;
+
+                    case MVM_operand_read_reg:
+                    case MVM_operand_write_reg:
+                    case MVM_operand_read_lex:
+                    case MVM_operand_write_lex:
+                        goto check_reg;
+
+                    default:
+                        goto fail;
+                }
+
+            check_literal:
+                switch (flags & MVM_operand_type_mask) {
+                    case MVM_operand_int8:
+                        operand_bytes += 1;
+                        continue;
+
+                    case MVM_operand_int16:
+                        operand_bytes += 2;
+                        continue;
+
+                    case MVM_operand_int32:
+                        operand_bytes += 4;
+                        continue;
+
+                    case MVM_operand_int64:
+                        operand_bytes += 8;
+                        continue;
+
+                    case MVM_operand_num32:
+                        operand_bytes += 4;
+                        continue;
+
+                    case MVM_operand_num64:
+                        operand_bytes += 8;
+                        continue;
+
+                    case MVM_operand_str:
+                        operand_bytes += 2;
+                        continue;
+
+                    case MVM_operand_ins:
+                        operand_bytes += 4;
+                        continue;
+
+                    case MVM_operand_coderef:
+                        operand_bytes += 2;
+                        continue;
+
+                    case MVM_operand_callsite:
+                        operand_bytes += 2;
+                        continue;
+
+                    default:
+                        goto fail;
+                }
+
+            check_reg:
+                switch (flags & MVM_operand_type_mask) {
+                    case MVM_operand_int8:
+                    case MVM_operand_int16:
+                    case MVM_operand_int32:
+                    case MVM_operand_int64:
+                    case MVM_operand_num32:
+                    case MVM_operand_num64:
+                    case MVM_operand_str:
+                    case MVM_operand_obj:
+                    case MVM_operand_type_var:
+                        operand_bytes += 2;
+                        continue;
+
+                    default:
+                        goto fail;
+                }
+
+            fail:
+                cleanup_all(tc, rs);
+                MVM_exception_throw_adhoc(tc, "Invalid operand descriptor");
+            }
+        }
+
+        extops[i].operand_bytes = operand_bytes;
+    }
+
+    return extops;
+}
+
 /* Loads the static frame information (what locals we have, bytecode offset,
  * lexicals, etc.) */
 static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
@@ -583,6 +720,10 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     /* Load SC dependencies. */
     deserialize_sc_deps(tc, cu, rs);
+
+    /* Load the extension op records. */
+    cu_body->extops = deserialize_extop_records(tc, cu, rs);
+    cu_body->num_extops = rs->expected_extops;
 
     /* Load the static frame info and give each one a code reference. */
     cu_body->frames = deserialize_frames(tc, cu, rs);
