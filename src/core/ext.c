@@ -100,9 +100,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
                 case MVM_operand_num32:
                 case MVM_operand_num64:
                 case MVM_operand_str:
-                case MVM_operand_obj:
                 case MVM_operand_ins:
-                case MVM_operand_type_var:
                 case MVM_operand_coderef:
                 case MVM_operand_callsite:
                     continue;
@@ -112,15 +110,16 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
             }
 
         check_reg:
-            switch (flags >> 3) {
-                case MVM_reg_int8:
-                case MVM_reg_int16:
-                case MVM_reg_int32:
-                case MVM_reg_int64:
-                case MVM_reg_num32:
-                case MVM_reg_num64:
-                case MVM_reg_str:
-                case MVM_reg_obj:
+            switch (flags & MVM_operand_type_mask) {
+                case MVM_operand_int8:
+                case MVM_operand_int16:
+                case MVM_operand_int32:
+                case MVM_operand_int64:
+                case MVM_operand_num32:
+                case MVM_operand_num64:
+                case MVM_operand_str:
+                case MVM_operand_obj:
+                case MVM_operand_type_var:
                     continue;
 
                 default:
@@ -143,6 +142,8 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->info.mark[1] = 'x';
     entry->info.num_operands = num_operands;
     memcpy(entry->info.operands, operands, num_operands);
+    memset(entry->info.operands + num_operands, 0,
+            MVM_MAX_OPERANDS - num_operands);
 
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     MVM_HASH_BIND(tc, tc->instance->extop_registry, name, entry);
