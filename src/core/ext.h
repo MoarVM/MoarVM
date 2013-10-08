@@ -1,4 +1,4 @@
-typedef void MVMExtOpFunc(MVMThreadContext *tc);
+typedef void MVMExtOpFunc(MVMThreadContext *tc, MVMRegister *operands);
 
 struct MVMExtRegistry {
     MVMDLLSym *sym;

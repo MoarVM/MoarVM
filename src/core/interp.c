@@ -26,6 +26,88 @@
 #define NEXT runloop
 #endif
 
+#define STAGE(I) { \
+    MVMuint8 flags_ = record_->operand_descriptor[I]; \
+    if (!flags_) break; \
+    switch (flags_ & MVM_operand_rw_mask) { \
+        case MVM_operand_literal: \
+            switch (flags_ & MVM_operand_type_mask) { \
+                case MVM_operand_int8: \
+                    stage_[I].i8 = *(MVMint8 *)(cur_op + pos_); \
+                    pos_ += 1; \
+                    break; \
+                case MVM_operand_int16: \
+                    stage_[I].i16 = *(MVMint16 *)(cur_op + pos_); \
+                    pos_ += 2; \
+                    break; \
+                case MVM_operand_int32: \
+                    stage_[I].i32 = *(MVMint32 *)(cur_op + pos_); \
+                    pos_ += 4; \
+                    break; \
+                case MVM_operand_int64: \
+                    stage_[I].i64 = *(MVMint64 *)(cur_op + pos_); \
+                    pos_ += 8; \
+                    break; \
+                case MVM_operand_num32: \
+                    stage_[I].n32 = *(MVMnum32 *)(cur_op + pos_); \
+                    pos_ += 4; \
+                    break; \
+                case MVM_operand_num64: \
+                    stage_[I].n64 = *(MVMnum64 *)(cur_op + pos_); \
+                    pos_ += 8; \
+                    break; \
+                case MVM_operand_str: \
+                    stage_[I].s = cu->body.strings[GET_UI16(cur_op, pos_)]; \
+                    pos_ += 2; \
+                    break; \
+                case MVM_operand_coderef: \
+                    stage_[I].o = cu->body.coderefs[GET_UI16(cur_op, pos_)]; \
+                    pos_ += 2; \
+                    break; \
+            } \
+            break; \
+        case MVM_operand_read_reg: \
+            stage_[I] = GET_REG(cur_op, pos_); \
+            pos_ += 2; \
+            break; \
+        case MVM_operand_write_reg: \
+            wreg_[I] = &GET_REG(cur_op, pos_); \
+            pos_ += 2; \
+            break; \
+        case MVM_operand_read_lex: { \
+            MVMFrame *f_ = tc->cur_frame; \
+            MVMuint16 outers_ = GET_UI16(cur_op, pos_ + 2); \
+            while (outers_--) f_ = f_->outer; \
+            stage_[I] = GET_LEX(cur_op, pos_, f_); \
+            pos_ += 4; \
+            break; \
+        } \
+        case MVM_operand_write_lex: { \
+            MVMFrame *f_ = tc->cur_frame; \
+            MVMuint16 outers_ = GET_UI16(cur_op, pos_ + 2); \
+            while (outers_--) f_ = f_->outer; \
+            wreg_[I] = &GET_LEX(cur_op, pos_, f_); \
+            pos_ += 4; \
+            break; \
+        } \
+    } \
+}
+
+#define UNSTAGE(I) if (wreg_[I]) *wreg_[I] = stage_[I]
+
+#define CALL_EXTOP(R) do { \
+    MVMExtOpRecord *record_ = R; \
+    MVMRegister stage_[MVM_MAX_OPERANDS]; \
+    MVMRegister *wreg_[MVM_MAX_OPERANDS] = { NULL }; \
+    do { \
+        MVMuint32 pos_ = 0; \
+        STAGE(0); STAGE(1); STAGE(2); STAGE(3); \
+        STAGE(4); STAGE(5); STAGE(6); STAGE(7); \
+    } while (0); \
+    record_->func(tc, stage_); \
+    UNSTAGE(0); \
+} while (0)
+
 static int tracing_enabled = 0;
 
 /* This is the interpreter run loop. We have one of these per thread. */
@@ -3457,30 +3539,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-#if MVM_CGOTO
-            OP_CALL_EXTOP: {
-                /* Bounds checking? Never heard of that. */
-                MVMExtOpRecord *record = &cu->body.extops[op - MVM_OP_EXT_BASE];
+#if !MVM_CGOTO
+            default:
+                if (op < MVM_OP_EXT_BASE)
+                    MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", op);
 
-                record->func(tc);
+                if ((op - MVM_OP_EXT_BASE) >= cu->body.num_extops)
+                    MVM_panic(MVM_exitcode_invalidopcode, "Unknown extension opcode %u executed", op);
+#endif
+            OP_CALL_EXTOP: {
+                MVMExtOpRecord *record = &cu->body.extops[op - MVM_OP_EXT_BASE];
+                CALL_EXTOP(record);
                 cur_op += record->operand_bytes;
                 goto NEXT;
             }
-#else
-            default: {
-                if (op >= MVM_OP_EXT_BASE
-                        && (op - MVM_OP_EXT_BASE) < cu->body.num_extops) {
-                    MVMExtOpRecord *record =
-                            &cu->body.extops[op - MVM_OP_EXT_BASE];
-
-                    record->func(tc);
-                    cur_op += record->operand_bytes;
-                    goto NEXT;
-                }
-
-                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", op);
-            }
-#endif
         }
     }
 
