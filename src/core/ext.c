@@ -100,11 +100,11 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
                 case MVM_operand_num32:
                 case MVM_operand_num64:
                 case MVM_operand_str:
-                case MVM_operand_ins:
                 case MVM_operand_coderef:
-                case MVM_operand_callsite:
                     continue;
 
+                case MVM_operand_ins:
+                case MVM_operand_callsite:
                 default:
                     goto fail;
             }

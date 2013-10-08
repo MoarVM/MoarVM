@@ -381,8 +381,12 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 
                     case MVM_operand_read_reg:
                     case MVM_operand_write_reg:
+                        operand_bytes += 2;
+                        goto check_reg;
+
                     case MVM_operand_read_lex:
                     case MVM_operand_write_lex:
+                        operand_bytes += 4;
                         goto check_reg;
 
                     default:
@@ -419,18 +423,12 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
                         operand_bytes += 2;
                         continue;
 
-                    case MVM_operand_ins:
-                        operand_bytes += 4;
-                        continue;
-
                     case MVM_operand_coderef:
                         operand_bytes += 2;
                         continue;
 
+                    case MVM_operand_ins:
                     case MVM_operand_callsite:
-                        operand_bytes += 2;
-                        continue;
-
                     default:
                         goto fail;
                 }
@@ -446,7 +444,6 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
                     case MVM_operand_str:
                     case MVM_operand_obj:
                     case MVM_operand_type_var:
-                        operand_bytes += 2;
                         continue;
 
                     default:
