@@ -129,3 +129,16 @@ MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
  * which the other atomic operation macros are used... */
 #define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
 #define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
+
+/* Extension-specific macros. */
+#ifdef MVM_EXTENSION
+
+/* Extension op definition. */
+#define MVM_EXTOP(name, block) \
+    MVM_PUBLIC void name(MVMThreadContext *tc, MVMRegister *operands) block
+
+/* Extension operand access. */
+#define ARG_I64(i) operands[i].i64
+#define ARG_STR(i) operands[i].s
+
+#endif
