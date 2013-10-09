@@ -1139,6 +1139,9 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
 /* Checks if the character at the specified offset is a member of the
  * indicated character class. */
 MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
+    if (offset < 0 || offset >= NUM_GRAPHS(s))
+        return 0;
+
     switch (cclass) {
         case MVM_CCLASS_ANY:
             return 1;
