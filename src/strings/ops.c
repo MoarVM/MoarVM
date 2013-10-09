@@ -921,8 +921,9 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
     MVMuint32 index;
     MVMCharAtState state;
 
+    /* We return -2 here only to be able to distinguish between "out of bounds" and "not in string". */
     if (offset < 0 || offset >= NUM_GRAPHS(a))
-        return -1;
+        return -2;
 
     state.search = MVM_string_get_codepoint_at_nocheck(tc, a, offset);
     state.result = -1;

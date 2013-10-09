@@ -232,7 +232,8 @@ split               w(obj) r(str) r(str)
 join                w(str) r(str) r(obj)
 #replace             w(str) r(str) r(str) r(str)
 getcpbyname         w(int64) r(str)
-indexat_scb         r(str) r(int64) str ins
+indexat             r(str) r(int64) str ins
+indexnat            r(str) r(int64) str ins
 unipropcode         w(int64) r(str)
 unipvalcode         w(int64) r(int64) r(str)
 hasuniprop          w(int64) r(str) r(int64) r(int64) r(int64)
