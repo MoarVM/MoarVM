@@ -115,6 +115,11 @@ void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to pop insufficiently large temporary root stack");
 }
 
+/* Pops all temporary roots off the thread-local roots list. */
+void MVM_gc_root_temp_pop_all(MVMThreadContext *tc) {
+    tc->num_temproots = 0;
+}
+
 /* Adds the set of thread-local temporary roots to a GC worklist. */
 void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMuint32         i, num_roots;

@@ -63,6 +63,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
      * program entry point). */
     initial_invoke(tc, invoke_data);
 
+    /* Set jump point, for if we arrive back in the interpreter from an
+     * exception thrown from C code. */
+    setjmp(tc->interp_jump);
+
     /* Enter runloop. */
     runloop: {
         MVMuint16 op;

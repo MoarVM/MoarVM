@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
+#include <setjmp.h>
 
 /* Configuration. */
 #include "gen/config.h"

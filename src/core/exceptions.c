@@ -1,6 +1,10 @@
 #include "moar.h"
 #include <stdarg.h>
 
+#if _MSC_VER
+#define vsnprintf _vsnprintf
+#endif
+
 static int crash_on_error = 0;
 
 /* Maps ID of exception category to its name. */
@@ -423,14 +427,52 @@ void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, 
 /* Throws an ad-hoc (untyped) exception. */
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) {
-    /* Needs plugging in to the exceptions mechanism. */
-    vfprintf(stderr, messageFormat, args);
-    fwrite("\n", 1, 1, stderr);
-    dump_backtrace(tc);
-    if (crash_on_error)
-        abort();
+    LocatedHandler lh;
+
+    /* Create and set up an exception object. */
+    MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+    MVMROOT(tc, ex, {
+        char      *c_message = malloc(1024);
+        int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
+        MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
+        free(c_message);
+        MVM_ASSIGN_REF(tc, ex, ex->body.message, message);
+        ex->body.origin   = MVM_frame_inc_ref(tc, tc->cur_frame);
+        ex->body.category = MVM_EX_CAT_CATCH;
+    });
+
+    /* Try to locate a handler, so long as we're in the interpreter. */
+    if (tc->interp_cur_op)
+        lh = search_for_handler_from(tc, tc->cur_frame, MVM_EX_THROW_DYN, ex->body.category);
     else
-        exit(1);
+        lh.frame = NULL;
+
+    /* Do we have a handler to unwind to? */
+    if (lh.frame == NULL) {
+        /* No handler. Should we crash on these? */
+        if (crash_on_error) {
+            /* Yes, abort. */
+            vfprintf(stderr, messageFormat, args);
+            fwrite("\n", 1, 1, stderr);
+            dump_backtrace(tc);
+            abort();
+        }
+        else {
+            /* No, just the usual panic. */
+            panic_unhandled_ex(tc, ex);
+        }
+    }
+
+    /* Run the handler, which doesn't actually run it but rather sets up the
+     * interpreter so that when we return to it, we'll be at the handler. */
+    run_handler(tc, lh, (MVMObject *)ex);
+
+    /* Clear an C stack temporaries that code may have pushed before throwing
+     * the exception. */
+    MVM_gc_root_temp_pop_all(tc);
+
+    /* Jump back into the interpreter. */
+    longjmp(tc->interp_jump, 1);
 }
 
 void MVM_crash_on_error(void) {

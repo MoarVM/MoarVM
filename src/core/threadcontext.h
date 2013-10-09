@@ -73,6 +73,10 @@ struct MVMThreadContext {
      * is stored. */
     MVMCompUnit **interp_cu;
 
+    /* Jump buffer, used when an exception is thrown from C-land and we need
+     * to fall back into the interpreter. */
+    jmp_buf interp_jump;
+
     /* The frame we're currently executing. */
     MVMFrame *cur_frame;
 
