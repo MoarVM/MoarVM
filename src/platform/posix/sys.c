@@ -1,7 +1,7 @@
 #include "moar.h"
 #include "platform/sys.h"
 
-#if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 6
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 6)
 
 #define _GNU_SOURCE
 #include <sched.h>
