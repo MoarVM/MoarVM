@@ -66,6 +66,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
         MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
+        cur_ah = cur_ah->next_handler;
     }
 
     /* Any exception handler result. */
