@@ -31,7 +31,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s
     shared use-readline
     build=s host=s big-endian
-    prefix=s
+    prefix=s make-install
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -276,6 +276,10 @@ Configuration SUCCESS.
 Type '$config{'make'}' to build and '$config{'make'} help' to see a list of
 available make targets.
 TERM2
+
+if (!$failed && $args{'make-install'}) {
+    system($config{make}, 'install');
+}
 
 exit $failed;
 
@@ -584,5 +588,9 @@ builds, the byte order is auto-detected.
 =item --prefix
 
 Install files in subdirectory /bin of the supplied path.
+
+=item --make-install
+
+Build and install MoarVM in addition to configuring it.
 
 =back
