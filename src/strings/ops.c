@@ -734,6 +734,72 @@ MVMuint8 * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
     return NULL;
 }
 
+/* Encodes a string, and writes the encoding string into the supplied Buf
+ * instance, which should be an integer array with MVMArray REPR. */
+void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf) {
+    MVMuint64 output_size;
+    MVMuint8 *encoded;
+    MVMArrayREPRData *buf_rd;
+    MVMuint8 elem_size = 0;
+
+    /* Ensure the target is in the correct form. */
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "encode requires a native array to write into");
+    buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
+    if (buf_rd) {
+        switch (buf_rd->slot_type) {
+            case MVM_ARRAY_I64: elem_size = 8; break;
+            case MVM_ARRAY_I32: elem_size = 4; break;
+            case MVM_ARRAY_I16: elem_size = 2; break;
+            case MVM_ARRAY_I8:  elem_size = 1; break;
+        }
+    }
+    if (!elem_size)
+        MVM_exception_throw_adhoc(tc, "encode requires  a native int array");
+    if (((MVMArray *)buf)->body.slots.any)
+        MVM_exception_throw_adhoc(tc, "encode requires an empty array");
+
+    /* At least find_encoding may allocate on first call, so root just
+     * in case. */
+    MVMROOT(tc, buf, {
+        encoded = MVM_string_encode(tc, s, 0, NUM_GRAPHS(s), &output_size,
+            MVM_string_find_encoding(tc, enc_name));
+    });
+
+    /* Stash the encoded data in the VMArray. */
+    ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)encoded;
+    ((MVMArray *)buf)->body.start    = 0;
+    ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
+    ((MVMArray *)buf)->body.elems    = output_size / elem_size;
+}
+
+/* Decodes a string using the data from the specified Buf. */
+MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name) {
+    MVMArrayREPRData *buf_rd;
+    MVMuint8 elem_size = 0;
+
+    /* Ensure the source is in the correct form. */
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "decode requires a native array to read from");
+    buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
+    if (buf_rd) {
+        switch (buf_rd->slot_type) {
+            case MVM_ARRAY_I64: elem_size = 8; break;
+            case MVM_ARRAY_I32: elem_size = 4; break;
+            case MVM_ARRAY_I16: elem_size = 2; break;
+            case MVM_ARRAY_I8:  elem_size = 1; break;
+        }
+    }
+    if (!elem_size)
+        MVM_exception_throw_adhoc(tc, "encode requires  a native int array");
+
+    /* Decode. */
+    return MVM_string_decode(tc, tc->instance->VMString,
+        ((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start,
+        ((MVMArray *)buf)->body.elems * elem_size,
+        MVM_string_find_encoding(tc, enc_name));
+}
+
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input) {
     MVMObject *result;
     MVMStringIndex start, end, sep_length;
