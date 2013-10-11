@@ -2411,8 +2411,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *value = GET_REG(cur_op, 2).o;
                 MVMROOT(tc, value, {
                     MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                    GET_REG(cur_op, 0).o = cloned;
-                    REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                    MVMROOT(tc, cloned, {
+                        REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                        GET_REG(cur_op, 0).o = cloned;
+                    });
                 });
                 cur_op += 4;
                 goto NEXT;

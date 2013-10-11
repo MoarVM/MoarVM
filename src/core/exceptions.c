@@ -325,10 +325,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
 
     if (!ex->body.origin)
         ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
-	    /* Otherwise, dump message and a backtrace. */
-    fprintf(stderr, "Unhandled exception: %s\n",
-        MVM_string_utf8_encode_C_string(tc, ex->body.message));
-    dump_backtrace(tc);
+
     run_handler(tc, lh, ex_obj);
 }
 
