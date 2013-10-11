@@ -110,6 +110,7 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
 
     /* make the result grow as needed instead of allocating so much to start? */
     result = malloc(length * 4 + 1);
+    result_pos = result;
     for (str_pos = 0; str_pos < length; str_pos++) {
         MVMCodepoint32 value = MVM_string_get_codepoint_at_nocheck(tc, str, start + str_pos);
 
