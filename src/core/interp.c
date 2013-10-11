@@ -3443,6 +3443,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(usecompilerhllconfig):
                 MVM_hll_leave_compilee_mode(tc);
                 goto NEXT;
+            OP(encode):
+                MVM_exception_throw_adhoc(tc, "encode op NYI");
+                cur_op += 8;
+                goto NEXT;
+            OP(decode):
+                MVM_exception_throw_adhoc(tc, "decode op NYI");
+                cur_op += 6;
+                goto NEXT;
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));
