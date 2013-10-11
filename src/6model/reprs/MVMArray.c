@@ -706,10 +706,34 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
 }
 
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
+    switch (repr_data->slot_type) {
+        case MVM_ARRAY_STR:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_STR;
+            break;
+        case MVM_ARRAY_I64:
+        case MVM_ARRAY_I32:
+        case MVM_ARRAY_I16:
+        case MVM_ARRAY_I8:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
+            break;
+        case MVM_ARRAY_N64:
+        case MVM_ARRAY_N32:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
+            break;
+        default:
+            spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+            spec.can_box         = 0;
+            break;
+    }
     return spec;
 }
 
