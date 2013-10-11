@@ -153,16 +153,70 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     c->flags |= MVM_CF_IN_GEN2_ROOT_LIST;
 }
 
-/* Adds the set of thread-local inter-generational roots to a GC worklist. */
+/* Adds the set of thread-local inter-generational roots to a GC worklist. As
+ * a side-effect, removes gen2 roots that no longer point to any nursery
+ * items (usually because all the referenced objects also got promoted). */
 void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMCollectable **gen2roots = tc->gen2roots;
     MVMuint32        num_roots = tc->num_gen2roots;
     MVMuint32        i;
+    MVMCollectable **cur_item_ptr;
+    MVMFrame        *cur_frame;
 
-    /* Mark gen2 objects that point to nursery things. */
+    /* We'll remove some entries from this list. The algorithm is simply to
+     * slide all that stay towards the start of the array. */
+    MVMuint32 insert_pos = 0;
+
+    /* We'll use an intermediate worklist, which is used as the target when
+     * we mark each object on the gen2 roots list. Only things really in the
+     * nursery make it onto the real worklist that was passed in. */
+    MVMGCWorklist *per_obj_worklist = MVM_gc_worklist_create(tc);
+
+    /* Guess that we'll end up with around num_roots entries, to avoid some
+     * worklist growth reallocations. */
     MVM_gc_worklist_presize_for(tc, worklist, num_roots);
-    for (i = 0; i < num_roots; i++)
-        MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
+
+    /* Visit each gen2 root and... */
+    for (i = 0; i < num_roots; i++) {
+        int num_in_nursery = 0;
+
+        /* Mark it, putting marks into temporary worklist. */
+        MVM_gc_mark_collectable(tc, per_obj_worklist, gen2roots[i]);
+
+        /* For any referenced objects not in gen2, copy marks and count the
+         * number of things we copy. Also copy frames, which always count as
+         * potential nursery. */
+        while ((cur_item_ptr = MVM_gc_worklist_get(tc, per_obj_worklist))) {
+            if (*cur_item_ptr && !((*cur_item_ptr)->flags & MVM_CF_SECOND_GEN)) {
+                MVM_gc_worklist_add(tc, worklist, cur_item_ptr);
+                num_in_nursery++;
+            }
+        }
+        while ((cur_frame = MVM_gc_worklist_get_frame(tc, per_obj_worklist))) {
+            MVM_gc_worklist_add_frame_no_seq_check(tc, worklist, cur_frame);
+            num_in_nursery++;
+        }
+        if (!num_in_nursery && REPR(gen2roots[i])->refs_frames)
+            num_in_nursery = 1;
+
+        /* If there were any nursery objects, then this root should stay. Put
+         * it at the insert position. */
+        if (num_in_nursery) {
+            gen2roots[insert_pos] = gen2roots[i];
+            insert_pos++;
+        }
+
+        /* Otherwise, clear the "in gen2 root list" flag. */
+        else {
+            gen2roots[i]->flags ^= MVM_CF_IN_GEN2_ROOT_LIST;
+        }
+    }
+
+    /* New number of entries after sliding is the final insert position. */
+    tc->num_gen2roots = insert_pos;
+
+    /* Clear up the temporary, per-object worklist. */
+    MVM_gc_worklist_destroy(tc, per_obj_worklist);
 }
 
 /* Visits all of the roots in the gen2 list and removes those that have been
