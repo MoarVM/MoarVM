@@ -530,11 +530,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         /* skip it if it's not flattening or is null. The bytecode loader
          * verifies it's a MVM_CALLSITE_ARG_OBJ. */
         if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg.o) {
-            MVMObject *list = arg_info.arg.o;
-            MVMint64 count;
+            MVMObject      *list  = arg_info.arg.o;
+            MVMint64        count = REPR(list)->elems(tc, STABLE(list), list, OBJECT_BODY(list));
+            MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
 
-            count = REPR(list)->elems(tc, STABLE(list),
-                list, OBJECT_BODY(list));
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
                 MVM_exception_throw_adhoc(tc, "Too many arguments in flattening array.");
             }
@@ -547,8 +546,24 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                     new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
 
-                (new_args + new_arg_pos++)->o = MVM_repr_at_pos_o(tc, list, i);
-                new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
+                switch (lss.inlineable ? lss.boxed_primitive : 0) {
+                    case MVM_STORAGE_SPEC_BP_INT:
+                        (new_args + new_arg_pos++)->i64 = MVM_repr_at_pos_i(tc, list, i);
+                        new_arg_flags[new_flag_pos++]   = MVM_CALLSITE_ARG_INT;
+                        break;
+                    case MVM_STORAGE_SPEC_BP_NUM:
+                        (new_args + new_arg_pos++)->n64 = MVM_repr_at_pos_n(tc, list, i);
+                        new_arg_flags[new_flag_pos++]   = MVM_CALLSITE_ARG_NUM;
+                        break;
+                    case MVM_STORAGE_SPEC_BP_STR:
+                        (new_args + new_arg_pos++)->s = MVM_repr_at_pos_s(tc, list, i);
+                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_STR;
+                        break;
+                    default:
+                        (new_args + new_arg_pos++)->o = MVM_repr_at_pos_o(tc, list, i);
+                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
+                        break;
+                }
             }
         }
         else if (!(arg_info.flags & MVM_CALLSITE_ARG_FLAT_NAMED)) {
