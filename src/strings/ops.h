@@ -1,9 +1,12 @@
-#define MVM_encoding_type_utf8 1
-#define MVM_encoding_type_ascii 2
-#define MVM_encoding_type_latin1 3
-/* whether the encoding is valid. XXX make take tc as parameter */
-#define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_latin1) \
-                            || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
+#define MVM_encoding_type_MIN       1
+#define MVM_encoding_type_utf8      1
+#define MVM_encoding_type_ascii     2
+#define MVM_encoding_type_latin1    3
+#define MVM_encoding_type_utf16     4
+#define MVM_encoding_type_MAX       4
+#define ENCODING_VALID(enc) \
+    (((enc) >= MVM_encoding_type_MIN && (enc) <= MVM_encoding_type_MAX) \
+    || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
 
 /* substring consumer functions accept a state object in *data and
     consume a substring portion. Utilized by many of the string ops
