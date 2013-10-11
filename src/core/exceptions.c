@@ -247,11 +247,9 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     MVMROOT(tc, arr, {
         while (cur_frame != NULL) {
             MVMObject *pobj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStr);
-            MVMROOT(tc, pobj, {
-                MVM_repr_set_str(tc, pobj, cur_frame->static_info->body.name);
-                MVM_repr_push_o(tc, arr, pobj);
-                cur_frame = cur_frame->caller;
-            });
+            MVM_repr_set_str(tc, pobj, cur_frame->static_info->body.name);
+            MVM_repr_push_o(tc, arr, pobj);
+            cur_frame = cur_frame->caller;
         }
     });
 
@@ -327,7 +325,10 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
 
     if (!ex->body.origin)
         ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
-
+	    /* Otherwise, dump message and a backtrace. */
+    fprintf(stderr, "Unhandled exception: %s\n",
+        MVM_string_utf8_encode_C_string(tc, ex->body.message));
+    dump_backtrace(tc);
     run_handler(tc, lh, ex_obj);
 }
 
