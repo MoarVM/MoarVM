@@ -329,9 +329,11 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
     MVMROOT(tc, result, {
         MVMObject *box_type = MVM_hll_current(tc)->num_box_type;
-        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, value));
-        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, base));
-        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, pos));
+        MVMROOT(tc, box_type, {
+            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, value));
+            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, base));
+            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, pos));
+        });
     });
 
     return result;
