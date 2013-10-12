@@ -273,17 +273,14 @@ unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame) {
 
 /* Takes a 6model object type and turns it into a local/lexical type flag. */
 unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
-    MVMStorageSpec *ss = tc->cached_storage_spec;
-    if (!ss) {
-        ss = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-    }
+    MVMStorageSpec ss;
     if (VM_OBJ_IS_NULL(type))
         return MVM_reg_obj;
-    REPR(type)->get_storage_spec(vm, STABLE(type), ss);
-    if (ss->inlineable) {
-        switch (ss->boxed_primitive) {
+    ss = REPR(type)->get_storage_spec(vm, STABLE(type));
+    if (ss.inlineable) {
+        switch (ss.boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
-                switch (ss->bits) {
+                switch (ss.bits) {
                     case 8:
                         return MVM_reg_int8;
                     case 16:
@@ -303,7 +300,7 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
                 }
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
-                switch (ss->bits) {
+                switch (ss.bits) {
                     case 32:
                         return MVM_reg_num32;
                     case 64:

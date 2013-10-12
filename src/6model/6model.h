@@ -435,7 +435,7 @@ struct MVMREPROps {
         MVMObject *root, void *data);
 
     /* Gets the storage specification for this representation. */
-    void (*get_storage_spec) (MVMThreadContext *tc, MVMSTable *st, MVMStorageSpec *ss);
+    MVMStorageSpec (*get_storage_spec) (MVMThreadContext *tc, MVMSTable *st);
 
     /* Handles an object changing its type. The representation is responsible
      * for doing any changes to the underlying data structure, and may reject

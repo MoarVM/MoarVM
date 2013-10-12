@@ -90,10 +90,12 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 /* Gets the storage specification for this representation. */
-static void get_storage_spec(MVMThreadContext *tc, MVMSTable *st, MVMStorageSpec *ss) {
-    ss->inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    ss->boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    ss->can_box         = 0;
+static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    MVMStorageSpec spec;
+    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec.can_box         = 0;
+    return spec;
 }
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
@@ -745,14 +747,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMObject *type = REPR(info)->ass_funcs.at_key_boxed(tc, STABLE(info),
             info, OBJECT_BODY(info), (MVMObject *)str_type);
         if (type != NULL) {
-            MVMStorageSpec *spec = tc->cached_storage_spec;
-            if (!spec) {
-                spec = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-            }
-            REPR(type)->get_storage_spec(tc, STABLE(type), spec);
-            switch (spec->boxed_primitive) {
+            MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+            switch (spec.boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT:
-                    switch (spec->bits) {
+                    switch (spec.bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_I64;
                             repr_data->elem_size = sizeof(MVMint64);
@@ -775,7 +773,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     }
                     break;
                 case MVM_STORAGE_SPEC_BP_NUM:
-                    switch (spec->bits) {
+                    switch (spec.bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_N64;
                             repr_data->elem_size = sizeof(MVMnum64);

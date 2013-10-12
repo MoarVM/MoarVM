@@ -184,20 +184,16 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     if (!IS_CONCRETE(obj))
         res_reg->s = tc->instance->str_consts.empty;
     else {
-        MVMStorageSpec *ss = tc->cached_storage_spec;
-        if (!ss) {
-            ss = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-        }
-        REPR(obj)->get_storage_spec(tc, STABLE(obj), ss);
+        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (REPR(obj)->ID == MVM_REPR_ID_MVMString)
             res_reg->s = (MVMString *)obj;
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMException)
             res_reg->s = ((MVMException *)obj)->body.message;
-        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             res_reg->s = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             res_reg->s = MVM_coerce_i_s(tc, REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             res_reg->s = MVM_coerce_n_s(tc, REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else
             MVM_exception_throw_adhoc(tc, "cannot stringify this");
@@ -247,16 +243,12 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         res_reg->n64 = 0.0;
     }
     else {
-        MVMStorageSpec *ss = tc->cached_storage_spec;
-        if (!ss) {
-            ss = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-        }
-        REPR(obj)->get_storage_spec(tc, STABLE(obj), ss);
-        if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             res_reg->n64 = (MVMnum64)REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             res_reg->n64 = REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             res_reg->n64 = MVM_coerce_s_n(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
             res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
@@ -275,16 +267,12 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
 
     /* Otherwise, guess something appropriate. */
     else {
-        MVMStorageSpec *ss = tc->cached_storage_spec;
-        if (!ss) {
-            ss = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-        }
-        REPR(obj)->get_storage_spec(tc, STABLE(obj), ss);
-        if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             return REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             return (MVMint64)REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             return MVM_coerce_s_i(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
             return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));

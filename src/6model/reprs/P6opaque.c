@@ -538,19 +538,21 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
 }
 
 /* Gets the storage specification for this representation. */
-static void get_storage_spec(MVMThreadContext *tc, MVMSTable *st, MVMStorageSpec *ss) {
+static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    ss->inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    ss->boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    ss->can_box         = 0;
+    MVMStorageSpec spec;
+    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec.can_box         = 0;
     if (repr_data) {
         if (repr_data->unbox_int_slot >= 0)
-            ss->can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
+            spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
         if (repr_data->unbox_num_slot >= 0)
-            ss->can_box += MVM_STORAGE_SPEC_CAN_BOX_NUM;
+            spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_NUM;
         if (repr_data->unbox_str_slot >= 0)
-            ss->can_box += MVM_STORAGE_SPEC_CAN_BOX_STR;
+            spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_STR;
     }
+    return spec;
 }
 
 /* Compose the representation. */
@@ -678,15 +680,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             bits         = sizeof(MVMObject *) * 8;
             if (type != NULL) {
                 /* Get the storage spec of the type and see what it wants. */
-                MVMStorageSpec *spec = tc->cached_storage_spec;
-                if (!spec) {
-                    spec = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-                }
-                REPR(type)->get_storage_spec(tc, STABLE(type), spec);
-                if (spec->inlineable == MVM_STORAGE_SPEC_INLINED) {
+                MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+                if (spec.inlineable == MVM_STORAGE_SPEC_INLINED) {
                     /* Yes, it's something we'll flatten. */
-                    unboxed_type = spec->boxed_primitive;
-                    bits = spec->bits;
+                    unboxed_type = spec.boxed_primitive;
+                    bits = spec.bits;
                     repr_data->flattened_stables[cur_slot] = STABLE(type);
                     inlined = 1;
 
@@ -806,14 +804,10 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     for (i = 0; i < num_attributes; i++) {
         if (reader->read_int(tc, reader)) {
             MVMSTable *st = reader->read_stable_ref(tc, reader);
-            MVMStorageSpec *ss = tc->cached_storage_spec;
-            if (!ss) {
-                ss = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-            }
-            st->REPR->get_storage_spec(tc, st, ss);
-            if (ss->inlineable)
+            MVMStorageSpec ss = st->REPR->get_storage_spec(tc, st);
+            if (ss.inlineable)
                 /* TODO: Review if/when we get sub-byte things. */
-                cur_offset += ss->bits / 8;
+                cur_offset += ss.bits / 8;
             else
                 cur_offset += sizeof(MVMObject *);
         }
@@ -981,10 +975,6 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         else {
             /* Store position. */
             MVMSTable *cur_st = repr_data->flattened_stables[i];
-            MVMStorageSpec *spec = tc->cached_storage_spec;
-            if (!spec) {
-                spec = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
-            }
             repr_data->attribute_offsets[i] = cur_offset;
 
             /* Set up flags for initialization and GC. */
@@ -996,8 +986,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                 repr_data->gc_cleanup_slots[cur_gc_cleanup_slot++] = i;
 
             /* Increment by size reported by representation. */
-            cur_st->REPR->get_storage_spec(tc, cur_st, spec);
-            cur_offset += spec->bits / 8;
+            cur_offset += cur_st->REPR->get_storage_spec(tc, cur_st).bits / 8;
         }
     }
     repr_data->initialize_slots[cur_initialize_slot] = -1;
