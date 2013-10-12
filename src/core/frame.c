@@ -159,7 +159,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->env = NULL;
     }
     if (static_frame_body->work_size) {
-        if (fresh)
+        if (fresh || !frame->work)
             frame->work = malloc(static_frame_body->work_size);
         memset(frame->work, 0, static_frame_body->work_size);
     }
