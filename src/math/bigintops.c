@@ -353,15 +353,27 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
         MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
     }
 
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&str);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
+
+    /* initialize the object */
+    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+
     mp_init(&zvalue);
     mp_init(&zbase);
     mp_set_int(&zbase, 1);
 
     value_obj = MVM_repr_alloc_init(tc, type);
+    MVM_repr_push_o(tc, result, value_obj);
+
     value = get_bigint(tc, value_obj);
 
     base_obj = MVM_repr_alloc_init(tc, type);
+    MVM_repr_push_o(tc, result, base_obj);
+
     base = get_bigint(tc, base_obj);
+
     mp_set_int(base, 1);
 
     ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
@@ -393,19 +405,14 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     mp_clear(&zvalue);
     mp_clear(&zbase);
 
-    pos_obj = MVM_repr_alloc_init(tc, type);
-    MVM_repr_set_int(tc, pos_obj, pos);
-
     if (neg || flag & 0x01) {
         mp_neg(value, value);
     }
 
-    /* initialize the object */
-    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-
-    MVM_repr_push_o(tc, result, value_obj);
-    MVM_repr_push_o(tc, result, base_obj);
+    pos_obj = MVM_repr_alloc_init(tc, type);
+    MVM_repr_set_int(tc, pos_obj, pos);
     MVM_repr_push_o(tc, result, pos_obj);
+    MVM_gc_root_temp_pop_n(tc, 3);
 
     return result;
 }
