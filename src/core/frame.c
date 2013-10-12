@@ -281,6 +281,14 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* signal to the GC to ignore ->work */
     returner->tc = NULL;
+    
+    /* We no longer need point at the caller (any refcount is handled
+     * below). */
+    returner->caller = NULL;
+    
+    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
+     * currently executing frame. */
+    MVM_frame_dec_ref(tc, returner);
 
     /* Switch back to the caller frame if there is one; we also need to
      * decrement its reference count. */
@@ -291,7 +299,6 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
         MVM_frame_dec_ref(tc, caller);
-        returner->caller = NULL;
 
         /* Handle any special return hooks. */
         if (caller->special_return) {
