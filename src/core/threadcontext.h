@@ -162,6 +162,9 @@ struct MVMThreadContext {
 
     /* Random number generator state. */
     MVMuint64 rand_state[2];
+
+    /* Avoid allocation on every call to get_storage_spec */
+    MVMStorageSpec *cached_storage_spec;
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);

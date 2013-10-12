@@ -1186,8 +1186,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(objprimspec): {
                 MVMObject *type = GET_REG(cur_op, 2).o;
                 if (type) {
-                    MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
-                    GET_REG(cur_op, 0).i64 = ss.boxed_primitive;
+                    MVMStorageSpec *ss = tc->cached_storage_spec;
+                    if (!ss) {
+                        ss = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec));
+                    }
+                    REPR(type)->get_storage_spec(tc, STABLE(type), ss);
+                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive;
                 }
                 else {
                     GET_REG(cur_op, 0).i64 = 0;

@@ -118,13 +118,11 @@ static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st
 }
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static void get_storage_spec(MVMThreadContext *tc, MVMSTable *st, MVMStorageSpec *ss) {
     /* XXX in the end we'll support inlining of this... */
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+    ss->inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    ss->boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    ss->can_box         = 0;
 }
 
 /* Compose the representation. */

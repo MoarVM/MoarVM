@@ -38,13 +38,11 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 }
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.bits            = sizeof(MVMString *) * 8;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
-    spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_STR;
-    return spec;
+static void get_storage_spec(MVMThreadContext *tc, MVMSTable *st, MVMStorageSpec *ss) {
+    ss->inlineable      = MVM_STORAGE_SPEC_INLINED;
+    ss->bits            = sizeof(MVMString *) * 8;
+    ss->boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
+    ss->can_box         = MVM_STORAGE_SPEC_CAN_BOX_STR;
 }
 
 /* Compose the representation. */

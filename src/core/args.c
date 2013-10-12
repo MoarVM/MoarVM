@@ -83,10 +83,13 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     if (result.exists && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
             MVMObject *obj; \
-            MVMStorageSpec ss; \
+            MVMStorageSpec *ss = tc->cached_storage_spec; \
+            if (!ss) { \
+                ss = tc->cached_storage_spec = malloc(sizeof(MVMStorageSpec)); \
+            } \
             obj = result.arg.o; \
-            ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
-            switch (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
+            REPR(obj)->get_storage_spec(tc, STABLE(obj), ss); \
+            switch (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
                     result.arg.i64 = MVM_repr_get_int(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_INT; \
