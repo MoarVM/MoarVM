@@ -507,5 +507,6 @@
 #define MVM_OP_usecompilerhllconfig 503
 #define MVM_OP_encode 504
 #define MVM_OP_decode 505
+#define MVM_OP_bindhllsym 506
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);

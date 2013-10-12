@@ -508,7 +508,8 @@ BEGIN {
     1209,
     1209,
     1209,
-    1213);
+    1213,
+    1216);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     1,
     2,
@@ -1014,6 +1015,7 @@ BEGIN {
     0,
     0,
     4,
+    3,
     3);
     MAST::Ops.WHO<@values> := nqp::list_i(72,
     33,
@@ -2230,7 +2232,10 @@ BEGIN {
     65,
     58,
     65,
-    57);
+    57,
+    57,
+    57,
+    65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'goto', 1,
     'if_i', 2,
@@ -2736,7 +2741,8 @@ BEGIN {
     'usecompileehllconfig', 502,
     'usecompilerhllconfig', 503,
     'encode', 504,
-    'decode', 505);
+    'decode', 505,
+    'bindhllsym', 506);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'goto',
     'if_i',
@@ -3242,5 +3248,6 @@ BEGIN {
     'usecompileehllconfig',
     'usecompilerhllconfig',
     'encode',
-    'decode');
+    'decode',
+    'bindhllsym');
 }

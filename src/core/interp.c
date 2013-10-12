@@ -3454,6 +3454,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
+            OP(bindhllsym): {
+                MVMObject *syms     = tc->instance->hll_syms;
+                MVMString *hll_name = GET_REG(cur_op, 0).s;
+                MVMObject *hash;
+                uv_mutex_lock(&tc->instance->mutex_hll_syms);
+                hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                if (!hash) {
+                    hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+                    /* must re-get syms and HLL name in case it moved */
+                    syms = tc->instance->hll_syms;
+                    hll_name = GET_REG(cur_op, 0).s;
+                    MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                }
+                MVM_repr_bind_key_boxed(tc, hash, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                uv_mutex_unlock(&tc->instance->mutex_hll_syms);
+                cur_op += 6;
+                goto NEXT;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

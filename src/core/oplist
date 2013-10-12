@@ -555,3 +555,4 @@ usecompileehllconfig
 usecompilerhllconfig
 encode              w(obj) r(str) r(str) r(obj)
 decode              w(str) r(obj) r(str)
+bindhllsym          r(str) r(str) r(obj)
