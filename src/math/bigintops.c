@@ -429,5 +429,5 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
 }
 
 MVMint64 MVM_bigint_bool(MVMThreadContext *tc, MVMObject *a) {
-    return mp_cmp_d(get_bigint(tc, a), 0) == MP_EQ;
+    return !mp_iszero(get_bigint(tc, a));
 }
