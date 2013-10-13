@@ -466,8 +466,10 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             }
 
             /* Write the operand type. */
+            if (l->index < 0 || l->index > 32768)
+                DIE(vm, "Frame %u local access out of range", ws->current_frame_idx);
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
-            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->index);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned short)l->index);
             ws->bytecode_pos += 2;
         }
         else {
@@ -487,9 +489,9 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
 
             /* Write the index, then the frame count. */
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
-            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->index);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned short)l->index);
             ws->bytecode_pos += 2;
-            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->frames_out);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned short)l->frames_out);
             ws->bytecode_pos += 2;
         }
         else {
