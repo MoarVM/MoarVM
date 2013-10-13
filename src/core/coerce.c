@@ -138,14 +138,18 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[25];
-    sprintf(buffer, "%lld", i);
-    return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, strlen(buffer));
+    int len = sprintf(buffer, "%lld", i);
+    if (len >= 0)
+        return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
+    else
+        MVM_exception_throw_adhoc(tc, "Could not stringify integer");
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     char buf[21];
     int i;
-    sprintf(buf, "%-15f", n);
+    if (sprintf(buf, "%-15f", n) < 0)
+        MVM_exception_throw_adhoc(tc, "Could not stringify number");
     if (strstr(buf, ".")) {
         i = strlen(buf);
         while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
