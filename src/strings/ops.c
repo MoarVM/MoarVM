@@ -417,8 +417,9 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     }
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&b);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
-    MVM_gc_root_temp_pop(tc);
+    MVM_gc_root_temp_pop_n(tc, 2);
 
     /* there could be unattached combining chars at the beginning of b,
        so, XXX TODO handle this */
