@@ -974,15 +974,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(die): {
-                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-                MVMException *ex = (MVMException *)ex_obj;
-                MVMRegister *resume_result = &GET_REG(cur_op, 0);
-
+                MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
                 ex->body.category = MVM_EX_CAT_CATCH;
-                MVM_ASSIGN_REF(tc, ex_obj, ex->body.message, GET_REG(cur_op, 2).s);
+
+                MVM_ASSIGN_REF(tc, ex, ex->body.message, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 ex->body.goto_offset = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
-                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, resume_result);
+                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, &GET_REG(cur_op, 0));
                 goto NEXT;
             }
             OP(takehandlerresult): {
@@ -2540,15 +2538,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(setmethcache): {
-                MVMObject *cache = REPR(tc->instance->boot_types.BOOTHash)->allocate(tc, STABLE(tc->instance->boot_types.BOOTHash));
                 MVMObject *iter = MVM_iter(tc, GET_REG(cur_op, 2).o);
+                MVMObject *cache = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
                     MVMRegister result;
-                    MVMObject *cur;
                     REPR(iter)->pos_funcs.shift(tc, STABLE(iter), iter,
                         OBJECT_BODY(iter), &result, MVM_reg_obj);
-                    cur = result.o;
                     REPR(cache)->ass_funcs.bind_key_boxed(tc, STABLE(cache), cache,
                         OBJECT_BODY(cache), (MVMObject *)MVM_iterkey_s(tc, (MVMIter *)iter),
                         MVM_iterval(tc, (MVMIter *)iter));
@@ -3411,16 +3407,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(resume): {
-                MVMObject *ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-                MVMException *ex = (MVMException *)ex_obj;
+                MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+                MVMException *got_ex = (MVMException *)GET_REG(cur_op, 0).o;
 
-                MVMObject *got_ex_obj = GET_REG(cur_op, 0).o;
-                if (REPR(got_ex_obj)->ID == MVM_REPR_ID_MVMException) {
-                    MVMException *got_ex = (MVMException *)got_ex_obj;
-
+                if (REPR(got_ex)->ID == MVM_REPR_ID_MVMException) {
                     ex->body.origin      = MVM_frame_inc_ref(tc, got_ex->body.origin);
                     ex->body.goto_offset = got_ex->body.goto_offset;
-                    MVM_exception_resume(tc, ex_obj);
+                    MVM_exception_resume(tc, (MVMObject *)ex);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "resume requires an MVMException");
