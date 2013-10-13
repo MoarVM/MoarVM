@@ -11,7 +11,7 @@
 #define MIN_VERSION     5
 
 /* Various sizes (in bytes). */
-#define HEADER_SIZE                 4 * 16
+#define HEADER_SIZE                 (4 * 16)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    16
