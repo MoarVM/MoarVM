@@ -33,3 +33,4 @@ void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
 MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b);
 MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag, MVMObject *type);
 MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a);
+MVMint64 MVM_bigint_bool(MVMThreadContext *tc, MVMObject *a);

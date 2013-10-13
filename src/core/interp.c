@@ -1620,6 +1620,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(bool_I):
+                GET_REG(cur_op, 0).i64 = MVM_bigint_bool(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(add_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
                 MVMObject * const result = MVM_repr_alloc_init(tc, type);

@@ -277,6 +277,7 @@ static const void * const LABELS[] = {
     &&OP_coerce_nI,
     &&OP_coerce_sI,
     &&OP_isbig_I,
+    &&OP_bool_I,
     &&OP_base_I,
     &&OP_radix_I,
     &&OP_div_In,
