@@ -4,8 +4,8 @@
 #define HEADER_SIZE             88
 #define MIN_BYTECODE_VERSION    1
 #define MAX_BYTECODE_VERSION    1
-#define FRAME_HEADER_SIZE       7 * 4 + 3 * 2
-#define FRAME_HANDLER_SIZE      4 * 4 + 2 * 2
+#define FRAME_HEADER_SIZE       (7 * 4 + 3 * 2)
+#define FRAME_HANDLER_SIZE      (4 * 4 + 2 * 2)
 
 /* Describes the current reader state. */
 typedef struct {

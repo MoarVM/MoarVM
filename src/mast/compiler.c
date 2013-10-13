@@ -15,8 +15,8 @@
 /* Some sizes. */
 #define HEADER_SIZE             88
 #define BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE       7 * 4 + 3 * 2
-#define FRAME_HANDLER_SIZE      4 * 4 + 2 * 2
+#define FRAME_HEADER_SIZE       (7 * 4 + 3 * 2)
+#define FRAME_HANDLER_SIZE      (4 * 4 + 2 * 2)
 #define SC_DEP_SIZE             4
 
 typedef struct {
