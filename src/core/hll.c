@@ -88,3 +88,10 @@ void MVM_hll_leave_compilee_mode(MVMThreadContext *tc) {
     tc->instance->hll_compilee_depth--;
     uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
 }
+
+/* Checks if an object belongs to the correct HLL, and does a type mapping
+ * of it if not. */
+void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMRegister *res_reg) {
+    /* XXX TODO: Implement the mapping. For now, always identity. */
+    res_reg->o = obj;
+}

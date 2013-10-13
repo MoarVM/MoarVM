@@ -3472,6 +3472,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(hllize): {
+                /* Increment PC before mapping, as it may invoke. */
+                MVMRegister *res_reg = &GET_REG(cur_op, 0);
+                MVMObject   *mapee   = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                MVM_hll_map(tc, mapee, MVM_hll_current(tc), res_reg);
+                goto NEXT;
+            }
+            OP(hllizefor): {
+                /* Increment PC before mapping, as it may invoke. */
+                MVMRegister *res_reg = &GET_REG(cur_op, 0);
+                MVMObject   *mapee   = GET_REG(cur_op, 2).o;
+                MVMString   *hll     = GET_REG(cur_op, 4).s;
+                cur_op += 6;
+                MVM_hll_map(tc, mapee, MVM_hll_get_config_for(tc, hll), res_reg);
+                goto NEXT;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));

@@ -508,5 +508,7 @@ static const void * const LABELS[] = {
     &&OP_usecompilerhllconfig,
     &&OP_encode,
     &&OP_decode,
-    &&OP_bindhllsym
+    &&OP_bindhllsym,
+    &&OP_hllize,
+    &&OP_hllizefor
 };

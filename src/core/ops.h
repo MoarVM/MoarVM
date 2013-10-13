@@ -509,5 +509,7 @@
 #define MVM_OP_encode 505
 #define MVM_OP_decode 506
 #define MVM_OP_bindhllsym 507
+#define MVM_OP_hllize 508
+#define MVM_OP_hllizefor 509
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);

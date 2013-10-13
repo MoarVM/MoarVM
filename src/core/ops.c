@@ -3562,9 +3562,23 @@ static MVMOpInfo MVM_op_infos[] = {
         3,
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_hllize,
+        "hllize",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_hllizefor,
+        "hllizefor",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 
-static unsigned short MVM_op_counts = 508;
+static unsigned short MVM_op_counts = 510;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
