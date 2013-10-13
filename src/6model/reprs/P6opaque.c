@@ -275,16 +275,22 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         MVMObject *value = repr_data->auto_viv_values[slot];
                         if (value != NULL) {
                             if (IS_CONCRETE(value)) {
-                                MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                                /* Ordering here matters. We write the object into the
-                                 * register before calling copy_to. This is because
-                                 * if copy_to allocates, obj may have moved after
-                                 * we called it. This saves us having to put things on
-                                 * the temporary stack. The GC will know to update it
-                                 * in the register if it moved. */
-                                result_reg->o = cloned;
-                                REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                                set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], result_reg->o);
+                                MVMROOT(tc, value, {
+                                MVMROOT(tc, root, {
+                                    MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
+                                    /* Ordering here matters. We write the object into the
+                                    * register before calling copy_to. This is because
+                                    * if copy_to allocates, obj may have moved after
+                                    * we called it. This saves us having to put things on
+                                    * the temporary stack. The GC will know to update it
+                                    * in the register if it moved. */
+                                    result_reg->o = cloned;
+                                    REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value),
+                                        cloned, OBJECT_BODY(cloned));
+                                    set_obj_at_offset(tc, root, OBJECT_BODY(root),
+                                        repr_data->attribute_offsets[slot], result_reg->o);
+                                });
+                                });
                             }
                             else {
                                 set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);
@@ -301,13 +307,18 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 }
             }
             else {
-                /* Need to produce a boxed version of this attribute. */
-                MVMObject *cloned = attr_st->REPR->allocate(tc, st);
+                MVMROOT(tc, root, {
+                MVMROOT(tc, attr_st, {
+                    /* Need to produce a boxed version of this attribute. */
+                    MVMObject *cloned = attr_st->REPR->allocate(tc, st);
 
-                /* Ordering here matters too. see comments above */
-                result_reg->o = cloned;
-                st->REPR->copy_to(tc, attr_st, (char *)data + repr_data->attribute_offsets[slot],
-                    cloned, OBJECT_BODY(cloned));
+                    /* Ordering here matters too. see comments above */
+                    result_reg->o = cloned;
+                    st->REPR->copy_to(tc, attr_st,
+                        (char *)OBJECT_BODY(root) + repr_data->attribute_offsets[slot],
+                        cloned, OBJECT_BODY(cloned));
+                });
+                });
             }
             break;
         }
