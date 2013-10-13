@@ -2539,8 +2539,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setmethcache): {
                 MVMObject *iter = MVM_iter(tc, GET_REG(cur_op, 2).o);
-                MVMObject *cache = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-                MVMObject *obj = GET_REG(cur_op, 0).o;
+                MVMObject *cache;
+                MVMROOT(tc, iter, {
+                    cache = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+                });
+
                 while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
                     MVMRegister result;
                     REPR(iter)->pos_funcs.shift(tc, STABLE(iter), iter,
@@ -2549,7 +2552,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         OBJECT_BODY(cache), (MVMObject *)MVM_iterkey_s(tc, (MVMIter *)iter),
                         MVM_iterval(tc, (MVMIter *)iter));
                 }
-                STABLE(obj)->method_cache = cache;
+                STABLE(GET_REG(cur_op, 0).o)->method_cache = cache;
                 cur_op += 4;
                 goto NEXT;
             }
