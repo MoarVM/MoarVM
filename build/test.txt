@@ -1,2 +1,2 @@
     MoarVM does not come with its own test suite
-    Build the NQP cross compiler and test that
+    Build NQP with the Moar backend and test from there.
