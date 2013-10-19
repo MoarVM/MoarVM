@@ -190,6 +190,7 @@ HEADERS = src/moar.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
+          src/mast/nodes_moar.h \
           src/strings/unicode_gen.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
