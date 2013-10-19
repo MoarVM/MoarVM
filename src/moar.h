@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
+#include <setjmp.h>
 
 /* Configuration. */
 #include "gen/config.h"
@@ -83,6 +84,7 @@ typedef double   MVMnum64;
 #include "gc/wb.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"
+#include "strings/utf16.h"
 #include "strings/ops.h"
 #include "strings/unicode_gen.h"
 #include "strings/unicode.h"

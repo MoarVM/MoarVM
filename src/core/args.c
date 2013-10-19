@@ -30,13 +30,14 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
 void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* Really, just if ctx->arg_flags, which indicates a flattening occurred. */
     if (ctx->callsite->has_flattening) {
-        if (ctx->args) {
-            free(ctx->args);
-            ctx->args = NULL;
-        }
         if (ctx->arg_flags) {
+            /* Free the generated flags. */
             free(ctx->arg_flags);
             ctx->arg_flags = NULL;
+
+            /* Free the generated args buffer. */
+            free(ctx->args);
+            ctx->args = NULL;
         }
     }
 }
@@ -169,9 +170,9 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 
 #define autobox(tc, target, result, box_type_obj, is_object, set_func, dest) do { \
     MVMObject *box, *box_type; \
+    if (is_object) MVM_gc_root_temp_push(tc, (MVMCollectable **)&result); \
     box_type = target->static_info->body.cu->body.hll_config->box_type_obj; \
     box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
-    if (is_object) MVM_gc_root_temp_push(tc, (MVMCollectable **)&result); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
     if (REPR(box)->initialize) \
         REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
@@ -418,7 +419,9 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 break;
             }
             case MVM_CALLSITE_ARG_STR: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
                 box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, str_box_type, "str", set_str, s, reg.o = box, pos_funcs, push, reg, MVM_reg_obj);
+                MVM_gc_root_temp_pop(tc);
                 break;
             }
             default:
@@ -489,8 +492,9 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
             }
             case MVM_CALLSITE_ARG_STR: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
                 box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, str_box_type, "str", set_str, s, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
-                MVM_gc_root_temp_pop(tc);
+                MVM_gc_root_temp_pop_n(tc, 2);
                 break;
             }
             default:
@@ -526,11 +530,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         /* skip it if it's not flattening or is null. The bytecode loader
          * verifies it's a MVM_CALLSITE_ARG_OBJ. */
         if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg.o) {
-            MVMObject *list = arg_info.arg.o;
-            MVMint64 count;
+            MVMObject      *list  = arg_info.arg.o;
+            MVMint64        count = REPR(list)->elems(tc, STABLE(list), list, OBJECT_BODY(list));
+            MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
 
-            count = REPR(list)->elems(tc, STABLE(list),
-                list, OBJECT_BODY(list));
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
                 MVM_exception_throw_adhoc(tc, "Too many arguments in flattening array.");
             }
@@ -543,8 +546,24 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                     new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
 
-                (new_args + new_arg_pos++)->o = MVM_repr_at_pos_o(tc, list, i);
-                new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
+                switch (lss.inlineable ? lss.boxed_primitive : 0) {
+                    case MVM_STORAGE_SPEC_BP_INT:
+                        (new_args + new_arg_pos++)->i64 = MVM_repr_at_pos_i(tc, list, i);
+                        new_arg_flags[new_flag_pos++]   = MVM_CALLSITE_ARG_INT;
+                        break;
+                    case MVM_STORAGE_SPEC_BP_NUM:
+                        (new_args + new_arg_pos++)->n64 = MVM_repr_at_pos_n(tc, list, i);
+                        new_arg_flags[new_flag_pos++]   = MVM_CALLSITE_ARG_NUM;
+                        break;
+                    case MVM_STORAGE_SPEC_BP_STR:
+                        (new_args + new_arg_pos++)->s = MVM_repr_at_pos_s(tc, list, i);
+                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_STR;
+                        break;
+                    default:
+                        (new_args + new_arg_pos++)->o = MVM_repr_at_pos_o(tc, list, i);
+                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
+                        break;
+                }
             }
         }
         else if (!(arg_info.flags & MVM_CALLSITE_ARG_FLAT_NAMED)) {

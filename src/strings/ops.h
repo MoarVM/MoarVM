@@ -1,30 +1,12 @@
-#define MVM_encoding_type_utf8 1
-#define MVM_encoding_type_ascii 2
-#define MVM_encoding_type_latin1 3
-/* whether the encoding is valid. XXX make take tc as parameter */
-#define ENCODING_VALID(enc) (((enc) >= MVM_encoding_type_utf8 && (enc) <= MVM_encoding_type_latin1) \
-                            || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
-
-#define MVM_stat_exists              0
-#define MVM_stat_filesize            1
-#define MVM_stat_isdir               2
-#define MVM_stat_isreg               3
-#define MVM_stat_isdev               4
-#define MVM_stat_createtime          5
-#define MVM_stat_accesstime          6
-#define MVM_stat_modifytime          7
-#define MVM_stat_changetime          8
-#define MVM_stat_backuptime          9
-#define MVM_stat_uid                10
-#define MVM_stat_gid                11
-#define MVM_stat_islnk              12
-#define MVM_stat_platform_dev       -1
-#define MVM_stat_platform_inode     -2
-#define MVM_stat_platform_mode      -3
-#define MVM_stat_platform_nlinks    -4
-#define MVM_stat_platform_devtype   -5
-#define MVM_stat_platform_blocksize -6
-#define MVM_stat_platform_blocks    -7
+#define MVM_encoding_type_MIN       1
+#define MVM_encoding_type_utf8      1
+#define MVM_encoding_type_ascii     2
+#define MVM_encoding_type_latin1    3
+#define MVM_encoding_type_utf16     4
+#define MVM_encoding_type_MAX       4
+#define ENCODING_VALID(enc) \
+    (((enc) >= MVM_encoding_type_MIN && (enc) <= MVM_encoding_type_MAX) \
+    || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
 
 /* substring consumer functions accept a state object in *data and
     consume a substring portion. Utilized by many of the string ops
@@ -97,6 +79,8 @@ MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_decode(MVMThreadContext *tc, MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag);
 MVMuint8 * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag);
+void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf);
+MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name);
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input);
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input);
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);

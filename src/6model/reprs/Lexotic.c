@@ -8,12 +8,15 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
     if (IS_CONCRETE(invokee)) {
         MVMLexotic *lex = (MVMLexotic *)invokee;
 
-        /* Get argument and set as result. */
-        MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
-        MVM_args_proc_init(tc, &arg_ctx, callsite, args);
-        MVM_ASSIGN_REF(tc, invokee, lex->body.result,
-            MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o);
-        MVM_args_proc_cleanup(tc, &arg_ctx);
+        /* Get argument and set as result. Need to root lex, as argument
+         * processing may box. */
+        MVMROOT(tc, lex, {
+            MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
+            MVM_args_proc_init(tc, &arg_ctx, callsite, args);
+            MVM_ASSIGN_REF(tc, invokee, lex->body.result,
+                MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o);
+            MVM_args_proc_cleanup(tc, &arg_ctx);
+        });
 
         /* Unwind to the lexotic handler. */
         MVM_exception_gotolexotic(tc, lex->body.handler, lex->body.frame);

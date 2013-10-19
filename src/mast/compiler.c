@@ -15,8 +15,8 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define BYTECODE_VERSION            1
-#define FRAME_HEADER_SIZE           7 * 4 + 3 * 2
-#define FRAME_HANDLER_SIZE          4 * 4 + 2 * 2
+#define FRAME_HEADER_SIZE           (7 * 4 + 3 * 2)
+#define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SC_DEP_SIZE                 4
 #define SCDEP_HEADER_OFFSET         12
 #define EXTOP_HEADER_OFFSET         20
@@ -476,8 +476,10 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             }
 
             /* Write the operand type. */
+            if (l->index < 0 || l->index > 32768)
+                DIE(vm, "Frame %u local access out of range", ws->current_frame_idx);
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
-            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->index);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned short)l->index);
             ws->bytecode_pos += 2;
         }
         else {
@@ -497,9 +499,9 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
 
             /* Write the index, then the frame count. */
             ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
-            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->index);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned short)l->index);
             ws->bytecode_pos += 2;
-            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned char)l->frames_out);
+            write_int16(ws->bytecode_seg, ws->bytecode_pos, (unsigned short)l->frames_out);
             ws->bytecode_pos += 2;
         }
         else {

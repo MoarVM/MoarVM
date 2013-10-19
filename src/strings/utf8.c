@@ -183,7 +183,7 @@ static void *utf8_encode(void *bytes, MVMCodepoint32 cp)
 
  /* end not_gerd section */
 
-#define UTF8_MAXINC 32 * 1024 * 1024
+#define UTF8_MAXINC (32 * 1024 * 1024)
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR.
  * Only bring in the raw codepoints for now. */

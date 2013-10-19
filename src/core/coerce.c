@@ -138,14 +138,18 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[25];
-    sprintf(buffer, "%lld", i);
-    return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, strlen(buffer));
+    int len = sprintf(buffer, "%lld", i);
+    if (len >= 0)
+        return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
+    else
+        MVM_exception_throw_adhoc(tc, "Could not stringify integer");
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     char buf[21];
     int i;
-    sprintf(buf, "%-15f", n);
+    if (sprintf(buf, "%-15f", n) < 0)
+        MVM_exception_throw_adhoc(tc, "Could not stringify number");
     if (strstr(buf, ".")) {
         i = strlen(buf);
         while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
@@ -329,9 +333,11 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
     MVMROOT(tc, result, {
         MVMObject *box_type = MVM_hll_current(tc)->num_box_type;
-        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, value));
-        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, base));
-        MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, pos));
+        MVMROOT(tc, box_type, {
+            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, value));
+            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, base));
+            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, pos));
+        });
     });
 
     return result;

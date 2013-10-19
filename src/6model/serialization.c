@@ -11,7 +11,7 @@
 #define MIN_VERSION     5
 
 /* Various sizes (in bytes). */
-#define HEADER_SIZE                 4 * 16
+#define HEADER_SIZE                 (4 * 16)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    16
@@ -326,7 +326,7 @@ static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, 
     if (OBJ_IS_NULL(SC_OBJ(ref))) {
         /* This object doesn't belong to an SC yet, so it must be serialized as part of
          * this compilation unit. Add it to the work list. */
-        SC_OBJ(ref) = writer->root.sc;
+        MVM_sc_set_obj_sc(tc, ref, writer->root.sc);
         MVM_repr_push_o(tc, writer->objects_list, ref);
     }
     sc_id = get_sc_id(tc, writer, SC_OBJ(ref));
@@ -1218,6 +1218,9 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
         MVM_repr_bind_pos_o(tc, result, i, read_ref_func(tc, reader));
+
+    /* Set the SC. */
+    MVM_sc_set_obj_sc(tc, result, reader->root.sc);
 
     return result;
 }

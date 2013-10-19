@@ -159,7 +159,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->env = NULL;
     }
     if (static_frame_body->work_size) {
-        if (fresh)
+        if (fresh || !frame->work)
             frame->work = malloc(static_frame_body->work_size);
         memset(frame->work, 0, static_frame_body->work_size);
     }
@@ -281,6 +281,14 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* signal to the GC to ignore ->work */
     returner->tc = NULL;
+    
+    /* We no longer need point at the caller (any refcount is handled
+     * below). */
+    returner->caller = NULL;
+    
+    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
+     * currently executing frame. */
+    MVM_frame_dec_ref(tc, returner);
 
     /* Switch back to the caller frame if there is one; we also need to
      * decrement its reference count. */
@@ -291,7 +299,6 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
         MVM_frame_dec_ref(tc, caller);
-        returner->caller = NULL;
 
         /* Handle any special return hooks. */
         if (caller->special_return) {
@@ -343,18 +350,16 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
  * captures a closure over the current scope. */
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *closure;
-    MVMStaticFrame *sf;
 
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
             "Can only perform takeclosure on object with representation MVMCode");
 
-    sf = ((MVMCode *)code)->body.sf;
     MVMROOT(tc, code, {
         closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
     });
 
-    closure->body.sf    = sf;
+    closure->body.sf    = ((MVMCode *)code)->body.sf;
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
     MVM_ASSIGN_REF(tc, closure, closure->body.code_object, ((MVMCode *)code)->body.code_object);
 

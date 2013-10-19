@@ -417,8 +417,9 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     }
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&a);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&b);
     result = (MVMString *)REPR(a)->allocate(tc, STABLE(a));
-    MVM_gc_root_temp_pop(tc);
+    MVM_gc_root_temp_pop_n(tc, 2);
 
     /* there could be unattached combining chars at the beginning of b,
        so, XXX TODO handle this */
@@ -709,6 +710,8 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
             return MVM_string_ascii_decode(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_latin1:
             return MVM_string_latin1_decode(tc, type_object, Cbuf, byte_length);
+        case MVM_encoding_type_utf16:
+            return MVM_string_utf16_decode(tc, type_object, Cbuf, byte_length);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", encoding_flag);
     }
@@ -724,10 +727,78 @@ MVMuint8 * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
             return MVM_string_ascii_encode_substr(tc, s, output_size, start, length);
         case MVM_encoding_type_latin1:
             return MVM_string_latin1_encode_substr(tc, s, output_size, start, length);
+        case MVM_encoding_type_utf16:
+            return MVM_string_utf16_encode_substr(tc, s, output_size, start, length);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", encoding_flag);
     }
     return NULL;
+}
+
+/* Encodes a string, and writes the encoding string into the supplied Buf
+ * instance, which should be an integer array with MVMArray REPR. */
+void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf) {
+    MVMuint64 output_size;
+    MVMuint8 *encoded;
+    MVMArrayREPRData *buf_rd;
+    MVMuint8 elem_size = 0;
+
+    /* Ensure the target is in the correct form. */
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "encode requires a native array to write into");
+    buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
+    if (buf_rd) {
+        switch (buf_rd->slot_type) {
+            case MVM_ARRAY_I64: elem_size = 8; break;
+            case MVM_ARRAY_I32: elem_size = 4; break;
+            case MVM_ARRAY_I16: elem_size = 2; break;
+            case MVM_ARRAY_I8:  elem_size = 1; break;
+        }
+    }
+    if (!elem_size)
+        MVM_exception_throw_adhoc(tc, "encode requires  a native int array");
+    if (((MVMArray *)buf)->body.slots.any)
+        MVM_exception_throw_adhoc(tc, "encode requires an empty array");
+
+    /* At least find_encoding may allocate on first call, so root just
+     * in case. */
+    MVMROOT(tc, buf, {
+        encoded = MVM_string_encode(tc, s, 0, NUM_GRAPHS(s), &output_size,
+            MVM_string_find_encoding(tc, enc_name));
+    });
+
+    /* Stash the encoded data in the VMArray. */
+    ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)encoded;
+    ((MVMArray *)buf)->body.start    = 0;
+    ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
+    ((MVMArray *)buf)->body.elems    = output_size / elem_size;
+}
+
+/* Decodes a string using the data from the specified Buf. */
+MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name) {
+    MVMArrayREPRData *buf_rd;
+    MVMuint8 elem_size = 0;
+
+    /* Ensure the source is in the correct form. */
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "decode requires a native array to read from");
+    buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
+    if (buf_rd) {
+        switch (buf_rd->slot_type) {
+            case MVM_ARRAY_I64: elem_size = 8; break;
+            case MVM_ARRAY_I32: elem_size = 4; break;
+            case MVM_ARRAY_I16: elem_size = 2; break;
+            case MVM_ARRAY_I8:  elem_size = 1; break;
+        }
+    }
+    if (!elem_size)
+        MVM_exception_throw_adhoc(tc, "encode requires  a native int array");
+
+    /* Decode. */
+    return MVM_string_decode(tc, tc->instance->VMString,
+        ((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start,
+        ((MVMArray *)buf)->body.elems * elem_size,
+        MVM_string_find_encoding(tc, enc_name));
 }
 
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input) {
@@ -921,8 +992,9 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
     MVMuint32 index;
     MVMCharAtState state;
 
+    /* We return -2 here only to be able to distinguish between "out of bounds" and "not in string". */
     if (offset < 0 || offset >= NUM_GRAPHS(a))
-        return -1;
+        return -2;
 
     state.search = MVM_string_get_codepoint_at_nocheck(tc, a, offset);
     state.result = -1;
@@ -1138,6 +1210,9 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
 /* Checks if the character at the specified offset is a member of the
  * indicated character class. */
 MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
+    if (offset < 0 || offset >= NUM_GRAPHS(s))
+        return 0;
+
     switch (cclass) {
         case MVM_CCLASS_ANY:
             return 1;
@@ -1261,6 +1336,7 @@ static MVMint16   encoding_name_init   = 0;
 static MVMString *encoding_utf8_name   = NULL;
 static MVMString *encoding_ascii_name  = NULL;
 static MVMString *encoding_latin1_name = NULL;
+static MVMString *encoding_utf16_name  = NULL;
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     if (!encoding_name_init) {
         encoding_utf8_name   = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8");
@@ -1269,6 +1345,8 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_ascii_name);
         encoding_latin1_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "iso-8859-1");
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_latin1_name);
+        encoding_utf16_name  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf16");
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf16_name);
         encoding_name_init   = 1;
     }
 
@@ -1281,7 +1359,11 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     else if (MVM_string_equal(tc, name, encoding_latin1_name)) {
         return MVM_encoding_type_latin1;
     }
+    else if (MVM_string_equal(tc, name, encoding_utf16_name)) {
+        return MVM_encoding_type_utf16;
+    }
     else {
-        MVM_exception_throw_adhoc(tc, "unknown encoding type: %s", MVM_string_utf8_encode_C_string(tc, name));
+        MVM_exception_throw_adhoc(tc, "Unknown string encoding: '%s'",
+            MVM_string_utf8_encode_C_string(tc, name));
     }
 }

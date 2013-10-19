@@ -21,6 +21,7 @@ enum {
     FLAG_DUMP,
     FLAG_HELP,
     FLAG_TRACING,
+    FLAG_VERSION,
 
     OPT_LIBPATH
 };
@@ -30,6 +31,7 @@ static const char *const FLAGS[] = {
     "--dump",
     "--help",
     "--tracing",
+    "--version",
 };
 
 static const char USAGE[] = "\
@@ -39,7 +41,8 @@ USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [prog
     --help     display this message\n\
     --dump     dump the bytecode to stdout instead of executing\n\
     --crash    abort instead of exiting on unhandled exception\n\
-    --libpath  specify path loadbytecode should search in"
+    --libpath  specify path loadbytecode should search in\
+    --version  show version information\n"
     TRACING_USAGE;
 
 static int cmp_flag(const void *key, const void *value)
@@ -104,6 +107,11 @@ int main(int argc, char *argv[])
 
             case OPT_LIBPATH:
             lib_path = argv[argi] + strlen("--libpath=");
+            continue;
+
+            case FLAG_VERSION:
+            printf("This is MoarVM version %s\n", MVM_VERSION);
+            return EXIT_SUCCESS;
             continue;
 
             default:

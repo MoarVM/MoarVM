@@ -429,21 +429,13 @@ class QAST::MASTRegexCompiler {
 
     method enumcharlist($node) {
         my @ins;
-        if $node.negate {
-            my $ok := label(self.unique($*RXPREFIX ~ '_enumcharlist'));
-            nqp::push(@ins,
-                op('indexat_scb', %*REG<tgt>, %*REG<pos>, sval($node[0]), $ok));
-            nqp::push(@ins, op('goto', %*REG<fail>));
-            nqp::push(@ins, $ok);
-        }
-        else {
-            nqp::push(@ins,
-                op('indexat_scb', %*REG<tgt>, %*REG<pos>, sval($node[0]), %*REG<fail>));
-        }
+        my $op := $node.negate ?? 'indexnat' !! 'indexat';
+        nqp::push(@ins, op($op, %*REG<tgt>, %*REG<pos>, sval($node[0]), %*REG<fail>));
         nqp::push(@ins, op('inc_i', %*REG<pos>))
             unless $node.subtype eq 'zerowidth';
         @ins
     }
+
 
     method literal($node) {
         my $litconst := $node[0];

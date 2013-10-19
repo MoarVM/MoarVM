@@ -31,7 +31,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s
     shared use-readline
     build=s host=s big-endian
-    prefix=s
+    prefix=s make-install
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -76,6 +76,23 @@ for (keys %defaults) {
     next if /^-/;
     $config{$_} //= $defaults{$_};
 }
+
+my $VERSION = '0.0-0';
+# get version
+if (open(my $fh, '<', 'VERSION')) {
+    $VERSION = <$fh>;
+    close($fh);
+}
+# .git is a file and not a directory in submodule
+if (-e '.git' && open(my $GIT, '-|', "git describe --tags")) {
+    $VERSION = <$GIT>;
+    close($GIT);
+}
+chomp $VERSION;
+$config{version}      = $VERSION;
+$config{versionmajor} = $VERSION =~ /^(\d+)/ ? $1 : 0;
+$config{versionminor} = $VERSION =~ /^\d+\.(\d+)/ ? $1 : 0;
+$config{versionpatch} = $VERSION =~ /^\d+\.\d+\-(\d+)/ ? $1 : 0;
 
 # misc defaults
 $config{exe}       //= '';
@@ -276,6 +293,10 @@ Configuration SUCCESS.
 Type '$config{'make'}' to build and '$config{'make'} help' to see a list of
 available make targets.
 TERM2
+
+if (!$failed && $args{'make-install'}) {
+    system($config{make}, 'install');
+}
 
 exit $failed;
 
@@ -584,5 +605,9 @@ builds, the byte order is auto-detected.
 =item --prefix
 
 Install files in subdirectory /bin of the supplied path.
+
+=item --make-install
+
+Build and install MoarVM in addition to configuring it.
 
 =back
