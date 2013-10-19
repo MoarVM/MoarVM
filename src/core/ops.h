@@ -516,6 +516,7 @@
 #define MVM_OP_findsym 512
 #define MVM_OP_dropsym 513
 #define MVM_OP_loadext 514
+#define MVM_OP_settypecheckmode 515
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

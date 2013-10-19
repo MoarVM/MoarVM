@@ -517,7 +517,8 @@ BEGIN {
     1228,
     1229,
     1232,
-    1233);
+    1233,
+    1235);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     1,
     2,
@@ -1032,6 +1033,7 @@ BEGIN {
     1,
     3,
     1,
+    2,
     2);
     MAST::Ops.WHO<@values> := nqp::list_i(72,
     33,
@@ -2267,7 +2269,9 @@ BEGIN {
     57,
     65,
     57,
-    57);
+    57,
+    65,
+    33);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'goto', 1,
     'if_i', 2,
@@ -2782,7 +2786,8 @@ BEGIN {
     'freelib', 511,
     'findsym', 512,
     'dropsym', 513,
-    'loadext', 514);
+    'loadext', 514,
+    'settypecheckmode', 515);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'goto',
     'if_i',
@@ -3297,5 +3302,6 @@ BEGIN {
     'freelib',
     'findsym',
     'dropsym',
-    'loadext');
+    'loadext',
+    'settypecheckmode');
 }

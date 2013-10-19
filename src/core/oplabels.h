@@ -516,7 +516,7 @@ static const void * const LABELS[] = {
     &&OP_findsym,
     &&OP_dropsym,
     &&OP_loadext,
-    NULL,
+    &&OP_settypecheckmode,
     NULL,
     NULL,
     NULL,

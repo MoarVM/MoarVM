@@ -3525,6 +3525,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(settypecheckmode): {
+                MVMSTable *st = STABLE(GET_REG(cur_op, 0).o);
+                st->mode_flags = GET_REG(cur_op, 2).i64 |
+                    (st->mode_flags & (~MVM_TYPE_CHECK_CACHE_FLAG_MASK));
+                cur_op += 4;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
