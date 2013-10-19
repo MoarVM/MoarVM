@@ -3541,6 +3541,33 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 tc->cur_dispatcher = NULL;
                 cur_op += 2;
                 goto NEXT;
+            OP(captureexistsnamed): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                    MVMCallCapture *cc = (MVMCallCapture *)obj;
+                    GET_REG(cur_op, 0).i64 = MVM_args_has_named(tc, cc->body.apc,
+                        GET_REG(cur_op, 4).s);
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "captureexistsnamed needs a MVMCallCapture");
+                }
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(capturehasnameds): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                    /* If positionals count doesn't match arg count, we must
+                     * have some named args. */
+                    MVMCallCapture *cc = (MVMCallCapture *)obj;
+                    GET_REG(cur_op, 0).i64 = cc->body.apc->arg_count != cc->body.apc->num_pos;
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "capturehasnameds needs a MVMCallCapture");
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

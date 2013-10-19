@@ -520,7 +520,9 @@ BEGIN {
     1233,
     1235,
     1237,
-    1238);
+    1238,
+    1239,
+    1242);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     1,
     2,
@@ -1038,7 +1040,9 @@ BEGIN {
     2,
     2,
     1,
-    1);
+    1,
+    3,
+    2);
     MAST::Ops.WHO<@values> := nqp::list_i(72,
     33,
     72,
@@ -2277,7 +2281,12 @@ BEGIN {
     65,
     33,
     65,
-    66);
+    66,
+    34,
+    65,
+    57,
+    34,
+    65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'goto', 1,
     'if_i', 2,
@@ -2795,7 +2804,9 @@ BEGIN {
     'loadext', 514,
     'settypecheckmode', 515,
     'setdispatcher', 516,
-    'takedispatcher', 517);
+    'takedispatcher', 517,
+    'captureexistsnamed', 518,
+    'capturehasnameds', 519);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'goto',
     'if_i',
@@ -3313,5 +3324,7 @@ BEGIN {
     'loadext',
     'settypecheckmode',
     'setdispatcher',
-    'takedispatcher');
+    'takedispatcher',
+    'captureexistsnamed',
+    'capturehasnameds');
 }
