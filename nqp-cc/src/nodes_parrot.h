@@ -8,6 +8,9 @@ typedef struct {
     PMC    *load_frame;
     PMC    *deserialize_frame;
     PMC    *sc_handles;
+    PMC    *sc_lookup;
+    PMC    *extop_sigs;
+    PMC    *extop_idx;
 } MAST_CompUnit;
 
 /* MAST::Frame */
@@ -30,6 +33,15 @@ typedef struct {
     INTVAL  op;
     PMC    *operands;
 } MAST_Op;
+
+/* MAST::ExtOp */
+typedef struct {
+    PMC    *st;
+    PMC    *sc;
+    INTVAL  op;
+    PMC    *operands;
+    STRING *name;
+} MAST_ExtOp;
 
 /* MAST::SVal */
 typedef struct {
@@ -109,6 +121,7 @@ typedef struct {
     PMC *CompUnit;
     PMC *Frame;
     PMC *Op;
+    PMC *ExtOp;
     PMC *SVal;
     PMC *IVal;
     PMC *NVal;
@@ -136,6 +149,7 @@ typedef STRING VMSTR;
 #define GET_CompUnit(n)             ((MAST_CompUnit *)PMC_data(n))
 #define GET_Frame(n)                ((MAST_Frame *)PMC_data(n))
 #define GET_Op(n)                   ((MAST_Op *)PMC_data(n))
+#define GET_ExtOp(n)                ((MAST_ExtOp *)PMC_data(n))
 #define GET_Label(n)                ((MAST_Label *)PMC_data(n))
 #define GET_Local(n)                ((MAST_Local *)PMC_data(n))
 #define GET_Lexical(n)              ((MAST_Lexical *)PMC_data(n))

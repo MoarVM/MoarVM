@@ -7,6 +7,9 @@ typedef struct {
     MVMObject   *load_frame;
     MVMObject   *deserialize_frame;
     MVMObject   *sc_handles;
+    MVMObject   *sc_lookup;
+    MVMObject   *extop_sigs;
+    MVMObject   *extop_idx;
 } MAST_CompUnit;
 
 /* MAST::Frame */
@@ -27,6 +30,14 @@ typedef struct {
     MVMint64     op;
     MVMObject   *operands;
 } MAST_Op;
+
+/* MAST::ExtOp */
+typedef struct {
+    MVMP6opaque  p6o_header;
+    MVMint64     op;
+    MVMObject   *operands;
+    MVMString   *name;
+} MAST_ExtOp;
 
 /* MAST::SVal */
 typedef struct {
@@ -97,6 +108,7 @@ typedef struct _MASTNodeTypes {
     MVMObject *CompUnit;
     MVMObject *Frame;
     MVMObject *Op;
+    MVMObject *ExtOp;
     MVMObject *SVal;
     MVMObject *IVal;
     MVMObject *NVal;
@@ -124,6 +136,7 @@ typedef MVMString VMSTR;
 #define GET_CompUnit(n)             ((MAST_CompUnit *)n)
 #define GET_Frame(n)                ((MAST_Frame *)n)
 #define GET_Op(n)                   ((MAST_Op *)n)
+#define GET_ExtOp(n)                ((MAST_ExtOp *)n)
 #define GET_Label(n)                ((MAST_Label *)n)
 #define GET_Local(n)                ((MAST_Local *)n)
 #define GET_Lexical(n)              ((MAST_Lexical *)n)
