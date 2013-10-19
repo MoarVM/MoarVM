@@ -281,8 +281,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
         return -1;
 
     if (start < 0 || start >= hgraphs)
-        /* maybe return -1 instead? */
-        MVM_exception_throw_adhoc(tc, "index start offset out of range");
+        return -1;
 
     if (ngraphs > hgraphs || ngraphs < 1)
         return -1;
