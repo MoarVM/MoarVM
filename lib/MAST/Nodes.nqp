@@ -40,6 +40,9 @@ class MAST::ExtOpRegistry {
     }
 }
 
+# The extension of base number (everything below is internal).
+my $EXTOP_BASE := 1024;
+
 # The base class for all nodes.
 class MAST::Node {
     method dump($indent = "") {
@@ -79,6 +82,14 @@ class MAST::CompUnit is MAST::Node {
 
     # Mapping of SC handle names to indexes, for faster lookup.
     has %!sc_lookup;
+
+    # List of extops that we are using. For each extop used in this compunit,
+    # this list contains its signature.
+    has @!extop_sigs;
+
+    # Mapping of extop names to extop signature indexes (in the @!extop_sigs
+    # array).
+    has %!extop_idx;
 
     method add_frame($frame) {
         @!frames[+@!frames] := $frame;
@@ -122,6 +133,20 @@ class MAST::CompUnit is MAST::Node {
             nqp::push(@!sc_handles, $handle);
             nqp::bindkey(%!sc_lookup, $handle, $id);
             $id
+        }
+    }
+
+    # Gets the opcode for an extop in the current compilation unit. If this is
+    # the first use of the extop, gives it an index for this compilation unit.
+    method get_extop_code($name) {
+        if nqp::existskey(%!extop_idx, $name) {
+            %!extop_idx{$name} + $EXTOP_BASE
+        }
+        else {
+            my $idx            := +@!extop_sigs;
+            @!extop_sigs[$idx] := MAST::ExtOpRegistry.extop_signature($name);
+            %!extop_idx{$name} := $idx;
+            $idx + $EXTOP_BASE
         }
     }
 }
@@ -283,7 +308,31 @@ class MAST::Op is MAST::Node {
 
     method dump_lines(@lines, $indent) {
         my $opname := @op_names[$!op];
-        nqp::push(@lines, $indent~"MAST::Op $opname");
+        nqp::push(@lines, $indent ~ "MAST::Op $opname");
+        nqp::push(@lines, $_.dump($indent ~ '    ')) for @!operands;
+    }
+}
+
+# An extension operation to be executed. The operands must be either
+# registers, literals or labels (depending on what the instruction needs).
+class MAST::ExtOp is MAST::Node {
+    has int $!op;
+    has @!operands;
+    has str $!name;
+
+    method new(:$op!, :$cu!, *@operands) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::ExtOp, '$!op', $cu.get_extop_code($op));
+        nqp::bindattr($obj, MAST::ExtOp, '@!operands', @operands);
+        nqp::bindattr_s($obj, MAST::ExtOp, '$!name', $op);
+        $obj
+    }
+
+    method op() { $!op }
+    method operands() { @!operands }
+
+    method dump_lines(@lines, $indent) {
+        nqp::push(@lines, $indent ~ "MAST::ExtOp $!name");
         nqp::push(@lines, $_.dump($indent ~ '    ')) for @!operands;
     }
 }
