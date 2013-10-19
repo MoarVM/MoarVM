@@ -77,6 +77,23 @@ for (keys %defaults) {
     $config{$_} //= $defaults{$_};
 }
 
+my $VERSION = '0.0-0';
+# get version
+if (open(my $fh, '<', 'VERSION')) {
+    $VERSION = <$fh>;
+    close($fh);
+}
+# .git is a file and not a directory in submodule
+if (-e '.git' && open(my $GIT, '-|', "git describe --tags")) {
+    $VERSION = <$GIT>;
+    close($GIT);
+}
+chomp $VERSION;
+$config{version}      = $VERSION;
+$config{versionmajor} = $VERSION =~ /^(\d+)/ ? $1 : 0;
+$config{versionminor} = $VERSION =~ /^\d+\.(\d+)/ ? $1 : 0;
+$config{versionpatch} = $VERSION =~ /^\d+\.\d+\-(\d+)/ ? $1 : 0;
+
 # misc defaults
 $config{exe}       //= '';
 $config{defs}      //= [];
