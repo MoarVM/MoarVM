@@ -28,6 +28,7 @@
 #define ANNOTATION_HEADER_OFFSET    68
 #define HLL_NAME_HEADER_OFFSET      76
 #define SPECIAL_FRAME_HEADER_OFFSET 80
+#define EXTOP_BASE                  1024
 
 typedef struct {
     /* callsite ID */
@@ -588,6 +589,42 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         for (i = 0; i < info->num_operands; i++)
             compile_operand(vm, ws, info->operands[i], ATPOS(vm, o->operands, i));
     }
+    else if (ISTYPE(vm, node, ws->types->ExtOp)) {
+        MAST_ExtOp *o = GET_ExtOp(node);
+        MASTNode   *operands;
+        int         i, num_operands;
+
+        /* Look up opcode and get argument info. */
+        unsigned short op = o->op;
+        if (op < EXTOP_BASE || (op - EXTOP_BASE) >= ELEMS(vm, ws->cu->extop_sigs))
+            DIE(vm, "Invalid extension op %d specified", op);
+        operands = ATPOS(vm, ws->cu->extop_sigs, op - EXTOP_BASE);
+        if (VM_OBJ_IS_NULL(operands))
+            DIE(vm, "Missing extension op operand array for instruction %d", op);
+        ws->current_op_info = NULL;
+        ws->current_operand_idx = 0;
+
+        /* Ensure argument count matches up. */
+        num_operands = ELEMS(vm, operands);
+        if (ELEMS(vm, o->operands) != num_operands) {
+            unsigned int  current_frame_idx = ws->current_frame_idx;
+            unsigned int  current_ins_idx = ws->current_ins_idx;
+            cleanup_all(vm, ws);
+            DIE(vm, "At Frame %u, Instruction %u, op '%s' has invalid number (%u) of operands; needs %u.",
+                current_frame_idx, current_ins_idx,
+                VM_STRING_TO_C_STRING(vm, o->name),
+                ELEMS(vm, o->operands), num_operands);
+        }
+
+        /* Write opcode. */
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos, op);
+        ws->bytecode_pos += 2;
+
+        /* Write operands. */
+        for (i = 0; i < num_operands; i++)
+            compile_operand(vm, ws, ATPOS_I(vm, operands, i), ATPOS(vm, o->operands, i));
+    }
     else if (ISTYPE(vm, node, ws->types->Label)) {
         /* Duplicate check, then insert. */
         MAST_Label *l = GET_Label(node);
@@ -828,7 +865,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
     }
     else {
         cleanup_all(vm, ws);
-        DIE(vm, "Invalid MAST node in instruction list (must be Op, Call, Label, or Annotated)");
+        DIE(vm, "Invalid MAST node in instruction list (must be Op, ExtOp, Call, Label, or Annotated)");
     }
     ws->current_ins_idx++;
 }
