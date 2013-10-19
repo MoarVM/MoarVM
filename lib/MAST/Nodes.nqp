@@ -7,6 +7,39 @@ use MASTOps;
 # official also. Note that no text-based mapping to/from these nodes
 # will ever be official, however.
 
+# Extension op name/signature registry; keeps track of all the known extension
+# ops and their signatures.
+class MAST::ExtOpRegistry {
+    my %extop_sigs;
+
+    # Registers an extension op, specifying a name and type expected types of
+    # each of the operands.
+    method register_extop($name, *@sig) {
+        if nqp::existskey(%extop_sigs, $name) {
+            nqp::die("MoarVM extension op '$name' already registered");
+        }
+        my @sig_i := nqp::list_i();
+        for @sig {
+            nqp::push_i(@sig_i, $_);
+        }
+        %extop_sigs{$name} := @sig_i;
+    }
+
+    # Checks if an extop is registered.
+    method extop_known($name) {
+        nqp::existskey(%extop_sigs, $name)
+    }
+
+    # Gets the signature of an extop, which we can rely on to be a list of
+    # native integers.
+    method extop_signature($name) {
+        unless nqp::existskey(%extop_sigs, $name) {
+            nqp::die("MoarVM extension op '$name' is not known");
+        }
+        %extop_sigs{$name}
+    }
+}
+
 # The base class for all nodes.
 class MAST::Node {
     method dump($indent = "") {
