@@ -2,19 +2,10 @@
 
 #### The MoarVM Opcodes Overview
 
-The MoarVM interpreter uses 16-bit opcodes, where the first byte is called the
-"bank".  There are currently around 470 built-in ops, and I'd guess there'll be
-around 500 once Rakudo's bootstrapped and passing spectest.
-
-The interpreter loop currently dispatches a top level of switch/case by bank,
-after reading the next byte in the stream, and then dispatches by switch/case
-to the particular op in the bank by reading the next byte in the stream.  It is
-not known whether the various C compilers compile these any more efficiently
-than a flat switch/case of all 65536 potential opcodes with all cases
-enumerated (in order).  However, I suggest that it would be more efficient to
-read both bytes into an unsigned short and then do bit  operations to split out
-the two bytes... or simply dispatch into one large switch/case.  It's at least
-worth testing whether it's faster on some platforms and compilers.
+The MoarVM interpreter uses 16-bit opcodes.  There are currently around 470
+built-in ops, and it'll probably be around 500 once Rakudo's bootstrapped and
+passing spectest. The interpreter loop currently dispatches by op number,
+either using switch/case or cgoto where available.
 
 Many opcodes are self-contained (they don't call other C functions, and some
 don't even make system calls), but lots and lots of them do call functions.
@@ -38,21 +29,17 @@ that might look:
 In a table in the .moarvm disk representation of the bytecode, each extension
 op invoked from that compilation unit has an entry with: 1. a (16-bit) index
 into the string heap representing the fully-qualified (namespace included) name
-of the op, and 2. a (16-bit) index into the string heap representing the
-signature of the op at the time it was loaded.  In the in-memory (deserialized)
-representation of the compilation unit, each record also has room to store the
-cache of the function pointer representing the C function to which the op was
-resolved.  Each distinct op called from that compilation unit is encoded in the
-executable bytecode as its index in the extension op table plus 4096.  The
-first 16 banks (of 256 ops each, so 4096) are reserved for the VM's native ops,
-and the highest 32768 (highest bit set) are reserved for JIT hooks, so you have
-28672 available for unique extension ops called from a single compunit.  The
-table on-disk and in-memory extop tables are dense; there are no gaps.
+of the op, and 2. the op signature, a byte for each operand, zer-padded to 8
+bytes. In the in-memory (deserialized) representation of the compilation unit,
+each record also has room to store the cache of the function pointer representing
+the C function to which the op was resolved.  Each distinct op called from that
+compilation unit is encoded in the executable bytecode as its index in the extension
+op table plus 1024 (the first 1024 being reserved for MoarVM itself).
 
 #### Loading Code That Calls Extension Ops
 
 During bytecode validation (on-demand upon first invocation of a frame), when
-the validator comes across an opcode >= 8192, it subtracts 8192 and checks that
+the validator comes across an opcode >= 1024, it subtracts 1024 and checks that
 the resulting index is less than the number of extension op calls proscribed by
 the compunit.  Then it gets that extop call record (MVMExtOpCall) from the
 table, and if the record has a function pointer, it calls it with the sole arg
