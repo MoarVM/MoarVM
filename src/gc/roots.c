@@ -80,6 +80,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* compunit variable pointer */
     MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
+
+    /* Current dispatcher. */
+    MVM_gc_worklist_add(tc, worklist, &tc->cur_dispatcher);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

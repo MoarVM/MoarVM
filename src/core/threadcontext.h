@@ -160,6 +160,9 @@ struct MVMThreadContext {
     /* Any serialization contexts we are compiling. */
     MVMObject     *compiling_scs;
 
+    /* Dispatcher set for next invocation to take. */
+    MVMObject     *cur_dispatcher;
+
     /* Random number generator state. */
     MVMuint64 rand_state[2];
 };

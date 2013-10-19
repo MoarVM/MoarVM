@@ -3532,6 +3532,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(setdispatcher):
+                tc->cur_dispatcher = GET_REG(cur_op, 0).o;
+                cur_op += 2;
+                goto NEXT;
+            OP(takedispatcher):
+                GET_REG(cur_op, 0).o = tc->cur_dispatcher;
+                tc->cur_dispatcher = NULL;
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
