@@ -96,6 +96,8 @@ typedef double   MVMnum64;
 #include "math/bigintops.h"
 #include "mast/driver.h"
 
+MVMObject *MVM_backend_config(MVMThreadContext *tc);
+
 /* Top level VM API functions. */
 MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);
 MVM_PUBLIC void MVM_vm_run_file(MVMInstance *instance, const char *filename);

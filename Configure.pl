@@ -273,6 +273,8 @@ my $thirdpartylibs = join "\n" . ' ' x 12, sort @thirdpartylibs;
 
 print "OK\n";
 
+write_backend_config();
+
 # dump 3rdparty libs we need to build
 print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
@@ -504,6 +506,45 @@ sub softfail {
 sub hardfail {
     softfail(@_);
     die "\nConfiguration PANIC. A Makefile could not be generated.\n";
+}
+
+sub write_backend_config {
+    $config{backendconfig} = '';
+    for my $k (keys %config) {
+        next if $k eq 'backendconfig';
+        my $v = $config{$k};
+        
+        if (ref($v) eq 'ARRAY') {
+            $config{backendconfig} .= <<END;
+        array = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
+        MVMROOT(tc, array, {
+END
+            for (@$v) {
+                $config{backendconfig} .= <<END;
+            MVM_repr_push_s(tc, array, MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$_\"));
+END
+            }
+            $config{backendconfig} .= <<END;
+            MVM_repr_bind_key_boxed(tc, config,
+                MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$k\"),
+                (MVMObject *)array);
+        });
+END
+        }
+        elsif (ref($v) eq 'HASH') {
+            # should not be there
+        }
+        else {
+            $v //= '';
+            $v   =~ s/"/\\"/g;
+            $v   =~ s/\n/\\\n/g;
+            $config{backendconfig} .= <<END;
+        MVM_repr_bind_key_boxed(tc, config,
+            MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$k\"),
+            (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$v\"));
+END
+        }
+    }
 }
 
 

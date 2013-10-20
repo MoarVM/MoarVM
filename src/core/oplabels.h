@@ -521,7 +521,7 @@ static const void * const LABELS[] = {
     &&OP_takedispatcher,
     &&OP_captureexistsnamed,
     &&OP_capturehasnameds,
-    NULL,
+    &&OP_backendconfig,
     NULL,
     NULL,
     NULL,

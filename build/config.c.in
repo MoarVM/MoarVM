@@ -1,0 +1,20 @@
+/* !!!
+ * If you're looking at config.c and thinking of editing - this is a
+ * generated file. See build/config.c.in, unless you're just twiddling
+ * to get things to work on your platform before updating Configure,
+ * in which case go right ahead. :-)
+ * !!!
+ */
+
+#include "moar.h"
+#include "gen/config.h"
+
+MVMObject *MVM_backend_config(MVMThreadContext *tc) {
+    MVMObject *config = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+    MVMObject *array;
+    MVMROOT(tc, config, {
+@backendconfig@
+    });
+
+    return config;
+}
