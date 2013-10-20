@@ -41,8 +41,8 @@ USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [prog
     --help     display this message\n\
     --dump     dump the bytecode to stdout instead of executing\n\
     --crash    abort instead of exiting on unhandled exception\n\
-    --libpath  specify path loadbytecode should search in\
-    --version  show version information\n"
+    --libpath  specify path loadbytecode should search in\n\
+    --version  show version information"
     TRACING_USAGE;
 
 static int cmp_flag(const void *key, const void *value)
