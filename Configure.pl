@@ -7,6 +7,7 @@ use warnings;
 use Config;
 use Getopt::Long;
 use Pod::Usage;
+use Cwd qw/abs_path/;
 
 use build::setup;
 use build::auto;
@@ -66,7 +67,20 @@ $config{name}   = $NAME;
 $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 
-$config{prefix} = $args{prefix} // '.';
+$config{prefix} = abs_path($args{prefix} // '.');
+# if the path contains whitespace, we can't just provide -I$prefix
+if (index($config{prefix}, ' ') >= 0) {
+    if ($defaults{os} =~ m/^win32|cygwin|mingw32$/i) {
+        # config.h on windows: #define MVM_PREFIX "\"C:\\path with space\\nqp\\install\""
+        # results in `moar --cflags`: -L"C:\\path with space\\nqp\\install"
+        $config{prefix} = '\\"' . $config{prefix} . '\\"'
+        $config{prefix} =~ s/\\/\\\\/g;
+    }
+    else {
+        # config.h on unixes: #define MVM_PREFIX "/home/path\ with\ space/nqp/install"
+        $config{prefix} =~ s/ /\\ /g;
+    }
+}
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
