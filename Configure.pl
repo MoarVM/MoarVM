@@ -73,7 +73,7 @@ if (index($config{prefix}, ' ') >= 0) {
     if ($defaults{os} =~ m/^win32|cygwin|mingw32$/i) {
         # config.h on windows: #define MVM_PREFIX "\"C:\\path with space\\nqp\\install\""
         # results in `moar --cflags`: -L"C:\\path with space\\nqp\\install"
-        $config{prefix} = '\\"' . $config{prefix} . '\\"'
+        $config{prefix} = '\\"' . $config{prefix} . '\\"';
         $config{prefix} =~ s/\\/\\\\/g;
     }
     else {
