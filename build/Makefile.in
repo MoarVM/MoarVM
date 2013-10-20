@@ -273,8 +273,11 @@ install: all
 	$(CP) moar@exe@ $(PREFIX)/bin
 	$(CHMOD) 755 $(PREFIX)/bin/moar@exe@
 	$(MKPATH) $(PREFIX)/lib/MAST
+	$(CP) @moar@ $(PREFIX)/lib
 	$(CP) lib/MAST/Nodes.nqp $(PREFIX)/lib/MAST
 	$(CP) lib/MAST/Ops.nqp $(PREFIX)/lib/MAST
+	$(MKPATH) $(PREFIX)/include/moar
+	$(CP) src/gen/config.h $(PREFIX)/include/moar
 
 lib: @moar@
 
