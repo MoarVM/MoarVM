@@ -120,6 +120,12 @@ typedef struct {
     char         *scdep_seg;
     unsigned int  scdep_bytes;
 
+    /* The extension ops segment. */
+    char         *extops_seg;
+    unsigned int  extops_pos;
+    unsigned int  extops_alloc;
+    unsigned int  num_extops;
+
     /* The frame segment. */
     char         *frame_seg;
     unsigned int  frame_pos;
@@ -1157,9 +1163,11 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     memcpy(output + pos, ws->scdep_seg, ws->scdep_bytes);
     pos += ws->scdep_bytes;
 
-    /* TODO: Extension ops. For now, just write a dummy header. */
+    /* Add extension ops section and its header entries. */
     write_int32(output, EXTOP_HEADER_OFFSET, pos);
-    write_int32(output, EXTOP_HEADER_OFFSET + 4, 0);
+    write_int32(output, EXTOP_HEADER_OFFSET + 4, ws->num_extops);
+    memcpy(output + pos, ws->extops_seg, ws->extops_pos);
+    pos += ws->extops_pos;
 
     /* Add frames section and its header entries. */
     write_int32(output, FRAME_HEADER_OFFSET, pos);
@@ -1241,6 +1249,10 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->cur_frame        = NULL;
     ws->scdep_bytes      = ELEMS(vm, cu->sc_handles) * SC_DEP_SIZE;
     ws->scdep_seg        = ws->scdep_bytes ? (char *)malloc(ws->scdep_bytes) : NULL;
+    ws->extops_pos       = 0;
+    ws->extops_alloc     = 1024;
+    ws->extops_seg       = (char *)malloc(ws->extops_alloc);
+    ws->num_extops       = 0;
     ws->frame_pos        = 0;
     ws->frame_alloc      = 4096;
     ws->frame_seg        = (char *)malloc(ws->frame_alloc);
