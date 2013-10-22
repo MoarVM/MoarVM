@@ -504,12 +504,7 @@ sub write_backend_config {
         if (ref($v) eq 'ARRAY') {
             my $i = 0;
             for (@$v) {
-                $config{backendconfig} .= <<END;
-        MVM_repr_bind_key_boxed(tc, config,
-            MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$k\[$i]\"),
-            MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$_\")));
-END
+                $config{backendconfig} .= qq/        add_entry(tc, config, "$k\[$i]", "$_");\n/;
                 $i++;
             }
         }
@@ -520,12 +515,7 @@ END
             $v //= '';
             $v   =~ s/"/\\"/g;
             $v   =~ s/\n/\\\n/g;
-            $config{backendconfig} .= <<END;
-        MVM_repr_bind_key_boxed(tc, config,
-            MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$k\"),
-            MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                MVM_string_ascii_decode_nt(tc, tc->instance->VMString, \"$v\")));
-END
+            $config{backendconfig} .= qq/        add_entry(tc, config, "$k", "$v");\n/;
         }
     }
 }
