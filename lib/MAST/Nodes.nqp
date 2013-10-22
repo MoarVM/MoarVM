@@ -91,6 +91,9 @@ class MAST::CompUnit is MAST::Node {
     # array).
     has %!extop_idx;
 
+    # String list of extop names.
+    has @!extop_names;
+
     method add_frame($frame) {
         @!frames[+@!frames] := $frame;
     }
@@ -143,9 +146,10 @@ class MAST::CompUnit is MAST::Node {
             %!extop_idx{$name} + $EXTOP_BASE
         }
         else {
-            my $idx            := +@!extop_sigs;
-            @!extop_sigs[$idx] := MAST::ExtOpRegistry.extop_signature($name);
-            %!extop_idx{$name} := $idx;
+            my $idx             := +@!extop_sigs;
+            @!extop_names[$idx] := $name;
+            @!extop_sigs[$idx]  := MAST::ExtOpRegistry.extop_signature($name);
+            %!extop_idx{$name}  := $idx;
             $idx + $EXTOP_BASE
         }
     }

@@ -11,6 +11,7 @@ typedef struct {
     PMC    *sc_lookup;
     PMC    *extop_sigs;
     PMC    *extop_idx;
+    PMC    *extop_names;
 } MAST_CompUnit;
 
 /* MAST::Frame */

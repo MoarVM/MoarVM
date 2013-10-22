@@ -10,6 +10,7 @@ typedef struct {
     MVMObject   *sc_lookup;
     MVMObject   *extop_sigs;
     MVMObject   *extop_idx;
+    MVMObject   *extop_names;
 } MAST_CompUnit;
 
 /* MAST::Frame */
