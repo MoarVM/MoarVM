@@ -18,6 +18,7 @@
 #define FRAME_HEADER_SIZE           (7 * 4 + 3 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SC_DEP_SIZE                 4
+#define EXTOP_SIZE                  (4 + 8)
 #define SCDEP_HEADER_OFFSET         12
 #define EXTOP_HEADER_OFFSET         20
 #define FRAME_HEADER_OFFSET         28
@@ -120,10 +121,9 @@ typedef struct {
     char         *scdep_seg;
     unsigned int  scdep_bytes;
 
-    /* The extension ops segment. */
+    /* The extension ops segment; we know the size ahead of time. */
     char         *extops_seg;
-    unsigned int  extops_pos;
-    unsigned int  extops_alloc;
+    unsigned int  extops_bytes;
     unsigned int  num_extops;
 
     /* The frame segment. */
@@ -1143,6 +1143,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     size += HEADER_SIZE;
     size += string_heap_size;
     size += ws->scdep_bytes;
+    size += ws->extops_bytes;
     size += ws->frame_pos;
     size += ws->callsite_pos;
     size += ws->bytecode_pos;
@@ -1166,8 +1167,8 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     /* Add extension ops section and its header entries. */
     write_int32(output, EXTOP_HEADER_OFFSET, pos);
     write_int32(output, EXTOP_HEADER_OFFSET + 4, ws->num_extops);
-    memcpy(output + pos, ws->extops_seg, ws->extops_pos);
-    pos += ws->extops_pos;
+    memcpy(output + pos, ws->extops_seg, ws->extops_bytes);
+    pos += ws->extops_bytes;
 
     /* Add frames section and its header entries. */
     write_int32(output, FRAME_HEADER_OFFSET, pos);
@@ -1249,10 +1250,9 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->cur_frame        = NULL;
     ws->scdep_bytes      = ELEMS(vm, cu->sc_handles) * SC_DEP_SIZE;
     ws->scdep_seg        = ws->scdep_bytes ? (char *)malloc(ws->scdep_bytes) : NULL;
-    ws->extops_pos       = 0;
-    ws->extops_alloc     = 1024;
-    ws->extops_seg       = (char *)malloc(ws->extops_alloc);
-    ws->num_extops       = 0;
+    ws->num_extops       = ELEMS(vm, cu->extop_names);
+    ws->extops_bytes     = ws->num_extops * EXTOP_SIZE;
+    ws->extops_seg       = (char *)malloc(ws->extops_bytes);
     ws->frame_pos        = 0;
     ws->frame_alloc      = 4096;
     ws->frame_seg        = (char *)malloc(ws->frame_alloc);
@@ -1276,6 +1276,24 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
         write_int32(ws->scdep_seg, i * SC_DEP_SIZE,
             get_string_heap_index(vm, ws,
                 ATPOS_S_C(vm, ws->cu->sc_handles, i)));
+
+    /* Store each of the extop names and signatures. */
+    for (i = 0; i < ws->num_extops; i++) {
+        MASTNode *sig_array;
+        int num_operands, j;
+
+        write_int32(ws->extops_seg, i * EXTOP_SIZE,
+            get_string_heap_index(vm, ws,
+                ATPOS_S_C(vm, ws->cu->extop_names, i)));
+
+        sig_array = ATPOS(vm, ws->cu->extop_sigs, i);
+        num_operands = ELEMS(vm, sig_array);
+        for (j = 0; j < 8; j++)
+            write_int8(ws->extops_seg, i * EXTOP_SIZE + 4 + j,
+                j < num_operands
+                    ? ATPOS_I(vm, sig_array, j)
+                    : 0);
+    }
 
     /* Visit and compile each of the frames. */
     num_frames = (unsigned short)ELEMS(vm, cu->frames);
