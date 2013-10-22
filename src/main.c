@@ -17,11 +17,9 @@ enum {
     NOT_A_FLAG = -2,
     UNKNOWN_FLAG = -1,
 
-    FLAG_CFLAGS,
     FLAG_CRASH,
     FLAG_DUMP,
     FLAG_HELP,
-    FLAG_LIBS,
     FLAG_TRACING,
     FLAG_VERSION,
 
@@ -29,11 +27,9 @@ enum {
 };
 
 static const char *const FLAGS[] = {
-    "--cflags",
     "--crash",
     "--dump",
     "--help",
-    "--libs",
     "--tracing",
     "--version",
 };
@@ -46,8 +42,6 @@ USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [prog
     --dump     dump the bytecode to stdout instead of executing\n\
     --crash    abort instead of exiting on unhandled exception\n\
     --libpath  specify path loadbytecode should search in\n\
-    --cflags   print compiler flags to use in makefiles\n\
-    --libs     print linker flags to use in makefiles\n\
     --version  show version information"
     TRACING_USAGE;
 
@@ -114,14 +108,6 @@ int main(int argc, char *argv[])
             case OPT_LIBPATH:
             lib_path = argv[argi] + strlen("--libpath=");
             continue;
-
-            case FLAG_CFLAGS:
-            printf("-I%s/include/moar %s\n", MVM_PREFIX, MVM_CFLAGS);
-            return EXIT_SUCCESS;
-
-            case FLAG_LIBS:
-            printf("%s/lib/libmoar.a %s\n", MVM_PREFIX, MVM_LIBS);
-            return EXIT_SUCCESS;
 
             case FLAG_VERSION:
             printf("This is MoarVM version %s\n", MVM_VERSION);
