@@ -45,8 +45,9 @@ Very soon, you will be able to run some NQP code by doing:
 
 Note that at present, you need a working Parrot and NQP in order to run the
 cross-compiler. In the future, NQP will be self-hosting on MoarVM and that
-will not be needed. In order to obtain these, you can replace the initial
-configure line with:
+will not be needed. (NOTE: Actually NQP *has* been bootstrapped on top of
+MoarVM already, but the build system hasn't caught up yet.) In order to
+obtain these, you can replace the initial configure line with:
 
     perl Configure.pl --gen-parrot --gen-nqp
 
