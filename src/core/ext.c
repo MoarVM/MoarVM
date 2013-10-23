@@ -1,13 +1,19 @@
 #include "moar.h"
 
 int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
-    MVMString *colon = MVM_string_ascii_decode_nt(
-            tc, tc->instance->VMString, ":");
-    MVMString *prefix = MVM_string_concatenate(tc, lib, colon);
-    MVMString *name = MVM_string_concatenate(tc, prefix, ext);
+    MVMString *colon, *prefix, *name;
     MVMExtRegistry *entry;
     MVMDLLSym *sym;
     void (*init)(MVMThreadContext *);
+
+    MVMROOT(tc, lib, {
+    MVMROOT(tc, ext, {
+        colon = MVM_string_ascii_decode_nt(
+            tc, tc->instance->VMString, ":");
+        prefix = MVM_string_concatenate(tc, lib, colon);
+        name = MVM_string_concatenate(tc, prefix, ext);
+    });
+    });
 
     uv_mutex_lock(&tc->instance->mutex_ext_registry);
 
