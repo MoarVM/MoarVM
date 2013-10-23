@@ -273,6 +273,13 @@ MVMArgInfo MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, 
     autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
     return result;
 }
+MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name) {
+    MVMuint32 flag_pos, arg_pos;
+    for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2)
+        if (MVM_string_equal(tc, ctx->args[arg_pos].s, name))
+            return 1;
+    return 0;
+}
 
 /* Result setting. The frameless flag indicates that the currently
  * executing code does not have a MVMFrame of its own. */

@@ -3489,9 +3489,108 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_hll_map(tc, mapee, MVM_hll_get_config_for(tc, hll), res_reg);
                 goto NEXT;
             }
-#if !MVM_CGOTO
-            default:
-                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", *(cur_op-2));
+            OP(loadlib): {
+                MVMString *name = GET_REG(cur_op, 0).s;
+                MVMString *path = GET_REG(cur_op, 2).s;
+                MVM_dll_load(tc, name, path);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(freelib): {
+                MVMString *name = GET_REG(cur_op, 0).s;
+                MVM_dll_free(tc, name);
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(findsym): {
+                MVMString *lib = GET_REG(cur_op, 2).s;
+                MVMString *sym = GET_REG(cur_op, 4).s;
+                MVMObject *obj = MVM_dll_find_symbol(tc, lib, sym);
+                if (!obj)
+                    MVM_exception_throw_adhoc(tc, "symbol not found in DLL");
+
+                GET_REG(cur_op, 0).o = obj;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(dropsym): {
+                MVM_dll_drop_symbol(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(loadext): {
+                MVMString *lib = GET_REG(cur_op, 0).s;
+                MVMString *ext = GET_REG(cur_op, 2).s;
+                MVM_ext_load(tc, lib, ext);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(settypecheckmode): {
+                MVMSTable *st = STABLE(GET_REG(cur_op, 0).o);
+                st->mode_flags = GET_REG(cur_op, 2).i64 |
+                    (st->mode_flags & (~MVM_TYPE_CHECK_CACHE_FLAG_MASK));
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(setdispatcher):
+                tc->cur_dispatcher = GET_REG(cur_op, 0).o;
+                cur_op += 2;
+                goto NEXT;
+            OP(takedispatcher):
+                GET_REG(cur_op, 0).o = tc->cur_dispatcher;
+                tc->cur_dispatcher = NULL;
+                cur_op += 2;
+                goto NEXT;
+            OP(captureexistsnamed): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                    MVMCallCapture *cc = (MVMCallCapture *)obj;
+                    GET_REG(cur_op, 0).i64 = MVM_args_has_named(tc, cc->body.apc,
+                        GET_REG(cur_op, 4).s);
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "captureexistsnamed needs a MVMCallCapture");
+                }
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(capturehasnameds): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                    /* If positionals count doesn't match arg count, we must
+                     * have some named args. */
+                    MVMCallCapture *cc = (MVMCallCapture *)obj;
+                    GET_REG(cur_op, 0).i64 = cc->body.apc->arg_count != cc->body.apc->num_pos;
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "capturehasnameds needs a MVMCallCapture");
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
+#if MVM_CGOTO
+            OP_CALL_EXTOP: {
+                /* Bounds checking? Never heard of that. */
+                MVMExtOpRecord *record = &cu->body.extops[op - MVM_OP_EXT_BASE];
+
+                record->func(tc);
+                cur_op += record->operand_bytes;
+                goto NEXT;
+            }
+#else
+            default: {
+                if (op >= MVM_OP_EXT_BASE
+                        && (op - MVM_OP_EXT_BASE) < cu->body.num_extops) {
+                    MVMExtOpRecord *record =
+                            &cu->body.extops[op - MVM_OP_EXT_BASE];
+
+                    record->func(tc);
+                    cur_op += record->operand_bytes;
+                    goto NEXT;
+                }
+
+                MVM_panic(MVM_exitcode_invalidopcode, "Invalid opcode executed (corrupt bytecode stream?) opcode %u", op);
+            }
 #endif
         }
     }

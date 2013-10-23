@@ -511,5 +511,18 @@
 #define MVM_OP_bindhllsym 507
 #define MVM_OP_hllize 508
 #define MVM_OP_hllizefor 509
+#define MVM_OP_loadlib 510
+#define MVM_OP_freelib 511
+#define MVM_OP_findsym 512
+#define MVM_OP_dropsym 513
+#define MVM_OP_loadext 514
+#define MVM_OP_settypecheckmode 515
+#define MVM_OP_setdispatcher 516
+#define MVM_OP_takedispatcher 517
+#define MVM_OP_captureexistsnamed 518
+#define MVM_OP_capturehasnameds 519
+
+#define MVM_OP_EXT_BASE 1024
+#define MVM_OP_EXT_CU_LIMIT 1024
 
 MVMOpInfo * MVM_op_get_op(unsigned short op);

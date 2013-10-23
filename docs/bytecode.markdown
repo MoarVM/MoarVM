@@ -31,6 +31,12 @@ what it contains.
     | Number of entries in the SC dependencies table          |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | Offset (from start of file) of the extension ops table  |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of entries in the extension ops table            |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
     | Offset (from start of file) of the frames data segment  |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
@@ -116,6 +122,20 @@ allocate more) are the way we make sure it isn't collected too early.
     | Index into the string heap of the SC unique ID          |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+
+## Extension ops table
+
+    +---------------------------------------------------------+
+    | Index into the string heap of the extension op ID       |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Operand descriptor                                      |
+    |    Bunch of bytes describing a single operand each,     |
+    |    zero-padded to 8 bytes                               |
+    +---------------------------------------------------------+
+
+The operand descriptor follows the same format as used by MVMOpInfo.
+The 8 bytes limit corresponds to MVM_MAX_OPERANDS.
 
 ## Frames Data
 The frames data segment contains data that describes all of the frames in

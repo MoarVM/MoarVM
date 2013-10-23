@@ -372,7 +372,7 @@ our %OS_POSIX = (
 our %OS_LINUX = (
     %OS_POSIX,
 
-    syslibs => [ @{$OS_POSIX{syslibs}}, qw( rt ) ],
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( rt dl ) ],
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_LINUX)' },

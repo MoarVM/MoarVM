@@ -33,6 +33,7 @@ CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/sha1 \
             @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty/tinymt \
+            @ccinc@3rdparty/dyncall/dynload \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -66,6 +67,8 @@ OBJECTS = src/core/args@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
           src/core/coerce@obj@ \
+          src/core/dll@obj@ \
+          src/core/ext@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
@@ -105,6 +108,7 @@ OBJECTS = src/core/args@obj@ \
           src/6model/reprs/P6bigint@obj@ \
           src/6model/reprs/NFA@obj@ \
           src/6model/reprs/MVMException@obj@ \
+          src/6model/reprs/MVMDLLSym@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -140,6 +144,8 @@ HEADERS = src/moar.h \
           src/core/hll.h \
           src/core/loadbytecode.h \
           src/core/coerce.h \
+          src/core/dll.h \
+          src/core/ext.h \
           src/io/fileops.h \
           src/io/socketops.h \
           src/io/dirops.h \
@@ -179,9 +185,12 @@ HEADERS = src/moar.h \
           src/6model/reprs/P6bigint.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \
+          src/6model/reprs/MVMCompUnit.h \
+          src/6model/reprs/MVMDLLSym.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
+          src/mast/nodes_moar.h \
           src/strings/unicode_gen.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
@@ -264,8 +273,11 @@ install: all
 	$(CP) moar@exe@ $(DESTDIR)$(PREFIX)/bin
 	$(CHMOD) 755 $(DESTDIR)$(PREFIX)/bin/moar@exe@
 	$(MKPATH) $(DESTDIR)$(PREFIX)/lib/MAST
+	$(CP) @moar@ $(DESTDIR)$(PREFIX)/lib
 	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(PREFIX)/lib/MAST
 	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(PREFIX)/lib/MAST
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar
+	$(CP) src/gen/config.h $(DESTDIR)$(PREFIX)/include/moar
 
 lib: @moar@
 

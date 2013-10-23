@@ -1,3 +1,22 @@
+struct MVMExtOpRecord {
+    /* Used to query the extop registry. */
+    MVMString *name;
+
+    /* Resolved by the validator. */
+    MVMOpInfo *info;
+
+    /* The actual function executed by the interpreter.
+     * Resolved by the validator. */
+    MVMExtOpFunc *func;
+
+    /* Tells the interpreter by how much to increment
+     * the instruction pointer. */
+    MVMuint16 operand_bytes;
+
+    /* Read from the bytecode stream. */
+    MVMuint8 operand_descriptor[MVM_MAX_OPERANDS];
+};
+
 /* Representation for a compilation unit in the VM. */
 struct MVMCompUnitBody {
     /* The start and size of the raw data for this compilation unit. */
@@ -17,6 +36,10 @@ struct MVMCompUnitBody {
     MVMCallsite **callsites;
     MVMuint32     num_callsites;
     MVMuint16     max_callsite_size;
+
+    /* The extension ops used by the compilation unit. */
+    MVMExtOpRecord *extops;
+    MVMuint16       num_extops;
 
     /* The string heap and number of strings. */
     MVMString **strings;

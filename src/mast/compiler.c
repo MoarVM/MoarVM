@@ -12,12 +12,24 @@
 #define MOARVM_IN_COMPILER
 #endif
 
-/* Some sizes. */
-#define HEADER_SIZE             88
-#define BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE       (7 * 4 + 3 * 2)
-#define FRAME_HANDLER_SIZE      (4 * 4 + 2 * 2)
-#define SC_DEP_SIZE             4
+/* Some constants. */
+#define HEADER_SIZE                 92
+#define BYTECODE_VERSION            1
+#define FRAME_HEADER_SIZE           (7 * 4 + 3 * 2)
+#define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
+#define SC_DEP_SIZE                 4
+#define EXTOP_SIZE                  (4 + 8)
+#define SCDEP_HEADER_OFFSET         12
+#define EXTOP_HEADER_OFFSET         20
+#define FRAME_HEADER_OFFSET         28
+#define CALLSITE_HEADER_OFFSET      36
+#define STRING_HEADER_OFFSET        44
+#define SCDATA_HEADER_OFFSET        52
+#define BYTECODE_HEADER_OFFSET      60
+#define ANNOTATION_HEADER_OFFSET    68
+#define HLL_NAME_HEADER_OFFSET      76
+#define SPECIAL_FRAME_HEADER_OFFSET 80
+#define EXTOP_BASE                  1024
 
 typedef struct {
     /* callsite ID */
@@ -108,6 +120,11 @@ typedef struct {
     /* The SC dependencies segment; we know the size up front. */
     char         *scdep_seg;
     unsigned int  scdep_bytes;
+
+    /* The extension ops segment; we know the size ahead of time. */
+    char         *extops_seg;
+    unsigned int  extops_bytes;
+    unsigned int  num_extops;
 
     /* The frame segment. */
     char         *frame_seg;
@@ -578,6 +595,42 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         for (i = 0; i < info->num_operands; i++)
             compile_operand(vm, ws, info->operands[i], ATPOS(vm, o->operands, i));
     }
+    else if (ISTYPE(vm, node, ws->types->ExtOp)) {
+        MAST_ExtOp *o = GET_ExtOp(node);
+        MASTNode   *operands;
+        int         i, num_operands;
+
+        /* Look up opcode and get argument info. */
+        unsigned short op = o->op;
+        if (op < EXTOP_BASE || (op - EXTOP_BASE) >= ELEMS(vm, ws->cu->extop_sigs))
+            DIE(vm, "Invalid extension op %d specified", op);
+        operands = ATPOS(vm, ws->cu->extop_sigs, op - EXTOP_BASE);
+        if (VM_OBJ_IS_NULL(operands))
+            DIE(vm, "Missing extension op operand array for instruction %d", op);
+        ws->current_op_info = NULL;
+        ws->current_operand_idx = 0;
+
+        /* Ensure argument count matches up. */
+        num_operands = ELEMS(vm, operands);
+        if (ELEMS(vm, o->operands) != num_operands) {
+            unsigned int  current_frame_idx = ws->current_frame_idx;
+            unsigned int  current_ins_idx = ws->current_ins_idx;
+            cleanup_all(vm, ws);
+            DIE(vm, "At Frame %u, Instruction %u, op '%s' has invalid number (%u) of operands; needs %u.",
+                current_frame_idx, current_ins_idx,
+                VM_STRING_TO_C_STRING(vm, o->name),
+                ELEMS(vm, o->operands), num_operands);
+        }
+
+        /* Write opcode. */
+        ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
+        write_int16(ws->bytecode_seg, ws->bytecode_pos, op);
+        ws->bytecode_pos += 2;
+
+        /* Write operands. */
+        for (i = 0; i < num_operands; i++)
+            compile_operand(vm, ws, ATPOS_I(vm, operands, i), ATPOS(vm, o->operands, i));
+    }
     else if (ISTYPE(vm, node, ws->types->Label)) {
         /* Duplicate check, then insert. */
         MAST_Label *l = GET_Label(node);
@@ -818,7 +871,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
     }
     else {
         cleanup_all(vm, ws);
-        DIE(vm, "Invalid MAST node in instruction list (must be Op, Call, Label, or Annotated)");
+        DIE(vm, "Invalid MAST node in instruction list (must be Op, ExtOp, Call, Label, or Annotated)");
     }
     ws->current_ins_idx++;
 }
@@ -1090,6 +1143,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     size += HEADER_SIZE;
     size += string_heap_size;
     size += ws->scdep_bytes;
+    size += ws->extops_bytes;
     size += ws->frame_pos;
     size += ws->callsite_pos;
     size += ws->bytecode_pos;
@@ -1105,26 +1159,32 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     pos += HEADER_SIZE;
 
     /* Add SC dependencies section and its header entries. */
-    write_int32(output, 12, pos);
-    write_int32(output, 16, ELEMS(vm, ws->cu->sc_handles));
+    write_int32(output, SCDEP_HEADER_OFFSET, pos);
+    write_int32(output, SCDEP_HEADER_OFFSET + 4, ELEMS(vm, ws->cu->sc_handles));
     memcpy(output + pos, ws->scdep_seg, ws->scdep_bytes);
     pos += ws->scdep_bytes;
 
+    /* Add extension ops section and its header entries. */
+    write_int32(output, EXTOP_HEADER_OFFSET, pos);
+    write_int32(output, EXTOP_HEADER_OFFSET + 4, ws->num_extops);
+    memcpy(output + pos, ws->extops_seg, ws->extops_bytes);
+    pos += ws->extops_bytes;
+
     /* Add frames section and its header entries. */
-    write_int32(output, 20, pos);
-    write_int32(output, 24, ws->num_frames);
+    write_int32(output, FRAME_HEADER_OFFSET, pos);
+    write_int32(output, FRAME_HEADER_OFFSET + 4, ws->num_frames);
     memcpy(output + pos, ws->frame_seg, ws->frame_pos);
     pos += ws->frame_pos;
 
     /* Add callsites section and its header entries. */
-    write_int32(output, 28, pos);
-    write_int32(output, 32, ws->num_callsites);
+    write_int32(output, CALLSITE_HEADER_OFFSET, pos);
+    write_int32(output, CALLSITE_HEADER_OFFSET + 4, ws->num_callsites);
     memcpy(output + pos, ws->callsite_seg, ws->callsite_pos);
     pos += ws->callsite_pos;
 
     /* Add strings heap section and its header entries. */
-    write_int32(output, 40, pos);
-    write_int32(output, 44, ELEMS(vm, ws->strings));
+    write_int32(output, STRING_HEADER_OFFSET, pos);
+    write_int32(output, STRING_HEADER_OFFSET + 4, ELEMS(vm, ws->strings));
     memcpy(output + pos, string_heap, string_heap_size);
     pos += string_heap_size;
     if (string_heap) {
@@ -1132,32 +1192,34 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         string_heap = NULL;
     }
 
+    /* TODO: SC data. Write nothing for now. */
+
     /* Add bytecode section and its header entries (offset, length). */
-    write_int32(output, 56, pos);
-    write_int32(output, 60, ws->bytecode_pos);
+    write_int32(output, BYTECODE_HEADER_OFFSET, pos);
+    write_int32(output, BYTECODE_HEADER_OFFSET + 4, ws->bytecode_pos);
     memcpy(output + pos, ws->bytecode_seg, ws->bytecode_pos);
     pos += ws->bytecode_pos;
 
     /* Add annotation section and its header entries (offset, length). */
-    write_int32(output, 64, pos);
-    write_int32(output, 68, ws->annotation_pos);
+    write_int32(output, ANNOTATION_HEADER_OFFSET, pos);
+    write_int32(output, ANNOTATION_HEADER_OFFSET + 4, ws->annotation_pos);
     memcpy(output + pos, ws->annotation_seg, ws->annotation_pos);
     pos += ws->annotation_pos;
 
     /* Add HLL and special frame indexes. */
-    write_int32(output, 72, hll_str_idx);
+    write_int32(output, HLL_NAME_HEADER_OFFSET, hll_str_idx);
     if (VM_OBJ_IS_NULL(ws->cu->main_frame))
-        write_int32(output, 76, 0);
+        write_int32(output, SPECIAL_FRAME_HEADER_OFFSET, 0);
     else
-        write_int32(output, 76, 1 + get_frame_index(vm, ws, ws->cu->main_frame));
+        write_int32(output, SPECIAL_FRAME_HEADER_OFFSET, 1 + get_frame_index(vm, ws, ws->cu->main_frame));
     if (VM_OBJ_IS_NULL(ws->cu->load_frame))
-        write_int32(output, 80, 0);
+        write_int32(output, SPECIAL_FRAME_HEADER_OFFSET + 4, 0);
     else
-        write_int32(output, 80, 1 + get_frame_index(vm, ws, ws->cu->load_frame));
+        write_int32(output, SPECIAL_FRAME_HEADER_OFFSET + 4, 1 + get_frame_index(vm, ws, ws->cu->load_frame));
     if (VM_OBJ_IS_NULL(ws->cu->deserialize_frame))
-        write_int32(output, 84, 0);
+        write_int32(output, SPECIAL_FRAME_HEADER_OFFSET + 8, 0);
     else
-        write_int32(output, 84, 1 + get_frame_index(vm, ws, ws->cu->deserialize_frame));
+        write_int32(output, SPECIAL_FRAME_HEADER_OFFSET + 8, 1 + get_frame_index(vm, ws, ws->cu->deserialize_frame));
 
     /* Sanity...should never fail. */
     if (pos != size)
@@ -1188,6 +1250,9 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->cur_frame        = NULL;
     ws->scdep_bytes      = ELEMS(vm, cu->sc_handles) * SC_DEP_SIZE;
     ws->scdep_seg        = ws->scdep_bytes ? (char *)malloc(ws->scdep_bytes) : NULL;
+    ws->num_extops       = ELEMS(vm, cu->extop_names);
+    ws->extops_bytes     = ws->num_extops * EXTOP_SIZE;
+    ws->extops_seg       = (char *)malloc(ws->extops_bytes);
     ws->frame_pos        = 0;
     ws->frame_alloc      = 4096;
     ws->frame_seg        = (char *)malloc(ws->frame_alloc);
@@ -1211,6 +1276,24 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
         write_int32(ws->scdep_seg, i * SC_DEP_SIZE,
             get_string_heap_index(vm, ws,
                 ATPOS_S_C(vm, ws->cu->sc_handles, i)));
+
+    /* Store each of the extop names and signatures. */
+    for (i = 0; i < ws->num_extops; i++) {
+        MASTNode *sig_array;
+        int num_operands, j;
+
+        write_int32(ws->extops_seg, i * EXTOP_SIZE,
+            get_string_heap_index(vm, ws,
+                ATPOS_S_C(vm, ws->cu->extop_names, i)));
+
+        sig_array = ATPOS(vm, ws->cu->extop_sigs, i);
+        num_operands = ELEMS(vm, sig_array);
+        for (j = 0; j < 8; j++)
+            write_int8(ws->extops_seg, i * EXTOP_SIZE + 4 + j,
+                j < num_operands
+                    ? ATPOS_I(vm, sig_array, j)
+                    : 0);
+    }
 
     /* Visit and compile each of the frames. */
     num_frames = (unsigned short)ELEMS(vm, cu->frames);

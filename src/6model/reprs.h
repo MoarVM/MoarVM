@@ -24,6 +24,7 @@
 #include "6model/reprs/MVMException.h"
 #include "6model/reprs/MVMStaticFrame.h"
 #include "6model/reprs/MVMCompUnit.h"
+#include "6model/reprs/MVMDLLSym.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -58,8 +59,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMException            22
 #define MVM_REPR_ID_MVMStaticFrame          23
 #define MVM_REPR_ID_MVMCompUnit             24
+#define MVM_REPR_ID_MVMDLLSym               25
 
-#define MVM_REPR_CORE_COUNT                 25
+#define MVM_REPR_CORE_COUNT                 26
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
