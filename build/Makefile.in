@@ -260,12 +260,12 @@ THIRDPARTY = @thirdpartylibs@
 all: moar@exe@
 
 install: all
-	$(MKPATH) $(PREFIX)/bin
-	$(CP) moar@exe@ $(PREFIX)/bin
-	$(CHMOD) 755 $(PREFIX)/bin/moar@exe@
-	$(MKPATH) $(PREFIX)/lib/MAST
-	$(CP) lib/MAST/Nodes.nqp $(PREFIX)/lib/MAST
-	$(CP) lib/MAST/Ops.nqp $(PREFIX)/lib/MAST
+	$(MKPATH) $(DESTDIR)$(PREFIX)/bin
+	$(CP) moar@exe@ $(DESTDIR)$(PREFIX)/bin
+	$(CHMOD) 755 $(DESTDIR)$(PREFIX)/bin/moar@exe@
+	$(MKPATH) $(DESTDIR)$(PREFIX)/lib/MAST
+	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(PREFIX)/lib/MAST
+	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(PREFIX)/lib/MAST
 
 lib: @moar@
 
