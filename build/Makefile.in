@@ -308,6 +308,7 @@ install: all
 	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
 	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
 	$(MKPATH) $(PREFIX)/include/libtommath
+	$(MKPATH) $(PREFIX)/include/msinttypes
 	$(MKPATH) $(PREFIX)/include/sha1
 	$(MKPATH) $(PREFIX)/include/linenoise
 	$(MKPATH) $(PREFIX)/include/tinymt
@@ -325,6 +326,7 @@ install: all
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
 	$(CP) 3rdparty/libtommath/*.h $(PREFIX)/include/libtommath
+	$(CP) 3rdparty/msinttypes/*.h $(PREFIX)/include/msinttypes
 	$(CP) 3rdparty/sha1/*.h $(PREFIX)/include/sha1
 	$(CP) 3rdparty/linenoise/*.h $(PREFIX)/include/linenoise
 	$(CP) 3rdparty/tinymt/*.h $(PREFIX)/include/tinymt
