@@ -157,6 +157,7 @@ if ($args{shared}) {
     $config{objflags}  = '@ccdef@MVM_BUILD_SHARED @ccshared@';
     $config{mainflags} = '@ccdef@MVM_SHARED';
     $config{moar}      = '@moardll@';
+    $config{moarinst}  = $config{os} eq 'win32' ? 'bin' : 'lib';
     $config{mainlibs}  = '@lddir@. ' .
         sprintf($config{ldimp} // $config{ldusr}, $NAME);
 }
@@ -164,6 +165,7 @@ else {
     $config{objflags}  = '';
     $config{mainflags} = '';
     $config{moar}      = '@moarlib@';
+    $config{moarinst}  = 'lib';
     $config{mainlibs}  = '@moarlib@ @thirdpartylibs@ $(LDLIBS)';
 }
 

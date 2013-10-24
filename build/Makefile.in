@@ -274,7 +274,7 @@ install: all
 	$(CP) moar@exe@ $(DESTDIR)$(PREFIX)/bin
 	$(CHMOD) 755 $(DESTDIR)$(PREFIX)/bin/moar@exe@
 	$(MKPATH) $(DESTDIR)$(PREFIX)/lib/MAST
-	$(CP) @moar@ $(DESTDIR)$(PREFIX)/lib
+	$(CP) @moar@ $(DESTDIR)$(PREFIX)/@moarinst@
 	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(PREFIX)/lib/MAST
 	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(PREFIX)/lib/MAST
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar
