@@ -69,6 +69,7 @@ OBJECTS = src/core/args@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
+          src/gen/config@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
@@ -278,6 +279,60 @@ install: all
 	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(PREFIX)/lib/MAST
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/gen/config.h $(DESTDIR)$(PREFIX)/include/moar
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/core
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/gc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/gen
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/io
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/mast
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/math
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/strings
+	$(CP) 3rdparty/*.h $(DESTDIR)$(PREFIX)/include/moar
+	$(CP) src/*.h $(DESTDIR)$(PREFIX)/include/moar
+	$(CP) src/6model/*.h $(DESTDIR)$(PREFIX)/include/moar/6model
+	$(CP) src/6model/reprs/*.h $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
+	$(CP) src/core/*.h $(DESTDIR)$(PREFIX)/include/moar/core
+	$(CP) src/gc/*.h $(DESTDIR)$(PREFIX)/include/moar/gc
+	$(CP) src/gen/*.h $(DESTDIR)$(PREFIX)/include/moar/gen
+	$(CP) src/io/*.h $(DESTDIR)$(PREFIX)/include/moar/io
+	$(CP) src/mast/*.h $(DESTDIR)$(PREFIX)/include/moar/mast
+	$(CP) src/math/*.h $(DESTDIR)$(PREFIX)/include/moar/math
+	$(CP) src/platform/*.h $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/hpc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/ibmc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/icc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libtommath
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/msinttypes
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/sha1
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/linenoise
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/tinymt
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/dyncall
+	$(CP) 3rdparty/libuv/include/*.h $(DESTDIR)$(PREFIX)/include/libuv
+	$(CP) 3rdparty/libatomic_ops/src/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/armcc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/gcc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/hpc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/hpc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/ibmc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/ibmc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/icc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/icc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/loadstore/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
+	$(CP) 3rdparty/libtommath/*.h $(DESTDIR)$(PREFIX)/include/libtommath
+	$(CP) 3rdparty/msinttypes/*.h $(DESTDIR)$(PREFIX)/include/msinttypes
+	$(CP) 3rdparty/sha1/*.h $(DESTDIR)$(PREFIX)/include/sha1
+	$(CP) 3rdparty/linenoise/*.h $(DESTDIR)$(PREFIX)/include/linenoise
+	$(CP) 3rdparty/tinymt/*.h $(DESTDIR)$(PREFIX)/include/tinymt
+	$(CP) 3rdparty/dyncall/dynload/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 
 lib: @moar@
 

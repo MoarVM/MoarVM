@@ -12,11 +12,6 @@
 #define MVM_VERSION_MINOR @versionminor@
 #define MVM_VERSION_PATCH @versionpatch@
 
-/* Location where we locate include and lib diregtories. */
-#define MVM_PREFIX "@prefix@"
-#define MVM_CFLAGS "@cflags@"
-#define MVM_LIBS "@ldflags@"
-
 /* Various compiler-specific pragmii. */
 #define MVM_NO_RETURN @noreturnspecifier@
 #define MVM_NO_RETURN_GCC @noreturnattribute@

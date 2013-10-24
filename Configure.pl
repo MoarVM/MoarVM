@@ -68,19 +68,6 @@ $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 
 $config{prefix} = abs_path($args{prefix} // '.');
-# if the path contains whitespace, we can't just provide -I$prefix
-if (index($config{prefix}, ' ') >= 0) {
-    if ($defaults{os} =~ m/^win32|cygwin|mingw32$/i) {
-        # config.h on windows: #define MVM_PREFIX "\"C:\\path with space\\nqp\\install\""
-        # results in `moar --cflags`: -L"C:\\path with space\\nqp\\install"
-        $config{prefix} = '\\"' . $config{prefix} . '\\"';
-        $config{prefix} =~ s/\\/\\\\/g;
-    }
-    else {
-        # config.h on unixes: #define MVM_PREFIX "/home/path\ with\ space/nqp/install"
-        $config{prefix} =~ s/ /\\ /g;
-    }
-}
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -272,6 +259,8 @@ $config{thirdpartylibs} = join ' ', @thirdpartylibs;
 my $thirdpartylibs = join "\n" . ' ' x 12, sort @thirdpartylibs;
 
 print "OK\n";
+
+write_backend_config();
 
 # dump 3rdparty libs we need to build
 print "\n", <<TERM, "\n";
@@ -504,6 +493,31 @@ sub softfail {
 sub hardfail {
     softfail(@_);
     die "\nConfiguration PANIC. A Makefile could not be generated.\n";
+}
+
+sub write_backend_config {
+    $config{backendconfig} = '';
+    for my $k (keys %config) {
+        next if $k eq 'backendconfig';
+        my $v = $config{$k};
+        
+        if (ref($v) eq 'ARRAY') {
+            my $i = 0;
+            for (@$v) {
+                $config{backendconfig} .= qq/        add_entry(tc, config, "$k\[$i]", "$_");\n/;
+                $i++;
+            }
+        }
+        elsif (ref($v) eq 'HASH') {
+            # should not be there
+        }
+        else {
+            $v //= '';
+            $v   =~ s/"/\\"/g;
+            $v   =~ s/\n/\\\n/g;
+            $config{backendconfig} .= qq/        add_entry(tc, config, "$k", "$v");\n/;
+        }
+    }
 }
 
 
