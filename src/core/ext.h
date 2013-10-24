@@ -14,7 +14,7 @@ struct MVMExtOpRegistry {
 };
 
 int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext);
-int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
+MVM_PUBLIC int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         MVMExtOpFunc func, MVMuint8 num_operands, MVMuint8 operands[]);
 const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
         MVMExtOpRecord *record);
