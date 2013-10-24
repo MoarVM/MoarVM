@@ -277,8 +277,58 @@ install: all
 	$(CP) @moar@ $(PREFIX)/lib
 	$(CP) lib/MAST/Nodes.nqp $(PREFIX)/lib/MAST
 	$(CP) lib/MAST/Ops.nqp $(PREFIX)/lib/MAST
-	$(MKPATH) $(PREFIX)/include/moar
-	$(CP) src/gen/config.h $(PREFIX)/include/moar
+	$(MKPATH) $(PREFIX)/include/moar/6model/reprs
+	$(MKPATH) $(PREFIX)/include/moar/core
+	$(MKPATH) $(PREFIX)/include/moar/gc
+	$(MKPATH) $(PREFIX)/include/moar/gen
+	$(MKPATH) $(PREFIX)/include/moar/io
+	$(MKPATH) $(PREFIX)/include/moar/mast
+	$(MKPATH) $(PREFIX)/include/moar/math
+	$(MKPATH) $(PREFIX)/include/moar/platform
+	$(MKPATH) $(PREFIX)/include/moar/strings
+	$(CP) 3rdparty/*.h $(PREFIX)/include/moar
+	$(CP) src/*.h $(PREFIX)/include/moar
+	$(CP) src/6model/*.h $(PREFIX)/include/moar/6model
+	$(CP) src/6model/reprs/*.h $(PREFIX)/include/moar/6model/reprs
+	$(CP) src/core/*.h $(PREFIX)/include/moar/core
+	$(CP) src/gc/*.h $(PREFIX)/include/moar/gc
+	$(CP) src/gen/*.h $(PREFIX)/include/moar/gen
+	$(CP) src/io/*.h $(PREFIX)/include/moar/io
+	$(CP) src/mast/*.h $(PREFIX)/include/moar/mast
+	$(CP) src/math/*.h $(PREFIX)/include/moar/math
+	$(CP) src/platform/*.h $(PREFIX)/include/moar/platform
+	$(CP) src/strings/*.h $(PREFIX)/include/moar/strings
+	$(MKPATH) $(PREFIX)/include/libuv
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/hpc
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/ibmc
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/icc
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
+	$(MKPATH) $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
+	$(MKPATH) $(PREFIX)/include/libtommath
+	$(MKPATH) $(PREFIX)/include/sha1
+	$(MKPATH) $(PREFIX)/include/linenoise
+	$(MKPATH) $(PREFIX)/include/tinymt
+	$(MKPATH) $(PREFIX)/include/dyncall
+	$(CP) 3rdparty/libuv/include/*.h $(PREFIX)/include/libuv
+	$(CP) 3rdparty/libatomic_ops/src/*.h $(PREFIX)/include/libatomic_ops
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/*.h $(PREFIX)/include/libatomic_ops/atomic_ops
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/armcc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/gcc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/hpc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/hpc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/ibmc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/ibmc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/icc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/icc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/loadstore/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
+	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
+	$(CP) 3rdparty/libtommath/*.h $(PREFIX)/include/libtommath
+	$(CP) 3rdparty/sha1/*.h $(PREFIX)/include/sha1
+	$(CP) 3rdparty/linenoise/*.h $(PREFIX)/include/linenoise
+	$(CP) 3rdparty/tinymt/*.h $(PREFIX)/include/tinymt
+	$(CP) 3rdparty/dyncall/dynload/*.h $(PREFIX)/include/dyncall
 
 lib: @moar@
 
