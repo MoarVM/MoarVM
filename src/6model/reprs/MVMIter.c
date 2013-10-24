@@ -187,7 +187,8 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             iterator = (MVMIter *)MVM_iter(tc, ctx_hash);
         }
         else {
-            MVM_exception_throw_adhoc(tc, "Cannot iterate this");
+            MVM_exception_throw_adhoc(tc, "Cannot iterate object with %s representation",
+                REPR(target)->name);
         }
     });
     return (MVMObject *)iterator;
