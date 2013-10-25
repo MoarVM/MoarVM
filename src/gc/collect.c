@@ -636,6 +636,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 col->sc = (MVMSerializationContext *)1;
                             }
                             /* Skip the freelist updating. */
+                            cur_ptr += obj_size;
                             continue;
                         }
                     }
