@@ -435,7 +435,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
         free(c_message);
         MVM_ASSIGN_REF(tc, ex, ex->body.message, message);
-        ex->body.origin   = MVM_frame_inc_ref(tc, tc->cur_frame);
+        ex->body.origin   = tc->cur_frame ? MVM_frame_inc_ref(tc, tc->cur_frame) : NULL;
         ex->body.category = MVM_EX_CAT_CATCH;
     });
 
