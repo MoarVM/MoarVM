@@ -144,9 +144,10 @@ $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});
-push @ldflags, $config{ldoptiflags}  if $args{optimize};
-push @ldflags, $config{lddebugflags} if $args{debug};
-push @ldflags, $config{ldinstflags}  if $args{instrument};
+push @ldflags, $config{ldoptiflags}       if $args{optimize};
+push @ldflags, $config{lddebugflags}      if $args{debug};
+push @ldflags, $config{ldinstflags}       if $args{instrument};
+push @ldflags, '-Wl,-rpath,$(PREFIX)/lib' if $args{shared} && $config{os} ne 'win32';
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
