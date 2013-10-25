@@ -114,11 +114,15 @@ void * MVM_gc_gen2_allocate_zeroed(MVMGen2Allocator *al, MVMuint32 size) {
 
 /* Frees all memory associated with the second generation. */
 void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
+    MVMint32 j;
+    
     /* Remove all pages. */
     /* Usually the GC transfers all pages to another thread. */
 
     /* Free any allocated overflows. */
-    /* XXX TODO */
+    for (j = 0; j < al->num_overflows; j++)
+        if (al->overflows[j])
+            free(al->overflows[j]);
 
     /* Clean up allocator data structure. */
     free(al->size_classes);

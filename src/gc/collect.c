@@ -570,7 +570,7 @@ void MVM_gc_collect_free_stables(MVMThreadContext *tc) {
 void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
     /* Visit each of the size class bins. */
     MVMGen2Allocator *gen2 = tc->gen2;
-    MVMuint32 bin, obj_size, page;
+    MVMuint32 bin, obj_size, page, i;
     char ***freelist_insert_pos;
     for (bin = 0; bin < MVM_GEN2_BINS; bin++) {
         /* If we've nothing allocated in this size class, skip it. */
@@ -655,6 +655,32 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
 
                 /* Move to the next object. */
                 cur_ptr += obj_size;
+            }
+        }
+    }
+    
+    /* Also need to consider overflows. */
+    for (i = 0; i < gen2->num_overflows; i++) {
+        if (gen2->overflows[i]) {
+            MVMCollectable *col = gen2->overflows[i];
+            if (col->forwarder) {
+                /* A living over-sized object; just clear the mark. */
+                col->forwarder = NULL;
+            }
+            else {
+                /* Dead over-sized object. We know if it's this big it cannot
+                 * be a type object or STable, so only need handle the simple
+                 * object case. */
+                if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
+                    MVMObject *obj = (MVMObject *)col;
+                    if (REPR(obj)->gc_free)
+                        REPR(obj)->gc_free(tc, obj);
+                }
+                else {
+                    MVM_panic(MVM_exitcode_gcnursery, "Internal error: gen2 overflow contains non-object");
+                }
+                free(col);
+                gen2->overflows[i] = NULL;
             }
         }
     }
