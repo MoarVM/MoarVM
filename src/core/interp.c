@@ -2879,12 +2879,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(setcontspec): {
-                MVMSTable *st = STABLE(GET_REG(cur_op, 0).o);
-                const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, GET_REG(cur_op, 2).s);
-                if (st->container_spec) {
+                MVMSTable *st   = STABLE(GET_REG(cur_op, 0).o);
+                MVMString *name = GET_REG(cur_op, 2).s;
+                const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, name);
+                if (cc == NULL)
+                    MVM_exception_throw_adhoc(tc, "Cannot use unknown container spec %s",
+                        MVM_string_utf8_encode_C_string(tc, name));
+                if (st->container_spec)
                     MVM_exception_throw_adhoc(tc,
                         "Cannot change a type's container specification");
-                }
 
                 cc->set_container_spec(tc, st);
                 cc->configure_container_spec(tc, st, GET_REG(cur_op, 4).o);
