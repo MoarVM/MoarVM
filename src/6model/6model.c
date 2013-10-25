@@ -67,9 +67,8 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
     /* free various storage. */
     MVM_checked_free_null(st->vtable);
     MVM_checked_free_null(st->type_check_cache);
-    MVM_checked_free_null(st->container_spec);
-    /* In case the gc_free_repr_data function didn't clear it? */
-    MVM_checked_free_null(st->container_data);
+    if (st->container_spec)
+        st->container_spec->gc_free_data(tc, st);
     MVM_checked_free_null(st->invocation_spec);
     MVM_checked_free_null(st->boolification_spec);
 }
