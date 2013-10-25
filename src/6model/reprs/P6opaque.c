@@ -10,6 +10,7 @@ static const MVMREPROps this_repr;
 static MVMString *str_name       = NULL;
 static MVMString *str_type       = NULL;
 static MVMString *str_box_target = NULL;
+static MVMString *str_av_cont    = NULL;
 static MVMString *str_attribute  = NULL;
 static MVMString *str_pos_del    = NULL;
 static MVMString *str_ass_del    = NULL;
@@ -680,6 +681,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type);
             MVMint64 is_box_target = REPR(attr_info)->ass_funcs.exists_key(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target);
+            MVMObject *av_cont = REPR(attr_info)->ass_funcs.at_key_boxed(tc,
+                STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_av_cont);
             MVMint8 inlined = 0;
 
             /* Ensure we have a name. */
@@ -762,9 +765,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
             /* Handle object attributes, which need marking and may have auto-viv needs. */
             if (!inlined) {
+                repr_data->auto_viv_values[cur_slot] = av_cont;
                 repr_data->gc_obj_mark_offsets[cur_obj_attr] = cur_alloc_addr;
                 cur_obj_attr++;
-                /* XXX auto-viv stuff */
             }
 
             /* Is it a positional or associative delegate? */
@@ -1284,6 +1287,8 @@ const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
     str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "box_target");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
+    str_av_cont = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "auto_viv_container");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_av_cont);
     str_attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_attribute);
     str_pos_del = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "positional_delegate");
