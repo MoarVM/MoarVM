@@ -15,7 +15,7 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define BYTECODE_VERSION            1
-#define FRAME_HEADER_SIZE           (7 * 4 + 3 * 2)
+#define FRAME_HEADER_SIZE           (9 * 4 + 1 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SC_DEP_SIZE                 4
 #define EXTOP_SIZE                  (4 + 8)
@@ -176,7 +176,7 @@ static void write_double(char *buffer, size_t offset, double value);
 void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need);
 void cleanup_frame(VM, FrameState *fs);
 void cleanup_all(VM, WriterState *ws);
-unsigned short get_string_heap_index(VM, WriterState *ws, VMSTR *strval);
+unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval);
 unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame);
 unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type);
 void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand);
@@ -264,12 +264,12 @@ void cleanup_all(VM, WriterState *ws) {
 
 /* Gets the index of a string already in the string heap, or
  * adds it to the heap if it's not already there. */
-unsigned short get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
+unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
     if (EXISTSKEY(vm, ws->seen_strings, strval)) {
-        return (unsigned short)ATKEY_I(vm, ws->seen_strings, strval);
+        return (unsigned int)ATKEY_I(vm, ws->seen_strings, strval);
     }
     else {
-        unsigned short index = (unsigned short)ELEMS(vm, ws->strings);
+        unsigned int index = (unsigned int)ELEMS(vm, ws->strings);
         /* XXX Overflow check */
         BINDPOS_S(vm, ws->strings, index, strval);
         BINDKEY_I(vm, ws->seen_strings, strval, index);
@@ -396,10 +396,10 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             case MVM_operand_str: {
                 if (ISTYPE(vm, operand, ws->types->SVal)) {
                     MAST_SVal *sv = GET_SVal(operand);
-                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 2);
-                    write_int16(ws->bytecode_seg, ws->bytecode_pos,
+                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
+                    write_int32(ws->bytecode_seg, ws->bytecode_pos,
                         get_string_heap_index(vm, ws, sv->value));
-                    ws->bytecode_pos += 2;
+                    ws->bytecode_pos += 4;
                 }
                 else {
                     cleanup_all(vm, ws);
@@ -794,11 +794,11 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
 
         ws->last_annotated = a;
-        ensure_space(vm, &ws->annotation_seg, &ws->annotation_alloc, ws->annotation_pos, 10);
+        ensure_space(vm, &ws->annotation_seg, &ws->annotation_alloc, ws->annotation_pos, 12);
         write_int32(ws->annotation_seg, ws->annotation_pos, offset);
-        write_int16(ws->annotation_seg, ws->annotation_pos + 4, get_string_heap_index(vm, ws, a->file));
-        write_int32(ws->annotation_seg, ws->annotation_pos + 6, (unsigned int)a->line);
-        ws->annotation_pos += 10;
+        write_int32(ws->annotation_seg, ws->annotation_pos + 4, get_string_heap_index(vm, ws, a->file));
+        write_int32(ws->annotation_seg, ws->annotation_pos + 8, (unsigned int)a->line);
+        ws->annotation_pos += 12;
         ws->cur_frame->num_annotations++;
 
         for (i = 0; i < num_ins; i++)
@@ -925,14 +925,14 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
      * header, apart from the bytecode length, which we'll fill in
      * later. */
     ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
-        FRAME_HEADER_SIZE + fs->num_locals * 2 + fs->num_lexicals * 4);
+        FRAME_HEADER_SIZE + fs->num_locals * 2 + fs->num_lexicals * 6);
     write_int32(ws->frame_seg, ws->frame_pos, fs->bytecode_start);
     write_int32(ws->frame_seg, ws->frame_pos + 4, 0); /* Filled in later. */
     write_int32(ws->frame_seg, ws->frame_pos + 8, fs->num_locals);
     write_int32(ws->frame_seg, ws->frame_pos + 12, fs->num_lexicals);
-    write_int16(ws->frame_seg, ws->frame_pos + 16,
+    write_int32(ws->frame_seg, ws->frame_pos + 16,
         get_string_heap_index(vm, ws, f->cuuid));
-    write_int16(ws->frame_seg, ws->frame_pos + 18,
+    write_int32(ws->frame_seg, ws->frame_pos + 20,
         get_string_heap_index(vm, ws, f->name));
 
     /* Handle outer. The current index means "no outer". */
@@ -942,7 +942,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         num_frames = (unsigned short)ELEMS(vm, ws->cu->frames);
         for (i = 0; i < num_frames; i++) {
             if (ATPOS(vm, ws->cu->frames, i) == f->outer) {
-                write_int16(ws->frame_seg, ws->frame_pos + 20, i);
+                write_int16(ws->frame_seg, ws->frame_pos + 24, i);
                 found = 1;
                 break;
             }
@@ -953,12 +953,12 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         }
     }
     else {
-        write_int16(ws->frame_seg, ws->frame_pos + 20, idx);
+        write_int16(ws->frame_seg, ws->frame_pos + 24, idx);
     }
 
-    write_int32(ws->frame_seg, ws->frame_pos + 22, ws->annotation_pos);
-    write_int32(ws->frame_seg, ws->frame_pos + 26, 0); /* number of annotation; fill in later */
-    write_int32(ws->frame_seg, ws->frame_pos + 30, 0); /* number of handlers; fill in later */
+    write_int32(ws->frame_seg, ws->frame_pos + 26, ws->annotation_pos);
+    write_int32(ws->frame_seg, ws->frame_pos + 30, 0); /* number of annotation; fill in later */
+    write_int32(ws->frame_seg, ws->frame_pos + 34, 0); /* number of handlers; fill in later */
 
     ws->frame_pos += FRAME_HEADER_SIZE;
 
@@ -978,9 +978,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         fs->lexical_types[i] = lexical_type;
         write_int16(ws->frame_seg, ws->frame_pos, lexical_type);
         ws->frame_pos += 2;
-        write_int16(ws->frame_seg, ws->frame_pos,
+        write_int32(ws->frame_seg, ws->frame_pos,
             get_string_heap_index(vm, ws, ATPOS_S_C(vm, f->lexical_names, i)));
-        ws->frame_pos += 2;
+        ws->frame_pos += 4;
     }
 
     /* Save the location of the start of instructions */
@@ -1011,10 +1011,10 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     write_int32(ws->frame_seg, fs->frame_start + 4, ws->bytecode_pos - instructions_start);
 
     /* Fill in number of annotations. */
-    write_int32(ws->frame_seg, fs->frame_start + 26, fs->num_annotations);
+    write_int32(ws->frame_seg, fs->frame_start + 30, fs->num_annotations);
 
     /* Fill in number of handlers. */
-    write_int32(ws->frame_seg, fs->frame_start + 30, fs->num_handlers);
+    write_int32(ws->frame_seg, fs->frame_start + 34, fs->num_handlers);
 
     /* Write handlers. */
     ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,

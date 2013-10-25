@@ -192,7 +192,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
         case MVM_operand_num64:    size = 8; break;
         case MVM_operand_callsite: size = 2; break;
         case MVM_operand_coderef:  size = 2; break;
-        case MVM_operand_str:      size = 2; break;
+        case MVM_operand_str:      size = 4; break;
         case MVM_operand_ins:      size = 4; break;
 
         case MVM_operand_obj:
@@ -225,7 +225,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
         }
 
         case MVM_operand_str: {
-            MVMuint16 index = GET_UI16(val->cur_op, 0);
+            MVMuint32 index = GET_UI32(val->cur_op, 0);
             MVMuint32 count = val->cu->body.num_strings;
             if (index >= count)
                 fail(val, MSG(val, "string index %" PRIu16

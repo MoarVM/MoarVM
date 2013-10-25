@@ -208,43 +208,43 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getlex_ni):
                 GET_REG(cur_op, 0).i64 = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_reg_int64)->i64;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_int64)->i64;
+                cur_op += 6;
                 goto NEXT;
             OP(getlex_nn):
                 GET_REG(cur_op, 0).n64 = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_reg_num64)->n64;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_num64)->n64;
+                cur_op += 6;
                 goto NEXT;
             OP(getlex_ns):
                 GET_REG(cur_op, 0).s = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_reg_str)->s;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_str)->s;
+                cur_op += 6;
                 goto NEXT;
             OP(getlex_no):
                 GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_reg_obj)->o;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_obj)->o;
+                cur_op += 6;
                 goto NEXT;
             OP(bindlex_ni):
-                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI16(cur_op, 0)],
-                    MVM_reg_int64)->i64 = GET_REG(cur_op, 2).i64;
-                cur_op += 4;
+                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
+                    MVM_reg_int64)->i64 = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
                 goto NEXT;
             OP(bindlex_nn):
-                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI16(cur_op, 0)],
-                    MVM_reg_num64)->n64 = GET_REG(cur_op, 2).n64;
-                cur_op += 4;
+                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
+                    MVM_reg_num64)->n64 = GET_REG(cur_op, 4).n64;
+                cur_op += 6;
                 goto NEXT;
             OP(bindlex_ns):
-                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI16(cur_op, 0)],
-                    MVM_reg_str)->s = GET_REG(cur_op, 2).s;
-                cur_op += 4;
+                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
+                    MVM_reg_str)->s = GET_REG(cur_op, 4).s;
+                cur_op += 6;
                 goto NEXT;
             OP(bindlex_no):
-                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI16(cur_op, 0)],
-                    MVM_reg_obj)->o = GET_REG(cur_op, 2).o;
-                cur_op += 4;
+                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
+                    MVM_reg_obj)->o = GET_REG(cur_op, 4).o;
+                cur_op += 6;
                 goto NEXT;
             OP(getlex_ng):
             OP(bindlex_ng):
@@ -293,8 +293,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             OP(const_s):
-                GET_REG(cur_op, 0).s = cu->body.strings[GET_UI16(cur_op, 2)];
-                cur_op += 4;
+                GET_REG(cur_op, 0).s = cu->body.strings[GET_UI32(cur_op, 2)];
+                cur_op += 6;
                 goto NEXT;
             OP(add_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 + GET_REG(cur_op, 4).i64;
@@ -527,8 +527,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             OP(argconst_s):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].s = cu->body.strings[GET_UI16(cur_op, 2)];
-                cur_op += 4;
+                tc->cur_frame->args[GET_UI16(cur_op, 0)].s = cu->body.strings[GET_UI32(cur_op, 2)];
+                cur_op += 6;
                 goto NEXT;
             OP(checkarity):
                 MVM_args_checkarity(tc, &tc->cur_frame->params, GET_UI16(cur_op, 0), GET_UI16(cur_op, 2));
@@ -608,73 +608,73 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(param_rn_i):
                 GET_REG(cur_op, 0).i64 = MVM_args_get_named_int(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.i64;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_REQUIRED).arg.i64;
+                cur_op += 6;
                 goto NEXT;
             OP(param_rn_n):
                 GET_REG(cur_op, 0).n64 = MVM_args_get_named_num(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.n64;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_REQUIRED).arg.n64;
+                cur_op += 6;
                 goto NEXT;
             OP(param_rn_s):
                 GET_REG(cur_op, 0).s = MVM_args_get_named_str(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.s;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_REQUIRED).arg.s;
+                cur_op += 6;
                 goto NEXT;
             OP(param_rn_o):
                 GET_REG(cur_op, 0).o = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_REQUIRED).arg.o;
-                cur_op += 4;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_REQUIRED).arg.o;
+                cur_op += 6;
                 goto NEXT;
             OP(param_on_i):
             {
                 MVMArgInfo param = MVM_args_get_named_int(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
                 if (param.exists) {
                     GET_REG(cur_op, 0).i64 = param.arg.i64;
-                    cur_op = bytecode_start + GET_UI32(cur_op, 4);
+                    cur_op = bytecode_start + GET_UI32(cur_op, 6);
                 }
                 else {
-                    cur_op += 8;
+                    cur_op += 10;
                 }
                 goto NEXT;
             }
             OP(param_on_n):
             {
                 MVMArgInfo param = MVM_args_get_named_num(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
                 if (param.exists) {
                     GET_REG(cur_op, 0).n64 = param.arg.n64;
-                    cur_op = bytecode_start + GET_UI32(cur_op, 4);
+                    cur_op = bytecode_start + GET_UI32(cur_op, 6);
                 }
                 else {
-                    cur_op += 8;
+                    cur_op += 10;
                 }
                 goto NEXT;
             }
             OP(param_on_s):
             {
                 MVMArgInfo param = MVM_args_get_named_str(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
                 if (param.exists) {
                     GET_REG(cur_op, 0).s = param.arg.s;
-                    cur_op = bytecode_start + GET_UI32(cur_op, 4);
+                    cur_op = bytecode_start + GET_UI32(cur_op, 6);
                 }
                 else {
-                    cur_op += 8;
+                    cur_op += 10;
                 }
                 goto NEXT;
             }
             OP(param_on_o):
             {
                 MVMArgInfo param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
-                    cu->body.strings[GET_UI16(cur_op, 2)], MVM_ARG_OPTIONAL);
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
                 if (param.exists) {
                     GET_REG(cur_op, 0).o = param.arg.o;
-                    cur_op = bytecode_start + GET_UI32(cur_op, 4);
+                    cur_op = bytecode_start + GET_UI32(cur_op, 6);
                 }
                 else {
-                    cur_op += 8;
+                    cur_op += 10;
                 }
                 goto NEXT;
             }
@@ -851,9 +851,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setlexvalue): {
                 MVMObject *code = GET_REG(cur_op, 0).o;
-                MVMString *name = cu->body.strings[GET_UI16(cur_op, 2)];
-                MVMObject *val  = GET_REG(cur_op, 4).o;
-                MVMint16   flag = GET_I16(cur_op, 6);
+                MVMString *name = cu->body.strings[GET_UI32(cur_op, 2)];
+                MVMObject *val  = GET_REG(cur_op, 6).o;
+                MVMint16   flag = GET_I16(cur_op, 8);
                 if (flag)
                     MVM_exception_throw_adhoc(tc, "setlexvalue only handles static case so far");
                 if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
@@ -874,7 +874,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 else {
                     MVM_exception_throw_adhoc(tc, "setstaticlex needs a code ref");
                 }
-                cur_op += 8;
+                cur_op += 10;
                 goto NEXT;
             }
             OP(exception):
@@ -1361,19 +1361,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(indexat):
                 /* branches on *failure* to match in the constant string, to save an instruction in regexes */
                 if (MVM_string_char_at_in_string(tc, GET_REG(cur_op, 0).s,
-                        GET_REG(cur_op, 2).i64, cu->body.strings[GET_UI16(cur_op, 4)]) >= 0)
-                    cur_op += 10;
+                        GET_REG(cur_op, 2).i64, cu->body.strings[GET_UI32(cur_op, 4)]) >= 0)
+                    cur_op += 12;
                 else
-                    cur_op = bytecode_start + GET_UI32(cur_op, 6);
+                    cur_op = bytecode_start + GET_UI32(cur_op, 8);
                 GC_SYNC_POINT(tc);
                 goto NEXT;
             OP(indexnat):
                 /* branches on *failure* to match in the constant string, to save an instruction in regexes */
                 if (MVM_string_char_at_in_string(tc, GET_REG(cur_op, 0).s,
-                        GET_REG(cur_op, 2).i64, cu->body.strings[GET_UI16(cur_op, 4)]) == -1)
-                    cur_op += 10;
+                        GET_REG(cur_op, 2).i64, cu->body.strings[GET_UI32(cur_op, 4)]) == -1)
+                    cur_op += 12;
                 else
-                    cur_op = bytecode_start + GET_UI32(cur_op, 6);
+                    cur_op = bytecode_start + GET_UI32(cur_op, 8);
                 GC_SYNC_POINT(tc);
                 goto NEXT;
             OP(unipropcode):
@@ -1868,8 +1868,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(findmeth):
                 GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
                     GET_REG(cur_op, 2).o,
-                    cu->body.strings[GET_UI16(cur_op, 4)]);
-                cur_op += 6;
+                    cu->body.strings[GET_UI32(cur_op, 4)]);
+                cur_op += 8;
                 goto NEXT;
             OP(findmeth_s):
                 GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
@@ -1880,8 +1880,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(can): {
                 GET_REG(cur_op, 0).i64 = MVM_6model_can_method(tc,
                     GET_REG(cur_op, 2).o,
-                    cu->body.strings[GET_UI16(cur_op, 4)]) ? 1 : 0;
-                cur_op += 6;
+                    cu->body.strings[GET_UI32(cur_op, 4)]) ? 1 : 0;
+                cur_op += 8;
                 goto NEXT;
             }
             OP(can_s): {
@@ -2252,36 +2252,36 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI16(cur_op, 4)],
-                    GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_int64);
-                cur_op += 10;
+                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI32(cur_op, 4)],
+                    GET_I16(cur_op, 10), GET_REG(cur_op, 8), MVM_reg_int64);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(bindattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI16(cur_op, 4)],
-                    GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_num64);
-                cur_op += 10;
+                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI32(cur_op, 4)],
+                    GET_I16(cur_op, 10), GET_REG(cur_op, 8), MVM_reg_num64);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(bindattr_s): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI16(cur_op, 4)],
-                    GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_str);
-                cur_op += 10;
+                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI32(cur_op, 4)],
+                    GET_I16(cur_op, 10), GET_REG(cur_op, 8), MVM_reg_str);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(bindattr_o): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI16(cur_op, 4)],
-                    GET_I16(cur_op, 8), GET_REG(cur_op, 6), MVM_reg_obj);
-                cur_op += 10;
+                    GET_REG(cur_op, 2).o, cu->body.strings[GET_UI32(cur_op, 4)],
+                    GET_I16(cur_op, 10), GET_REG(cur_op, 8), MVM_reg_obj);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(bindattrs_i): {
@@ -2324,36 +2324,36 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI16(cur_op, 6)],
-                    GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_int64);
-                cur_op += 10;
+                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI32(cur_op, 6)],
+                    GET_I16(cur_op, 10), &GET_REG(cur_op, 0), MVM_reg_int64);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(getattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI16(cur_op, 6)],
-                    GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_num64);
-                cur_op += 10;
+                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI32(cur_op, 6)],
+                    GET_I16(cur_op, 10), &GET_REG(cur_op, 0), MVM_reg_num64);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(getattr_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI16(cur_op, 6)],
-                    GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_str);
-                cur_op += 10;
+                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI32(cur_op, 6)],
+                    GET_I16(cur_op, 10), &GET_REG(cur_op, 0), MVM_reg_str);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(getattr_o): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
-                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI16(cur_op, 6)],
-                    GET_I16(cur_op, 8), &GET_REG(cur_op, 0), MVM_reg_obj);
-                cur_op += 10;
+                    GET_REG(cur_op, 4).o, cu->body.strings[GET_UI32(cur_op, 6)],
+                    GET_I16(cur_op, 10), &GET_REG(cur_op, 0), MVM_reg_obj);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(getattrs_i): {

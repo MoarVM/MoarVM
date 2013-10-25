@@ -4,7 +4,7 @@
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        1
 #define MAX_BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE           (7 * 4 + 3 * 2)
+#define FRAME_HEADER_SIZE           (9 * 4 + 1 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SCDEP_HEADER_OFFSET         12
 #define EXTOP_HEADER_OFFSET         20
@@ -129,7 +129,7 @@ static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *
  * checks the string heap index too. */
 static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, char *buffer, size_t offset) {
     MVMCompUnitBody *cu_body = &cu->body;
-    MVMuint16 heap_index = read_int16(buffer, offset);
+    MVMuint32 heap_index = read_int32(buffer, offset);
     if (heap_index >= cu_body->num_strings) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
@@ -512,15 +512,15 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Get compilation unit unique ID and name. */
         MVM_ASSIGN_REF(tc, static_frame, static_frame_body->cuuid, get_heap_string(tc, cu, rs, pos, 16));
-        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->name, get_heap_string(tc, cu, rs, pos, 18));
+        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->name, get_heap_string(tc, cu, rs, pos, 20));
 
         /* Add frame outer fixup to fixup list. */
-        rs->frame_outer_fixups[i] = read_int16(pos, 20);
+        rs->frame_outer_fixups[i] = read_int16(pos, 24);
 
         /* Get annotations details */
         {
-            MVMuint32 annot_offset = read_int32(pos, 22);
-            MVMuint32 num_annotations = read_int32(pos, 26);
+            MVMuint32 annot_offset = read_int32(pos, 26);
+            MVMuint32 num_annotations = read_int32(pos, 30);
             if (annot_offset + num_annotations * 10 > rs->annotation_size) {
                 cleanup_all(tc, rs);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
@@ -530,7 +530,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         }
 
         /* Read number of handlers. */
-        static_frame_body->num_handlers = read_int32(pos, 30);
+        static_frame_body->num_handlers = read_int32(pos, 34);
 
         pos += FRAME_HEADER_SIZE;
 
@@ -549,23 +549,23 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             static_frame_body->lexical_types = malloc(sizeof(MVMuint16) * static_frame_body->num_lexicals);
 
             /* Read in data. */
-            ensure_can_read(tc, cu, rs, pos, 4 * static_frame_body->num_lexicals);
+            ensure_can_read(tc, cu, rs, pos, 6 * static_frame_body->num_lexicals);
             if (static_frame_body->num_lexicals) {
                 static_frame_body->lexical_names_list = malloc(sizeof(MVMLexicalRegistry *) * static_frame_body->num_lexicals);
             }
             for (j = 0; j < static_frame_body->num_lexicals; j++) {
-                MVMString *name = get_heap_string(tc, cu, rs, pos, 4 * j + 2);
+                MVMString *name = get_heap_string(tc, cu, rs, pos, 6 * j + 2);
                 MVMLexicalRegistry *entry = calloc(1, sizeof(MVMLexicalRegistry));
 
                 MVM_ASSIGN_REF(tc, static_frame, entry->key, name);
                 static_frame_body->lexical_names_list[j] = entry;
                 entry->value = j;
 
-                static_frame_body->lexical_types[j] = read_int16(pos, 4 * j);
+                static_frame_body->lexical_types[j] = read_int16(pos, 6 * j);
                 MVM_string_flatten(tc, name);
                 MVM_HASH_BIND(tc, static_frame_body->lexical_names, name, entry)
             }
-            pos += 4 * static_frame_body->num_lexicals;
+            pos += 6 * static_frame_body->num_lexicals;
         }
 
         /* Read in handlers. */
@@ -761,15 +761,15 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
             MVMint32 ann_offset = read_int32(cur_anno, 0);
             if (ann_offset > offset)
                 break;
-            cur_anno += 10;
+            cur_anno += 12;
         }
         if (i == sfb->num_annotations)
-            cur_anno -= 10;
+            cur_anno -= 12;
         if (i > 0) {
             ba = malloc(sizeof(MVMBytecodeAnnotation));
             ba->bytecode_offset = read_int32(cur_anno, 0);
-            ba->filename_string_heap_index = read_int16(cur_anno, 4);
-            ba->line_number = read_int32(cur_anno, 6);
+            ba->filename_string_heap_index = read_int32(cur_anno, 4);
+            ba->line_number = read_int32(cur_anno, 8);
         }
     }
 
