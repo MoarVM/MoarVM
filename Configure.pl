@@ -139,6 +139,7 @@ push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
+push @cflags, $config{ccshared}     if $args{shared};
 $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
