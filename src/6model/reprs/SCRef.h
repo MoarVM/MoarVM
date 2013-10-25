@@ -41,4 +41,3 @@ struct MVMSerializationContext {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc);
-void MVM_sc_gc_mark_body(MVMThreadContext *tc, MVMSerializationContextBody *sc, MVMGCWorklist *worklist);

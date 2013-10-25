@@ -45,9 +45,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_exception_throw_adhoc(tc, "Cannot copy object with representation SCRef");
 }
 
-void MVM_sc_gc_mark_body(MVMThreadContext *tc, MVMSerializationContextBody *sc, MVMGCWorklist *worklist) {
-}
-
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *sc = ((MVMSerializationContextBody **)data)[0];
