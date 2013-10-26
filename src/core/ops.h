@@ -522,6 +522,7 @@
 #define MVM_OP_dropsym 518
 #define MVM_OP_loadext 519
 #define MVM_OP_backendconfig 520
+#define MVM_OP_getlexouter 521
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

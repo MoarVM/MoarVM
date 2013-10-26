@@ -3653,9 +3653,16 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_getlexouter,
+        "getlexouter",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
 };
 
-static unsigned short MVM_op_counts = 521;
+static unsigned short MVM_op_counts = 522;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

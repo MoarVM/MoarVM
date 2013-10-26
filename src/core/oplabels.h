@@ -522,7 +522,7 @@ static const void * const LABELS[] = {
     &&OP_dropsym,
     &&OP_loadext,
     &&OP_backendconfig,
-    NULL,
+    &&OP_getlexouter,
     NULL,
     NULL,
     NULL,

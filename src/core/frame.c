@@ -375,14 +375,40 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
-            /* Indexes were formerly stored off-by-one
-             * to avoid semi-predicate issue. */
+            /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
             MVMLexicalRegistry *entry;
 
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == type)
+                    return &cur_frame->env[entry->value];
+                else
+                   MVM_exception_throw_adhoc(tc,
+                        "Lexical with name '%s' has wrong type",
+                            MVM_string_utf8_encode_C_string(tc, name));
+            }
+        }
+        cur_frame = cur_frame->outer;
+    }
+    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
+        MVM_string_utf8_encode_C_string(tc, name));
+}
+
+/* Looks up the address of the lexical with the specified name, starting with
+ * the specified frame. Only works if it's an object lexical.  */
+MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+    MVM_string_flatten(tc, name);
+    while (cur_frame != NULL) {
+        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
+        if (lexical_names) {
+            /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
+            MVMLexicalRegistry *entry;
+
+            MVM_HASH_GET(tc, lexical_names, name, entry)
+
+            if (entry) {
+                if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj)
                     return &cur_frame->env[entry->value];
                 else
                    MVM_exception_throw_adhoc(tc,

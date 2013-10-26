@@ -3585,6 +3585,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_backend_config(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(getlexouter):
+                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel(tc,
+                    GET_REG(cur_op, 2).s, tc->cur_frame->outer)->o;
+                cur_op += 4;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
