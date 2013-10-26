@@ -461,12 +461,15 @@ sub generate {
         hardfail($error)
             unless defined $line;
 
-        if ($dest =~ /Makefile/ && $config{sh} eq 'cmd') {
-            # in-between slashes in makefiles need to be backslashes on Windows
-            $line =~ s/(\w|\.)\/(\w|\.|\*)/$1\\$2/g;
+        if ($config{sh} eq 'cmd' && $dest =~ /Makefile|config\.c/) {
+            # In-between slashes in makefiles need to be backslashes on Windows.
+            # Double backslashes in config.c, beause these are in qq-strings.
+            my $bs = $dest =~ /Makefile/ ? '\\' : '\\\\';
+            $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\/(\w|\.|\*)/$1$bs$2/g;
+            $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\(\w|\.|\*)/$1$bs$2/g if $bs eq '\\\\';
 
             # gmake doesn't like \*
-            $line =~ s/(\w|\.)\\\*/$1\\\\\*/g
+            $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\\*/$1\\\\\*/g
                 if $config{make} eq 'gmake';
         }
 
