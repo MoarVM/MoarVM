@@ -121,7 +121,7 @@ our %TC_POSIX = (
     ldimp => undef,
 
     ccshared => '-fPIC',
-    ldshared => '-shared @ccshared@',
+    ldshared => '-shared -Wl,-rpath,$(PREFIX)/lib @ccshared@',
 
     arflags => 'rcs',
     arout   => '',
@@ -436,7 +436,7 @@ our %OS_DARWIN = (
     dll => 'lib%s.dylib',
 
     ccshared => '',
-    ldshared => '-dynamiclib',
+    ldshared => '-dynamiclib -Wl,-rpath,$(PREFIX)/lib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
