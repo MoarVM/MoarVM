@@ -133,6 +133,12 @@ our %TC_POSIX = (
     lib => 'lib%s.a',
     dll => 'lib%s.so',
 
+    shareddir => 'lib',
+    sharedlib => '',
+
+    staticdir => 'lib',
+    staticlib => '',
+
     -auxfiles => [],
 );
 
@@ -204,6 +210,12 @@ TERM
     obj => '.obj',
     lib => '%s.lib',
     dll => '%s.dll',
+
+    shareddir => 'bin',
+    sharedlib => '@moardll@.lib',
+
+    staticdir => 'lib',
+    staticlib => '',
 
     -auxfiles => [ qw( @name@.ilk @name@.pdb @moardll@.lib @moardll@.exp vc100.pdb ) ],
 
