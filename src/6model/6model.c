@@ -61,13 +61,15 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 }
 
 /* Locates a method by name. Returns 1 if it exists; otherwise 0. */
-MVMint64 MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
+void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
-        return meth ? 1 : 0;
+        res->i64 = meth ? 1 : 0;
     }
-    return 0;
+    else {
+        res->i64 = 0;
+    }
 }
 
 /* Checks if an object has a given type, using the cache only. */
