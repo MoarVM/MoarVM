@@ -100,6 +100,11 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     free(buf);
 }
 
+/* Set the size on the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMP6bigint);
+}
+
 /* Deserializes the bigint. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
@@ -138,7 +143,7 @@ static const MVMREPROps this_repr = {
     deserialize,
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
-    NULL, /* deserialize_stable_size */
+    deserialize_stable_size,
     NULL, /* gc_mark */
     NULL, /* gc_free */
     NULL, /* gc_cleanup */
