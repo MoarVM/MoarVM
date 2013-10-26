@@ -61,15 +61,52 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 }
 
 /* Locates a method by name. Returns 1 if it exists; otherwise 0. */
+void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
-    MVMObject *cache = STABLE(obj)->method_cache;
+    MVMObject *cache, *HOW, *find_method, *code;
+    
+    /* First consider method cache. */
+    cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
-        res->i64 = meth ? 1 : 0;
+        if (meth) {
+            res->i64 = 1;
+            return;
+        }
+        if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
+            res->i64 = 0;
+            return;
+        }
     }
-    else {
+    
+    /* If no method in cache and the cache is not authoritative, need to make
+     * a late-bound call to find_method. */
+    HOW = STABLE(obj)->HOW;
+    find_method = MVM_6model_find_method_cache_only(tc, HOW,
+        tc->instance->str_consts.find_method);
+    if (find_method == NULL) {
+        /* This'll count as a "no"... */
         res->i64 = 0;
+        return;
     }
+
+    /* Set up the call, using the result register as the target. A little bad
+     * as we're really talking about     */
+    code = MVM_frame_find_invokee(tc, find_method);
+    tc->cur_frame->return_value        = res;
+    tc->cur_frame->return_type         = MVM_RETURN_OBJ;
+    tc->cur_frame->return_address      = *(tc->interp_cur_op);
+    tc->cur_frame->special_return      = late_bound_can_return;
+    tc->cur_frame->special_return_data = res;
+    tc->cur_frame->args[0].o = HOW;
+    tc->cur_frame->args[1].o = obj;
+    tc->cur_frame->args[2].s = name;
+    STABLE(code)->invoke(tc, code, &fm_callsite, tc->cur_frame->args);
+}
+void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
+    /* Transform to an integer result. */
+    MVMRegister *reg = (MVMRegister *)sr_data;
+    reg->i64 = reg->o && IS_CONCRETE(reg->o) ? 1 : 0;
 }
 
 /* Checks if an object has a given type, using the cache only. */
