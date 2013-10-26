@@ -30,7 +30,7 @@ GetOptions(\%args, qw(
     debug! optimize! instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
-    shared use-readline
+    static use-readline
     build=s host=s big-endian
     prefix=s make-install
 )) or die "See --help for further information\n";
@@ -48,7 +48,7 @@ else { softfail("git error: $msg") }
 $args{debug}      //= 0 + !$args{optimize};
 $args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
-$args{shared}     //= 0;
+$args{static}     //= 0;
 
 $args{'use-readline'} //= 0;
 $args{'big-endian'}   //= 0;
@@ -139,7 +139,7 @@ push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
-push @cflags, $config{ccshared}     if $args{shared};
+push @cflags, $config{ccshared}     unless $args{static};
 $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
@@ -147,7 +147,7 @@ my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}       if $args{optimize};
 push @ldflags, $config{lddebugflags}      if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
-push @ldflags, '-Wl,-rpath,$(PREFIX)/lib' if $args{shared} && $config{os} ne 'win32';
+push @ldflags, '-Wl,-rpath,$(PREFIX)/lib' if !$args{static} && $config{os} ne 'win32';
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
@@ -155,7 +155,7 @@ $config{moarlib} = sprintf $config{lib}, $NAME;
 $config{moardll} = sprintf $config{dll}, $NAME;
 
 # setup flags for shared builds
-if ($args{shared}) {
+unless ($args{static}) {
     $config{objflags}  = '@ccdef@MVM_BUILD_SHARED @ccshared@';
     $config{mainflags} = '@ccdef@MVM_SHARED';
     $config{moar}      = '@moardll@';
@@ -540,12 +540,12 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--shared] [--use-readline] [--prefix]
+                   [--static] [--use-readline] [--prefix]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--shared] [--big-endian] [--prefix]
+                   [--static] [--big-endian] [--prefix]
 
 =head1 OPTIONS
 
@@ -617,9 +617,9 @@ options.
 Explicitly set the make tool without affecting other configuration
 options.
 
-=item --shared
+=item --static
 
-Build MoarVM as a shared library instead of a static one.
+Build MoarVM as a static library instead of a shared one.
 
 =item --use-readline
 
