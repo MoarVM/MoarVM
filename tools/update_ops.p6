@@ -1,6 +1,9 @@
 # This script processes the op list into a C header file that contains
 # info about the opcodes.
 
+constant $EXT_BASE = 1024;
+constant $EXT_CU_LIMIT = 1024;
+
 class Op {
     has $.code;
     has $.name;
@@ -18,6 +21,9 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $hf.say("");
     $hf.say(opcode_defines(@ops));
+    $hf.say("#define MVM_OP_EXT_BASE $EXT_BASE");
+    $hf.say("#define MVM_OP_EXT_CU_LIMIT $EXT_CU_LIMIT");
+    $hf.say('');
     $hf.say('MVMOpInfo * MVM_op_get_op(unsigned short op);');
     $hf.close;
 
@@ -150,7 +156,11 @@ BEGIN {
 # Generate labels for cgoto dispatch
 sub op_labels(@ops) {
     my @labels = @ops.map({ sprintf('&&OP_%s', $_.name) });
-    return "static const void * const LABELS[] = \{\n    { join(",\n    ", @labels) }\n\};";
+    my @padding = 'NULL' xx $EXT_BASE - @ops;
+    my @extlabels = '&&OP_CALL_EXTOP' xx $EXT_CU_LIMIT;
+    return "static const void * const LABELS[] = \{\n    {
+        join(",\n    ", @labels, @padding, @extlabels)
+    }\n\};";
 }
 
 # Creates the #defines for the ops.

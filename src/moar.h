@@ -21,6 +21,9 @@
 /* libatomic_ops */
 #include <atomic_ops.h>
 
+/* dynload */
+#include <dynload.h>
+
 /* forward declarations */
 #include "types.h"
 
@@ -64,6 +67,8 @@ typedef double   MVMnum64;
 #include "core/hll.h"
 #include "core/loadbytecode.h"
 #include "core/coerce.h"
+#include "core/dll.h"
+#include "core/ext.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"
@@ -90,6 +95,8 @@ typedef double   MVMnum64;
 #include "io/procops.h"
 #include "math/bigintops.h"
 #include "mast/driver.h"
+
+MVMObject *MVM_backend_config(MVMThreadContext *tc);
 
 /* Top level VM API functions. */
 MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);

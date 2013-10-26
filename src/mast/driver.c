@@ -16,6 +16,7 @@ MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
         grab_type(CompUnit);
         grab_type(Frame);
         grab_type(Op);
+        grab_type(ExtOp);
         grab_type(SVal);
         grab_type(IVal);
         grab_type(NVal);

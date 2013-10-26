@@ -1,11 +1,21 @@
 #include "moar.h"
 
 /* Some constants. */
-#define HEADER_SIZE             88
-#define MIN_BYTECODE_VERSION    1
-#define MAX_BYTECODE_VERSION    1
-#define FRAME_HEADER_SIZE       (7 * 4 + 3 * 2)
-#define FRAME_HANDLER_SIZE      (4 * 4 + 2 * 2)
+#define HEADER_SIZE                 92
+#define MIN_BYTECODE_VERSION        1
+#define MAX_BYTECODE_VERSION        1
+#define FRAME_HEADER_SIZE           (9 * 4 + 1 * 2)
+#define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
+#define SCDEP_HEADER_OFFSET         12
+#define EXTOP_HEADER_OFFSET         20
+#define FRAME_HEADER_OFFSET         28
+#define CALLSITE_HEADER_OFFSET      36
+#define STRING_HEADER_OFFSET        44
+#define SCDATA_HEADER_OFFSET        52
+#define BYTECODE_HEADER_OFFSET      60
+#define ANNOTATION_HEADER_OFFSET    68
+#define HLL_NAME_HEADER_OFFSET      76
+#define SPECIAL_FRAME_HEADER_OFFSET 80
 
 /* Describes the current reader state. */
 typedef struct {
@@ -19,6 +29,10 @@ typedef struct {
     /* The SC dependencies segment. */
     MVMuint8  *sc_seg;
     MVMuint32  expected_scs;
+
+    /* The extension ops segment. */
+    MVMuint8 *extop_seg;
+    MVMuint32 expected_extops;
 
     /* The frame segment. */
     MVMuint8  *frame_seg;
@@ -115,7 +129,7 @@ static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *
  * checks the string heap index too. */
 static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, char *buffer, size_t offset) {
     MVMCompUnitBody *cu_body = &cu->body;
-    MVMuint16 heap_index = read_int16(buffer, offset);
+    MVMuint32 heap_index = read_int32(buffer, offset);
     if (heap_index >= cu_body->num_strings) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
@@ -147,44 +161,56 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->version = version;
 
     /* Locate SC dependencies segment. */
-    offset = read_int32(cu_body->data_start, 12);
+    offset = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Serialization contexts segment starts after end of stream");
     }
     rs->sc_seg       = cu_body->data_start + offset;
-    rs->expected_scs = read_int32(cu_body->data_start, 16);
+    rs->expected_scs = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET + 4);
+
+    /* Locate extension ops segment. */
+    offset = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET);
+    if (offset > cu_body->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Extension ops segment starts after end of stream");
+    }
+    rs->extop_seg       = cu_body->data_start + offset;
+    rs->expected_extops = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET + 4);
 
     /* Locate frames segment. */
-    offset = read_int32(cu_body->data_start, 20);
+    offset = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
     }
     rs->frame_seg       = cu_body->data_start + offset;
-    rs->expected_frames = read_int32(cu_body->data_start, 24);
+    rs->expected_frames = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET + 4);
 
     /* Locate callsites segment. */
-    offset = read_int32(cu_body->data_start, 28);
+    offset = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
     }
     rs->callsite_seg       = cu_body->data_start + offset;
-    rs->expected_callsites = read_int32(cu_body->data_start, 32);
+    rs->expected_callsites = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET + 4);
 
     /* Locate strings segment. */
-    offset = read_int32(cu_body->data_start, 40);
+    offset = read_int32(cu_body->data_start, STRING_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
     }
     rs->string_seg       = cu_body->data_start + offset;
-    rs->expected_strings = read_int32(cu_body->data_start, 44);
+    rs->expected_strings = read_int32(cu_body->data_start, STRING_HEADER_OFFSET + 4);
+
+    /* TODO: SC data segment supposedly goes here.
+     *       For now, just reserve 8 bytes. */
 
     /* Locate bytecode segment. */
-    offset = read_int32(cu_body->data_start, 56);
-    size = read_int32(cu_body->data_start, 60);
+    offset = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
@@ -193,8 +219,8 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->bytecode_size = size;
 
     /* Locate annotations segment. */
-    offset = read_int32(cu_body->data_start, 64);
-    size = read_int32(cu_body->data_start, 68);
+    offset = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
         cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
@@ -203,13 +229,13 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->annotation_size = size;
 
     /* Locate HLL name */
-    rs->hll_str_idx = read_int32(cu_body->data_start, 72);
+    rs->hll_str_idx = read_int32(cu_body->data_start, HLL_NAME_HEADER_OFFSET);
 
     /* Locate special frame indexes. Note, they are 0 for none, and the
      * index + 1 if there is one. */
-    rs->main_frame = read_int32(cu_body->data_start, 76);
-    rs->load_frame = read_int32(cu_body->data_start, 80);
-    rs->deserialize_frame = read_int32(cu_body->data_start, 84);
+    rs->main_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET);
+    rs->load_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 4);
+    rs->deserialize_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 8);
     if (rs->main_frame > rs->expected_frames
             || rs->load_frame > rs->expected_frames
             || rs->deserialize_frame > rs->expected_frames) {
@@ -302,6 +328,140 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     }
 }
 
+/* Loads the extension op records. */
+static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
+    MVMExtOpRecord *extops;
+    MVMuint32 num = rs->expected_extops;
+    MVMuint8 *pos;
+    MVMuint32 i;
+
+    if (num == 0)
+        return NULL;
+
+    extops = calloc(num, sizeof *extops);
+
+    pos = rs->extop_seg;
+    for (i = 0; i < num; i++) {
+        MVMuint32 name_idx;
+        MVMuint16 operand_bytes = 0;
+        MVMuint8 *operand_descriptor = extops[i].operand_descriptor;
+
+        /* Read name string index. */
+        ensure_can_read(tc, cu, rs, pos, 4);
+        name_idx = read_int32(pos, 0);
+        pos += 4;
+
+        /* Lookup name string. */
+        if (name_idx >= cu->body.num_strings) {
+            cleanup_all(tc, rs);
+            MVM_exception_throw_adhoc(tc,
+                    "String heap index beyond end of string heap");
+        }
+        extops[i].name = cu->body.strings[name_idx];
+
+        /* Read operand descriptor. */
+        ensure_can_read(tc, cu, rs, pos, 8);
+        memcpy(operand_descriptor, pos, 8);
+        pos += 8;
+
+        /* Validate operand descriptor.
+         * TODO: Unify with validation in MVM_ext_register_extop? */
+        {
+            MVMuint8 j = 0;
+
+            for(; j < 8; j++) {
+                MVMuint8 flags = operand_descriptor[j];
+
+                if (!flags)
+                    break;
+
+                switch (flags & MVM_operand_rw_mask) {
+                    case MVM_operand_literal:
+                        goto check_literal;
+
+                    case MVM_operand_read_reg:
+                    case MVM_operand_write_reg:
+                        operand_bytes += 2;
+                        goto check_reg;
+
+                    case MVM_operand_read_lex:
+                    case MVM_operand_write_lex:
+                        operand_bytes += 4;
+                        goto check_reg;
+
+                    default:
+                        goto fail;
+                }
+
+            check_literal:
+                switch (flags & MVM_operand_type_mask) {
+                    case MVM_operand_int8:
+                        operand_bytes += 1;
+                        continue;
+
+                    case MVM_operand_int16:
+                        operand_bytes += 2;
+                        continue;
+
+                    case MVM_operand_int32:
+                        operand_bytes += 4;
+                        continue;
+
+                    case MVM_operand_int64:
+                        operand_bytes += 8;
+                        continue;
+
+                    case MVM_operand_num32:
+                        operand_bytes += 4;
+                        continue;
+
+                    case MVM_operand_num64:
+                        operand_bytes += 8;
+                        continue;
+
+                    case MVM_operand_str:
+                        operand_bytes += 2;
+                        continue;
+
+                    case MVM_operand_coderef:
+                        operand_bytes += 2;
+                        continue;
+
+                    case MVM_operand_ins:
+                    case MVM_operand_callsite:
+                    default:
+                        goto fail;
+                }
+
+            check_reg:
+                switch (flags & MVM_operand_type_mask) {
+                    case MVM_operand_int8:
+                    case MVM_operand_int16:
+                    case MVM_operand_int32:
+                    case MVM_operand_int64:
+                    case MVM_operand_num32:
+                    case MVM_operand_num64:
+                    case MVM_operand_str:
+                    case MVM_operand_obj:
+                    case MVM_operand_type_var:
+                        continue;
+
+                    default:
+                        goto fail;
+                }
+
+            fail:
+                cleanup_all(tc, rs);
+                MVM_exception_throw_adhoc(tc, "Invalid operand descriptor");
+            }
+        }
+
+        extops[i].operand_bytes = operand_bytes;
+    }
+
+    return extops;
+}
+
 /* Loads the static frame information (what locals we have, bytecode offset,
  * lexicals, etc.) */
 static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
@@ -352,15 +512,15 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Get compilation unit unique ID and name. */
         MVM_ASSIGN_REF(tc, static_frame, static_frame_body->cuuid, get_heap_string(tc, cu, rs, pos, 16));
-        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->name, get_heap_string(tc, cu, rs, pos, 18));
+        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->name, get_heap_string(tc, cu, rs, pos, 20));
 
         /* Add frame outer fixup to fixup list. */
-        rs->frame_outer_fixups[i] = read_int16(pos, 20);
+        rs->frame_outer_fixups[i] = read_int16(pos, 24);
 
         /* Get annotations details */
         {
-            MVMuint32 annot_offset = read_int32(pos, 22);
-            MVMuint32 num_annotations = read_int32(pos, 26);
+            MVMuint32 annot_offset = read_int32(pos, 26);
+            MVMuint32 num_annotations = read_int32(pos, 30);
             if (annot_offset + num_annotations * 10 > rs->annotation_size) {
                 cleanup_all(tc, rs);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
@@ -370,7 +530,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         }
 
         /* Read number of handlers. */
-        static_frame_body->num_handlers = read_int32(pos, 30);
+        static_frame_body->num_handlers = read_int32(pos, 34);
 
         pos += FRAME_HEADER_SIZE;
 
@@ -389,23 +549,23 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             static_frame_body->lexical_types = malloc(sizeof(MVMuint16) * static_frame_body->num_lexicals);
 
             /* Read in data. */
-            ensure_can_read(tc, cu, rs, pos, 4 * static_frame_body->num_lexicals);
+            ensure_can_read(tc, cu, rs, pos, 6 * static_frame_body->num_lexicals);
             if (static_frame_body->num_lexicals) {
                 static_frame_body->lexical_names_list = malloc(sizeof(MVMLexicalRegistry *) * static_frame_body->num_lexicals);
             }
             for (j = 0; j < static_frame_body->num_lexicals; j++) {
-                MVMString *name = get_heap_string(tc, cu, rs, pos, 4 * j + 2);
+                MVMString *name = get_heap_string(tc, cu, rs, pos, 6 * j + 2);
                 MVMLexicalRegistry *entry = calloc(1, sizeof(MVMLexicalRegistry));
 
                 MVM_ASSIGN_REF(tc, static_frame, entry->key, name);
                 static_frame_body->lexical_names_list[j] = entry;
                 entry->value = j;
 
-                static_frame_body->lexical_types[j] = read_int16(pos, 4 * j);
+                static_frame_body->lexical_types[j] = read_int16(pos, 6 * j);
                 MVM_string_flatten(tc, name);
                 MVM_HASH_BIND(tc, static_frame_body->lexical_names, name, entry)
             }
-            pos += 4 * static_frame_body->num_lexicals;
+            pos += 6 * static_frame_body->num_lexicals;
         }
 
         /* Read in handlers. */
@@ -558,6 +718,10 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Load SC dependencies. */
     deserialize_sc_deps(tc, cu, rs);
 
+    /* Load the extension op records. */
+    cu_body->extops = deserialize_extop_records(tc, cu, rs);
+    cu_body->num_extops = rs->expected_extops;
+
     /* Load the static frame info and give each one a code reference. */
     cu_body->frames = deserialize_frames(tc, cu, rs);
     cu_body->num_frames = rs->expected_frames;
@@ -597,15 +761,15 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
             MVMint32 ann_offset = read_int32(cur_anno, 0);
             if (ann_offset > offset)
                 break;
-            cur_anno += 10;
+            cur_anno += 12;
         }
         if (i == sfb->num_annotations)
-            cur_anno -= 10;
+            cur_anno -= 12;
         if (i > 0) {
             ba = malloc(sizeof(MVMBytecodeAnnotation));
             ba->bytecode_offset = read_int32(cur_anno, 0);
-            ba->filename_string_heap_index = read_int16(cur_anno, 4);
-            ba->line_number = read_int32(cur_anno, 6);
+            ba->filename_string_heap_index = read_int32(cur_anno, 4);
+            ba->line_number = read_int32(cur_anno, 8);
         }
     }
 

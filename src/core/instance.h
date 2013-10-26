@@ -20,6 +20,11 @@ struct MVMBootTypes {
     MVMObject *BOOTCompUnit;
 };
 
+/* Various raw types that don't need a HOW */
+typedef struct {
+    MVMObject *RawDLLSym;
+} MVMRawTypes;
+
 /* Various common string constants. */
 struct MVMStringConsts {
     MVMString *empty;
@@ -76,6 +81,9 @@ struct MVMInstance {
 
     /* Set of bootstrapping types. */
     MVMBootTypes boot_types;
+
+    /* Set of raw types. */
+    MVMRawTypes raw_types;
 
     /* Set of string constants. */
     MVMStringConsts str_consts;
@@ -150,6 +158,18 @@ struct MVMInstance {
 
     MVMContainerRegistry *container_registry;     /* Container registry */
     uv_mutex_t      mutex_container_registry;     /* mutex for container registry */
+
+    /* Hash of all loaded DLLs. */
+    MVMDLLRegistry  *dll_registry;
+    uv_mutex_t mutex_dll_registry;
+
+    /* Hash of all loaded extensions. */
+    MVMExtRegistry  *ext_registry;
+    uv_mutex_t mutex_ext_registry;
+
+    /* Hash of all registered extension ops. */
+    MVMExtOpRegistry *extop_registry;
+    uv_mutex_t  mutex_extop_registry;
 
     /* Hash of all known serialization contexts. Marked for GC iff
      * the item is unresolved. */

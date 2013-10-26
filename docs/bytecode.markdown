@@ -22,13 +22,22 @@ what it contains.
     |    of line endings                                      |
     +---------------------------------------------------------+
     | Version                                                 |
-    |    32-bit unsigned integer                              |
+    |    32-bit unsigned integer; since we'll never reach a   |
+    |    huge number of versions, this also doubles up as a   |
+    |    check that no weird big/little endian issues keep us |
+    |    from reading the bytecode.                           |
     +---------------------------------------------------------+
     | Offset (from start of file) of the SC dependencies      |
     | table                                                   |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
     | Number of entries in the SC dependencies table          |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Offset (from start of file) of the extension ops table  |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Number of entries in the extension ops table            |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
     | Offset (from start of file) of the frames data segment  |
@@ -117,6 +126,20 @@ allocate more) are the way we make sure it isn't collected too early.
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
 
+## Extension ops table
+
+    +---------------------------------------------------------+
+    | Index into the string heap of the extension op ID       |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Operand descriptor                                      |
+    |    Bunch of bytes describing a single operand each,     |
+    |    zero-padded to 8 bytes                               |
+    +---------------------------------------------------------+
+
+The operand descriptor follows the same format as used by MVMOpInfo.
+The 8 bytes limit corresponds to MVM_MAX_OPERANDS.
+
 ## Frames Data
 The frames data segment contains data that describes all of the frames in
 the compilation unit. It also points into the bytecode segment, which contains
@@ -143,10 +166,10 @@ Each frame starts with the following data.
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
     | Compilation unit unique ID                              |
-    |    16-bit string heap index                             |
+    |    32-bit string heap index                             |
     +---------------------------------------------------------+
     | Name                                                    |
-    |    16-bit string heap index                             |
+    |    32-bit string heap index                             |
     +---------------------------------------------------------+
     | Outer                                                   |
     |    16-bit frame index of the outer frame. For no outer, |
@@ -174,7 +197,7 @@ local it is. These are stored as 16-bit unsigned integers.
     str         7
     obj         8
 
-Lexicals are similar, apart from each entry is preceded by a 16-bit unsigned
+Lexicals are similar, apart from each entry is preceded by a 32-bit unsigned
 index into the string heap, which gives the name of the lexical.
 
 [Conjectural: a future MoarVM may instead do these in terms of REPRs.]
@@ -241,7 +264,7 @@ have the needed operands described by the following set of descriptors.
     i64     64-bit integer constant
     n32     32-bit floating point constant
     n64     64-bit floating point constant
-    si      Strings table index, 16 bits unsigned
+    si      Strings table index, 32 bits unsigned
     sci     Serialization Context object table index, 16 bits unsigned
     csi     Callsite table index, 16 bits unsigned
     ins     Instruction offset from frame start (for goto), 32 bits unsigned
@@ -265,5 +288,5 @@ The set of ops is listed in src/core/oplist.
 This consists of a number of 10-byte records, composed of:
 
 * 32-bit unsigned integer offset into the bytecode segment
-* 16-bit unsigned integer strings heap index (filename)
+* 32-bit unsigned integer strings heap index (filename)
 * 32-bit unsigned integer (line number)

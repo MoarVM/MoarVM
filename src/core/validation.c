@@ -42,7 +42,7 @@ typedef struct {
     MVMuint8         *bc_end;
     MVMuint8         *labels;
     MVMuint8         *cur_op;
-    MVMOpInfo        *cur_info;
+    const MVMOpInfo  *cur_info;
     const char       *cur_mark;
     MVMuint32         cur_instr;
     MVMCallsite      *cur_call;
@@ -99,24 +99,49 @@ static void ensure_no_remaining_positionals(Validator *val) {
 }
 
 
+static const MVMOpInfo * get_info(Validator *val, MVMuint16 opcode) {
+    const MVMOpInfo *info;
+
+    if (opcode < MVM_OP_EXT_BASE) {
+        info = MVM_op_get_op(opcode);
+        if (!info)
+            fail(val, MSG(val, "invalid opcode %u"), opcode);
+    }
+    else {
+        MVMuint16 index = opcode - MVM_OP_EXT_BASE;
+        MVMExtOpRecord *record;
+
+        if (index >= val->cu->body.num_extops)
+            fail(val, MSG(val,
+                    "invalid extension opcode %u - should be less than %u"),
+                    opcode, MVM_OP_EXT_BASE + val->cu->body.num_extops);
+
+        record = &val->cu->body.extops[index];
+        info = MVM_ext_resolve_extop_record(val->tc, record);
+        if (!info)
+            fail(val, MSG(val, "extension op '%s' not registered"),
+                    MVM_string_utf8_encode_C_string(val->tc, record->name));
+    }
+
+    return info;
+}
+
+
 static void read_op(Validator *val) {
     MVMuint16  opcode;
-    MVMOpInfo *info;
+    const MVMOpInfo *info;
     MVMuint32  pos;
 
     ensure_bytes(val, 2);
 
     opcode = *(MVMuint16 *)val->cur_op;
-    info   = MVM_op_get_op(opcode);
+    info   = get_info(val, opcode);
     pos    = val->cur_op - val->bc_start;
 
 #if 0
 MVM_string_print(val->tc, val->cu->body.filename);
 printf(" %u %s %.2s\n", val->cur_instr, info->name, info->mark);
 #endif
-
-    if (!info)
-        fail(val, MSG(val, "invalid opcode %u"), opcode);
 
     val->labels[pos] |= MVM_BC_op_boundary;
     val->cur_info     = info;
@@ -167,7 +192,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
         case MVM_operand_num64:    size = 8; break;
         case MVM_operand_callsite: size = 2; break;
         case MVM_operand_coderef:  size = 2; break;
-        case MVM_operand_str:      size = 2; break;
+        case MVM_operand_str:      size = 4; break;
         case MVM_operand_ins:      size = 4; break;
 
         case MVM_operand_obj:
@@ -200,7 +225,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
         }
 
         case MVM_operand_str: {
-            MVMuint16 index = GET_UI16(val->cur_op, 0);
+            MVMuint32 index = GET_UI32(val->cur_op, 0);
             MVMuint32 count = val->cu->body.num_strings;
             if (index >= count)
                 fail(val, MSG(val, "string index %" PRIu16
@@ -304,7 +329,7 @@ static void validate_operand(Validator *val, MVMuint32 flags) {
 
 
 static void validate_operands(Validator *val) {
-    MVMuint8 *operands = val->cur_info->operands;
+    const MVMuint8 *operands = val->cur_info->operands;
 
     val->reg_type_var = 0;
 

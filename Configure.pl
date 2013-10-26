@@ -7,6 +7,7 @@ use warnings;
 use Config;
 use Getopt::Long;
 use Pod::Usage;
+use Cwd qw/abs_path/;
 
 use build::setup;
 use build::auto;
@@ -66,7 +67,7 @@ $config{name}   = $NAME;
 $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 
-$config{prefix} = $args{prefix} // '.';
+$config{prefix} = abs_path($args{prefix} // '.');
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -76,6 +77,23 @@ for (keys %defaults) {
     next if /^-/;
     $config{$_} //= $defaults{$_};
 }
+
+my $VERSION = '0.0-0';
+# get version
+if (open(my $fh, '<', 'VERSION')) {
+    $VERSION = <$fh>;
+    close($fh);
+}
+# .git is a file and not a directory in submodule
+if (-e '.git' && open(my $GIT, '-|', "git describe --tags")) {
+    $VERSION = <$GIT>;
+    close($GIT);
+}
+chomp $VERSION;
+$config{version}      = $VERSION;
+$config{versionmajor} = $VERSION =~ /^(\d+)/ ? $1 : 0;
+$config{versionminor} = $VERSION =~ /^\d+\.(\d+)/ ? $1 : 0;
+$config{versionpatch} = $VERSION =~ /^\d+\.\d+\-(\d+)/ ? $1 : 0;
 
 # misc defaults
 $config{exe}       //= '';
@@ -121,13 +139,15 @@ push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
+push @cflags, $config{ccshared}     if $args{shared};
 $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});
-push @ldflags, $config{ldoptiflags}  if $args{optimize};
-push @ldflags, $config{lddebugflags} if $args{debug};
-push @ldflags, $config{ldinstflags}  if $args{instrument};
+push @ldflags, $config{ldoptiflags}       if $args{optimize};
+push @ldflags, $config{lddebugflags}      if $args{debug};
+push @ldflags, $config{ldinstflags}       if $args{instrument};
+push @ldflags, '-Wl,-rpath,$(PREFIX)/lib' if $args{shared} && $config{os} ne 'win32';
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
@@ -139,6 +159,8 @@ if ($args{shared}) {
     $config{objflags}  = '@ccdef@MVM_BUILD_SHARED @ccshared@';
     $config{mainflags} = '@ccdef@MVM_SHARED';
     $config{moar}      = '@moardll@';
+    $config{moarinst}  = $config{os} eq 'win32' ? 'bin' : 'lib';
+    $config{impinst}   = $config{os} eq 'win32' ? '@moardll@.lib' : '';
     $config{mainlibs}  = '@lddir@. ' .
         sprintf($config{ldimp} // $config{ldusr}, $NAME);
 }
@@ -146,6 +168,8 @@ else {
     $config{objflags}  = '';
     $config{mainflags} = '';
     $config{moar}      = '@moarlib@';
+    $config{moarinst}  = 'lib';
+    $config{impinst}   = '';
     $config{mainlibs}  = '@moarlib@ @thirdpartylibs@ $(LDLIBS)';
 }
 
@@ -241,6 +265,8 @@ $config{thirdpartylibs} = join ' ', @thirdpartylibs;
 my $thirdpartylibs = join "\n" . ' ' x 12, sort @thirdpartylibs;
 
 print "OK\n";
+
+write_backend_config();
 
 # dump 3rdparty libs we need to build
 print "\n", <<TERM, "\n";
@@ -473,6 +499,31 @@ sub softfail {
 sub hardfail {
     softfail(@_);
     die "\nConfiguration PANIC. A Makefile could not be generated.\n";
+}
+
+sub write_backend_config {
+    $config{backendconfig} = '';
+    for my $k (keys %config) {
+        next if $k eq 'backendconfig';
+        my $v = $config{$k};
+        
+        if (ref($v) eq 'ARRAY') {
+            my $i = 0;
+            for (@$v) {
+                $config{backendconfig} .= qq/        add_entry(tc, config, "$k\[$i]", "$_");\n/;
+                $i++;
+            }
+        }
+        elsif (ref($v) eq 'HASH') {
+            # should not be there
+        }
+        else {
+            $v //= '';
+            $v   =~ s/"/\\"/g;
+            $v   =~ s/\n/\\\n/g;
+            $config{backendconfig} .= qq/        add_entry(tc, config, "$k", "$v");\n/;
+        }
+    }
 }
 
 

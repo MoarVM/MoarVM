@@ -86,7 +86,7 @@ our %THIRDPARTY = (
 
 our %SHELLS = (
     posix => {
-        sh  => 'sh',
+        sh  => '/bin/sh',
         cat => 'cat',
         rm  => 'rm -f',
         nul => '/dev/null',
@@ -372,7 +372,7 @@ our %OS_POSIX = (
 our %OS_LINUX = (
     %OS_POSIX,
 
-    syslibs => [ @{$OS_POSIX{syslibs}}, qw( rt ) ],
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( rt dl ) ],
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_LINUX)' },
@@ -412,10 +412,16 @@ our %OS_FREEBSD = (
 our %OS_SOLARIS = (
     %OS_POSIX,
 
-    syslibs => [ qw( socket sendfile nsl pthread m rt ) ],
+    defs     => [ qw( _XOPEN_SOURCE=500 _XOPEN_SOURCE_EXTENDED=1  __EXTENSIONS__=1  _REENTRANT _FILE_OFFSET_BITS=64 ) ],
+    syslibs => [ qw( socket sendfile nsl pthread kstat m rt ) ],
     mknoisy => '',
+    ccmiscflags => '-mt',
 
     -thirdparty => {
+        dc => { %TP_DC,
+	        rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded sun',
+	        clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
+	    },
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
     },
 );

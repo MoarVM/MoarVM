@@ -6,6 +6,12 @@
  * !!!
  */
 
+/* Version information. */
+#define MVM_VERSION "@version@"
+#define MVM_VERSION_MAJOR @versionmajor@
+#define MVM_VERSION_MINOR @versionminor@
+#define MVM_VERSION_PATCH @versionpatch@
+
 /* Various compiler-specific pragmii. */
 #define MVM_NO_RETURN @noreturnspecifier@
 #define MVM_NO_RETURN_GCC @noreturnattribute@

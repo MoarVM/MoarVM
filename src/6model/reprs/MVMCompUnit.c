@@ -46,6 +46,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &body->coderefs[i]);
     }
 
+    /* Add extop names to the worklist. */
+    for (i = 0; i < body->num_extops; i++)
+        MVM_gc_worklist_add(tc, worklist, &body->extops[i].name);
+
     /* Add strings to the worklists. */
     for (i = 0; i < body->num_strings; i++)
         MVM_gc_worklist_add(tc, worklist, &body->strings[i]);
@@ -72,6 +76,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     body->load_frame = NULL;
     body->deserialize_frame = NULL;
     MVM_checked_free_null(body->callsites);
+    MVM_checked_free_null(body->extops);
     MVM_checked_free_null(body->strings);
     MVM_checked_free_null(body->scs);
     MVM_checked_free_null(body->scs_to_resolve);

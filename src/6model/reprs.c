@@ -212,6 +212,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(Exception);
     register_core_repr(StaticFrame);
     register_core_repr(CompUnit);
+    register_core_repr(DLLSym);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }
