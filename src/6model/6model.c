@@ -17,12 +17,17 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
 /* Locates a method by name. Returns the method if it exists, or throws an
  * exception if it can not be found. */
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
-    MVMObject *HOW, *find_method, *code;
+    MVMObject *cache, *HOW, *find_method, *code;
+    
+    if (!obj)
+        MVM_exception_throw_adhoc(tc,
+            "Cannot call method '%s' on a null object",
+             MVM_string_utf8_encode_C_string(tc, name));
 
     /* First try to find it in the cache. If we find it, we have a result.
      * If we don't find it, but the cache is authoritative, this is also a
      * good enough result. */
-    MVMObject *cache = STABLE(obj)->method_cache;
+    cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
         if (meth || STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
@@ -38,7 +43,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
         tc->instance->str_consts.find_method);
     if (find_method == NULL)
         MVM_exception_throw_adhoc(tc,
-            "Cannot find method %s: no method cache and no .^find_method",
+            "Cannot find method '%s': no method cache and no .^find_method",
              MVM_string_utf8_encode_C_string(tc, name));
 
     /* Set up the call, using the result register as the target. */
