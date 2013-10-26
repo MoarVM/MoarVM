@@ -503,7 +503,7 @@ static const void * const LABELS[] = {
     &&OP_readline_fh,
     &&OP_readlineint_fh,
     &&OP_chdir,
-    &&OP_seed,
+    &&OP_srand,
     &&OP_rand_i,
     &&OP_rand_n,
     &&OP_time_i,
