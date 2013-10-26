@@ -507,7 +507,7 @@ struct MVMREPROps {
 #define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))
 
 /* Some functions related to 6model core functionality. */
-MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
+void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
 MVMint64 MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
 MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type);

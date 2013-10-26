@@ -30,6 +30,7 @@ struct MVMStringConsts {
     MVMString *empty;
     MVMString *Str;
     MVMString *Num;
+    MVMString *find_method;
 };
 
 struct MVMReprRegistry {
