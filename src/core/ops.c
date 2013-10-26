@@ -3521,8 +3521,8 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_seed,
-        "seed",
+        MVM_OP_srand,
+        "srand",
         "  ",
         1,
         { MVM_operand_read_reg | MVM_operand_int64 }

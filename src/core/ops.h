@@ -503,7 +503,7 @@
 #define MVM_OP_readline_fh 499
 #define MVM_OP_readlineint_fh 500
 #define MVM_OP_chdir 501
-#define MVM_OP_seed 502
+#define MVM_OP_srand 502
 #define MVM_OP_rand_i 503
 #define MVM_OP_rand_n 504
 #define MVM_OP_time_i 505
