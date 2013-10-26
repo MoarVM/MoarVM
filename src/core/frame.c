@@ -544,6 +544,8 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
 }
 
 MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
+    if (!code)
+        MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
         MVMInvocationSpec *is = STABLE(code)->invocation_spec;
         if (!is) {

@@ -106,6 +106,9 @@ static void string_consts(MVMThreadContext *tc) {
 
     instance->str_consts.Num = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Num");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.Num);
+
+    instance->str_consts.find_method = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "find_method");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.find_method);
 }
 
 /* This callback is passed to the interpreter code. It takes care of making

@@ -576,7 +576,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         ws->current_operand_idx = 0;
 
         /* Ensure argument count matches up. */
-        if (ELEMS(vm, o->operands) != info->num_operands) {
+        if (info->num_operands != 0 && ELEMS(vm, o->operands) != info->num_operands) {
             unsigned int  current_frame_idx = ws->current_frame_idx;
             unsigned int  current_ins_idx = ws->current_ins_idx;
             const char *name = ws->current_op_info->name;

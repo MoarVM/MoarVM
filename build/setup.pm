@@ -121,7 +121,7 @@ our %TC_POSIX = (
     ldimp => undef,
 
     ccshared => '-fPIC',
-    ldshared => '-shared @ccshared@',
+    ldshared => '-shared -Wl,-rpath,$(PREFIX)/lib @ccshared@',
 
     arflags => 'rcs',
     arout   => '',
@@ -132,6 +132,12 @@ our %TC_POSIX = (
     obj => '.o',
     lib => 'lib%s.a',
     dll => 'lib%s.so',
+
+    shareddir => 'lib',
+    sharedlib => '',
+
+    staticdir => 'lib',
+    staticlib => '',
 
     -auxfiles => [],
 );
@@ -204,6 +210,12 @@ TERM
     obj => '.obj',
     lib => '%s.lib',
     dll => '%s.dll',
+
+    shareddir => 'bin',
+    sharedlib => '@moardll@.lib',
+
+    staticdir => 'lib',
+    staticlib => '',
 
     -auxfiles => [ qw( @name@.ilk @name@.pdb @moardll@.lib @moardll@.exp vc100.pdb ) ],
 
@@ -436,7 +448,7 @@ our %OS_DARWIN = (
     dll => 'lib%s.dylib',
 
     ccshared => '',
-    ldshared => '-dynamiclib',
+    ldshared => '-dynamiclib -Wl,-rpath,$(PREFIX)/lib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },

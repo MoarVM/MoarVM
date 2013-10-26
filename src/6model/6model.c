@@ -1,5 +1,11 @@
 #include "moar.h"
 
+/* Dummy callsite for find_method. */
+static MVMCallsiteEntry fm_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_STR };
+static MVMCallsite     fm_callsite = { fm_flags, 3, 3, 0 };
+
 /* Locates a method by name, checking in the method cache only. */
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;
@@ -10,29 +16,97 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
 
 /* Locates a method by name. Returns the method if it exists, or throws an
  * exception if it can not be found. */
-MVMObject * MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
-    MVMObject *cache = STABLE(obj)->method_cache;
+void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
+    MVMObject *cache, *HOW, *find_method, *code;
+    
+    if (!obj)
+        MVM_exception_throw_adhoc(tc,
+            "Cannot call method '%s' on a null object",
+             MVM_string_utf8_encode_C_string(tc, name));
+
+    /* First try to find it in the cache. If we find it, we have a result.
+     * If we don't find it, but the cache is authoritative, then error. */
+    cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
-        if (meth)
-            return meth;
-        else
-            MVM_exception_throw_adhoc(tc, "Method %s not found in cache, and late-bound dispatch NYI",
+        if (meth) {
+            res->o = meth;
+            return;
+        }
+        if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE)
+            MVM_exception_throw_adhoc(tc,
+                "Cannot find method '%s'",
                 MVM_string_utf8_encode_C_string(tc, name));
     }
-    else {
-        MVM_exception_throw_adhoc(tc, "Missing method cache; late-bound dispatch NYI");
-    }
+    
+    /* Otherwise, need to call the find_method method. We make the assumption
+     * that the invocant's meta-object's type is composed. */
+    HOW = STABLE(obj)->HOW;
+    find_method = MVM_6model_find_method_cache_only(tc, HOW,
+        tc->instance->str_consts.find_method);
+    if (find_method == NULL)
+        MVM_exception_throw_adhoc(tc,
+            "Cannot find method '%s': no method cache and no .^find_method",
+             MVM_string_utf8_encode_C_string(tc, name));
+
+    /* Set up the call, using the result register as the target. */
+    code = MVM_frame_find_invokee(tc, find_method);
+    tc->cur_frame->return_value   = res;
+    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
+    tc->cur_frame->return_address = *(tc->interp_cur_op);
+    tc->cur_frame->args[0].o = HOW;
+    tc->cur_frame->args[1].o = obj;
+    tc->cur_frame->args[2].s = name;
+    STABLE(code)->invoke(tc, code, &fm_callsite, tc->cur_frame->args);
 }
 
 /* Locates a method by name. Returns 1 if it exists; otherwise 0. */
-MVMint64 MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
-    MVMObject *cache = STABLE(obj)->method_cache;
+void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
+void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
+    MVMObject *cache, *HOW, *find_method, *code;
+    
+    /* First consider method cache. */
+    cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
-        return meth ? 1 : 0;
+        if (meth) {
+            res->i64 = 1;
+            return;
+        }
+        if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
+            res->i64 = 0;
+            return;
+        }
     }
-    return 0;
+    
+    /* If no method in cache and the cache is not authoritative, need to make
+     * a late-bound call to find_method. */
+    HOW = STABLE(obj)->HOW;
+    find_method = MVM_6model_find_method_cache_only(tc, HOW,
+        tc->instance->str_consts.find_method);
+    if (find_method == NULL) {
+        /* This'll count as a "no"... */
+        res->i64 = 0;
+        return;
+    }
+
+    /* Set up the call, using the result register as the target. A little bad
+     * as we're really talking about     */
+    code = MVM_frame_find_invokee(tc, find_method);
+    tc->cur_frame->return_value        = res;
+    tc->cur_frame->return_type         = MVM_RETURN_OBJ;
+    tc->cur_frame->return_address      = *(tc->interp_cur_op);
+    tc->cur_frame->special_return      = late_bound_can_return;
+    tc->cur_frame->special_return_data = res;
+    tc->cur_frame->args[0].o = HOW;
+    tc->cur_frame->args[1].o = obj;
+    tc->cur_frame->args[2].s = name;
+    STABLE(code)->invoke(tc, code, &fm_callsite, tc->cur_frame->args);
+}
+void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
+    /* Transform to an integer result. */
+    MVMRegister *reg = (MVMRegister *)sr_data;
+    reg->i64 = reg->o && IS_CONCRETE(reg->o) ? 1 : 0;
 }
 
 /* Checks if an object has a given type, using the cache only. */

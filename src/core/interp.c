@@ -1865,30 +1865,40 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = tc->instance->KnowHOW;
                 cur_op += 2;
                 goto NEXT;
-            OP(findmeth):
-                GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
-                    GET_REG(cur_op, 2).o,
-                    cu->body.strings[GET_UI32(cur_op, 4)]);
+            OP(findmeth): {
+                /* Increment PC first, as we may make a method call. */
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *obj  = GET_REG(cur_op, 2).o;
+                MVMString   *name = cu->body.strings[GET_UI32(cur_op, 4)];
                 cur_op += 8;
+                MVM_6model_find_method(tc, obj, name, res);
                 goto NEXT;
-            OP(findmeth_s):
-                GET_REG(cur_op, 0).o = MVM_6model_find_method(tc,
-                    GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).s);
+            }
+            OP(findmeth_s):  {
+                /* Increment PC first, as we may make a method call. */
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *obj  = GET_REG(cur_op, 2).o;
+                MVMString   *name = GET_REG(cur_op, 4).s;
                 cur_op += 6;
+                MVM_6model_find_method(tc, obj, name, res);
                 goto NEXT;
+            }
             OP(can): {
-                GET_REG(cur_op, 0).i64 = MVM_6model_can_method(tc,
-                    GET_REG(cur_op, 2).o,
-                    cu->body.strings[GET_UI32(cur_op, 4)]) ? 1 : 0;
+                /* Increment PC first, as we may make a method call. */
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *obj  = GET_REG(cur_op, 2).o;
+                MVMString   *name = cu->body.strings[GET_UI32(cur_op, 4)];
                 cur_op += 8;
+                MVM_6model_can_method(tc, obj, name, res);
                 goto NEXT;
             }
             OP(can_s): {
-                GET_REG(cur_op, 0).i64 = MVM_6model_can_method(tc,
-                    GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).s) ? 1 : 0;
+                /* Increment PC first, as we may make a method call. */
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *obj  = GET_REG(cur_op, 2).o;
+                MVMString   *name = GET_REG(cur_op, 4).s;
                 cur_op += 6;
+                MVM_6model_can_method(tc, obj, name, res);
                 goto NEXT;
             }
             OP(create): {
