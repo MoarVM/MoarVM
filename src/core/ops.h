@@ -523,13 +523,14 @@
 #define MVM_OP_loadext 519
 #define MVM_OP_backendconfig 520
 #define MVM_OP_getlexouter 521
-#define MVM_OP_bitand_s 522
-#define MVM_OP_bitor_s 523
-#define MVM_OP_bitxor_s 524
-#define MVM_OP_isnanorinf 525
-#define MVM_OP_inf 526
-#define MVM_OP_neginf 527
-#define MVM_OP_nan 528
+#define MVM_OP_getlexrel 522
+#define MVM_OP_bitand_s 523
+#define MVM_OP_bitor_s 524
+#define MVM_OP_bitxor_s 525
+#define MVM_OP_isnanorinf 526
+#define MVM_OP_inf 527
+#define MVM_OP_neginf 528
+#define MVM_OP_nan 529
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
