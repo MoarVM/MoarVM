@@ -524,7 +524,10 @@ BEGIN {
     1241,
     1242,
     1244,
-    1245);
+    1245,
+    1247,
+    1250,
+    1253);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1046,7 +1049,10 @@ BEGIN {
     1,
     2,
     1,
-    2);
+    2,
+    3,
+    3,
+    3);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -2293,6 +2299,15 @@ BEGIN {
     57,
     66,
     66,
+    57,
+    58,
+    57,
+    57,
+    58,
+    57,
+    57,
+    58,
+    57,
     57);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
@@ -2815,7 +2830,10 @@ BEGIN {
     'dropsym', 518,
     'loadext', 519,
     'backendconfig', 520,
-    'getlexouter', 521);
+    'getlexouter', 521,
+    'bitand_s', 522,
+    'bitor_s', 523,
+    'bitxor_s', 524);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3337,5 +3355,8 @@ BEGIN {
     'dropsym',
     'loadext',
     'backendconfig',
-    'getlexouter');
+    'getlexouter',
+    'bitand_s',
+    'bitor_s',
+    'bitxor_s');
 }

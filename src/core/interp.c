@@ -3590,6 +3590,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s, tc->cur_frame->outer)->o;
                 cur_op += 4;
                 goto NEXT;
+            OP(bitand_s):
+                GET_REG(cur_op, 0).s = MVM_string_bitand(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
+            OP(bitor_s):
+                GET_REG(cur_op, 0).s = MVM_string_bitor(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
+            OP(bitxor_s):
+                GET_REG(cur_op, 0).s = MVM_string_bitxor(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

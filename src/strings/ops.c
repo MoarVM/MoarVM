@@ -1139,6 +1139,95 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
                           0 ;
 }
 
+/* Takes two strings and AND's their charaters. */
+MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMString         *res = NULL;
+    MVMStringIndex    alen = NUM_GRAPHS(a);
+    MVMStringIndex    blen = NUM_GRAPHS(b);
+    MVMStringIndex sgraphs = (alen > blen ? alen : blen);
+    MVMCodepoint32 *buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
+    MVMStringIndex i, scanlen;
+
+    /* First, binary-and up to the length of the shortest string. */
+    scanlen = alen > blen ? blen : alen;
+    for (i = 0; i < scanlen; i++)
+        buffer[i] = (MVM_string_get_codepoint_at_nocheck(tc, a, i)
+                   & MVM_string_get_codepoint_at_nocheck(tc, b, i));
+
+    /* Second pass, fill with zeros. */
+    for (; i < sgraphs; i++)
+        buffer[i] = 0;
+
+    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    res->body.flags = MVM_STRING_TYPE_INT32;
+    res->body.graphs = sgraphs;
+    res->body.int32s = buffer;
+
+    return res;
+}
+
+/* Takes two strings and OR's their charaters. */
+MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMString         *res = NULL;
+    MVMStringIndex    alen = NUM_GRAPHS(a);
+    MVMStringIndex    blen = NUM_GRAPHS(b);
+    MVMStringIndex sgraphs = (alen > blen ? alen : blen);
+    MVMCodepoint32 *buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
+    MVMStringIndex i, scanlen;
+
+    /* First, binary-or up to the length of the shortest string. */
+    scanlen = alen > blen ? blen : alen;
+    for (i = 0; i < scanlen; i++)
+        buffer[i] = (MVM_string_get_codepoint_at_nocheck(tc, a, i)
+                   | MVM_string_get_codepoint_at_nocheck(tc, b, i));
+
+    /* Second pass, fill with characters of the longest string. */
+    if (alen > blen)
+        for (; i < sgraphs; i++)
+            buffer[i] = MVM_string_get_codepoint_at_nocheck(tc, a, i);
+    else
+        for (; i < sgraphs; i++)
+            buffer[i] = MVM_string_get_codepoint_at_nocheck(tc, b, i);
+
+    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    res->body.flags = MVM_STRING_TYPE_INT32;
+    res->body.graphs = sgraphs;
+    res->body.int32s = buffer;
+
+    return res;
+}
+
+/* Takes two strings and XOR's their charaters. */
+MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMString         *res = NULL;
+    MVMStringIndex    alen = NUM_GRAPHS(a);
+    MVMStringIndex    blen = NUM_GRAPHS(b);
+    MVMStringIndex sgraphs = (alen > blen ? alen : blen);
+    MVMCodepoint32 *buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
+    MVMStringIndex i, scanlen;
+
+    /* First, binary-xor up to the length of the shorter string. */
+    scanlen = alen > blen ? blen : alen;
+    for (i = 0; i < scanlen; i++)
+        buffer[i] = (MVM_string_get_codepoint_at_nocheck(tc, a, i)
+                   ^ MVM_string_get_codepoint_at_nocheck(tc, b, i));
+
+    /* Second pass, fill with negated characters of the longest string. */
+    if (alen > blen)
+        for (; i < sgraphs; i++)
+            buffer[i] = ~MVM_string_get_codepoint_at_nocheck(tc, a, i);
+    else
+        for (; i < sgraphs; i++)
+            buffer[i] = ~MVM_string_get_codepoint_at_nocheck(tc, b, i);
+
+    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    res->body.flags = MVM_STRING_TYPE_INT32;
+    res->body.graphs = sgraphs;
+    res->body.int32s = buffer;
+
+    return res;
+}
+
 /* The following statics hold on to various unicode property values we will
  * resolve once so we don't have to do it repeatedly. */
 static MVMint64 UPV_Nd = 0;
