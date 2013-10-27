@@ -123,6 +123,7 @@ OBJECTS = src/core/args@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
           src/math/bigintops@obj@ \
+          src/math/num@obj@ \
           src/moar@obj@ \
           @platform@
 
@@ -200,6 +201,7 @@ HEADERS = src/moar.h \
           src/strings/latin1.h \
           src/strings/utf16.h \
           src/math/bigintops.h \
+          src/math/num.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \

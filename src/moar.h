@@ -94,6 +94,7 @@ typedef double   MVMnum64;
 #include "io/dirops.h"
 #include "io/procops.h"
 #include "math/bigintops.h"
+#include "math/num.h"
 #include "mast/driver.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);

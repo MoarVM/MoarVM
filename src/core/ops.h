@@ -526,6 +526,10 @@
 #define MVM_OP_bitand_s 522
 #define MVM_OP_bitor_s 523
 #define MVM_OP_bitxor_s 524
+#define MVM_OP_isnanorinf 525
+#define MVM_OP_inf 526
+#define MVM_OP_neginf 527
+#define MVM_OP_nan 528
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
