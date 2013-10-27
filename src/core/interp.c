@@ -3610,6 +3610,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(getlexrelcaller): {
+                MVMObject *ctx  = GET_REG(cur_op, 2).o;
+                if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
+                    MVM_exception_throw_adhoc(tc, "getlexrelcaller needs a context");
+                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel_caller(tc,
+                        GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context)->o;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(bitand_s):
                 GET_REG(cur_op, 0).s = MVM_string_bitand(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
