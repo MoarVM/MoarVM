@@ -29,7 +29,7 @@ const double MVM_NUM_NAN = 0.0 / 0.0;
 #endif
 
 MVMint64 MVM_num_isnanorinf(MVMThreadContext *tc, MVMnum64 n) {
-    return n == MVM_NUM_POSINF || n == MVM_NUM_NEGINF || n == MVM_NUM_NAN;
+    return n == MVM_NUM_POSINF || n == MVM_NUM_NEGINF || n != n;
 }
 
 MVMnum64 MVM_num_posinf(MVMThreadContext *tc) {

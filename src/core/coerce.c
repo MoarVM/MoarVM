@@ -152,7 +152,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     else if (n == MVM_num_neginf(tc)) {
         return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "-Inf");
     }
-    else if (n == MVM_num_nan(tc)) {
+    else if (n != n) {
         return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
     }
     else {
