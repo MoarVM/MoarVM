@@ -66,6 +66,7 @@ OBJECTS = src/core/args@obj@ \
           src/core/ops@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
+          src/math/num@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
@@ -123,7 +124,6 @@ OBJECTS = src/core/args@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
           src/math/bigintops@obj@ \
-          src/math/num@obj@ \
           src/moar@obj@ \
           @platform@
 
@@ -145,6 +145,7 @@ HEADERS = src/moar.h \
           src/core/threads.h \
           src/core/hll.h \
           src/core/loadbytecode.h \
+          src/math/num.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \
@@ -201,7 +202,6 @@ HEADERS = src/moar.h \
           src/strings/latin1.h \
           src/strings/utf16.h \
           src/math/bigintops.h \
-          src/math/num.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \
