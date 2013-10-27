@@ -772,12 +772,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getdynlex): {
-                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
+                        tc->cur_frame->caller);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(binddynlex): {
-                MVM_frame_binddynlex(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).o);
+                MVM_frame_binddynlex(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).o,
+                        tc->cur_frame->caller);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3596,6 +3598,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "getlexrel needs a context");
                 GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel(tc,
                     GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context)->o;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(getlexreldyn): {
+                MVMObject *ctx  = GET_REG(cur_op, 2).o;
+                if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
+                    MVM_exception_throw_adhoc(tc, "getlexreldyn needs a context");
+                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 4).s,
+                        ((MVMContext *)ctx)->body.context);
                 cur_op += 6;
                 goto NEXT;
             }

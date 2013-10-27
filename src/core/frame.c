@@ -424,8 +424,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
 
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type) {
-    MVMFrame *cur_frame = tc->cur_frame->caller;
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame) {
     if (!name) {
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     }
@@ -447,9 +446,9 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     return NULL;
 }
 
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
+MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
         switch (type) {
@@ -499,9 +498,9 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name) {
     return result;
 }
 
-void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value) {
+void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame);
     if (!lex_reg) {
         MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
             MVM_string_utf8_encode_C_string(tc, name));
