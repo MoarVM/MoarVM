@@ -3660,9 +3660,58 @@ static MVMOpInfo MVM_op_infos[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_bitand_s,
+        "bitand_s",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_bitor_s,
+        "bitor_s",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_bitxor_s,
+        "bitxor_s",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_isnanorinf,
+        "isnanorinf",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_inf,
+        "inf",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_neginf,
+        "neginf",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_num64 }
+    },
+    {
+        MVM_OP_nan,
+        "nan",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_num64 }
+    },
 };
 
-static unsigned short MVM_op_counts = 522;
+static unsigned short MVM_op_counts = 529;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

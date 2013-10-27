@@ -66,6 +66,7 @@ typedef double   MVMnum64;
 #include "core/threads.h"
 #include "core/hll.h"
 #include "core/loadbytecode.h"
+#include "math/num.h"
 #include "core/coerce.h"
 #include "core/dll.h"
 #include "core/ext.h"

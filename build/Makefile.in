@@ -66,6 +66,7 @@ OBJECTS = src/core/args@obj@ \
           src/core/ops@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
+          src/math/num@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
@@ -144,6 +145,7 @@ HEADERS = src/moar.h \
           src/core/threads.h \
           src/core/hll.h \
           src/core/loadbytecode.h \
+          src/math/num.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \

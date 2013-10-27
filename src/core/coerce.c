@@ -146,18 +146,29 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
-    char buf[21];
-    int i;
-    if (sprintf(buf, "%-15f", n) < 0)
-        MVM_exception_throw_adhoc(tc, "Could not stringify number");
-    if (strstr(buf, ".")) {
-        i = strlen(buf);
-        while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
-            buf[i] = '\0';
-        if (buf[i] == '.')
-            buf[i] = '\0';
+    if (n == MVM_num_posinf(tc)) {
+        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Inf");
     }
-    return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
+    else if (n == MVM_num_neginf(tc)) {
+        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "-Inf");
+    }
+    else if (n != n) {
+        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
+    }
+    else {
+        char buf[21];
+        int i;
+        if (sprintf(buf, "%-15f", n) < 0)
+            MVM_exception_throw_adhoc(tc, "Could not stringify number");
+        if (strstr(buf, ".")) {
+            i = strlen(buf);
+            while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
+                buf[i] = '\0';
+            if (buf[i] == '.')
+                buf[i] = '\0';
+        }
+        return MVM_string_ascii_decode(tc, tc->instance->VMString, buf, strlen(buf));
+    }
 }
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
