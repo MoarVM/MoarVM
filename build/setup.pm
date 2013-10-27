@@ -121,7 +121,8 @@ our %TC_POSIX = (
     ldimp => undef,
 
     ccshared => '-fPIC',
-    ldshared => '-shared -Wl,-rpath,$(PREFIX)/lib @ccshared@',
+    ldshared => '-shared @ccshared@',
+    ldrpath  => '-Wl,-rpath,$(PREFIX)/lib',
 
     arflags => 'rcs',
     arout   => '',
@@ -193,6 +194,7 @@ our %TC_MSVC = (
 
     ccshared => '',
     ldshared => '/dll /implib:@moardll@.lib',
+    ldrpath  => '',
 
     arflags => '/nologo',
     arout   => '/out:',
@@ -363,6 +365,7 @@ our %OS_MINGW32 = (
 
     ccshared => '',
     ldshared => '-shared -Wl,--out-implib,lib$@.a',
+    ldrpath  => '',
 
     -thirdparty => {
         %{$OS_WIN32{-thirdparty}},
@@ -448,7 +451,8 @@ our %OS_DARWIN = (
     dll => 'lib%s.dylib',
 
     ccshared => '',
-    ldshared => '-dynamiclib -Wl,-rpath,$(PREFIX)/lib',
+    ldshared => '-dynamiclib',
+    ldrpath  => '-Wl,-rpath,$(PREFIX)/lib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },

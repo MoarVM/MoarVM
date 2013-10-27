@@ -147,6 +147,7 @@ my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}       if $args{optimize};
 push @ldflags, $config{lddebugflags}      if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
+push @ldflags, $config{ldrpath}           unless $args{static};
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
