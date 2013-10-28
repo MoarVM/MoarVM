@@ -19,4 +19,4 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref)); \
     block \
     MVM_gc_root_temp_pop(tc); \
- } while(0)
+ } while (0)
