@@ -48,9 +48,17 @@ MVM_PUBLIC MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, M
 #define MVM_repr_at_key_str(tc, obj, key) \
     MVM_repr_get_str((tc), MVM_repr_at_key_boxed((tc), (obj), (key)))
 
-#define MVM_repr_bind_key_int(tc, obj, key, val) \
-    MVM_repr_bind_key_boxed((tc), (obj), (key), MVM_repr_box_int((tc), (*((tc)->interp_cu))->body.hll_config->int_box_type, (val)))
-#define MVM_repr_bind_key_num(tc, obj, key, val) \
-    MVM_repr_bind_key_boxed((tc), (obj), (key), MVM_repr_box_num((tc), (*((tc)->interp_cu))->body.hll_config->num_box_type, (val)))
-#define MVM_repr_bind_key_str(tc, obj, key, val) \
-    MVM_repr_bind_key_boxed((tc), (obj), (key), MVM_repr_box_str((tc), (*((tc)->interp_cu))->body.hll_config->str_box_type, (val)))
+#define MVM_repr_bind_key_int(tc, obj, key, val) do { \
+    MVMObject *boxed = MVM_repr_box_int((tc), (*((tc)->interp_cu))->body.hll_config->int_box_type, (val)); \
+    MVM_repr_bind_key_boxed((tc), (obj), (key), boxed); \
+} while (0)
+
+#define MVM_repr_bind_key_num(tc, obj, key, val) do {\
+    MVMObject *boxed = MVM_repr_box_int((tc), (*((tc)->interp_cu))->body.hll_config->num_box_type, (val)); \
+    MVM_repr_bind_key_boxed((tc), (obj), (key), boxed); \
+} while (0)
+
+#define MVM_repr_bind_key_str(tc, obj, key, val) do {\
+    MVMObject *boxed = MVM_repr_box_int((tc), (*((tc)->interp_cu))->body.hll_config->str_box_type, (val)); \
+    MVM_repr_bind_key_boxed((tc), (obj), (key), boxed); \
+} while (0)
