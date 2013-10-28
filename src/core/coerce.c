@@ -345,9 +345,12 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     MVMROOT(tc, result, {
         MVMObject *box_type = MVM_hll_current(tc)->num_box_type;
         MVMROOT(tc, box_type, {
-            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, value));
-            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, base));
-            MVM_repr_push_o(tc, result, MVM_repr_box_num(tc, box_type, pos));
+            MVMObject *boxed = MVM_repr_box_num(tc, box_type, value);
+            MVM_repr_push_o(tc, result, boxed);
+            boxed = MVM_repr_box_num(tc, box_type, base);
+            MVM_repr_push_o(tc, result, boxed);
+            boxed = MVM_repr_box_num(tc, box_type, pos);
+            MVM_repr_push_o(tc, result, boxed);
         });
     });
 
