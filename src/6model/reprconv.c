@@ -209,7 +209,10 @@ MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 val
 }
 
 MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val) {
-    MVMObject *res = MVM_repr_alloc_init(tc, type);
-    MVM_repr_set_str(tc, res, val);
+    MVMObject *res;
+    MVMROOT(tc, val, {
+        res = MVM_repr_alloc_init(tc, type);
+        MVM_repr_set_str(tc, res, val);
+    });
     return res;
 }
