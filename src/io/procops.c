@@ -212,15 +212,19 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             MVMString *prog_string = MVM_string_utf8_decode(tc,
                 instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
-            MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
-                instance->boot_types.BOOTStr, prog_string));
+
+            MVMObject *boxed_str = MVM_repr_box_str(tc,
+                instance->boot_types.BOOTStr, prog_string);
+
+            MVM_repr_push_o(tc, clargs, boxed_str);
 
             for (count = 0; count < num_clargs; count++) {
                 char *raw_clarg = instance->raw_clargs[count];
                 MVMString *string = MVM_string_utf8_decode(tc,
                     instance->VMString, raw_clarg, strlen(raw_clarg));
-                MVM_repr_push_o(tc, clargs, MVM_repr_box_str(tc,
-                    instance->boot_types.BOOTStr, string));
+                boxed_str = MVM_repr_box_str(tc,
+                    instance->boot_types.BOOTStr, string);
+                MVM_repr_push_o(tc, clargs, boxed_str);
             }
         });
 
