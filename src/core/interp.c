@@ -3619,6 +3619,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(getlexcaller):
+                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel_caller(tc,
+                        GET_REG(cur_op, 2).s, tc->cur_frame->caller)->o;
+                cur_op += 4;
+                goto NEXT;
             OP(bitand_s):
                 GET_REG(cur_op, 0).s = MVM_string_bitand(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
