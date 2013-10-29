@@ -592,6 +592,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         /* Allocate default lexical environment storage. */
         static_frame_body->env_size = static_frame_body->num_lexicals * sizeof(MVMRegister);
         static_frame_body->static_env = calloc(1, static_frame_body->env_size);
+        static_frame_body->static_env_flags = calloc(1, static_frame_body->num_lexicals);
     }
 
     /* Fixup outers. */

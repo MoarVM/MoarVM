@@ -21,6 +21,9 @@ struct MVMStaticFrameBody {
     /* Defaults for lexicals upon new frame creation. */
     MVMRegister *static_env;
 
+    /* Flags for static environment (0 = static, 1 = clone, 2 = state). */
+    MVMuint8 *static_env_flags;
+
     /* Flag for if this frame has been invoked ever. */
     MVMuint32 invoked;
 
