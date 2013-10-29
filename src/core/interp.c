@@ -3192,8 +3192,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_proc_time_n(tc);
                 cur_op += 2;
                 goto NEXT;
-            OP(exit):
-                exit(GET_REG(cur_op, 2).i64);
+            OP(exit): {
+                MVMint64 exit_code = GET_REG(cur_op, 2).i64;
+                MVM_vm_destroy_instance(tc->instance);
+                exit(exit_code);
+            }
             OP(loadbytecode): {
                 /* This op will end up returning into the runloop to run
                  * deserialization and load code, so make sure we're done
