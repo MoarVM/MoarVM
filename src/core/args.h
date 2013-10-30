@@ -47,6 +47,10 @@ struct MVMCallsite {
     MVMuint8 has_flattening;
 };
 
+/* Minimum callsite size is due to certain things internally expecting us to
+ * have that many slots available (e.g. find_method(how, obj, name)). */
+#define MVM_MIN_CALLSITE_SIZE 3
+
 /* Argument processing context. */
 /* adding these additional fields to MVMFrame adds only 12 bytes
  * (arg_flags, arg_count, and num_pos). */

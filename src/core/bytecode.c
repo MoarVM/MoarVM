@@ -592,6 +592,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         /* Allocate default lexical environment storage. */
         static_frame_body->env_size = static_frame_body->num_lexicals * sizeof(MVMRegister);
         static_frame_body->static_env = calloc(1, static_frame_body->env_size);
+        static_frame_body->static_env_flags = calloc(1, static_frame_body->num_lexicals);
     }
 
     /* Fixup outers. */
@@ -728,7 +729,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     create_code_objects(tc, cu);
 
     /* Load callsites. */
-    cu_body->max_callsite_size = 0;
+    cu_body->max_callsite_size = MVM_MIN_CALLSITE_SIZE;
     cu_body->callsites = deserialize_callsites(tc, cu, rs);
     cu_body->num_callsites = rs->expected_callsites;
 

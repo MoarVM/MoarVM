@@ -856,8 +856,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *name = cu->body.strings[GET_UI32(cur_op, 2)];
                 MVMObject *val  = GET_REG(cur_op, 6).o;
                 MVMint16   flag = GET_I16(cur_op, 8);
-                if (flag)
-                    MVM_exception_throw_adhoc(tc, "setlexvalue only handles static case so far");
+                if (flag < 0 || flag > 2)
+                    MVM_exception_throw_adhoc(tc, "setlexvalue provided with invalid flag");
                 if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
                     MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
                     MVMuint8 found = 0;
@@ -867,6 +867,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
                         if (entry && sf->body.lexical_types[entry->value] == MVM_reg_obj) {
                             MVM_ASSIGN_REF(tc, sf, sf->body.static_env[entry->value].o, val);
+                            sf->body.static_env_flags[entry->value] = (MVMuint8)flag;
                             found = 1;
                         }
                     }
@@ -3191,8 +3192,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_proc_time_n(tc);
                 cur_op += 2;
                 goto NEXT;
-            OP(exit):
-                exit(GET_REG(cur_op, 2).i64);
+            OP(exit): {
+                MVMint64 exit_code = GET_REG(cur_op, 2).i64;
+                MVM_vm_destroy_instance(tc->instance);
+                exit(exit_code);
+            }
             OP(loadbytecode): {
                 /* This op will end up returning into the runloop to run
                  * deserialization and load code, so make sure we're done

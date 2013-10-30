@@ -77,6 +77,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
         dest_body->static_env = malloc(src_body->env_size);
         memcpy(dest_body->static_env, src_body->static_env, src_body->env_size);
+        dest_body->static_env_flags = malloc(src_body->num_lexicals);
+        memcpy(dest_body->static_env_flags, src_body->static_env_flags, src_body->num_lexicals);
 
         for (i = 0; i < count; i++) {
             if (type_map[i] == MVM_reg_str) {
@@ -136,6 +138,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrameBody *body = &sf->body;
     MVM_checked_free_null(body->handlers);
     MVM_checked_free_null(body->static_env);
+    MVM_checked_free_null(body->static_env_flags);
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
