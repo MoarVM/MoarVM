@@ -534,7 +534,7 @@ static const void * const LABELS[] = {
     &&OP_inf,
     &&OP_neginf,
     &&OP_nan,
-    NULL,
+    &&OP_getpid,
     NULL,
     NULL,
     NULL,

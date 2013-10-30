@@ -3737,9 +3737,16 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_num64 }
     },
+    {
+        MVM_OP_getpid,
+        "getpid",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_int64 }
+    },
 };
 
-static unsigned short MVM_op_counts = 533;
+static unsigned short MVM_op_counts = 534;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

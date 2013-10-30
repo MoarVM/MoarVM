@@ -3659,6 +3659,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_num_nan(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(getpid):
+                GET_REG(cur_op, 0).i64 = MVM_proc_getpid(tc);
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

@@ -10,12 +10,15 @@
 /* MSVC compilers know about environ,
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
 #ifndef _WIN32
+#include <unistd.h>
 #  ifdef __APPLE_CC__
 #    include <crt_externs.h>
 #    define environ (*_NSGetEnviron())
 #  else
 extern char **environ;
 #  endif
+#else
+#  include <process.h>
 #endif
 
 #ifdef _WIN32
@@ -172,6 +175,14 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
     free(_env);
     return result;
+}
+
+MVMint64 MVM_proc_getpid(MVMThreadContext *tc) {
+#ifdef _WIN32
+    return _getpid();
+#else
+    return getpid();
+#endif
 }
 
 /* generates a random int64 */
