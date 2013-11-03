@@ -535,6 +535,7 @@
 #define MVM_OP_neginf 531
 #define MVM_OP_nan 532
 #define MVM_OP_getpid 533
+#define MVM_OP_spawn 534
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

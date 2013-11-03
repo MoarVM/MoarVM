@@ -3744,9 +3744,16 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_spawn,
+        "spawn",
+        "  ",
+        4,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
-static unsigned short MVM_op_counts = 534;
+static unsigned short MVM_op_counts = 535;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
