@@ -109,6 +109,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     MVMint64 result, spawn_result;
     uv_process_t process = {0};
     uv_process_options_t process_options = {0};
+    uv_stdio_container_t process_stdio[3];
     int i;
 
     char   * const     cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
@@ -148,13 +149,20 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
         });
     });
 
-    process.data            = &result;
-    process_options.file    = _cmd;
-    process_options.args    = args;
-    process_options.cwd     = _cwd;
-    process_options.flags   = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
-    process_options.env     = _env;
-    process_options.exit_cb = spawn_on_exit;
+    process.data                = &result;
+    process_stdio[0].flags      = UV_IGNORE;
+    process_stdio[1].flags      = UV_INHERIT_FD;
+    process_stdio[1].data.fd    = 1;
+    process_stdio[2].flags      = UV_INHERIT_FD;
+    process_stdio[2].data.fd    = 2;
+    process_options.stdio       = process_stdio;
+    process_options.file        = _cmd;
+    process_options.args        = args;
+    process_options.cwd         = _cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env         = _env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = spawn_on_exit;
 
     spawn_result = uv_spawn(tc->loop, &process, &process_options);
     if (spawn_result)
