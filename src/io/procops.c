@@ -101,7 +101,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     return env_hash;
 }
 
-#define INIT() do { \
+#define INIT_ENV() do { \
     MVMROOT(tc, iter, { \
         MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("=")); \
         MVMROOT(tc, equal, { \
@@ -118,6 +118,12 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     }); \
 } while (0)
 
+#define FREE_ENV() do { \
+    i = 0;  \
+    while(_env[i]) \
+        free(_env[i++]); \
+    free(_env); \
+} while (0)
 
 #define SPAWN(shell) do { \
     process.data                = &result; \
@@ -139,11 +145,6 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         result = spawn_result; \
     else \
         uv_run(tc->loop, UV_RUN_DEFAULT); \
-    free(_cwd); \
-    i = 0;  \
-    while(_env[i]) \
-        free(_env[i++]); \
-    free(_env); \
 } while (0)
 
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
@@ -180,8 +181,11 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     args[3] = NULL;
 #endif
 
-    INIT();
+    INIT_ENV();
     SPAWN(_cmd);
+    FREE_ENV();
+
+    free(_cwd);
 
 #ifdef _WIN32
     free(_cmd);
@@ -213,12 +217,16 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     }
     args[arg_size] = NULL;
 
-    INIT();
+    INIT_ENV();
     SPAWN(arg_size ? args[0] : NULL);
+    FREE_ENV();
+
+    free(_cwd);
 
     i = 0;
     while(args[i])
         free(args[i++]);
+
     free(args);
 
     return result;
