@@ -172,6 +172,28 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
     return result;
 }
 
+#ifdef _WIN32
+#define FILE_IS(name, rwx) \
+    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
+        uv_stat_t statbuf = file_info(tc, filename); \
+        MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH); \
+        return r ? 1 : 0; \
+    }
+#else
+#define FILE_IS(name, rwx) \
+    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
+        uv_stat_t statbuf = file_info(tc, filename); \
+        MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH) \
+                  || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_I ## rwx ## USR)) \
+                  || (statbuf.st_uid == getegid() && (statbuf.st_mode & S_I ## rwx ## GRP)); \
+        return r ? 1 : 0; \
+    }
+#endif
+
+FILE_IS(readable, R)
+FILE_IS(writable, W)
+FILE_IS(executable, X)
+
 /* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
     char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
