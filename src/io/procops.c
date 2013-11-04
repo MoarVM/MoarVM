@@ -101,55 +101,93 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     return env_hash;
 }
 
+#define INIT() do { \
+    MVMROOT(tc, iter, { \
+        MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("=")); \
+        MVMROOT(tc, equal, { \
+            MVMString *env_str; \
+            i = 0; \
+            while(MVM_iter_istrue(tc, iter)) { \
+                MVM_repr_shift_o(tc, (MVMObject *)iter); \
+                env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, iter), equal); \
+                env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, MVM_iterval(tc, iter))); \
+                _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str); \
+            } \
+            _env[size] = NULL; \
+        }); \
+    }); \
+} while (0)
+
+
+#define SPAWN(shell) do { \
+    process.data                = &result; \
+    process_stdio[0].flags      = UV_IGNORE; \
+    process_stdio[1].flags      = UV_INHERIT_FD; \
+    process_stdio[1].data.fd    = 1; \
+    process_stdio[2].flags      = UV_INHERIT_FD; \
+    process_stdio[2].data.fd    = 2; \
+    process_options.stdio       = process_stdio; \
+    process_options.file        = shell; \
+    process_options.args        = args; \
+    process_options.cwd         = _cwd; \
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE; \
+    process_options.env         = _env; \
+    process_options.stdio_count = 3; \
+    process_options.exit_cb     = spawn_on_exit; \
+    spawn_result = uv_spawn(tc->loop, &process, &process_options); \
+    if (spawn_result) \
+        result = spawn_result; \
+    else \
+        uv_run(tc->loop, UV_RUN_DEFAULT); \
+    free(_cwd); \
+    i = 0;  \
+    while(_env[i]) \
+        free(_env[i++]); \
+    free(_env); \
+} while (0)
+
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
     *((MVMint64 *)req->data) = exit_status;
     uv_close((uv_handle_t *)req, NULL);
 }
 
-MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd_s, MVMString *cwd, MVMObject *env) {
-    MVMRegister *shell = malloc(sizeof(MVMRegister));
-    MVMRegister *flag  = malloc(sizeof(MVMRegister));
-    MVMRegister *cmd   = malloc(sizeof(MVMRegister));
-    MVMObject   *argv  = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMint64 result;
+MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
+    MVMint64 result, spawn_result;
+    uv_process_t process = {0};
+    uv_process_options_t process_options = {0};
+    uv_stdio_container_t process_stdio[3];
+    int i;
 
-    MVMROOT(tc, argv, {
+    char * const cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
+    char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
+    const MVMuint64 size = MVM_repr_elems(tc, env);
+    MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
+    char **_env = malloc((size + 1) * sizeof(char *));
+
 #ifdef _WIN32
-        const MVMuint16 acp  = GetACP(); /* We should get ACP at runtime. */
-        const char *shell_cs = ANSIToUTF8(acp, getenv("ComSpec"));
-        const char *flag_cs  = "/c";
+    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
+    char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
+    char *args[3];
+    args[0] = "/c";
+    args[1] = cmdin;
+    args[2] = NULL;
 #else
-        const char *shell_cs = "sh";
-        const char *flag_cs  = "-c";
+    char * const _cmd = "/bin/sh";
+    char *args[4];
+    args[0] = "/bin/sh";
+    args[1] = "-c";
+    args[2] = cmdin;
+    args[3] = NULL;
 #endif
-        MVMString *shell_s = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, shell_cs);
-        MVMROOT(tc, shell_s, {
-            MVMObject *boxed = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, shell_s);
-            shell->o = boxed;
-            REPR(argv)->pos_funcs.push(tc, STABLE(argv), argv, OBJECT_BODY(argv), *shell, MVM_reg_obj);
-        });
-        
-        MVMString *flag_s = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, flag_cs);
-        MVMROOT(tc, flag_s, {
-            MVMObject *boxed = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, flag_s);
-            flag->o = boxed;
-            REPR(argv)->pos_funcs.push(tc, STABLE(argv), argv, OBJECT_BODY(argv), *flag, MVM_reg_obj);
-        });
-        
-        MVMObject *boxed = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, cmd_s);
-        cmd->o = boxed;
-        REPR(argv)->pos_funcs.push(tc, STABLE(argv), argv, OBJECT_BODY(argv), *cmd, MVM_reg_obj);
 
-        result = MVM_proc_spawn(tc, argv, cwd, env);
+    INIT();
+    SPAWN(_cmd);
 
 #ifdef _WIN32
-        free(shell_cs);
+    free(_cmd);
 #endif
-        free(shell);
-        free(flag);
-        free(cmd);
-    });
-    
+
+    free(cmdin);
     return result;
 }
 
@@ -161,67 +199,27 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     int i;
 
     char   * const      _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
-    const MVMuint64  envsize = MVM_repr_elems(tc, env);
-    MVMIter * const  enviter = (MVMIter *)MVM_iter(tc, env);
-    char              **_env = malloc((envsize + 1) * sizeof(char *));
-    const MVMuint64  argsize = MVM_repr_elems(tc, argv);
-    char             **_args = malloc((argsize + 1) * sizeof(char *));
-    MVMRegister       argres;
-
-    MVMROOT(tc, enviter, {
-        MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("="));
-        MVMROOT(tc, equal, {
-            MVMString *env_str;
-            i = 0;
-            while(MVM_iter_istrue(tc, enviter)) {
-                MVM_repr_shift_o(tc, (MVMObject *)enviter);
-                env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, enviter), equal);
-                env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, MVM_iterval(tc, enviter)));
-                _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str);
-            }
-            _env[envsize] = NULL;
-        });
-    });
+    const MVMuint64     size = MVM_repr_elems(tc, env);
+    MVMIter * const     iter = (MVMIter *)MVM_iter(tc, env);
+    char              **_env = malloc((size + 1) * sizeof(char *));
+    const MVMuint64  arg_size = MVM_repr_elems(tc, argv);
+    char             **args = malloc((arg_size + 1) * sizeof(char *));
+    MVMRegister        reg;
 
     i = 0;
-    while(i < argsize) {
-        REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &argres, MVM_reg_obj);
-        _args[i++] = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, argres.o));
+    while(i < arg_size) {
+        REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
+        args[i++] = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
     }
-    _args[argsize] = NULL;
+    args[arg_size] = NULL;
 
-    process.data                = &result;
-    process_stdio[0].flags      = UV_IGNORE;
-    process_stdio[1].flags      = UV_INHERIT_FD;
-    process_stdio[1].data.fd    = 1;
-    process_stdio[2].flags      = UV_INHERIT_FD;
-    process_stdio[2].data.fd    = 2;
-    process_options.stdio       = process_stdio;
-    process_options.file        = argsize ? _args[0] : NULL;
-    process_options.args        = _args;
-    process_options.cwd         = _cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
-    process_options.env         = _env;
-    process_options.stdio_count = 3;
-    process_options.exit_cb     = spawn_on_exit;
-
-    spawn_result = uv_spawn(tc->loop, &process, &process_options);
-    if (spawn_result)
-        result = spawn_result;
-    else
-        uv_run(tc->loop, UV_RUN_DEFAULT);
-
-    free(_cwd);
+    INIT();
+    SPAWN(arg_size ? args[0] : NULL);
 
     i = 0;
-    while(_env[i])
-        free(_env[i++]);
-    free(_env);
-
-    i = 0;
-    while(_args[i])
-        free(_args[i++]);
-    free(_args);
+    while(args[i])
+        free(args[i++]);
+    free(args);
 
     return result;
 }
