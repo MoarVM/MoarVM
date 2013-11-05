@@ -539,7 +539,7 @@ static const void * const LABELS[] = {
     &&OP_filereadable,
     &&OP_filewritable,
     &&OP_fileexecutable,
-    NULL,
+    &&OP_say_fhs,
     NULL,
     NULL,
     NULL,

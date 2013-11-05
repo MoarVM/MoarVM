@@ -41,7 +41,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
 MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding);
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMString *encoding);
-MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str);
+MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl);
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);

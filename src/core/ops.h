@@ -539,6 +539,7 @@
 #define MVM_OP_filereadable 535
 #define MVM_OP_filewritable 536
 #define MVM_OP_fileexecutable 537
+#define MVM_OP_say_fhs 538
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
