@@ -176,9 +176,45 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 #define FILE_IS(name, rwx) \
     MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
         uv_stat_t statbuf = file_info(tc, filename); \
-        MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH); \
+        MVMint64 r = (statbuf.st_mode & S_I ## rwx ); \
         return r ? 1 : 0; \
     }
+FILE_IS(readable, READ)
+FILE_IS(writable, WRITE)
+MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
+    MVMint64 r;
+    uv_stat_t statbuf = file_info(tc, filename);
+    if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
+        return 1;
+    else {
+        // true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC
+        MVMString *dot = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ".");
+        MVMROOT(tc, dot, {
+            MVMint64 n = MVM_string_index_from_end(tc, filename, dot, 0);
+            if (n >= 0) {
+                MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
+                MVMROOT(tc, fileext, {
+                    MVMString *ucext = MVM_string_uc(tc, fileext);
+                    MVMROOT(tc, fileext, {
+                        char *ext  = MVM_string_utf8_encode_C_string(tc, ucext);
+                        char *pext = getenv("PATHEXT");
+                        int plen   = strlen(pext);
+                        int i;
+                        for (i = 0; i < plen; i++) {
+                            if (0 == stricmp(ext, pext++))
+                                return 1;
+                        }
+                        free(ext);
+                        free(pext);
+                        return 0;
+                    });
+                });
+            }
+            else
+                return 0;
+        });
+    }
+}
 #else
 #define FILE_IS(name, rwx) \
     MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
@@ -188,11 +224,10 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
                   || (statbuf.st_uid == getegid() && (statbuf.st_mode & S_I ## rwx ## GRP)); \
         return r ? 1 : 0; \
     }
-#endif
-
 FILE_IS(readable, R)
 FILE_IS(writable, W)
 FILE_IS(executable, X)
+#endif
 
 /* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
