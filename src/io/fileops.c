@@ -194,20 +194,17 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
             if (n >= 0) {
                 MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
                 MVMROOT(tc, fileext, {
-                    MVMString *ucext = MVM_string_uc(tc, fileext);
-                    MVMROOT(tc, fileext, {
-                        char *ext  = MVM_string_utf8_encode_C_string(tc, ucext);
-                        char *pext = getenv("PATHEXT");
-                        int plen   = strlen(pext);
-                        int i;
-                        for (i = 0; i < plen; i++) {
-                            if (0 == stricmp(ext, pext++))
-                                return 1;
-                        }
-                        free(ext);
-                        free(pext);
-                        return 0;
-                    });
+                    char *ext  = MVM_string_utf8_encode_C_string(tc, fileext);
+                    char *pext = getenv("PATHEXT");
+                    int plen   = strlen(pext);
+                    int i;
+                    for (i = 0; i < plen; i++) {
+                        if (0 == stricmp(ext, pext++))
+                            return 1;
+                    }
+                    free(ext);
+                    free(pext);
+                    return 0;
                 });
             }
             else
