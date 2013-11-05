@@ -536,6 +536,9 @@
 #define MVM_OP_nan 532
 #define MVM_OP_getpid 533
 #define MVM_OP_spawn 534
+#define MVM_OP_filereadable 535
+#define MVM_OP_filewritable 536
+#define MVM_OP_fileexecutable 537
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
