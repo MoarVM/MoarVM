@@ -39,6 +39,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         case MVM_OSHANDLE_UNINIT:
             break;
         case MVM_OSHANDLE_HANDLE:
+#ifndef _WIN32
             if (!uv_is_closing(handle->body.u.handle)) {
                 int do_shutdown = handle->body.u.handle->type == UV_NAMED_PIPE &&
                     uv_is_writable((uv_stream_t*)(handle->body.u.handle));
@@ -48,6 +49,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
                     uv_run(tc->loop, UV_RUN_DEFAULT);
                 }
             }
+#endif
             break;
         case MVM_OSHANDLE_FD:
             break;
