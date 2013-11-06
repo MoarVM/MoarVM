@@ -472,6 +472,11 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString 
     return result;
 }
 
+static void write_cb(uv_write_t* req, int status) {
+    uv_unref((uv_handle_t *)req);
+    free(req);
+}
+
 /* writes a string to a filehandle. */
 MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl) {
     MVMOSHandle *handle;
@@ -490,13 +495,12 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
 
     switch (handle->body.type) {
         case MVM_OSHANDLE_HANDLE: {
-            uv_write_t req;
-            uv_buf_t buf;
+            uv_write_t *req = malloc(sizeof(uv_write_t));
+            uv_buf_t buf = uv_buf_init(output, bytes_written = output_size);
             int r;
 
-            buf.base = output;
-            buf.len  = bytes_written = output_size;
-            if ((r = uv_write(&req, (uv_stream_t *)handle->body.u.handle, &buf, 1, NULL)) < 0) {
+            if ((r = uv_write(req, (uv_stream_t *)handle->body.u.handle, &buf, 1, write_cb)) < 0) {
+                free(req);
                 free(output);
                 MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
             }

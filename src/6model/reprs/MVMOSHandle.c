@@ -38,6 +38,19 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     switch(handle->body.type) {
         case MVM_OSHANDLE_UNINIT:
             break;
+        case MVM_OSHANDLE_HANDLE:
+            if (!uv_is_closing(handle->body.u.handle)) {
+                int do_shutdown = handle->body.u.handle->type == UV_NAMED_PIPE &&
+                    uv_is_writable((uv_stream_t*)(handle->body.u.handle));
+
+                if (!do_shutdown) {
+                    uv_close(handle->body.u.handle, NULL);
+                    uv_run(tc->loop, UV_RUN_DEFAULT);
+                }
+            }
+            break;
+        case MVM_OSHANDLE_FD:
+            break;
     }
 }
 
