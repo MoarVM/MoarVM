@@ -31,6 +31,8 @@ struct MVMStringConsts {
     MVMString *Str;
     MVMString *Num;
     MVMString *find_method;
+    MVMString *type_check;
+    MVMString *accepts_type;
 };
 
 struct MVMReprRegistry {
