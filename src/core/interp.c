@@ -1099,9 +1099,41 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(captureposprimspec):
-                MVM_exception_throw_adhoc(tc, "captureposprimspec NYI");
+            OP(captureposprimspec): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMint64   i   = GET_REG(cur_op, 4).i64;
+                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
+                    MVMCallCapture *cc = (MVMCallCapture *)obj;
+                    if (i >= 0 && i < cc->body.apc->num_pos) {
+                        MVMCallsiteEntry *arg_flags = cc->body.apc->arg_flags
+                            ? cc->body.apc->arg_flags
+                            : cc->body.apc->callsite->arg_flags;
+                        switch (arg_flags[i] & MVM_CALLSITE_ARG_MASK) {
+                            case MVM_CALLSITE_ARG_INT:
+                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_INT;
+                                break;
+                            case MVM_CALLSITE_ARG_NUM:
+                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_NUM;
+                                break;
+                            case MVM_CALLSITE_ARG_STR:
+                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_STR;
+                                break;
+                            default:
+                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_NONE;
+                                break;
+                        }
+                    }
+                    else {
+                        MVM_exception_throw_adhoc(tc,
+                            "Bad argument index given to captureposprimspec");
+                    }
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "captureposprimspec needs a MVMCallCapture");
+                }
+                cur_op += 6;
                 goto NEXT;
+            }
             OP(invokewithcapture): {
                 MVMObject *cobj = GET_REG(cur_op, 4).o;
                 if (IS_CONCRETE(cobj) && REPR(cobj)->ID == MVM_REPR_ID_MVMCallCapture) {
