@@ -2830,13 +2830,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 cur_op += 6;
                 goto NEXT;
-            OP(istype):
-                /* XXX) Should not be cache_only, once the more sophisticated
-                 * checker is implemented. */
-                GET_REG(cur_op, 0).i64 = MVM_6model_istype_cache_only(tc,
-                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+            OP(istype): {
+                /* Increment PC first, as we may make a method call. */
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *obj  = GET_REG(cur_op, 2).o;
+                MVMObject   *type = GET_REG(cur_op, 4).o;
                 cur_op += 6;
+                MVM_6model_istype(tc, obj, type, res);
                 goto NEXT;
+            }
             OP(ctx): {
                 MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
                 ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, tc->cur_frame);

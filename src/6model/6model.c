@@ -109,6 +109,30 @@ void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
     reg->i64 = reg->o && IS_CONCRETE(reg->o) ? 1 : 0;
 }
 
+/* Checks if an object has a given type, delegating to the type_check or
+ * accepts_type methods as needed. */
+void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
+    if (obj != NULL) {
+        /* First, look in the cache. */
+        MVMint64 i, result = 0, elems = STABLE(obj)->type_check_cache_length;
+        MVMObject **cache = STABLE(obj)->type_check_cache;
+        if (cache) {
+            for (i = 0; i < elems; i++) {
+                if (cache[i] == type) {
+                    res->i64 = 1;
+                    return;
+                }
+            }
+        }
+        
+        /* TODO: Fallbacks. */
+        res->i64 = 0;
+    }
+    else {
+        res->i64 = 0;
+    }
+}
+
 /* Checks if an object has a given type, using the cache only. */
 MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type) {
     if (obj != NULL) {
