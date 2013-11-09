@@ -45,8 +45,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
                     uv_is_writable((uv_stream_t*)(handle->body.u.handle));
 
                 if (!do_shutdown) {
+                    /* XXX This would bust building rakudo right now. We need to figure
+                    out the cases where it safe and needed to free these handles.
                     uv_close(handle->body.u.handle, NULL);
-                    uv_run(tc->loop, UV_RUN_DEFAULT);
+                    uv_run(tc->loop, UV_RUN_DEFAULT); */
                 }
             }
 #endif
