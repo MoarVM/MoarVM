@@ -6,25 +6,25 @@
 #endif
 
 #ifdef INFINITY
-const double MVM_NUM_POSINF =  INFINITY;
-const double MVM_NUM_NEGINF = -INFINITY;
+const MVMnum64 MVM_NUM_POSINF =  INFINITY;
+const MVMnum64 MVM_NUM_NEGINF = -INFINITY;
 #else
 #ifdef _MSC_VER
 #define MVM_NUM_POSINF  (DBL_MAX+DBL_MAX)
 #define MVM_NUM_NEGINF -(DBL_MAX+DBL_MAX)
 #else
-const double MVM_NUM_POSINF =  1.0 / 0.0;
-const double MVM_NUM_NEGINF = -1.0 / 0.0;
+const MVMnum64 MVM_NUM_POSINF =  1.0 / 0.0;
+const MVMnum64 MVM_NUM_NEGINF = -1.0 / 0.0;
 #endif
 #endif
 
 #ifdef NAN
-const double MVM_NUM_NAN = NAN;
+const MVMnum64 MVM_NUM_NAN = NAN;
 #else
 #ifdef _MSC_VER
 #define MVM_NUM_NAN (MVM_NUM_POSINF-MVM_NUM_POSINF)
 #else
-const double MVM_NUM_NAN = 0.0 / 0.0;
+const MVMnum64 MVM_NUM_NAN = 0.0 / 0.0;
 #endif
 #endif
 
