@@ -368,8 +368,9 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
 }
 
 /* Looks up the address of the lexical with the specified name and the
- * specified type. An error is thrown if it does not exist or if the
- * type is incorrect */
+ * specified type. Non-existing object lexicals produce NULL, expected
+ * (for better or worse) by various things. Otherwise, an error is thrown
+ * if it does not exist. Incorrect type always throws. */
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVM_string_flatten(tc, name);
@@ -392,6 +393,8 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
         }
         cur_frame = cur_frame->outer;
     }
+    if (type == MVM_reg_obj)
+        return NULL;
     MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
         MVM_string_utf8_encode_C_string(tc, name));
 }

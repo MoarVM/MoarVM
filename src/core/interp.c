@@ -221,11 +221,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_str)->s;
                 cur_op += 6;
                 goto NEXT;
-            OP(getlex_no):
-                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_obj)->o;
+            OP(getlex_no): {
+                MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_obj);
+                GET_REG(cur_op, 0).o = found ? found->o : NULL;
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(bindlex_ni):
                 MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
                     MVM_reg_int64)->i64 = GET_REG(cur_op, 4).i64;
