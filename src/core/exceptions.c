@@ -245,11 +245,14 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
     MVMROOT(tc, arr, {
+        MVMuint32 count = 0;
         while (cur_frame != NULL) {
-            MVMObject *pobj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStr);
-            MVM_repr_set_str(tc, pobj, cur_frame->static_info->body.name);
-            MVM_repr_push_o(tc, arr, pobj);
+            char      *line     = MVM_exception_backtrace_line(tc, cur_frame, count++);
+            MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
+            MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
+            MVM_repr_push_o(tc, arr, line_obj);
             cur_frame = cur_frame->caller;
+            free(line);
         }
     });
 
