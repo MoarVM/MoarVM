@@ -52,6 +52,25 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     }
 }
 
+/* Turn an argument processing context into a callsite. In the case that no
+ * flattening happened, this is the original call site. Otherwise, we make
+ * one up. */
+MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    if (ctx->arg_flags) {
+        MVMCallsite      *res   = malloc(sizeof(MVMCallsite));
+        MVMCallsiteEntry *flags = ctx->arg_count ? malloc(ctx->arg_count) : NULL;
+        memcpy(flags, ctx->arg_flags, ctx->arg_count);
+        res->arg_flags = flags;
+        res->arg_count = ctx->arg_count;
+        res->num_pos   = ctx->num_pos;
+        res->has_flattening = 0;
+        return res;
+    }
+    else {
+        return ctx->callsite;
+    }
+}
+
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
