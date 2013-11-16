@@ -75,6 +75,10 @@ struct MVMFrame {
     /* GC run sequence number that we last saw this frame during. */
     AO_t gc_seq_number;
 
+    /* Address of the last op executed that threw an exeption; used just
+     * for error reporting. */
+    MVMuint8 *throw_address;
+
     /* Linked MVMContext object, so we can track the
      * serialization context and such. */
     /* note: used atomically */

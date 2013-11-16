@@ -201,7 +201,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     /* XXX TODO: make the caller pass in a char ** and a length pointer so
      * we can update it if necessary, and the caller can cache it. */
     char *o = malloc(1024);
-    MVMuint8 *cur_op = !not_top ? (*tc->interp_cur_op) : cur_frame->return_address;
+    MVMuint8 *cur_op = not_top ? cur_frame->return_address : cur_frame->throw_address;
     MVMuint32 offset = cur_op - cur_frame->static_info->body.bytecode;
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset);
@@ -212,6 +212,11 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
         ? MVM_string_utf8_encode(tc,
             cur_frame->static_info->body.cu->body.strings[string_heap_index], NULL)
         : NULL;
+
+    /* We may be mid-instruction if exception was thrown at an unfortunate
+     * point; try to cope with that. */
+    if (instr == MVM_BC_ILLEGAL_OFFSET && offset >= 2)
+        instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset - 2);
 
     sprintf(o, " %s %s:%u  (%s:%s:%u)",
         not_top ? "from" : "  at",
@@ -326,8 +331,10 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
 
-    if (!ex->body.origin)
+    if (!ex->body.origin) {
         ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+        tc->cur_frame->throw_address = *(tc->interp_cur_op);
+    }
 
     run_handler(tc, lh, ex_obj);
 }
@@ -438,7 +445,13 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
         free(c_message);
         MVM_ASSIGN_REF(tc, ex, ex->body.message, message);
-        ex->body.origin   = tc->cur_frame ? MVM_frame_inc_ref(tc, tc->cur_frame) : NULL;
+        if (tc->cur_frame) {
+            ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+            tc->cur_frame->throw_address = *(tc->interp_cur_op);
+        }
+        else {
+            ex->body.origin = NULL;
+        }
         ex->body.category = MVM_EX_CAT_CATCH;
     });
 
