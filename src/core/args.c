@@ -397,6 +397,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         MVM_exception_throw_adhoc(tc, "Missing hll slurpy array type");
     }
 
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
     result = REPR(type)->allocate(tc, STABLE(type));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
     if (REPR(result)->initialize)
@@ -440,7 +441,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         if (pos == 1) break; /* overflow?! */
     }
 
-    MVM_gc_root_temp_pop_n(tc, 2);
+    MVM_gc_root_temp_pop_n(tc, 3);
 
     return result;
 }
