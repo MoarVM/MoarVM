@@ -756,7 +756,7 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
     MVMBytecodeAnnotation *ba = NULL;
     MVMuint32 i, j;
 
-    if (offset >= 0 && offset < sfb->bytecode_size) {
+    if (sfb->num_annotations && offset >= 0 && offset < sfb->bytecode_size) {
         MVMint8 *cur_anno = sfb->annotations_data;
         for (i = 0; i < sfb->num_annotations; i++) {
             MVMint32 ann_offset = read_int32(cur_anno, 0);
@@ -766,12 +766,10 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
         }
         if (i == sfb->num_annotations)
             cur_anno -= 12;
-        if (i > 0) {
-            ba = malloc(sizeof(MVMBytecodeAnnotation));
-            ba->bytecode_offset = read_int32(cur_anno, 0);
-            ba->filename_string_heap_index = read_int32(cur_anno, 4);
-            ba->line_number = read_int32(cur_anno, 8);
-        }
+        ba = malloc(sizeof(MVMBytecodeAnnotation));
+        ba->bytecode_offset = read_int32(cur_anno, 0);
+        ba->filename_string_heap_index = read_int32(cur_anno, 4);
+        ba->line_number = read_int32(cur_anno, 8);
     }
 
     return ba;
