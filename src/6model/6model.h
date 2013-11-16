@@ -370,11 +370,6 @@ struct MVMREPROps_Associative {
     void (*at_key) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data,
         MVMObject *key, MVMRegister *result, MVMuint16 kind);
 
-    /* Binds the value at the specified address into the hash at the specified
-     * key. */
-    void (*bind_key_ref) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key, void *value_addr);
-
     /* Binds the object at the specified address into the hash at the specified
      * key. */
     void (*bind_key_boxed) (MVMThreadContext *tc, MVMSTable *st,

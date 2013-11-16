@@ -67,11 +67,6 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     *result = frame->env[entry->value];
 }
 
-static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not support native type storage");
-}
-
 static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
     MVM_exception_throw_adhoc(tc,
         "MVMContext representation does not yet support bind key boxed");
@@ -136,7 +131,6 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_POS_FUNCS,
     {
         at_key,
-        bind_key_ref,
         bind_key_boxed,
         exists_key,
         delete_key,

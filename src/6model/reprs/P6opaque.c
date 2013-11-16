@@ -1206,16 +1206,6 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     REPR(del)->ass_funcs.at_key(tc, STABLE(del), del, OBJECT_BODY(del), key, result, kind);
 }
 
-static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
-    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMObject *del;
-    if (repr_data->ass_del_slot == -1)
-        die_no_ass_del(tc);
-    data = real_data(data);
-    del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    REPR(del)->ass_funcs.bind_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key, value_addr);
-}
-
 static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
@@ -1315,7 +1305,6 @@ static const MVMREPROps this_repr = {
     },    /* pos_funcs */
     {
         at_key,
-        bind_key_ref,
         bind_key_boxed,
         exists_key,
         delete_key,
