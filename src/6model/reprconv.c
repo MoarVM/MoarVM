@@ -148,9 +148,11 @@ MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj) {
     return value.o;
 }
 
-MVMObject * MVM_repr_at_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
-    return REPR(obj)->ass_funcs.at_key_boxed(tc, STABLE(obj), obj,
-        OBJECT_BODY(obj), (MVMObject *)key);
+MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    MVMRegister value;
+    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        (MVMObject *)key, &value, MVM_reg_obj);
+    return value.o;
 }
 
 void MVM_repr_bind_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val) {

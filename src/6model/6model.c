@@ -16,7 +16,7 @@ static MVMCallsite     tc_callsite = { tc_flags, 3, 3, 0 };
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache))
-        return MVM_repr_at_key_boxed(tc, cache, name);
+        return MVM_repr_at_key_o(tc, cache, name);
     return NULL;
 }
 
@@ -34,7 +34,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
      * If we don't find it, but the cache is authoritative, then error. */
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
-        MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
+        MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (meth) {
             res->o = meth;
             return;
@@ -74,7 +74,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     /* First consider method cache. */
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
-        MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
+        MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (meth) {
             res->i64 = 1;
             return;

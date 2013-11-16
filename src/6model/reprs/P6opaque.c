@@ -587,8 +587,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
 
     /* Find attribute information. */
-    info = REPR(info_hash)->ass_funcs.at_key_boxed(tc, STABLE(info_hash), info_hash,
-        OBJECT_BODY(info_hash), (MVMObject *)str_attribute);
+    info = MVM_repr_at_key_o(tc, info_hash, str_attribute);
     if (info == NULL)
         MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute protocol in compose");
 
@@ -674,10 +673,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVMObject *attr_info = MVM_repr_at_pos_o(tc, attr_list, i);
 
             /* Extract name, type and if it's a box target. */
-            MVMObject *name_obj = REPR(attr_info)->ass_funcs.at_key_boxed(tc,
-                STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_name);
-            MVMObject *type = REPR(attr_info)->ass_funcs.at_key_boxed(tc,
-                STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_type);
+            MVMObject *name_obj = MVM_repr_at_key_o(tc, attr_info, str_name);
+            MVMObject *type = MVM_repr_at_key_o(tc, attr_info, str_type);
             MVMint64 is_box_target = REPR(attr_info)->ass_funcs.exists_key(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target);
             MVMint8 inlined = 0;
@@ -1199,24 +1196,14 @@ static void die_no_ass_del(MVMThreadContext *tc) {
     MVM_exception_throw_adhoc(tc, "This type does not support associative operations");
 }
 
-static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
         die_no_ass_del(tc);
     data = real_data(data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    return REPR(del)->ass_funcs.at_key_ref(tc, STABLE(del), del, OBJECT_BODY(del), key);
-}
-
-static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMObject *del;
-    if (repr_data->ass_del_slot == -1)
-        die_no_ass_del(tc);
-    data = real_data(data);
-    del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
-    return REPR(del)->ass_funcs.at_key_boxed(tc, STABLE(del), del, OBJECT_BODY(del), key);
+    REPR(del)->ass_funcs.at_key(tc, STABLE(del), del, OBJECT_BODY(del), key, result, kind);
 }
 
 static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
@@ -1327,8 +1314,7 @@ static const MVMREPROps this_repr = {
         NULL
     },    /* pos_funcs */
     {
-        at_key_ref,
-        at_key_boxed,
+        at_key,
         bind_key_ref,
         bind_key_boxed,
         exists_key,

@@ -741,11 +741,9 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
 
-    MVMObject *info = REPR(info_hash)->ass_funcs.at_key_boxed(tc, STABLE(info_hash),
-        info_hash, OBJECT_BODY(info_hash), (MVMObject *)str_array);
+    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_array);
     if (info != NULL) {
-        MVMObject *type = REPR(info)->ass_funcs.at_key_boxed(tc, STABLE(info),
-            info, OBJECT_BODY(info), (MVMObject *)str_type);
+        MVMObject *type = MVM_repr_at_key_o(tc, info, str_type);
         if (type != NULL) {
             MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
             switch (spec.boxed_primitive) {

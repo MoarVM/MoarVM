@@ -70,19 +70,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_HASH_DESTROY(hash_handle, MVMHashEntry, h->body.hash_head);
 }
 
-static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMHash representation does not support native type storage");
-}
-
-static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
     MVMHashBody *body = (MVMHashBody *)data;
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
     extract_key(tc, &kdata, &klen, key);
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
-    return entry != NULL ? entry->value : NULL;
+    if (kind == MVM_reg_obj)
+        result->o = entry != NULL ? entry->value : NULL;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "MVMHash representation does not support native type storage");
 }
 
 static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
@@ -181,8 +180,7 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_BOX_FUNCS,
     MVM_REPR_DEFAULT_POS_FUNCS,
     {
-        at_key_ref,
-        at_key_boxed,
+        at_key,
         bind_key_ref,
         bind_key_boxed,
         exists_key,

@@ -1988,26 +1988,32 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHAT;
                 cur_op += 4;
                 goto NEXT;
-            OP(atkey_i):
-            OP(atkey_n):
-                MVM_exception_throw_adhoc(tc, "atkey_i/n NYI");
+            OP(atkey_i): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                    (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_int64);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(atkey_n): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                    (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_num64);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(atkey_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                MVMObject *result = REPR(obj)->ass_funcs.at_key_boxed(tc,
-                    STABLE(obj), obj, OBJECT_BODY(obj),
-                    (MVMObject *)GET_REG(cur_op, 4).s);
-                if (REPR(result)->ID != MVM_REPR_ID_MVMString)
-                    MVM_exception_throw_adhoc(tc, "object does not have REPR MVMString");
-                GET_REG(cur_op, 0).s = (MVMString *)result;
+                REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                    (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_str);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(atkey_o): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(obj))
-                    GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs.at_key_boxed(tc,
-                        STABLE(obj), obj, OBJECT_BODY(obj),
-                        (MVMObject *)GET_REG(cur_op, 4).s);
+                    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                        (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_obj);
                 else
                     GET_REG(cur_op, 0).o = NULL;
                 cur_op += 6;
@@ -2787,8 +2793,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getcomp): {
                 MVMObject *obj = tc->instance->compiler_registry;
                 uv_mutex_lock(&tc->instance->mutex_compiler_registry);
-                GET_REG(cur_op, 0).o = REPR(obj)->ass_funcs.at_key_boxed(tc,
-                    STABLE(obj), obj, OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).o = MVM_repr_at_key_o(tc, obj, GET_REG(cur_op, 2).s);
                 uv_mutex_unlock(&tc->instance->mutex_compiler_registry);
                 cur_op += 4;
                 goto NEXT;
@@ -2807,7 +2812,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *syms = tc->instance->hll_syms, *hash;
                 MVMString *hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
                 uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                hash = MVM_repr_at_key_o(tc, syms, hll_name);
                 if (!hash) {
                     hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                     /* must re-get syms in case it moved */
@@ -2817,7 +2822,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = NULL;
                 }
                 else {
-                    GET_REG(cur_op, 0).o = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 2).s);
+                    GET_REG(cur_op, 0).o = MVM_repr_at_key_o(tc, hash, GET_REG(cur_op, 2).s);
                 }
                 uv_mutex_unlock(&tc->instance->mutex_hll_syms);
                 cur_op += 4;
@@ -2827,7 +2832,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *syms = tc->instance->hll_syms, *hash;
                 MVMString *hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
                 uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                hash = MVM_repr_at_key_o(tc, syms, hll_name);
                 if (!hash) {
                     hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                     /* must re-get syms in case it moved */
@@ -2980,7 +2985,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *syms = tc->instance->hll_syms, *hash;
                 MVMString * const hll_name = GET_REG(cur_op, 2).s;
                 uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                hash = MVM_repr_at_key_o(tc, syms, hll_name);
                 if (!hash) {
                     MVMROOT(tc, hll_name, {
                         hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
@@ -2991,7 +2996,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = NULL;
                 }
                 else {
-                    GET_REG(cur_op, 0).o = MVM_repr_at_key_boxed(tc, hash, GET_REG(cur_op, 4).s);
+                    GET_REG(cur_op, 0).o = MVM_repr_at_key_o(tc, hash, GET_REG(cur_op, 4).s);
                 }
                 uv_mutex_unlock(&tc->instance->mutex_hll_syms);
                 cur_op += 6;
@@ -3540,7 +3545,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *hll_name = GET_REG(cur_op, 0).s;
                 MVMObject *hash;
                 uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_boxed(tc, syms, hll_name);
+                hash = MVM_repr_at_key_o(tc, syms, hll_name);
                 if (!hash) {
                     hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                     /* must re-get syms and HLL name in case it moved */

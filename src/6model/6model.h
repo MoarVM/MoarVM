@@ -364,15 +364,11 @@ struct MVMREPROps_Positional {
     MVMStorageSpec (*get_elem_storage_spec) (MVMThreadContext *tc, MVMSTable *st);
 };
 struct MVMREPROps_Associative {
-    /* Get the address of the element at the specified key. May return null if
-     * nothing is there, or throw to indicate the key does not exist, or vivify. */
-    void * (*at_key_ref) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key);
-
-    /* Get a boxed object representing the element at the specified key. If the
-     * object is already a reference type, simply returns that. */
-    MVMObject * (*at_key_boxed) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key);
+    /* Gets the value at the specified key and places it in the passed
+     * location (specified as a register). Expects to be passed a kind flag
+     * that matches the kind of the attribute that is being fetched. */
+    void (*at_key) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data,
+        MVMObject *key, MVMRegister *result, MVMuint16 kind);
 
     /* Binds the value at the specified address into the hash at the specified
      * key. */

@@ -23,7 +23,7 @@ MVM_PUBLIC MVMnum64 MVM_repr_shift_n(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMString * MVM_repr_shift_s(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj);
 
-MVM_PUBLIC MVMObject * MVM_repr_at_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
+MVM_PUBLIC MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 MVM_PUBLIC void MVM_repr_bind_key_boxed(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val);
 MVM_PUBLIC MVMint64 MVM_repr_exists_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 MVM_PUBLIC void MVM_repr_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
@@ -42,11 +42,11 @@ MVM_PUBLIC MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, M
 MVM_PUBLIC MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val);
 
 #define MVM_repr_at_key_int(tc, obj, key) \
-    MVM_repr_get_int((tc), MVM_repr_at_key_boxed((tc), (obj), (key)))
+    MVM_repr_get_int((tc), MVM_repr_at_key_o((tc), (obj), (key)))
 #define MVM_repr_at_key_num(tc, obj, key) \
-    MVM_repr_get_num((tc), MVM_repr_at_key_boxed((tc), (obj), (key)))
+    MVM_repr_get_num((tc), MVM_repr_at_key_o((tc), (obj), (key)))
 #define MVM_repr_at_key_str(tc, obj, key) \
-    MVM_repr_get_str((tc), MVM_repr_at_key_boxed((tc), (obj), (key)))
+    MVM_repr_get_str((tc), MVM_repr_at_key_o((tc), (obj), (key)))
 
 #define MVM_repr_bind_key_int(tc, obj, key, val) do { \
     MVMObject *boxed = MVM_repr_box_int((tc), (*((tc)->interp_cu))->body.hll_config->int_box_type, (val)); \

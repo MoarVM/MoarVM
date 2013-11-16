@@ -45,7 +45,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
 
 #define check_config_key(tc, hash, name, member, config) do { \
     MVMString *key = MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
-    MVMObject *val = MVM_repr_at_key_boxed((tc), (hash), key); \
+    MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
     if (val) (config)->member = val; \
 } while (0)
 

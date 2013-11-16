@@ -100,14 +100,14 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
         if (!MVM_repr_exists_key(tc, config, fetch))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
 
-        MVM_ASSIGN_REF(tc, st, data->fetch_code, MVM_repr_at_key_boxed(tc, config, fetch));
+        MVM_ASSIGN_REF(tc, st, data->fetch_code, MVM_repr_at_key_o(tc, config, fetch));
 
         store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
 
         if (!MVM_repr_exists_key(tc, config, store))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
 
-        MVM_ASSIGN_REF(tc, st, data->store_code, MVM_repr_at_key_boxed(tc, config, store));
+        MVM_ASSIGN_REF(tc, st, data->store_code, MVM_repr_at_key_o(tc, config, store));
     });
 }
 
