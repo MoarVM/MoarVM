@@ -2019,22 +2019,35 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(bindkey_i):
-            OP(bindkey_n):
-                MVM_exception_throw_adhoc(tc, "bindkey_i/n NYI");
+            OP(bindkey_i): {
+                MVMObject *obj = GET_REG(cur_op, 0).o;
+                REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4), MVM_reg_int64);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(bindkey_n): {
+                MVMObject *obj = GET_REG(cur_op, 0).o;
+                REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4), MVM_reg_num64);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(bindkey_s): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
-                REPR(obj)->ass_funcs.bind_key_boxed(tc, STABLE(obj), obj,
+                REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
-                    (MVMObject *)GET_REG(cur_op, 4).s);
+                    GET_REG(cur_op, 4), MVM_reg_str);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(bindkey_o): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
-                REPR(obj)->ass_funcs.bind_key_boxed(tc, STABLE(obj), obj,
+                REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s,
-                    GET_REG(cur_op, 4).o);
+                    GET_REG(cur_op, 4), MVM_reg_obj);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2631,8 +2644,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMRegister result;
                     REPR(iter)->pos_funcs.shift(tc, STABLE(iter), iter,
                         OBJECT_BODY(iter), &result, MVM_reg_obj);
-                    REPR(cache)->ass_funcs.bind_key_boxed(tc, STABLE(cache), cache,
-                        OBJECT_BODY(cache), (MVMObject *)MVM_iterkey_s(tc, (MVMIter *)iter),
+                    MVM_repr_bind_key_o(tc, cache, MVM_iterkey_s(tc, (MVMIter *)iter),
                         MVM_iterval(tc, (MVMIter *)iter));
                 }
                 STABLE(GET_REG(cur_op, 0).o)->method_cache = cache;
@@ -2801,8 +2813,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindcomp): {
                 MVMObject *obj = tc->instance->compiler_registry;
                 uv_mutex_lock(&tc->instance->mutex_compiler_registry);
-                REPR(obj)->ass_funcs.bind_key_boxed(tc,
-                    STABLE(obj), obj, OBJECT_BODY(obj), (MVMObject *)GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                    (MVMObject *)GET_REG(cur_op, 2).s, GET_REG(cur_op, 4), MVM_reg_obj);
                 uv_mutex_unlock(&tc->instance->mutex_compiler_registry);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 4).o;
                 cur_op += 6;
@@ -2818,7 +2830,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     /* must re-get syms in case it moved */
                     syms = tc->instance->hll_syms;
                     hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
-                    MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                    MVM_repr_bind_key_o(tc, syms, hll_name, hash);
                     GET_REG(cur_op, 0).o = NULL;
                 }
                 else {
@@ -2838,9 +2850,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     /* must re-get syms in case it moved */
                     syms = tc->instance->hll_syms;
                     hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
-                    MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                    MVM_repr_bind_key_o(tc, syms, hll_name, hash);
                 }
-                MVM_repr_bind_key_boxed(tc, hash, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                MVM_repr_bind_key_o(tc, hash, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 4).o;
                 uv_mutex_unlock(&tc->instance->mutex_hll_syms);
                 cur_op += 6;
@@ -2991,7 +3003,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
                         /* must re-get syms in case it moved */
                         syms = tc->instance->hll_syms;
-                        MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                        MVM_repr_bind_key_o(tc, syms, hll_name, hash);
                     });
                     GET_REG(cur_op, 0).o = NULL;
                 }
@@ -3551,9 +3563,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     /* must re-get syms and HLL name in case it moved */
                     syms = tc->instance->hll_syms;
                     hll_name = GET_REG(cur_op, 0).s;
-                    MVM_repr_bind_key_boxed(tc, syms, hll_name, hash);
+                    MVM_repr_bind_key_o(tc, syms, hll_name, hash);
                 }
-                MVM_repr_bind_key_boxed(tc, hash, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                MVM_repr_bind_key_o(tc, hash, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                 uv_mutex_unlock(&tc->instance->mutex_hll_syms);
                 cur_op += 6;
                 goto NEXT;

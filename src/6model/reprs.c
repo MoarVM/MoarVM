@@ -102,7 +102,7 @@ static void die_no_ass(MVMThreadContext *tc, const char *repr_name) {
 void MVM_REPR_DEFAULT_AT_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
     die_no_ass(tc, st->REPR->name);
 }
-void MVM_REPR_DEFAULT_BIND_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+void MVM_REPR_DEFAULT_BIND_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
     die_no_ass(tc, st->REPR->name);
 }
 GCC_DIAG_OFF(return-type)

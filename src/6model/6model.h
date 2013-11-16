@@ -372,8 +372,8 @@ struct MVMREPROps_Associative {
 
     /* Binds the object at the specified address into the hash at the specified
      * key. */
-    void (*bind_key_boxed) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key, MVMObject *value);
+    void (*bind_key) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMObject *key, MVMRegister value, MVMuint16 kind);
 
     /* Returns a true value of the key exists, and a false one if not. */
     MVMint64 (*exists_key) (MVMThreadContext *tc, MVMSTable *st,

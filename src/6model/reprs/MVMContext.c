@@ -67,9 +67,9 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     *result = frame->env[entry->value];
 }
 
-static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
     MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not yet support bind key boxed");
+        "MVMContext representation does not yet support bind key");
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -131,7 +131,7 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_POS_FUNCS,
     {
         at_key,
-        bind_key_boxed,
+        bind_key,
         exists_key,
         delete_key,
         get_value_storage_spec

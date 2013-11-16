@@ -116,7 +116,7 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
 
     /* Add to method table. */
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
-    MVM_repr_bind_key_boxed(tc, method_table, name, method);
+    MVM_repr_bind_key_o(tc, method_table, name, method);
 
     /* Return added method as result. */
     MVM_args_set_result_obj(tc, method, MVM_RETURN_CURRENT_FRAME);
@@ -212,11 +212,11 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
                     MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
 
                 MVM_repr_init(tc, attr_info);
-                MVM_repr_bind_key_boxed(tc, attr_info, str_name, (MVMObject *)attribute->body.name);
-                MVM_repr_bind_key_boxed(tc, attr_info, str_type, attribute->body.type);
+                MVM_repr_bind_key_o(tc, attr_info, str_name, (MVMObject *)attribute->body.name);
+                MVM_repr_bind_key_o(tc, attr_info, str_type, attribute->body.type);
                 if (attribute->body.box_target) {
                     /* Merely having the key serves as a "yes". */
-                    MVM_repr_bind_key_boxed(tc, attr_info, str_box_target, attr_info);
+                    MVM_repr_bind_key_o(tc, attr_info, str_box_target, attr_info);
                 }
 
                 MVM_repr_push_o(tc, attr_info_list, attr_info);
@@ -234,7 +234,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     repr_info_hash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info_hash);
     MVM_repr_init(tc, repr_info_hash);
-    MVM_repr_bind_key_boxed(tc, repr_info_hash, str_attribute, repr_info);
+    MVM_repr_bind_key_o(tc, repr_info_hash, str_attribute, repr_info);
 
     /* Compose the representation using it. */
     MVM_repr_compose(tc, type_obj, repr_info_hash);
@@ -273,11 +273,11 @@ introspect_member(name, MVM_args_set_result_str, (MVMString *)name)
 /* Adds a method into the KnowHOW.HOW method table. */
 static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow_how,
         char *name, void (*func) (MVMThreadContext *, MVMCallsite *, MVMRegister *)) {
-    MVMObject *BOOTCCode, *code_obj, *method_table, *name_str;
+    MVMObject *BOOTCCode, *code_obj, *method_table;
+    MVMString *name_str;
 
     /* Create string for name. */
-    name_str = (MVMObject *)MVM_string_ascii_decode_nt(tc,
-        tc->instance->VMString, name);
+    name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
 
     /* Allocate a BOOTCCode and put pointer in. */
     BOOTCCode = tc->instance->boot_types.BOOTCCode;
@@ -286,8 +286,7 @@ static void add_knowhow_how_method(MVMThreadContext *tc, MVMKnowHOWREPR *knowhow
 
     /* Add into the table. */
     method_table = knowhow_how->body.methods;
-    REPR(method_table)->ass_funcs.bind_key_boxed(tc, STABLE(method_table),
-        method_table, OBJECT_BODY(method_table), name_str, code_obj);
+    MVM_repr_bind_key_o(tc, method_table, name_str, code_obj);
 }
 
 /* Bootstraps the KnowHOW type. */
@@ -492,8 +491,8 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
         repr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
         MVMROOT(tc, repr_info, {
             MVMObject *arr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-            MVM_repr_bind_key_boxed(tc, arr_info, str_type, type);
-            MVM_repr_bind_key_boxed(tc, repr_info, str_array, arr_info);
+            MVM_repr_bind_key_o(tc, arr_info, str_type, type);
+            MVM_repr_bind_key_o(tc, repr_info, str_array, arr_info);
             MVM_repr_compose(tc, array, repr_info);
         });
 

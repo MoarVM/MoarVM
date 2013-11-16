@@ -178,7 +178,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVMLexicalRegistry *tmp;
                 HASH_ITER(hash_handle, lexical_names, current, tmp) {
                     /* XXX For now, just the symbol names is enough. */
-                    MVM_repr_bind_key_boxed(tc, ctx_hash, (MVMString *)current->key, NULL);
+                    MVM_repr_bind_key_o(tc, ctx_hash, (MVMString *)current->key, NULL);
                 }
             });
 

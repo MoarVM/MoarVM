@@ -84,7 +84,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             "MVMHash representation does not support native type storage");
 }
 
-static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
     MVMHashBody *body = (MVMHashBody *)data;
     void *kdata;
     MVMHashEntry *entry;
@@ -101,7 +101,13 @@ static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     else
         entry->hash_handle.key = (void *)kdata;
     MVM_ASSIGN_REF(tc, root, entry->key, key);
-    MVM_ASSIGN_REF(tc, root, entry->value, value);
+    if (kind == MVM_reg_obj) {
+        MVM_ASSIGN_REF(tc, root, entry->value, value.o);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "MVMHash representation does not support native type storage");
+    }
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -176,7 +182,7 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_POS_FUNCS,
     {
         at_key,
-        bind_key_boxed,
+        bind_key,
         exists_key,
         delete_key,
         get_value_storage_spec

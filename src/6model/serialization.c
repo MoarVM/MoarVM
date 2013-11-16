@@ -1238,7 +1238,7 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
     /* Read in the elements. */
     for (i = 0; i < elems; i++) {
         MVMString *key = read_str_func(tc, reader);
-        MVM_repr_bind_key_boxed(tc, result, key, read_ref_func(tc, reader));
+        MVM_repr_bind_key_o(tc, result, key, read_ref_func(tc, reader));
     }
 
     /* Set the SC. */
