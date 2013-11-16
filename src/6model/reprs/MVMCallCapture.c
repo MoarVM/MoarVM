@@ -52,6 +52,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
+    if (ctx->body.effective_callsite != ctx->body.apc->callsite)
+        MVM_checked_free_null(ctx->body.effective_callsite);
     if (ctx->body.mode == MVM_CALL_CAPTURE_MODE_SAVE) {
         /* We made our own copy of the args buffer and processing context, so
          * free them both. */

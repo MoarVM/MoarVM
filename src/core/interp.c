@@ -1011,6 +1011,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMCallCapture *cc = (MVMCallCapture *)tc->cur_usecapture;
                 cc->body.mode = MVM_CALL_CAPTURE_MODE_USE;
                 cc->body.apc  = &tc->cur_frame->params;
+                if (cc->body.apc->arg_flags) {
+                    /* Need an effective callsite to capture the outcome of the
+                     * flattening. */
+                    cc->body.effective_callsite = malloc(sizeof(MVMCallsite));
+                    cc->body.effective_callsite->arg_flags = cc->body.apc->arg_flags;
+                    cc->body.effective_callsite->arg_count = cc->body.apc->arg_count;
+                    cc->body.effective_callsite->num_pos   = cc->body.apc->num_pos;
+                    cc->body.effective_callsite->has_flattening = 0;
+                }
+                else {
+                    /* No flattening, so effective callsite is original one. */
+                    cc->body.effective_callsite = cc->body.apc->callsite;
+                }
                 GET_REG(cur_op, 0).o = tc->cur_usecapture;
                 cur_op += 2;
                 goto NEXT;
@@ -1025,11 +1038,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMRegister *args = malloc(arg_size);
                 memcpy(args, tc->cur_frame->params.args, arg_size);
 
+                /* Create effective callsite. */
+                if (tc->cur_frame->params.arg_flags) {
+                    /* Need an effective callsite to capture the outcome of the
+                     * flattening. */
+                    cc->body.effective_callsite = malloc(sizeof(MVMCallsite));
+                    cc->body.effective_callsite->arg_flags = tc->cur_frame->params.arg_flags;
+                    cc->body.effective_callsite->arg_count = tc->cur_frame->params.arg_count;
+                    cc->body.effective_callsite->num_pos   = tc->cur_frame->params.num_pos;
+                    cc->body.effective_callsite->has_flattening = 0;
+                }
+                else {
+                    /* No flattening, so effective callsite is original one. */
+                    cc->body.effective_callsite = tc->cur_frame->params.callsite;
+                }
+
                 /* Set up the call capture. */
                 cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
                 cc->body.apc  = malloc(sizeof(MVMArgProcContext));
                 memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
-                MVM_args_proc_init(tc, cc->body.apc, tc->cur_frame->params.callsite, args);
+                MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
 
                 GET_REG(cur_op, 0).o = cc_obj;
                 cur_op += 2;
@@ -1144,7 +1172,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
+                    STABLE(code)->invoke(tc, code, cc->body.effective_callsite,
                         cc->body.apc->args);
                     goto NEXT;
                 }
