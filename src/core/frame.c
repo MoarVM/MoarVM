@@ -50,6 +50,10 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         MVMFrame *node = tc->frame_pool_table[pool_index];
         MVMFrame *outer_to_decr = frame->outer;
 
+        /* If there's a caller pointer, decrement that. */
+        if (frame->caller)
+            frame->caller = MVM_frame_dec_ref(tc, frame->caller);
+
         if (node && MVM_load(&node->ref_count) >= MVMFramePoolLengthLimit) {
             /* There's no room on the free list, so destruction.*/
             if (frame->env) {
@@ -269,7 +273,8 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 /* Return/unwind do about the same thing; this factors it out. */
 static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
-    MVMFrame *caller = returner->caller;
+    MVMFrame *caller   = returner->caller;
+    MVMint64  retval;
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
@@ -281,24 +286,14 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* signal to the GC to ignore ->work */
     returner->tc = NULL;
-    
-    /* We no longer need point at the caller (any refcount is handled
-     * below). */
-    returner->caller = NULL;
-    
-    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
-     * currently executing frame. */
-    MVM_frame_dec_ref(tc, returner);
 
-    /* Switch back to the caller frame if there is one; we also need to
-     * decrement its reference count. */
+    /* Switch back to the caller frame if there is one. */
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = caller->static_info->body.bytecode;
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
-        MVM_frame_dec_ref(tc, caller);
 
         /* Handle any special return hooks. */
         if (caller->special_return) {
@@ -308,12 +303,18 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
                 sr(tc, caller->special_return_data);
         }
 
-        return 1;
+        retval = 1;
     }
     else {
         tc->cur_frame = NULL;
-        return 0;
+        retval = 0;
     }
+
+    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
+     * currently executing frame. */
+    MVM_frame_dec_ref(tc, returner);
+
+    return retval;
 }
 
 /* Attempt to return from the current frame. Returns non-zero if we can,
