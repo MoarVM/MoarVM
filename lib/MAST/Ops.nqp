@@ -541,7 +541,8 @@ BEGIN {
     1277,
     1279,
     1281,
-    1283);
+    1283,
+    1286);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1080,7 +1081,8 @@ BEGIN {
     2,
     2,
     2,
-    3);
+    3,
+    2);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -2366,7 +2368,9 @@ BEGIN {
     57,
     34,
     65,
-    57);
+    57,
+    66,
+    65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -2905,7 +2909,8 @@ BEGIN {
     'filereadable', 535,
     'filewritable', 536,
     'fileexecutable', 537,
-    'say_fhs', 538);
+    'say_fhs', 538,
+    'capturenamedshash', 539);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3444,5 +3449,6 @@ BEGIN {
     'filereadable',
     'filewritable',
     'fileexecutable',
-    'say_fhs');
+    'say_fhs',
+    'capturenamedshash');
 }
