@@ -68,8 +68,27 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
 }
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not yet support bind key");
+    MVMString      *name  = (MVMString *)key;
+    MVMContextBody *body  = (MVMContextBody *)data;
+    MVMFrame       *frame = body->context;
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    if (!lexical_names) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' does not exist in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    MVM_HASH_GET(tc, lexical_names, name, entry);
+    if (!entry) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' does not exist in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    if (frame->static_info->body.lexical_types[entry->value] != kind) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' has a different type in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    frame->env[entry->value] = value;
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
