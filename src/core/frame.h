@@ -118,8 +118,8 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
-void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
-MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
+MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
+MVM_PUBLIC MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
 MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
 MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
@@ -128,5 +128,5 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
-MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code);
+MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code);
 MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);
