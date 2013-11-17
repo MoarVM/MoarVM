@@ -3786,9 +3786,16 @@ static MVMOpInfo MVM_op_infos[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_read_fhb,
+        "read_fhb",
+        "  ",
+        3,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
 };
 
-static unsigned short MVM_op_counts = 540;
+static unsigned short MVM_op_counts = 541;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

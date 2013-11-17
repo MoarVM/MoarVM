@@ -541,7 +541,7 @@ static const void * const LABELS[] = {
     &&OP_fileexecutable,
     &&OP_say_fhs,
     &&OP_capturenamedshash,
-    NULL,
+    &&OP_read_fhb,
     NULL,
     NULL,
     NULL,

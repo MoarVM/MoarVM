@@ -421,6 +421,60 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     return result;
 }
 
+/* reads a buf from a filehandle. */
+void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
+    MVMOSHandle *handle;
+    MVMint64 bytes_read;
+    uv_fs_t req;
+    char *buf;
+
+    /* XXX TODO handle length == -1 to mean read to EOF */
+
+    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
+
+    /* Ensure the target is in the correct form. */
+    if (!IS_CONCRETE(result) || REPR(result)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "read_fhb requires a native array to write to");
+    if (((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != 1)
+        MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of int8");
+
+    if (length < 1 || length > 99999999) {
+        MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
+    }
+
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_HANDLE: {
+            MVMOSHandleBody * const body = &handle->body;
+            body->u.length = length;
+            uv_read_start((uv_stream_t *)body->u.handle, tty_on_alloc, tty_on_read);
+            buf = body->u.data;
+            bytes_read = body->u.length;
+            break;
+        }
+        case MVM_OSHANDLE_FD:
+            buf = malloc(length);
+            bytes_read = uv_fs_read(tc->loop, &req, handle->body.u.fd, buf, length, -1, NULL);
+            break;
+        default:
+            break;
+    }
+
+    if (bytes_read < 0) {
+        free(buf);
+        MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
+    }
+
+    if (bytes_read == 0) {
+        handle->body.eof = 1;
+    }
+
+    /* Stash the data in the VMArray. */
+    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
+    ((MVMArray *)result)->body.start    = 0;
+    ((MVMArray *)result)->body.ssize    = bytes_read;
+    ((MVMArray *)result)->body.elems    = bytes_read;
+}
+
 /* read all of a filehandle into a string. */
 MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMString *result;

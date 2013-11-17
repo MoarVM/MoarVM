@@ -38,6 +38,7 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt);
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
+void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length);
 MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding);
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMString *encoding);
