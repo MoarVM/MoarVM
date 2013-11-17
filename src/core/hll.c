@@ -24,6 +24,10 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->slurpy_hash_type = tc->instance->boot_types.BOOTHash;
         entry->array_iterator_type = tc->instance->boot_types.BOOTIter;
         entry->hash_iterator_type = tc->instance->boot_types.BOOTIter;
+        entry->foreign_type_int = tc->instance->boot_types.BOOTInt;
+        entry->foreign_type_num = tc->instance->boot_types.BOOTNum;
+        entry->foreign_type_str = tc->instance->boot_types.BOOTStr;
+        entry->null_value = NULL;
         if (tc->instance->hll_compilee_depth)
             HASH_ADD_KEYPTR(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
         else
@@ -35,6 +39,10 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->slurpy_hash_type);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->array_iterator_type);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->hash_iterator_type);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_type_int);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_type_num);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_type_str);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->null_value);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     }
 
@@ -66,6 +74,10 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
     check_config_key(tc, config_hash, "slurpy_hash", slurpy_hash_type, config);
     check_config_key(tc, config_hash, "array_iter", array_iterator_type, config);
     check_config_key(tc, config_hash, "hash_iter", hash_iterator_type, config);
+    check_config_key(tc, config_hash, "foreign_type_int", foreign_type_int, config);
+    check_config_key(tc, config_hash, "foreign_type_num", foreign_type_num, config);
+    check_config_key(tc, config_hash, "foreign_type_str", foreign_type_str, config);
+    check_config_key(tc, config_hash, "null_value", null_value, config);
 
     return config_hash;
 }
@@ -92,6 +104,42 @@ void MVM_hll_leave_compilee_mode(MVMThreadContext *tc) {
 /* Checks if an object belongs to the correct HLL, and does a type mapping
  * of it if not. */
 void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMRegister *res_reg) {
-    /* XXX TODO: Implement the mapping. For now, always identity. */
-    res_reg->o = obj;
+    /* Null objects get mapped to null_value. */
+    if (!obj) {
+        res_reg->o = hll->null_value;
+    }
+
+    /* If the object belongs to the current HLL, we're done. */
+    else if (STABLE(obj)->hll_owner == hll) {
+        res_reg->o = obj;
+    }
+
+    /* Otherwise, need to try a mapping. */
+    else {
+        switch (STABLE(obj)->hll_role) {
+            case MVM_HLL_ROLE_INT:
+                if (hll->foreign_type_int)
+                    res_reg->o = MVM_repr_box_int(tc, hll->foreign_type_int,
+                        MVM_repr_get_int(tc, obj));
+                else
+                    res_reg->o = obj;
+                break;
+            case MVM_HLL_ROLE_NUM:
+                if (hll->foreign_type_num)
+                    res_reg->o = MVM_repr_box_num(tc, hll->foreign_type_num,
+                        MVM_repr_get_num(tc, obj));
+                else
+                    res_reg->o = obj;
+                break;
+            case MVM_HLL_ROLE_STR:
+                if (hll->foreign_type_str)
+                    res_reg->o = MVM_repr_box_str(tc, hll->foreign_type_str,
+                        MVM_repr_get_str(tc, obj));
+                else
+                    res_reg->o = obj;
+                break;
+            default:
+                res_reg->o = obj;
+        }
+    }
 }

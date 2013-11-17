@@ -642,6 +642,13 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
         tc->instance->boot_types.BOOTStr);
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->boot_types.BOOTStrArray);
 
+    /* Set up HLL roles. */
+    STABLE(tc->instance->boot_types.BOOTInt)->hll_role   = MVM_HLL_ROLE_INT;
+    STABLE(tc->instance->boot_types.BOOTNum)->hll_role   = MVM_HLL_ROLE_NUM;
+    STABLE(tc->instance->boot_types.BOOTStr)->hll_role   = MVM_HLL_ROLE_STR;
+    STABLE(tc->instance->boot_types.BOOTArray)->hll_role = MVM_HLL_ROLE_ARRAY;
+    STABLE(tc->instance->boot_types.BOOTHash)->hll_role  = MVM_HLL_ROLE_HASH;
+
     /* Get initial __6MODEL_CORE__ serialization context set up. */
     setup_core_sc(tc);
     MVM_6model_containers_setup(tc);
