@@ -201,7 +201,7 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
                     for (i = 0; i < plen; i++) {
                         if (0 == stricmp(ext, pext++)) {
                             r = 1;
-                            last;
+                            break;
                         }
                     }
                     free(ext);
