@@ -3764,6 +3764,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
+            OP(write_fhb):
+                MVM_file_write_fhb(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

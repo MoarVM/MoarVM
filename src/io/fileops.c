@@ -577,6 +577,48 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
     return bytes_written;
 }
 
+void MVM_file_write_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
+    MVMOSHandle *handle;
+    MVMuint8 *output;
+    MVMint64 output_size;
+    MVMint64 bytes_written;
+
+    verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
+
+    /* Ensure the target is in the correct form. */
+    if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array to read from");
+    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != 1)
+        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of int8");
+
+    output = ((MVMArray *)buffer)->body.slots.i8;
+    output_size = ((MVMArray *)buffer)->body.elems;
+
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_HANDLE: {
+            uv_write_t *req = malloc(sizeof(uv_write_t));
+            uv_buf_t buf = uv_buf_init(output, bytes_written = output_size);
+            int r;
+
+            if ((r = uv_write(req, (uv_stream_t *)handle->body.u.handle, &buf, 1, write_cb)) < 0) {
+                free(req);
+                MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
+            }
+            break;
+        }
+        case MVM_OSHANDLE_FD: {
+            uv_fs_t req;
+            bytes_written = uv_fs_write(tc->loop, &req, handle->body.u.fd, (const void *)output, output_size, -1, NULL);
+            if (bytes_written < 0) {
+                MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 /* writes a string to a file, overwriting it if necessary */
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMString *encoding) {
     MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "w", 1);
