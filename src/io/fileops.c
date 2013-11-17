@@ -182,7 +182,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 FILE_IS(readable, READ)
 FILE_IS(writable, WRITE)
 MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
-    MVMint64 r;
+    MVMint64 r = 0;
     uv_stat_t statbuf = file_info(tc, filename);
     if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
         return 1;
@@ -199,18 +199,18 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
                     int plen   = strlen(pext);
                     int i;
                     for (i = 0; i < plen; i++) {
-                        if (0 == stricmp(ext, pext++))
-                            return 1;
+                        if (0 == stricmp(ext, pext++)) {
+                            r = 1;
+                            last;
+                        }
                     }
                     free(ext);
                     free(pext);
-                    return 0;
                 });
             }
-            else
-                return 0;
         });
     }
+    return r;
 }
 #else
 #define FILE_IS(name, rwx) \
