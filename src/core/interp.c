@@ -3256,7 +3256,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(exit): {
-                MVMint64 exit_code = GET_REG(cur_op, 2).i64;
+                MVMint64 exit_code = GET_REG(cur_op, 0).i64;
                 MVM_vm_destroy_instance(tc->instance);
                 exit(exit_code);
             }
