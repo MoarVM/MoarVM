@@ -39,6 +39,16 @@ pod2usage(1) if $args{help};
 
 print "Welcome to MoarVM!\n\n";
 
+$config{prefix} = File::Spec->rel2abs($args{prefix} // 'install');
+# don't install to cwd, as this would clash with lib/MAST/*.nqp
+if (-e 'README.markdown' && -e "$config{prefix}/README.markdown"
+ && -s 'README.markdown' == -s "$config{prefix}/README.markdown") {
+    die <<ENOTTOCWD;
+Configuration FAIL. Installing to MoarVM root folder is not allowed.
+Please specify another installation target by using --prefix=PATH.
+ENOTTOCWD
+}
+
 print dots("Updating submodules");
 my $msg = qx{git submodule --quiet update --init 2>&1};
 if ($? >> 8 == 0) { print "OK\n" }
@@ -66,8 +76,6 @@ else {
 $config{name}   = $NAME;
 $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
-
-$config{prefix} = File::Spec->rel2abs($args{prefix} // 'install');
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -641,7 +649,8 @@ builds, the byte order is auto-detected.
 
 =item --prefix
 
-Install files in subdirectory /bin of the supplied path.
+Install files in subdirectory /bin, /lib and /include of the supplied path.
+The default prefix is "install" if this option is not passed.
 
 =item --make-install
 
