@@ -176,10 +176,18 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
     MVMObject *strmeth;
+    MVMStorageSpec ss;
 
     /* Handle null case. */
     if (!obj) {
         res_reg->s = tc->instance->str_consts.empty;
+        return;
+    }
+
+    /* If it can unbox as a string, that wins right off. */
+    ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+    if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR && IS_CONCRETE(obj)) {
+        res_reg->s = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         return;
     }
 
@@ -202,13 +210,10 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     if (!IS_CONCRETE(obj))
         res_reg->s = tc->instance->str_consts.empty;
     else {
-        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (REPR(obj)->ID == MVM_REPR_ID_MVMString)
             res_reg->s = (MVMString *)obj;
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMException)
             res_reg->s = ((MVMException *)obj)->body.message;
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-            res_reg->s = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             res_reg->s = MVM_coerce_i_s(tc, REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
