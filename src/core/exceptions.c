@@ -2,6 +2,7 @@
 #include <stdarg.h>
 
 #if _MSC_VER
+#define snprintf _snprintf
 #define vsnprintf _vsnprintf
 #endif
 
@@ -218,7 +219,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     if (instr == MVM_BC_ILLEGAL_OFFSET && offset >= 2)
         instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset - 2);
 
-    sprintf(o, " %s %s:%u  (%s:%s:%u)",
+    snprintf(o, 1024, " %s %s:%u  (%s:%s:%u)",
         not_top ? "from" : "  at",
         tmp1 ? tmp1 : "<unknown>",
         line_number,

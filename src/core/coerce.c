@@ -2,6 +2,7 @@
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
+#define snprintf _snprintf
 #endif
 
 /* Dummy, invocant-arg callsite. */
@@ -140,8 +141,8 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 }
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
-    char buffer[25];
-    int len = sprintf(buffer, "%lld", i);
+    char buffer[32];
+    int len = snprintf(buffer, 32, "%lld", i);
     if (len >= 0)
         return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
     else
@@ -159,9 +160,9 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
         return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
     }
     else {
-        char buf[21];
+        char buf[32];
         int i;
-        if (sprintf(buf, "%-15f", n) < 0)
+        if (snprintf(buf, 32, "%-15f", n) < 0)
             MVM_exception_throw_adhoc(tc, "Could not stringify number");
         if (strstr(buf, ".")) {
             i = strlen(buf);
