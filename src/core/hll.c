@@ -27,6 +27,9 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->foreign_type_int = tc->instance->boot_types.BOOTInt;
         entry->foreign_type_num = tc->instance->boot_types.BOOTNum;
         entry->foreign_type_str = tc->instance->boot_types.BOOTStr;
+        entry->foreign_transform_array = NULL;
+        entry->foreign_transform_hash = NULL;
+        entry->foreign_transform_code = NULL;
         entry->null_value = NULL;
         if (tc->instance->hll_compilee_depth)
             HASH_ADD_KEYPTR(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
@@ -42,6 +45,9 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_type_int);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_type_num);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_type_str);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_transform_array);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_transform_hash);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_transform_code);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->null_value);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     }
@@ -77,6 +83,9 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
     check_config_key(tc, config_hash, "foreign_type_int", foreign_type_int, config);
     check_config_key(tc, config_hash, "foreign_type_num", foreign_type_num, config);
     check_config_key(tc, config_hash, "foreign_type_str", foreign_type_str, config);
+    check_config_key(tc, config_hash, "foreign_transform_array", foreign_transform_array, config);
+    check_config_key(tc, config_hash, "foreign_transform_hash", foreign_transform_hash, config);
+    check_config_key(tc, config_hash, "foreign_transform_code", foreign_transform_code, config);
     check_config_key(tc, config_hash, "null_value", null_value, config);
 
     return config_hash;
@@ -100,6 +109,10 @@ void MVM_hll_leave_compilee_mode(MVMThreadContext *tc) {
     tc->instance->hll_compilee_depth--;
     uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
 }
+
+/* Single object arg callsite. */
+static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     obj_arg_callsite = { obj_arg_flags, 1, 1, 0 };
 
 /* Checks if an object belongs to the correct HLL, and does a type mapping
  * of it if not. */
@@ -137,6 +150,48 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                         MVM_repr_get_str(tc, obj));
                 else
                     res_reg->o = obj;
+                break;
+            case MVM_HLL_ROLE_ARRAY:
+                if (hll->foreign_transform_array) {
+                    /* Invoke and set result register as return location. */
+                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_array);
+                    tc->cur_frame->return_value   = res_reg;
+                    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
+                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    tc->cur_frame->args[0].o = obj;
+                    STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+                }
+                else {
+                    res_reg->o = obj;
+                }
+                break;
+            case MVM_HLL_ROLE_HASH:
+                if (hll->foreign_transform_hash) {
+                    /* Invoke and set result register as return location. */
+                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_hash);
+                    tc->cur_frame->return_value   = res_reg;
+                    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
+                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    tc->cur_frame->args[0].o = obj;
+                    STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+                }
+                else {
+                    res_reg->o = obj;
+                }
+                break;
+            case MVM_HLL_ROLE_CODE:
+                if (hll->foreign_transform_code) {
+                    /* Invoke and set result register as return location. */
+                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_code);
+                    tc->cur_frame->return_value   = res_reg;
+                    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
+                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    tc->cur_frame->args[0].o = obj;
+                    STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+                }
+                else {
+                    res_reg->o = obj;
+                }
                 break;
             default:
                 res_reg->o = obj;

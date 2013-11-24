@@ -23,6 +23,11 @@ struct MVMHLLConfig {
     MVMObject *foreign_type_num;
     MVMObject *foreign_type_str;
 
+    /* HLL mapping transforms for array/hash/code. */
+    MVMObject *foreign_transform_array;
+    MVMObject *foreign_transform_hash;
+    MVMObject *foreign_transform_code;
+
     /* The value to substitute for null. */
     MVMObject *null_value;
 
