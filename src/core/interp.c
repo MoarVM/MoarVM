@@ -2685,7 +2685,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(iscont): {
-                GET_REG(cur_op, 0).i64 = STABLE(GET_REG(cur_op, 2).o)->container_spec == NULL ? 0 : 1;
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = obj == NULL || STABLE(obj)->container_spec == NULL ? 0 : 1;
                 cur_op += 4;
                 goto NEXT;
             }
