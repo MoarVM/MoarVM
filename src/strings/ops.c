@@ -401,6 +401,25 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     return result;
 }
 
+MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint64 start, MVMint64 count, MVMString *replacement) {
+    /* XXX this could probably be done more efficiently directly. */
+    MVMString *first_part;
+    MVMString *rest_part;
+    MVMString *result;
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&replacement);
+    first_part = MVM_string_substring(tc, original, 0, start);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&first_part);
+
+    rest_part  = MVM_string_substring(tc, original, start + count, -1);
+    rest_part  = MVM_string_concatenate(tc, replacement, rest_part);
+    result     = MVM_string_concatenate(tc, first_part, rest_part);
+
+    MVM_gc_root_temp_pop_n(tc, 2);
+
+    return result;
+}
+
 /* Append one string to another. */
 /* XXX inline parent's strands if it's a rope too? */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
