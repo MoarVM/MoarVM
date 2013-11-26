@@ -408,6 +408,7 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
     MVMString *result;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&replacement);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&original);
     first_part = MVM_string_substring(tc, original, 0, start);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&first_part);
 
@@ -415,7 +416,7 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
     rest_part  = MVM_string_concatenate(tc, replacement, rest_part);
     result     = MVM_string_concatenate(tc, first_part, rest_part);
 
-    MVM_gc_root_temp_pop_n(tc, 2);
+    MVM_gc_root_temp_pop_n(tc, 3);
 
     return result;
 }
