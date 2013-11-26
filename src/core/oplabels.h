@@ -543,7 +543,7 @@ static const void * const LABELS[] = {
     &&OP_capturenamedshash,
     &&OP_read_fhb,
     &&OP_write_fhb,
-    NULL,
+    &&OP_replace,
     NULL,
     NULL,
     NULL,

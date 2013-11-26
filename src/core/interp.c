@@ -1389,11 +1389,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
-            /*OP(replace):
+            OP(replace):
                 GET_REG(cur_op, 0).s = MVM_string_replace(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).s);
-                cur_op += 8;
-                goto NEXT;*/
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).s);
+                cur_op += 10;
+                goto NEXT;
             OP(getcpbyname):
                 GET_REG(cur_op, 0).i64 = MVM_unicode_lookup_by_name(tc,
                     GET_REG(cur_op, 2).s);
