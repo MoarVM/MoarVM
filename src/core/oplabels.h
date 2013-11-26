@@ -544,7 +544,7 @@ static const void * const LABELS[] = {
     &&OP_read_fhb,
     &&OP_write_fhb,
     &&OP_replace,
-    NULL,
+    &&OP_newexception,
     NULL,
     NULL,
     NULL,

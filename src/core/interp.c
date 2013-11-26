@@ -3773,6 +3773,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_file_write_fhb(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(newexception):
+                GET_REG(cur_op, 0).o
+                    = (MVMObject *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

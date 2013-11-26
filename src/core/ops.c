@@ -3807,9 +3807,16 @@ static MVMOpInfo MVM_op_infos[] = {
         5,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_newexception,
+        "newexception",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
 };
 
-static unsigned short MVM_op_counts = 543;
+static unsigned short MVM_op_counts = 544;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
