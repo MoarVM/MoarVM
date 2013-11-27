@@ -549,6 +549,7 @@
 #define MVM_OP_backtrace 545
 #define MVM_OP_symlink 546
 #define MVM_OP_link 547
+#define MVM_OP_gethostname 548
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

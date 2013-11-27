@@ -549,7 +549,7 @@ static const void * const LABELS[] = {
     &&OP_backtrace,
     &&OP_symlink,
     &&OP_link,
-    NULL,
+    &&OP_gethostname,
     NULL,
     NULL,
     NULL,

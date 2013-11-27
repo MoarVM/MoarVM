@@ -264,3 +264,9 @@ MVMString * MVM_socket_receive_string(MVMThreadContext *tc, MVMObject *oshandle,
 
     return result;
 }
+
+MVMString * MVM_get_hostname(MVMThreadContext *tc) {
+    char hostname[65];
+    gethostname(hostname, 65);
+    return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, hostname);
+}

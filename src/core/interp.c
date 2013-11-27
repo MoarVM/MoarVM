@@ -3788,6 +3788,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "symlink NYI");
             OP(link):
                 MVM_exception_throw_adhoc(tc, "link NYI");
+            OP(gethostname):
+                GET_REG(cur_op, 0).s = MVM_get_hostname(tc);
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
