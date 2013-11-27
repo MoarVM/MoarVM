@@ -3784,6 +3784,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(symlink):
+                MVM_exception_throw_adhoc(tc, "symlink NYI");
+            OP(link):
+                MVM_exception_throw_adhoc(tc, "link NYI");
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
