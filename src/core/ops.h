@@ -545,6 +545,7 @@
 #define MVM_OP_write_fhb 541
 #define MVM_OP_replace 542
 #define MVM_OP_newexception 543
+#define MVM_OP_openpipe 544
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
