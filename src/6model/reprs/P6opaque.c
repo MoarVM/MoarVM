@@ -1037,6 +1037,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         MVM_exception_throw_adhoc(tc,
             "Representation must be composed before it can be serialized");
 
+    data = real_data(data);
+
     for (i = 0; i < num_attributes; i++) {
         MVMuint16  a_offset = repr_data->attribute_offsets[i];
         MVMSTable *a_st     = repr_data->flattened_stables[i];
