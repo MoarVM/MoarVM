@@ -39,19 +39,13 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         case MVM_OSHANDLE_UNINIT:
             break;
         case MVM_OSHANDLE_HANDLE:
-#ifndef _WIN32
-            if (!uv_is_closing(handle->body.u.handle)) {
-                int do_shutdown = handle->body.u.handle->type == UV_NAMED_PIPE &&
-                    uv_is_writable((uv_stream_t*)(handle->body.u.handle));
-
-                if (!do_shutdown) {
-                    /* XXX This would bust building rakudo right now. We need to figure
-                    out the cases where it safe and needed to free these handles.
-                    uv_close(handle->body.u.handle, NULL);
-                    uv_run(tc->loop, UV_RUN_DEFAULT); */
-                }
+            if (handle->body.u.handle
+            && !uv_is_closing(handle->body.u.handle)
+            && tc->instance->stdin  != obj
+            && tc->instance->stdout != obj
+            && tc->instance->stderr != obj) {
+                uv_close(handle->body.u.handle, NULL);
             }
-#endif
             break;
         case MVM_OSHANDLE_FD:
             break;

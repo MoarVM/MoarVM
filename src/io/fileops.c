@@ -529,6 +529,7 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString 
 static void write_cb(uv_write_t* req, int status) {
     uv_unref((uv_handle_t *)req);
     free(req);
+    req = NULL;
 }
 
 /* writes a string to a filehandle. */
@@ -554,7 +555,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
             int r;
 
             if ((r = uv_write(req, (uv_stream_t *)handle->body.u.handle, &buf, 1, write_cb)) < 0) {
-                free(req);
+                if (req) free(req);
                 free(output);
                 MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
             }
@@ -827,15 +828,19 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 }
 
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 0, 1);
+    return tc->instance->stdin
+            ? tc->instance->stdin
+            : MVM_file_get_stdstream(tc, 0, 1);
 }
-
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 1, 0);
+    return tc->instance->stdout
+            ? tc->instance->stdout
+            : MVM_file_get_stdstream(tc, 1, 0);
 }
-
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 2, 0);
+    return tc->instance->stderr
+        ? tc->instance->stderr
+        : MVM_file_get_stdstream(tc, 2, 0);
 }
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {

@@ -182,4 +182,8 @@ struct MVMInstance {
     /* Hash of filenames of compunits loaded from disk. */
     MVMLoadedCompUnitName *loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
+
+    MVMObject *stdin;
+    MVMObject *stdout;
+    MVMObject *stderr;
 };

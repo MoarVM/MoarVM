@@ -58,6 +58,13 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
+    instance->stdin  = MVM_file_get_stdin(instance->main_thread);
+    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->stdin);
+    instance->stdout = MVM_file_get_stdout(instance->main_thread);
+    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->stdout);
+    instance->stderr = MVM_file_get_stderr(instance->main_thread);
+    MVM_gc_root_add_permanent(instance->main_thread, (MVMCollectable **)&instance->stderr);
+
     /* Fix up main thread's usecapture. */
     instance->main_thread->cur_usecapture = MVM_repr_alloc_init(instance->main_thread, instance->CallCapture);
 
