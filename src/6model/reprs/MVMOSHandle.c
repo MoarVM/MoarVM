@@ -41,9 +41,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         case MVM_OSHANDLE_HANDLE:
             if (handle->body.u.handle
             && !uv_is_closing(handle->body.u.handle)
-            && tc->instance->stdin  != obj
-            && tc->instance->stdout != obj
-            && tc->instance->stderr != obj) {
+            && tc->instance->stdin_handle  != obj
+            && tc->instance->stdout_handle != obj
+            && tc->instance->stderr_handle != obj) {
                 uv_close(handle->body.u.handle, NULL);
             }
             break;

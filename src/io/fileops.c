@@ -828,18 +828,18 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 }
 
 MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
-    return tc->instance->stdin
-            ? tc->instance->stdin
+    return tc->instance->stdin_handle
+            ? tc->instance->stdin_handle
             : MVM_file_get_stdstream(tc, 0, 1);
 }
 MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    return tc->instance->stdout
-            ? tc->instance->stdout
+    return tc->instance->stdout_handle
+            ? tc->instance->stdout_handle
             : MVM_file_get_stdstream(tc, 1, 0);
 }
 MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
-    return tc->instance->stderr
-        ? tc->instance->stderr
+    return tc->instance->stderr_handle
+        ? tc->instance->stderr_handle
         : MVM_file_get_stdstream(tc, 2, 0);
 }
 

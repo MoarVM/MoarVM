@@ -183,7 +183,7 @@ struct MVMInstance {
     MVMLoadedCompUnitName *loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
 
-    MVMObject *stdin;
-    MVMObject *stdout;
-    MVMObject *stderr;
+    MVMObject *stdin_handle;
+    MVMObject *stdout_handle;
+    MVMObject *stderr_handle;
 };
