@@ -231,4 +231,27 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
 
 /* Called when an STable triggers the SC repossession write barrier. */
 void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
+    MVMSerializationContext *comp_sc;
+
+    /* If the WB is disabled or we're not compiling, can exit quickly. */
+    if (tc->sc_wb_disable_depth)
+        return;
+    if (!tc->compiling_scs || !MVM_repr_elems(tc, tc->compiling_scs))
+        return;
+
+    /* Otherwise, check that the STable's SC is different from the SC
+     * of the compilation we're currently in. Repossess if so. */
+    comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);
+    if (st->header.sc != comp_sc) {
+        /* Add to root set. */
+        MVMint64 new_slot = comp_sc->body->num_stables;
+        MVM_sc_push_stable(tc, comp_sc, st);
+
+        /* Add repossession entry. */
+        MVM_repr_push_i(tc, comp_sc->body->rep_indexes, (new_slot << 1) | 1);
+        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)st->header.sc);
+
+        /* Update SC of the STable, claiming it. */
+        MVM_ASSIGN_REF(tc, st, st->header.sc, comp_sc);
+    }
 }
