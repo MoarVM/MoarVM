@@ -2629,6 +2629,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 stable = STABLE(GET_REG(cur_op, 0).o);
                 MVM_ASSIGN_REF(tc, stable, stable->method_cache, cache);
+                MVM_SC_WB_ST(tc, stable);
 
                 cur_op += 4;
                 goto NEXT;
@@ -2640,6 +2641,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (flag != 0)
                     new_flags |= MVM_METHOD_CACHE_AUTHORITATIVE;
                 STABLE(obj)->mode_flags = new_flags;
+                MVM_SC_WB_ST(tc, STABLE(obj));
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2656,6 +2658,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     free(STABLE(obj)->type_check_cache);
                 STABLE(obj)->type_check_cache = cache;
                 STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
+                MVM_SC_WB_ST(tc, STABLE(obj));
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3616,6 +3619,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *st = STABLE(GET_REG(cur_op, 0).o);
                 st->mode_flags = GET_REG(cur_op, 2).i64 |
                     (st->mode_flags & (~MVM_TYPE_CHECK_CACHE_FLAG_MASK));
+                MVM_SC_WB_ST(tc, st);
                 cur_op += 4;
                 goto NEXT;
             }
