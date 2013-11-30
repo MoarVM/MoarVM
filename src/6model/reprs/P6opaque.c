@@ -553,7 +553,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     }
 
     MVM_exception_throw_adhoc(tc,
-        "P6opaque: get_boxed_ref could not unbox for the given representation");
+        "P6opaque: get_boxed_ref could not unbox for the representation '%d'", repr_id);
 }
 
 /* Gets the storage specification for this representation. */
