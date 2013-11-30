@@ -3469,23 +3469,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject * const sc  = GET_REG(cur_op, 0).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc, "Can only push an SCRef with pushcompsc");
-
                 if (!tc->compiling_scs) {
                     MVMROOT(tc, sc, {
                         tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                     });
                 }
-                MVM_repr_push_o(tc, tc->compiling_scs, sc);
+                MVM_repr_unshift_o(tc, tc->compiling_scs, sc);
                 cur_op += 2;
                 goto NEXT;
             }
             OP(popcompsc): {
                 MVMObject * const scs = tc->compiling_scs;
-                if (MVM_repr_elems(tc, scs) == 0)
+                if (!scs || MVM_repr_elems(tc, scs) == 0)
                     MVM_exception_throw_adhoc(tc, "No current compiling SC");
-
-                REPR(scs)->pos_funcs.pop(tc, STABLE(scs), scs,
-                    OBJECT_BODY(scs), &GET_REG(cur_op, 0), MVM_reg_obj);
+                MVM_repr_shift_o(tc, tc->compiling_scs);
                 cur_op += 2;
                 goto NEXT;
             }
