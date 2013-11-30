@@ -932,6 +932,42 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
 }
 
+/* Goes through the list of repossessions and serializes them all. */
+static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter *writer) {
+    MVMint64 i;
+
+    /* Obtain list of repossession object indexes and original SCs. */
+    MVMObject *rep_indexes = writer->root.sc->body->rep_indexes;
+    MVMObject *rep_scs     = writer->root.sc->body->rep_scs;
+
+    /* Allocate table space, provided we've actually something to do. */
+    writer->root.num_repos = MVM_repr_elems(tc, rep_indexes);
+    if (writer->root.num_repos == 0)
+        return;
+    writer->root.repos_table = (char *)malloc(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
+
+    /* Make entries. */
+    for (i = 0; i < writer->root.num_repos; i++) {
+        MVMint32 offset  = (MVMint32)(i * REPOS_TABLE_ENTRY_SIZE);
+        MVMint32 obj_idx = (MVMint32)(MVM_repr_at_pos_i(tc, rep_indexes, i) >> 1);
+        MVMint32 is_st   = MVM_repr_at_pos_i(tc, rep_indexes, i) & 1;
+        MVMSerializationContext *orig_sc =
+            (MVMSerializationContext *)MVM_repr_at_pos_o(tc, rep_scs, i);
+
+        /* Work out original object's SC location. */
+        MVMint32 orig_sc_id = get_sc_id(tc, writer, orig_sc);
+        MVMint32 orig_idx   = (MVMint32)(is_st
+            ? MVM_sc_find_stable_idx(tc, orig_sc, writer->root.sc->body->root_stables[obj_idx])
+            : MVM_sc_find_object_idx(tc, orig_sc, MVM_repr_at_pos_o(tc, writer->objects_list, obj_idx)));
+
+        /* Write table row. */
+        write_int32(writer->root.repos_table, offset, is_st);
+        write_int32(writer->root.repos_table, offset + 4, obj_idx);
+        write_int32(writer->root.repos_table, offset + 8, orig_sc_id);
+        write_int32(writer->root.repos_table, offset + 12, orig_idx);
+    }
+}
+
 static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     MVMuint32 work_todo;
     do {
@@ -970,7 +1006,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 
     /* Finally, serialize repossessions table (this can't make any more
      * work, so is done as a separate step here at the end). */
-    /* serialize_repossessions(tc, writer); */
+    serialize_repossessions(tc, writer);
 }
 
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
