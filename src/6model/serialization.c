@@ -1842,6 +1842,8 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
                 "(Probable attempt to load two modules that cannot be loaded together).");
 
         /* XXX TODO: clear up memory the STable may have allocated so far. */
+        if (orig_st->REPR->gc_free_repr_data)
+            orig_st->REPR->gc_free_repr_data(tc, orig_st);
     }
     else {
         fail_deserialize(tc, reader, "Unknown repossession type");
