@@ -783,7 +783,7 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 }
 
 /* return an OSHandle representing one of the standard streams */
-static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
+MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
     MVMObject * const type_object = tc->instance->boot_types.BOOTIO;
     MVMOSHandle * const    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     MVMOSHandleBody * const body  = &result->body;
@@ -825,22 +825,6 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
     verify_filehandle_type(tc, oshandle, &handle, "check eof");
 
     return handle->body.eof;
-}
-
-MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
-    return tc->instance->stdin_handle
-            ? tc->instance->stdin_handle
-            : MVM_file_get_stdstream(tc, 0, 1);
-}
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    return tc->instance->stdout_handle
-            ? tc->instance->stdout_handle
-            : MVM_file_get_stdstream(tc, 1, 0);
-}
-MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
-    return tc->instance->stderr_handle
-        ? tc->instance->stderr_handle
-        : MVM_file_get_stdstream(tc, 2, 0);
 }
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {

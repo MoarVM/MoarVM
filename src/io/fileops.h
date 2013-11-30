@@ -46,12 +46,10 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
 MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl);
 void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle);
+MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable);
 MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
-MVMObject * MVM_file_get_stdin(MVMThreadContext *tc);
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc);
-MVMObject * MVM_file_get_stderr(MVMThreadContext *tc);
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);

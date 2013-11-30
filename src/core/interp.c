@@ -3147,15 +3147,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(getstdin):
-                GET_REG(cur_op, 0).o = MVM_file_get_stdin(tc);
+                if (!tc->instance->stdin_handle)
+                    MVM_exception_throw_adhoc(tc, "STDIN filehandle was never initialized");
+                GET_REG(cur_op, 0).o = tc->instance->stdin_handle;
                 cur_op += 2;
                 goto NEXT;
             OP(getstdout):
-                GET_REG(cur_op, 0).o = MVM_file_get_stdout(tc);
+                if (!tc->instance->stdout_handle)
+                    MVM_exception_throw_adhoc(tc, "STDOUT filehandle was never initialized");
+                GET_REG(cur_op, 0).o = tc->instance->stdout_handle;
                 cur_op += 2;
                 goto NEXT;
             OP(getstderr):
-                GET_REG(cur_op, 0).o = MVM_file_get_stderr(tc);
+                if (!tc->instance->stderr_handle)
+                    MVM_exception_throw_adhoc(tc, "STDERR filehandle was never initialized");
+                GET_REG(cur_op, 0).o = tc->instance->stderr_handle;
                 cur_op += 2;
                 goto NEXT;
             OP(connect_sk):
