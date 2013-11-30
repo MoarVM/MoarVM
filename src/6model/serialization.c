@@ -1567,13 +1567,17 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
         /* Calculate location of STable's table row. */
         char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
 
-        /* Read in and look up representation. */
-        const MVMREPROps *repr = MVM_repr_get_by_name(tc,
-            read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
-
-        /* Allocate and store stub STable. */
-        MVMSTable *st = MVM_gc_allocate_stable(tc, repr, NULL);
-        MVM_sc_set_stable(tc, reader->root.sc, i, st);
+        /* Check we don't already have the STable (due to repossession). */
+        MVMSTable *st = MVM_sc_try_get_stable(tc, reader->root.sc, i);
+        if (!st) {
+            /* Read in and look up representation. */
+            const MVMREPROps *repr = MVM_repr_get_by_name(tc,
+                read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
+    
+            /* Allocate and store stub STable. */
+            st = MVM_gc_allocate_stable(tc, repr, NULL);
+            MVM_sc_set_stable(tc, reader->root.sc, i, st);
+        }
 
         /* Set the STable's SC. */
         MVM_sc_set_stable_sc(tc, st, reader->root.sc);
@@ -1813,6 +1817,37 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 }
 
+/* Repossess an object or STable. */
+static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint64 i) {
+    /* Calculate location of table row. */
+    char *table_row = reader->root.repos_table + i * REPOS_TABLE_ENTRY_SIZE;
+    
+    /* Do appropriate type of repossession. */
+    MVMint32 repo_type = read_int32(table_row, 0);
+    if (repo_type == 0) {
+        fail_deserialize(tc, reader, "Object repossess NYI in deserializer");
+    }
+    else if (repo_type == 1) {
+        /* Get STable to repossess. */
+        MVMSerializationContext *orig_sc = locate_sc(tc, reader, read_int32(table_row, 8));
+        MVMSTable *orig_st = MVM_sc_get_stable(tc, orig_sc, read_int32(table_row, 12));
+
+        /* Put it into STables root set at the apporpriate slot. */
+        MVM_sc_set_stable(tc, reader->root.sc, read_int32(table_row, 4), orig_st);
+
+        /* Make sure we don't have a reposession conflict. */
+        if (orig_st->header.sc != orig_sc)
+            fail_deserialize(tc, reader,
+                "STable conflict detected during deserialization.\n"
+                "(Probable attempt to load two modules that cannot be loaded together).");
+
+        /* XXX TODO: clear up memory the STable may have allocated so far. */
+    }
+    else {
+        fail_deserialize(tc, reader, "Unknown repossession type");
+    }
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
@@ -1861,7 +1896,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Resolve the SCs in the dependencies table. */
     resolve_dependencies(tc, reader);
 
-    /* TODO: repossessing objects and STables. */
+    /* If we're repossessing objects and STables from other SCs, then first
+      * get those raw objects into our root set. */
+     for (i = 0; i < reader->root.num_repos; i++)
+        repossess(tc, reader, i);
 
     /* Stub allocate all STables, and then have the appropriate REPRs do
      * the required size calculations. */

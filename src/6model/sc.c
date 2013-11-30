@@ -130,11 +130,20 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    if (idx >= 0 && idx < sc->body->num_stables)
+    if (idx >= 0 && idx < sc->body->num_stables && sc->body->root_stables[idx])
         return sc->body->root_stables[idx];
     else
         MVM_exception_throw_adhoc(tc,
             "No STable at index %d", idx);
+}
+
+/* Given an SC and an index, fetch the STable stored there, or return NULL if there
+ * is none. */
+MVMSTable * MVM_sc_try_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    if (idx >= 0 && idx < sc->body->num_stables)
+        return sc->body->root_stables[idx];
+    else
+        return NULL;
 }
 
 /* Given an SC, an index, and an STable, store the STable at the index. */
@@ -146,19 +155,19 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
         /* Just updating an existing one. */
         MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
     }
-    else if (idx == sc->body->num_stables) {
-        /* Setting the next one. */
-        if (idx == sc->body->alloc_stables) {
-            sc->body->alloc_stables += 16;
+    else {
+        if (idx >= sc->body->alloc_stables) {
+            MVMint64 orig_size = sc->body->alloc_stables;
+            sc->body->alloc_stables += 32;
+            if (sc->body->alloc_stables < idx + 1)
+                sc->body->alloc_stables = idx + 1;
             sc->body->root_stables = realloc(sc->body->root_stables,
                 sc->body->alloc_stables * sizeof(MVMSTable *));
+            memset(sc->body->root_stables + orig_size, 0,
+                (sc->body->alloc_stables - orig_size) * sizeof(MVMSTable *));
         }
         MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
-        sc->body->num_stables++;
-    }
-    else {
-        MVM_exception_throw_adhoc(tc,
-            "Gaps in STable root set not allowed");
+        sc->body->num_stables = idx + 1;
     }
 }
 
