@@ -223,3 +223,12 @@ MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString 
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
     return scb && scb->sc ? scb->sc : NULL;
 }
+
+/* Called when an object triggers the SC repossession write barrier. */
+void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
+    /* XXX TODO */
+}
+
+/* Called when an STable triggers the SC repossession write barrier. */
+void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
+}
