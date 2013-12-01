@@ -55,8 +55,6 @@ if ($? >> 8 == 0) { print "OK\n" }
 else { softfail("git error: $msg") }
 
 # fiddle with flags
-$args{debug}      //= 0;
-$args{optimize}   //= 0;
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
@@ -139,17 +137,17 @@ $config{ldlibs} = join ' ',
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
+$config{ccoptiflags}  = sprintf $config{ccoptiflags},  $args{optimize} // 3 if $config{ccoptiflags}  =~ /%d/;
+$config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug}    // 3 if $config{ccdebugflags} =~ /%d/;
+$config{ldoptiflags}  = sprintf $config{ldoptiflags},  $args{optimize} // 3 if $config{ldoptiflags}  =~ /%d/;
+$config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug}    // 3 if $config{lddebugflags} =~ /%d/;
+
+
 # generate CFLAGS
 my @cflags;
 push @cflags, $config{ccmiscflags};
-if ($args{optimize}) {
-    $config{ccoptiflags} = sprintf $config{ccoptiflags}, $args{optimize} if $config{ccoptiflags} =~ /%d/;
-    push @cflags, $config{ccoptiflags};
-}
-if ($args{debug}) {
-    $config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug} if $config{ccdebugflags} =~ /%d/;
-    push @cflags, $config{ccdebugflags};
-}
+push @cflags, $config{ccoptiflags}  if $args{optimize};
+push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
@@ -158,14 +156,8 @@ $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});
-if ($args{optimize}) {
-    $config{ldoptiflags} = sprintf $config{ldoptiflags}, $args{optimize} if $config{ldoptiflags} =~ /%d/;
-    push @ldflags, $config{ldoptiflags};
-}
-if ($args{debug}) {
-    $config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug} if $config{lddebugflags} =~ /%d/;
-    push @ldflags, $config{lddebugflags};
-}
+push @ldflags, $config{ldoptiflags}  if $args{optimize};
+push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ldrpath}           unless $args{static};
 $config{ldflags} = join ' ', @ldflags;
