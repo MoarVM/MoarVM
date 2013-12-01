@@ -382,7 +382,7 @@ switch no-tracing no-cgoto:
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=0 CGOTO=0 NOISY="$(NOISY)"
 
-.c@obj@:
+.c@obj@: Makefile
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @ccout@$@ $*.c
 
