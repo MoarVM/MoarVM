@@ -418,6 +418,8 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
 
     MVM_gc_root_temp_pop_n(tc, 3);
 
+    MVM_string_flatten(tc, result);
+
     return result;
 }
 
