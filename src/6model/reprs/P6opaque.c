@@ -17,7 +17,7 @@ static MVMString *str_avc        = NULL;
 
 /* We need an "assigned null" sentinel to differentiate between this and an
  * uninitialized slot that should trigger auto-viv. */
-static MVMObject *ass_null = (MVMObject *)0xDEADBEEF;
+static MVMObject *ass_null = NULL;
 
 /* If an object gets mixed in to, we need to be sure we look at is real body,
  * which may have been moved to hang off the specified pointer. */
@@ -1290,6 +1290,10 @@ const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_ass_del);
     str_avc     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "auto_viv_container");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_avc);
+
+    ass_null = malloc(sizeof(MVMP6opaque));
+    memset(ass_null, 0, sizeof(MVMP6opaque));
+    ass_null->header.flags = MVM_CF_TYPE_OBJECT;
 
     return &this_repr;
 }
