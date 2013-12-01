@@ -27,7 +27,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug! optimize! instrument!
+    debug:3 optimize:3 instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     static use-readline
@@ -55,8 +55,8 @@ if ($? >> 8 == 0) { print "OK\n" }
 else { softfail("git error: $msg") }
 
 # fiddle with flags
-$args{debug}      //= 0 + !$args{optimize};
-$args{optimize}   //= 0 + !$args{debug};
+$args{debug}      //= 0;
+$args{optimize}   //= 0;
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
@@ -142,8 +142,14 @@ $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 # generate CFLAGS
 my @cflags;
 push @cflags, $config{ccmiscflags};
-push @cflags, $config{ccoptiflags}  if $args{optimize};
-push @cflags, $config{ccdebugflags} if $args{debug};
+if ($args{optimize}) {
+    $config{ccoptiflags} = sprintf $config{ccoptiflags}, $args{optimize} if $config{ccoptiflags} =~ /%d/;
+    push @cflags, $config{ccoptiflags};
+}
+if ($args{debug}) {
+    $config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug} if $config{ccdebugflags} =~ /%d/;
+    push @cflags, $config{ccdebugflags};
+}
 push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
@@ -152,8 +158,14 @@ $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});
-push @ldflags, $config{ldoptiflags}       if $args{optimize};
-push @ldflags, $config{lddebugflags}      if $args{debug};
+if ($args{optimize}) {
+    $config{ldoptiflags} = sprintf $config{ldoptiflags}, $args{optimize} if $config{ldoptiflags} =~ /%d/;
+    push @ldflags, $config{ldoptiflags};
+}
+if ($args{debug}) {
+    $config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug} if $config{lddebugflags} =~ /%d/;
+    push @ldflags, $config{lddebugflags};
+}
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ldrpath}           unless $args{static};
 $config{ldflags} = join ' ', @ldflags;
