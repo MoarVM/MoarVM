@@ -13,6 +13,11 @@ static MVMString *str_box_target = NULL;
 static MVMString *str_attribute  = NULL;
 static MVMString *str_pos_del    = NULL;
 static MVMString *str_ass_del    = NULL;
+static MVMString *str_avc        = NULL;
+
+/* We need an "assigned null" sentinel to differentiate between this and an
+ * uninitialized slot that should trigger auto-viv. */
+static MVMObject *ass_null = (MVMObject *)0xDEADBEEF;
 
 /* If an object gets mixed in to, we need to be sure we look at is real body,
  * which may have been moved to hang off the specified pointer. */
@@ -48,11 +53,21 @@ static void set_str_at_offset(MVMThreadContext *tc, MVMObject *root, void *data,
 }
 static MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
+    MVMObject *result = *((MVMObject **)location);
+    return result == ass_null ? NULL : result;
+}
+static MVMObject * get_obj_at_offset_direct(void *data, MVMint64 offset) {
+    void *location = (char *)data + offset;
     return *((MVMObject **)location);
 }
 static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
     void *location = (char *)data + offset;
-    MVM_ASSIGN_REF(tc, root, *((MVMObject **)location), value);
+    if (value) {
+        MVM_ASSIGN_REF(tc, root, *((MVMObject **)location), value);
+    }
+    else {
+        *((MVMObject **)location) = ass_null;
+    }
 }
 
 /* Helper for finding a slot number. */
@@ -142,7 +157,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     /* Mark objects. */
     for (i = 0; i < repr_data->gc_obj_mark_offsets_count; i++) {
         MVMuint16 offset = repr_data->gc_obj_mark_offsets[i];
-        MVM_gc_worklist_add(tc, worklist, (char *)data + offset);
+        if (*((MVMObject **)((char *)data + offset)) != ass_null) {
+            MVM_gc_worklist_add(tc, worklist, (char *)data + offset);
+        }
     }
 
     /* Mark any nested reprs that need it. */
@@ -265,9 +282,9 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         case MVM_reg_obj:
         {
             if (!attr_st) {
-                MVMObject *result = get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
+                MVMObject *result = get_obj_at_offset_direct(data, repr_data->attribute_offsets[slot]);
                 if (result) {
-                    result_reg->o = result;
+                    result_reg->o = result == ass_null ? NULL : result;
                 }
                 else {
                     /* Maybe we know how to auto-viv it to a container. */
@@ -546,7 +563,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
         int i;
         for (i = 0; i < repr_data->num_attributes; i++) {
             if (repr_data->unbox_slots[i].repr_id == repr_id)
-                return (char *)data + repr_data->attribute_offsets[i];
+                return (char *)data + repr_data->attribute_offsets[repr_data->unbox_slots[i].slot];
             else if (repr_data->unbox_slots[i].repr_id == 0)
                 break;
         }
@@ -760,8 +777,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             /* Handle object attributes, which need marking and may have auto-viv needs. */
             if (!inlined) {
                 repr_data->gc_obj_mark_offsets[cur_obj_attr] = cur_alloc_addr;
+                if (MVM_repr_exists_key(tc, attr_info, str_avc))
+                    MVM_ASSIGN_REF(tc, st, repr_data->auto_viv_values[cur_slot],
+                        MVM_repr_at_key_o(tc, attr_info, str_avc));
                 cur_obj_attr++;
-                /* XXX auto-viv stuff */
             }
 
             /* Is it a positional or associative delegate? */
@@ -1269,6 +1288,8 @@ const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_pos_del);
     str_ass_del = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "associative_delegate");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_ass_del);
+    str_avc     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "auto_viv_container");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_avc);
 
     return &this_repr;
 }
