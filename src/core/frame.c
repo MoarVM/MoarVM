@@ -338,7 +338,7 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
 
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
-            "Can only perform takeclosure on object with representation MVMCode");
+            "Can only perform capturelex on object with representation MVMCode");
 
     /* XXX Following is vulnerable to a race condition. */
     code_obj = (MVMCode *)code;
@@ -360,7 +360,7 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
         closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
     });
 
-    closure->body.sf    = ((MVMCode *)code)->body.sf;
+    MVM_ASSIGN_REF(tc, closure, closure->body.sf, ((MVMCode *)code)->body.sf);
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
     MVM_ASSIGN_REF(tc, closure, closure->body.code_object, ((MVMCode *)code)->body.code_object);
 
