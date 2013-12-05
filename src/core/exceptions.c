@@ -394,6 +394,8 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     else
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
 
+    if (!ex->body.category)
+        ex->body.category = MVM_EX_CAT_CATCH;
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
