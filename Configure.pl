@@ -27,7 +27,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug:3 optimize:3 instrument!
+    debug:3 optimize:1 instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     static use-readline
