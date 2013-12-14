@@ -214,6 +214,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
     else
         frame->caller = NULL;
+    frame->keep_caller = 0;
 
     /* Initial reference count is 1 by virtue of it being the currently
      * executing frame. */
@@ -641,7 +642,8 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
         MVMInvocationSpec *is = STABLE(code)->invocation_spec;
         if (!is) {
-            MVM_exception_throw_adhoc(tc, "Cannot invoke this object");
+            MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s, cs = %d)",
+                REPR(code)->name, STABLE(code)->container_spec ? 1 : 0);
         }
         if (is->class_handle) {
             MVMRegister dest;
