@@ -55,6 +55,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
 
+    /* Allocate all things during following setup steps directly in gen2, as
+     * they will have program lifetime. */
+    MVM_gc_allocate_gen2_default_set(instance->main_thread);
+
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
@@ -90,6 +94,9 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up some string constants commonly used. */
     string_consts(instance->main_thread);
+
+    /* Back to nursery allocation, now we're set up. */
+    MVM_gc_allocate_gen2_default_clear(instance->main_thread);
 
     return instance;
 }
