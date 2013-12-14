@@ -158,31 +158,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         if (fresh)
             frame->env = malloc(static_frame_body->env_size);
         memcpy(frame->env, static_frame_body->static_env, static_frame_body->env_size);
-        if (static_frame_body->static_env_flags) {
-            MVMROOT(tc, static_frame, {
-                /* Drag everything out of static_frame_body before we start,
-                 * as GC action may invalidate it. */
-                MVMuint8 *flags = static_frame_body->static_env_flags;
-                MVMint64 numlex = static_frame_body->num_lexicals;
-                MVMint64 i;
-                for (i = 0; i < numlex; i++) {
-                    switch (flags[i]) {
-                        case 0: break;
-                        case 1:
-                            frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
-                            break;
-                        case 2:
-                            printf("WARNING: State vars NYI\n");
-                            frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
-                            break;
-                        default:
-                            MVM_exception_throw_adhoc(tc,
-                                "Unknown lexical environment setup flag");
-                    }
-                }
-            });
-            static_frame_body = &static_frame->body; /* In case it moved. */
-        }
     }
     else {
         frame->env = NULL;
@@ -258,6 +233,33 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     *(tc->interp_bytecode_start) = static_frame_body->bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame_body->cu;
+
+    /* If we need to do so, make clones of things in the lexical environment
+     * that need it. Note that we do this after tc->cur_frame became the
+     * current frame, to make sure these new objects will certainly get
+     * marked if GC is triggered along the way. */
+    if (static_frame_body->static_env_flags) {
+        /* Drag everything out of static_frame_body before we start,
+         * as GC action may invalidate it. */
+        MVMuint8 *flags = static_frame_body->static_env_flags;
+        MVMint64 numlex = static_frame_body->num_lexicals;
+        MVMint64 i;
+        for (i = 0; i < numlex; i++) {
+            switch (flags[i]) {
+                case 0: break;
+                case 1:
+                    frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
+                    break;
+                case 2:
+                    printf("# WARNING: State vars NYI\n");
+                    frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Unknown lexical environment setup flag");
+            }
+        }
+    }
 }
 
 /* Creates a frame that is suitable for deserializing a context into. Does not
