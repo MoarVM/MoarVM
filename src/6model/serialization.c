@@ -531,6 +531,9 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     if (ref == NULL) {
         discrim = REFVAR_NULL;
     }
+    else if (REPR(ref)->ID == MVM_REPR_ID_MVMMultiCache) {
+        discrim = REFVAR_VM_NULL;
+    }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTInt)) {
         discrim = REFVAR_VM_INT;
     }

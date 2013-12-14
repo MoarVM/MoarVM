@@ -40,3 +40,7 @@ struct MVMMultiCache {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMMultiCache_initialize(MVMThreadContext *tc);
+
+/* Functions relating to multi-dispatch cache usage. */
+MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache, MVMObject *capture, MVMObject *result);
+MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache, MVMObject *capture);
