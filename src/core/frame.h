@@ -83,6 +83,10 @@ struct MVMFrame {
      * serialization context and such. */
     /* note: used atomically */
     MVMObject *context_object;
+
+    /* Flags that the caller chain should be kept in place after return or
+     * unwind; used to make sure we can get a backtrace after an exception. */
+    MVMuint8 keep_caller;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

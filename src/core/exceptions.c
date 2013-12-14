@@ -403,6 +403,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     if (!ex->body.origin) {
         ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
         tc->cur_frame->throw_address = *(tc->interp_cur_op);
+        tc->cur_frame->keep_caller   = 1;
     }
 
     run_handler(tc, lh, ex_obj);
@@ -517,6 +518,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         if (tc->cur_frame) {
             ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
             tc->cur_frame->throw_address = *(tc->interp_cur_op);
+            tc->cur_frame->keep_caller   = 1;
         }
         else {
             ex->body.origin = NULL;

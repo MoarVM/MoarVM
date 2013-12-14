@@ -309,8 +309,14 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
         MVM_args_proc_cleanup_for_cache(tc, &returner->params);
     }
 
-    /* signal to the GC to ignore ->work */
+    /* Signal to the GC to ignore ->work */
     returner->tc = NULL;
+
+    /* Unless we need to keep the caller chain in place, clear it up. */
+    if (caller && !returner->keep_caller) {
+        MVM_frame_dec_ref(tc, caller);
+        returner->caller = NULL;
+    }
 
     /* Switch back to the caller frame if there is one. */
     if (caller && returner != tc->thread_entry_frame) {
