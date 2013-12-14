@@ -222,6 +222,7 @@ void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCall
     MVM_exception_throw_adhoc(tc, "non-invokable object is non-invokable");
 }
 
+/* Clean up STable memory. */
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
     /* First have it free its repr_data if it wants. */
     if (st->REPR->gc_free_repr_data)
@@ -234,4 +235,9 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
         st->container_spec->gc_free_data(tc, st);
     MVM_checked_free_null(st->invocation_spec);
     MVM_checked_free_null(st->boolification_spec);
+}
+
+/* Get the next type cache ID for a newly created STable. */
+MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc) {
+    return (MVMuint64)MVM_add(&tc->instance->cur_type_cache_id, 64) + 64;
 }

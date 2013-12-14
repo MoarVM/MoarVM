@@ -186,4 +186,7 @@ struct MVMInstance {
     MVMObject *stdin_handle;
     MVMObject *stdout_handle;
     MVMObject *stderr_handle;
+
+    /* Next type cache ID, to go in STable. */
+    AO_t cur_type_cache_id;
 };

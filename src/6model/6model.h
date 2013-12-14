@@ -505,3 +505,4 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
 MVM_PUBLIC MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args);
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);
+MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc);
