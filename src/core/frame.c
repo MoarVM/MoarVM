@@ -251,7 +251,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                     frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
                     break;
                 case 2:
-                    printf("# WARNING: State vars NYI\n");
                     frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
                     break;
                 default:
