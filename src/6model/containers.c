@@ -78,7 +78,8 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_gc_mark_data,
     code_pair_gc_free_data,
     code_pair_serialize,
-    code_pair_deserialize
+    code_pair_deserialize,
+    0
 };
 
 static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {

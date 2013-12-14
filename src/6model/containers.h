@@ -29,6 +29,11 @@ struct MVMContainerSpec {
 
     /* Deserializes the container data, if any. */
     void (*deserialize) (MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader);
+
+    /* Set this to a non-zero value if a fetch promises to never invoke any
+     * code. This means the VM knows it can safely decontainerize in places
+     * it would not be safe or practical to return to the interpreter. */
+    MVMuint8 fetch_never_invokes;
 };
 
 /* A container configurer knows how to attach a certain type of container
