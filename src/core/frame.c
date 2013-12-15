@@ -315,9 +315,14 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     returner->tc = NULL;
 
     /* Unless we need to keep the caller chain in place, clear it up. */
-    if (caller && !returner->keep_caller) {
-        MVM_frame_dec_ref(tc, caller);
-        returner->caller = NULL;
+    if (caller) {
+        if (!returner->keep_caller) {
+            MVM_frame_dec_ref(tc, caller);
+            returner->caller = NULL;
+        }
+        else if (unwind) {
+            caller->keep_caller = 1;
+        }
     }
 
     /* Switch back to the caller frame if there is one. */
