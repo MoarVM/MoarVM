@@ -358,17 +358,17 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
 }
 
 static void tty_on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    const MVMint64 length = ((MVMOSHandleBody *)(handle->data))->u.length;
+    const MVMint64 length = ((MVMOSHandle *)handle->data)->body.u.length;
 
     buf->base = malloc(length);
     buf->len = length;
 }
 
 static void tty_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
-    MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
+    MVMOSHandle * const oshandle = (MVMOSHandle *)(handle->data);
 
-    body->u.data = buf->base;
-    body->u.length = buf->len;
+    oshandle->body.u.data = buf->base;
+    oshandle->body.u.length = buf->len;
 }
 
 /* reads a string from a filehandle. */
@@ -793,7 +793,7 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
             body->u.handle = (uv_handle_t *)handle;
-            body->u.handle->data = body;       /* this is needed in tty_on_read function. */
+            body->u.handle->data = result;       /* this is needed in tty_on_read function. */
             body->type = MVM_OSHANDLE_HANDLE;
             break;
         }
@@ -806,7 +806,7 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             uv_pipe_init(tc->loop, handle, 0);
             uv_pipe_open(handle, type);
             body->u.handle = (uv_handle_t *)handle;
-            body->u.handle->data = body;
+            body->u.handle->data = result;
             body->type = MVM_OSHANDLE_HANDLE;
             break;
         }
