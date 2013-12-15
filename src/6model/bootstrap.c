@@ -545,17 +545,6 @@ static void setup_core_sc(MVMThreadContext *tc) {
     add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types.BOOTCode);
 }
 
-static void setup_std_handles(MVMThreadContext *tc) {
-    tc->instance->stdin_handle  = MVM_file_get_stdstream(tc, 0, 1);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdin_handle);
-
-    tc->instance->stdout_handle = MVM_file_get_stdstream(tc, 1, 0);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdout_handle);
-
-    tc->instance->stderr_handle = MVM_file_get_stdstream(tc, 2, 0);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stderr_handle);
-}
-
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* First, we have to get the VMString type to exist; this has to
@@ -665,6 +654,4 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Get initial __6MODEL_CORE__ serialization context set up. */
     setup_core_sc(tc);
     MVM_6model_containers_setup(tc);
-    
-    setup_std_handles(tc);
 }
