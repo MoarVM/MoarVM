@@ -120,8 +120,8 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
         MVMObject *code_ref);
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
-MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
-MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
+MVM_PUBLIC MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
+MVM_PUBLIC MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
