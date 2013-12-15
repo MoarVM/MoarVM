@@ -553,7 +553,6 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
             uv_write_t *req = malloc(sizeof(uv_write_t));
             uv_buf_t buf = uv_buf_init(output, bytes_written = output_size);
             int r;
-
             if ((r = uv_write(req, (uv_stream_t *)handle->body.u.handle, &buf, 1, write_cb)) < 0) {
                 if (req) free(req);
                 free(output);
@@ -792,6 +791,7 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
         case UV_TTY: {
             uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
+            uv_stream_set_blocking((uv_stream_t *)handle, 1);
             body->u.handle = (uv_handle_t *)handle;
             body->u.handle->data = result;       /* this is needed in tty_on_read function. */
             body->type = MVM_OSHANDLE_HANDLE;
@@ -805,6 +805,7 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             uv_pipe_t * const handle = malloc(sizeof(uv_pipe_t));
             uv_pipe_init(tc->loop, handle, 0);
             uv_pipe_open(handle, type);
+            uv_stream_set_blocking((uv_stream_t *)handle, 1);
             body->u.handle = (uv_handle_t *)handle;
             body->u.handle->data = result;
             body->type = MVM_OSHANDLE_HANDLE;
