@@ -213,12 +213,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              * since we don't do moving. */
             new_addr = item;
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
-                if (new_addr != item) {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p to %p\n", item_ptr, item, new_addr);
-                }
-                else {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
-                }
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
             }
             *item_ptr = item->forwarder = new_addr;
         } else {
