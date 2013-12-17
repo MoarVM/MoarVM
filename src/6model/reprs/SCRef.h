@@ -26,6 +26,12 @@ struct MVMSerializationContextBody {
     MVMObject *rep_indexes;
     MVMObject *rep_scs;
 
+    /* Some things we deserialize are not directly in an SC, root set, but
+     * rather are owned by others. This is mostly thanks to Parrot legacy,
+     * where not everything was a 6model object. This is an array in twos,
+     * mapping an object to its owner. */
+    MVMObject *owned_objects;
+
     /* Backlink to the (memory-managed) SC itself. If
      * this is null, it is unresolved. */
     MVMSerializationContext *sc;

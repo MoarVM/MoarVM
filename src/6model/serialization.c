@@ -1364,13 +1364,25 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             MVM_repr_set_str(tc, result, read_str_func(tc, reader));
             return result;
         case REFVAR_VM_ARR_VAR:
-            return read_array_var(tc, reader);
+            result = read_array_var(tc, reader);
+            if (reader->current_object) {
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects, result);
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects,
+                    reader->current_object);
+            }
+            return result;
 		case REFVAR_VM_ARR_STR:
             return read_array_str(tc, reader);
 		case REFVAR_VM_ARR_INT:
             return read_array_int(tc, reader);
         case REFVAR_VM_HASH_STR_VAR:
-            return read_hash_str_var(tc, reader);
+            result = read_hash_str_var(tc, reader);
+            if (reader->current_object) {
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects, result);
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects,
+                    reader->current_object);
+            }
+            return result;
         case REFVAR_STATIC_CODEREF:
         case REFVAR_CLONED_CODEREF:
             return read_code_ref(tc, reader);
@@ -1811,12 +1823,14 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
         reader->cur_read_end    = &(reader->objects_data_end);
 
         /* Delegate to its deserialization REPR function. */
+        reader->current_object = obj;
         reader->objects_data_offset = read_int32(obj_table_row, 8);
         if (REPR(obj)->deserialize)
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
             fail_deserialize(tc, reader, "Missing deserialize REPR function for %s",
                 REPR(obj)->name);
+        reader->current_object = NULL;
     }
 }
 

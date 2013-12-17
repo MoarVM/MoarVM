@@ -90,6 +90,9 @@ struct MVMSerializationReader {
     /* Array of contexts (num_contexts in length). */
     MVMFrame **contexts;
 
+    /* The current object we're deserializing. */
+    MVMObject *current_object;
+
     /* The data, which we'll want to free after deserialization. */
     char *data;
 };

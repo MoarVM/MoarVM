@@ -27,7 +27,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
     MVMObject *BOOTArray    = tc->instance->boot_types.BOOTArray;
     MVMObject *BOOTIntArray = tc->instance->boot_types.BOOTIntArray;
-    MVMObject *root_objects, *root_codes, *rep_indexes, *rep_scs;
+    MVMObject *root_objects, *root_codes, *rep_indexes, *rep_scs, *owned_objects;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTIntArray);
@@ -44,6 +44,9 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     rep_scs = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_ASSIGN_REF(tc, root, sc->rep_scs, rep_scs);
+
+    owned_objects = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_ASSIGN_REF(tc, root, sc->owned_objects, owned_objects);
 
     MVM_gc_root_temp_pop_n(tc, 3);
 }
@@ -64,6 +67,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &sc->root_codes);
     MVM_gc_worklist_add(tc, worklist, &sc->rep_indexes);
     MVM_gc_worklist_add(tc, worklist, &sc->rep_scs);
+    MVM_gc_worklist_add(tc, worklist, &sc->owned_objects);
 
     for (i = 0; i < sc->num_stables; i++)
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
