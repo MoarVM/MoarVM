@@ -235,7 +235,52 @@ MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString 
 
 /* Called when an object triggers the SC repossession write barrier. */
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
-    /* XXX TODO */
+    MVMSerializationContext *comp_sc;
+
+    /* If the WB is disabled or we're not compiling, can exit quickly. */
+    if (tc->sc_wb_disable_depth)
+        return;
+    if (!tc->compiling_scs || !MVM_repr_elems(tc, tc->compiling_scs))
+        return;
+
+    /* Otherwise, check that the object's SC is different from the SC
+     * of the compilation we're currently in. Repossess if so. */
+    comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);
+    if (obj->header.sc != comp_sc) {
+        /* Get new slot ID. */
+        MVMint64 new_slot = MVM_repr_elems(tc, comp_sc->body->root_objects);
+
+        /* See if the object is actually owned by another, and it's the
+         * owner we need to repossess. */
+        if (obj->st->WHAT == tc->instance->boot_types.BOOTArray ||
+            obj->st->WHAT == tc->instance->boot_types.BOOTHash) {
+            MVMObject *owned_objects = obj->header.sc->body->owned_objects;
+            MVMint64 n = MVM_repr_elems(tc, owned_objects);
+            MVMint64 found = 0;
+            MVMint64 i;
+            for (i = 0; i < n; i += 2) {
+                if (MVM_repr_at_pos_o(tc, owned_objects, i) == obj) {
+                    obj = MVM_repr_at_pos_o(tc, owned_objects, i + 1);
+                    if (obj->header.sc == comp_sc)
+                        return;
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found)
+                return;
+        }
+
+        /* Add to root set. */
+        MVM_sc_set_object(tc, comp_sc, new_slot, obj);
+
+        /* Add repossession entry. */
+        MVM_repr_push_i(tc, comp_sc->body->rep_indexes, new_slot << 1);
+        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)obj->header.sc);
+
+        /* Update SC of the object, claiming it. */
+        MVM_ASSIGN_REF(tc, obj, obj->header.sc, comp_sc);
+    }
 }
 
 /* Called when an STable triggers the SC repossession write barrier. */
