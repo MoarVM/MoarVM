@@ -56,7 +56,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
              MVM_string_utf8_encode_C_string(tc, name));
 
     /* Set up the call, using the result register as the target. */
-    code = MVM_frame_find_invokee(tc, find_method);
+    code = MVM_frame_find_invokee(tc, find_method, NULL);
     tc->cur_frame->return_value   = res;
     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
     tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -98,7 +98,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
 
     /* Set up the call, using the result register as the target. A little bad
      * as we're really talking about     */
-    code = MVM_frame_find_invokee(tc, find_method);
+    code = MVM_frame_find_invokee(tc, find_method, NULL);
     tc->cur_frame->return_value        = res;
     tc->cur_frame->return_type         = MVM_RETURN_OBJ;
     tc->cur_frame->return_address      = *(tc->interp_cur_op);
@@ -159,7 +159,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
             tc->instance->str_consts.type_check);
         if (meth) {
             /* Set up the call, using the result register as the target. */
-            MVMObject *code = MVM_frame_find_invokee(tc, meth);
+            MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
             tc->cur_frame->return_value   = res;
             tc->cur_frame->return_type    = MVM_RETURN_INT;
             tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -178,7 +178,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
             tc->instance->str_consts.accepts_type);
         if (meth) {
             /* Set up the call, using the result register as the target. */
-            MVMObject *code = MVM_frame_find_invokee(tc, meth);
+            MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
             tc->cur_frame->return_value   = res;
             tc->cur_frame->return_type    = MVM_RETURN_INT;
             tc->cur_frame->return_address = *(tc->interp_cur_op);

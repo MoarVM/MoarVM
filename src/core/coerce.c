@@ -44,7 +44,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                      * the result. Then we just do the call. For the flip
                      * case, just set up special return handler to flip
                      * the register. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
                     tc->cur_frame->return_value   = res_reg;
                     tc->cur_frame->return_type    = MVM_RETURN_INT;
                     tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -57,7 +57,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                 }
                 else {
                     /* Need to set up special return hook. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
                     BoolMethReturnData *data = malloc(sizeof(BoolMethReturnData));
                     data->true_addr  = true_addr;
                     data->false_addr = false_addr;
@@ -198,7 +198,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     if (strmeth) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
-        MVMObject *code = MVM_frame_find_invokee(tc, strmeth);
+        MVMObject *code = MVM_frame_find_invokee(tc, strmeth, NULL);
         tc->cur_frame->return_value   = res_reg;
         tc->cur_frame->return_type    = MVM_RETURN_STR;
         tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -253,7 +253,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
     if (nummeth) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
-        MVMObject *code = MVM_frame_find_invokee(tc, nummeth);
+        MVMObject *code = MVM_frame_find_invokee(tc, nummeth, NULL);
         tc->cur_frame->return_value   = res_reg;
         tc->cur_frame->return_type    = MVM_RETURN_NUM;
         tc->cur_frame->return_address = *(tc->interp_cur_op);

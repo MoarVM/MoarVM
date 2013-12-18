@@ -154,7 +154,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
             case MVM_HLL_ROLE_ARRAY:
                 if (hll->foreign_transform_array) {
                     /* Invoke and set result register as return location. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_array);
+                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_array, NULL);
                     tc->cur_frame->return_value   = res_reg;
                     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
                     tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -168,7 +168,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
             case MVM_HLL_ROLE_HASH:
                 if (hll->foreign_transform_hash) {
                     /* Invoke and set result register as return location. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_hash);
+                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_hash, NULL);
                     tc->cur_frame->return_value   = res_reg;
                     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
                     tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -182,7 +182,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
             case MVM_HLL_ROLE_CODE:
                 if (hll->foreign_transform_code) {
                     /* Invoke and set result register as return location. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_code);
+                    MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_code, NULL);
                     tc->cur_frame->return_value   = res_reg;
                     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
                     tc->cur_frame->return_address = *(tc->interp_cur_op);

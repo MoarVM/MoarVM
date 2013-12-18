@@ -392,7 +392,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(invoke_v):
                 {
                     MVMObject *code = GET_REG(cur_op, 0).o;
-                    code = MVM_frame_find_invokee(tc, code);
+                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
                     tc->cur_frame->return_value = NULL;
                     tc->cur_frame->return_type = MVM_RETURN_VOID;
                     cur_op += 2;
@@ -403,7 +403,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(invoke_i):
                 {
                     MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code);
+                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_INT;
                     cur_op += 4;
@@ -414,7 +414,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(invoke_n):
                 {
                     MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code);
+                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_NUM;
                     cur_op += 4;
@@ -425,7 +425,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(invoke_s):
                 {
                     MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code);
+                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_STR;
                     cur_op += 4;
@@ -436,7 +436,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(invoke_o):
                 {
                     MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code);
+                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 4;
@@ -1160,7 +1160,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(cobj) && REPR(cobj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMObject *code = GET_REG(cur_op, 2).o;
                     MVMCallCapture *cc = (MVMCallCapture *)cobj;
-                    code = MVM_frame_find_invokee(tc, code);
+                    code = MVM_frame_find_invokee(tc, code, NULL);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;

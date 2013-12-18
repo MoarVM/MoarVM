@@ -641,7 +641,7 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
         MVM_string_utf8_encode_C_string(tc, name));
 }
 
-MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
+MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs) {
     if (!code)
         MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
@@ -659,6 +659,32 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
             code = dest.o;
         }
         else {
+            /* Need to tweak the callsite and args to include the code object
+             * being invoked. */
+            if (tweak_cs) {
+                MVMCallsite *orig = *tweak_cs;
+                if (orig->with_invocant) {
+                    *tweak_cs = orig->with_invocant;
+                }
+                else {
+                    MVMCallsite *new  = malloc(sizeof(MVMCallsite));
+                    new->arg_flags    = malloc((orig->arg_count + 1) * sizeof(MVMCallsiteEntry));
+                    new->arg_flags[0] = MVM_CALLSITE_ARG_OBJ;
+                    memcpy(new->arg_flags + 1, orig->arg_flags, orig->arg_count);
+                    new->arg_count      = orig->arg_count + 1;
+                    new->num_pos        = orig->num_pos + 1;
+                    new->has_flattening = orig->has_flattening;
+                    new->with_invocant  = NULL;
+                    *tweak_cs = orig->with_invocant = new;
+                }
+                memmove(tc->cur_frame->args + 1, tc->cur_frame->args,
+                    orig->arg_count * sizeof(MVMRegister));
+                tc->cur_frame->args[0].o = code;
+            }
+            else {
+                MVM_exception_throw_adhoc(tc,
+                    "Cannot invoke object with invocation handler in this context");
+            }
             code = is->invocation_handler;
         }
     }

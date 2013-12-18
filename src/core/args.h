@@ -45,6 +45,9 @@ struct MVMCallsite {
 
     /* whether it has a flattening arg. */
     MVMuint8 has_flattening;
+
+    /* Cached version of this callsite with an extra invocant arg. */
+    MVMCallsite *with_invocant;
 };
 
 /* Minimum callsite size is due to certain things internally expecting us to

@@ -148,7 +148,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
             /* Find frame to invoke. */
             MVMObject *handler_code = MVM_frame_find_invokee(tc,
-                lh.frame->work[lh.handler->block_reg].o);
+                lh.frame->work[lh.handler->block_reg].o, NULL);
 
             /* Ensure we have an exception object. */
             /* TODO: Can make one up. */

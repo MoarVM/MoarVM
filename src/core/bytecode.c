@@ -670,15 +670,20 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
             }
             else positionals++;
         }
-        callsites[i]->num_pos   = positionals;
-        callsites[i]->arg_count = positionals + nameds;
+        callsites[i]->num_pos        = positionals;
+        callsites[i]->arg_count      = positionals + nameds;
         callsites[i]->has_flattening = has_flattening;
+        callsites[i]->with_invocant  = NULL; 
 
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
         if (positionals + nameds > cu_body->max_callsite_size)
             cu_body->max_callsite_size = positionals + nameds;
     }
+
+    /* Add one on to the maximum, to allow space for unshifting an extra
+     * arg in the "supply invoked code object" case. */
+    cu_body->max_callsite_size++;
 
     return callsites;
 }
