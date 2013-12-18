@@ -1640,13 +1640,16 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
             read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
             read_int32(obj_table_row, 4));  /* The index in that SC */
 
-        /* Allocate and store stub object. */
-        MVMObject *obj;
-        if ((read_int32(obj_table_row, 12) & 1))
-            obj = st->REPR->allocate(tc, st);
-        else
-            obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_sc_set_object(tc, reader->root.sc, i, obj);
+        /* Allocate and store stub object, unless it's already there due to a
+         * repossession. */
+        MVMObject *obj = MVM_sc_try_get_object(tc, reader->root.sc, i);
+        if (!obj) {
+            if ((read_int32(obj_table_row, 12) & 1))
+                obj = st->REPR->allocate(tc, st);
+            else
+                obj = MVM_gc_allocate_type_object(tc, st);
+            MVM_sc_set_object(tc, reader->root.sc, i, obj);
+        }
 
         /* Set the object's SC. */
         MVM_sc_set_obj_sc(tc, obj, reader->root.sc);
@@ -1842,7 +1845,23 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
     /* Do appropriate type of repossession. */
     MVMint32 repo_type = read_int32(table_row, 0);
     if (repo_type == 0) {
-        fail_deserialize(tc, reader, "Object repossess NYI in deserializer");
+        /* Get object to repossess. */
+        MVMSerializationContext *orig_sc = locate_sc(tc, reader, read_int32(table_row, 8));
+        MVMObject *orig_obj = MVM_sc_get_object(tc, orig_sc, read_int32(table_row, 12));
+
+        /* Put it into objects root set at the apporpriate slot. */
+        MVM_sc_set_object(tc, reader->root.sc, read_int32(table_row, 4), orig_obj);
+
+        /* Ensure we aren't already trying to repossess the object. */
+        if (orig_obj->header.sc != orig_sc)
+            fail_deserialize(tc, reader,
+                "Object conflict detected during deserialization.\n"
+                "(Probable attempt to load two modules that cannot be loaded together).");
+
+        /* Clear it up, since we'll re-allocate all the bits inside
+         * it on deserialization. */
+        if (REPR(orig_obj)->gc_free)
+            REPR(orig_obj)->gc_free(tc, orig_obj);
     }
     else if (repo_type == 1) {
         /* Get STable to repossess. */

@@ -121,6 +121,17 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
             "No object at index %d", idx);
 }
 
+/* Given an SC and an index, fetch the object stored there, or return NULL if
+ * there is none. */
+MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    MVMObject *roots = sc->body->root_objects;
+    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    if (idx < count)
+        return MVM_repr_at_pos_o(tc, roots, idx);
+    else
+        return NULL;
+}
+
 /* Given an SC, an index, and an object, store the object at that index. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     MVMObject *roots = sc->body->root_objects;
