@@ -68,7 +68,8 @@ static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f
     else
         pc = (MVMuint32)(f->return_address - sf->body.bytecode);
     for (i = 0; i < sf->body.num_handlers; i++) {
-        if (sf->body.handlers[i].category_mask & cat)
+        MVMuint32 category_mask = sf->body.handlers[i].category_mask;
+        if ((category_mask & cat) || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH))
             if (pc >= sf->body.handlers[i].start_offset && pc <= sf->body.handlers[i].end_offset)
                 if (!in_handler_stack(tc, &sf->body.handlers[i]))
                     return &sf->body.handlers[i];
