@@ -1189,19 +1189,14 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVMString         *res = NULL;
     MVMStringIndex    alen = NUM_GRAPHS(a);
     MVMStringIndex    blen = NUM_GRAPHS(b);
-    MVMStringIndex sgraphs = (alen > blen ? alen : blen);
+    MVMStringIndex sgraphs = alen < blen ? alen : blen;
     MVMCodepoint32 *buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
     MVMStringIndex i, scanlen;
 
-    /* First, binary-and up to the length of the shortest string. */
-    scanlen = alen > blen ? blen : alen;
-    for (i = 0; i < scanlen; i++)
+    /* Binary-and up to the length of the shortest string. */
+    for (i = 0; i < sgraphs; i++)
         buffer[i] = (MVM_string_get_codepoint_at_nocheck(tc, a, i)
                    & MVM_string_get_codepoint_at_nocheck(tc, b, i));
-
-    /* Second pass, fill with zeros. */
-    for (; i < sgraphs; i++)
-        buffer[i] = 0;
 
     res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     res->body.flags = MVM_STRING_TYPE_INT32;
