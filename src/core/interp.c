@@ -953,43 +953,54 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(throwdyn): {
-                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN,
-                    GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0));
+                MVMRegister *rr     = &GET_REG(cur_op, 0);
+                MVMObject   *ex_obj = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, ex_obj, rr);
                 goto NEXT;
             }
             OP(throwlex): {
-                MVM_exception_throwobj(tc, MVM_EX_THROW_LEX,
-                    GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0));
+                MVMRegister *rr     = &GET_REG(cur_op, 0);
+                MVMObject   *ex_obj = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                MVM_exception_throwobj(tc, MVM_EX_THROW_LEX, ex_obj, rr);
                 goto NEXT;
             }
             OP(throwlexotic): {
-                MVM_exception_throwobj(tc, MVM_EX_THROW_LEXOTIC,
-                    GET_REG(cur_op, 2).o, &GET_REG(cur_op, 0));
+                MVMRegister *rr     = &GET_REG(cur_op, 0);
+                MVMObject   *ex_obj = GET_REG(cur_op, 2).o;
+                cur_op += 4;
+                MVM_exception_throwobj(tc, MVM_EX_THROW_LEXOTIC, ex_obj, rr);
                 goto NEXT;
             }
             OP(throwcatdyn): {
-                MVM_exception_throwcat(tc, MVM_EX_THROW_DYN,
-                    (MVMuint32)GET_I64(cur_op, 2), &GET_REG(cur_op, 0));
+                MVMRegister *rr  = &GET_REG(cur_op, 0);
+                MVMuint32    cat = (MVMuint32)GET_I64(cur_op, 2);
+                cur_op += 4;
+                MVM_exception_throwcat(tc, MVM_EX_THROW_DYN, cat, rr);
                 goto NEXT;
             }
             OP(throwcatlex): {
-                MVM_exception_throwcat(tc, MVM_EX_THROW_LEX,
-                    (MVMuint32)GET_I64(cur_op, 2), &GET_REG(cur_op, 0));
+                MVMRegister *rr  = &GET_REG(cur_op, 0);
+                MVMuint32    cat = (MVMuint32)GET_I64(cur_op, 2);
+                cur_op += 4;
+                MVM_exception_throwcat(tc, MVM_EX_THROW_LEX, cat, rr);
                 goto NEXT;
             }
             OP(throwcatlexotic): {
-                MVM_exception_throwcat(tc, MVM_EX_THROW_LEXOTIC,
-                    (MVMuint32)GET_I64(cur_op, 2), &GET_REG(cur_op, 0));
+                MVMRegister *rr  = &GET_REG(cur_op, 0);
+                MVMuint32    cat = (MVMuint32)GET_I64(cur_op, 2);
+                cur_op += 4;
+                MVM_exception_throwcat(tc, MVM_EX_THROW_LEXOTIC, cat, rr);
                 goto NEXT;
             }
             OP(die): {
                 MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+                MVMRegister  *rr = &GET_REG(cur_op, 0);
                 ex->body.category = MVM_EX_CAT_CATCH;
-
                 MVM_ASSIGN_REF(tc, ex, ex->body.message, GET_REG(cur_op, 2).s);
                 cur_op += 4;
-                ex->body.goto_offset = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
-                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, &GET_REG(cur_op, 0));
+                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, rr);
                 goto NEXT;
             }
             OP(takehandlerresult): {
@@ -3531,21 +3542,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, GET_REG(cur_op, 0).o, NULL);
                 goto NEXT;
             }
-            OP(resume): {
-                MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-                MVMException *got_ex = (MVMException *)GET_REG(cur_op, 0).o;
-
-                if (REPR(got_ex)->ID == MVM_REPR_ID_MVMException) {
-                    ex->body.origin      = MVM_frame_inc_ref(tc, got_ex->body.origin);
-                    ex->body.goto_offset = got_ex->body.goto_offset;
-                    MVM_exception_resume(tc, (MVMObject *)ex);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "resume requires an MVMException");
-                }
-                cur_op += 2;
+            OP(resume):
+                /* Expect that resume will set the PC, so don't update cur_op
+                 * here. */
+                MVM_exception_resume(tc, GET_REG(cur_op, 0).o);
                 goto NEXT;
-            }
             OP(settypehll):
                 STABLE(GET_REG(cur_op, 0).o)->hll_owner = MVM_hll_get_config_for(tc,
                     GET_REG(cur_op, 2).s);

@@ -397,6 +397,8 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
 
     if (!ex->body.category)
         ex->body.category = MVM_EX_CAT_CATCH;
+    if (resume_result)
+        ex->body.resume_addr = *tc->interp_cur_op;
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
@@ -411,31 +413,43 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
 }
 
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
-    MVMException *ex;
+    MVMException     *ex;
+    MVMFrame         *target;
     MVMActiveHandler *ah;
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only resume an exception object");
+    
+    /* Check that everything is in place to do the resumption. */
+    if (!ex->body.resume_addr)
+        MVM_exception_throw_adhoc(tc, "This exception is not resumable");
+    target = ex->body.origin;
+    if (!target)
+        MVM_exception_throw_adhoc(tc, "This exception is not resumable");
+    if (target->special_return != unwind_after_handler)
+        MVM_exception_throw_adhoc(tc, "This exception is not resumable");
+    if (!target->tc)
+        MVM_exception_throw_adhoc(tc, "Too late to resume this exception");
 
-    if (ex->body.origin->special_return == unwind_after_handler) {
-        /* A handler was already installed, just use it. */
-        ah = (MVMActiveHandler *)ex->body.origin->special_return_data;
-    }
-    else {
-        /* We need to allocate/register a handler and set some defaults. */
-        ah                                   = malloc(sizeof(MVMActiveHandler));
-        ah->ex_obj                           = ex_obj;
-        ah->next_handler                     = tc->active_handlers;
-        tc->active_handlers                  = ah;
-        tc->cur_frame->return_value          = NULL;
-        tc->cur_frame->return_type           = MVM_RETURN_VOID;
-        ex->body.origin->special_return_data = (void *)ah;
-    }
+    /* Check that this is the exception we're currently handling. */
+    if (!tc->active_handlers)
+        MVM_exception_throw_adhoc(tc, "Can only resume an exception in its handler");
+    if (tc->active_handlers->ex_obj != ex_obj)
+        MVM_exception_throw_adhoc(tc, "Can only resume the current exception");
 
-    ah->frame                = (void *)MVM_frame_inc_ref(tc, ex->body.origin);
-    ah->handler->goto_offset = ex->body.goto_offset;
+    /* Clear special return handler; we'll do its work here. */
+    target->special_return = NULL;
+
+    /* Unwind to the thrower of the exception; set PC. */
+    unwind_to_frame(tc, target);
+    *tc->interp_cur_op = ex->body.resume_addr;
+
+    /* Clear the current active handler. */
+    ah = tc->active_handlers;
+    tc->active_handlers = ah->next_handler;
+    free(ah);
 }
 
 /* Creates a new lexotic. */
