@@ -700,7 +700,7 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             MVMRegister to_copy;
             REPR(from)->pos_funcs.at_pos(tc, STABLE(from), from,
                 OBJECT_BODY(from), i, &to_copy, kind);
-            bind_pos(tc, st, root, data, start + offset + i, to_copy, kind);
+            bind_pos(tc, st, root, data, offset + i, to_copy, kind);
         }
     }
 }
