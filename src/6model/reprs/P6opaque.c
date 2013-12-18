@@ -140,11 +140,14 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     for (i = 0; i < repr_data->num_attributes; i++) {
         MVMSTable *st_copy = repr_data->flattened_stables[i];
         MVMuint16  offset  = repr_data->attribute_offsets[i];
-        if (st_copy)
+        if (st_copy) {
             st_copy->REPR->copy_to(tc, st_copy, (char*)src + offset, dest_root, (char*)dest + offset);
-        else
-            set_obj_at_offset(tc, dest_root, dest, offset,
-                get_obj_at_offset(src, offset));
+        }
+        else {
+            MVMObject *ref = get_obj_at_offset(src, offset);
+            if (ref)
+                set_obj_at_offset(tc, dest_root, dest, offset, ref);
+        }
     }
 }
 
