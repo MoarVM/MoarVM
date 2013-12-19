@@ -72,6 +72,9 @@ struct MVMFrame {
     /* Data slot for the special return handler function. */
     void *special_return_data;
 
+    /* Flag for if special_return_data need to be GC marked. */
+    MVMuint8 mark_special_return_data;
+
     /* GC run sequence number that we last saw this frame during. */
     AO_t gc_seq_number;
 

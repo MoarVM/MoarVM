@@ -260,6 +260,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     if (cur_frame->context_object)
         MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
 
+    /* Mark special return data, if needed. */
+    if (cur_frame->mark_special_return_data)
+        MVM_gc_worklist_add(tc, worklist, &cur_frame->special_return_data);
+
     /* Scan the registers. */
     scan_registers(tc, worklist, cur_frame);
 }

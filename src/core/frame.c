@@ -225,8 +225,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
     
-    /* Make sure there's no frame context pointer. */
+    /* Make sure there's no frame context pointer and special return data
+     * won't be marked. */
     frame->context_object = NULL;
+    frame->mark_special_return_data = 0;
 
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
@@ -340,6 +342,7 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
             caller->special_return = NULL;
             if (!unwind)
                 sr(tc, caller->special_return_data);
+            caller->mark_special_return_data = 0;
         }
 
         retval = 1;
