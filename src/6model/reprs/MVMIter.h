@@ -1,7 +1,10 @@
 /* Representation used by VM-level iterators. */
 
-#define MVM_ITER_MODE_ARRAY 0
-#define MVM_ITER_MODE_HASH 1
+#define MVM_ITER_MODE_ARRAY         0
+#define MVM_ITER_MODE_ARRAY_INT     1
+#define MVM_ITER_MODE_ARRAY_NUM     2
+#define MVM_ITER_MODE_ARRAY_STR     3
+#define MVM_ITER_MODE_HASH          4
 
 struct MVMIterBody {
     /* whether hash or array */
