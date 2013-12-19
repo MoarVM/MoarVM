@@ -187,7 +187,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame->outer = outer;
         else
             MVM_exception_throw_adhoc(tc,
-                "Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+                "When invoking %s, Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+                static_frame_body->name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->name) : "<anonymous static frame>",
                 outer->static_info,
                 MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name,
                 outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
