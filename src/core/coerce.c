@@ -132,6 +132,7 @@ void boolify_return(MVMThreadContext *tc, void *sr_data) {
         *(tc->interp_cur_op) = data->true_addr;
     else
         *(tc->interp_cur_op) = data->false_addr;
+    free(data);
 }
 
 /* Callback to flip result. */
