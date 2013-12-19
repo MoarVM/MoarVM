@@ -650,6 +650,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     STABLE(tc->instance->boot_types.BOOTStr)->hll_role   = MVM_HLL_ROLE_STR;
     STABLE(tc->instance->boot_types.BOOTArray)->hll_role = MVM_HLL_ROLE_ARRAY;
     STABLE(tc->instance->boot_types.BOOTHash)->hll_role  = MVM_HLL_ROLE_HASH;
+    STABLE(tc->instance->boot_types.BOOTCode)->hll_role  = MVM_HLL_ROLE_CODE;
 
     /* Get initial __6MODEL_CORE__ serialization context set up. */
     setup_core_sc(tc);
