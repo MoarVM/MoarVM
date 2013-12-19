@@ -141,8 +141,8 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 }
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
-    char buffer[32];
-    int len = snprintf(buffer, 32, "%lld", i);
+    char buffer[64];
+    int len = snprintf(buffer, 64, "%lld", i);
     if (len >= 0)
         return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
     else
@@ -160,9 +160,9 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
         return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
     }
     else {
-        char buf[32];
+        char buf[64];
         int i;
-        if (snprintf(buf, 32, "%-15f", n) < 0)
+        if (snprintf(buf, 64, "%-15f", n) < 0)
             MVM_exception_throw_adhoc(tc, "Could not stringify number");
         if (strstr(buf, ".")) {
             i = strlen(buf);
