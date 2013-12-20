@@ -111,6 +111,7 @@ OBJECTS = src/core/args@obj@ \
           src/6model/reprs/NFA@obj@ \
           src/6model/reprs/MVMException@obj@ \
           src/6model/reprs/MVMDLLSym@obj@ \
+          src/6model/reprs/MVMMultiCache@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -190,6 +191,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMException.h \
           src/6model/reprs/MVMCompUnit.h \
           src/6model/reprs/MVMDLLSym.h \
+          src/6model/reprs/MVMMultiCache.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \

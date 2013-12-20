@@ -213,12 +213,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              * since we don't do moving. */
             new_addr = item;
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
-                if (new_addr != item) {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p to %p\n", item_ptr, item, new_addr);
-                }
-                else {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
-                }
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
             }
             *item_ptr = item->forwarder = new_addr;
         } else {
@@ -260,8 +255,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                  * iteration. Allocate space in the nursery. */
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + item->size;
-                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p of size %d to tospace %p\n",
-                    item, item->size, new_addr);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p (reprid %d) of size %d to tospace %p\n",
+                    item, REPR(item)->ID, item->size, new_addr);
 
                 /* Copy the object to tospace and mark it as seen in the
                  * nursery (so the next time around it will move to the
@@ -273,7 +268,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* Store the forwarding pointer and update the original
              * reference. */
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && new_addr != item) {
-                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p to %p\n", item_ptr, item, new_addr);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, REPR(item)->ID, new_addr);
             }
             *item_ptr = item->forwarder = new_addr;
         }
@@ -515,7 +510,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             /* Object instance. If dead, call gc_free if needed. Scan is
              * incremented by object size. */
             MVMObject *obj = (MVMObject *)item;
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %d in the nursery with reprid %d\n", item, REPR(obj)->ID);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %p in the nursery with reprid %d\n", item, REPR(obj)->ID);
             if (dead && REPR(obj)->gc_free)
                 REPR(obj)->gc_free(tc, obj);
         }

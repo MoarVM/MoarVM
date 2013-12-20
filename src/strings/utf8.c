@@ -288,7 +288,7 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     result = malloc(sizeof(MVMint32) * length + 2);
     arr = result;
 
-    memset(result, 0, sizeof(MVMint32) * length);
+    memset(result, 0, sizeof(MVMint32) * length + 2);
     while (i < length && (arr = utf8_encode(arr, MVM_string_get_codepoint_at_nocheck(tc, str, i++))));
     if (!arr)
         MVM_exception_throw_adhoc(tc,

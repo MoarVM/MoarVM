@@ -17,7 +17,7 @@ static MVMCallsite     store_arg_callsite = { store_arg_flags, 2, 2, 0 };
 
 static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject             *code   = MVM_frame_find_invokee(tc, data->fetch_code);
+    MVMObject             *code   = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
 
     tc->cur_frame->return_value   = res;
     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
@@ -29,7 +29,7 @@ static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *
 
 static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject             *code   = MVM_frame_find_invokee(tc, data->store_code);
+    MVMObject             *code   = MVM_frame_find_invokee(tc, data->store_code, NULL);
 
     tc->cur_frame->return_value   = NULL;
     tc->cur_frame->return_type    = MVM_RETURN_VOID;
@@ -78,7 +78,8 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_gc_mark_data,
     code_pair_gc_free_data,
     code_pair_serialize,
-    code_pair_deserialize
+    code_pair_deserialize,
+    0
 };
 
 static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -100,14 +101,14 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
         if (!MVM_repr_exists_key(tc, config, fetch))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
 
-        MVM_ASSIGN_REF(tc, st, data->fetch_code, MVM_repr_at_key_boxed(tc, config, fetch));
+        MVM_ASSIGN_REF(tc, st, data->fetch_code, MVM_repr_at_key_o(tc, config, fetch));
 
         store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
 
         if (!MVM_repr_exists_key(tc, config, store))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
 
-        MVM_ASSIGN_REF(tc, st, data->store_code, MVM_repr_at_key_boxed(tc, config, store));
+        MVM_ASSIGN_REF(tc, st, data->store_code, MVM_repr_at_key_o(tc, config, store));
     });
 }
 

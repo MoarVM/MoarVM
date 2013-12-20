@@ -72,13 +72,24 @@ struct MVMFrame {
     /* Data slot for the special return handler function. */
     void *special_return_data;
 
+    /* Flag for if special_return_data need to be GC marked. */
+    MVMuint8 mark_special_return_data;
+
     /* GC run sequence number that we last saw this frame during. */
     AO_t gc_seq_number;
+
+    /* Address of the last op executed that threw an exeption; used just
+     * for error reporting. */
+    MVMuint8 *throw_address;
 
     /* Linked MVMContext object, so we can track the
      * serialization context and such. */
     /* note: used atomically */
     MVMObject *context_object;
+
+    /* Flags that the caller chain should be kept in place after return or
+     * unwind; used to make sure we can get a backtrace after an exception. */
+    MVMuint8 keep_caller;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
@@ -112,17 +123,17 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
         MVMObject *code_ref);
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc);
-MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
-MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
-void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
-MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
-MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
-MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
-MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame);
+MVM_PUBLIC MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
+MVM_PUBLIC MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
+MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
+MVM_PUBLIC MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
+MVM_PUBLIC MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
-MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code);
+MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
 MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);

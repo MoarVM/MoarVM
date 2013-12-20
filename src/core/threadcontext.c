@@ -54,6 +54,9 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
  * objects from this nursery to the second generation. Only after
  * that is true should this be called. */
 void MVM_tc_destroy(MVMThreadContext *tc) {
+    /* We run once again (non-blocking) to eventually close filehandles. */
+    uv_run(tc->loop, UV_RUN_NOWAIT);
+
     /* Free the nursery. */
     free(tc->nursery_fromspace);
     free(tc->nursery_tospace);

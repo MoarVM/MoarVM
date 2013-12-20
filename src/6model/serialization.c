@@ -531,6 +531,9 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     if (ref == NULL) {
         discrim = REFVAR_NULL;
     }
+    else if (REPR(ref)->ID == MVM_REPR_ID_MVMMultiCache) {
+        discrim = REFVAR_VM_NULL;
+    }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTInt)) {
         discrim = REFVAR_VM_INT;
     }
@@ -932,6 +935,42 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
 }
 
+/* Goes through the list of repossessions and serializes them all. */
+static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter *writer) {
+    MVMint64 i;
+
+    /* Obtain list of repossession object indexes and original SCs. */
+    MVMObject *rep_indexes = writer->root.sc->body->rep_indexes;
+    MVMObject *rep_scs     = writer->root.sc->body->rep_scs;
+
+    /* Allocate table space, provided we've actually something to do. */
+    writer->root.num_repos = MVM_repr_elems(tc, rep_indexes);
+    if (writer->root.num_repos == 0)
+        return;
+    writer->root.repos_table = (char *)malloc(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
+
+    /* Make entries. */
+    for (i = 0; i < writer->root.num_repos; i++) {
+        MVMint32 offset  = (MVMint32)(i * REPOS_TABLE_ENTRY_SIZE);
+        MVMint32 obj_idx = (MVMint32)(MVM_repr_at_pos_i(tc, rep_indexes, i) >> 1);
+        MVMint32 is_st   = MVM_repr_at_pos_i(tc, rep_indexes, i) & 1;
+        MVMSerializationContext *orig_sc =
+            (MVMSerializationContext *)MVM_repr_at_pos_o(tc, rep_scs, i);
+
+        /* Work out original object's SC location. */
+        MVMint32 orig_sc_id = get_sc_id(tc, writer, orig_sc);
+        MVMint32 orig_idx   = (MVMint32)(is_st
+            ? MVM_sc_find_stable_idx(tc, orig_sc, writer->root.sc->body->root_stables[obj_idx])
+            : MVM_sc_find_object_idx(tc, orig_sc, MVM_repr_at_pos_o(tc, writer->objects_list, obj_idx)));
+
+        /* Write table row. */
+        write_int32(writer->root.repos_table, offset, is_st);
+        write_int32(writer->root.repos_table, offset + 4, obj_idx);
+        write_int32(writer->root.repos_table, offset + 8, orig_sc_id);
+        write_int32(writer->root.repos_table, offset + 12, orig_idx);
+    }
+}
+
 static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     MVMuint32 work_todo;
     do {
@@ -970,7 +1009,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 
     /* Finally, serialize repossessions table (this can't make any more
      * work, so is done as a separate step here at the end). */
-    /* serialize_repossessions(tc, writer); */
+    serialize_repossessions(tc, writer);
 }
 
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
@@ -1238,7 +1277,7 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
     /* Read in the elements. */
     for (i = 0; i < elems; i++) {
         MVMString *key = read_str_func(tc, reader);
-        MVM_repr_bind_key_boxed(tc, result, key, read_ref_func(tc, reader));
+        MVM_repr_bind_key_o(tc, result, key, read_ref_func(tc, reader));
     }
 
     /* Set the SC. */
@@ -1325,13 +1364,25 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             MVM_repr_set_str(tc, result, read_str_func(tc, reader));
             return result;
         case REFVAR_VM_ARR_VAR:
-            return read_array_var(tc, reader);
+            result = read_array_var(tc, reader);
+            if (reader->current_object) {
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects, result);
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects,
+                    reader->current_object);
+            }
+            return result;
 		case REFVAR_VM_ARR_STR:
             return read_array_str(tc, reader);
 		case REFVAR_VM_ARR_INT:
             return read_array_int(tc, reader);
         case REFVAR_VM_HASH_STR_VAR:
-            return read_hash_str_var(tc, reader);
+            result = read_hash_str_var(tc, reader);
+            if (reader->current_object) {
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects, result);
+                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects,
+                    reader->current_object);
+            }
+            return result;
         case REFVAR_STATIC_CODEREF:
         case REFVAR_CLONED_CODEREF:
             return read_code_ref(tc, reader);
@@ -1531,13 +1582,17 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
         /* Calculate location of STable's table row. */
         char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
 
-        /* Read in and look up representation. */
-        const MVMREPROps *repr = MVM_repr_get_by_name(tc,
-            read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
-
-        /* Allocate and store stub STable. */
-        MVMSTable *st = MVM_gc_allocate_stable(tc, repr, NULL);
-        MVM_sc_set_stable(tc, reader->root.sc, i, st);
+        /* Check we don't already have the STable (due to repossession). */
+        MVMSTable *st = MVM_sc_try_get_stable(tc, reader->root.sc, i);
+        if (!st) {
+            /* Read in and look up representation. */
+            const MVMREPROps *repr = MVM_repr_get_by_name(tc,
+                read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
+    
+            /* Allocate and store stub STable. */
+            st = MVM_gc_allocate_stable(tc, repr, NULL);
+            MVM_sc_set_stable(tc, reader->root.sc, i, st);
+        }
 
         /* Set the STable's SC. */
         MVM_sc_set_stable_sc(tc, st, reader->root.sc);
@@ -1585,13 +1640,16 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
             read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
             read_int32(obj_table_row, 4));  /* The index in that SC */
 
-        /* Allocate and store stub object. */
-        MVMObject *obj;
-        if ((read_int32(obj_table_row, 12) & 1))
-            obj = st->REPR->allocate(tc, st);
-        else
-            obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_sc_set_object(tc, reader->root.sc, i, obj);
+        /* Allocate and store stub object, unless it's already there due to a
+         * repossession. */
+        MVMObject *obj = MVM_sc_try_get_object(tc, reader->root.sc, i);
+        if (!obj) {
+            if ((read_int32(obj_table_row, 12) & 1))
+                obj = st->REPR->allocate(tc, st);
+            else
+                obj = MVM_gc_allocate_type_object(tc, st);
+            MVM_sc_set_object(tc, reader->root.sc, i, obj);
+        }
 
         /* Set the object's SC. */
         MVM_sc_set_obj_sc(tc, obj, reader->root.sc);
@@ -1768,12 +1826,63 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
         reader->cur_read_end    = &(reader->objects_data_end);
 
         /* Delegate to its deserialization REPR function. */
+        reader->current_object = obj;
         reader->objects_data_offset = read_int32(obj_table_row, 8);
         if (REPR(obj)->deserialize)
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
             fail_deserialize(tc, reader, "Missing deserialize REPR function for %s",
                 REPR(obj)->name);
+        reader->current_object = NULL;
+    }
+}
+
+/* Repossess an object or STable. */
+static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint64 i) {
+    /* Calculate location of table row. */
+    char *table_row = reader->root.repos_table + i * REPOS_TABLE_ENTRY_SIZE;
+    
+    /* Do appropriate type of repossession. */
+    MVMint32 repo_type = read_int32(table_row, 0);
+    if (repo_type == 0) {
+        /* Get object to repossess. */
+        MVMSerializationContext *orig_sc = locate_sc(tc, reader, read_int32(table_row, 8));
+        MVMObject *orig_obj = MVM_sc_get_object(tc, orig_sc, read_int32(table_row, 12));
+
+        /* Put it into objects root set at the apporpriate slot. */
+        MVM_sc_set_object(tc, reader->root.sc, read_int32(table_row, 4), orig_obj);
+
+        /* Ensure we aren't already trying to repossess the object. */
+        if (orig_obj->header.sc != orig_sc)
+            fail_deserialize(tc, reader,
+                "Object conflict detected during deserialization.\n"
+                "(Probable attempt to load two modules that cannot be loaded together).");
+
+        /* Clear it up, since we'll re-allocate all the bits inside
+         * it on deserialization. */
+        if (REPR(orig_obj)->gc_free)
+            REPR(orig_obj)->gc_free(tc, orig_obj);
+    }
+    else if (repo_type == 1) {
+        /* Get STable to repossess. */
+        MVMSerializationContext *orig_sc = locate_sc(tc, reader, read_int32(table_row, 8));
+        MVMSTable *orig_st = MVM_sc_get_stable(tc, orig_sc, read_int32(table_row, 12));
+
+        /* Put it into STables root set at the apporpriate slot. */
+        MVM_sc_set_stable(tc, reader->root.sc, read_int32(table_row, 4), orig_st);
+
+        /* Make sure we don't have a reposession conflict. */
+        if (orig_st->header.sc != orig_sc)
+            fail_deserialize(tc, reader,
+                "STable conflict detected during deserialization.\n"
+                "(Probable attempt to load two modules that cannot be loaded together).");
+
+        /* XXX TODO: clear up memory the STable may have allocated so far. */
+        if (orig_st->REPR->gc_free_repr_data)
+            orig_st->REPR->gc_free_repr_data(tc, orig_st);
+    }
+    else {
+        fail_deserialize(tc, reader, "Unknown repossession type");
     }
 }
 
@@ -1825,7 +1934,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Resolve the SCs in the dependencies table. */
     resolve_dependencies(tc, reader);
 
-    /* TODO: repossessing objects and STables. */
+    /* If we're repossessing objects and STables from other SCs, then first
+      * get those raw objects into our root set. */
+     for (i = 0; i < reader->root.num_repos; i++)
+        repossess(tc, reader, i);
 
     /* Stub allocate all STables, and then have the appropriate REPRs do
      * the required size calculations. */

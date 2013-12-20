@@ -7,7 +7,7 @@ use warnings;
 use Config;
 use Getopt::Long;
 use Pod::Usage;
-use Cwd qw/abs_path/;
+use File::Spec;
 
 use build::setup;
 use build::auto;
@@ -27,7 +27,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug! optimize! instrument!
+    debug:3 optimize:1 instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     static use-readline
@@ -39,14 +39,22 @@ pod2usage(1) if $args{help};
 
 print "Welcome to MoarVM!\n\n";
 
+$config{prefix} = File::Spec->rel2abs($args{prefix} // 'install');
+# don't install to cwd, as this would clash with lib/MAST/*.nqp
+if (-e 'README.markdown' && -e "$config{prefix}/README.markdown"
+ && -s 'README.markdown' == -s "$config{prefix}/README.markdown") {
+    die <<ENOTTOCWD;
+Configuration FAIL. Installing to MoarVM root folder is not allowed.
+Please specify another installation target by using --prefix=PATH.
+ENOTTOCWD
+}
+
 print dots("Updating submodules");
 my $msg = qx{git submodule --quiet update --init 2>&1};
 if ($? >> 8 == 0) { print "OK\n" }
 else { softfail("git error: $msg") }
 
 # fiddle with flags
-$args{debug}      //= 0 + !$args{optimize};
-$args{optimize}   //= 0 + !$args{debug};
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
@@ -66,8 +74,8 @@ else {
 $config{name}   = $NAME;
 $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
-
-$config{prefix} = abs_path($args{prefix} // '.');
+$config{osname} = $^O;
+$config{osvers} = $Config{osvers};
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -131,6 +139,12 @@ $config{ldlibs} = join ' ',
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
+$config{ccoptiflags}  = sprintf $config{ccoptiflags},  $args{optimize} // 3 if $config{ccoptiflags}  =~ /%d/;
+$config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug}    // 3 if $config{ccdebugflags} =~ /%d/;
+$config{ldoptiflags}  = sprintf $config{ldoptiflags},  $args{optimize} // 3 if $config{ldoptiflags}  =~ /%d/;
+$config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug}    // 3 if $config{lddebugflags} =~ /%d/;
+
+
 # generate CFLAGS
 my @cflags;
 push @cflags, $config{ccmiscflags};
@@ -144,8 +158,8 @@ $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});
-push @ldflags, $config{ldoptiflags}       if $args{optimize};
-push @ldflags, $config{lddebugflags}      if $args{debug};
+push @ldflags, $config{ldoptiflags}  if $args{optimize};
+push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ldrpath}           unless $args{static};
 $config{ldflags} = join ' ', @ldflags;
@@ -641,7 +655,8 @@ builds, the byte order is auto-detected.
 
 =item --prefix
 
-Install files in subdirectory /bin of the supplied path.
+Install files in subdirectory /bin, /lib and /include of the supplied path.
+The default prefix is "install" if this option is not passed.
 
 =item --make-install
 

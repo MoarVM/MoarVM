@@ -315,7 +315,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
          * extra responsibilities as well as doing the usual things.
          * First, increment GC sequence number. */
         MVM_incr(&tc->instance->gc_seq_number);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC thread elected coordinator: starting gc seq %d\n", MVM_load(&tc->instance->gc_seq_number));
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC thread elected coordinator: starting gc seq %d\n", (int)MVM_load(&tc->instance->gc_seq_number));
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;

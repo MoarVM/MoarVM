@@ -172,6 +172,60 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
     return result;
 }
 
+#ifdef _WIN32
+#define FILE_IS(name, rwx) \
+    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
+        uv_stat_t statbuf = file_info(tc, filename); \
+        MVMint64 r = (statbuf.st_mode & S_I ## rwx ); \
+        return r ? 1 : 0; \
+    }
+FILE_IS(readable, READ)
+FILE_IS(writable, WRITE)
+MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
+    MVMint64 r = 0;
+    uv_stat_t statbuf = file_info(tc, filename);
+    if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
+        return 1;
+    else {
+        // true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC
+        MVMString *dot = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ".");
+        MVMROOT(tc, dot, {
+            MVMint64 n = MVM_string_index_from_end(tc, filename, dot, 0);
+            if (n >= 0) {
+                MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
+                MVMROOT(tc, fileext, {
+                    char *ext  = MVM_string_utf8_encode_C_string(tc, fileext);
+                    char *pext = getenv("PATHEXT");
+                    int plen   = strlen(pext);
+                    int i;
+                    for (i = 0; i < plen; i++) {
+                        if (0 == stricmp(ext, pext++)) {
+                            r = 1;
+                            break;
+                        }
+                    }
+                    free(ext);
+                    free(pext);
+                });
+            }
+        });
+    }
+    return r;
+}
+#else
+#define FILE_IS(name, rwx) \
+    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
+        uv_stat_t statbuf = file_info(tc, filename); \
+        MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH) \
+                  || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_I ## rwx ## USR)) \
+                  || (statbuf.st_uid == getegid() && (statbuf.st_mode & S_I ## rwx ## GRP)); \
+        return r ? 1 : 0; \
+    }
+FILE_IS(readable, R)
+FILE_IS(writable, W)
+FILE_IS(executable, X)
+#endif
+
 /* open a filehandle; takes a type object */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
     char            * const fname = MVM_string_utf8_encode_C_string(tc, filename);
@@ -304,17 +358,17 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
 }
 
 static void tty_on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    const MVMint64 length = ((MVMOSHandleBody *)(handle->data))->u.length;
+    const MVMint64 length = ((MVMOSHandle *)handle->data)->body.u.length;
 
     buf->base = malloc(length);
     buf->len = length;
 }
 
 static void tty_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
-    MVMOSHandleBody * const body = (MVMOSHandleBody *)(handle->data);
+    MVMOSHandle * const oshandle = (MVMOSHandle *)(handle->data);
 
-    body->u.data = buf->base;
-    body->u.length = buf->len;
+    oshandle->body.u.data = buf->base;
+    oshandle->body.u.length = buf->len;
 }
 
 /* reads a string from a filehandle. */
@@ -365,6 +419,60 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     free(buf);
 
     return result;
+}
+
+/* reads a buf from a filehandle. */
+void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
+    MVMOSHandle *handle;
+    MVMint64 bytes_read;
+    uv_fs_t req;
+    char *buf;
+
+    /* XXX TODO handle length == -1 to mean read to EOF */
+
+    verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
+
+    /* Ensure the target is in the correct form. */
+    if (!IS_CONCRETE(result) || REPR(result)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "read_fhb requires a native array to write to");
+    if (((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != 1)
+        MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of int8");
+
+    if (length < 1 || length > 99999999) {
+        MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
+    }
+
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_HANDLE: {
+            MVMOSHandleBody * const body = &handle->body;
+            body->u.length = length;
+            uv_read_start((uv_stream_t *)body->u.handle, tty_on_alloc, tty_on_read);
+            buf = body->u.data;
+            bytes_read = body->u.length;
+            break;
+        }
+        case MVM_OSHANDLE_FD:
+            buf = malloc(length);
+            bytes_read = uv_fs_read(tc->loop, &req, handle->body.u.fd, buf, length, -1, NULL);
+            break;
+        default:
+            break;
+    }
+
+    if (bytes_read < 0) {
+        free(buf);
+        MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
+    }
+
+    if (bytes_read == 0) {
+        handle->body.eof = 1;
+    }
+
+    /* Stash the data in the VMArray. */
+    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
+    ((MVMArray *)result)->body.start    = 0;
+    ((MVMArray *)result)->body.ssize    = bytes_read;
+    ((MVMArray *)result)->body.elems    = bytes_read;
 }
 
 /* read all of a filehandle into a string. */
@@ -418,27 +526,35 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString 
     return result;
 }
 
+static void write_cb(uv_write_t* req, int status) {
+    uv_unref((uv_handle_t *)req);
+    free(req);
+    req = NULL;
+}
+
 /* writes a string to a filehandle. */
-MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str) {
+MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl) {
     MVMOSHandle *handle;
     MVMuint8 *output;
     MVMint64 output_size;
     MVMint64 bytes_written;
 
-
     verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
 
     output = MVM_string_encode(tc, str, 0, -1, &output_size, handle->body.encoding_type);
 
+    if (addnl) {
+        output = (MVMuint8 *)realloc(output, ++output_size);
+        output[output_size - 1] = '\n';
+    }
+
     switch (handle->body.type) {
         case MVM_OSHANDLE_HANDLE: {
-            uv_write_t req;
-            uv_buf_t buf;
+            uv_write_t *req = malloc(sizeof(uv_write_t));
+            uv_buf_t buf = uv_buf_init(output, bytes_written = output_size);
             int r;
-
-            buf.base = output;
-            buf.len  = bytes_written = output_size;
-            if ((r = uv_write(&req, (uv_stream_t *)handle->body.u.handle, &buf, 1, NULL)) < 0) {
+            if ((r = uv_write(req, (uv_stream_t *)handle->body.u.handle, &buf, 1, write_cb)) < 0) {
+                if (req) free(req);
                 free(output);
                 MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
             }
@@ -457,10 +573,50 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
             break;
     }
 
-
-
     free(output);
     return bytes_written;
+}
+
+void MVM_file_write_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
+    MVMOSHandle *handle;
+    MVMuint8 *output;
+    MVMint64 output_size;
+    MVMint64 bytes_written;
+
+    verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
+
+    /* Ensure the target is in the correct form. */
+    if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array to read from");
+    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != 1)
+        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of int8");
+
+    output = ((MVMArray *)buffer)->body.slots.i8;
+    output_size = ((MVMArray *)buffer)->body.elems;
+
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_HANDLE: {
+            uv_write_t *req = malloc(sizeof(uv_write_t));
+            uv_buf_t buf = uv_buf_init(output, bytes_written = output_size);
+            int r;
+
+            if ((r = uv_write(req, (uv_stream_t *)handle->body.u.handle, &buf, 1, write_cb)) < 0) {
+                free(req);
+                MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
+            }
+            break;
+        }
+        case MVM_OSHANDLE_FD: {
+            uv_fs_t req;
+            bytes_written = uv_fs_write(tc->loop, &req, handle->body.u.fd, (const void *)output, output_size, -1, NULL);
+            if (bytes_written < 0) {
+                MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
+            }
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 /* writes a string to a file, overwriting it if necessary */
@@ -468,7 +624,7 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
     MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "w", 1);
     MVMObject *fh = MVM_file_open_fh(tc, filename, mode);
     MVM_file_set_encoding(tc, fh, encoding);
-    MVM_file_write_fhs(tc, fh, output);
+    MVM_file_write_fhs(tc, fh, output, 0);
     MVM_file_close_fh(tc, fh);
     /* XXX need to GC free the filehandle? */
 }
@@ -626,7 +782,7 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 }
 
 /* return an OSHandle representing one of the standard streams */
-static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
+MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
     MVMObject * const type_object = tc->instance->boot_types.BOOTIO;
     MVMOSHandle * const    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
     MVMOSHandleBody * const body  = &result->body;
@@ -635,8 +791,11 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
         case UV_TTY: {
             uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
+#ifdef WIN32
+            uv_stream_set_blocking((uv_stream_t *)handle, 1);
+#endif
             body->u.handle = (uv_handle_t *)handle;
-            body->u.handle->data = body;       /* this is needed in tty_on_read function. */
+            body->u.handle->data = result;       /* this is needed in tty_on_read function. */
             body->type = MVM_OSHANDLE_HANDLE;
             break;
         }
@@ -648,8 +807,11 @@ static MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, M
             uv_pipe_t * const handle = malloc(sizeof(uv_pipe_t));
             uv_pipe_init(tc->loop, handle, 0);
             uv_pipe_open(handle, type);
+#ifdef WIN32
+            uv_stream_set_blocking((uv_stream_t *)handle, 1);
+#endif
             body->u.handle = (uv_handle_t *)handle;
-            body->u.handle->data = body;
+            body->u.handle->data = result;
             body->type = MVM_OSHANDLE_HANDLE;
             break;
         }
@@ -668,18 +830,6 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
     verify_filehandle_type(tc, oshandle, &handle, "check eof");
 
     return handle->body.eof;
-}
-
-MVMObject * MVM_file_get_stdin(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 0, 1);
-}
-
-MVMObject * MVM_file_get_stdout(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 1, 0);
-}
-
-MVMObject * MVM_file_get_stderr(MVMThreadContext *tc) {
-    return MVM_file_get_stdstream(tc, 2, 0);
 }
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {

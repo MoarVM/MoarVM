@@ -45,6 +45,9 @@ struct MVMCallsite {
 
     /* whether it has a flattening arg. */
     MVMuint8 has_flattening;
+
+    /* Cached version of this callsite with an extra invocant arg. */
+    MVMCallsite *with_invocant;
 };
 
 /* Minimum callsite size is due to certain things internally expecting us to
@@ -108,6 +111,7 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
 void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);
+MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Argument access by position. */
 MVMArgInfo MVM_args_get_pos_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required);

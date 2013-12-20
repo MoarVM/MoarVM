@@ -18,6 +18,7 @@ struct MVMBootTypes {
     MVMObject *BOOTException;
     MVMObject *BOOTStaticFrame;
     MVMObject *BOOTCompUnit;
+    MVMObject *BOOTMultiCache;
 };
 
 /* Various raw types that don't need a HOW */
@@ -31,6 +32,8 @@ struct MVMStringConsts {
     MVMString *Str;
     MVMString *Num;
     MVMString *find_method;
+    MVMString *type_check;
+    MVMString *accepts_type;
 };
 
 struct MVMReprRegistry {
@@ -180,4 +183,11 @@ struct MVMInstance {
     /* Hash of filenames of compunits loaded from disk. */
     MVMLoadedCompUnitName *loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
+
+    MVMObject *stdin_handle;
+    MVMObject *stdout_handle;
+    MVMObject *stderr_handle;
+
+    /* Next type cache ID, to go in STable. */
+    AO_t cur_type_cache_id;
 };

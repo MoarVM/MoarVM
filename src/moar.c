@@ -10,6 +10,7 @@
 
 /* Create a new instance of the VM. */
 static void string_consts(MVMThreadContext *tc);
+static void setup_std_handles(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     int init_stat;
@@ -55,6 +56,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
 
+    /* Allocate all things during following setup steps directly in gen2, as
+     * they will have program lifetime. */
+    MVM_gc_allocate_gen2_default_set(instance->main_thread);
+
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
@@ -91,6 +96,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up some string constants commonly used. */
     string_consts(instance->main_thread);
 
+    /* Create std[in/out/err]. */
+    setup_std_handles(instance->main_thread);
+
+    /* Back to nursery allocation, now we're set up. */
+    MVM_gc_allocate_gen2_default_clear(instance->main_thread);
+
     return instance;
 }
 
@@ -109,6 +120,24 @@ static void string_consts(MVMThreadContext *tc) {
 
     instance->str_consts.find_method = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "find_method");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.find_method);
+
+    instance->str_consts.type_check = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type_check");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.type_check);
+
+    instance->str_consts.accepts_type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "accepts_type");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.accepts_type);
+}
+
+/* Set up some standard file handles. */
+static void setup_std_handles(MVMThreadContext *tc) {
+    tc->instance->stdin_handle  = MVM_file_get_stdstream(tc, 0, 1);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdin_handle);
+
+    tc->instance->stdout_handle = MVM_file_get_stdstream(tc, 1, 0);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdout_handle);
+
+    tc->instance->stderr_handle = MVM_file_get_stdstream(tc, 2, 0);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stderr_handle);
 }
 
 /* This callback is passed to the interpreter code. It takes care of making

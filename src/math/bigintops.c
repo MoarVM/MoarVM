@@ -366,12 +366,12 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
 
     value_obj = MVM_repr_alloc_init(tc, type);
     MVM_repr_push_o(tc, result, value_obj);
-
-    value = get_bigint(tc, value_obj);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&value_obj);
 
     base_obj = MVM_repr_alloc_init(tc, type);
     MVM_repr_push_o(tc, result, base_obj);
 
+    value = get_bigint(tc, value_obj);
     base = get_bigint(tc, base_obj);
 
     mp_set_int(base, 1);
@@ -412,7 +412,8 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     pos_obj = MVM_repr_alloc_init(tc, type);
     MVM_repr_set_int(tc, pos_obj, pos);
     MVM_repr_push_o(tc, result, pos_obj);
-    MVM_gc_root_temp_pop_n(tc, 3);
+
+    MVM_gc_root_temp_pop_n(tc, 4);
 
     return result;
 }

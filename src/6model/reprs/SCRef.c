@@ -25,10 +25,12 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
-    MVMObject *BOOTArray = tc->instance->boot_types.BOOTArray;
-    MVMObject *root_objects, *root_codes;
+    MVMObject *BOOTArray    = tc->instance->boot_types.BOOTArray;
+    MVMObject *BOOTIntArray = tc->instance->boot_types.BOOTIntArray;
+    MVMObject *root_objects, *root_codes, *rep_indexes, *rep_scs, *owned_objects;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTIntArray);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&root);
 
     root_objects = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
@@ -37,7 +39,16 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     root_codes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
     MVM_ASSIGN_REF(tc, root, sc->root_codes, root_codes);
 
-    MVM_gc_root_temp_pop_n(tc, 2);
+    rep_indexes = REPR(BOOTIntArray)->allocate(tc, STABLE(BOOTIntArray));
+    MVM_ASSIGN_REF(tc, root, sc->rep_indexes, rep_indexes);
+
+    rep_scs = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_ASSIGN_REF(tc, root, sc->rep_scs, rep_scs);
+
+    owned_objects = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    MVM_ASSIGN_REF(tc, root, sc->owned_objects, owned_objects);
+
+    MVM_gc_root_temp_pop_n(tc, 3);
 }
 
 /* Copies the body of one object to another. */
@@ -54,6 +65,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &sc->description);
     MVM_gc_worklist_add(tc, worklist, &sc->root_objects);
     MVM_gc_worklist_add(tc, worklist, &sc->root_codes);
+    MVM_gc_worklist_add(tc, worklist, &sc->rep_indexes);
+    MVM_gc_worklist_add(tc, worklist, &sc->rep_scs);
+    MVM_gc_worklist_add(tc, worklist, &sc->owned_objects);
 
     for (i = 0; i < sc->num_stables; i++)
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);

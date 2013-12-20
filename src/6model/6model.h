@@ -364,25 +364,16 @@ struct MVMREPROps_Positional {
     MVMStorageSpec (*get_elem_storage_spec) (MVMThreadContext *tc, MVMSTable *st);
 };
 struct MVMREPROps_Associative {
-    /* Get the address of the element at the specified key. May return null if
-     * nothing is there, or throw to indicate the key does not exist, or vivify. */
-    void * (*at_key_ref) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key);
-
-    /* Get a boxed object representing the element at the specified key. If the
-     * object is already a reference type, simply returns that. */
-    MVMObject * (*at_key_boxed) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key);
-
-    /* Binds the value at the specified address into the hash at the specified
-     * key. */
-    void (*bind_key_ref) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key, void *value_addr);
+    /* Gets the value at the specified key and places it in the passed
+     * location (specified as a register). Expects to be passed a kind flag
+     * that matches the kind of the attribute that is being fetched. */
+    void (*at_key) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data,
+        MVMObject *key, MVMRegister *result, MVMuint16 kind);
 
     /* Binds the object at the specified address into the hash at the specified
      * key. */
-    void (*bind_key_boxed) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMObject *key, MVMObject *value);
+    void (*bind_key) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+        void *data, MVMObject *key, MVMRegister value, MVMuint16 kind);
 
     /* Returns a true value of the key exists, and a false one if not. */
     MVMint64 (*exists_key) (MVMThreadContext *tc, MVMSTable *st,
@@ -508,8 +499,10 @@ struct MVMREPROps {
 
 /* Some functions related to 6model core functionality. */
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
-MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
+MVM_PUBLIC MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
-MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
+void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res);
+MVM_PUBLIC MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args);
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);
+MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc);

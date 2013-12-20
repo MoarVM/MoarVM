@@ -50,6 +50,10 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         MVMFrame *node = tc->frame_pool_table[pool_index];
         MVMFrame *outer_to_decr = frame->outer;
 
+        /* If there's a caller pointer, decrement that. */
+        if (frame->caller)
+            frame->caller = MVM_frame_dec_ref(tc, frame->caller);
+
         if (node && MVM_load(&node->ref_count) >= MVMFramePoolLengthLimit) {
             /* There's no room on the free list, so destruction.*/
             if (frame->env) {
@@ -183,7 +187,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame->outer = outer;
         else
             MVM_exception_throw_adhoc(tc,
-                "Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+                "When invoking %s, Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+                static_frame_body->name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->name) : "<anonymous static frame>",
                 outer->static_info,
                 MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name,
                 outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
@@ -210,6 +215,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
     else
         frame->caller = NULL;
+    frame->keep_caller = 0;
 
     /* Initial reference count is 1 by virtue of it being the currently
      * executing frame. */
@@ -219,8 +225,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
     
-    /* Make sure there's no frame context pointer. */
+    /* Make sure there's no frame context pointer and special return data
+     * won't be marked. */
     frame->context_object = NULL;
+    frame->mark_special_return_data = 0;
 
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
@@ -229,6 +237,32 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     *(tc->interp_bytecode_start) = static_frame_body->bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame_body->cu;
+
+    /* If we need to do so, make clones of things in the lexical environment
+     * that need it. Note that we do this after tc->cur_frame became the
+     * current frame, to make sure these new objects will certainly get
+     * marked if GC is triggered along the way. */
+    if (static_frame_body->static_env_flags) {
+        /* Drag everything out of static_frame_body before we start,
+         * as GC action may invalidate it. */
+        MVMuint8 *flags = static_frame_body->static_env_flags;
+        MVMint64 numlex = static_frame_body->num_lexicals;
+        MVMint64 i;
+        for (i = 0; i < numlex; i++) {
+            switch (flags[i]) {
+                case 0: break;
+                case 1:
+                    frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
+                    break;
+                case 2:
+                    frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Unknown lexical environment setup flag");
+            }
+        }
+    }
 }
 
 /* Creates a frame that is suitable for deserializing a context into. Does not
@@ -269,7 +303,8 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 /* Return/unwind do about the same thing; this factors it out. */
 static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
-    MVMFrame *caller = returner->caller;
+    MVMFrame *caller   = returner->caller;
+    MVMint64  retval;
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
@@ -279,26 +314,27 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
         MVM_args_proc_cleanup_for_cache(tc, &returner->params);
     }
 
-    /* signal to the GC to ignore ->work */
+    /* Signal to the GC to ignore ->work */
     returner->tc = NULL;
-    
-    /* We no longer need point at the caller (any refcount is handled
-     * below). */
-    returner->caller = NULL;
-    
-    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
-     * currently executing frame. */
-    MVM_frame_dec_ref(tc, returner);
 
-    /* Switch back to the caller frame if there is one; we also need to
-     * decrement its reference count. */
+    /* Unless we need to keep the caller chain in place, clear it up. */
+    if (caller) {
+        if (!returner->keep_caller) {
+            MVM_frame_dec_ref(tc, caller);
+            returner->caller = NULL;
+        }
+        else if (unwind) {
+            caller->keep_caller = 1;
+        }
+    }
+
+    /* Switch back to the caller frame if there is one. */
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = caller->static_info->body.bytecode;
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
-        MVM_frame_dec_ref(tc, caller);
 
         /* Handle any special return hooks. */
         if (caller->special_return) {
@@ -306,14 +342,21 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
             caller->special_return = NULL;
             if (!unwind)
                 sr(tc, caller->special_return_data);
+            caller->mark_special_return_data = 0;
         }
 
-        return 1;
+        retval = 1;
     }
     else {
         tc->cur_frame = NULL;
-        return 0;
+        retval = 0;
     }
+
+    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
+     * currently executing frame. */
+    MVM_frame_dec_ref(tc, returner);
+
+    return retval;
 }
 
 /* Attempt to return from the current frame. Returns non-zero if we can,
@@ -337,7 +380,7 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
 
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
-            "Can only perform takeclosure on object with representation MVMCode");
+            "Can only perform capturelex on object with representation MVMCode");
 
     /* XXX Following is vulnerable to a race condition. */
     code_obj = (MVMCode *)code;
@@ -359,7 +402,7 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
         closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
     });
 
-    closure->body.sf    = ((MVMCode *)code)->body.sf;
+    MVM_ASSIGN_REF(tc, closure, closure->body.sf, ((MVMCode *)code)->body.sf);
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
     MVM_ASSIGN_REF(tc, closure, closure->body.code_object, ((MVMCode *)code)->body.code_object);
 
@@ -367,8 +410,9 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
 }
 
 /* Looks up the address of the lexical with the specified name and the
- * specified type. An error is thrown if it does not exist or if the
- * type is incorrect */
+ * specified type. Non-existing object lexicals produce NULL, expected
+ * (for better or worse) by various things. Otherwise, an error is thrown
+ * if it does not exist. Incorrect type always throws. */
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVM_string_flatten(tc, name);
@@ -391,6 +435,8 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
         }
         cur_frame = cur_frame->outer;
     }
+    if (type == MVM_reg_obj)
+        return NULL;
     MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
         MVM_string_utf8_encode_C_string(tc, name));
 }
@@ -599,13 +645,14 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
         MVM_string_utf8_encode_C_string(tc, name));
 }
 
-MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
+MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs) {
     if (!code)
         MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
         MVMInvocationSpec *is = STABLE(code)->invocation_spec;
         if (!is) {
-            MVM_exception_throw_adhoc(tc, "Cannot invoke this object");
+            MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s, cs = %d)",
+                REPR(code)->name, STABLE(code)->container_spec ? 1 : 0);
         }
         if (is->class_handle) {
             MVMRegister dest;
@@ -616,6 +663,32 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code) {
             code = dest.o;
         }
         else {
+            /* Need to tweak the callsite and args to include the code object
+             * being invoked. */
+            if (tweak_cs) {
+                MVMCallsite *orig = *tweak_cs;
+                if (orig->with_invocant) {
+                    *tweak_cs = orig->with_invocant;
+                }
+                else {
+                    MVMCallsite *new  = malloc(sizeof(MVMCallsite));
+                    new->arg_flags    = malloc((orig->arg_count + 1) * sizeof(MVMCallsiteEntry));
+                    new->arg_flags[0] = MVM_CALLSITE_ARG_OBJ;
+                    memcpy(new->arg_flags + 1, orig->arg_flags, orig->arg_count);
+                    new->arg_count      = orig->arg_count + 1;
+                    new->num_pos        = orig->num_pos + 1;
+                    new->has_flattening = orig->has_flattening;
+                    new->with_invocant  = NULL;
+                    *tweak_cs = orig->with_invocant = new;
+                }
+                memmove(tc->cur_frame->args + 1, tc->cur_frame->args,
+                    orig->arg_count * sizeof(MVMRegister));
+                tc->cur_frame->args[0].o = code;
+            }
+            else {
+                MVM_exception_throw_adhoc(tc,
+                    "Cannot invoke object with invocation handler in this context");
+            }
             code = is->invocation_handler;
         }
     }

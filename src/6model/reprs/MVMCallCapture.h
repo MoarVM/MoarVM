@@ -9,6 +9,10 @@ struct MVMCallCaptureBody {
      * the frame in question. For save mode, we allocate a fresh one. */
     MVMArgProcContext *apc;
 
+    /* The effective MVMCallsite. This may be the original one, but in the
+     * event of flattening will describe the flattened outcome. */
+    MVMCallsite *effective_callsite;
+
     /* Use or save mode? */
     MVMuint8 mode;
 };

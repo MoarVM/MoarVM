@@ -1,4 +1,7 @@
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc);
+MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd_s, MVMString *cwd, MVMObject *env);
+MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env);
+MVMint64 MVM_proc_getpid(MVMThreadContext *tc);
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc);
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc);
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed);

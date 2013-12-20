@@ -534,6 +534,22 @@
 #define MVM_OP_inf 530
 #define MVM_OP_neginf 531
 #define MVM_OP_nan 532
+#define MVM_OP_getpid 533
+#define MVM_OP_spawn 534
+#define MVM_OP_filereadable 535
+#define MVM_OP_filewritable 536
+#define MVM_OP_fileexecutable 537
+#define MVM_OP_say_fhs 538
+#define MVM_OP_capturenamedshash 539
+#define MVM_OP_read_fhb 540
+#define MVM_OP_write_fhb 541
+#define MVM_OP_replace 542
+#define MVM_OP_newexception 543
+#define MVM_OP_openpipe 544
+#define MVM_OP_backtrace 545
+#define MVM_OP_symlink 546
+#define MVM_OP_link 547
+#define MVM_OP_gethostname 548
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

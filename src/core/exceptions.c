@@ -2,6 +2,7 @@
 #include <stdarg.h>
 
 #if _MSC_VER
+#define snprintf _snprintf
 #define vsnprintf _vsnprintf
 #endif
 
@@ -67,7 +68,8 @@ static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f
     else
         pc = (MVMuint32)(f->return_address - sf->body.bytecode);
     for (i = 0; i < sf->body.num_handlers; i++) {
-        if (sf->body.handlers[i].category_mask & cat)
+        MVMuint32 category_mask = sf->body.handlers[i].category_mask;
+        if ((category_mask & cat) || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH))
             if (pc >= sf->body.handlers[i].start_offset && pc <= sf->body.handlers[i].end_offset)
                 if (!in_handler_stack(tc, &sf->body.handlers[i]))
                     return &sf->body.handlers[i];
@@ -146,7 +148,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
             /* Find frame to invoke. */
             MVMObject *handler_code = MVM_frame_find_invokee(tc,
-                lh.frame->work[lh.handler->block_reg].o);
+                lh.frame->work[lh.handler->block_reg].o, NULL);
 
             /* Ensure we have an exception object. */
             /* TODO: Can make one up. */
@@ -201,7 +203,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     /* XXX TODO: make the caller pass in a char ** and a length pointer so
      * we can update it if necessary, and the caller can cache it. */
     char *o = malloc(1024);
-    MVMuint8 *cur_op = !not_top ? (*tc->interp_cur_op) : cur_frame->return_address;
+    MVMuint8 *cur_op = not_top ? cur_frame->return_address : cur_frame->throw_address;
     MVMuint32 offset = cur_op - cur_frame->static_info->body.bytecode;
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset);
@@ -213,7 +215,12 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
             cur_frame->static_info->body.cu->body.strings[string_heap_index], NULL)
         : NULL;
 
-    sprintf(o, " %s %s:%u  (%s:%s:%u)",
+    /* We may be mid-instruction if exception was thrown at an unfortunate
+     * point; try to cope with that. */
+    if (instr == MVM_BC_ILLEGAL_OFFSET && offset >= 2)
+        instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset - 2);
+
+    snprintf(o, 1024, " %s %s:%u  (%s:%s:%u)",
         not_top ? "from" : "  at",
         tmp1 ? tmp1 : "<unknown>",
         line_number,
@@ -230,6 +237,72 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     return o;
 }
 
+/* Returns a list of hashes containing file, line, sub and annotations. */
+MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
+    MVMException *ex;
+    MVMFrame *cur_frame;
+    MVMObject *arr, *annotations, *row, *value;
+    MVMuint32 count = 0;
+    MVMString *k_file, *k_line, *k_sub, *k_anno;
+
+    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+        ex = (MVMException *)ex_obj;
+    else
+        MVM_exception_throw_adhoc(tc, "Op 'backtrace' needs an exception object");
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&arr);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&annotations);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&row);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&value);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_file);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_line);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_sub);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_anno);
+
+    k_file = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
+    k_line = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
+    k_sub  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "sub");
+    k_anno = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "annotations");
+
+    cur_frame = ex->body.origin;
+    arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+
+    while (cur_frame != NULL) {
+        MVMuint8             *cur_op = count ? cur_frame->return_address : cur_frame->throw_address;
+        MVMuint32             offset = cur_op - cur_frame->static_info->body.bytecode;
+        MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset);
+        char            *line_number = malloc(16);
+        snprintf(line_number, 16, "%d", annot ? annot->line_number + 1 : 1);
+
+        /* annotations hash will contain "file" and "line" */
+        annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+
+        /* file */
+        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
+                    cur_frame->static_info->body.cu->body.filename);
+        MVM_repr_bind_key_o(tc, annotations, k_file, value);
+
+        /* line */
+        value = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, line_number);
+        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, (MVMString *)value);
+        MVM_repr_bind_key_o(tc, annotations, k_line, value);
+        free(line_number);
+
+        /* row will contain "sub" and "annotations" */
+        row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+        MVM_repr_bind_key_o(tc, row, k_sub, cur_frame->code_ref);
+        MVM_repr_bind_key_o(tc, row, k_anno, annotations);
+
+        MVM_repr_push_o(tc, arr, row);
+        cur_frame = cur_frame->caller;
+        count++;
+    }
+
+    MVM_gc_root_temp_pop_n(tc, 8);
+
+    return arr;
+}
+
 /* Returns the lines (backtrace) of an exception-object as an array. */
 MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVMException *ex;
@@ -239,17 +312,20 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
-        MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
+        MVM_exception_throw_adhoc(tc, "Op 'backtracestrings' needs an exception object");
 
     cur_frame = ex->body.origin;
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
     MVMROOT(tc, arr, {
+        MVMuint32 count = 0;
         while (cur_frame != NULL) {
-            MVMObject *pobj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStr);
-            MVM_repr_set_str(tc, pobj, cur_frame->static_info->body.name);
-            MVM_repr_push_o(tc, arr, pobj);
+            char      *line     = MVM_exception_backtrace_line(tc, cur_frame, count++);
+            MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
+            MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
+            MVM_repr_push_o(tc, arr, line_obj);
             cur_frame = cur_frame->caller;
+            free(line);
         }
     });
 
@@ -319,42 +395,61 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     else
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
 
+    if (!ex->body.category)
+        ex->body.category = MVM_EX_CAT_CATCH;
+    if (resume_result)
+        ex->body.resume_addr = *tc->interp_cur_op;
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
 
-    if (!ex->body.origin)
+    if (!ex->body.origin) {
         ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+        tc->cur_frame->throw_address = *(tc->interp_cur_op);
+        tc->cur_frame->keep_caller   = 1;
+    }
 
     run_handler(tc, lh, ex_obj);
 }
 
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
-    MVMException *ex;
+    MVMException     *ex;
+    MVMFrame         *target;
     MVMActiveHandler *ah;
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only resume an exception object");
+    
+    /* Check that everything is in place to do the resumption. */
+    if (!ex->body.resume_addr)
+        MVM_exception_throw_adhoc(tc, "This exception is not resumable");
+    target = ex->body.origin;
+    if (!target)
+        MVM_exception_throw_adhoc(tc, "This exception is not resumable");
+    if (target->special_return != unwind_after_handler)
+        MVM_exception_throw_adhoc(tc, "This exception is not resumable");
+    if (!target->tc)
+        MVM_exception_throw_adhoc(tc, "Too late to resume this exception");
 
-    if (ex->body.origin->special_return == unwind_after_handler) {
-        /* A handler was already installed, just use it. */
-        ah = (MVMActiveHandler *)ex->body.origin->special_return_data;
-    }
-    else {
-        /* We need to allocate/register a handler and set some defaults. */
-        ah                                   = malloc(sizeof(MVMActiveHandler));
-        ah->ex_obj                           = ex_obj;
-        ah->next_handler                     = tc->active_handlers;
-        tc->active_handlers                  = ah;
-        tc->cur_frame->return_value          = NULL;
-        tc->cur_frame->return_type           = MVM_RETURN_VOID;
-        ex->body.origin->special_return_data = (void *)ah;
-    }
+    /* Check that this is the exception we're currently handling. */
+    if (!tc->active_handlers)
+        MVM_exception_throw_adhoc(tc, "Can only resume an exception in its handler");
+    if (tc->active_handlers->ex_obj != ex_obj)
+        MVM_exception_throw_adhoc(tc, "Can only resume the current exception");
 
-    ah->frame                = (void *)MVM_frame_inc_ref(tc, ex->body.origin);
-    ah->handler->goto_offset = ex->body.goto_offset;
+    /* Clear special return handler; we'll do its work here. */
+    target->special_return = NULL;
+
+    /* Unwind to the thrower of the exception; set PC. */
+    unwind_to_frame(tc, target);
+    *tc->interp_cur_op = ex->body.resume_addr;
+
+    /* Clear the current active handler. */
+    ah = tc->active_handlers;
+    tc->active_handlers = ah->next_handler;
+    free(ah);
 }
 
 /* Creates a new lexotic. */
@@ -435,7 +530,14 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
         free(c_message);
         MVM_ASSIGN_REF(tc, ex, ex->body.message, message);
-        ex->body.origin   = tc->cur_frame ? MVM_frame_inc_ref(tc, tc->cur_frame) : NULL;
+        if (tc->cur_frame) {
+            ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+            tc->cur_frame->throw_address = *(tc->interp_cur_op);
+            tc->cur_frame->keep_caller   = 1;
+        }
+        else {
+            ex->body.origin = NULL;
+        }
         ex->body.category = MVM_EX_CAT_CATCH;
     });
 

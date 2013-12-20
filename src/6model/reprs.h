@@ -25,6 +25,7 @@
 #include "6model/reprs/MVMStaticFrame.h"
 #include "6model/reprs/MVMCompUnit.h"
 #include "6model/reprs/MVMDLLSym.h"
+#include "6model/reprs/MVMMultiCache.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -60,8 +61,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMStaticFrame          23
 #define MVM_REPR_ID_MVMCompUnit             24
 #define MVM_REPR_ID_MVMDLLSym               25
+#define MVM_REPR_ID_MVMMultiCache           26
 
-#define MVM_REPR_CORE_COUNT                 26
+#define MVM_REPR_CORE_COUNT                 27
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
@@ -103,10 +105,8 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 /* Default associative functions for a REPR that lacks them. */
 #define MVM_REPR_DEFAULT_ASS_FUNCS \
 { \
-    MVM_REPR_DEFAULT_AT_KEY_REF, \
-    MVM_REPR_DEFAULT_AT_KEY_BOXED, \
-    MVM_REPR_DEFAULT_BIND_KEY_REF, \
-    MVM_REPR_DEFAULT_BIND_KEY_BOXED, \
+    MVM_REPR_DEFAULT_AT_KEY, \
+    MVM_REPR_DEFAULT_BIND_KEY, \
     MVM_REPR_DEFAULT_EXISTS_KEY, \
     MVM_REPR_DEFAULT_DELETE_KEY, \
     MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC \
@@ -152,10 +152,8 @@ MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMS
 
 /* Default associative indexing REPR function for a REPR that lacks it. */
 void MVM_REPR_DEFAULT_SPLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems);
-void * MVM_REPR_DEFAULT_AT_KEY_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
-MVMObject * MVM_REPR_DEFAULT_AT_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
-void MVM_REPR_DEFAULT_BIND_KEY_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr);
-void MVM_REPR_DEFAULT_BIND_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value);
+void MVM_REPR_DEFAULT_AT_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind);
+void MVM_REPR_DEFAULT_BIND_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind);
 MVMint64 MVM_REPR_DEFAULT_EXISTS_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
 void MVM_REPR_DEFAULT_DELETE_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
 MVMStorageSpec MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st);

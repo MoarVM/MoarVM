@@ -20,5 +20,4 @@
     }
 
 /* Functions for if the write barriers are hit. */
-void MVM_gc_write_barrier_hit(MVMThreadContext *tc, MVMCollectable *update_root);
-
+MVM_PUBLIC void MVM_gc_write_barrier_hit(MVMThreadContext *tc, MVMCollectable *update_root);

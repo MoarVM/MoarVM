@@ -32,11 +32,33 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_exception_throw_adhoc(tc, "Cannot copy object with repr OSHandle");
 }
 
+/* Called by the VM to mark any GCable items. */
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMOSHandleBody *handle = (MVMOSHandleBody *)data;
+    switch (handle->type) {
+        case MVM_OSHANDLE_HANDLE:
+            if (handle->u.handle && handle->u.handle->data)
+                MVM_gc_worklist_add(tc, worklist, &handle->u.handle->data);
+            break;
+    }
+}
+
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMOSHandle *handle = (MVMOSHandle *)obj;
     switch(handle->body.type) {
         case MVM_OSHANDLE_UNINIT:
+            break;
+        case MVM_OSHANDLE_HANDLE:
+            if (handle->body.u.handle
+            && !uv_is_closing(handle->body.u.handle)
+            && tc->instance->stdin_handle  != obj
+            && tc->instance->stdout_handle != obj
+            && tc->instance->stderr_handle != obj) {
+                uv_close(handle->body.u.handle, NULL);
+            }
+            break;
+        case MVM_OSHANDLE_FD:
             break;
     }
 }
@@ -77,7 +99,7 @@ static const MVMREPROps this_repr = {
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
-    NULL, /* gc_mark */
+    gc_mark,
     gc_free,
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */

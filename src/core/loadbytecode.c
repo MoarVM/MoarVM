@@ -80,10 +80,11 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         if (cu->body.deserialize_frame) {
             /* Set up special return to delegate to running the load frame,
              * if any. */
-            tc->cur_frame->return_value        = NULL;
-            tc->cur_frame->return_type         = MVM_RETURN_VOID;
-            tc->cur_frame->special_return      = run_load;
-            tc->cur_frame->special_return_data = cu;
+            tc->cur_frame->return_value             = NULL;
+            tc->cur_frame->return_type              = MVM_RETURN_VOID;
+            tc->cur_frame->special_return           = run_load;
+            tc->cur_frame->special_return_data      = cu;
+            tc->cur_frame->mark_special_return_data = 1;
 
             /* Invoke the deserialization frame and return to the runloop. */
             MVM_frame_invoke(tc, cu->body.deserialize_frame, &no_arg_callsite,

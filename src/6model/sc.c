@@ -121,6 +121,17 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
             "No object at index %d", idx);
 }
 
+/* Given an SC and an index, fetch the object stored there, or return NULL if
+ * there is none. */
+MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    MVMObject *roots = sc->body->root_objects;
+    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
+    if (idx < count)
+        return MVM_repr_at_pos_o(tc, roots, idx);
+    else
+        return NULL;
+}
+
 /* Given an SC, an index, and an object, store the object at that index. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     MVMObject *roots = sc->body->root_objects;
@@ -130,11 +141,20 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    if (idx >= 0 && idx < sc->body->num_stables)
+    if (idx >= 0 && idx < sc->body->num_stables && sc->body->root_stables[idx])
         return sc->body->root_stables[idx];
     else
         MVM_exception_throw_adhoc(tc,
             "No STable at index %d", idx);
+}
+
+/* Given an SC and an index, fetch the STable stored there, or return NULL if there
+ * is none. */
+MVMSTable * MVM_sc_try_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    if (idx >= 0 && idx < sc->body->num_stables)
+        return sc->body->root_stables[idx];
+    else
+        return NULL;
 }
 
 /* Given an SC, an index, and an STable, store the STable at the index. */
@@ -146,19 +166,19 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
         /* Just updating an existing one. */
         MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
     }
-    else if (idx == sc->body->num_stables) {
-        /* Setting the next one. */
-        if (idx == sc->body->alloc_stables) {
-            sc->body->alloc_stables += 16;
+    else {
+        if (idx >= sc->body->alloc_stables) {
+            MVMint64 orig_size = sc->body->alloc_stables;
+            sc->body->alloc_stables += 32;
+            if (sc->body->alloc_stables < idx + 1)
+                sc->body->alloc_stables = idx + 1;
             sc->body->root_stables = realloc(sc->body->root_stables,
                 sc->body->alloc_stables * sizeof(MVMSTable *));
+            memset(sc->body->root_stables + orig_size, 0,
+                (sc->body->alloc_stables - orig_size) * sizeof(MVMSTable *));
         }
         MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
-        sc->body->num_stables++;
-    }
-    else {
-        MVM_exception_throw_adhoc(tc,
-            "Gaps in STable root set not allowed");
+        sc->body->num_stables = idx + 1;
     }
 }
 
@@ -222,4 +242,81 @@ MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString 
     MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
     return scb && scb->sc ? scb->sc : NULL;
+}
+
+/* Called when an object triggers the SC repossession write barrier. */
+void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
+    MVMSerializationContext *comp_sc;
+
+    /* If the WB is disabled or we're not compiling, can exit quickly. */
+    if (tc->sc_wb_disable_depth)
+        return;
+    if (!tc->compiling_scs || !MVM_repr_elems(tc, tc->compiling_scs))
+        return;
+
+    /* Otherwise, check that the object's SC is different from the SC
+     * of the compilation we're currently in. Repossess if so. */
+    comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);
+    if (obj->header.sc != comp_sc) {
+        /* Get new slot ID. */
+        MVMint64 new_slot = MVM_repr_elems(tc, comp_sc->body->root_objects);
+
+        /* See if the object is actually owned by another, and it's the
+         * owner we need to repossess. */
+        if (obj->st->WHAT == tc->instance->boot_types.BOOTArray ||
+            obj->st->WHAT == tc->instance->boot_types.BOOTHash) {
+            MVMObject *owned_objects = obj->header.sc->body->owned_objects;
+            MVMint64 n = MVM_repr_elems(tc, owned_objects);
+            MVMint64 found = 0;
+            MVMint64 i;
+            for (i = 0; i < n; i += 2) {
+                if (MVM_repr_at_pos_o(tc, owned_objects, i) == obj) {
+                    obj = MVM_repr_at_pos_o(tc, owned_objects, i + 1);
+                    if (obj->header.sc == comp_sc)
+                        return;
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found)
+                return;
+        }
+
+        /* Add to root set. */
+        MVM_sc_set_object(tc, comp_sc, new_slot, obj);
+
+        /* Add repossession entry. */
+        MVM_repr_push_i(tc, comp_sc->body->rep_indexes, new_slot << 1);
+        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)obj->header.sc);
+
+        /* Update SC of the object, claiming it. */
+        MVM_ASSIGN_REF(tc, obj, obj->header.sc, comp_sc);
+    }
+}
+
+/* Called when an STable triggers the SC repossession write barrier. */
+void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
+    MVMSerializationContext *comp_sc;
+
+    /* If the WB is disabled or we're not compiling, can exit quickly. */
+    if (tc->sc_wb_disable_depth)
+        return;
+    if (!tc->compiling_scs || !MVM_repr_elems(tc, tc->compiling_scs))
+        return;
+
+    /* Otherwise, check that the STable's SC is different from the SC
+     * of the compilation we're currently in. Repossess if so. */
+    comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);
+    if (st->header.sc != comp_sc) {
+        /* Add to root set. */
+        MVMint64 new_slot = comp_sc->body->num_stables;
+        MVM_sc_push_stable(tc, comp_sc, st);
+
+        /* Add repossession entry. */
+        MVM_repr_push_i(tc, comp_sc->body->rep_indexes, (new_slot << 1) | 1);
+        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)st->header.sc);
+
+        /* Update SC of the STable, claiming it. */
+        MVM_ASSIGN_REF(tc, st, st->header.sc, comp_sc);
+    }
 }

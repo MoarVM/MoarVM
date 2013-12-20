@@ -59,6 +59,54 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
             REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
             return;
+        case MVM_ITER_MODE_ARRAY_INT:
+            body->array_state.index++;
+            if (body->array_state.index >= body->array_state.limit)
+                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            if (kind == MVM_reg_int64) {
+                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
+            }
+            else if (kind == MVM_reg_obj) {
+                MVMRegister tmp;
+                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &tmp, MVM_reg_int64);
+                value->o = MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, tmp.i64);
+            }
+            else {
+                MVM_exception_throw_adhoc(tc, "Wrong register kind in iteration");
+            }
+            return;
+        case MVM_ITER_MODE_ARRAY_NUM:
+            body->array_state.index++;
+            if (body->array_state.index >= body->array_state.limit)
+                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            if (kind == MVM_reg_num64) {
+                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
+            }
+            else if (kind == MVM_reg_obj) {
+                MVMRegister tmp;
+                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &tmp, MVM_reg_num64);
+                value->o = MVM_repr_box_num(tc, MVM_hll_current(tc)->num_box_type, tmp.n64);
+            }
+            else {
+                MVM_exception_throw_adhoc(tc, "Wrong register kind in iteration");
+            }
+            return;
+        case MVM_ITER_MODE_ARRAY_STR:
+            body->array_state.index++;
+            if (body->array_state.index >= body->array_state.limit)
+                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            if (kind == MVM_reg_str) {
+                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
+            }
+            else if (kind == MVM_reg_obj) {
+                MVMRegister tmp;
+                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &tmp, MVM_reg_str);
+                value->o = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, tmp.s);
+            }
+            else {
+                MVM_exception_throw_adhoc(tc, "Wrong register kind in iteration");
+            }
+            return;
         case MVM_ITER_MODE_HASH:
             if (!body->hash_state.curr) {
                 if (body->hash_state.next) {
@@ -154,10 +202,15 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
         if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
                 MVM_hll_current(tc)->array_iterator_type);
-            iterator->body.mode = MVM_ITER_MODE_ARRAY;
             iterator->body.array_state.index = -1;
             iterator->body.array_state.limit = REPR(target)->elems(tc, STABLE(target), target, OBJECT_BODY(target));
             MVM_ASSIGN_REF(tc, iterator, iterator->body.target, target);
+            switch (REPR(target)->pos_funcs.get_elem_storage_spec(tc, STABLE(target)).boxed_primitive) {
+                case MVM_STORAGE_SPEC_BP_INT: iterator->body.mode = MVM_ITER_MODE_ARRAY_INT; break;
+                case MVM_STORAGE_SPEC_BP_NUM: iterator->body.mode = MVM_ITER_MODE_ARRAY_NUM; break;
+                case MVM_STORAGE_SPEC_BP_STR: iterator->body.mode = MVM_ITER_MODE_ARRAY_STR; break;
+                default:                      iterator->body.mode = MVM_ITER_MODE_ARRAY; break;
+            }
         }
         else if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
@@ -178,7 +231,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVMLexicalRegistry *tmp;
                 HASH_ITER(hash_handle, lexical_names, current, tmp) {
                     /* XXX For now, just the symbol names is enough. */
-                    MVM_repr_bind_key_boxed(tc, ctx_hash, (MVMString *)current->key, NULL);
+                    MVM_repr_bind_key_o(tc, ctx_hash, (MVMString *)current->key, NULL);
                 }
             });
 
@@ -197,6 +250,9 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
 MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter) {
     switch (iter->body.mode) {
         case MVM_ITER_MODE_ARRAY:
+        case MVM_ITER_MODE_ARRAY_INT:
+        case MVM_ITER_MODE_ARRAY_NUM:
+        case MVM_ITER_MODE_ARRAY_STR:
             return iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
             break;
         case MVM_ITER_MODE_HASH:

@@ -6,11 +6,17 @@ static MVMCallsiteEntry fm_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_STR };
 static MVMCallsite     fm_callsite = { fm_flags, 3, 3, 0 };
 
+/* Dummy callsite for type_check. */
+static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     tc_callsite = { tc_flags, 3, 3, 0 };
+
 /* Locates a method by name, checking in the method cache only. */
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache))
-        return MVM_repr_at_key_boxed(tc, cache, name);
+        return MVM_repr_at_key_o(tc, cache, name);
     return NULL;
 }
 
@@ -28,7 +34,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
      * If we don't find it, but the cache is authoritative, then error. */
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
-        MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
+        MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (meth) {
             res->o = meth;
             return;
@@ -50,7 +56,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
              MVM_string_utf8_encode_C_string(tc, name));
 
     /* Set up the call, using the result register as the target. */
-    code = MVM_frame_find_invokee(tc, find_method);
+    code = MVM_frame_find_invokee(tc, find_method, NULL);
     tc->cur_frame->return_value   = res;
     tc->cur_frame->return_type    = MVM_RETURN_OBJ;
     tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -68,7 +74,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     /* First consider method cache. */
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
-        MVMObject *meth = MVM_repr_at_key_boxed(tc, cache, name);
+        MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (meth) {
             res->i64 = 1;
             return;
@@ -92,7 +98,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
 
     /* Set up the call, using the result register as the target. A little bad
      * as we're really talking about     */
-    code = MVM_frame_find_invokee(tc, find_method);
+    code = MVM_frame_find_invokee(tc, find_method, NULL);
     tc->cur_frame->return_value        = res;
     tc->cur_frame->return_type         = MVM_RETURN_OBJ;
     tc->cur_frame->return_address      = *(tc->interp_cur_op);
@@ -107,6 +113,89 @@ void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
     /* Transform to an integer result. */
     MVMRegister *reg = (MVMRegister *)sr_data;
     reg->i64 = reg->o && IS_CONCRETE(reg->o) ? 1 : 0;
+}
+
+/* Checks if an object has a given type, delegating to the type_check or
+ * accepts_type methods as needed. */
+void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
+    MVMObject **cache;
+    MVMSTable  *st;
+    MVMint64    mode;
+
+    /* Null never type-checks. */
+    if (obj == NULL) {
+        res->i64 = 0;
+        return;
+    }
+
+    st    = STABLE(obj);
+    mode  = STABLE(type)->mode_flags & MVM_TYPE_CHECK_CACHE_FLAG_MASK;
+    cache = st->type_check_cache;
+    if (cache) {
+        /* We have the cache, so just look for the type object we
+         * want to be in there. */
+        MVMint64 elems = STABLE(obj)->type_check_cache_length;
+        MVMint64 i;
+        for (i = 0; i < elems; i++) {
+            if (cache[i] == type) {
+                res->i64 = 1;
+                return;
+            }
+        }
+
+        /* If the type check cache is definitive, we're done. */
+        if ((mode & MVM_TYPE_CHECK_CACHE_THEN_METHOD) == 0 &&
+            (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) == 0) {
+            res->i64 = 0;
+            return;
+        }
+    }
+    
+    /* If we get here, need to call .^type_check on the value we're
+     * checking, unless it's an accepts check. */
+    if (!cache || (mode & MVM_TYPE_CHECK_CACHE_THEN_METHOD)) {
+        MVMObject *HOW = st->HOW;
+        MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
+            tc->instance->str_consts.type_check);
+        if (meth) {
+            /* Set up the call, using the result register as the target. */
+            MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
+            tc->cur_frame->return_value   = res;
+            tc->cur_frame->return_type    = MVM_RETURN_INT;
+            tc->cur_frame->return_address = *(tc->interp_cur_op);
+            tc->cur_frame->args[0].o = HOW;
+            tc->cur_frame->args[1].o = obj;
+            tc->cur_frame->args[2].o = type;
+            STABLE(code)->invoke(tc, code, &tc_callsite, tc->cur_frame->args);
+            return;
+        }
+    }
+
+    /* If the flag to call .accepts_type on the target value is set, do so. */
+    if (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) {
+        MVMObject *HOW = STABLE(type)->HOW;
+        MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
+            tc->instance->str_consts.accepts_type);
+        if (meth) {
+            /* Set up the call, using the result register as the target. */
+            MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
+            tc->cur_frame->return_value   = res;
+            tc->cur_frame->return_type    = MVM_RETURN_INT;
+            tc->cur_frame->return_address = *(tc->interp_cur_op);
+            tc->cur_frame->args[0].o = HOW;
+            tc->cur_frame->args[1].o = type;
+            tc->cur_frame->args[2].o = obj;
+            STABLE(code)->invoke(tc, code, &tc_callsite, tc->cur_frame->args);
+            return;
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Expected 'accepts_type' method, but none found in meta-object");
+        }
+    }
+
+    /* If all else fails... */
+    res->i64 = 0;
 }
 
 /* Checks if an object has a given type, using the cache only. */
@@ -133,6 +222,7 @@ void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCall
     MVM_exception_throw_adhoc(tc, "non-invokable object is non-invokable");
 }
 
+/* Clean up STable memory. */
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
     /* First have it free its repr_data if it wants. */
     if (st->REPR->gc_free_repr_data)
@@ -145,4 +235,9 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
         st->container_spec->gc_free_data(tc, st);
     MVM_checked_free_null(st->invocation_spec);
     MVM_checked_free_null(st->boolification_spec);
+}
+
+/* Get the next type cache ID for a newly created STable. */
+MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc) {
+    return (MVMuint64)MVM_add(&tc->instance->cur_type_cache_id, 64) + 64;
 }

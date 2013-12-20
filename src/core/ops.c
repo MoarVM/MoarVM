@@ -3737,9 +3737,121 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_write_reg | MVM_operand_num64 }
     },
+    {
+        MVM_OP_getpid,
+        "getpid",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_spawn,
+        "spawn",
+        "  ",
+        4,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_filereadable,
+        "filereadable",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_filewritable,
+        "filewritable",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_fileexecutable,
+        "fileexecutable",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_say_fhs,
+        "say_fhs",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_capturenamedshash,
+        "capturenamedshash",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_read_fhb,
+        "read_fhb",
+        "  ",
+        3,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_write_fhb,
+        "write_fhb",
+        "  ",
+        2,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_replace,
+        "replace",
+        "  ",
+        5,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_newexception,
+        "newexception",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_openpipe,
+        "openpipe",
+        "  ",
+        5,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_backtrace,
+        "backtrace",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_symlink,
+        "symlink",
+        "  ",
+        2,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_link,
+        "link",
+        "  ",
+        2,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_gethostname,
+        "gethostname",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_str }
+    },
 };
 
-static unsigned short MVM_op_counts = 533;
+static unsigned short MVM_op_counts = 549;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

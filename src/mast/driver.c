@@ -8,7 +8,7 @@ static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
 /* Takes a hash of types and produces a MASTNodeTypes structure. */
 #define grab_type(name) do { \
     MVMString *key = MVM_string_utf8_decode(tc, tc->instance->VMString, #name, strlen(#name)); \
-    result->name   = MVM_repr_at_key_boxed(tc, types, key); \
+    result->name   = MVM_repr_at_key_o(tc, types, key); \
 } while (0);
 MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
     MASTNodeTypes *result = malloc(sizeof(MASTNodeTypes));

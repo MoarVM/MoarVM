@@ -99,18 +99,10 @@ static void die_no_ass(MVMThreadContext *tc, const char *repr_name) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support associative access", repr_name);
 }
-GCC_DIAG_OFF(return-type)
-void * MVM_REPR_DEFAULT_AT_KEY_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+void MVM_REPR_DEFAULT_AT_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
     die_no_ass(tc, st->REPR->name);
 }
-MVMObject * MVM_REPR_DEFAULT_AT_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    die_no_ass(tc, st->REPR->name);
-}
-GCC_DIAG_ON(return-type)
-void MVM_REPR_DEFAULT_BIND_KEY_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
-    die_no_ass(tc, st->REPR->name);
-}
-void MVM_REPR_DEFAULT_BIND_KEY_BOXED(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
+void MVM_REPR_DEFAULT_BIND_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
     die_no_ass(tc, st->REPR->name);
 }
 GCC_DIAG_OFF(return-type)
@@ -213,6 +205,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(StaticFrame);
     register_core_repr(CompUnit);
     register_core_repr(DLLSym);
+    register_core_repr(MultiCache);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }

@@ -521,7 +521,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         {
             MVMuint32 annot_offset = read_int32(pos, 26);
             MVMuint32 num_annotations = read_int32(pos, 30);
-            if (annot_offset + num_annotations * 10 > rs->annotation_size) {
+            if (annot_offset + num_annotations * 12 > rs->annotation_size) {
                 cleanup_all(tc, rs);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
@@ -670,15 +670,20 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
             }
             else positionals++;
         }
-        callsites[i]->num_pos   = positionals;
-        callsites[i]->arg_count = positionals + nameds;
+        callsites[i]->num_pos        = positionals;
+        callsites[i]->arg_count      = positionals + nameds;
         callsites[i]->has_flattening = has_flattening;
+        callsites[i]->with_invocant  = NULL; 
 
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
         if (positionals + nameds > cu_body->max_callsite_size)
             cu_body->max_callsite_size = positionals + nameds;
     }
+
+    /* Add one on to the maximum, to allow space for unshifting an extra
+     * arg in the "supply invoked code object" case. */
+    cu_body->max_callsite_size++;
 
     return callsites;
 }
@@ -756,7 +761,7 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
     MVMBytecodeAnnotation *ba = NULL;
     MVMuint32 i, j;
 
-    if (offset >= 0 && offset < sfb->bytecode_size) {
+    if (sfb->num_annotations && offset >= 0 && offset < sfb->bytecode_size) {
         MVMint8 *cur_anno = sfb->annotations_data;
         for (i = 0; i < sfb->num_annotations; i++) {
             MVMint32 ann_offset = read_int32(cur_anno, 0);
@@ -766,12 +771,10 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
         }
         if (i == sfb->num_annotations)
             cur_anno -= 12;
-        if (i > 0) {
-            ba = malloc(sizeof(MVMBytecodeAnnotation));
-            ba->bytecode_offset = read_int32(cur_anno, 0);
-            ba->filename_string_heap_index = read_int32(cur_anno, 4);
-            ba->line_number = read_int32(cur_anno, 8);
-        }
+        ba = malloc(sizeof(MVMBytecodeAnnotation));
+        ba->bytecode_offset = read_int32(cur_anno, 0);
+        ba->filename_string_heap_index = read_int32(cur_anno, 4);
+        ba->line_number = read_int32(cur_anno, 8);
     }
 
     return ba;

@@ -9,14 +9,11 @@ struct MVMExceptionBody {
     /* The exception category. */
     MVMint32 category;
 
-    /* Is the exception resumable? */
-    MVMuint8 resumable;
-
     /* Where was the exception thrown from? */
     MVMFrame *origin;
 
-    /* Offset into the frame's bytecode, for resumption. */
-    MVMuint32 goto_offset;
+    /* Where should we resume to, if it's possible? */
+    MVMuint8 *resume_addr;
 };
 struct MVMException {
     MVMObject common;

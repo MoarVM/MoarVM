@@ -401,6 +401,28 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     return result;
 }
 
+MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint64 start, MVMint64 count, MVMString *replacement) {
+    /* XXX this could probably be done more efficiently directly. */
+    MVMString *first_part;
+    MVMString *rest_part;
+    MVMString *result;
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&replacement);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&original);
+    first_part = MVM_string_substring(tc, original, 0, start);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&first_part);
+
+    rest_part  = MVM_string_substring(tc, original, start + count, -1);
+    rest_part  = MVM_string_concatenate(tc, replacement, rest_part);
+    result     = MVM_string_concatenate(tc, first_part, rest_part);
+
+    MVM_gc_root_temp_pop_n(tc, 3);
+
+    MVM_string_flatten(tc, result);
+
+    return result;
+}
+
 /* Append one string to another. */
 /* XXX inline parent's strands if it's a rope too? */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
@@ -863,6 +885,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     MVMStrandIndex portion_index = 0, max_strand_depth;
     MVMStringIndex sgraphs, rgraphs;
     MVMStrand *strands;
+    MVMint64 is_str_array;
 
     if (!IS_CONCRETE(input)) {
         MVM_exception_throw_adhoc(tc, "join needs a concrete array to join");
@@ -878,19 +901,28 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         MVMROOT(tc, result, {
             elems = REPR(input)->elems(tc, STABLE(input),
                 input, OBJECT_BODY(input));
+            is_str_array = REPR(input)->pos_funcs.get_elem_storage_spec(tc,
+                STABLE(input)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
 
             sgraphs = NUM_GRAPHS(separator);
             max_strand_depth = STRAND_DEPTH(separator);
 
             while (++index < elems) {
-                MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
                 MVMStringIndex pgraphs;
 
-                /* allow null or type object items in the array, I guess.. */
-                if (!item || !IS_CONCRETE(item))
-                    continue;
+                if (is_str_array) {
+                    portion = MVM_repr_at_pos_s(tc, input, index);
+                    if (!portion)
+                        continue;
+                }
+                else {
+                    /* allow null or type object items in the array, I guess.. */
+                    MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
+                    if (!item || !IS_CONCRETE(item))
+                        continue;
+                    portion = MVM_repr_get_str(tc, item);
+                }
 
-                portion = MVM_repr_get_str(tc, item);
                 pgraphs = NUM_GRAPHS(portion);
                 if (pgraphs)
                     ++portion_index;
@@ -918,10 +950,17 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
                 portion_index = 0;
                 while (++index < elems) {
-                    MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
-
-                    if (!item || !IS_CONCRETE(item))
-                        continue;
+                    if (is_str_array) {
+                        portion = MVM_repr_at_pos_s(tc, input, index);
+                        if (!portion)
+                            continue;
+                    }
+                    else {
+                        MVMObject *item = MVM_repr_at_pos_o(tc, input, index);
+                        if (!item || !IS_CONCRETE(item))
+                            continue;
+                        portion = MVM_repr_get_str(tc, item);
+                    }
 
                     /* Note: this allows the separator to precede the empty string. */
                     if (index && sgraphs) {
@@ -931,7 +970,6 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                         ++portion_index;
                     }
 
-                    portion = MVM_repr_get_str(tc, item);
                     length = NUM_GRAPHS(portion);
                     if (length) {
                         strands[portion_index].compare_offset = position;
@@ -1151,19 +1189,14 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVMString         *res = NULL;
     MVMStringIndex    alen = NUM_GRAPHS(a);
     MVMStringIndex    blen = NUM_GRAPHS(b);
-    MVMStringIndex sgraphs = (alen > blen ? alen : blen);
+    MVMStringIndex sgraphs = alen < blen ? alen : blen;
     MVMCodepoint32 *buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
     MVMStringIndex i, scanlen;
 
-    /* First, binary-and up to the length of the shortest string. */
-    scanlen = alen > blen ? blen : alen;
-    for (i = 0; i < scanlen; i++)
+    /* Binary-and up to the length of the shortest string. */
+    for (i = 0; i < sgraphs; i++)
         buffer[i] = (MVM_string_get_codepoint_at_nocheck(tc, a, i)
                    & MVM_string_get_codepoint_at_nocheck(tc, b, i));
-
-    /* Second pass, fill with zeros. */
-    for (; i < sgraphs; i++)
-        buffer[i] = 0;
 
     res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     res->body.flags = MVM_STRING_TYPE_INT32;

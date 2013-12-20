@@ -43,49 +43,52 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 
-static void * at_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not support native type storage");
+static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
+    MVMString      *name  = (MVMString *)key;
+    MVMContextBody *body  = (MVMContextBody *)data;
+    MVMFrame       *frame = body->context;
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    if (!lexical_names) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' does not exist in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    MVM_HASH_GET(tc, lexical_names, name, entry);
+    if (!entry) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' does not exist in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    if (frame->static_info->body.lexical_types[entry->value] != kind) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' has a different type in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    *result = frame->env[entry->value];
 }
 
-#define at_key(tc, st, root, data, _type, member, name) do { \
-    MVMContextBody *body = (MVMContextBody *)data; \
-    MVMFrame *frame = body->context; \
-    MVMObject *result = NULL; \
-    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry; \
-    if (!lexical_names) { \
-       MVM_exception_throw_adhoc(tc, \
-            "Lexical with name '%s' does not exist in this frame", \
-                MVM_string_utf8_encode_C_string(tc, name)); \
-    } \
-    MVM_HASH_GET(tc, lexical_names, name, entry) \
-     \
-    if (!entry) { \
-       MVM_exception_throw_adhoc(tc, \
-            "Lexical with name '%s' does not exist in this frame", \
-                MVM_string_utf8_encode_C_string(tc, name)); \
-    } \
-    if (frame->static_info->body.lexical_types[entry->value] != _type) { \
-       MVM_exception_throw_adhoc(tc, \
-            "Lexical with name '%s' has a different type in this frame", \
-                MVM_string_utf8_encode_C_string(tc, name)); \
-    } \
-    return frame->env[entry->value].member; \
-} while (0)
-
-static MVMObject * at_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
-    MVMString *name = (MVMString *)key;
-    at_key(tc, st, root, data, MVM_reg_obj, o, name);
-}
-
-static void bind_key_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, void *value_addr) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not support native type storage");
-}
-
-static void bind_key_boxed(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMObject *value) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not yet support bind key boxed");
+static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
+    MVMString      *name  = (MVMString *)key;
+    MVMContextBody *body  = (MVMContextBody *)data;
+    MVMFrame       *frame = body->context;
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    if (!lexical_names) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' does not exist in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    MVM_HASH_GET(tc, lexical_names, name, entry);
+    if (!entry) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' does not exist in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    if (frame->static_info->body.lexical_types[entry->value] != kind) {
+       MVM_exception_throw_adhoc(tc,
+            "Lexical with name '%s' has a different type in this frame",
+                MVM_string_utf8_encode_C_string(tc, name));
+    }
+    frame->env[entry->value] = value;
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -146,10 +149,8 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_BOX_FUNCS,
     MVM_REPR_DEFAULT_POS_FUNCS,
     {
-        at_key_ref,
-        at_key_boxed,
-        bind_key_ref,
-        bind_key_boxed,
+        at_key,
+        bind_key,
         exists_key,
         delete_key,
         get_value_storage_spec

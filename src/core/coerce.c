@@ -2,6 +2,7 @@
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
+#define snprintf _snprintf
 #endif
 
 /* Dummy, invocant-arg callsite. */
@@ -43,7 +44,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                      * the result. Then we just do the call. For the flip
                      * case, just set up special return handler to flip
                      * the register. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
                     tc->cur_frame->return_value   = res_reg;
                     tc->cur_frame->return_type    = MVM_RETURN_INT;
                     tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -56,7 +57,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                 }
                 else {
                     /* Need to set up special return hook. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method);
+                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
                     BoolMethReturnData *data = malloc(sizeof(BoolMethReturnData));
                     data->true_addr  = true_addr;
                     data->false_addr = false_addr;
@@ -93,6 +94,9 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
             case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
                 result = !IS_CONCRETE(obj) ? 0 : 1;
                 break;
+            case MVM_BOOL_MODE_BIGINT:
+                result = IS_CONCRETE(obj) ? MVM_bigint_bool(tc, obj) : 0;
+                break;
             case MVM_BOOL_MODE_ITER:
                 result = IS_CONCRETE(obj) ? MVM_iter_istrue(tc, (MVMIter *)obj) : 0;
                 break;
@@ -128,6 +132,7 @@ void boolify_return(MVMThreadContext *tc, void *sr_data) {
         *(tc->interp_cur_op) = data->true_addr;
     else
         *(tc->interp_cur_op) = data->false_addr;
+    free(data);
 }
 
 /* Callback to flip result. */
@@ -137,8 +142,8 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 }
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
-    char buffer[25];
-    int len = sprintf(buffer, "%lld", i);
+    char buffer[64];
+    int len = snprintf(buffer, 64, "%lld", i);
     if (len >= 0)
         return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
     else
@@ -156,9 +161,9 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
         return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
     }
     else {
-        char buf[21];
+        char buf[64];
         int i;
-        if (sprintf(buf, "%-15f", n) < 0)
+        if (snprintf(buf, 64, "%-15f", n) < 0)
             MVM_exception_throw_adhoc(tc, "Could not stringify number");
         if (strstr(buf, ".")) {
             i = strlen(buf);
@@ -173,10 +178,18 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
     MVMObject *strmeth;
+    MVMStorageSpec ss;
 
     /* Handle null case. */
     if (!obj) {
         res_reg->s = tc->instance->str_consts.empty;
+        return;
+    }
+
+    /* If it can unbox as a string, that wins right off. */
+    ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+    if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR && IS_CONCRETE(obj)) {
+        res_reg->s = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         return;
     }
 
@@ -186,7 +199,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     if (strmeth) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
-        MVMObject *code = MVM_frame_find_invokee(tc, strmeth);
+        MVMObject *code = MVM_frame_find_invokee(tc, strmeth, NULL);
         tc->cur_frame->return_value   = res_reg;
         tc->cur_frame->return_type    = MVM_RETURN_STR;
         tc->cur_frame->return_address = *(tc->interp_cur_op);
@@ -199,13 +212,10 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     if (!IS_CONCRETE(obj))
         res_reg->s = tc->instance->str_consts.empty;
     else {
-        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (REPR(obj)->ID == MVM_REPR_ID_MVMString)
             res_reg->s = (MVMString *)obj;
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMException)
             res_reg->s = ((MVMException *)obj)->body.message;
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
-            res_reg->s = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             res_reg->s = MVM_coerce_i_s(tc, REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
@@ -244,7 +254,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
     if (nummeth) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
-        MVMObject *code = MVM_frame_find_invokee(tc, nummeth);
+        MVMObject *code = MVM_frame_find_invokee(tc, nummeth, NULL);
         tc->cur_frame->return_value   = res_reg;
         tc->cur_frame->return_type    = MVM_RETURN_NUM;
         tc->cur_frame->return_address = *(tc->interp_cur_op);

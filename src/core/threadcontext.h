@@ -157,7 +157,8 @@ struct MVMThreadContext {
      * means disabled). */
     MVMint32           sc_wb_disable_depth;
 
-    /* Any serialization contexts we are compiling. */
+    /* Any serialization contexts we are compiling. The current one is at
+     * index 0. */
     MVMObject     *compiling_scs;
 
     /* Dispatcher set for next invocation to take. */

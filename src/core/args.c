@@ -52,6 +52,25 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     }
 }
 
+/* Turn an argument processing context into a callsite. In the case that no
+ * flattening happened, this is the original call site. Otherwise, we make
+ * one up. */
+MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    if (ctx->arg_flags) {
+        MVMCallsite      *res   = malloc(sizeof(MVMCallsite));
+        MVMCallsiteEntry *flags = ctx->arg_count ? malloc(ctx->arg_count) : NULL;
+        memcpy(flags, ctx->arg_flags, ctx->arg_count);
+        res->arg_flags = flags;
+        res->arg_count = ctx->arg_count;
+        res->num_pos   = ctx->num_pos;
+        res->has_flattening = 0;
+        return res;
+    }
+    else {
+        return ctx->callsite;
+    }
+}
+
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
@@ -373,7 +392,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
         MVM_exception_throw_adhoc(tc, "Void return not allowed to context requiring a return value");
 }
 
-#define box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, box_type_obj, name, set_func, reg_member, stmt1, action_funcs, action_func, target1, target2) do { \
+#define box_slurpy_pos(tc, type, result, box, value, reg, box_type_obj, name, set_func) do { \
     type = (*(tc->interp_cu))->body.hll_config->box_type_obj; \
     if (!type || IS_CONCRETE(type)) { \
         MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
@@ -382,10 +401,10 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     if (REPR(box)->initialize) \
         REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
     REPR(box)->box_funcs.set_func(tc, STABLE(box), box, \
-        OBJECT_BODY(box), arg_info.arg.reg_member); \
-    stmt1; \
-    REPR(result)->action_funcs.action_func(tc, STABLE(result), result, \
-        OBJECT_BODY(result), target1, target2); \
+        OBJECT_BODY(box), value); \
+    reg.o = box; \
+    REPR(result)->pos_funcs.push(tc, STABLE(result), result, \
+        OBJECT_BODY(result), reg, MVM_reg_obj); \
 } while (0)
 
 MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos) {
@@ -397,6 +416,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         MVM_exception_throw_adhoc(tc, "Missing hll slurpy array type");
     }
 
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
     result = REPR(type)->allocate(tc, STABLE(type));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
     if (REPR(result)->initialize)
@@ -418,16 +438,16 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 break;
             }
             case MVM_CALLSITE_ARG_INT:{
-                box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, int_box_type, "int", set_int, i64, reg.o = box, pos_funcs, push, reg, MVM_reg_obj);
+                box_slurpy_pos(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int);
                 break;
             }
             case MVM_CALLSITE_ARG_NUM: {
-                box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, num_box_type, "num", set_num, n64, reg.o = box, pos_funcs, push, reg, MVM_reg_obj);
+                box_slurpy_pos(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num);
                 break;
             }
             case MVM_CALLSITE_ARG_STR: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
-                box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, str_box_type, "str", set_str, s, reg.o = box, pos_funcs, push, reg, MVM_reg_obj);
+                box_slurpy_pos(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str);
                 MVM_gc_root_temp_pop(tc);
                 break;
             }
@@ -440,15 +460,31 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         if (pos == 1) break; /* overflow?! */
     }
 
-    MVM_gc_root_temp_pop_n(tc, 2);
+    MVM_gc_root_temp_pop_n(tc, 3);
 
     return result;
 }
+
+#define box_slurpy_named(tc, type, result, box, value, reg, box_type_obj, name, set_func, key) do { \
+    type = (*(tc->interp_cu))->body.hll_config->box_type_obj; \
+    if (!type || IS_CONCRETE(type)) { \
+        MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
+    } \
+    box = REPR(type)->allocate(tc, STABLE(type)); \
+    if (REPR(box)->initialize) \
+        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+    REPR(box)->box_funcs.set_func(tc, STABLE(box), box, \
+        OBJECT_BODY(box), value); \
+    reg.o = box; \
+    REPR(result)->ass_funcs.bind_key(tc, STABLE(result), result, \
+        OBJECT_BODY(result), (MVMObject *)key, reg, MVM_reg_obj); \
+} while (0)
 
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMObject *type = (*(tc->interp_cu))->body.hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
     MVMArgInfo arg_info;
     MVMuint32 flag_pos, arg_pos;
+    MVMRegister reg;
     arg_info.exists = 0;
 
     if (!type || IS_CONCRETE(type)) {
@@ -481,26 +517,26 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
 
         switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
-                REPR(result)->ass_funcs.bind_key_boxed(tc, STABLE(result),
-                    result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg.o);
+                REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
+                    result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
                 break;
             }
             case MVM_CALLSITE_ARG_INT: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, int_box_type, "int", set_int, i64, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
+                box_slurpy_named(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int, key);
                 MVM_gc_root_temp_pop(tc);
                 break;
             }
             case MVM_CALLSITE_ARG_NUM: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, num_box_type, "num", set_num, n64, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
+                box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
                 MVM_gc_root_temp_pop(tc);
                 break;
             }
             case MVM_CALLSITE_ARG_STR: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
-                box_slurpy(tc, ctx, pos, type, result, box, arg_info, reg, str_box_type, "str", set_str, s, "", ass_funcs, bind_key_boxed, (MVMObject *)key, box);
+                box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
                 MVM_gc_root_temp_pop_n(tc, 2);
                 break;
             }
