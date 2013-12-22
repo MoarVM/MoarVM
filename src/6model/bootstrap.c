@@ -79,9 +79,10 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     type_object = repr_to_use->type_object_for(tc, HOW);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type_object);
 
+    /* This may move name_arg.arg.s so do it first: */
+    REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
     /* See if we were given a name; put it into the meta-object if so. */
     name = name_arg.exists ? name_arg.arg.s : str_anon;
-    REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
     MVM_ASSIGN_REF(tc, HOW, ((MVMKnowHOWREPR *)HOW)->body.name, name);
 
     /* Set .WHO to an empty hash. */
