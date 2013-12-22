@@ -177,7 +177,16 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         op_num = *((MVMint16 *)cur_op);
         cur_op += 2;
-        op_info = MVM_op_get_op(op_num);
+        if (op_num < MVM_OP_EXT_BASE) {
+            op_info = MVM_op_get_op(op_num);
+        }
+        else {
+            MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
+            /* XXX Make an op_info from the extop record. */
+            op_info = NULL;
+        }
+        if (!op_info)
+            MVM_exception_throw_adhoc(tc, "Unable to resolve op %d", (int)op_num);
         a("%-12s ", op_info->name);
 
         for (i = 0; i < op_info->num_operands; i++) {
@@ -346,5 +355,3 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     free(frame_lexicals);
     return o;
 }
-
-
