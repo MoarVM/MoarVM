@@ -221,9 +221,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         a("Frame_%u", GET_UI16(cur_op, 0));
                         break;
                     case MVM_operand_str:
-                        operand_size = 2;
+                        operand_size = 4;
                         tmpstr = MVM_string_utf8_encode_C_string(
-                            tc, cu->body.strings[GET_UI16(cur_op, 0)]);
+                            tc, cu->body.strings[GET_UI32(cur_op, 0)]);
                         /* XXX C-string-literal escape the \ and '
                             and line breaks and non-ascii someday */
                         a("'%s'", tmpstr);
