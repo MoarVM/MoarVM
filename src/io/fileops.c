@@ -834,9 +834,10 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
-    const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, encoding_name);
+    MVMROOT(tc, oshandle, {
+            const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, encoding_name);
 
-    verify_filehandle_type(tc, oshandle, &handle, "setencoding");
-
-    handle->body.encoding_type = encoding_flag;
+            verify_filehandle_type(tc, oshandle, &handle, "setencoding");
+            handle->body.encoding_type = encoding_flag;
+        });
 }
