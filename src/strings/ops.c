@@ -791,8 +791,11 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
     /* At least find_encoding may allocate on first call, so root just
      * in case. */
     MVMROOT(tc, buf, {
+    MVMROOT(tc, s, {
+        const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
         encoded = MVM_string_encode(tc, s, 0, NUM_GRAPHS(s), &output_size,
-            MVM_string_find_encoding(tc, enc_name));
+            encoding_flag);
+    });
     });
 
     /* Stash the encoded data in the VMArray. */
@@ -805,6 +808,7 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
 /* Decodes a string using the data from the specified Buf. */
 MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name) {
     MVMArrayREPRData *buf_rd;
+    MVMuint8 encoding_flag;
     MVMuint8 elem_size = 0;
 
     /* Ensure the source is in the correct form. */
@@ -823,10 +827,13 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
         MVM_exception_throw_adhoc(tc, "encode requires  a native int array");
 
     /* Decode. */
+    MVMROOT(tc, buf, {
+        encoding_flag = MVM_string_find_encoding(tc, enc_name);
+    });
     return MVM_string_decode(tc, tc->instance->VMString,
         ((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start,
         ((MVMArray *)buf)->body.elems * elem_size,
-        MVM_string_find_encoding(tc, enc_name));
+        encoding_flag);
 }
 
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input) {
