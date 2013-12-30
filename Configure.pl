@@ -27,7 +27,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug=s optimize=s instrument!
+    debug:s optimize:s instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     static use-readline
@@ -55,7 +55,8 @@ if ($? >> 8 == 0) { print "OK\n" }
 else { softfail("git error: $msg") }
 
 # fiddle with flags
-$args{optimize}   //= 1;
+$args{optimize}     = 1 if not defined $args{optimize} or $args{optimize} eq "";
+$args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
