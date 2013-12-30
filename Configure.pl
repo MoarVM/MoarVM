@@ -55,7 +55,7 @@ if ($? >> 8 == 0) { print "OK\n" }
 else { softfail("git error: $msg") }
 
 # fiddle with flags
-$args{optimize}   //= 3;
+$args{optimize}   //= 1;
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
@@ -140,9 +140,9 @@ $config{ldlibs} = join ' ',
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
-$config{ccoptiflags}  = sprintf $config{ccoptiflags},  $args{optimize} // 3 if $config{ccoptiflags}  =~ /%s/;
+$config{ccoptiflags}  = sprintf $config{ccoptiflags},  $args{optimize} // 1 if $config{ccoptiflags}  =~ /%s/;
 $config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug}    // 3 if $config{ccdebugflags} =~ /%s/;
-$config{ldoptiflags}  = sprintf $config{ldoptiflags},  $args{optimize} // 3 if $config{ldoptiflags}  =~ /%s/;
+$config{ldoptiflags}  = sprintf $config{ldoptiflags},  $args{optimize} // 1 if $config{ldoptiflags}  =~ /%s/;
 $config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug}    // 3 if $config{lddebugflags} =~ /%s/;
 
 
