@@ -4,6 +4,12 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     MVMDLLRegistry *entry;
     char *cpath;
     DLLib *lib;
+    
+    MVMROOT(tc, name, {
+        MVMROOT(tc, path, {
+            path = MVM_file_in_libpath(tc, path);
+        });
+    });
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 

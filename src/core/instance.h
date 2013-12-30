@@ -137,8 +137,8 @@ struct MVMInstance {
     const char     *prog_name;
     /* cached parsed command line args */
     MVMObject      *clargs;
-    /* Any --libpath=... option, to prefix in loadbytecode lookups. */
-    const char     *lib_path;
+    /* Any --libpath=... options, to prefix in loadbytecode lookups. */
+    const char     *lib_path[8];
 
     /* Hashes of HLLConfig objects. compiler_hll_configs is those for the
      * running compiler, and the default. compilee_hll_configs is used if
