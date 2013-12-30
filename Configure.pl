@@ -27,7 +27,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug:3 optimize:1 instrument!
+    debug=s optimize=s instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
     static use-readline
@@ -55,6 +55,7 @@ if ($? >> 8 == 0) { print "OK\n" }
 else { softfail("git error: $msg") }
 
 # fiddle with flags
+$args{optimize}   //= 3;
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
@@ -139,10 +140,10 @@ $config{ldlibs} = join ' ',
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
-$config{ccoptiflags}  = sprintf $config{ccoptiflags},  $args{optimize} // 3 if $config{ccoptiflags}  =~ /%d/;
-$config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug}    // 3 if $config{ccdebugflags} =~ /%d/;
-$config{ldoptiflags}  = sprintf $config{ldoptiflags},  $args{optimize} // 3 if $config{ldoptiflags}  =~ /%d/;
-$config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug}    // 3 if $config{lddebugflags} =~ /%d/;
+$config{ccoptiflags}  = sprintf $config{ccoptiflags},  $args{optimize} // 3 if $config{ccoptiflags}  =~ /%s/;
+$config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug}    // 3 if $config{ccdebugflags} =~ /%s/;
+$config{ldoptiflags}  = sprintf $config{ldoptiflags},  $args{optimize} // 3 if $config{ldoptiflags}  =~ /%s/;
+$config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug}    // 3 if $config{lddebugflags} =~ /%s/;
 
 
 # generate CFLAGS
@@ -575,16 +576,15 @@ Show this help information.
 
 =item --no-debug
 
-Toggle debugging flags during compile and link.  If C<--optimize> is not
-explicitly set, debug defaults to on, and optimize defaults to off.
+Toggle debugging flags during compile and link. Debugging is off by
+default.
 
 =item --optimize
 
 =item --no-optimize
 
-Toggle optimization flags during compile and link.  If C<--debug> is not
-explicitly set, turning this on defaults debugging off; otherwise this
-defaults to the opposite of C<--debug>.
+Toggle optimization and debug flags during compile and link. If nothing
+is specified the default is to optimize.
 
 =item --instrument
 
