@@ -437,8 +437,8 @@ serialize           w(str) r(obj) r(obj)
 deserialize         r(str) r(obj) r(obj) r(obj) r(obj)
 wval                w(obj) int16 int16
 wval_wide           w(obj) int16 int64
-scwbdisable         w(obj)
-scwbenable          w(obj)
+scwbdisable         w(int64)
+scwbenable          w(int64)
 pushcompsc          r(obj)
 popcompsc           w(obj)
 scgetdesc           w(str) r(obj)

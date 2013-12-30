@@ -2867,14 +2867,14 @@ static MVMOpInfo MVM_op_infos[] = {
         "scwbdisable",
         "  ",
         1,
-        { MVM_operand_write_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_scwbenable,
         "scwbenable",
         "  ",
         1,
-        { MVM_operand_write_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_pushcompsc,
