@@ -1213,11 +1213,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 const MVMContainerSpec *spec = STABLE(cont)->container_spec;
-                MVMRegister value;
                 cur_op += 4;
                 if (spec) {
-                    DECONT(tc, obj, value);
-                    spec->store(tc, cont, value.o);
+                    spec->store(tc, cont, obj);
                 } else {
                     MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
                 }
@@ -1227,11 +1225,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 const MVMContainerSpec *spec = STABLE(cont)->container_spec;
-                MVMRegister value;
                 cur_op += 4;
                 if (spec) {
-                    DECONT(tc, obj, value);
-                    spec->store_unchecked(tc, cont, value.o);
+                    spec->store_unchecked(tc, cont, obj);
                 } else {
                     MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
                 }
@@ -2728,15 +2724,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(decont): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (obj) {
-                    MVMRegister *r = &GET_REG(cur_op, 0);
-                    cur_op += 4;
-                    DECONT(tc, obj, *r);
-                }
-                else {
-                    GET_REG(cur_op, 0).o = NULL;
-                    cur_op += 4;
-                }
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                if (obj && IS_CONCRETE(obj) && STABLE(obj)->container_spec)
+                    STABLE(obj)->container_spec->fetch(tc, obj, r);
+                else
+                    r->o = obj;
                 goto NEXT;
             }
             OP(setboolspec): {
