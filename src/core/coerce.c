@@ -45,9 +45,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                      * case, just set up special return handler to flip
                      * the register. */
                     MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
-                    tc->cur_frame->return_value   = res_reg;
-                    tc->cur_frame->return_type    = MVM_RETURN_INT;
-                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_INT, &inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     if (flip) {
                         tc->cur_frame->special_return      = flip_return;
@@ -64,9 +62,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                     data->flip       = flip;
                     tc->cur_frame->special_return      = boolify_return;
                     tc->cur_frame->special_return_data = data;
-                    tc->cur_frame->return_value        = &data->res_reg;
-                    tc->cur_frame->return_type         = MVM_RETURN_INT;
-                    tc->cur_frame->return_address      = *(tc->interp_cur_op);
+                    MVM_args_setup_thunk(tc, &data->res_reg, MVM_RETURN_INT, &inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
                     return;
@@ -200,9 +196,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, strmeth, NULL);
-        tc->cur_frame->return_value   = res_reg;
-        tc->cur_frame->return_type    = MVM_RETURN_STR;
-        tc->cur_frame->return_address = *(tc->interp_cur_op);
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_STR, &inv_arg_callsite);
         tc->cur_frame->args[0].o = obj;
         STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
         return;
@@ -255,9 +249,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, nummeth, NULL);
-        tc->cur_frame->return_value   = res_reg;
-        tc->cur_frame->return_type    = MVM_RETURN_NUM;
-        tc->cur_frame->return_address = *(tc->interp_cur_op);
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_NUM, &inv_arg_callsite);
         tc->cur_frame->args[0].o = obj;
         STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
         return;

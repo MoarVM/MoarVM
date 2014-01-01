@@ -57,9 +57,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
     /* Set up the call, using the result register as the target. */
     code = MVM_frame_find_invokee(tc, find_method, NULL);
-    tc->cur_frame->return_value   = res;
-    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
-    tc->cur_frame->return_address = *(tc->interp_cur_op);
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fm_callsite);
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
     tc->cur_frame->args[2].s = name;
@@ -99,9 +97,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     /* Set up the call, using the result register as the target. A little bad
      * as we're really talking about     */
     code = MVM_frame_find_invokee(tc, find_method, NULL);
-    tc->cur_frame->return_value        = res;
-    tc->cur_frame->return_type         = MVM_RETURN_OBJ;
-    tc->cur_frame->return_address      = *(tc->interp_cur_op);
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fm_callsite);
     tc->cur_frame->special_return      = late_bound_can_return;
     tc->cur_frame->special_return_data = res;
     tc->cur_frame->args[0].o = HOW;
@@ -160,9 +156,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
         if (meth) {
             /* Set up the call, using the result register as the target. */
             MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
-            tc->cur_frame->return_value   = res;
-            tc->cur_frame->return_type    = MVM_RETURN_INT;
-            tc->cur_frame->return_address = *(tc->interp_cur_op);
+            MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
             tc->cur_frame->args[0].o = HOW;
             tc->cur_frame->args[1].o = obj;
             tc->cur_frame->args[2].o = type;
@@ -179,9 +173,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
         if (meth) {
             /* Set up the call, using the result register as the target. */
             MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
-            tc->cur_frame->return_value   = res;
-            tc->cur_frame->return_type    = MVM_RETURN_INT;
-            tc->cur_frame->return_address = *(tc->interp_cur_op);
+            MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
             tc->cur_frame->args[0].o = HOW;
             tc->cur_frame->args[1].o = type;
             tc->cur_frame->args[2].o = obj;

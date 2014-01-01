@@ -19,9 +19,7 @@ static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject             *code   = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
 
-    tc->cur_frame->return_value   = res;
-    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
-    tc->cur_frame->return_address = *(tc->interp_cur_op);
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fetch_arg_callsite);
     tc->cur_frame->args[0].o      = cont;
 
     STABLE(code)->invoke(tc, code, &fetch_arg_callsite, tc->cur_frame->args);
@@ -31,9 +29,7 @@ static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *ob
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject             *code   = MVM_frame_find_invokee(tc, data->store_code, NULL);
 
-    tc->cur_frame->return_value   = NULL;
-    tc->cur_frame->return_type    = MVM_RETURN_VOID;
-    tc->cur_frame->return_address = *(tc->interp_cur_op);
+    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &store_arg_callsite);
     tc->cur_frame->args[0].o      = cont;
     tc->cur_frame->args[1].o      = obj;
 

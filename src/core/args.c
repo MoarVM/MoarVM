@@ -678,3 +678,12 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     ctx->num_pos = new_num_pos;
     ctx->arg_flags = new_arg_flags;
 }
+
+/* Does the common setup work when we jump the interpreter into a chosen
+ * call from C-land. */
+void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *res_reg, MVMReturnType return_type, MVMCallsite *callsite) {
+    tc->cur_frame->return_value      = res_reg;
+    tc->cur_frame->return_type       = return_type;
+    tc->cur_frame->return_address    = *(tc->interp_cur_op);
+    tc->cur_frame->cur_args_callsite = callsite; 
+}

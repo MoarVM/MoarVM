@@ -158,9 +158,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_array) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_array, NULL);
-                    tc->cur_frame->return_value   = res_reg;
-                    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
-                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &obj_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
                 }
@@ -172,9 +170,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_hash) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_hash, NULL);
-                    tc->cur_frame->return_value   = res_reg;
-                    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
-                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &obj_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
                 }
@@ -186,9 +182,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_code) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_code, NULL);
-                    tc->cur_frame->return_value   = res_reg;
-                    tc->cur_frame->return_type    = MVM_RETURN_OBJ;
-                    tc->cur_frame->return_address = *(tc->interp_cur_op);
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &obj_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
                 }
