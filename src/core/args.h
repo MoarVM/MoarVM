@@ -136,7 +136,7 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless);
 
 /* Setting up calls from C-land. */
-void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *return_value, MVMReturnType return_type,
+MVM_PUBLIC void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *return_value, MVMReturnType return_type,
     MVMCallsite *callsite);
 
 /* Result setting frame constants. */
