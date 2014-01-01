@@ -1,5 +1,6 @@
 /* Ensures that if a generation 2 object comes to hold a reference to a
- * nursery object, then a write barrier is added to the nursery object. */
+ * nursery object, then the generation 2 object becomes an inter-generational
+ * root. */
 #define MVM_WB(tc, update_root, referenced) \
     { \
         MVMCollectable *u = (MVMCollectable *)update_root; \
