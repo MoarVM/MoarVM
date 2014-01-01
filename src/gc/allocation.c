@@ -44,7 +44,10 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
 }
 
 /* Same as MVM_gc_allocate, but explicitly zeroes the memory that is
- * returned. */
+ * returned.
+ *
+ * Hint: Wondering why this function doesn't actually zero the memory?
+ * See <https://github.com/MoarVM/MoarVM/issues/67> for details. */
 void * MVM_gc_allocate_zeroed(MVMThreadContext *tc, size_t size) {
     return MVM_gc_allocate(tc, size);
 }
