@@ -464,8 +464,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
         }
         cur_frame = cur_frame->outer;
     }
-    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
-        MVM_string_utf8_encode_C_string(tc, name));
+    return NULL;
 }
 
 /* Looks up the address of the lexical with the specified name, starting with
