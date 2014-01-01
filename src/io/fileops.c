@@ -834,9 +834,70 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle;
-    const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, encoding_name);
+    MVMROOT(tc, oshandle, {
+            const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, encoding_name);
 
-    verify_filehandle_type(tc, oshandle, &handle, "setencoding");
+            verify_filehandle_type(tc, oshandle, &handle, "setencoding");
+            handle->body.encoding_type = encoding_flag;
+        });
+}
 
-    handle->body.encoding_type = encoding_flag;
+/* Takes a filename and prepends any --libpath value we have, if it's not an
+ * absolute path. */
+MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
+    const char **lib_path = tc->instance->lib_path;
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&orig);
+    if (lib_path) {
+        /* We actually have a lib_path to consider. See if the filename is
+         * absolute (XXX wants a platform abstraction, and doing better). */
+        char *orig_cstr = MVM_string_utf8_encode_C_string(tc, orig);
+        int  absolute   = orig_cstr[0] == '/' || orig_cstr[0] == '\\' ||
+                          orig_cstr[1] == ':' && orig_cstr[2] == '\\';
+        if (absolute) {
+            /* Nothing more to do; we have an absolute path. */
+            free(orig_cstr);
+            MVM_gc_root_temp_pop(tc); /* orig */
+            return orig;
+        }
+        else {
+            MVMString *result = NULL;
+            int lib_path_i = 0;
+            MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+            while (lib_path[lib_path_i]) {
+                /* Concatenate libpath with filename. */
+                size_t lib_path_len = strlen(lib_path[lib_path_i]);
+                size_t orig_len     = strlen(orig_cstr);
+                int    need_sep     = lib_path[lib_path_i][lib_path_len - 1] != '/' &&
+                                      lib_path[lib_path_i][lib_path_len - 1] != '\\';
+                int    new_len      = lib_path_len + (need_sep ? 1 : 0) + orig_len;
+                char * new_path     = malloc(new_len);
+                memcpy(new_path, lib_path[lib_path_i], lib_path_len);
+                if (need_sep) {
+                    new_path[lib_path_len] = '/';
+                    memcpy(new_path + lib_path_len + 1, orig_cstr, orig_len);
+                }
+                else {
+                    memcpy(new_path + lib_path_len, orig_cstr, orig_len);
+                }
+                result = MVM_string_utf8_decode(tc, tc->instance->VMString, new_path, new_len);
+                free(new_path);
+                if (!MVM_file_exists(tc, result))
+                    result = orig;
+                else {
+                    MVM_gc_root_temp_pop_n(tc, 2); /* orig and result */
+                    return result;
+                }
+                lib_path_i++;
+            }
+            if (!result || !MVM_file_exists(tc, result))
+                result = orig;
+            MVM_gc_root_temp_pop_n(tc, 2); /* orig and result */
+            return result;
+        }
+    }
+    else {
+        /* No libpath, so just hand back the original name. */
+        MVM_gc_root_temp_pop(tc); /* orig */
+        return orig;
+    }
 }

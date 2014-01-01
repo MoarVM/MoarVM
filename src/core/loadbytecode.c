@@ -3,53 +3,6 @@
 /* Dummy, 0-arg callsite. */
 static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
 
-/* Takes a filename and prepends any --libpath value we have, if it's not an
- * absolute path. */
-static MVMString * figure_filename(MVMThreadContext *tc, MVMString *orig) {
-    const char *lib_path = tc->instance->lib_path;
-    if (lib_path) {
-        /* We actually have a lib_path to consider. See if the filename is
-         * absolute (XXX wants a platform abstraction, and doing better). */
-        char *orig_cstr = MVM_string_utf8_encode_C_string(tc, orig);
-        int  absolute   = orig_cstr[0] == '/' || orig_cstr[0] == '\\' ||
-                          orig_cstr[1] == ':' && orig_cstr[2] == '\\';
-        if (absolute) {
-            /* Nothing more to do; we have an absolute path. */
-            free(orig_cstr);
-            return orig;
-        }
-        else {
-            /* Concatenate libpath with filename. */
-            MVMString *result;
-            size_t lib_path_len = strlen(lib_path);
-            size_t orig_len     = strlen(orig_cstr);
-            int    need_sep     = lib_path[lib_path_len - 1] != '/' &&
-                                  lib_path[lib_path_len - 1] != '\\';
-            int    new_len      = lib_path_len + (need_sep ? 1 : 0) + orig_len;
-            char * new_path     = malloc(new_len);
-            memcpy(new_path, lib_path, lib_path_len);
-            if (need_sep) {
-                new_path[lib_path_len] = '/';
-                memcpy(new_path + lib_path_len + 1, orig_cstr, orig_len);
-            }
-            else {
-                memcpy(new_path + lib_path_len, orig_cstr, orig_len);
-            }
-            MVMROOT(tc, orig, {
-                result = MVM_string_utf8_decode(tc, tc->instance->VMString, new_path, new_len);
-                if (!MVM_file_exists(tc, result))
-                    result = orig;
-            });
-            free(new_path);
-            return result;
-        }
-    }
-    else {
-        /* No libpath, so just hand back the original name. */
-        return orig;
-    }
-}
-
 /* Handles loading of bytecode, including triggering the deserialize and load
  * special frames. Takes place in two steps, with a callback between them which
  * is triggered by the special_return mechanism. */
@@ -59,7 +12,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     MVMLoadedCompUnitName *loaded_name;
 
     /* Work out actual filename to use, taking --libpath into account. */
-    filename = figure_filename(tc, filename);
+    filename = MVM_file_in_libpath(tc, filename);
 
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);

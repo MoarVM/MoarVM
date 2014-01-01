@@ -94,6 +94,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
         result.exists = 1; \
     } \
     else { \
+        result.arg.s = NULL; \
         result.exists = 0; \
     } \
 } while (0)
@@ -249,6 +250,7 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
 #define args_get_named(tc, ctx, name, required, _type) do { \
      \
     MVMuint32 flag_pos, arg_pos; \
+    result.arg.s = NULL; \
     result.exists = 0; \
      \
     for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) { \

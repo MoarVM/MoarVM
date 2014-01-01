@@ -177,7 +177,16 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         op_num = *((MVMint16 *)cur_op);
         cur_op += 2;
-        op_info = MVM_op_get_op(op_num);
+        if (op_num < MVM_OP_EXT_BASE) {
+            op_info = MVM_op_get_op(op_num);
+        }
+        else {
+            MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
+            /* XXX Make an op_info from the extop record. */
+            op_info = NULL;
+        }
+        if (!op_info)
+            MVM_exception_throw_adhoc(tc, "Unable to resolve op %d", (int)op_num);
         a("%-12s ", op_info->name);
 
         for (i = 0; i < op_info->num_operands; i++) {
@@ -221,9 +230,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         a("Frame_%u", GET_UI16(cur_op, 0));
                         break;
                     case MVM_operand_str:
-                        operand_size = 2;
+                        operand_size = 4;
                         tmpstr = MVM_string_utf8_encode_C_string(
-                            tc, cu->body.strings[GET_UI16(cur_op, 0)]);
+                            tc, cu->body.strings[GET_UI32(cur_op, 0)]);
                         /* XXX C-string-literal escape the \ and '
                             and line breaks and non-ascii someday */
                         a("'%s'", tmpstr);
@@ -346,5 +355,3 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     free(frame_lexicals);
     return o;
 }
-
-

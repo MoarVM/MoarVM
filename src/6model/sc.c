@@ -105,7 +105,7 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
         sc = scb->sc;
         if (sc == NULL)
             return NULL;
-        cu->body.scs[dep] = sc;
+        MVM_ASSIGN_REF(tc, cu, cu->body.scs[dep], sc);
     }
     return sc;
 }

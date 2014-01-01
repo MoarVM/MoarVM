@@ -79,11 +79,12 @@ int main(int argc, char *argv[])
 {
     MVMInstance *instance;
     const char  *input_file;
-    const char  *lib_path = NULL;
+    const char  *lib_path[8];
 
     int dump = 0;
     int argi = 1;
     int flag;
+    int lib_path_i = 0;
 
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
@@ -106,7 +107,12 @@ int main(int argc, char *argv[])
 #endif
 
             case OPT_LIBPATH:
-            lib_path = argv[argi] + strlen("--libpath=");
+            if (lib_path_i == 7) { /* 0..7 == 8 */
+                fprintf(stderr, "ERROR: Only up to eight --libpath options are allowed.\n");
+                return EXIT_FAILURE;
+            }
+
+            lib_path[lib_path_i++] = argv[argi] + strlen("--libpath=");
             continue;
 
             case FLAG_VERSION:
@@ -118,6 +124,8 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
     }
+
+    lib_path[lib_path_i] = NULL;
 
     if (argi >= argc) {
         fprintf(stderr, "ERROR: Missing input file.\n\n%s\n", USAGE);
@@ -131,7 +139,8 @@ int main(int argc, char *argv[])
     instance->num_clargs = argc - argi;
     instance->raw_clargs = argv + argi;
     instance->prog_name  = input_file;
-    instance->lib_path   = lib_path;
+    for( argi = 0; argi < lib_path_i; argi++)
+        instance->lib_path[argi] = lib_path[argi];
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
