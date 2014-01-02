@@ -539,6 +539,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
     MVMint64 output_size;
     MVMint64 bytes_written;
 
+    MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL string given");
     verify_filehandle_type(tc, oshandle, &handle, "write to filehandle");
 
     output = MVM_string_encode(tc, str, 0, -1, &output_size, handle->body.encoding_type);
