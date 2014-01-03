@@ -529,7 +529,6 @@ MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString 
 static void write_cb(uv_write_t* req, int status) {
     uv_unref((uv_handle_t *)req);
     free(req);
-    req = NULL;
 }
 
 /* writes a string to a filehandle. */
@@ -560,6 +559,10 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
                 free(output);
                 MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(r));
             }
+            else {
+                uv_run(tc->loop, UV_RUN_DEFAULT);
+                free(output);
+            }
             break;
         }
         case MVM_OSHANDLE_FD: {
@@ -569,13 +572,13 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
                 free(output);
                 MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
             }
+            free(output);
             break;
         }
         default:
             break;
     }
 
-    free(output);
     return bytes_written;
 }
 
@@ -793,9 +796,6 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
         case UV_TTY: {
             uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
-#ifdef WIN32
-            uv_stream_set_blocking((uv_stream_t *)handle, 1);
-#endif
             body->u.handle = (uv_handle_t *)handle;
             body->u.handle->data = result;       /* this is needed in tty_on_read function. */
             body->type = MVM_OSHANDLE_HANDLE;
@@ -809,9 +809,6 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             uv_pipe_t * const handle = malloc(sizeof(uv_pipe_t));
             uv_pipe_init(tc->loop, handle, 0);
             uv_pipe_open(handle, type);
-#ifdef WIN32
-            uv_stream_set_blocking((uv_stream_t *)handle, 1);
-#endif
             body->u.handle = (uv_handle_t *)handle;
             body->u.handle->data = result;
             body->type = MVM_OSHANDLE_HANDLE;
