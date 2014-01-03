@@ -307,7 +307,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                     result_reg->o = cloned;
                                     REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value),
                                         cloned, OBJECT_BODY(cloned));
-                                    set_obj_at_offset(tc, root, OBJECT_BODY(root),
+                                    set_obj_at_offset(tc, root, real_data(OBJECT_BODY(root)),
                                         repr_data->attribute_offsets[slot], result_reg->o);
                                 });
                                 });
@@ -330,13 +330,13 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 MVMROOT(tc, root, {
                 MVMROOT(tc, attr_st, {
                     /* Need to produce a boxed version of this attribute. */
-                    MVMObject *cloned = attr_st->REPR->allocate(tc, st);
+                    MVMObject *cloned = attr_st->REPR->allocate(tc, attr_st);
 
                     /* Ordering here matters too. see comments above */
                     result_reg->o = cloned;
-                    st->REPR->copy_to(tc, attr_st,
-                        (char *)OBJECT_BODY(root) + repr_data->attribute_offsets[slot],
-                        cloned, OBJECT_BODY(cloned));
+                    attr_st->REPR->copy_to(tc, attr_st,
+                        (char *)real_data(OBJECT_BODY(root)) + repr_data->attribute_offsets[slot],
+                        cloned, OBJECT_BODY(cloned));	
                 });
                 });
             }
