@@ -106,11 +106,18 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("=")); \
         MVMROOT(tc, equal, { \
             MVMString *env_str; \
+            MVMObject *iterval; \
             i = 0; \
             while(MVM_iter_istrue(tc, iter)) { \
                 MVM_repr_shift_o(tc, (MVMObject *)iter); \
                 env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, iter), equal); \
-                env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, MVM_iterval(tc, iter))); \
+                iterval = MVM_iterval(tc, iter); \
+                MVMRegister r; \
+                if (iterval && IS_CONCRETE(iterval) && STABLE(iterval)->container_spec) \
+                    STABLE(iterval)->container_spec->fetch(tc, iterval, &r); \
+                else \
+                    r.o = iterval; \
+                env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, r.o)); \
                 _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str); \
             } \
             _env[size] = NULL; \
