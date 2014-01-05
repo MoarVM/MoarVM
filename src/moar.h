@@ -50,7 +50,7 @@ typedef double   MVMnum64;
 #  define MVM_PRIVATE
 #endif
 
-/* Headers for APIs for various other data structures and APIs. */
+/* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
 #include "core/threadcontext.h"
 #include "core/instance.h"
