@@ -38,7 +38,7 @@ our %TP_MT = (
 our %TP_DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
-    rule  => 'cd 3rdparty/dyncall &&  ./configure2 && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile',
+    rule  => 'cd 3rdparty/dyncall &&  ./configure2 && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile && git clean -f',
     clean => 'cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
 );
 
@@ -225,7 +225,7 @@ TERM
         dc => {
             %TP_DC,
             name  => 'libdyncall_s',
-            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
+            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile && git clean -f',
             clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*@obj@ 3rdparty/dyncall/dyncallback/*@obj@ 3rdparty/dyncall/dynload/*@obj@',
         },
 
@@ -372,7 +372,7 @@ our %OS_MINGW32 = (
 
         dc => {
             %TP_DC,
-            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
+            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32 && git clean -f',
             clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
         },
     },
@@ -434,7 +434,7 @@ our %OS_SOLARIS = (
 
     -thirdparty => {
         dc => { %TP_DC,
-	        rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded sun',
+	        rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded sun && git clean -f',
 	        clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
 	    },
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
