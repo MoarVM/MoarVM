@@ -105,7 +105,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVMROOT(tc, iter, { \
         MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("=")); \
         MVMROOT(tc, equal, { \
-            MVMString *env_str; \
+            MVMString *env_str = NULL; \
             MVMObject *iterval = NULL; \
             MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_str); \
             MVM_gc_root_temp_push(tc, (MVMCollectable **)&iterval); \
