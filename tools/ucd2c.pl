@@ -682,7 +682,7 @@ static MVMint32 codepoint_extents[".($num_extents + 1)."][2] = {";
     Okay not to be threadsafe since its value is deterministic
         and I don't care about the tiny potential for a memory leak
         in the event of a race condition. */
-static MVMUnicodeNameHashEntry *codepoints_by_name = NULL;
+static MVMUnicodeNameRegistry *codepoints_by_name = NULL;
 static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
@@ -700,7 +700,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                     && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
                     if (name) {
-                        MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                        MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
                         entry->name = (char *)name;
                         entry->codepoint = codepoint;
                         HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
@@ -716,7 +716,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
                 if (name) {
-                    MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                    MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
                     entry->name = (char *)name;
                     entry->codepoint = codepoint;
                     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
@@ -733,10 +733,10 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
 }#"
 sub emit_unicode_property_keypairs {
     my $hout = "
-typedef struct _MVMUnicodeNamedValue {
+struct MVMUnicodeNamedValue {
     const char *name;
     MVMint32 value;
-} MVMUnicodeNamedValue;";
+};";
     my @lines = ();
     each_line('PropertyAliases', sub { $_ = shift;
         my @aliases = split /\s*[#;]\s*/;
@@ -825,7 +825,7 @@ sub emit_unicode_property_value_keypairs {
     $hout .= "
 #define num_unicode_property_value_keypairs ".scalar(@lines)."\n";
     my $out = "
-static MVMUnicodeNameHashEntry **unicode_property_values_hashes;
+static MVMUnicodeNameRegistry **unicode_property_values_hashes;
 static const MVMUnicodeNamedValue unicode_property_value_keypairs[".scalar(@lines)."] = {
     ".stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."
 };";
@@ -935,6 +935,9 @@ sub UnicodeData {
 
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
+        if ($name eq '<control>' || $name eq '') {
+            $name = $u1name;
+        }
         my $point = {
             code_str => $code_str,
             name => $name,
