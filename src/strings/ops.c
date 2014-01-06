@@ -1407,6 +1407,11 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
             return (cp >= 0 && cp < 32) || cp == 127;
         }
 
+        case MVM_CCLASS_PRINTING: {
+            MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
+            return !((cp >= 0 && cp < 32) || cp == 127);
+        }
+
         case MVM_CCLASS_PUNCTUATION:
             return
                 MVM_string_offset_has_unicode_property_value(tc, s, offset,
