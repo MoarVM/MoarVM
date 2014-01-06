@@ -2662,7 +2662,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getcodename): {
                 MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).s = c->body.sf->body.name;
+                GET_REG(cur_op, 0).s = c->body.name;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2823,7 +2823,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(setcodename): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
-                    MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.sf->body.name,
+                    MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.name,
                         GET_REG(cur_op, 2).s);
                 }
                 else {

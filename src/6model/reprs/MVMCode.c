@@ -41,6 +41,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_ASSIGN_REF(tc, dest_root, dest_body->sf, src_body->sf);
     if (src_body->outer)
         dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
+    MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
 }
 
 /* Adds held objects to the GC worklist. */
@@ -49,6 +50,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add_frame(tc, worklist, body->outer);
     MVM_gc_worklist_add(tc, worklist, &body->code_object);
     MVM_gc_worklist_add(tc, worklist, &body->sf);
+    MVM_gc_worklist_add(tc, worklist, &body->name);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
