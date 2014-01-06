@@ -616,6 +616,19 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
         MVM_string_utf8_encode_C_string(tc, name));
 }
 
+/* Returns the storage unit for the lexical in the specified frame. */
+MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type) {
+    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
+    if (lexical_names) {
+        MVMLexicalRegistry *entry;
+        MVM_string_flatten(tc, name);
+        MVM_HASH_GET(tc, lexical_names, name, entry)
+        if (entry && f->static_info->body.lexical_types[entry->value] == type)
+            return &f->env[entry->value];
+    }
+    return NULL;
+}
+
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
