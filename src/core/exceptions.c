@@ -241,9 +241,9 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
 MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVMException *ex;
     MVMFrame *cur_frame;
-    MVMObject *arr, *annotations, *row, *value;
+    MVMObject *arr = NULL, *annotations = NULL, *row = NULL, *value = NULL;
     MVMuint32 count = 0;
-    MVMString *k_file, *k_line, *k_sub, *k_anno;
+    MVMString *k_file = NULL, *k_line = NULL, *k_sub = NULL, *k_anno = NULL;
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
