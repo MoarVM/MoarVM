@@ -1024,15 +1024,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(usecapture): {
-                MVMCallCapture *cc = (MVMCallCapture *)tc->cur_usecapture;
-                cc->body.mode = MVM_CALL_CAPTURE_MODE_USE;
-                cc->body.apc  = &tc->cur_frame->params;
-                cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &tc->cur_frame->params);
-                GET_REG(cur_op, 0).o = tc->cur_usecapture;
+            OP(usecapture):
+                GET_REG(cur_op, 0).o = MVM_args_use_capture(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
-            }
             OP(savecapture): {
                 /* Create a new call capture object. */
                 MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
