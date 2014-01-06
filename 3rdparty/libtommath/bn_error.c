@@ -25,7 +25,7 @@ static const struct {
 };
 
 /* return a char * string for a given code */
-char *mp_error_to_string(int code)
+const char *mp_error_to_string(int code)
 {
    int x;
 
