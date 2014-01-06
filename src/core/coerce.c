@@ -139,7 +139,7 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[64];
-    int len = snprintf(buffer, 64, "%lld", i);
+    int len = snprintf(buffer, 64, "%lld", (long long int)i);
     if (len >= 0)
         return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
     else
