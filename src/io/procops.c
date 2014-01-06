@@ -107,8 +107,6 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         MVMROOT(tc, equal, { \
             MVMString *env_str = NULL; \
             MVMObject *iterval = NULL; \
-            MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_str); \
-            MVM_gc_root_temp_push(tc, (MVMCollectable **)&iterval); \
             i = 0; \
             while(MVM_iter_istrue(tc, iter)) { \
                 MVM_repr_shift_o(tc, (MVMObject *)iter); \
@@ -117,7 +115,6 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
                 env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, iterval)); \
                 _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str); \
             } \
-            MVM_gc_root_temp_pop_n(tc, 2); /* env_str, iterval */ \
             _env[size] = NULL; \
         }); \
     }); \
