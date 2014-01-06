@@ -1475,7 +1475,6 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
 static MVMint16   encoding_name_init   = 0;
 static MVMString *encoding_utf8_name   = NULL;
 static MVMString *encoding_ascii_name  = NULL;
-static MVMString *encoding_binary_name = NULL;
 static MVMString *encoding_latin1_name = NULL;
 static MVMString *encoding_utf16_name  = NULL;
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
@@ -1484,8 +1483,6 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf8_name);
         encoding_ascii_name  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "ascii");
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_ascii_name);
-        encoding_binary_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "binary");
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_binary_name);
         encoding_latin1_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "iso-8859-1");
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_latin1_name);
         encoding_utf16_name  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf16");
@@ -1496,8 +1493,7 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     if (MVM_string_equal(tc, name, encoding_utf8_name)) {
         return MVM_encoding_type_utf8;
     }
-    else if (MVM_string_equal(tc, name, encoding_ascii_name)
-          || MVM_string_equal(tc, name, encoding_binary_name)) {
+    else if (MVM_string_equal(tc, name, encoding_ascii_name)) {
         return MVM_encoding_type_ascii;
     }
     else if (MVM_string_equal(tc, name, encoding_latin1_name)) {
