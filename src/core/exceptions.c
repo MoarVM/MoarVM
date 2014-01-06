@@ -355,17 +355,29 @@ static void dump_backtrace(MVMThreadContext *tc) {
 
 /* Panic over an unhandled exception throw by category. */
 static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
-    fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
-    dump_backtrace(tc);
-    if (crash_on_error)
-        abort();
-    else
-        exit(1);
+    /* If it's a control exception, try promoting it to a catch one. */
+    if (cat != MVM_EX_CAT_CATCH) {
+        MVM_exception_throw_adhoc(tc, "No exception handler located for %s",
+            cat_name(tc, cat));
+    }
+    else {
+        fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
+        dump_backtrace(tc);
+        if (crash_on_error)
+            abort();
+        else
+            exit(1);
+    }
 }
 
 /* Panic over an unhandled exception object. */
 static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
-    /* If there's no message, fall back to category. */
+    /* If it's a control exception, try promoting it to a catch one; use
+     * the category name. */
+    if (ex->body.category != MVM_EX_CAT_CATCH)
+        panic_unhandled_cat(tc, ex->body.category);
+
+    /* If there's no message, fall back to category also. */
     if (!ex->body.message)
         panic_unhandled_cat(tc, ex->body.category);
 
