@@ -3866,6 +3866,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).s = MVM_get_hostname(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(exreturnafterunwind): {
+                MVMObject *ex = GET_REG(cur_op, 0).o;
+                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                    ((MVMException *)ex)->body.return_after_unwind = 1;
+                else
+                    MVM_exception_throw_adhoc(tc, "exreturnafterunwind needs a VMException");
+                cur_op += 2;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

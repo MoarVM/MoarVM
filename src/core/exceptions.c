@@ -189,8 +189,14 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     tc->active_handlers = ah->next_handler;
 
     /* Do the unwinding as needed. */
-    unwind_to_frame(tc, ah->frame);
-    *tc->interp_cur_op = *tc->interp_bytecode_start + ah->handler->goto_offset;
+    if (ah->ex_obj && ((MVMException *)ah->ex_obj)->body.return_after_unwind) {
+        unwind_to_frame(tc, ah->frame->caller);
+        MVM_args_set_result_obj(tc, tc->last_handler_result, 1);
+    }
+    else {
+        unwind_to_frame(tc, ah->frame);
+        *tc->interp_cur_op = *tc->interp_bytecode_start + ah->handler->goto_offset;
+    }
 
     /* Clean up. */
     MVM_frame_dec_ref(tc, ah->frame);

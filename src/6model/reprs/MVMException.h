@@ -9,6 +9,9 @@ struct MVMExceptionBody {
     /* The exception category. */
     MVMint32 category;
 
+    /* Flag indicating if we should return after unwinding. */
+    MVMuint8 return_after_unwind;
+
     /* Where was the exception thrown from? */
     MVMFrame *origin;
 

@@ -550,7 +550,7 @@ static const void * const LABELS[] = {
     &&OP_symlink,
     &&OP_link,
     &&OP_gethostname,
-    NULL,
+    &&OP_exreturnafterunwind,
     NULL,
     NULL,
     NULL,
