@@ -111,18 +111,10 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
             MVM_gc_root_temp_push(tc, (MVMCollectable **)&iterval); \
             i = 0; \
             while(MVM_iter_istrue(tc, iter)) { \
-                MVMRegister r; \
-                r.o = NULL; \
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&r.o); \
                 MVM_repr_shift_o(tc, (MVMObject *)iter); \
                 env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, iter), equal); \
                 iterval = MVM_iterval(tc, iter); \
-                if (iterval && IS_CONCRETE(iterval) && STABLE(iterval)->container_spec) \
-                    STABLE(iterval)->container_spec->fetch(tc, iterval, &r); \
-                else \
-                    r.o = iterval; \
-                env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, r.o)); \
-                MVM_gc_root_temp_pop(tc); /* r.o */ \
+                env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, iterval)); \
                 _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str); \
             } \
             MVM_gc_root_temp_pop_n(tc, 2); /* env_str, iterval */ \
