@@ -683,6 +683,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
                 memmove(tc->cur_frame->args + 1, tc->cur_frame->args,
                     orig->arg_count * sizeof(MVMRegister));
                 tc->cur_frame->args[0].o = code;
+                tc->cur_frame->cur_args_callsite = *tweak_cs; /* Keep in sync. */
             }
             else {
                 MVM_exception_throw_adhoc(tc,
