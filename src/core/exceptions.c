@@ -239,14 +239,13 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
 
 /* Returns a list of hashes containing file, line, sub and annotations. */
 MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
-    MVMException *ex;
     MVMFrame *cur_frame;
     MVMObject *arr = NULL, *annotations = NULL, *row = NULL, *value = NULL;
     MVMuint32 count = 0;
     MVMString *k_file = NULL, *k_line = NULL, *k_sub = NULL, *k_anno = NULL;
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
-        ex = (MVMException *)ex_obj;
+        cur_frame = ((MVMException *)ex_obj)->body.origin;
     else
         MVM_exception_throw_adhoc(tc, "Op 'backtrace' needs an exception object");
 
@@ -264,7 +263,6 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     k_sub  = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "sub");
     k_anno = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "annotations");
 
-    cur_frame = ex->body.origin;
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
     while (cur_frame != NULL) {
