@@ -18,6 +18,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
         repr_data->slot_type = MVM_ARRAY_OBJ;
         repr_data->elem_size = sizeof(MVMObject *);
+        repr_data->elem_type = NULL;
 
         MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
         st->size = sizeof(MVMArray);
@@ -87,6 +88,19 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMArray *arr = (MVMArray *)obj;
     MVM_checked_free_null(arr->body.slots.any);
+}
+
+/* Marks the representation data in an STable.*/
+static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+    if (repr_data == NULL)
+        return;
+    MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
+}
+
+/* Marks the representation data in an STable.*/
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_checked_free_null(st->REPR_data);
 }
 
 /* Gets the storage specification for this representation. */
@@ -746,6 +760,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMObject *type = MVM_repr_at_key_o(tc, info, str_type);
         if (type != NULL) {
             MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+            MVM_ASSIGN_REF(tc, st, repr_data->elem_type, type);
             switch (spec.boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT:
                     switch (spec.bits) {
@@ -799,12 +814,70 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMArray);
 }
 
+/* Serializes the REPR data. */
+static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+    writer->write_ref(tc, writer, repr_data->elem_type);
+}
+
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
+
+    MVMObject *type = reader->root.version >= 7 ? reader->read_ref(tc, reader) : NULL;
+    MVM_ASSIGN_REF(tc, st, repr_data->elem_type, type);
     repr_data->slot_type = MVM_ARRAY_OBJ;
     repr_data->elem_size = sizeof(MVMObject *);
     st->REPR_data = repr_data;
+
+    if (type) {
+        MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+        MVM_ASSIGN_REF(tc, st, repr_data->elem_type, type);
+        switch (spec.boxed_primitive) {
+            case MVM_STORAGE_SPEC_BP_INT:
+                switch (spec.bits) {
+                    case 64:
+                        repr_data->slot_type = MVM_ARRAY_I64;
+                        repr_data->elem_size = sizeof(MVMint64);
+                        break;
+                    case 32:
+                        repr_data->slot_type = MVM_ARRAY_I32;
+                        repr_data->elem_size = sizeof(MVMint32);
+                        break;
+                    case 16:
+                        repr_data->slot_type = MVM_ARRAY_I16;
+                        repr_data->elem_size = sizeof(MVMint16);
+                        break;
+                    case 8:
+                        repr_data->slot_type = MVM_ARRAY_I8;
+                        repr_data->elem_size = sizeof(MVMint8);
+                        break;
+                    default:
+                        MVM_exception_throw_adhoc(tc,
+                            "MVMArray: Unsupported int size");
+                }
+                break;
+            case MVM_STORAGE_SPEC_BP_NUM:
+                switch (spec.bits) {
+                    case 64:
+                        repr_data->slot_type = MVM_ARRAY_N64;
+                        repr_data->elem_size = sizeof(MVMnum64);
+                        break;
+                    case 32:
+                        repr_data->slot_type = MVM_ARRAY_N32;
+                        repr_data->elem_size = sizeof(MVMnum32);
+                        break;
+                    default:
+                        MVM_exception_throw_adhoc(tc,
+                            "MVMArray: Unsupported num size");
+                }
+                break;
+            case MVM_STORAGE_SPEC_BP_STR:
+                repr_data->slot_type = MVM_ARRAY_STR;
+                repr_data->elem_size = sizeof(MVMString *);
+                break;
+        }
+    }
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
@@ -923,14 +996,14 @@ static const MVMREPROps this_repr = {
     NULL, /* change_type */
     serialize,
     deserialize,
-    NULL, /* serialize_repr_data */
+    serialize_repr_data,
     deserialize_repr_data,
     deserialize_stable_size,
     gc_mark,
     gc_free,
     NULL, /* gc_cleanup */
-    NULL, /* gc_mark_repr_data */
-    NULL, /* gc_free_repr_data */
+    gc_mark_repr_data,
+    gc_free_repr_data,
     compose,
     "VMArray", /* name */
     MVM_REPR_ID_MVMArray,

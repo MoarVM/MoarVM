@@ -48,4 +48,7 @@ struct MVMArrayREPRData {
 
     /* What type of slots we have. */
     MVMuint8 slot_type;
+
+    /* Type object for the element type. */
+    MVMObject *elem_type;
 };
