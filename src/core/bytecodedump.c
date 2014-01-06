@@ -157,6 +157,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     unsigned char op_rw;
     unsigned char op_type;
     unsigned char op_flags;
+    MVMOpInfo tmp_extop_info;
     /* stash the outer output buffer */
     MVMuint32 sP = s;
     MVMuint32 lP = l;
@@ -182,12 +183,30 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
         else {
             MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
-            /* XXX Make an op_info from the extop record. */
-            op_info = NULL;
+            if (ext_op_num < cu->body.num_extops) {
+                MVMExtOpRecord r = cu->body.extops[ext_op_num];
+                MVMuint8 j;
+                memset(&tmp_extop_info, 0, sizeof(MVMOpInfo));
+                tmp_extop_info.name = MVM_string_utf8_encode_C_string(tc, r.name);
+                memcpy(tmp_extop_info.operands, r.operand_descriptor, 8);
+                for (j = 0; j < 8; j++)
+                    if (tmp_extop_info.operands[j])
+                        tmp_extop_info.num_operands++;
+                    else
+                        break;
+                op_info = &tmp_extop_info;
+            }
+            else {
+                MVM_exception_throw_adhoc(tc, "Extension op %d out of range", (int)op_num);
+            }
         }
         if (!op_info)
             MVM_exception_throw_adhoc(tc, "Unable to resolve op %d", (int)op_num);
         a("%-12s ", op_info->name);
+        if (op_info == &tmp_extop_info) {
+            free((void *)op_info->name);
+            op_info->name = NULL;
+        }
 
         for (i = 0; i < op_info->num_operands; i++) {
             if (i) a(", ");
