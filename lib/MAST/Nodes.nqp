@@ -254,6 +254,11 @@ class MAST::Frame is MAST::Node {
     method cuuid() { $!cuuid }
     method name() { $!name }
 
+    method has_exit_handler($value = -1) {
+        $!has_exit_handler := $value if $value >= 0;
+        $!has_exit_handler
+    }
+
     method dump_lines(@lines, $indent) {
         nqp::push(@lines, $indent~"MAST::Frame name<$!name>, cuuid<$!cuuid>");
         if !nqp::chars($indent) {
