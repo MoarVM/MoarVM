@@ -7,7 +7,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 7
+#define CURRENT_VERSION 8
 #define MIN_VERSION     5
 
 /* Various sizes (in bytes). */

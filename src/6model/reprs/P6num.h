@@ -8,5 +8,10 @@ struct MVMP6num {
     MVMP6numBody body;
 };
 
+/* The bit width requirement is shared for all instances of the same type. */
+struct MVMP6numREPRData {
+    MVMint16 bits;
+};
+
 /* Function for REPR setup. */
 const MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc);
