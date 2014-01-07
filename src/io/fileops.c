@@ -252,8 +252,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
     }
 
-    free(fname);
-    result->body.eof  = 0;
+    result->body.filename = fname;
     result->body.type = MVM_OSHANDLE_FD;
     result->body.encoding_type = MVM_encoding_type_utf8;
 
@@ -410,9 +409,6 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
         MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
     }
 
-    if (bytes_read == 0) {
-        handle->body.eof = 1;
-    }
                                                /* XXX should this take a type object? */
     result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
 
@@ -462,10 +458,6 @@ void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     if (bytes_read < 0) {
         free(buf);
         MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
-    }
-
-    if (bytes_read == 0) {
-        handle->body.eof = 1;
     }
 
     /* Stash the data in the VMArray. */
@@ -808,8 +800,9 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             break;
         }
         case UV_FILE:
-            body->u.fd   = type;
-            body->type = MVM_OSHANDLE_FD;
+            body->u.fd     = type;
+            body->type     = MVM_OSHANDLE_FD;
+            body->filename = NULL;
             break;
         case UV_NAMED_PIPE: {
             uv_pipe_t * const handle = malloc(sizeof(uv_pipe_t));
@@ -836,10 +829,21 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
 
 MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle;
+    MVMint64 r;
+    MVMint64 seek_pos;
+    uv_fs_t req;
 
     verify_filehandle_type(tc, oshandle, &handle, "check eof");
 
-    return handle->body.eof;
+    if ((r = uv_fs_lstat(tc->loop, &req, handle->body.filename, NULL)) == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %d", errno);
+    }
+
+    if ((seek_pos = MVM_platform_lseek(handle->body.u.fd, 0, SEEK_CUR)) == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+    }
+
+    return req.statbuf.st_size == seek_pos;
 }
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
