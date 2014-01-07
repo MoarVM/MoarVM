@@ -832,7 +832,6 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 
     if (type) {
         MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-        MVM_ASSIGN_REF(tc, st, repr_data->elem_type, type);
         switch (spec.boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
                 switch (spec.bits) {
