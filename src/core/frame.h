@@ -1,3 +1,10 @@
+/* Frame flags; provide some HLLs can alias. */
+#define MVM_FRAME_FLAG_STATE_INIT       1 << 0
+#define MVM_FRAME_FLAG_HLL_1            1 << 3
+#define MVM_FRAME_FLAG_HLL_2            1 << 4
+#define MVM_FRAME_FLAG_HLL_3            1 << 5
+#define MVM_FRAME_FLAG_HLL_4            1 << 6
+
 /* Lexical hash entry for ->lexical_names on a frame. */
 struct MVMLexicalRegistry {
     /* key string */
@@ -90,6 +97,9 @@ struct MVMFrame {
     /* Flags that the caller chain should be kept in place after return or
      * unwind; used to make sure we can get a backtrace after an exception. */
     MVMuint8 keep_caller;
+
+    /* Assorted frame flags. */
+    MVMuint8 flags;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

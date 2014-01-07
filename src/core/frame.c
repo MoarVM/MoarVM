@@ -230,6 +230,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     frame->context_object = NULL;
     frame->mark_special_return_data = 0;
 
+    /* Clear frame flags. */
+    frame->flags = 0;
+
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
@@ -274,6 +277,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         memset(state, 0, frame->static_info->body.env_size);
                         ((MVMCode *)frame->code_ref)->body.state_vars = state;
                         state_act = 1;
+
+                        /* Note that this frame should run state init code. */
+                        frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
                     }
                     goto redo_state;
                 case 1:
