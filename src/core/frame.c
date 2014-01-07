@@ -1,5 +1,9 @@
 #include "moar.h"
 
+/* Dummy, invocant-arg callsite. */
+static MVMCallsiteEntry exit_arg_flags[] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     exit_arg_callsite = { exit_arg_flags, 2, 2, 0 };
+
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
@@ -334,11 +338,11 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
     return frame;
 }
 
-/* Return/unwind do about the same thing; this factors it out. */
-static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
+/* Removes a single frame, as part of a return or unwind. Done after any exit
+ * handler has already been run. */
+static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
-    MVMint64  retval;
 
     /* Arguments buffer no longer in use (saves GC visiting it). */
     returner->cur_args_callsite = NULL;
@@ -362,6 +366,10 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
         }
     }
 
+    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
+     * currently executing frame. */
+    MVM_frame_dec_ref(tc, returner);
+
     /* Switch back to the caller frame if there is one. */
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
@@ -379,25 +387,63 @@ static MVMuint64 return_or_unwind(MVMThreadContext *tc, MVMuint8 unwind) {
             caller->mark_special_return_data = 0;
         }
 
-        retval = 1;
+        return 1;
     }
     else {
         tc->cur_frame = NULL;
-        retval = 0;
+        return 0;
     }
-
-    /* Decrement the frame's ref-count by the 1 it got by virtue of being the
-     * currently executing frame. */
-    MVM_frame_dec_ref(tc, returner);
-
-    return retval;
 }
 
 /* Attempt to return from the current frame. Returns non-zero if we can,
  * and zero if there is nowhere to return to (which would signal the exit
  * of the interpreter). */
+static void remove_after_handler(MVMThreadContext *tc, void *sr_data) {
+    remove_one_frame(tc, 0);
+}
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
-    return return_or_unwind(tc, 0);
+    if (tc->cur_frame->static_info->body.has_exit_handler) {
+        /* Set us up to run exit handler, and make it so we'll really exit the
+         * frame when that has been done. */
+        MVMFrame     *caller = tc->cur_frame->caller;
+        MVMHLLConfig *hll    = MVM_hll_current(tc);
+        MVMObject    *handler;
+        MVMObject    *result;
+
+        if (!caller)
+            MVM_exception_throw_adhoc(tc, "Entry point frame cannot have an exit handler");
+        if (tc->cur_frame == tc->thread_entry_frame)
+            MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
+
+        switch (caller->return_type) {
+            case MVM_RETURN_OBJ:
+                result = caller->return_value->o;
+                break;
+            case MVM_RETURN_INT:
+                result = MVM_repr_box_int(tc, hll->int_box_type, caller->return_value->i64);
+                break;
+            case MVM_RETURN_NUM:
+                result = MVM_repr_box_num(tc, hll->num_box_type, caller->return_value->n64);
+                break;
+            case MVM_RETURN_STR:
+                result = MVM_repr_box_str(tc, hll->str_box_type, caller->return_value->s);
+                break;
+            default:
+                result = NULL;
+        }
+
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &exit_arg_callsite);
+        tc->cur_frame->args[0].o = tc->cur_frame->code_ref;
+        tc->cur_frame->args[1].o = result;
+        tc->cur_frame->special_return = remove_after_handler;
+        handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
+        STABLE(handler)->invoke(tc, handler, &exit_arg_callsite, tc->cur_frame->args);
+        return 1;
+    }
+    else {
+        /* No exit handler, so a straight return. */
+        return remove_one_frame(tc, 0);
+    }
 }
 
 /* Unwinds execution state to the specified frame, placing control flow at either
@@ -406,7 +452,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value) {
     while (tc->cur_frame != frame)
-        if (!return_or_unwind(tc, 1))
+        if (!remove_one_frame(tc, 1))
             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
     if (abs_addr)
         *tc->interp_cur_op = abs_addr;
