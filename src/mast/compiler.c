@@ -959,7 +959,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     write_int32(ws->frame_seg, ws->frame_pos + 26, ws->annotation_pos);
     write_int32(ws->frame_seg, ws->frame_pos + 30, 0); /* number of annotation; fill in later */
     write_int32(ws->frame_seg, ws->frame_pos + 34, 0); /* number of handlers; fill in later */
-    write_int16(ws->frame_seg, ws->frame_pos + 38, f->has_exit_handler ? 1 : 0);
+    write_int16(ws->frame_seg, ws->frame_pos + 38, f->has_exit_handler == 1 ? 1 : 0);
 
     ws->frame_pos += FRAME_HEADER_SIZE;
 
