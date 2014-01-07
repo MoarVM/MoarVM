@@ -69,6 +69,9 @@ struct MVMStaticFrameBody {
 
     /* Cached instruction offsets */
     MVMuint8 *instr_offsets;
+
+    /* Does the frame have an exit handler we need to run? */
+    MVMuint8 has_exit_handler;
 };
 struct MVMStaticFrame {
     MVMObject common;

@@ -184,6 +184,10 @@ Each frame starts with the following data.
     | Number of handlers                                      |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
+    | Frame need exit handler invoked                         |
+    |    16-bit integer; 0 = no, 1 = yes                      |
+    | [NEW IN VERSION 2]                                      |
+    +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of
 local it is. These are stored as 16-bit unsigned integers.

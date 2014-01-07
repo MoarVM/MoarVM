@@ -189,6 +189,9 @@ class MAST::Frame is MAST::Node {
     # The outer frame, if any.
     has $!outer;
 
+    # Does the frame have an exit handler?
+    has int $!has_exit_handler;
+
     # Mapping of lexical names to lexical index, for lookups.
     has %!lexical_map;
 

@@ -3,8 +3,8 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        1
-#define MAX_BYTECODE_VERSION        1
-#define FRAME_HEADER_SIZE           (9 * 4 + 1 * 2)
+#define MAX_BYTECODE_VERSION        2
+#define FRAME_HEADER_SIZE           (9 * 4 + (rs->version >= 2 ? 2 : 1) * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SCDEP_HEADER_OFFSET         12
 #define EXTOP_HEADER_OFFSET         20
@@ -531,6 +531,10 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Read number of handlers. */
         static_frame_body->num_handlers = read_int32(pos, 34);
+
+        /* Read exit handler flag (version 2 and higher). */
+        if (rs->version >= 2)
+            static_frame_body->has_exit_handler = read_int16(pos, 38);
 
         pos += FRAME_HEADER_SIZE;
 
