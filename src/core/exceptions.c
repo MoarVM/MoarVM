@@ -121,11 +121,20 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     return lh;
 }
 
-/* Unwinds execution state to the specified frame. */
-static void unwind_to_frame(MVMThreadContext *tc, MVMFrame *target) {
-    while (tc->cur_frame != target)
+/* Unwinds execution state to the specified frame, placing control flow at either
+ * an absolute or relative (to start of target frame) address and optionally
+ * setting a returned result. */
+static void unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
+                      MVMuint32 rel_addr, MVMObject *return_value) {
+    while (tc->cur_frame != frame)
         if (!MVM_frame_try_unwind(tc))
             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
+    if (abs_addr)
+        *tc->interp_cur_op = abs_addr;
+    else if (rel_addr)
+        *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
+    if (return_value)
+        MVM_args_set_result_obj(tc, return_value, 1);
 }
 
 /* Dummy, 0-arg callsite for invoking handlers. */
@@ -139,8 +148,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj) {
     switch (lh.handler->action) {
         case MVM_EX_ACTION_GOTO:
-            unwind_to_frame(tc, lh.frame);
-            *tc->interp_cur_op = *tc->interp_bytecode_start + lh.handler->goto_offset;
+            unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL);
             break;
         case MVM_EX_ACTION_INVOKE: {
             /* Create active handler record. */
@@ -181,26 +189,33 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
 /* Unwinds after a handler. */
 static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
+    MVMFrame     *frame;
+    MVMException *exception;
+    MVMuint32     goto_offset;
+
     /* Get active handler; sanity check (though it's possible other cases
      * should be supported). */
     MVMActiveHandler *ah = (MVMActiveHandler *)sr_data;
     if (tc->active_handlers != ah)
         MVM_panic(1, "Trying to unwind from wrong handler");
-    tc->active_handlers = ah->next_handler;
 
-    /* Do the unwinding as needed. */
-    if (ah->ex_obj && ((MVMException *)ah->ex_obj)->body.return_after_unwind) {
-        unwind_to_frame(tc, ah->frame->caller);
-        MVM_args_set_result_obj(tc, tc->last_handler_result, 1);
-    }
-    else {
-        unwind_to_frame(tc, ah->frame);
-        *tc->interp_cur_op = *tc->interp_bytecode_start + ah->handler->goto_offset;
-    }
+    /* Grab info we'll need to unwind. */
+    frame       = ah->frame;
+    exception   = (MVMException *)ah->ex_obj;
+    goto_offset = ah->handler->goto_offset;
 
     /* Clean up. */
+    tc->active_handlers = ah->next_handler;
     MVM_frame_dec_ref(tc, ah->frame);
     free(ah);
+
+    /* Do the unwinding as needed. */
+    if (exception && exception->body.return_after_unwind) {
+        unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result);
+    }
+    else {
+        unwind_to(tc, frame, NULL, goto_offset, NULL);
+    }
 }
 
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top) {
@@ -463,14 +478,13 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     /* Clear special return handler; we'll do its work here. */
     target->special_return = NULL;
 
-    /* Unwind to the thrower of the exception; set PC. */
-    unwind_to_frame(tc, target);
-    *tc->interp_cur_op = ex->body.resume_addr;
-
     /* Clear the current active handler. */
     ah = tc->active_handlers;
     tc->active_handlers = ah->next_handler;
     free(ah);
+
+    /* Unwind to the thrower of the exception; set PC. */
+    unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
 }
 
 /* Creates a new lexotic. */
