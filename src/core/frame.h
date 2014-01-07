@@ -1,5 +1,6 @@
 /* Frame flags; provide some HLLs can alias. */
 #define MVM_FRAME_FLAG_STATE_INIT       1 << 0
+#define MVM_FRAME_FLAG_EXIT_HAND_RUN    1 << 1
 #define MVM_FRAME_FLAG_HLL_1            1 << 3
 #define MVM_FRAME_FLAG_HLL_2            1 << 4
 #define MVM_FRAME_FLAG_HLL_3            1 << 5

@@ -402,7 +402,8 @@ static void remove_after_handler(MVMThreadContext *tc, void *sr_data) {
     remove_one_frame(tc, 0);
 }
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
-    if (tc->cur_frame->static_info->body.has_exit_handler) {
+    if (tc->cur_frame->static_info->body.has_exit_handler &&
+            !(tc->cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
         /* Set us up to run exit handler, and make it so we'll really exit the
          * frame when that has been done. */
         MVMFrame     *caller = tc->cur_frame->caller;
@@ -436,6 +437,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         tc->cur_frame->args[0].o = tc->cur_frame->code_ref;
         tc->cur_frame->args[1].o = result;
         tc->cur_frame->special_return = remove_after_handler;
+        tc->cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
         handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
         STABLE(handler)->invoke(tc, handler, &exit_arg_callsite, tc->cur_frame->args);
         return 1;
@@ -449,11 +451,60 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
 /* Unwinds execution state to the specified frame, placing control flow at either
  * an absolute or relative (to start of target frame) address and optionally
  * setting a returned result. */
+typedef struct {
+    MVMFrame  *frame;
+    MVMuint8  *abs_addr;
+    MVMuint32  rel_addr;
+} MVMUnwindData;
+static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
+    MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
+    MVMFrame *frame    = ud->frame;
+    MVMuint8 *abs_addr = ud->abs_addr;
+    MVMuint32 rel_addr = ud->rel_addr;
+    free(sr_data);
+    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL);
+}
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value) {
-    while (tc->cur_frame != frame)
-        if (!remove_one_frame(tc, 1))
-            MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
+    while (tc->cur_frame != frame) {
+        if (tc->cur_frame->static_info->body.has_exit_handler &&
+                !(tc->cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
+            /* We're unwinding a frame with an exit handler. Thus we need to
+             * pause the unwind, run the exit handler, and keep enough info
+             * around in order to finish up the unwind afterwards. */
+            MVMFrame     *caller = tc->cur_frame->caller;
+            MVMHLLConfig *hll    = MVM_hll_current(tc);
+            MVMObject    *handler;
+
+            if (!caller)
+                MVM_exception_throw_adhoc(tc, "Entry point frame cannot have an exit handler");
+            if (tc->cur_frame == tc->thread_entry_frame)
+                MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
+
+            MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &exit_arg_callsite);
+            tc->cur_frame->args[0].o = tc->cur_frame->code_ref;
+            tc->cur_frame->args[1].o = NULL;
+            tc->cur_frame->special_return = continue_unwind;
+            {
+                MVMUnwindData *ud = malloc(sizeof(MVMUnwindData));
+                ud->frame = frame;
+                ud->abs_addr = abs_addr;
+                ud->rel_addr = rel_addr;
+                if (return_value)
+                    MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
+                tc->cur_frame->special_return_data = ud;
+            }
+            tc->cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
+            handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
+            STABLE(handler)->invoke(tc, handler, &exit_arg_callsite, tc->cur_frame->args);
+            return;
+        }
+        else {
+            /* No exit handler, so just remove the frame. */
+            if (!remove_one_frame(tc, 1))
+                MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
+        }
+    }
     if (abs_addr)
         *tc->interp_cur_op = abs_addr;
     else if (rel_addr)
