@@ -400,12 +400,20 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     return return_or_unwind(tc, 0);
 }
 
-/* Attempt to unwind the current frame. Returns non-zero if we can, and
- * zero if we've nowhere to unwind to (which signifies we're hit the exit
- * point of the interpreter - which probably shouldn't happen, but caller
- * will be in a better place to give an error). */
-MVMuint64 MVM_frame_try_unwind(MVMThreadContext *tc) {
-    return return_or_unwind(tc, 1);
+/* Unwinds execution state to the specified frame, placing control flow at either
+ * an absolute or relative (to start of target frame) address and optionally
+ * setting a returned result. */
+void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
+                         MVMuint32 rel_addr, MVMObject *return_value) {
+    while (tc->cur_frame != frame)
+        if (!return_or_unwind(tc, 1))
+            MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
+    if (abs_addr)
+        *tc->interp_cur_op = abs_addr;
+    else if (rel_addr)
+        *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
+    if (return_value)
+        MVM_args_set_result_obj(tc, return_value, 1);
 }
 
 /* Given the specified code object, sets its outer to the current scope. */

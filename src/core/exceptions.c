@@ -121,22 +121,6 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     return lh;
 }
 
-/* Unwinds execution state to the specified frame, placing control flow at either
- * an absolute or relative (to start of target frame) address and optionally
- * setting a returned result. */
-static void unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
-                      MVMuint32 rel_addr, MVMObject *return_value) {
-    while (tc->cur_frame != frame)
-        if (!MVM_frame_try_unwind(tc))
-            MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
-    if (abs_addr)
-        *tc->interp_cur_op = abs_addr;
-    else if (rel_addr)
-        *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
-    if (return_value)
-        MVM_args_set_result_obj(tc, return_value, 1);
-}
-
 /* Dummy, 0-arg callsite for invoking handlers. */
 static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
 
@@ -148,7 +132,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj) {
     switch (lh.handler->action) {
         case MVM_EX_ACTION_GOTO:
-            unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL);
+            MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL);
             break;
         case MVM_EX_ACTION_INVOKE: {
             /* Create active handler record. */
@@ -211,10 +195,10 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
 
     /* Do the unwinding as needed. */
     if (exception && exception->body.return_after_unwind) {
-        unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result);
+        MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result);
     }
     else {
-        unwind_to(tc, frame, NULL, goto_offset, NULL);
+        MVM_frame_unwind_to(tc, frame, NULL, goto_offset, NULL);
     }
 }
 
@@ -484,7 +468,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     free(ah);
 
     /* Unwind to the thrower of the exception; set PC. */
-    unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
+    MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
 }
 
 /* Creates a new lexotic. */
