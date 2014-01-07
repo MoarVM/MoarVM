@@ -31,6 +31,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->foreign_transform_hash = NULL;
         entry->foreign_transform_code = NULL;
         entry->null_value = NULL;
+        entry->exit_handler = NULL;
         if (tc->instance->hll_compilee_depth)
             HASH_ADD_KEYPTR(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
         else
@@ -49,6 +50,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_transform_hash);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->foreign_transform_code);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->null_value);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->exit_handler);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     }
 
@@ -89,6 +91,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "foreign_transform_hash", foreign_transform_hash, config);
             check_config_key(tc, config_hash, "foreign_transform_code", foreign_transform_code, config);
             check_config_key(tc, config_hash, "null_value", null_value, config);
+            check_config_key(tc, config_hash, "exit_handler", exit_handler, config);
         });
 
     return config_hash;

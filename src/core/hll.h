@@ -31,6 +31,9 @@ struct MVMHLLConfig {
     /* The value to substitute for null. */
     MVMObject *null_value;
 
+    /* Language's handler to run at a block's exit time, if needed. */
+    MVMObject *exit_handler;
+
     /* Array of types to pass to compiler.c */
     MVMObject *mast_types;
 
