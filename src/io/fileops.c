@@ -435,7 +435,7 @@ void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     /* Ensure the target is in the correct form. */
     if (!IS_CONCRETE(result) || REPR(result)->ID != MVM_REPR_ID_MVMArray)
         MVM_exception_throw_adhoc(tc, "read_fhb requires a native array to write to");
-    if (((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != 1)
+    if (((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of int8");
 
     if (length < 1 || length > 99999999) {
@@ -594,7 +594,7 @@ void MVM_file_write_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
     /* Ensure the target is in the correct form. */
     if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
         MVM_exception_throw_adhoc(tc, "write_fhb requires a native array to read from");
-    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != 1)
+    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of int8");
 
     output = ((MVMArray *)buffer)->body.slots.i8;
