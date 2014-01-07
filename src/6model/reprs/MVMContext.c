@@ -171,5 +171,5 @@ static const MVMREPROps this_repr = {
     compose,
     "MVMContext", /* name */
     MVM_REPR_ID_MVMContext,
-    0, /* refs_frames */
+    1, /* refs_frames */
 };
