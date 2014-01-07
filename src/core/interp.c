@@ -3870,6 +3870,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(continuationclone):
+                MVM_exception_throw_adhoc(tc, "continuationclone NYI");
+            OP(continuationreset):
+                MVM_exception_throw_adhoc(tc, "continuationreset NYI");
+            OP(continuationcontrol):
+                MVM_exception_throw_adhoc(tc, "continuationcontrol NYI");
+            OP(continuationinvoke):
+                MVM_exception_throw_adhoc(tc, "continuationinvoke NYI");
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
