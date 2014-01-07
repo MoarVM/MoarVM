@@ -42,6 +42,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     if (src_body->outer)
         dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
     MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
+    /* Explicitly do *not* copy state vars in a (presumably closure) clone. */
 }
 
 /* Adds held objects to the GC worklist. */
@@ -51,19 +52,32 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->code_object);
     MVM_gc_worklist_add(tc, worklist, &body->sf);
     MVM_gc_worklist_add(tc, worklist, &body->name);
+    if (body->state_vars) {
+        MVMuint8 *flags  = body->sf->body.static_env_flags;
+        MVMuint16 *types = body->sf->body.lexical_types;
+        MVMint64 numlex  = body->sf->body.num_lexicals;
+        MVMint64 i;
+        for (i = 0; i < numlex; i++) {
+            if (flags[i] == 2) {
+                if (types[i] == MVM_reg_obj)
+                    MVM_gc_worklist_add(tc, worklist, &body->state_vars[i].o);
+                else if (types[i] == MVM_reg_str)
+                    MVM_gc_worklist_add(tc, worklist, &body->state_vars[i].s);
+            }
+        }
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCode *code_obj = (MVMCode *)obj;
-    if (code_obj->body.outer) {
+    if (code_obj->body.outer)
         code_obj->body.outer = MVM_frame_dec_ref(tc, code_obj->body.outer);
-    }
+    MVM_checked_free_null(code_obj->body.state_vars);
 }
 
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    /* XXX in the end we'll support inlining of this... */
     MVMStorageSpec spec;
     spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
