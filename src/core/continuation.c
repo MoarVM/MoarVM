@@ -66,7 +66,8 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     });
 
     /* Move back to the root frame. */
-    tc->cur_frame = root_frame;
+    MVM_frame_dec_ref(tc, tc->cur_frame);
+    tc->cur_frame = MVM_frame_inc_ref(tc, root_frame);
     *(tc->interp_cur_op) = tc->cur_frame->return_address;
     *(tc->interp_bytecode_start) = tc->cur_frame->static_info->body.bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
@@ -104,7 +105,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     tc->cur_frame->return_address = *(tc->interp_cur_op);
 
     /* Switch to the target frame. */
-    tc->cur_frame = cont->body.top;
+    MVM_frame_dec_ref(tc, tc->cur_frame);
+    tc->cur_frame = MVM_frame_inc_ref(tc, cont->body.top);
     *(tc->interp_cur_op) = cont->body.addr;
     *(tc->interp_bytecode_start) = tc->cur_frame->static_info->body.bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
