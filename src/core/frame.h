@@ -18,6 +18,15 @@ struct MVMLexicalRegistry {
     UT_hash_handle hash_handle;
 };
 
+/* Entry in the linked list of continuation tags for the frame. */
+struct MVMContinuationTag {
+    /* The tag itself. */
+    MVMObject *tag;
+
+    /* The next continuation tag entry. */
+    MVMContinuationTag *next;
+};
+
 /* Function pointer type of special return handler. These are used to allow
  * return to be intercepted in some way, for things that need to do multiple
  * calls into the runloop in some C-managed process. Essentially, instead of
@@ -89,6 +98,9 @@ struct MVMFrame {
     /* Address of the last op executed that threw an exeption; used just
      * for error reporting. */
     MVMuint8 *throw_address;
+
+    /* Linked list of any continuation tags we have. */
+    MVMContinuationTag *continuation_tags;
 
     /* Linked MVMContext object, so we can track the
      * serialization context and such. */

@@ -3880,8 +3880,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_continuation_reset(tc, tag, code, res);
                 goto NEXT;
             }
-            OP(continuationcontrol):
-                MVM_exception_throw_adhoc(tc, "continuationcontrol NYI");
+            OP(continuationcontrol): {
+                MVMRegister *res     = &GET_REG(cur_op, 0);
+                MVMint64     protect = GET_REG(cur_op, 2).i64;
+                MVMObject   *tag     = GET_REG(cur_op, 4).o;
+                MVMObject   *code    = GET_REG(cur_op, 6).o;
+                cur_op += 8;
+                MVM_continuation_control(tc, protect, tag, code, res);
+                goto NEXT;
+            }
             OP(continuationinvoke):
                 MVM_exception_throw_adhoc(tc, "continuationinvoke NYI");
 #if MVM_CGOTO

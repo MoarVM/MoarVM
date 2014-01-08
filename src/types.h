@@ -26,6 +26,7 @@ typedef struct MVMContainerSpec MVMContainerSpec;
 typedef struct MVMContainerRegistry MVMContainerRegistry;
 typedef struct MVMContext MVMContext;
 typedef struct MVMContextBody MVMContextBody;
+typedef struct MVMContinuationTag MVMContinuationTag;
 typedef struct MVMDLLRegistry MVMDLLRegistry;
 typedef struct MVMDLLSym MVMDLLSym;
 typedef struct MVMDLLSymBody MVMDLLSymBody;

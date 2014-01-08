@@ -138,8 +138,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame = malloc(sizeof(MVMFrame));
         frame->params.named_used = NULL;
 
-        /* Ensure special return pointer is null. */
+        /* Ensure special return pointer and continuation tags are null. */
         frame->special_return = NULL;
+        frame->continuation_tags = NULL;
     }
     else {
         tc->frame_pool_table[pool_index] = node->outer;
@@ -350,6 +351,17 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     /* Clear up argument processing leftovers, if any. */
     if (returner->work) {
         MVM_args_proc_cleanup_for_cache(tc, &returner->params);
+    }
+
+    /* Clear up any continuation tags. */
+    if (returner->continuation_tags) {
+        MVMContinuationTag *tag = returner->continuation_tags;
+        while (tag) {
+            MVMContinuationTag *next = tag->next;
+            free(tag);
+            tag = next;
+        }
+        returner->continuation_tags = NULL;
     }
 
     /* Signal to the GC to ignore ->work */
