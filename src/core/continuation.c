@@ -122,3 +122,38 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
     STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
 }
+
+MVMContinuation * MVM_continuation_clone(MVMThreadContext *tc, MVMContinuation *cont) {
+    MVMContinuation *result;
+
+    /* Clone all the frames. */
+    MVMFrame *cur_to_clone = cont->body.top;
+    MVMFrame *last_clone   = NULL;
+    MVMFrame *cloned_top   = NULL;
+    MVMFrame *cloned_root  = NULL;
+    while (!cloned_root) {
+        MVMFrame *clone = MVM_frame_clone(tc, cur_to_clone);
+        if (!cloned_top)
+            cloned_top = clone;
+        if (cur_to_clone == cont->body.root)
+            cloned_root = clone;
+        if (last_clone)
+            last_clone->caller = clone;
+        last_clone   = clone;
+        cur_to_clone = cur_to_clone->caller;
+    }
+
+    /* Increment ref-count of caller of root, since there's now an extra
+     * frame pointing at it. */
+    MVM_frame_inc_ref(tc, cloned_root->caller);
+
+    /* Build a new continuation. */
+    MVMROOT(tc, cont, {
+        result = (MVMContinuation *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
+        result->body.top     = cloned_top;
+        result->body.addr    = cont->body.addr;
+        result->body.res_reg = cont->body.res_reg;
+        result->body.root    = cloned_root;
+    });
+    return result;
+}

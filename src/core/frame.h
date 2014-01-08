@@ -166,3 +166,4 @@ MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFram
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
 MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);
+MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f);
