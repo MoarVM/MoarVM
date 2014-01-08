@@ -64,6 +64,8 @@ typedef struct MVMNFAStateInfo MVMNFAStateInfo;
 typedef struct MVMMultiCache MVMMultiCache;
 typedef struct MVMMultiCacheBody MVMMultiCacheBody;
 typedef struct MVMMultiArityCache MVMMultiArityCache;
+typedef struct MVMContinuation MVMContinuation;
+typedef struct MVMContinuationBody MVMContinuationBody;
 typedef struct MVMObject MVMObject;
 typedef struct MVMObjectStooge MVMObjectStooge;
 typedef struct MVMOpInfo MVMOpInfo;
