@@ -39,11 +39,12 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Hunt the tag on the stack; mark frames as being incorporated into a
      * continuation as we go to avoid a second pass. */
-    MVMFrame           *root_frame  = tc->cur_frame;
+    MVMFrame           *jump_frame  = tc->cur_frame;
+    MVMFrame           *root_frame  = NULL;
     MVMContinuationTag *tag_record  = NULL;
-    while (root_frame) {
-        root_frame->in_continuation = 1;
-        tag_record = root_frame->continuation_tags;
+    while (jump_frame) {
+        jump_frame->in_continuation = 1;
+        tag_record = jump_frame->continuation_tags;
         while (tag_record) {
             if (!tag || tag_record->tag == tag)
                 break;
@@ -51,10 +52,13 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         }
         if (tag_record)
             break;
-        root_frame = root_frame->caller;
+        root_frame = jump_frame;
+        jump_frame = jump_frame->caller;
     }
     if (!tag_record)
         MVM_exception_throw_adhoc(tc, "No matching continuation reset found");
+    if (!root_frame)
+        MVM_exception_throw_adhoc(tc, "No continuation root frame found");
 
     /* Create continuation. */
     MVMROOT(tc, code, {
@@ -65,9 +69,9 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         ((MVMContinuation *)cont)->body.root    = MVM_frame_inc_ref(tc, root_frame);
     });
 
-    /* Move back to the root frame. */
+    /* Move back to the frame with the reset in it. */
     MVM_frame_dec_ref(tc, tc->cur_frame);
-    tc->cur_frame = MVM_frame_inc_ref(tc, root_frame);
+    tc->cur_frame = MVM_frame_inc_ref(tc, jump_frame);
     *(tc->interp_cur_op) = tc->cur_frame->return_address;
     *(tc->interp_bytecode_start) = tc->cur_frame->static_info->body.bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
