@@ -61,15 +61,10 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
     spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
 
-    if (repr_data && repr_data->bits) {
+    if (repr_data && repr_data->bits)
         spec.bits = repr_data->bits;
-        if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
-         && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-            MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%d bit)", repr_data->bits);
-    }
-    else {
+    else
         spec.bits = sizeof(MVMint64) * 8;
-    }
 
     return spec;
 }
