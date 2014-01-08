@@ -37,10 +37,12 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
                               MVMRegister *res_reg) {
     MVMObject *cont;
 
-    /* Hunt the tag on the stack. */
+    /* Hunt the tag on the stack; mark frames as being incorporated into a
+     * continuation as we go to avoid a second pass. */
     MVMFrame           *root_frame  = tc->cur_frame;
     MVMContinuationTag *tag_record  = NULL;
     while (root_frame) {
+        root_frame->in_continuation = 1;
         tag_record = root_frame->continuation_tags;
         while (tag_record) {
             if (!tag || tag_record->tag == tag)

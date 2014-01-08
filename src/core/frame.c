@@ -221,6 +221,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     else
         frame->caller = NULL;
     frame->keep_caller = 0;
+    frame->in_continuation = 0;
 
     /* Initial reference count is 1 by virtue of it being the currently
      * executing frame. */
@@ -345,36 +346,41 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
 
-    /* Arguments buffer no longer in use (saves GC visiting it). */
-    returner->cur_args_callsite = NULL;
+    /* Some cleanup we only need do if we're not a frame involved in a
+     * continuation (otherwise we need to allow for multi-shot
+     * re-invocation. */
+    if (!returner->in_continuation) {
+        /* Arguments buffer no longer in use (saves GC visiting it). */
+        returner->cur_args_callsite = NULL;
 
-    /* Clear up argument processing leftovers, if any. */
-    if (returner->work) {
-        MVM_args_proc_cleanup_for_cache(tc, &returner->params);
-    }
-
-    /* Clear up any continuation tags. */
-    if (returner->continuation_tags) {
-        MVMContinuationTag *tag = returner->continuation_tags;
-        while (tag) {
-            MVMContinuationTag *next = tag->next;
-            free(tag);
-            tag = next;
+        /* Clear up argument processing leftovers, if any. */
+        if (returner->work) {
+            MVM_args_proc_cleanup_for_cache(tc, &returner->params);
         }
-        returner->continuation_tags = NULL;
-    }
 
-    /* Signal to the GC to ignore ->work */
-    returner->tc = NULL;
-
-    /* Unless we need to keep the caller chain in place, clear it up. */
-    if (caller) {
-        if (!returner->keep_caller) {
-            MVM_frame_dec_ref(tc, caller);
-            returner->caller = NULL;
+        /* Clear up any continuation tags. */
+        if (returner->continuation_tags) {
+            MVMContinuationTag *tag = returner->continuation_tags;
+            while (tag) {
+                MVMContinuationTag *next = tag->next;
+                free(tag);
+                tag = next;
+            }
+            returner->continuation_tags = NULL;
         }
-        else if (unwind) {
-            caller->keep_caller = 1;
+
+        /* Signal to the GC to ignore ->work */
+        returner->tc = NULL;
+
+        /* Unless we need to keep the caller chain in place, clear it up. */
+        if (caller) {
+            if (!returner->keep_caller) {
+                MVM_frame_dec_ref(tc, caller);
+                returner->caller = NULL;
+            }
+            else if (unwind) {
+                caller->keep_caller = 1;
+            }
         }
     }
 
