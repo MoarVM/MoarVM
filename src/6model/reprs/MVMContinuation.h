@@ -8,6 +8,9 @@ struct MVMContinuationBody {
 
     /* Register to put invoke argument into after resume. */
     MVMRegister *res_reg;
+
+    /* Root of the continuation. */
+    MVMFrame *root;
 };
 struct MVMContinuation {
     MVMObject common;

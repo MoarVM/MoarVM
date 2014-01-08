@@ -57,9 +57,10 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     /* Create continuation. */
     MVMROOT(tc, code, {
         cont = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
-        ((MVMContinuation *)cont)->body.top     = tc->cur_frame;
+        ((MVMContinuation *)cont)->body.top     = MVM_frame_inc_ref(tc, tc->cur_frame);
         ((MVMContinuation *)cont)->body.addr    = *tc->interp_cur_op;
         ((MVMContinuation *)cont)->body.res_reg = res_reg;
+        ((MVMContinuation *)cont)->body.root    = MVM_frame_inc_ref(tc, root_frame);
     });
 
     /* Move back to the root frame. */
@@ -85,4 +86,31 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, &obj_arg_callsite);
     tc->cur_frame->args[0].o = cont;
     STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+}
+
+void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
+                             MVMObject *code, MVMRegister *res_reg) {
+    /* Switch caller of the root to current invoker. */
+    /* XXX Probably not quite right yet. */
+    MVMFrame *orig_caller = cont->body.root->caller;
+    cont->body.root->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
+    MVM_frame_dec_ref(tc, orig_caller);
+
+    /* Set up current frame to receive result. */
+    tc->cur_frame->return_value = res_reg;
+    tc->cur_frame->return_type = MVM_RETURN_OBJ;
+    tc->cur_frame->return_address = *(tc->interp_cur_op);
+
+    /* Switch to the target frame. */
+    tc->cur_frame = cont->body.top;
+    *(tc->interp_cur_op) = cont->body.addr;
+    *(tc->interp_bytecode_start) = tc->cur_frame->static_info->body.bytecode;
+    *(tc->interp_reg_base) = tc->cur_frame->work;
+    *(tc->interp_cu) = tc->cur_frame->static_info->body.cu;
+
+    /* Invoke the specified code, putting its result in the specified result
+     * register. */
+    code = MVM_frame_find_invokee(tc, code, NULL);
+    MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
+    STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
 }

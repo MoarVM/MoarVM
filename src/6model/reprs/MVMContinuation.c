@@ -33,6 +33,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContinuationBody *body = (MVMContinuationBody *)data;
     MVM_gc_worklist_add_frame(tc, worklist, body->top);
+    MVM_gc_worklist_add_frame(tc, worklist, body->root);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -40,6 +41,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMContinuation *ctx = (MVMContinuation *)obj;
     if (ctx->body.top)
         ctx->body.top = MVM_frame_dec_ref(tc, ctx->body.top);
+    if (ctx->body.root)
+        ctx->body.root = MVM_frame_dec_ref(tc, ctx->body.root);
 }
 
 /* Gets the storage specification for this representation. */
