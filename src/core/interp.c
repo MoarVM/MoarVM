@@ -3872,8 +3872,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(continuationclone):
                 MVM_exception_throw_adhoc(tc, "continuationclone NYI");
-            OP(continuationreset):
-                MVM_exception_throw_adhoc(tc, "continuationreset NYI");
+            OP(continuationreset): {
+                MVMRegister *res  = &GET_REG(cur_op, 0);
+                MVMObject   *tag  = GET_REG(cur_op, 2).o;
+                MVMObject   *code = GET_REG(cur_op, 4).o;
+                cur_op += 6;
+                MVM_continuation_reset(tc, tag, code, res);
+                goto NEXT;
+            }
             OP(continuationcontrol):
                 MVM_exception_throw_adhoc(tc, "continuationcontrol NYI");
             OP(continuationinvoke):
