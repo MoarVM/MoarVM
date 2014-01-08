@@ -19,6 +19,7 @@ struct MVMBootTypes {
     MVMObject *BOOTStaticFrame;
     MVMObject *BOOTCompUnit;
     MVMObject *BOOTMultiCache;
+    MVMObject *BOOTContinuation;
 };
 
 /* Various raw types that don't need a HOW */
