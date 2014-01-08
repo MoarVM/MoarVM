@@ -18,52 +18,36 @@ with `gcc` and `clang` on Linux & MacOS X.  We're expanding this with time.
 Type `perl Configure.pl --help` to see the configure-time options, as well
 as some descriptions of the make-time options/targets.
 
-## Build the NQP Cross-Compiler
+## Building an NQP with MoarVM
 
-To run some NQP code, or tests, then:
+After installing MoarVM, you can clone the NQP repository or grab a source
+tarball and use the Configure.pl script in it like so:
 
-    cd nqp-cc
-    perl Configure.pl
-    make
+    perl Configure.pl --backend=moar --prefix=where_your_moarvm_install_lives
 
-Then run some NQP code with:
+Alternatively, the same Configure.pl script in NQP is able to clone, build
+and install a copy of MoarVM on its own if you supply the `--gen-moar` flag.
 
-    nqp nqp-moar-cc.nqp -e "say('Hello, MoarVM')"
+## Building a Rakudo with MoarVM
 
-To run some VM-centric tests, do:
-
-    make test
-
-To run what is passing of the NQP test suite so far, do:
-
-    make nqptest
-
-Very soon, you will be able to run some NQP code by doing:
-
-    cd nqp-cc
-    ../moar nqp.moarvm -e 'say("Alive!")'
-
-Note that at present, you need a working Parrot and NQP in order to run the
-cross-compiler. In the future, NQP will be self-hosting on MoarVM and that
-will not be needed. (NOTE: Actually NQP *has* been bootstrapped on top of
-MoarVM already, but the build system hasn't caught up yet.) In order to
-obtain these, you can replace the initial configure line with:
-
-    perl Configure.pl --gen-parrot --gen-nqp
-
-Then you will need to have nqp-cc/install/bin in your PATH to safely build.
+Currently, the code supporting MoarVM for rakudo lives in the `moar-support`
+branch of the rakudo repository. When pointing it at a `--prefix` that has
+an `nqp-m` installed in it, it will automatically detect and configure the
+MoarVM backend. Alternatively, `--backend=moar,parrot` can be used to force
+it to build the MoarVM and Parrot backends, for example.
 
 ## Status
 
-MoarVM is currently in development. It is capable of running much of the NQP
-test suite when it's cross-compiled, but does not yet host NQP, nor Rakudo
-Perl 6.  We hope these to occur (conservatively) in 2013.
+MoarVM is currently in development. It can run all of the NQP test suite
+and all MoarVM-specific NQP tests (with the exception of continuations)
+without needing cross-compilation. The `moar-support` branch of rakudo is
+progressing quickly and is expected to be merged into `nom` some time
+in or before February 2014.
 
 Unlike the JVM backend of NQP, the MoarVM repo is not currently planned to be
 integrated into the main NQP source repo http://github.com/perl6/nqp but
-instead will be pulled in by a future ConfigureMoarVM.pl (or similarly named)
-backend configure script in the NQP repo, similarly to how the original one
-automatically pulls in the Parrot VM and builds it from its repo.
+instead can be pulled in by `Configure.pl --gen-moar` configure script in the
+NQP repo, same as it can `--gen-parrot`.
 
 ## Contributing
 
