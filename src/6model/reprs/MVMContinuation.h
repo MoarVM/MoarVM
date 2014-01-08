@@ -11,6 +11,9 @@ struct MVMContinuationBody {
 
     /* Root of the continuation. */
     MVMFrame *root;
+
+    /* Active exception handler(s) to restore. */
+    MVMActiveHandler *active_handlers;
 };
 struct MVMContinuation {
     MVMObject common;

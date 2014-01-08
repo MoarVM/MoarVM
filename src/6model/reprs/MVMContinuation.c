@@ -34,6 +34,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMContinuationBody *body = (MVMContinuationBody *)data;
     MVM_gc_worklist_add_frame(tc, worklist, body->top);
     MVM_gc_worklist_add_frame(tc, worklist, body->root);
+    if (body->active_handlers) {
+        MVMActiveHandler *cur_ah = body->active_handlers;
+        while (cur_ah != NULL) {
+            MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
+            cur_ah = cur_ah->next_handler;
+        }
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */

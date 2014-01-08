@@ -69,6 +69,10 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         ((MVMContinuation *)cont)->body.root    = MVM_frame_inc_ref(tc, root_frame);
     });
 
+    /* Save any active exception handler(s), and clear them. */
+    ((MVMContinuation *)cont)->body.active_handlers = tc->active_handlers;
+    tc->active_handlers = NULL;
+
     /* Move back to the frame with the reset in it. */
     MVM_frame_dec_ref(tc, tc->cur_frame);
     tc->cur_frame = MVM_frame_inc_ref(tc, jump_frame);
@@ -115,6 +119,13 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     *(tc->interp_bytecode_start) = tc->cur_frame->static_info->body.bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
     *(tc->interp_cu) = tc->cur_frame->static_info->body.cu;
+
+    /* Put saved active handlers list in place. */
+    /* TODO: if we really need to support double-shot, this needs a re-visit.
+     * As it is, Rakudo's gather/take only needs single-invoke continuations,
+     * so we'll punt on the issue for now. */
+    tc->active_handlers = cont->body.active_handlers;
+    cont->body.active_handlers = NULL;
 
     /* Invoke the specified code, putting its result in the specified result
      * register. */
