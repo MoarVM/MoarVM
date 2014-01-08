@@ -277,6 +277,8 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "close filehandle");
 
+    MVM_checked_free_null(handle->body.filename);
+
     if (uv_fs_close(tc->loop, &req, handle->body.u.fd, NULL) < 0) {
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }

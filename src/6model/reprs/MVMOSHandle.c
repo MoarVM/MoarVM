@@ -59,8 +59,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             }
             break;
         case MVM_OSHANDLE_FD:
-            if (handle->body.filename != NULL)
-                free(handle->body.filename);
+            MVM_checked_free_null(handle->body.filename);
             break;
     }
 }
