@@ -26,7 +26,9 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         return 0;
     }
 
-    sym = (MVMDLLSym *)MVM_dll_find_symbol(tc, lib, ext);
+    MVMROOT(tc, name, {
+        sym = (MVMDLLSym *)MVM_dll_find_symbol(tc, lib, ext);
+    });
     if (!sym) {
         uv_mutex_unlock(&tc->instance->mutex_ext_registry);
         MVM_exception_throw_adhoc(tc, "extension symbol not found");
