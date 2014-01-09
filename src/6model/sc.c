@@ -19,7 +19,16 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 sc->body = scb = calloc(1, sizeof(MVMSerializationContextBody));
                 MVM_ASSIGN_REF(tc, (MVMObject *)sc, scb->handle, handle);
                 MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
+                /* Calling repr_init will allocate, BUT if it does so, and we
+                 * get unlucky, the GC will try to acquire mutex_sc_weakhash.
+                 * This deadlocks. Thus, we force allocation in gen2, which
+                 * can never trigger GC. Note that releasing the mutex early
+                 * is not a good way to fix this, as it leaves a race to
+                 * test/set scb->sc (between the line doing it in this block,
+                 * and in the else clauses beneath it). */
+                MVM_gc_allocate_gen2_default_set(tc);
                 MVM_repr_init(tc, (MVMObject *)sc);
+                MVM_gc_allocate_gen2_default_clear(tc);
                 scb->sc = sc;
             }
             else if (scb->sc) {
