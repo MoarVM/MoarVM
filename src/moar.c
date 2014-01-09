@@ -158,14 +158,17 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
 
-    cu->body.filename = MVM_string_utf8_decode(tc, instance->VMString, filename, strlen(filename));
+    MVMROOT(tc, cu, {
+        /* The call to MVM_string_utf8_decode() may allocate, invalidating the
+           location cu->body.filename */
+        MVMString *const str = MVM_string_utf8_decode(tc, instance->VMString, filename, strlen(filename));
+        cu->body.filename = str;
 
-    /* Run deserialization frame, if there is one. */
-    if (cu->body.deserialize_frame) {
-        MVMROOT(tc, cu, {
+        /* Run deserialization frame, if there is one. */
+        if (cu->body.deserialize_frame) {
             MVM_interp_run(tc, &toplevel_initial_invoke, cu->body.deserialize_frame);
-        });
-    }
+        }
+    });
 
     /* Run the frame marked main, or if there is none then fall back to the
      * first frame. */
