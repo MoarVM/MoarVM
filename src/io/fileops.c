@@ -392,13 +392,64 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     uv_fs_t req;
     char *buf;
 
-    /* XXX TODO length currently means bytes. alter it to mean graphemes. */
-    /* XXX TODO handle length == -1 to mean read to EOF */
-
     verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
 
-    if (length < 1 || length > 99999999) {
-        MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
+    /* XXX TODO length currently means codepoints. Alter it to mean graphemes when we have NFG. */
+    if (handle->body.encoding_type == MVM_encoding_type_utf16)
+        length *= 2;
+    
+    /* A length of -1 means to read to EOF */
+    if (length == -1) {
+        MVMint64 seek_pos;
+        MVMint64 r;
+        uv_fs_t req;
+
+        if ((r = uv_fs_lstat(tc->loop, &req, handle->body.filename, NULL)) == -1) {
+            MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %d", errno);
+        }
+
+        if ((seek_pos = MVM_platform_lseek(handle->body.u.fd, 0, SEEK_CUR)) == -1) {
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+        }
+
+        length = req.statbuf.st_size - seek_pos;
+    }
+    
+    /* We must scan how many bytes the requested codepoint count takes. */
+    if (handle->body.encoding_type == MVM_encoding_type_utf8) {
+        unsigned char ch;
+        MVMint64 cp_have  = 0;
+        MVMint64 cp_want  = length;
+        length            = 0; /* length means bytes from here */
+
+        while (cp_have < cp_want && uv_fs_read(tc->loop, &req, handle->body.u.fd, &ch, 1, -1, NULL) > 0) {
+            if (ch >> 7 == 0) {
+                length++;
+            }
+            else if (ch >> 5 == 0b110) {
+                length += 2;
+                MVM_platform_lseek(handle->body.u.fd, 1, SEEK_CUR);
+            }
+            else if (ch >> 4 == 0b1110) {
+                length += 3;
+                MVM_platform_lseek(handle->body.u.fd, 2, SEEK_CUR);
+            }
+            else if (ch >> 3 == 0b11110) {
+                length += 4;
+                MVM_platform_lseek(handle->body.u.fd, 3, SEEK_CUR);
+            }
+            else {
+                MVM_exception_throw_adhoc(tc, "Malformed character in UTF-8 string: %#x", ch);
+            }
+            cp_have++;
+        }
+
+        if (length > 0)
+            MVM_platform_lseek(handle->body.u.fd, -length, SEEK_CUR);
+    }
+
+    if (length < 0 || length > 99999999) {
+        MVM_exception_throw_adhoc(tc, "read from filehandle length out of range: %d", length);
     }
 
     switch (handle->body.type) {
