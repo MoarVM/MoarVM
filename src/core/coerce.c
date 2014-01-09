@@ -228,7 +228,17 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
 
 MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
     char     *enc = MVM_string_ascii_encode(tc, s, NULL);
-    MVMnum64  n   = atof(enc);
+    MVMnum64  n;
+    if (strcmp(enc, "NaN") == 0)
+        n = MVM_num_nan(tc);
+    else if (strcmp(enc, "Inf") == 0)
+        n = MVM_num_posinf(tc);
+    else if (strcmp(enc, "+Inf") == 0)
+        n = MVM_num_posinf(tc);
+    else if (strcmp(enc, "-Inf") == 0)
+        n = MVM_num_neginf(tc);
+    else
+        n = atof(enc);
     free(enc);
     return n;
 }
