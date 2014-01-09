@@ -7,6 +7,9 @@ static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
  * special frames. Takes place in two steps, with a callback between them which
  * is triggered by the special_return mechanism. */
 static void run_load(MVMThreadContext *tc, void *sr_data);
+static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
+    MVM_gc_worklist_add(tc, worklist, &frame->special_return_data);
+}
 void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     MVMCompUnit *cu, *try_cu;
     MVMLoadedCompUnitName *loaded_name;
@@ -37,7 +40,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
             tc->cur_frame->return_type              = MVM_RETURN_VOID;
             tc->cur_frame->special_return           = run_load;
             tc->cur_frame->special_return_data      = cu;
-            tc->cur_frame->mark_special_return_data = 1;
+            tc->cur_frame->mark_special_return_data = mark_sr_data;
 
             /* Invoke the deserialization frame and return to the runloop. */
             MVM_frame_invoke(tc, cu->body.deserialize_frame, &no_arg_callsite,

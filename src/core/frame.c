@@ -234,7 +234,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Make sure there's no frame context pointer and special return data
      * won't be marked. */
     frame->context_object = NULL;
-    frame->mark_special_return_data = 0;
+    frame->mark_special_return_data = NULL;
 
     /* Clear frame flags. */
     frame->flags = 0;
@@ -402,7 +402,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             caller->special_return = NULL;
             if (!unwind)
                 sr(tc, caller->special_return_data);
-            caller->mark_special_return_data = 0;
+            caller->mark_special_return_data = NULL;
         }
 
         return 1;
