@@ -451,8 +451,7 @@ our %OS_DARWIN = (
     dll => 'lib%s.dylib',
 
     ccshared => '',
-    ldshared => '-dynamiclib',
-    ldrpath  => '-Wl,-rpath,$(PREFIX)/lib',
+    ldshared => '-dynamiclib -install_name $(PREFIX)/lib/libmoar.dylib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
