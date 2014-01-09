@@ -426,15 +426,15 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
             if (ch >> 7 == 0) {
                 length++;
             }
-            else if (ch >> 5 == 0b110) {
+            else if (ch >> 5 == 6) { /* 0b110 */
                 length += 2;
                 MVM_platform_lseek(handle->body.u.fd, 1, SEEK_CUR);
             }
-            else if (ch >> 4 == 0b1110) {
+            else if (ch >> 4 == 14) { /* 0b1110 */
                 length += 3;
                 MVM_platform_lseek(handle->body.u.fd, 2, SEEK_CUR);
             }
-            else if (ch >> 3 == 0b11110) {
+            else if (ch >> 3 == 30) { /* 0b11110*/
                 length += 4;
                 MVM_platform_lseek(handle->body.u.fd, 3, SEEK_CUR);
             }
