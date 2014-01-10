@@ -3908,6 +3908,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "continuationinvoke expects an MVMContinuation");
                 goto NEXT;
             }
+            OP(randscale_n):
+                GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc) * GET_REG(cur_op, 2).n64;
+                cur_op += 4;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
