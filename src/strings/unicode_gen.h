@@ -6,13 +6,13 @@ struct MVMUnicodeNamedValue {
     const char *name;
     MVMint32 value;
 };
-#define num_unicode_property_keypairs 287
+#define num_unicode_property_keypairs 4445
 
 #define MVMCODEPOINTNAMESCOUNT 43833
 #define MVMNUMPROPERTYCODES 82
 
 
-#define num_unicode_property_value_keypairs 2115
+#define num_unicode_property_value_keypairs 2540
 
 typedef enum {
     MVM_UNICODE_PROPERTY_DECOMP_SPEC = 1,

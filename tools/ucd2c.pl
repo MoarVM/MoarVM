@@ -751,13 +751,36 @@ struct MVMUnicodeNamedValue {
             }
         }
     });
+    my %aliases;
+    each_line('PropertyValueAliases', sub { $_ = shift;
+        my @aliases = split /\s*[#;]\s*/;
+        for my $name (@aliases) {
+            if (exists $prop_names->{$name}) {
+                for (@aliases) {
+                    push @{ $aliases{$name} }, $_ unless $_ eq $name;
+                }
+                last;
+            }
+        }
+    });
     for my $key (keys %$prop_names) {
-        my $k = lc($key);
-        $k =~ s/_//g;
+        my $name = $key;
+        $name =~ s/_//g;
+        my $k = lc($name);
         push @lines, "{\"$key\",$prop_names->{$key}}";
+        push @lines, "{\"$name\",$prop_names->{$key}}" if $key =~ /_/;
         # add a canonical one for fallback "fuzzy" matching
         push @lines, "{\"$k\",$prop_names->{$key}}"
             unless exists $prop_names->{$k};
+        for my $alias (@{ $aliases{$key} }) {
+            $name = $alias;
+            $name =~ s/_//g;
+            $k = lc($name);
+            push @lines, "{\"$alias\",$prop_names->{$key}}";
+            push @lines, "{\"$name\",$prop_names->{$key}}" if $alias =~ /_/;
+            push @lines, "{\"$k\",$prop_names->{$key}}"
+                unless exists $prop_names->{$k};
+        }
     }
     $hout .= "
 #define num_unicode_property_keypairs ".scalar(@lines)."\n";
@@ -818,7 +841,12 @@ sub emit_unicode_property_value_keypairs {
                 return;
             }
             for my $alias (@parts) {
-                push @lines, "{\"$alias\",".($prop_val + $value)."}" unless $alias =~ /\./;
+                next if $alias =~ /\./;
+                push @lines, "{\"$alias\",".($prop_val + $value)."}";
+                if ($alias =~ /_/) {
+                    $alias =~ s/_//g;
+                    push @lines, "{\"$alias\",".($prop_val + $value)."}";
+                }
             }
         }
     });
