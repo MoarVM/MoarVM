@@ -556,6 +556,7 @@
 #define MVM_OP_continuationcontrol 552
 #define MVM_OP_continuationinvoke 553
 #define MVM_OP_randscale_n 554
+#define MVM_OP_uniisblock 555
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

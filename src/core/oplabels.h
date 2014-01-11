@@ -556,7 +556,7 @@ static const void * const LABELS[] = {
     &&OP_continuationcontrol,
     &&OP_continuationinvoke,
     &&OP_randscale_n,
-    NULL,
+    &&OP_uniisblock,
     NULL,
     NULL,
     NULL,

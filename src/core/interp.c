@@ -3925,6 +3925,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc) * GET_REG(cur_op, 2).n64;
                 cur_op += 4;
                 goto NEXT;
+            OP(uniisblock):
+                GET_REG(cur_op, 0).i64 = (MVMint64)MVM_unicode_is_in_block(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
