@@ -723,6 +723,17 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
         MVM_exception_throw_adhoc(tc,
             "Serialization sanity check failed: offset != output_size");
 
+    /* If we are compiling at present, then just stash the output for later
+     * incorporation into the bytecode file. */
+    if (tc->compiling_scs && MVM_repr_elems(tc, tc->compiling_scs) &&
+            MVM_repr_at_pos_o(tc, tc->compiling_scs, 0) == (MVMObject *)writer->root.sc) {
+        if (tc->serialized)
+            free(tc->serialized);
+        tc->serialized = output;
+        tc->serialized_size = output_size;
+        return NULL;
+    }
+
     /* Base 64 encode. */
     output_b64 = base64_encode(output, output_size);
     free(output);
@@ -1065,7 +1076,9 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     /* Start serializing. */
     serialize(tc, writer);
 
-    /* Build a single result MVMString out of the serialized data. */
+    /* Build a single result out of the serialized data; note if we're in the
+     * compiler pipeline this will return null and stash the output to write
+     * to a bytecode file later. */
     result = concatenate_outputs(tc, writer);
 
     /* Clear up afterwards. */
@@ -1135,7 +1148,7 @@ MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
         const char *messageFormat, ...) {
     va_list args;
-    if (reader->data)
+    if (!(*tc->interp_cu)->body.serialized && reader->data)
         free(reader->data);
     if (reader->contexts)
         free(reader->contexts);
@@ -1410,21 +1423,26 @@ static MVMSTable * read_stable_ref_func(MVMThreadContext *tc, MVMSerializationRe
  * the reader data structure more fully. */
 static void check_and_dissect_input(MVMThreadContext *tc,
         MVMSerializationReader *reader, MVMString *data_str) {
-    /* Grab data from string. */
     size_t  data_len;
-    /* XXX TODO: create an internals-only interface so a string can
-     * be decoded into an existing buffer if it's big enough... then
-     * cache that buffer on threadcontext to avoid one of the
-     * allocations when decoding base64. */
-    char   *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
-    /* XXX TODO: extend base64_decode to take a pointer to a pointer
-     * to a destination buffer, and to decode to it if the buffer is
-     * big enough... then cache this buffer on the threadcontext to
-     * get rid of the other mallocation... */
-    char   *data     = (char *)base64_decode(data_b64, &data_len);
-    char   *prov_pos = data;
-    char   *data_end = data + data_len;
-    free(data_b64);
+    char   *data;
+    char   *prov_pos;
+    char   *data_end;
+    if (data_str) {
+        /* Grab data from string. */
+        char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
+        data = (char *)base64_decode(data_b64, &data_len);
+        free(data_b64);
+    }
+    else {
+        /* Try to get it from the current compilation unit. */
+        data = (*tc->interp_cu)->body.serialized;
+        if (!data)
+        fail_deserialize(tc, reader,
+            "Failed to find deserialization data in compilation unit");
+        data_len = (*tc->interp_cu)->body.serialized_size;
+    }
+    prov_pos = data;
+    data_end = data + data_len;
 
     /* Ensure we got the data. */
     if (data == NULL)
@@ -1968,7 +1986,11 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
         deserialize_object(tc, reader, i, MVM_sc_get_object(tc, sc, i));
 
     /* Clear up afterwards. */
-    if (reader->data)
+    if ((*tc->interp_cu)->body.serialized) {
+        (*tc->interp_cu)->body.serialized = NULL;
+        (*tc->interp_cu)->body.serialized_size = 0;
+    }
+    else if (reader->data)
         free(reader->data);
     if (reader->contexts)
         free(reader->contexts);

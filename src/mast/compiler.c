@@ -1149,6 +1149,8 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     size += ws->callsite_pos;
     size += ws->bytecode_pos;
     size += ws->annotation_pos;
+    if (vm->serialized)
+        size += vm->serialized_size;
 
     /* Allocate space for the bytecode output. */
     output = (char *)malloc(size);
@@ -1193,7 +1195,16 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         string_heap = NULL;
     }
 
-    /* TODO: SC data. Write nothing for now. */
+    /* SC data. Write it if we have it. */
+    if (vm->serialized) {
+        write_int32(output, SCDATA_HEADER_OFFSET, pos);
+        write_int32(output, SCDATA_HEADER_OFFSET + 4, vm->serialized_size);
+        memcpy(output + pos, vm->serialized, vm->serialized_size);
+        pos += vm->serialized_size;
+        free(vm->serialized);
+        vm->serialized = NULL;
+        vm->serialized_size = 0;
+    }
 
     /* Add bytecode section and its header entries (offset, length). */
     write_int32(output, BYTECODE_HEADER_OFFSET, pos);

@@ -45,6 +45,10 @@ struct MVMCompUnitBody {
     MVMString **strings;
     MVMuint32   num_strings;
 
+    /* Serialized data, if any. */
+    char     *serialized;
+    MVMint32  serialized_size;
+
     /* Array of the resolved serialization contexts, and how many we
      * have. A null in the list indicates not yet resolved */
     MVMSerializationContext **scs;

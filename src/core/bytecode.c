@@ -205,8 +205,17 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs->string_seg       = cu_body->data_start + offset;
     rs->expected_strings = read_int32(cu_body->data_start, STRING_HEADER_OFFSET + 4);
 
-    /* TODO: SC data segment supposedly goes here.
-     *       For now, just reserve 8 bytes. */
+    /* Get SC data, if any. */
+    offset = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET + 4);
+    if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
+        cleanup_all(tc, rs);
+        MVM_exception_throw_adhoc(tc, "Serialized data segment overflows end of stream");
+    }
+    if (offset) {
+        cu_body->serialized = cu_body->data_start + offset;
+        cu_body->serialized_size = size;
+    }
 
     /* Locate bytecode segment. */
     offset = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET);

@@ -161,6 +161,11 @@ struct MVMThreadContext {
      * index 0. */
     MVMObject     *compiling_scs;
 
+    /* Memory buffer pointing to the last thing we serialized, intended to go
+     * into the next compilation unit we write. */
+    char         *serialized;
+    MVMint32      serialized_size;
+
     /* Dispatcher set for next invocation to take. */
     MVMObject     *cur_dispatcher;
 
