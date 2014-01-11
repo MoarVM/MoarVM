@@ -30,6 +30,11 @@ my $gap_length_threshold = 1000;
 my $span_length_threshold = 100;
 my $skip_most_mode = 0;
 my $bitfield_cell_bitwidth = 32;
+my %is_subtype = (
+    Digit => {
+        of => 'Numeric_Type',
+    }
+);
 
 sub progress($);
 sub main {
@@ -102,6 +107,7 @@ sub main {
     emit_names_hash_builder();
     emit_unicode_property_keypairs();
     emit_unicode_property_value_keypairs();
+    emit_block_lookup();
 
     print "done!";
     write_file('src/strings/unicode_db.c', join_sections($db_sections));
@@ -243,13 +249,19 @@ sub enumerated_property {
             $point->{$pname} = $index; # set the property's value index
         });
     });
+    $base->{bit_width} = least_int_ge_lg2($j);
     my @keys = ();
     # stash the keys in an array so they can be put in a table later
     for my $key (keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
+        if ($is_subtype{$key}) {
+            register_enumerated_property($key, {%$base});
+            delete $base->{enum}->{$key};
+        }
+        else {
+            $keys[$base->{enum}->{$key}] = $key;
+        }
     }
     $base->{keys} = \@keys;
-    $base->{bit_width} = least_int_ge_lg2($j);
     register_enumerated_property($pname, $base);
 }
 sub least_int_ge_lg2 {
@@ -295,7 +307,15 @@ sub allocate_bitfield {
                 }
                 last;
             }
-            if ($bit_offset + $prop->{bit_width} <= $bitfield_cell_bitwidth) {
+            if ($is_subtype{$prop->{name}}) {
+                $prop->{word_offset} = $enumerated_properties->{ $is_subtype{$prop->{name}}{of} }{word_offset};
+                $prop->{bit_offset}  = $enumerated_properties->{ $is_subtype{$prop->{name}}{of} }{bit_offset};
+                push @$allocated, $prop;
+                splice(@biggest, $i, 1);
+                $prop->{field_index} = $index++;
+                last;
+            }
+            elsif ($bit_offset + $prop->{bit_width} <= $bitfield_cell_bitwidth) {
                 $prop->{word_offset} = $word_offset;
                 $prop->{bit_offset} = $bit_offset;
                 $bit_offset += $prop->{bit_width};
@@ -664,6 +684,39 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
     $db_sections->{MVM_unicode_get_property_value} = $out;
     $h_sections->{property_code_definitions} = $hout;
 }
+sub emit_block_lookup {
+    my $hout = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);\n";
+    my $out  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block) {
+    MVMCodepoint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, pos);
+    MVMuint64 size;
+    unsigned char *bname = MVM_string_ascii_encode(tc, block, &size);
+";
+
+    my $else = '';
+    each_line('Blocks', sub {
+        $_ = shift;
+        my ($from, $to, $block_name) = /^(\w+)..(\w+); (.+)/;
+        if ($from && $to && $block_name) {
+            $block_name =~ s/[_\s-]//g;
+            my $alias_name = lc($block_name);
+            my $block_len  = length $block_name;
+            my $alias_len  = length $alias_name;
+            if ($block_len && $alias_len) {
+                $out .= "
+    $else if (ord >= 0x$from && ord <= 0x$to) {
+        return strncmp(\"$block_name\", bname, $block_len) == 0 || strncmp(\"$alias_name\", bname, $alias_len) == 0;
+    }";
+                $else = 'else';
+            }
+        }
+    });
+
+    $out .= "
+    return 0;
+}";
+    $db_sections->{block_lookup} = $out;
+    $h_sections->{block_lookup} = $hout;
+}
 sub emit_names_hash_builder {
     my $num_extents = scalar(@$extents);
     my $out = "
@@ -757,7 +810,10 @@ struct MVMUnicodeNamedValue {
         for my $name (@aliases) {
             if (exists $prop_names->{$name}) {
                 for (@aliases) {
-                    push @{ $aliases{$name} }, $_ unless $_ eq $name;
+                    # Only oush another alias if this is actually a new one.
+                    if (!$prop_names->{$_} && $_ ne $name) {
+                        push @{ $aliases{$name} }, $_
+                    }
                 }
                 last;
             }
@@ -807,6 +863,7 @@ sub emit_unicode_property_value_keypairs {
             $enum->{$_} = $toadd->{$_};
         }
     }
+    my %done;
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
@@ -842,14 +899,34 @@ sub emit_unicode_property_value_keypairs {
             }
             for my $alias (@parts) {
                 next if $alias =~ /\./;
+                $done{$alias} = 1;
                 push @lines, "{\"$alias\",".($prop_val + $value)."}";
                 if ($alias =~ /_/) {
                     $alias =~ s/_//g;
+                    $done{$alias} = 1;
                     push @lines, "{\"$alias\",".($prop_val + $value)."}";
                 }
             }
         }
     });
+    # XXX This is worse than worse... We need a way to obtain that information from the unicode database somehow.
+    my @one   = qw(ASCII_Hex_Digit Hex_Digit Dash Diacritic Extender Grapheme_Link Hyphen IDS_Binary_Operator IDS_Trinary_Operator
+                   Join_Control Logical_Order_Exception Noncharacter_Code_Point Other_Alphabetic Other_Default_Ignorable_Code_Point
+                   Other_Grapheme_Extend Other_Lowercase Other_Math Other_Uppercase Quotation_Mark Radical Quotation_Mark Soft_Dotted
+                   Terminal_Punctuation Unified_Ideograph White_Space Other_Number);
+    my @three = qw(Digit);
+    for (@one) {
+        next if $done{$_} || !$prop_names->{$_};
+        my $v = ($prop_names->{$_} << 24) + 1;
+        push @lines, "{\"$_\",$v}";
+        push @lines, "{\"$_\",$v}" if s/_//g
+    }
+    for (@three) {
+        next if $done{$_} || !$prop_names->{$_};
+        my $v = ($prop_names->{$_} << 24) + 3;
+        push @lines, "{\"$_\",$v}";
+        push @lines, "{\"$_\",$v}" if s/_//g
+    }
     $hout .= "
 #define num_unicode_property_value_keypairs ".scalar(@lines)."\n";
     my $out = "

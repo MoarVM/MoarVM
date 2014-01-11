@@ -32934,51 +32934,51 @@ static const MVMuint32 props_bitfield[9100][6] = {
     /*9099*/{0,3522u,524288u,2281701386u,0,805306368u}/* 100001 */
 };
 
-static const MVMUnicodeNamedValue unicode_property_keypairs[4445] = {
-    {"Canonical_Combining_Class",9},{"CanonicalCombiningClass",9},{"canonicalcombiningclass",9},{"CWKCF",35},{"cwkcf",35},
-    {"N",35},{"n",35},{"No",35},{"no",35},{"F",35},{"f",35},{"False",35},{"false",35},{"Y",35},{"y",35},{"Yes",35},
-    {"yes",35},{"T",35},{"t",35},{"True",35},{"true",35},{"IDS",52},{"ids",52},{"N",52},{"n",52},{"No",52},{"no",52},
-    {"F",52},{"f",52},{"False",52},{"false",52},{"Y",52},{"y",52},{"Yes",52},{"yes",52},{"T",52},{"t",52},{"True",52},
-    {"true",52},{"Dep",40},{"dep",40},{"N",40},{"n",40},{"No",40},{"no",40},{"F",40},{"f",40},{"False",40},{"false",40},
-    {"Y",40},{"y",40},{"Yes",40},{"yes",40},{"T",40},{"t",40},{"True",40},{"true",40},{"Changes_When_Casemapped",33},
-    {"ChangesWhenCasemapped",33},{"changeswhencasemapped",33},{"Numeric_Type",20},{"NumericType",20},{"numerictype",20},
-    {"NFKC_Quick_Check",21},{"NFKCQuickCheck",21},{"nfkcquickcheck",21},{"OAlpha",61},{"oalpha",61},{"N",61},{"n",61},
-    {"No",61},{"no",61},{"F",61},{"f",61},{"False",61},{"false",61},{"Y",61},{"y",61},{"Yes",61},{"yes",61},{"T",61},
-    {"t",61},{"True",61},{"true",61},{"Lower",56},{"lower",56},{"N",56},{"n",56},{"No",56},{"no",56},{"F",56},{"f",56},
-    {"False",56},{"false",56},{"Y",56},{"y",56},{"Yes",56},{"yes",56},{"T",56},{"t",56},{"True",56},{"true",56},
-    {"IDS_Binary_Operator",49},{"IDSBinaryOperator",49},{"idsbinaryoperator",49},{"GCB",18},{"gcb",18},{"CN",18},{"cn",18},
+static const MVMUnicodeNamedValue unicode_property_keypairs[4426] = {
+    {"Canonical_Combining_Class",9},{"CanonicalCombiningClass",9},{"canonicalcombiningclass",9},{"CWKCF",36},{"cwkcf",36},
+    {"N",36},{"n",36},{"No",36},{"no",36},{"F",36},{"f",36},{"False",36},{"false",36},{"Y",36},{"y",36},{"Yes",36},
+    {"yes",36},{"T",36},{"t",36},{"True",36},{"true",36},{"IDS",53},{"ids",53},{"N",53},{"n",53},{"No",53},{"no",53},
+    {"F",53},{"f",53},{"False",53},{"false",53},{"Y",53},{"y",53},{"Yes",53},{"yes",53},{"T",53},{"t",53},{"True",53},
+    {"true",53},{"Dep",41},{"dep",41},{"N",41},{"n",41},{"No",41},{"no",41},{"F",41},{"f",41},{"False",41},{"false",41},
+    {"Y",41},{"y",41},{"Yes",41},{"yes",41},{"T",41},{"t",41},{"True",41},{"true",41},{"Changes_When_Casemapped",34},
+    {"ChangesWhenCasemapped",34},{"changeswhencasemapped",34},{"Numeric_Type",20},{"NumericType",20},{"numerictype",20},
+    {"NFKC_Quick_Check",21},{"NFKCQuickCheck",21},{"nfkcquickcheck",21},{"OAlpha",62},{"oalpha",62},{"N",62},{"n",62},
+    {"No",62},{"no",62},{"F",62},{"f",62},{"False",62},{"false",62},{"Y",62},{"y",62},{"Yes",62},{"yes",62},{"T",62},
+    {"t",62},{"True",62},{"true",62},{"Lower",57},{"lower",57},{"N",57},{"n",57},{"No",57},{"no",57},{"F",57},{"f",57},
+    {"False",57},{"false",57},{"Y",57},{"y",57},{"Yes",57},{"yes",57},{"T",57},{"t",57},{"True",57},{"true",57},
+    {"IDS_Binary_Operator",50},{"IDSBinaryOperator",50},{"idsbinaryoperator",50},{"GCB",18},{"gcb",18},{"CN",18},{"cn",18},
     {"Control",18},{"control",18},{"CR",18},{"cr",18},{"CR",18},{"cr",18},{"EX",18},{"ex",18},{"Extend",18},{"extend",18},
     {"L",18},{"l",18},{"L",18},{"l",18},{"LF",18},{"lf",18},{"LF",18},{"lf",18},{"LV",18},{"lv",18},{"LV",18},{"lv",18},
     {"LVT",18},{"lvt",18},{"LVT",18},{"lvt",18},{"PP",18},{"pp",18},{"Prepend",18},{"prepend",18},{"RI",18},{"ri",18},
     {"Regional_Indicator",18},{"RegionalIndicator",18},{"regionalindicator",18},{"SM",18},{"sm",18},{"SpacingMark",18},
     {"spacingmark",18},{"T",18},{"t",18},{"T",18},{"t",18},{"V",18},{"v",18},{"V",18},{"v",18},{"XX",18},{"xx",18},
-    {"Other",18},{"other",18},{"IDS_Trinary_Operator",50},{"IDSTrinaryOperator",50},{"idstrinaryoperator",50},
-    {"Lowercase",56},{"lowercase",56},{"DI",39},{"di",39},{"N",39},{"n",39},{"No",39},{"no",39},{"F",39},{"f",39},
-    {"False",39},{"false",39},{"Y",39},{"y",39},{"Yes",39},{"yes",39},{"T",39},{"t",39},{"True",39},{"true",39},{"AHex",25},
-    {"ahex",25},{"N",25},{"n",25},{"No",25},{"no",25},{"F",25},{"f",25},{"False",25},{"false",25},{"Y",25},{"y",25},
-    {"Yes",25},{"yes",25},{"T",25},{"t",25},{"True",25},{"true",25},{"Diacritic",41},{"diacritic",41},{"OLower",66},
-    {"olower",66},{"N",66},{"n",66},{"No",66},{"no",66},{"F",66},{"f",66},{"False",66},{"false",66},{"Y",66},{"y",66},
-    {"Yes",66},{"yes",66},{"T",66},{"t",66},{"True",66},{"true",66},{"NFD_Quick_Check",58},{"NFDQuickCheck",58},
-    {"nfdquickcheck",58},{"LOE",55},{"loe",55},{"N",55},{"n",55},{"No",55},{"no",55},{"F",55},{"f",55},{"False",55},
-    {"false",55},{"Y",55},{"y",55},{"Yes",55},{"yes",55},{"T",55},{"t",55},{"True",55},{"true",55},{"NFKD_Quick_Check",59},
-    {"NFKDQuickCheck",59},{"nfkdquickcheck",59},{"Joining_Group",10},{"JoiningGroup",10},{"joininggroup",10},{"Bidi_M",28},
-    {"BidiM",28},{"bidim",28},{"N",28},{"n",28},{"No",28},{"no",28},{"F",28},{"f",28},{"False",28},{"false",28},{"Y",28},
-    {"y",28},{"Yes",28},{"yes",28},{"T",28},{"t",28},{"True",28},{"true",28},{"Hex_Digit",47},{"HexDigit",47},
-    {"hexdigit",47},{"Radical",72},{"radical",72},{"N",72},{"n",72},{"No",72},{"no",72},{"F",72},{"f",72},{"False",72},
-    {"false",72},{"Y",72},{"y",72},{"Yes",72},{"yes",72},{"T",72},{"t",72},{"True",72},{"true",72},{"STerm",73},{"sterm",73},
-    {"N",73},{"n",73},{"No",73},{"no",73},{"F",73},{"f",73},{"False",73},{"false",73},{"Y",73},{"y",73},{"Yes",73},
-    {"yes",73},{"T",73},{"t",73},{"True",73},{"true",73},{"Ext",42},{"ext",42},{"N",42},{"n",42},{"No",42},{"no",42},
-    {"F",42},{"f",42},{"False",42},{"false",42},{"Y",42},{"y",42},{"Yes",42},{"yes",42},{"T",42},{"t",42},{"True",42},
-    {"true",42},{"OMath",67},{"omath",67},{"N",67},{"n",67},{"No",67},{"no",67},{"F",67},{"f",67},{"False",67},{"false",67},
-    {"Y",67},{"y",67},{"Yes",67},{"yes",67},{"T",67},{"t",67},{"True",67},{"true",67},{"ODI",62},{"odi",62},{"N",62},
-    {"n",62},{"No",62},{"no",62},{"F",62},{"f",62},{"False",62},{"false",62},{"Y",62},{"y",62},{"Yes",62},{"yes",62},
-    {"T",62},{"t",62},{"True",62},{"true",62},{"Term",75},{"term",75},{"N",75},{"n",75},{"No",75},{"no",75},{"F",75},
-    {"f",75},{"False",75},{"false",75},{"Y",75},{"y",75},{"Yes",75},{"yes",75},{"T",75},{"t",75},{"True",75},{"true",75},
-    {"QMark",71},{"qmark",71},{"N",71},{"n",71},{"No",71},{"no",71},{"F",71},{"f",71},{"False",71},{"false",71},{"Y",71},
-    {"y",71},{"Yes",71},{"yes",71},{"T",71},{"t",71},{"True",71},{"true",71},{"XIDS",81},{"xids",81},{"N",81},{"n",81},
-    {"No",81},{"no",81},{"F",81},{"f",81},{"False",81},{"false",81},{"Y",81},{"y",81},{"Yes",81},{"yes",81},{"T",81},
-    {"t",81},{"True",81},{"true",81},{"Bidi_C",27},{"BidiC",27},{"bidic",27},{"N",27},{"n",27},{"No",27},{"no",27},{"F",27},
-    {"f",27},{"False",27},{"false",27},{"Y",27},{"y",27},{"Yes",27},{"yes",27},{"T",27},{"t",27},{"True",27},{"true",27},
+    {"Other",18},{"other",18},{"IDS_Trinary_Operator",51},{"IDSTrinaryOperator",51},{"idstrinaryoperator",51},
+    {"Lowercase",57},{"lowercase",57},{"DI",40},{"di",40},{"N",40},{"n",40},{"No",40},{"no",40},{"F",40},{"f",40},
+    {"False",40},{"false",40},{"Y",40},{"y",40},{"Yes",40},{"yes",40},{"T",40},{"t",40},{"True",40},{"true",40},{"AHex",26},
+    {"ahex",26},{"N",26},{"n",26},{"No",26},{"no",26},{"F",26},{"f",26},{"False",26},{"false",26},{"Y",26},{"y",26},
+    {"Yes",26},{"yes",26},{"T",26},{"t",26},{"True",26},{"true",26},{"Diacritic",42},{"diacritic",42},{"OLower",67},
+    {"olower",67},{"N",67},{"n",67},{"No",67},{"no",67},{"F",67},{"f",67},{"False",67},{"false",67},{"Y",67},{"y",67},
+    {"Yes",67},{"yes",67},{"T",67},{"t",67},{"True",67},{"true",67},{"NFD_Quick_Check",59},{"NFDQuickCheck",59},
+    {"nfdquickcheck",59},{"LOE",56},{"loe",56},{"N",56},{"n",56},{"No",56},{"no",56},{"F",56},{"f",56},{"False",56},
+    {"false",56},{"Y",56},{"y",56},{"Yes",56},{"yes",56},{"T",56},{"t",56},{"True",56},{"true",56},{"NFKD_Quick_Check",60},
+    {"NFKDQuickCheck",60},{"nfkdquickcheck",60},{"Joining_Group",10},{"JoiningGroup",10},{"joininggroup",10},{"Bidi_M",29},
+    {"BidiM",29},{"bidim",29},{"N",29},{"n",29},{"No",29},{"no",29},{"F",29},{"f",29},{"False",29},{"false",29},{"Y",29},
+    {"y",29},{"Yes",29},{"yes",29},{"T",29},{"t",29},{"True",29},{"true",29},{"Hex_Digit",48},{"HexDigit",48},
+    {"hexdigit",48},{"Radical",73},{"radical",73},{"N",73},{"n",73},{"No",73},{"no",73},{"F",73},{"f",73},{"False",73},
+    {"false",73},{"Y",73},{"y",73},{"Yes",73},{"yes",73},{"T",73},{"t",73},{"True",73},{"true",73},{"STerm",74},{"sterm",74},
+    {"N",74},{"n",74},{"No",74},{"no",74},{"F",74},{"f",74},{"False",74},{"false",74},{"Y",74},{"y",74},{"Yes",74},
+    {"yes",74},{"T",74},{"t",74},{"True",74},{"true",74},{"Ext",43},{"ext",43},{"N",43},{"n",43},{"No",43},{"no",43},
+    {"F",43},{"f",43},{"False",43},{"false",43},{"Y",43},{"y",43},{"Yes",43},{"yes",43},{"T",43},{"t",43},{"True",43},
+    {"true",43},{"OMath",68},{"omath",68},{"N",68},{"n",68},{"No",68},{"no",68},{"F",68},{"f",68},{"False",68},{"false",68},
+    {"Y",68},{"y",68},{"Yes",68},{"yes",68},{"T",68},{"t",68},{"True",68},{"true",68},{"ODI",63},{"odi",63},{"N",63},
+    {"n",63},{"No",63},{"no",63},{"F",63},{"f",63},{"False",63},{"false",63},{"Y",63},{"y",63},{"Yes",63},{"yes",63},
+    {"T",63},{"t",63},{"True",63},{"true",63},{"Term",76},{"term",76},{"N",76},{"n",76},{"No",76},{"no",76},{"F",76},
+    {"f",76},{"False",76},{"false",76},{"Y",76},{"y",76},{"Yes",76},{"yes",76},{"T",76},{"t",76},{"True",76},{"true",76},
+    {"QMark",72},{"qmark",72},{"N",72},{"n",72},{"No",72},{"no",72},{"F",72},{"f",72},{"False",72},{"false",72},{"Y",72},
+    {"y",72},{"Yes",72},{"yes",72},{"T",72},{"t",72},{"True",72},{"true",72},{"XIDS",82},{"xids",82},{"N",82},{"n",82},
+    {"No",82},{"no",82},{"F",82},{"f",82},{"False",82},{"false",82},{"Y",82},{"y",82},{"Yes",82},{"yes",82},{"T",82},
+    {"t",82},{"True",82},{"true",82},{"Bidi_C",28},{"BidiC",28},{"bidic",28},{"N",28},{"n",28},{"No",28},{"no",28},{"F",28},
+    {"f",28},{"False",28},{"false",28},{"Y",28},{"y",28},{"Yes",28},{"yes",28},{"T",28},{"t",28},{"True",28},{"true",28},
     {"blk",6},{"Aegean_Numbers",6},{"AegeanNumbers",6},{"aegeannumbers",6},{"Aegean_Numbers",6},{"AegeanNumbers",6},
     {"aegeannumbers",6},{"Alchemical",6},{"alchemical",6},{"Alchemical_Symbols",6},{"AlchemicalSymbols",6},
     {"alchemicalsymbols",6},{"Alphabetic_PF",6},{"AlphabeticPF",6},{"alphabeticpf",6},{"Alphabetic_Presentation_Forms",6},
@@ -33076,7 +33076,7 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[4445] = {
     {"hanunoo",6},{"Hebrew",6},{"hebrew",6},{"Hebrew",6},{"hebrew",6},{"High_PU_Surrogates",6},{"HighPUSurrogates",6},
     {"highpusurrogates",6},{"High_Private_Use_Surrogates",6},{"HighPrivateUseSurrogates",6},{"highprivateusesurrogates",6},
     {"High_Surrogates",6},{"HighSurrogates",6},{"highsurrogates",6},{"High_Surrogates",6},{"HighSurrogates",6},
-    {"highsurrogates",6},{"Hiragana",6},{"hiragana",6},{"Hiragana",6},{"hiragana",6},{"IDC",6},{"idc",6},
+    {"highsurrogates",6},{"Hiragana",6},{"hiragana",6},{"Hiragana",6},{"hiragana",6},
     {"Ideographic_Description_Characters",6},{"IdeographicDescriptionCharacters",6},{"ideographicdescriptioncharacters",6},
     {"Imperial_Aramaic",6},{"ImperialAramaic",6},{"imperialaramaic",6},{"Imperial_Aramaic",6},{"ImperialAramaic",6},
     {"imperialaramaic",6},{"Indic_Number_Forms",6},{"IndicNumberForms",6},{"indicnumberforms",6},
@@ -33191,7 +33191,7 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[4445] = {
     {"UnifiedCanadianAboriginalSyllabicsExtended",6},{"unifiedcanadianaboriginalsyllabicsextended",6},{"Ugaritic",6},
     {"ugaritic",6},{"Ugaritic",6},{"ugaritic",6},{"Vai",6},{"vai",6},{"Vai",6},{"vai",6},{"Vedic_Ext",6},{"VedicExt",6},
     {"vedicext",6},{"Vedic_Extensions",6},{"VedicExtensions",6},{"vedicextensions",6},{"Vertical_Forms",6},
-    {"VerticalForms",6},{"verticalforms",6},{"Vertical_Forms",6},{"VerticalForms",6},{"verticalforms",6},{"VS",6},{"vs",6},
+    {"VerticalForms",6},{"verticalforms",6},{"Vertical_Forms",6},{"VerticalForms",6},{"verticalforms",6},
     {"Variation_Selectors",6},{"VariationSelectors",6},{"variationselectors",6},{"VS_Sup",6},{"VSSup",6},{"vssup",6},
     {"Variation_Selectors_Supplement",6},{"VariationSelectorsSupplement",6},{"variationselectorssupplement",6},
     {"Yi_Radicals",6},{"YiRadicals",6},{"yiradicals",6},{"Yi_Radicals",6},{"YiRadicals",6},{"yiradicals",6},
@@ -33205,38 +33205,39 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[4445] = {
     {"midnumlet",12},{"ML",12},{"ml",12},{"MidLetter",12},{"midletter",12},{"MN",12},{"mn",12},{"MidNum",12},{"midnum",12},
     {"NL",12},{"nl",12},{"Newline",12},{"newline",12},{"NU",12},{"nu",12},{"Numeric",12},{"numeric",12},{"RI",12},{"ri",12},
     {"Regional_Indicator",12},{"RegionalIndicator",12},{"regionalindicator",12},{"SQ",12},{"sq",12},{"Single_Quote",12},
-    {"SingleQuote",12},{"singlequote",12},{"XX",12},{"xx",12},{"Other",12},{"other",12},{"Bidi_Control",27},
-    {"BidiControl",27},{"bidicontrol",27},{"Script",8},{"script",8},{"Case_Change_Index",2},{"CaseChangeIndex",2},
-    {"casechangeindex",2},{"Other_Math",67},{"OtherMath",67},{"othermath",67},{"General_Category",14},{"GeneralCategory",14},
-    {"generalcategory",14},{"Grapheme_Extend",45},{"GraphemeExtend",45},{"graphemeextend",45},{"White_Space",79},
-    {"WhiteSpace",79},{"whitespace",79},{"Math",57},{"math",57},{"N",57},{"n",57},{"No",57},{"no",57},{"F",57},{"f",57},
-    {"False",57},{"false",57},{"Y",57},{"y",57},{"Yes",57},{"yes",57},{"T",57},{"t",57},{"True",57},{"true",57},
-    {"Unified_Ideograph",76},{"UnifiedIdeograph",76},{"unifiedideograph",76},{"Variation_Selector",78},
-    {"VariationSelector",78},{"variationselector",78},{"Other_Uppercase",68},{"OtherUppercase",68},{"otheruppercase",68},
-    {"Bidi_Mirroring_Glyph",5},{"BidiMirroringGlyph",5},{"bidimirroringglyph",5},{"Extender",42},{"extender",42},
-    {"Comp_Ex",43},{"CompEx",43},{"compex",43},{"N",43},{"n",43},{"No",43},{"no",43},{"F",43},{"f",43},{"False",43},
-    {"false",43},{"Y",43},{"y",43},{"Yes",43},{"yes",43},{"T",43},{"t",43},{"True",43},{"true",43},{"CWU",37},{"cwu",37},
-    {"N",37},{"n",37},{"No",37},{"no",37},{"F",37},{"f",37},{"False",37},{"false",37},{"Y",37},{"y",37},{"Yes",37},
-    {"yes",37},{"T",37},{"t",37},{"True",37},{"true",37},{"Soft_Dotted",74},{"SoftDotted",74},{"softdotted",74},
-    {"Grapheme_Base",44},{"GraphemeBase",44},{"graphemebase",44},{"NFD_QC",58},{"NFDQC",58},{"nfdqc",58},{"N",58},{"n",58},
-    {"No",58},{"no",58},{"Y",58},{"y",58},{"Yes",58},{"yes",58},{"CI",30},{"ci",30},{"N",30},{"n",30},{"No",30},{"no",30},
-    {"F",30},{"f",30},{"False",30},{"false",30},{"Y",30},{"y",30},{"Yes",30},{"yes",30},{"T",30},{"t",30},{"True",30},
-    {"true",30},{"ASCII_Hex_Digit",25},{"ASCIIHexDigit",25},{"asciihexdigit",25},{"Changes_When_Casefolded",32},
-    {"ChangesWhenCasefolded",32},{"changeswhencasefolded",32},{"Bidi_Class",11},{"BidiClass",11},{"bidiclass",11},
-    {"Block",6},{"block",6},{"Other_Default_Ignorable_Code_Point",62},{"OtherDefaultIgnorableCodePoint",62},
-    {"otherdefaultignorablecodepoint",62},{"Ideo",53},{"ideo",53},{"N",53},{"n",53},{"No",53},{"no",53},{"F",53},{"f",53},
-    {"False",53},{"false",53},{"Y",53},{"y",53},{"Yes",53},{"yes",53},{"T",53},{"t",53},{"True",53},{"true",53},
-    {"OGr_Ext",63},{"OGrExt",63},{"ogrext",63},{"N",63},{"n",63},{"No",63},{"no",63},{"F",63},{"f",63},{"False",63},
-    {"false",63},{"Y",63},{"y",63},{"Yes",63},{"yes",63},{"T",63},{"t",63},{"True",63},{"true",63},{"NFC_Quick_Check",22},
-    {"NFCQuickCheck",22},{"nfcquickcheck",22},{"bc",11},{"AL",11},{"al",11},{"Arabic_Letter",11},{"ArabicLetter",11},
-    {"arabicletter",11},{"AN",11},{"an",11},{"Arabic_Number",11},{"ArabicNumber",11},{"arabicnumber",11},{"B",11},{"b",11},
-    {"Paragraph_Separator",11},{"ParagraphSeparator",11},{"paragraphseparator",11},{"BN",11},{"bn",11},
-    {"Boundary_Neutral",11},{"BoundaryNeutral",11},{"boundaryneutral",11},{"CS",11},{"cs",11},{"Common_Separator",11},
-    {"CommonSeparator",11},{"commonseparator",11},{"EN",11},{"en",11},{"European_Number",11},{"EuropeanNumber",11},
-    {"europeannumber",11},{"ES",11},{"es",11},{"European_Separator",11},{"EuropeanSeparator",11},{"europeanseparator",11},
-    {"ET",11},{"et",11},{"European_Terminator",11},{"EuropeanTerminator",11},{"europeanterminator",11},{"FSI",11},{"fsi",11},
-    {"First_Strong_Isolate",11},{"FirstStrongIsolate",11},{"firststrongisolate",11},{"L",11},{"l",11},{"Left_To_Right",11},
-    {"LeftToRight",11},{"lefttoright",11},{"LRE",11},{"lre",11},{"Left_To_Right_Embedding",11},{"LeftToRightEmbedding",11},
+    {"SingleQuote",12},{"singlequote",12},{"XX",12},{"xx",12},{"Other",12},{"other",12},{"Bidi_Control",28},
+    {"BidiControl",28},{"bidicontrol",28},{"Script",8},{"script",8},{"Case_Change_Index",2},{"CaseChangeIndex",2},
+    {"casechangeindex",2},{"Other_Math",68},{"OtherMath",68},{"othermath",68},{"General_Category",14},{"GeneralCategory",14},
+    {"generalcategory",14},{"Grapheme_Extend",46},{"GraphemeExtend",46},{"graphemeextend",46},{"White_Space",80},
+    {"WhiteSpace",80},{"whitespace",80},{"Math",58},{"math",58},{"N",58},{"n",58},{"No",58},{"no",58},{"F",58},{"f",58},
+    {"False",58},{"false",58},{"Y",58},{"y",58},{"Yes",58},{"yes",58},{"T",58},{"t",58},{"True",58},{"true",58},
+    {"Unified_Ideograph",77},{"UnifiedIdeograph",77},{"unifiedideograph",77},{"Variation_Selector",79},
+    {"VariationSelector",79},{"variationselector",79},{"Other_Uppercase",69},{"OtherUppercase",69},{"otheruppercase",69},
+    {"Bidi_Mirroring_Glyph",5},{"BidiMirroringGlyph",5},{"bidimirroringglyph",5},{"Extender",43},{"extender",43},
+    {"Comp_Ex",44},{"CompEx",44},{"compex",44},{"N",44},{"n",44},{"No",44},{"no",44},{"F",44},{"f",44},{"False",44},
+    {"false",44},{"Y",44},{"y",44},{"Yes",44},{"yes",44},{"T",44},{"t",44},{"True",44},{"true",44},{"Digit",22},{"digit",22},
+    {"CWU",38},{"cwu",38},{"N",38},{"n",38},{"No",38},{"no",38},{"F",38},{"f",38},{"False",38},{"false",38},{"Y",38},
+    {"y",38},{"Yes",38},{"yes",38},{"T",38},{"t",38},{"True",38},{"true",38},{"Soft_Dotted",75},{"SoftDotted",75},
+    {"softdotted",75},{"Grapheme_Base",45},{"GraphemeBase",45},{"graphemebase",45},{"NFD_QC",59},{"NFDQC",59},{"nfdqc",59},
+    {"N",59},{"n",59},{"No",59},{"no",59},{"Y",59},{"y",59},{"Yes",59},{"yes",59},{"CI",31},{"ci",31},{"N",31},{"n",31},
+    {"No",31},{"no",31},{"F",31},{"f",31},{"False",31},{"false",31},{"Y",31},{"y",31},{"Yes",31},{"yes",31},{"T",31},
+    {"t",31},{"True",31},{"true",31},{"ASCII_Hex_Digit",26},{"ASCIIHexDigit",26},{"asciihexdigit",26},
+    {"Changes_When_Casefolded",33},{"ChangesWhenCasefolded",33},{"changeswhencasefolded",33},{"Bidi_Class",11},
+    {"BidiClass",11},{"bidiclass",11},{"Block",6},{"block",6},{"Other_Default_Ignorable_Code_Point",63},
+    {"OtherDefaultIgnorableCodePoint",63},{"otherdefaultignorablecodepoint",63},{"Ideo",54},{"ideo",54},{"N",54},{"n",54},
+    {"No",54},{"no",54},{"F",54},{"f",54},{"False",54},{"false",54},{"Y",54},{"y",54},{"Yes",54},{"yes",54},{"T",54},
+    {"t",54},{"True",54},{"true",54},{"OGr_Ext",64},{"OGrExt",64},{"ogrext",64},{"N",64},{"n",64},{"No",64},{"no",64},
+    {"F",64},{"f",64},{"False",64},{"false",64},{"Y",64},{"y",64},{"Yes",64},{"yes",64},{"T",64},{"t",64},{"True",64},
+    {"true",64},{"NFC_Quick_Check",23},{"NFCQuickCheck",23},{"nfcquickcheck",23},{"bc",11},{"AL",11},{"al",11},
+    {"Arabic_Letter",11},{"ArabicLetter",11},{"arabicletter",11},{"AN",11},{"an",11},{"Arabic_Number",11},
+    {"ArabicNumber",11},{"arabicnumber",11},{"B",11},{"b",11},{"Paragraph_Separator",11},{"ParagraphSeparator",11},
+    {"paragraphseparator",11},{"BN",11},{"bn",11},{"Boundary_Neutral",11},{"BoundaryNeutral",11},{"boundaryneutral",11},
+    {"CS",11},{"cs",11},{"Common_Separator",11},{"CommonSeparator",11},{"commonseparator",11},{"EN",11},{"en",11},
+    {"European_Number",11},{"EuropeanNumber",11},{"europeannumber",11},{"ES",11},{"es",11},{"European_Separator",11},
+    {"EuropeanSeparator",11},{"europeanseparator",11},{"ET",11},{"et",11},{"European_Terminator",11},
+    {"EuropeanTerminator",11},{"europeanterminator",11},{"FSI",11},{"fsi",11},{"First_Strong_Isolate",11},
+    {"FirstStrongIsolate",11},{"firststrongisolate",11},{"L",11},{"l",11},{"Left_To_Right",11},{"LeftToRight",11},
+    {"lefttoright",11},{"LRE",11},{"lre",11},{"Left_To_Right_Embedding",11},{"LeftToRightEmbedding",11},
     {"lefttorightembedding",11},{"LRI",11},{"lri",11},{"Left_To_Right_Isolate",11},{"LeftToRightIsolate",11},
     {"lefttorightisolate",11},{"LRO",11},{"lro",11},{"Left_To_Right_Override",11},{"LeftToRightOverride",11},
     {"lefttorightoverride",11},{"NSM",11},{"nsm",11},{"Nonspacing_Mark",11},{"NonspacingMark",11},{"nonspacingmark",11},
@@ -33247,67 +33248,66 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[4445] = {
     {"RightToLeftEmbedding",11},{"righttoleftembedding",11},{"RLI",11},{"rli",11},{"Right_To_Left_Isolate",11},
     {"RightToLeftIsolate",11},{"righttoleftisolate",11},{"RLO",11},{"rlo",11},{"Right_To_Left_Override",11},
     {"RightToLeftOverride",11},{"righttoleftoverride",11},{"S",11},{"s",11},{"Segment_Separator",11},{"SegmentSeparator",11},
-    {"segmentseparator",11},{"WS",11},{"ws",11},{"White_Space",11},{"WhiteSpace",11},{"whitespace",11},{"Dash",38},
-    {"dash",38},{"N",38},{"n",38},{"No",38},{"no",38},{"F",38},{"f",38},{"False",38},{"false",38},{"Y",38},{"y",38},
-    {"Yes",38},{"yes",38},{"T",38},{"t",38},{"True",38},{"true",38},{"Uppercase",77},{"uppercase",77},{"Ideographic",53},
-    {"ideographic",53},{"NFKD_QC",59},{"NFKDQC",59},{"nfkdqc",59},{"N",59},{"n",59},{"No",59},{"no",59},{"Y",59},{"y",59},
-    {"Yes",59},{"yes",59},{"Terminal_Punctuation",75},{"TerminalPunctuation",75},{"terminalpunctuation",75},{"nv",3},
-    {"Sentence_Break",17},{"SentenceBreak",17},{"sentencebreak",17},{"Full_Composition_Exclusion",43},
-    {"FullCompositionExclusion",43},{"fullcompositionexclusion",43},{"Numeric_Value",3},{"NumericValue",3},
-    {"numericvalue",3},{"Changes_When_Uppercased",37},{"ChangesWhenUppercased",37},{"changeswhenuppercased",37},
-    {"Grapheme_Link",46},{"GraphemeLink",46},{"graphemelink",46},{"Hex",47},{"hex",47},{"N",47},{"n",47},{"No",47},{"no",47},
-    {"F",47},{"f",47},{"False",47},{"false",47},{"Y",47},{"y",47},{"Yes",47},{"yes",47},{"T",47},{"t",47},{"True",47},
-    {"true",47},{"SB",17},{"sb",17},{"AT",17},{"at",17},{"ATerm",17},{"aterm",17},{"CL",17},{"cl",17},{"Close",17},
-    {"close",17},{"CR",17},{"cr",17},{"CR",17},{"cr",17},{"EX",17},{"ex",17},{"Extend",17},{"extend",17},{"FO",17},{"fo",17},
-    {"Format",17},{"format",17},{"LE",17},{"le",17},{"OLetter",17},{"oletter",17},{"LF",17},{"lf",17},{"LF",17},{"lf",17},
-    {"LO",17},{"lo",17},{"Lower",17},{"lower",17},{"NU",17},{"nu",17},{"Numeric",17},{"numeric",17},{"SC",17},
+    {"segmentseparator",11},{"WS",11},{"ws",11},{"Dash",39},{"dash",39},{"N",39},{"n",39},{"No",39},{"no",39},{"F",39},
+    {"f",39},{"False",39},{"false",39},{"Y",39},{"y",39},{"Yes",39},{"yes",39},{"T",39},{"t",39},{"True",39},{"true",39},
+    {"Uppercase",78},{"uppercase",78},{"Ideographic",54},{"ideographic",54},{"NFKD_QC",60},{"NFKDQC",60},{"nfkdqc",60},
+    {"N",60},{"n",60},{"No",60},{"no",60},{"Y",60},{"y",60},{"Yes",60},{"yes",60},{"Terminal_Punctuation",76},
+    {"TerminalPunctuation",76},{"terminalpunctuation",76},{"nv",3},{"Sentence_Break",17},{"SentenceBreak",17},
+    {"sentencebreak",17},{"Full_Composition_Exclusion",44},{"FullCompositionExclusion",44},{"fullcompositionexclusion",44},
+    {"Numeric_Value",3},{"NumericValue",3},{"numericvalue",3},{"Changes_When_Uppercased",38},{"ChangesWhenUppercased",38},
+    {"changeswhenuppercased",38},{"Grapheme_Link",47},{"GraphemeLink",47},{"graphemelink",47},{"Hex",48},{"hex",48},{"N",48},
+    {"n",48},{"No",48},{"no",48},{"F",48},{"f",48},{"False",48},{"false",48},{"Y",48},{"y",48},{"Yes",48},{"yes",48},
+    {"T",48},{"t",48},{"True",48},{"true",48},{"SB",17},{"sb",17},{"AT",17},{"at",17},{"ATerm",17},{"aterm",17},{"CL",17},
+    {"cl",17},{"Close",17},{"close",17},{"CR",17},{"cr",17},{"CR",17},{"cr",17},{"EX",17},{"ex",17},{"Extend",17},
+    {"extend",17},{"FO",17},{"fo",17},{"Format",17},{"format",17},{"LE",17},{"le",17},{"OLetter",17},{"oletter",17},
+    {"LF",17},{"lf",17},{"LF",17},{"lf",17},{"LO",17},{"lo",17},{"NU",17},{"nu",17},{"Numeric",17},{"numeric",17},{"SC",17},
     {"SContinue",17},{"scontinue",17},{"SE",17},{"se",17},{"Sep",17},{"sep",17},{"SP",17},{"sp",17},{"Sp",17},{"sp",17},
-    {"ST",17},{"st",17},{"STerm",17},{"sterm",17},{"UP",17},{"up",17},{"Upper",17},{"upper",17},{"XX",17},{"xx",17},
-    {"Other",17},{"other",17},{"jg",10},{"Ain",10},{"ain",10},{"Ain",10},{"ain",10},{"Alaph",10},{"alaph",10},{"Alaph",10},
-    {"alaph",10},{"Alef",10},{"alef",10},{"Alef",10},{"alef",10},{"Beh",10},{"beh",10},{"Beh",10},{"beh",10},{"Beth",10},
-    {"beth",10},{"Beth",10},{"beth",10},{"Burushaski_Yeh_Barree",10},{"BurushaskiYehBarree",10},{"burushaskiyehbarree",10},
-    {"Burushaski_Yeh_Barree",10},{"BurushaskiYehBarree",10},{"burushaskiyehbarree",10},{"Dal",10},{"dal",10},{"Dal",10},
-    {"dal",10},{"Dalath_Rish",10},{"DalathRish",10},{"dalathrish",10},{"Dalath_Rish",10},{"DalathRish",10},{"dalathrish",10},
-    {"E",10},{"e",10},{"E",10},{"e",10},{"Farsi_Yeh",10},{"FarsiYeh",10},{"farsiyeh",10},{"Farsi_Yeh",10},{"FarsiYeh",10},
-    {"farsiyeh",10},{"Fe",10},{"fe",10},{"Fe",10},{"fe",10},{"Feh",10},{"feh",10},{"Feh",10},{"feh",10},{"Final_Semkath",10},
-    {"FinalSemkath",10},{"finalsemkath",10},{"Final_Semkath",10},{"FinalSemkath",10},{"finalsemkath",10},{"Gaf",10},
-    {"gaf",10},{"Gaf",10},{"gaf",10},{"Gamal",10},{"gamal",10},{"Gamal",10},{"gamal",10},{"Hah",10},{"hah",10},{"Hah",10},
-    {"hah",10},{"He",10},{"he",10},{"He",10},{"he",10},{"Heh",10},{"heh",10},{"Heh",10},{"heh",10},{"Heh_Goal",10},
-    {"HehGoal",10},{"hehgoal",10},{"Heh_Goal",10},{"HehGoal",10},{"hehgoal",10},{"Heth",10},{"heth",10},{"Heth",10},
-    {"heth",10},{"Kaf",10},{"kaf",10},{"Kaf",10},{"kaf",10},{"Kaph",10},{"kaph",10},{"Kaph",10},{"kaph",10},{"Khaph",10},
-    {"khaph",10},{"Khaph",10},{"khaph",10},{"Knotted_Heh",10},{"KnottedHeh",10},{"knottedheh",10},{"Knotted_Heh",10},
-    {"KnottedHeh",10},{"knottedheh",10},{"Lam",10},{"lam",10},{"Lam",10},{"lam",10},{"Lamadh",10},{"lamadh",10},
-    {"Lamadh",10},{"lamadh",10},{"Meem",10},{"meem",10},{"Meem",10},{"meem",10},{"Mim",10},{"mim",10},{"Mim",10},{"mim",10},
-    {"No_Joining_Group",10},{"NoJoiningGroup",10},{"nojoininggroup",10},{"No_Joining_Group",10},{"NoJoiningGroup",10},
-    {"nojoininggroup",10},{"Noon",10},{"noon",10},{"Noon",10},{"noon",10},{"Nun",10},{"nun",10},{"Nun",10},{"nun",10},
-    {"Nya",10},{"nya",10},{"Nya",10},{"nya",10},{"Pe",10},{"pe",10},{"Pe",10},{"pe",10},{"Qaf",10},{"qaf",10},{"Qaf",10},
-    {"qaf",10},{"Qaph",10},{"qaph",10},{"Qaph",10},{"qaph",10},{"Reh",10},{"reh",10},{"Reh",10},{"reh",10},
-    {"Reversed_Pe",10},{"ReversedPe",10},{"reversedpe",10},{"Reversed_Pe",10},{"ReversedPe",10},{"reversedpe",10},
-    {"Rohingya_Yeh",10},{"RohingyaYeh",10},{"rohingyayeh",10},{"Rohingya_Yeh",10},{"RohingyaYeh",10},{"rohingyayeh",10},
-    {"Sad",10},{"sad",10},{"Sad",10},{"sad",10},{"Sadhe",10},{"sadhe",10},{"Sadhe",10},{"sadhe",10},{"Seen",10},{"seen",10},
-    {"Seen",10},{"seen",10},{"Semkath",10},{"semkath",10},{"Semkath",10},{"semkath",10},{"Shin",10},{"shin",10},{"Shin",10},
-    {"shin",10},{"Swash_Kaf",10},{"SwashKaf",10},{"swashkaf",10},{"Swash_Kaf",10},{"SwashKaf",10},{"swashkaf",10},
-    {"Syriac_Waw",10},{"SyriacWaw",10},{"syriacwaw",10},{"Syriac_Waw",10},{"SyriacWaw",10},{"syriacwaw",10},{"Tah",10},
-    {"tah",10},{"Tah",10},{"tah",10},{"Taw",10},{"taw",10},{"Taw",10},{"taw",10},{"Teh_Marbuta",10},{"TehMarbuta",10},
-    {"tehmarbuta",10},{"Teh_Marbuta",10},{"TehMarbuta",10},{"tehmarbuta",10},{"Teh_Marbuta_Goal",10},{"TehMarbutaGoal",10},
-    {"tehmarbutagoal",10},{"Hamza_On_Heh_Goal",10},{"HamzaOnHehGoal",10},{"hamzaonhehgoal",10},{"Teth",10},{"teth",10},
-    {"Teth",10},{"teth",10},{"Waw",10},{"waw",10},{"Waw",10},{"waw",10},{"Yeh",10},{"yeh",10},{"Yeh",10},{"yeh",10},
-    {"Yeh_Barree",10},{"YehBarree",10},{"yehbarree",10},{"Yeh_Barree",10},{"YehBarree",10},{"yehbarree",10},
-    {"Yeh_With_Tail",10},{"YehWithTail",10},{"yehwithtail",10},{"Yeh_With_Tail",10},{"YehWithTail",10},{"yehwithtail",10},
-    {"Yudh",10},{"yudh",10},{"Yudh",10},{"yudh",10},{"Yudh_He",10},{"YudhHe",10},{"yudhhe",10},{"Yudh_He",10},{"YudhHe",10},
-    {"yudhhe",10},{"Zain",10},{"zain",10},{"Zain",10},{"zain",10},{"Zhain",10},{"zhain",10},{"Zhain",10},{"zhain",10},
-    {"Alphabetic",26},{"alphabetic",26},{"Age",7},{"Changes_When_Lowercased",34},{"ChangesWhenLowercased",34},
-    {"changeswhenlowercased",34},{"sc",8},{"Arab",8},{"arab",8},{"Arabic",8},{"arabic",8},{"Armi",8},{"armi",8},
-    {"Imperial_Aramaic",8},{"ImperialAramaic",8},{"imperialaramaic",8},{"Armn",8},{"armn",8},{"Armenian",8},{"armenian",8},
-    {"Avst",8},{"avst",8},{"Avestan",8},{"avestan",8},{"Bali",8},{"bali",8},{"Balinese",8},{"balinese",8},{"Bamu",8},
-    {"bamu",8},{"Bamum",8},{"bamum",8},{"Batk",8},{"batk",8},{"Batak",8},{"batak",8},{"Beng",8},{"beng",8},{"Bengali",8},
-    {"bengali",8},{"Bopo",8},{"bopo",8},{"Bopomofo",8},{"bopomofo",8},{"Brah",8},{"brah",8},{"Brahmi",8},{"brahmi",8},
-    {"Brai",8},{"brai",8},{"Braille",8},{"braille",8},{"Bugi",8},{"bugi",8},{"Buginese",8},{"buginese",8},{"Buhd",8},
-    {"buhd",8},{"Buhid",8},{"buhid",8},{"Cakm",8},{"cakm",8},{"Chakma",8},{"chakma",8},{"Cans",8},{"cans",8},
-    {"Canadian_Aboriginal",8},{"CanadianAboriginal",8},{"canadianaboriginal",8},{"Cari",8},{"cari",8},{"Carian",8},
-    {"carian",8},{"Cham",8},{"cham",8},{"Cham",8},{"cham",8},{"Cher",8},{"cher",8},{"Cherokee",8},{"cherokee",8},{"Copt",8},
-    {"copt",8},{"Coptic",8},{"coptic",8},{"Qaac",8},{"qaac",8},{"Cprt",8},{"cprt",8},{"Cypriot",8},{"cypriot",8},{"Cyrl",8},
-    {"cyrl",8},{"Cyrillic",8},{"cyrillic",8},{"Deva",8},{"deva",8},{"Devanagari",8},{"devanagari",8},{"Dsrt",8},{"dsrt",8},
+    {"ST",17},{"st",17},{"UP",17},{"up",17},{"XX",17},{"xx",17},{"Other",17},{"other",17},{"jg",10},{"Ain",10},{"ain",10},
+    {"Ain",10},{"ain",10},{"Alaph",10},{"alaph",10},{"Alaph",10},{"alaph",10},{"Alef",10},{"alef",10},{"Alef",10},
+    {"alef",10},{"Beh",10},{"beh",10},{"Beh",10},{"beh",10},{"Beth",10},{"beth",10},{"Beth",10},{"beth",10},
+    {"Burushaski_Yeh_Barree",10},{"BurushaskiYehBarree",10},{"burushaskiyehbarree",10},{"Burushaski_Yeh_Barree",10},
+    {"BurushaskiYehBarree",10},{"burushaskiyehbarree",10},{"Dal",10},{"dal",10},{"Dal",10},{"dal",10},{"Dalath_Rish",10},
+    {"DalathRish",10},{"dalathrish",10},{"Dalath_Rish",10},{"DalathRish",10},{"dalathrish",10},{"E",10},{"e",10},{"E",10},
+    {"e",10},{"Farsi_Yeh",10},{"FarsiYeh",10},{"farsiyeh",10},{"Farsi_Yeh",10},{"FarsiYeh",10},{"farsiyeh",10},{"Fe",10},
+    {"fe",10},{"Fe",10},{"fe",10},{"Feh",10},{"feh",10},{"Feh",10},{"feh",10},{"Final_Semkath",10},{"FinalSemkath",10},
+    {"finalsemkath",10},{"Final_Semkath",10},{"FinalSemkath",10},{"finalsemkath",10},{"Gaf",10},{"gaf",10},{"Gaf",10},
+    {"gaf",10},{"Gamal",10},{"gamal",10},{"Gamal",10},{"gamal",10},{"Hah",10},{"hah",10},{"Hah",10},{"hah",10},{"He",10},
+    {"he",10},{"He",10},{"he",10},{"Heh",10},{"heh",10},{"Heh",10},{"heh",10},{"Heh_Goal",10},{"HehGoal",10},{"hehgoal",10},
+    {"Heh_Goal",10},{"HehGoal",10},{"hehgoal",10},{"Heth",10},{"heth",10},{"Heth",10},{"heth",10},{"Kaf",10},{"kaf",10},
+    {"Kaf",10},{"kaf",10},{"Kaph",10},{"kaph",10},{"Kaph",10},{"kaph",10},{"Khaph",10},{"khaph",10},{"Khaph",10},
+    {"khaph",10},{"Knotted_Heh",10},{"KnottedHeh",10},{"knottedheh",10},{"Knotted_Heh",10},{"KnottedHeh",10},
+    {"knottedheh",10},{"Lam",10},{"lam",10},{"Lam",10},{"lam",10},{"Lamadh",10},{"lamadh",10},{"Lamadh",10},{"lamadh",10},
+    {"Meem",10},{"meem",10},{"Meem",10},{"meem",10},{"Mim",10},{"mim",10},{"Mim",10},{"mim",10},{"No_Joining_Group",10},
+    {"NoJoiningGroup",10},{"nojoininggroup",10},{"No_Joining_Group",10},{"NoJoiningGroup",10},{"nojoininggroup",10},
+    {"Noon",10},{"noon",10},{"Noon",10},{"noon",10},{"Nun",10},{"nun",10},{"Nun",10},{"nun",10},{"Nya",10},{"nya",10},
+    {"Nya",10},{"nya",10},{"Pe",10},{"pe",10},{"Pe",10},{"pe",10},{"Qaf",10},{"qaf",10},{"Qaf",10},{"qaf",10},{"Qaph",10},
+    {"qaph",10},{"Qaph",10},{"qaph",10},{"Reh",10},{"reh",10},{"Reh",10},{"reh",10},{"Reversed_Pe",10},{"ReversedPe",10},
+    {"reversedpe",10},{"Reversed_Pe",10},{"ReversedPe",10},{"reversedpe",10},{"Rohingya_Yeh",10},{"RohingyaYeh",10},
+    {"rohingyayeh",10},{"Rohingya_Yeh",10},{"RohingyaYeh",10},{"rohingyayeh",10},{"Sad",10},{"sad",10},{"Sad",10},{"sad",10},
+    {"Sadhe",10},{"sadhe",10},{"Sadhe",10},{"sadhe",10},{"Seen",10},{"seen",10},{"Seen",10},{"seen",10},{"Semkath",10},
+    {"semkath",10},{"Semkath",10},{"semkath",10},{"Shin",10},{"shin",10},{"Shin",10},{"shin",10},{"Swash_Kaf",10},
+    {"SwashKaf",10},{"swashkaf",10},{"Swash_Kaf",10},{"SwashKaf",10},{"swashkaf",10},{"Syriac_Waw",10},{"SyriacWaw",10},
+    {"syriacwaw",10},{"Syriac_Waw",10},{"SyriacWaw",10},{"syriacwaw",10},{"Tah",10},{"tah",10},{"Tah",10},{"tah",10},
+    {"Taw",10},{"taw",10},{"Taw",10},{"taw",10},{"Teh_Marbuta",10},{"TehMarbuta",10},{"tehmarbuta",10},{"Teh_Marbuta",10},
+    {"TehMarbuta",10},{"tehmarbuta",10},{"Teh_Marbuta_Goal",10},{"TehMarbutaGoal",10},{"tehmarbutagoal",10},
+    {"Hamza_On_Heh_Goal",10},{"HamzaOnHehGoal",10},{"hamzaonhehgoal",10},{"Teth",10},{"teth",10},{"Teth",10},{"teth",10},
+    {"Waw",10},{"waw",10},{"Waw",10},{"waw",10},{"Yeh",10},{"yeh",10},{"Yeh",10},{"yeh",10},{"Yeh_Barree",10},
+    {"YehBarree",10},{"yehbarree",10},{"Yeh_Barree",10},{"YehBarree",10},{"yehbarree",10},{"Yeh_With_Tail",10},
+    {"YehWithTail",10},{"yehwithtail",10},{"Yeh_With_Tail",10},{"YehWithTail",10},{"yehwithtail",10},{"Yudh",10},{"yudh",10},
+    {"Yudh",10},{"yudh",10},{"Yudh_He",10},{"YudhHe",10},{"yudhhe",10},{"Yudh_He",10},{"YudhHe",10},{"yudhhe",10},
+    {"Zain",10},{"zain",10},{"Zain",10},{"zain",10},{"Zhain",10},{"zhain",10},{"Zhain",10},{"zhain",10},{"Alphabetic",27},
+    {"alphabetic",27},{"Age",7},{"Changes_When_Lowercased",35},{"ChangesWhenLowercased",35},{"changeswhenlowercased",35},
+    {"sc",8},{"Arab",8},{"arab",8},{"Arabic",8},{"arabic",8},{"Armi",8},{"armi",8},{"Imperial_Aramaic",8},
+    {"ImperialAramaic",8},{"imperialaramaic",8},{"Armn",8},{"armn",8},{"Armenian",8},{"armenian",8},{"Avst",8},{"avst",8},
+    {"Avestan",8},{"avestan",8},{"Bali",8},{"bali",8},{"Balinese",8},{"balinese",8},{"Bamu",8},{"bamu",8},{"Bamum",8},
+    {"bamum",8},{"Batk",8},{"batk",8},{"Batak",8},{"batak",8},{"Beng",8},{"beng",8},{"Bengali",8},{"bengali",8},{"Bopo",8},
+    {"bopo",8},{"Bopomofo",8},{"bopomofo",8},{"Brah",8},{"brah",8},{"Brahmi",8},{"brahmi",8},{"Brai",8},{"brai",8},
+    {"Braille",8},{"braille",8},{"Bugi",8},{"bugi",8},{"Buginese",8},{"buginese",8},{"Buhd",8},{"buhd",8},{"Buhid",8},
+    {"buhid",8},{"Cakm",8},{"cakm",8},{"Chakma",8},{"chakma",8},{"Cans",8},{"cans",8},{"Canadian_Aboriginal",8},
+    {"CanadianAboriginal",8},{"canadianaboriginal",8},{"Cari",8},{"cari",8},{"Carian",8},{"carian",8},{"Cham",8},{"cham",8},
+    {"Cham",8},{"cham",8},{"Cher",8},{"cher",8},{"Cherokee",8},{"cherokee",8},{"Copt",8},{"copt",8},{"Coptic",8},
+    {"coptic",8},{"Qaac",8},{"qaac",8},{"Cprt",8},{"cprt",8},{"Cypriot",8},{"cypriot",8},{"Cyrl",8},{"cyrl",8},
+    {"Cyrillic",8},{"cyrillic",8},{"Deva",8},{"deva",8},{"Devanagari",8},{"devanagari",8},{"Dsrt",8},{"dsrt",8},
     {"Deseret",8},{"deseret",8},{"Egyp",8},{"egyp",8},{"Egyptian_Hieroglyphs",8},{"EgyptianHieroglyphs",8},
     {"egyptianhieroglyphs",8},{"Ethi",8},{"ethi",8},{"Ethiopic",8},{"ethiopic",8},{"Geor",8},{"geor",8},{"Georgian",8},
     {"georgian",8},{"Glag",8},{"glag",8},{"Glagolitic",8},{"glagolitic",8},{"Goth",8},{"goth",8},{"Gothic",8},{"gothic",8},
@@ -33348,125 +33348,123 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[4445] = {
     {"Ugaritic",8},{"ugaritic",8},{"Vaii",8},{"vaii",8},{"Vai",8},{"vai",8},{"Xpeo",8},{"xpeo",8},{"Old_Persian",8},
     {"OldPersian",8},{"oldpersian",8},{"Xsux",8},{"xsux",8},{"Cuneiform",8},{"cuneiform",8},{"Yiii",8},{"yiii",8},{"Yi",8},
     {"yi",8},{"Zinh",8},{"zinh",8},{"Inherited",8},{"inherited",8},{"Qaai",8},{"qaai",8},{"Zyyy",8},{"zyyy",8},{"Common",8},
-    {"common",8},{"Zzzz",8},{"zzzz",8},{"Unknown",8},{"unknown",8},{"Pat_Syn",69},{"PatSyn",69},{"patsyn",69},{"N",69},
-    {"n",69},{"No",69},{"no",69},{"F",69},{"f",69},{"False",69},{"false",69},{"Y",69},{"y",69},{"Yes",69},{"yes",69},
-    {"T",69},{"t",69},{"True",69},{"true",69},{"Decomp_Spec",1},{"DecompSpec",1},{"decompspec",1},{"Deprecated",40},
-    {"deprecated",40},{"CWL",34},{"cwl",34},{"N",34},{"n",34},{"No",34},{"no",34},{"F",34},{"f",34},{"False",34},
-    {"false",34},{"Y",34},{"y",34},{"Yes",34},{"yes",34},{"T",34},{"t",34},{"True",34},{"true",34},{"OUpper",68},
-    {"oupper",68},{"N",68},{"n",68},{"No",68},{"no",68},{"F",68},{"f",68},{"False",68},{"false",68},{"Y",68},{"y",68},
-    {"Yes",68},{"yes",68},{"T",68},{"t",68},{"True",68},{"true",68},{"lb",16},{"AI",16},{"ai",16},{"Ambiguous",16},
-    {"ambiguous",16},{"AL",16},{"al",16},{"Alphabetic",16},{"alphabetic",16},{"B2",16},{"b2",16},{"Break_Both",16},
-    {"BreakBoth",16},{"breakboth",16},{"BA",16},{"ba",16},{"Break_After",16},{"BreakAfter",16},{"breakafter",16},{"BB",16},
-    {"bb",16},{"Break_Before",16},{"BreakBefore",16},{"breakbefore",16},{"BK",16},{"bk",16},{"Mandatory_Break",16},
-    {"MandatoryBreak",16},{"mandatorybreak",16},{"CB",16},{"cb",16},{"Contingent_Break",16},{"ContingentBreak",16},
-    {"contingentbreak",16},{"CJ",16},{"cj",16},{"Conditional_Japanese_Starter",16},{"ConditionalJapaneseStarter",16},
+    {"common",8},{"Zzzz",8},{"zzzz",8},{"Unknown",8},{"unknown",8},{"Pat_Syn",70},{"PatSyn",70},{"patsyn",70},{"N",70},
+    {"n",70},{"No",70},{"no",70},{"F",70},{"f",70},{"False",70},{"false",70},{"Y",70},{"y",70},{"Yes",70},{"yes",70},
+    {"T",70},{"t",70},{"True",70},{"true",70},{"Decomp_Spec",1},{"DecompSpec",1},{"decompspec",1},{"Deprecated",41},
+    {"deprecated",41},{"CWL",35},{"cwl",35},{"N",35},{"n",35},{"No",35},{"no",35},{"F",35},{"f",35},{"False",35},
+    {"false",35},{"Y",35},{"y",35},{"Yes",35},{"yes",35},{"T",35},{"t",35},{"True",35},{"true",35},{"OUpper",69},
+    {"oupper",69},{"N",69},{"n",69},{"No",69},{"no",69},{"F",69},{"f",69},{"False",69},{"false",69},{"Y",69},{"y",69},
+    {"Yes",69},{"yes",69},{"T",69},{"t",69},{"True",69},{"true",69},{"lb",16},{"AI",16},{"ai",16},{"Ambiguous",16},
+    {"ambiguous",16},{"AL",16},{"al",16},{"B2",16},{"b2",16},{"Break_Both",16},{"BreakBoth",16},{"breakboth",16},{"BA",16},
+    {"ba",16},{"Break_After",16},{"BreakAfter",16},{"breakafter",16},{"BB",16},{"bb",16},{"Break_Before",16},
+    {"BreakBefore",16},{"breakbefore",16},{"BK",16},{"bk",16},{"Mandatory_Break",16},{"MandatoryBreak",16},
+    {"mandatorybreak",16},{"CB",16},{"cb",16},{"Contingent_Break",16},{"ContingentBreak",16},{"contingentbreak",16},
+    {"CJ",16},{"cj",16},{"Conditional_Japanese_Starter",16},{"ConditionalJapaneseStarter",16},
     {"conditionaljapanesestarter",16},{"CL",16},{"cl",16},{"Close_Punctuation",16},{"ClosePunctuation",16},
     {"closepunctuation",16},{"CM",16},{"cm",16},{"Combining_Mark",16},{"CombiningMark",16},{"combiningmark",16},{"CP",16},
     {"cp",16},{"Close_Parenthesis",16},{"CloseParenthesis",16},{"closeparenthesis",16},{"CR",16},{"cr",16},
     {"Carriage_Return",16},{"CarriageReturn",16},{"carriagereturn",16},{"EX",16},{"ex",16},{"Exclamation",16},
     {"exclamation",16},{"GL",16},{"gl",16},{"Glue",16},{"glue",16},{"H2",16},{"h2",16},{"H2",16},{"h2",16},{"H3",16},
     {"h3",16},{"H3",16},{"h3",16},{"HL",16},{"hl",16},{"Hebrew_Letter",16},{"HebrewLetter",16},{"hebrewletter",16},{"HY",16},
-    {"hy",16},{"Hyphen",16},{"hyphen",16},{"ID",16},{"id",16},{"Ideographic",16},{"ideographic",16},{"IN",16},{"in",16},
-    {"Inseparable",16},{"inseparable",16},{"Inseperable",16},{"inseperable",16},{"IS",16},{"is",16},{"Infix_Numeric",16},
-    {"InfixNumeric",16},{"infixnumeric",16},{"JL",16},{"jl",16},{"JL",16},{"jl",16},{"JT",16},{"JT",16},{"JV",16},{"jv",16},
-    {"JV",16},{"jv",16},{"LF",16},{"lf",16},{"Line_Feed",16},{"LineFeed",16},{"linefeed",16},{"NL",16},{"nl",16},
-    {"Next_Line",16},{"NextLine",16},{"nextline",16},{"NS",16},{"ns",16},{"Nonstarter",16},{"nonstarter",16},{"NU",16},
-    {"nu",16},{"Numeric",16},{"numeric",16},{"OP",16},{"op",16},{"Open_Punctuation",16},{"OpenPunctuation",16},
-    {"openpunctuation",16},{"PO",16},{"po",16},{"Postfix_Numeric",16},{"PostfixNumeric",16},{"postfixnumeric",16},{"PR",16},
-    {"pr",16},{"Prefix_Numeric",16},{"PrefixNumeric",16},{"prefixnumeric",16},{"QU",16},{"qu",16},{"Quotation",16},
-    {"quotation",16},{"RI",16},{"ri",16},{"Regional_Indicator",16},{"RegionalIndicator",16},{"regionalindicator",16},
-    {"SA",16},{"sa",16},{"Complex_Context",16},{"ComplexContext",16},{"complexcontext",16},{"SG",16},{"sg",16},
-    {"Surrogate",16},{"surrogate",16},{"SP",16},{"sp",16},{"Space",16},{"SY",16},{"sy",16},{"Break_Symbols",16},
-    {"BreakSymbols",16},{"breaksymbols",16},{"WJ",16},{"wj",16},{"Word_Joiner",16},{"WordJoiner",16},{"wordjoiner",16},
-    {"XX",16},{"xx",16},{"Unknown",16},{"unknown",16},{"ZW",16},{"zw",16},{"ZWSpace",16},{"zwspace",16},
-    {"Other_Alphabetic",61},{"OtherAlphabetic",61},{"otheralphabetic",61},{"Hangul_Syllable_Type",19},
-    {"HangulSyllableType",19},{"hangulsyllabletype",19},{"ID_Start",52},{"IDStart",52},{"idstart",52},{"WSpace",79},
-    {"wspace",79},{"N",79},{"n",79},{"No",79},{"no",79},{"F",79},{"f",79},{"False",79},{"false",79},{"Y",79},{"y",79},
-    {"Yes",79},{"yes",79},{"T",79},{"t",79},{"True",79},{"true",79},{"Case_Ignorable",30},{"CaseIgnorable",30},
-    {"caseignorable",30},{"Quotation_Mark",71},{"QuotationMark",71},{"quotationmark",71},{"XIDC",80},{"xidc",80},{"N",80},
-    {"n",80},{"No",80},{"no",80},{"F",80},{"f",80},{"False",80},{"false",80},{"Y",80},{"y",80},{"Yes",80},{"yes",80},
-    {"T",80},{"t",80},{"True",80},{"true",80},{"Decomposition_Type",15},{"DecompositionType",15},{"decompositiontype",15},
-    {"Alpha",26},{"alpha",26},{"N",26},{"n",26},{"No",26},{"no",26},{"F",26},{"f",26},{"False",26},{"false",26},{"Y",26},
-    {"y",26},{"Yes",26},{"yes",26},{"T",26},{"t",26},{"True",26},{"true",26},{"nt",20},{"De",20},{"de",20},{"Decimal",20},
-    {"decimal",20},{"Di",20},{"di",20},{"Digit",20},{"digit",20},{"None",20},{"none",20},{"None",20},{"none",20},{"Nu",20},
-    {"nu",20},{"Numeric",20},{"numeric",20},{"Changes_When_Titlecased",36},{"ChangesWhenTitlecased",36},
-    {"changeswhentitlecased",36},{"Logical_Order_Exception",55},{"LogicalOrderException",55},{"logicalorderexception",55},
-    {"gc",14},{"C",14},{"c",14},{"Other",14},{"other",14},{"Cc | Cf | Cn | Co | Cs",14},{"cc | cf | cn | co | cs",14},
-    {"Cc",14},{"cc",14},{"Control",14},{"control",14},{"cntrl",14},{"cntrl",14},{"Cf",14},{"Format",14},{"format",14},
-    {"Cn",14},{"cn",14},{"Unassigned",14},{"unassigned",14},{"Co",14},{"co",14},{"Private_Use",14},{"PrivateUse",14},
-    {"privateuse",14},{"Cs",14},{"cs",14},{"Surrogate",14},{"surrogate",14},{"L",14},{"l",14},{"Letter",14},{"letter",14},
-    {"Ll | Lm | Lo | Lt | Lu",14},{"ll | lm | lo | lt | lu",14},{"LC",14},{"lc",14},{"Cased_Letter",14},{"CasedLetter",14},
-    {"casedletter",14},{"Ll | Lt | Lu",14},{"ll | lt | lu",14},{"Ll",14},{"ll",14},{"Lowercase_Letter",14},
-    {"LowercaseLetter",14},{"lowercaseletter",14},{"Lm",14},{"lm",14},{"Modifier_Letter",14},{"ModifierLetter",14},
-    {"modifierletter",14},{"Lo",14},{"lo",14},{"Other_Letter",14},{"OtherLetter",14},{"otherletter",14},{"Lt",14},{"lt",14},
-    {"Titlecase_Letter",14},{"TitlecaseLetter",14},{"titlecaseletter",14},{"Lu",14},{"lu",14},{"Uppercase_Letter",14},
-    {"UppercaseLetter",14},{"uppercaseletter",14},{"M",14},{"m",14},{"Mark",14},{"mark",14},{"Combining_Mark",14},
-    {"CombiningMark",14},{"combiningmark",14},{"Mc | Me | Mn",14},{"mc | me | mn",14},{"Mc",14},{"mc",14},
-    {"Spacing_Mark",14},{"SpacingMark",14},{"spacingmark",14},{"Me",14},{"me",14},{"Enclosing_Mark",14},{"EnclosingMark",14},
-    {"enclosingmark",14},{"Mn",14},{"mn",14},{"Nonspacing_Mark",14},{"NonspacingMark",14},{"nonspacingmark",14},{"N",14},
-    {"n",14},{"Number",14},{"number",14},{"Nd | Nl | No",14},{"nd | nl | no",14},{"Nd",14},{"nd",14},{"Decimal_Number",14},
-    {"DecimalNumber",14},{"decimalnumber",14},{"digit",14},{"digit",14},{"Nl",14},{"nl",14},{"Letter_Number",14},
-    {"LetterNumber",14},{"letternumber",14},{"No",14},{"no",14},{"Other_Number",14},{"OtherNumber",14},{"othernumber",14},
-    {"P",14},{"p",14},{"Punctuation",14},{"punctuation",14},{"punct",14},{"punct",14},
-    {"Pc | Pd | Pe | Pf | Pi | Po | Ps",14},{"pc | pd | pe | pf | pi | po | ps",14},{"Pc",14},{"pc",14},
-    {"Connector_Punctuation",14},{"ConnectorPunctuation",14},{"connectorpunctuation",14},{"Pd",14},{"pd",14},
-    {"Dash_Punctuation",14},{"DashPunctuation",14},{"dashpunctuation",14},{"Pe",14},{"pe",14},{"Close_Punctuation",14},
-    {"ClosePunctuation",14},{"closepunctuation",14},{"Pf",14},{"pf",14},{"Final_Punctuation",14},{"FinalPunctuation",14},
-    {"finalpunctuation",14},{"Pi",14},{"pi",14},{"Initial_Punctuation",14},{"InitialPunctuation",14},
-    {"initialpunctuation",14},{"Po",14},{"po",14},{"Other_Punctuation",14},{"OtherPunctuation",14},{"otherpunctuation",14},
-    {"Ps",14},{"ps",14},{"Open_Punctuation",14},{"OpenPunctuation",14},{"openpunctuation",14},{"S",14},{"s",14},
-    {"Symbol",14},{"symbol",14},{"Sc | Sk | Sm | So",14},{"sc | sk | sm | so",14},{"Sc",14},{"Currency_Symbol",14},
-    {"CurrencySymbol",14},{"currencysymbol",14},{"Sk",14},{"sk",14},{"Modifier_Symbol",14},{"ModifierSymbol",14},
-    {"modifiersymbol",14},{"Sm",14},{"sm",14},{"Math_Symbol",14},{"MathSymbol",14},{"mathsymbol",14},{"So",14},{"so",14},
-    {"Other_Symbol",14},{"OtherSymbol",14},{"othersymbol",14},{"Z",14},{"z",14},{"Separator",14},{"separator",14},
-    {"Zl | Zp | Zs",14},{"zl | zp | zs",14},{"Zl",14},{"zl",14},{"Line_Separator",14},{"LineSeparator",14},
+    {"hy",16},{"ID",16},{"id",16},{"IN",16},{"in",16},{"Inseparable",16},{"inseparable",16},{"Inseperable",16},
+    {"inseperable",16},{"IS",16},{"is",16},{"Infix_Numeric",16},{"InfixNumeric",16},{"infixnumeric",16},{"JL",16},{"jl",16},
+    {"JL",16},{"jl",16},{"JT",16},{"JT",16},{"JV",16},{"jv",16},{"JV",16},{"jv",16},{"LF",16},{"lf",16},{"Line_Feed",16},
+    {"LineFeed",16},{"linefeed",16},{"NL",16},{"nl",16},{"Next_Line",16},{"NextLine",16},{"nextline",16},{"NS",16},{"ns",16},
+    {"Nonstarter",16},{"nonstarter",16},{"NU",16},{"nu",16},{"Numeric",16},{"numeric",16},{"OP",16},{"op",16},
+    {"Open_Punctuation",16},{"OpenPunctuation",16},{"openpunctuation",16},{"PO",16},{"po",16},{"Postfix_Numeric",16},
+    {"PostfixNumeric",16},{"postfixnumeric",16},{"PR",16},{"pr",16},{"Prefix_Numeric",16},{"PrefixNumeric",16},
+    {"prefixnumeric",16},{"QU",16},{"qu",16},{"Quotation",16},{"quotation",16},{"RI",16},{"ri",16},{"Regional_Indicator",16},
+    {"RegionalIndicator",16},{"regionalindicator",16},{"SA",16},{"sa",16},{"Complex_Context",16},{"ComplexContext",16},
+    {"complexcontext",16},{"SG",16},{"sg",16},{"Surrogate",16},{"surrogate",16},{"SP",16},{"sp",16},{"Space",16},{"SY",16},
+    {"sy",16},{"Break_Symbols",16},{"BreakSymbols",16},{"breaksymbols",16},{"WJ",16},{"wj",16},{"Word_Joiner",16},
+    {"WordJoiner",16},{"wordjoiner",16},{"XX",16},{"xx",16},{"Unknown",16},{"unknown",16},{"ZW",16},{"zw",16},{"ZWSpace",16},
+    {"zwspace",16},{"Other_Alphabetic",62},{"OtherAlphabetic",62},{"otheralphabetic",62},{"Hangul_Syllable_Type",19},
+    {"HangulSyllableType",19},{"hangulsyllabletype",19},{"ID_Start",53},{"IDStart",53},{"idstart",53},{"WSpace",80},
+    {"wspace",80},{"N",80},{"n",80},{"No",80},{"no",80},{"F",80},{"f",80},{"False",80},{"false",80},{"Y",80},{"y",80},
+    {"Yes",80},{"yes",80},{"T",80},{"t",80},{"True",80},{"true",80},{"Case_Ignorable",31},{"CaseIgnorable",31},
+    {"caseignorable",31},{"Quotation_Mark",72},{"QuotationMark",72},{"quotationmark",72},{"XIDC",81},{"xidc",81},{"N",81},
+    {"n",81},{"No",81},{"no",81},{"F",81},{"f",81},{"False",81},{"false",81},{"Y",81},{"y",81},{"Yes",81},{"yes",81},
+    {"T",81},{"t",81},{"True",81},{"true",81},{"Decomposition_Type",15},{"DecompositionType",15},{"decompositiontype",15},
+    {"Alpha",27},{"alpha",27},{"N",27},{"n",27},{"No",27},{"no",27},{"F",27},{"f",27},{"False",27},{"false",27},{"Y",27},
+    {"y",27},{"Yes",27},{"yes",27},{"T",27},{"t",27},{"True",27},{"true",27},{"nt",20},{"De",20},{"de",20},{"Decimal",20},
+    {"decimal",20},{"Di",20},{"di",20},{"None",20},{"none",20},{"None",20},{"none",20},{"Nu",20},{"nu",20},{"Numeric",20},
+    {"numeric",20},{"Changes_When_Titlecased",37},{"ChangesWhenTitlecased",37},{"changeswhentitlecased",37},
+    {"Logical_Order_Exception",56},{"LogicalOrderException",56},{"logicalorderexception",56},{"gc",14},{"C",14},{"c",14},
+    {"Other",14},{"other",14},{"Cc | Cf | Cn | Co | Cs",14},{"cc | cf | cn | co | cs",14},{"Cc",14},{"cc",14},{"Control",14},
+    {"control",14},{"cntrl",14},{"cntrl",14},{"Cf",14},{"Format",14},{"format",14},{"Cn",14},{"cn",14},{"Unassigned",14},
+    {"unassigned",14},{"Co",14},{"co",14},{"Private_Use",14},{"PrivateUse",14},{"privateuse",14},{"Cs",14},{"cs",14},
+    {"Surrogate",14},{"surrogate",14},{"L",14},{"l",14},{"Letter",14},{"letter",14},{"Ll | Lm | Lo | Lt | Lu",14},
+    {"ll | lm | lo | lt | lu",14},{"LC",14},{"lc",14},{"Cased_Letter",14},{"CasedLetter",14},{"casedletter",14},
+    {"Ll | Lt | Lu",14},{"ll | lt | lu",14},{"Ll",14},{"ll",14},{"Lowercase_Letter",14},{"LowercaseLetter",14},
+    {"lowercaseletter",14},{"Lm",14},{"lm",14},{"Modifier_Letter",14},{"ModifierLetter",14},{"modifierletter",14},{"Lo",14},
+    {"lo",14},{"Other_Letter",14},{"OtherLetter",14},{"otherletter",14},{"Lt",14},{"lt",14},{"Titlecase_Letter",14},
+    {"TitlecaseLetter",14},{"titlecaseletter",14},{"Lu",14},{"lu",14},{"Uppercase_Letter",14},{"UppercaseLetter",14},
+    {"uppercaseletter",14},{"M",14},{"m",14},{"Mark",14},{"mark",14},{"Combining_Mark",14},{"CombiningMark",14},
+    {"combiningmark",14},{"Mc | Me | Mn",14},{"mc | me | mn",14},{"Mc",14},{"mc",14},{"Spacing_Mark",14},{"SpacingMark",14},
+    {"spacingmark",14},{"Me",14},{"me",14},{"Enclosing_Mark",14},{"EnclosingMark",14},{"enclosingmark",14},{"Mn",14},
+    {"mn",14},{"Nonspacing_Mark",14},{"NonspacingMark",14},{"nonspacingmark",14},{"N",14},{"n",14},{"Number",14},
+    {"number",14},{"Nd | Nl | No",14},{"nd | nl | no",14},{"Nd",14},{"nd",14},{"Decimal_Number",14},{"DecimalNumber",14},
+    {"decimalnumber",14},{"digit",14},{"digit",14},{"Nl",14},{"nl",14},{"Letter_Number",14},{"LetterNumber",14},
+    {"letternumber",14},{"No",14},{"no",14},{"Other_Number",14},{"OtherNumber",14},{"othernumber",14},{"P",14},{"p",14},
+    {"Punctuation",14},{"punctuation",14},{"punct",14},{"punct",14},{"Pc | Pd | Pe | Pf | Pi | Po | Ps",14},
+    {"pc | pd | pe | pf | pi | po | ps",14},{"Pc",14},{"pc",14},{"Connector_Punctuation",14},{"ConnectorPunctuation",14},
+    {"connectorpunctuation",14},{"Pd",14},{"pd",14},{"Dash_Punctuation",14},{"DashPunctuation",14},{"dashpunctuation",14},
+    {"Pe",14},{"pe",14},{"Close_Punctuation",14},{"ClosePunctuation",14},{"closepunctuation",14},{"Pf",14},{"pf",14},
+    {"Final_Punctuation",14},{"FinalPunctuation",14},{"finalpunctuation",14},{"Pi",14},{"pi",14},{"Initial_Punctuation",14},
+    {"InitialPunctuation",14},{"initialpunctuation",14},{"Po",14},{"po",14},{"Other_Punctuation",14},{"OtherPunctuation",14},
+    {"otherpunctuation",14},{"Ps",14},{"ps",14},{"Open_Punctuation",14},{"OpenPunctuation",14},{"openpunctuation",14},
+    {"S",14},{"s",14},{"Symbol",14},{"symbol",14},{"Sc | Sk | Sm | So",14},{"sc | sk | sm | so",14},{"Sc",14},
+    {"Currency_Symbol",14},{"CurrencySymbol",14},{"currencysymbol",14},{"Sk",14},{"sk",14},{"Modifier_Symbol",14},
+    {"ModifierSymbol",14},{"modifiersymbol",14},{"Sm",14},{"sm",14},{"Math_Symbol",14},{"MathSymbol",14},{"mathsymbol",14},
+    {"So",14},{"so",14},{"Other_Symbol",14},{"OtherSymbol",14},{"othersymbol",14},{"Z",14},{"z",14},{"Separator",14},
+    {"separator",14},{"Zl | Zp | Zs",14},{"zl | zp | zs",14},{"Zl",14},{"zl",14},{"Line_Separator",14},{"LineSeparator",14},
     {"lineseparator",14},{"Zp",14},{"zp",14},{"Paragraph_Separator",14},{"ParagraphSeparator",14},{"paragraphseparator",14},
-    {"Zs",14},{"zs",14},{"Space_Separator",14},{"SpaceSeparator",14},{"spaceseparator",14},{"IDSB",49},{"idsb",49},{"N",49},
-    {"n",49},{"No",49},{"no",49},{"F",49},{"f",49},{"False",49},{"false",49},{"Y",49},{"y",49},{"Yes",49},{"yes",49},
-    {"T",49},{"t",49},{"True",49},{"true",49},{"NChar",60},{"nchar",60},{"N",60},{"n",60},{"No",60},{"no",60},{"F",60},
-    {"f",60},{"False",60},{"false",60},{"Y",60},{"y",60},{"Yes",60},{"yes",60},{"T",60},{"t",60},{"True",60},{"true",60},
-    {"Numeric_Value_Numerator",24},{"NumericValueNumerator",24},{"numericvaluenumerator",24},{"UIdeo",76},{"uideo",76},
-    {"N",76},{"n",76},{"No",76},{"no",76},{"F",76},{"f",76},{"False",76},{"false",76},{"Y",76},{"y",76},{"Yes",76},
-    {"yes",76},{"T",76},{"t",76},{"True",76},{"true",76},{"ID_Continue",51},{"IDContinue",51},{"idcontinue",51},
-    {"Hyphen",48},{"hyphen",48},{"N",48},{"n",48},{"No",48},{"no",48},{"F",48},{"f",48},{"False",48},{"false",48},{"Y",48},
-    {"y",48},{"Yes",48},{"yes",48},{"T",48},{"t",48},{"True",48},{"true",48},{"Other_Grapheme_Extend",63},
-    {"OtherGraphemeExtend",63},{"othergraphemeextend",63},{"CWCM",33},{"cwcm",33},{"N",33},{"n",33},{"No",33},{"no",33},
-    {"F",33},{"f",33},{"False",33},{"false",33},{"Y",33},{"y",33},{"Yes",33},{"yes",33},{"T",33},{"t",33},{"True",33},
-    {"true",33},{"NFC_QC",22},{"NFCQC",22},{"nfcqc",22},{"M",22},{"m",22},{"Maybe",22},{"maybe",22},{"N",22},{"n",22},
-    {"No",22},{"no",22},{"Y",22},{"y",22},{"Yes",22},{"yes",22},{"Dia",41},{"dia",41},{"N",41},{"n",41},{"No",41},{"no",41},
-    {"F",41},{"f",41},{"False",41},{"false",41},{"Y",41},{"y",41},{"Yes",41},{"yes",41},{"T",41},{"t",41},{"True",41},
-    {"true",41},{"hst",19},{"L",19},{"l",19},{"Leading_Jamo",19},{"LeadingJamo",19},{"leadingjamo",19},{"LV",19},{"lv",19},
+    {"Zs",14},{"zs",14},{"Space_Separator",14},{"SpaceSeparator",14},{"spaceseparator",14},{"IDSB",50},{"idsb",50},{"N",50},
+    {"n",50},{"No",50},{"no",50},{"F",50},{"f",50},{"False",50},{"false",50},{"Y",50},{"y",50},{"Yes",50},{"yes",50},
+    {"T",50},{"t",50},{"True",50},{"true",50},{"NChar",61},{"nchar",61},{"N",61},{"n",61},{"No",61},{"no",61},{"F",61},
+    {"f",61},{"False",61},{"false",61},{"Y",61},{"y",61},{"Yes",61},{"yes",61},{"T",61},{"t",61},{"True",61},{"true",61},
+    {"Numeric_Value_Numerator",25},{"NumericValueNumerator",25},{"numericvaluenumerator",25},{"UIdeo",77},{"uideo",77},
+    {"N",77},{"n",77},{"No",77},{"no",77},{"F",77},{"f",77},{"False",77},{"false",77},{"Y",77},{"y",77},{"Yes",77},
+    {"yes",77},{"T",77},{"t",77},{"True",77},{"true",77},{"ID_Continue",52},{"IDContinue",52},{"idcontinue",52},
+    {"Hyphen",49},{"hyphen",49},{"N",49},{"n",49},{"No",49},{"no",49},{"F",49},{"f",49},{"False",49},{"false",49},{"Y",49},
+    {"y",49},{"Yes",49},{"yes",49},{"T",49},{"t",49},{"True",49},{"true",49},{"Other_Grapheme_Extend",64},
+    {"OtherGraphemeExtend",64},{"othergraphemeextend",64},{"CWCM",34},{"cwcm",34},{"N",34},{"n",34},{"No",34},{"no",34},
+    {"F",34},{"f",34},{"False",34},{"false",34},{"Y",34},{"y",34},{"Yes",34},{"yes",34},{"T",34},{"t",34},{"True",34},
+    {"true",34},{"NFC_QC",23},{"NFCQC",23},{"nfcqc",23},{"M",23},{"m",23},{"Maybe",23},{"maybe",23},{"N",23},{"n",23},
+    {"No",23},{"no",23},{"Y",23},{"y",23},{"Yes",23},{"yes",23},{"Dia",42},{"dia",42},{"N",42},{"n",42},{"No",42},{"no",42},
+    {"F",42},{"f",42},{"False",42},{"false",42},{"Y",42},{"y",42},{"Yes",42},{"yes",42},{"T",42},{"t",42},{"True",42},
+    {"true",42},{"hst",19},{"L",19},{"l",19},{"Leading_Jamo",19},{"LeadingJamo",19},{"leadingjamo",19},{"LV",19},{"lv",19},
     {"LV_Syllable",19},{"LVSyllable",19},{"lvsyllable",19},{"LVT",19},{"lvt",19},{"LVT_Syllable",19},{"LVTSyllable",19},
     {"lvtsyllable",19},{"NA",19},{"na",19},{"Not_Applicable",19},{"NotApplicable",19},{"notapplicable",19},{"T",19},{"t",19},
     {"Trailing_Jamo",19},{"TrailingJamo",19},{"trailingjamo",19},{"V",19},{"v",19},{"Vowel_Jamo",19},{"VowelJamo",19},
     {"voweljamo",19},{"Grapheme_Cluster_Break",18},{"GraphemeClusterBreak",18},{"graphemeclusterbreak",18},
-    {"XID_Continue",80},{"XIDContinue",80},{"xidcontinue",80},{"XID_Start",81},{"XIDStart",81},{"xidstart",81},
-    {"Other_ID_Start",65},{"OtherIDStart",65},{"otheridstart",65},{"Other_Lowercase",66},{"OtherLowercase",66},
-    {"otherlowercase",66},{"Pattern_Syntax",69},{"PatternSyntax",69},{"patternsyntax",69},{"Pat_WS",70},{"PatWS",70},
-    {"patws",70},{"N",70},{"n",70},{"No",70},{"no",70},{"F",70},{"f",70},{"False",70},{"false",70},{"Y",70},{"y",70},
-    {"Yes",70},{"yes",70},{"T",70},{"t",70},{"True",70},{"true",70},{"Other_ID_Continue",64},{"OtherIDContinue",64},
-    {"otheridcontinue",64},{"SD",74},{"sd",74},{"N",74},{"n",74},{"No",74},{"no",74},{"F",74},{"f",74},{"False",74},
-    {"false",74},{"Y",74},{"y",74},{"Yes",74},{"yes",74},{"T",74},{"t",74},{"True",74},{"true",74},{"Upper",77},{"upper",77},
-    {"N",77},{"n",77},{"No",77},{"no",77},{"F",77},{"f",77},{"False",77},{"false",77},{"Y",77},{"y",77},{"Yes",77},
-    {"yes",77},{"T",77},{"t",77},{"True",77},{"true",77},{"Joining_Type",13},{"JoiningType",13},{"joiningtype",13},
-    {"CWCF",32},{"cwcf",32},{"N",32},{"n",32},{"No",32},{"no",32},{"F",32},{"f",32},{"False",32},{"false",32},{"Y",32},
-    {"y",32},{"Yes",32},{"yes",32},{"T",32},{"t",32},{"True",32},{"true",32},{"OIDC",64},{"oidc",64},{"N",64},{"n",64},
-    {"No",64},{"no",64},{"F",64},{"f",64},{"False",64},{"false",64},{"Y",64},{"y",64},{"Yes",64},{"yes",64},{"T",64},
-    {"t",64},{"True",64},{"true",64},{"Pattern_White_Space",70},{"PatternWhiteSpace",70},{"patternwhitespace",70},
-    {"Noncharacter_Code_Point",60},{"NoncharacterCodePoint",60},{"noncharactercodepoint",60},{"IDST",50},{"idst",50},
-    {"N",50},{"n",50},{"No",50},{"no",50},{"F",50},{"f",50},{"False",50},{"false",50},{"Y",50},{"y",50},{"Yes",50},
-    {"yes",50},{"T",50},{"t",50},{"True",50},{"true",50},{"Changes_When_NFKC_Casefolded",35},
-    {"ChangesWhenNFKCCasefolded",35},{"changeswhennfkccasefolded",35},{"cf",4},{"Gr_Ext",45},{"GrExt",45},{"grext",45},
-    {"N",45},{"n",45},{"No",45},{"no",45},{"F",45},{"f",45},{"False",45},{"false",45},{"Y",45},{"y",45},{"Yes",45},
-    {"yes",45},{"T",45},{"t",45},{"True",45},{"true",45},{"Bidi_Mirrored",28},{"BidiMirrored",28},{"bidimirrored",28},
-    {"VS",78},{"vs",78},{"N",78},{"n",78},{"No",78},{"no",78},{"F",78},{"f",78},{"False",78},{"false",78},{"Y",78},{"y",78},
-    {"Yes",78},{"yes",78},{"T",78},{"t",78},{"True",78},{"true",78},{"Case_Folding_simple",29},{"CaseFoldingsimple",29},
-    {"casefoldingsimple",29},{"Join_C",54},{"JoinC",54},{"joinc",54},{"N",54},{"n",54},{"No",54},{"no",54},{"F",54},{"f",54},
-    {"False",54},{"false",54},{"Y",54},{"y",54},{"Yes",54},{"yes",54},{"T",54},{"t",54},{"True",54},{"true",54},{"Cased",31},
-    {"cased",31},{"N",31},{"n",31},{"No",31},{"no",31},{"F",31},{"f",31},{"False",31},{"false",31},{"Y",31},{"y",31},
-    {"Yes",31},{"yes",31},{"T",31},{"t",31},{"True",31},{"true",31},{"CWT",36},{"cwt",36},{"N",36},{"n",36},{"No",36},
-    {"no",36},{"F",36},{"f",36},{"False",36},{"false",36},{"Y",36},{"y",36},{"Yes",36},{"yes",36},{"T",36},{"t",36},
-    {"True",36},{"true",36},{"ccc",9},{"0",9},{"0",9},{"NR",9},{"nr",9},{"Not_Reordered",9},{"NotReordered",9},
+    {"XID_Continue",81},{"XIDContinue",81},{"xidcontinue",81},{"XID_Start",82},{"XIDStart",82},{"xidstart",82},
+    {"Other_ID_Start",66},{"OtherIDStart",66},{"otheridstart",66},{"Other_Lowercase",67},{"OtherLowercase",67},
+    {"otherlowercase",67},{"Pattern_Syntax",70},{"PatternSyntax",70},{"patternsyntax",70},{"Pat_WS",71},{"PatWS",71},
+    {"patws",71},{"N",71},{"n",71},{"No",71},{"no",71},{"F",71},{"f",71},{"False",71},{"false",71},{"Y",71},{"y",71},
+    {"Yes",71},{"yes",71},{"T",71},{"t",71},{"True",71},{"true",71},{"Other_ID_Continue",65},{"OtherIDContinue",65},
+    {"otheridcontinue",65},{"SD",75},{"sd",75},{"N",75},{"n",75},{"No",75},{"no",75},{"F",75},{"f",75},{"False",75},
+    {"false",75},{"Y",75},{"y",75},{"Yes",75},{"yes",75},{"T",75},{"t",75},{"True",75},{"true",75},{"Upper",78},{"upper",78},
+    {"N",78},{"n",78},{"No",78},{"no",78},{"F",78},{"f",78},{"False",78},{"false",78},{"Y",78},{"y",78},{"Yes",78},
+    {"yes",78},{"T",78},{"t",78},{"True",78},{"true",78},{"Joining_Type",13},{"JoiningType",13},{"joiningtype",13},
+    {"CWCF",33},{"cwcf",33},{"N",33},{"n",33},{"No",33},{"no",33},{"F",33},{"f",33},{"False",33},{"false",33},{"Y",33},
+    {"y",33},{"Yes",33},{"yes",33},{"T",33},{"t",33},{"True",33},{"true",33},{"OIDC",65},{"oidc",65},{"N",65},{"n",65},
+    {"No",65},{"no",65},{"F",65},{"f",65},{"False",65},{"false",65},{"Y",65},{"y",65},{"Yes",65},{"yes",65},{"T",65},
+    {"t",65},{"True",65},{"true",65},{"Pattern_White_Space",71},{"PatternWhiteSpace",71},{"patternwhitespace",71},
+    {"IDST",51},{"idst",51},{"N",51},{"n",51},{"No",51},{"no",51},{"F",51},{"f",51},{"False",51},{"false",51},{"Y",51},
+    {"y",51},{"Yes",51},{"yes",51},{"T",51},{"t",51},{"True",51},{"true",51},{"Noncharacter_Code_Point",61},
+    {"NoncharacterCodePoint",61},{"noncharactercodepoint",61},{"Changes_When_NFKC_Casefolded",36},
+    {"ChangesWhenNFKCCasefolded",36},{"changeswhennfkccasefolded",36},{"cf",4},{"Gr_Ext",46},{"GrExt",46},{"grext",46},
+    {"N",46},{"n",46},{"No",46},{"no",46},{"F",46},{"f",46},{"False",46},{"false",46},{"Y",46},{"y",46},{"Yes",46},
+    {"yes",46},{"T",46},{"t",46},{"True",46},{"true",46},{"Bidi_Mirrored",29},{"BidiMirrored",29},{"bidimirrored",29},
+    {"VS",79},{"vs",79},{"N",79},{"n",79},{"No",79},{"no",79},{"F",79},{"f",79},{"False",79},{"false",79},{"Y",79},{"y",79},
+    {"Yes",79},{"yes",79},{"T",79},{"t",79},{"True",79},{"true",79},{"Case_Folding_simple",30},{"CaseFoldingsimple",30},
+    {"casefoldingsimple",30},{"Join_C",55},{"JoinC",55},{"joinc",55},{"N",55},{"n",55},{"No",55},{"no",55},{"F",55},{"f",55},
+    {"False",55},{"false",55},{"Y",55},{"y",55},{"Yes",55},{"yes",55},{"T",55},{"t",55},{"True",55},{"true",55},{"Cased",32},
+    {"cased",32},{"N",32},{"n",32},{"No",32},{"no",32},{"F",32},{"f",32},{"False",32},{"false",32},{"Y",32},{"y",32},
+    {"Yes",32},{"yes",32},{"T",32},{"t",32},{"True",32},{"true",32},{"CWT",37},{"cwt",37},{"N",37},{"n",37},{"No",37},
+    {"no",37},{"F",37},{"f",37},{"False",37},{"false",37},{"Y",37},{"y",37},{"Yes",37},{"yes",37},{"T",37},{"t",37},
+    {"True",37},{"true",37},{"ccc",9},{"0",9},{"0",9},{"NR",9},{"nr",9},{"Not_Reordered",9},{"NotReordered",9},
     {"notreordered",9},{"1",9},{"1",9},{"OV",9},{"ov",9},{"Overlay",9},{"overlay",9},{"7",9},{"7",9},{"NK",9},{"nk",9},
     {"Nukta",9},{"nukta",9},{"8",9},{"8",9},{"KV",9},{"kv",9},{"Kana_Voicing",9},{"KanaVoicing",9},{"kanavoicing",9},{"9",9},
     {"9",9},{"VR",9},{"vr",9},{"Virama",9},{"virama",9},{"10",9},{"10",9},{"CCC10",9},{"ccc10",9},{"CCC10",9},{"ccc10",9},
@@ -33521,26 +33519,26 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[4445] = {
     {"V5_0",7},{"V50",7},{"v50",7},{"5.1",7},{"5.1",7},{"V5_1",7},{"V51",7},{"v51",7},{"5.2",7},{"5.2",7},{"V5_2",7},
     {"V52",7},{"v52",7},{"6.0",7},{"6.0",7},{"V6_0",7},{"V60",7},{"v60",7},{"6.1",7},{"6.1",7},{"V6_1",7},{"V61",7},
     {"v61",7},{"6.2",7},{"6.2",7},{"V6_2",7},{"V62",7},{"v62",7},{"6.3",7},{"6.3",7},{"V6_3",7},{"V63",7},{"v63",7},{"NA",7},
-    {"na",7},{"Unassigned",7},{"unassigned",7},{"Gr_Link",46},{"GrLink",46},{"grlink",46},{"N",46},{"n",46},{"No",46},
-    {"no",46},{"F",46},{"f",46},{"False",46},{"false",46},{"Y",46},{"y",46},{"Yes",46},{"yes",46},{"T",46},{"t",46},
-    {"True",46},{"true",46},{"Line_Break",16},{"LineBreak",16},{"linebreak",16},{"Join_Control",54},{"JoinControl",54},
-    {"joincontrol",54},{"NFKC_QC",21},{"NFKCQC",21},{"nfkcqc",21},{"M",21},{"m",21},{"Maybe",21},{"maybe",21},{"N",21},
+    {"na",7},{"Unassigned",7},{"unassigned",7},{"Gr_Link",47},{"GrLink",47},{"grlink",47},{"N",47},{"n",47},{"No",47},
+    {"no",47},{"F",47},{"f",47},{"False",47},{"false",47},{"Y",47},{"y",47},{"Yes",47},{"yes",47},{"T",47},{"t",47},
+    {"True",47},{"true",47},{"Line_Break",16},{"LineBreak",16},{"linebreak",16},{"Join_Control",55},{"JoinControl",55},
+    {"joincontrol",55},{"NFKC_QC",21},{"NFKCQC",21},{"nfkcqc",21},{"M",21},{"m",21},{"Maybe",21},{"maybe",21},{"N",21},
     {"n",21},{"No",21},{"no",21},{"Y",21},{"y",21},{"Yes",21},{"yes",21},{"jt",13},{"C",13},{"c",13},{"Join_Causing",13},
     {"JoinCausing",13},{"joincausing",13},{"D",13},{"d",13},{"Dual_Joining",13},{"DualJoining",13},{"dualjoining",13},
     {"L",13},{"l",13},{"Left_Joining",13},{"LeftJoining",13},{"leftjoining",13},{"R",13},{"r",13},{"Right_Joining",13},
     {"RightJoining",13},{"rightjoining",13},{"T",13},{"t",13},{"Transparent",13},{"transparent",13},{"U",13},{"u",13},
-    {"Non_Joining",13},{"NonJoining",13},{"nonjoining",13},{"Numeric_Value_Denominator",23},{"NumericValueDenominator",23},
-    {"numericvaluedenominator",23},{"IDC",51},{"idc",51},{"N",51},{"n",51},{"No",51},{"no",51},{"F",51},{"f",51},
-    {"False",51},{"false",51},{"Y",51},{"y",51},{"Yes",51},{"yes",51},{"T",51},{"t",51},{"True",51},{"true",51},{"space",79},
-    {"OIDS",65},{"oids",65},{"N",65},{"n",65},{"No",65},{"no",65},{"F",65},{"f",65},{"False",65},{"false",65},{"Y",65},
-    {"y",65},{"Yes",65},{"yes",65},{"T",65},{"t",65},{"True",65},{"true",65},{"bmg",5},{"Gr_Base",44},{"GrBase",44},
-    {"grbase",44},{"N",44},{"n",44},{"No",44},{"no",44},{"F",44},{"f",44},{"False",44},{"false",44},{"Y",44},{"y",44},
-    {"Yes",44},{"yes",44},{"T",44},{"t",44},{"True",44},{"true",44},{"Default_Ignorable_Code_Point",39},
-    {"DefaultIgnorableCodePoint",39},{"defaultignorablecodepoint",39},{"Case_Folding",4},{"CaseFolding",4},{"casefolding",4}
+    {"Non_Joining",13},{"NonJoining",13},{"nonjoining",13},{"Numeric_Value_Denominator",24},{"NumericValueDenominator",24},
+    {"numericvaluedenominator",24},{"IDC",52},{"idc",52},{"N",52},{"n",52},{"No",52},{"no",52},{"F",52},{"f",52},
+    {"False",52},{"false",52},{"Y",52},{"y",52},{"Yes",52},{"yes",52},{"T",52},{"t",52},{"True",52},{"true",52},{"space",80},
+    {"OIDS",66},{"oids",66},{"N",66},{"n",66},{"No",66},{"no",66},{"F",66},{"f",66},{"False",66},{"false",66},{"Y",66},
+    {"y",66},{"Yes",66},{"yes",66},{"T",66},{"t",66},{"True",66},{"true",66},{"bmg",5},{"Gr_Base",45},{"GrBase",45},
+    {"grbase",45},{"N",45},{"n",45},{"No",45},{"no",45},{"F",45},{"f",45},{"False",45},{"false",45},{"Y",45},{"y",45},
+    {"Yes",45},{"yes",45},{"T",45},{"t",45},{"True",45},{"true",45},{"Default_Ignorable_Code_Point",40},
+    {"DefaultIgnorableCodePoint",40},{"defaultignorablecodepoint",40},{"Case_Folding",4},{"CaseFolding",4},{"casefolding",4}
 };
 
 static MVMUnicodeNameRegistry **unicode_property_values_hashes;
-static const MVMUnicodeNamedValue unicode_property_value_keypairs[2540] = {
+static const MVMUnicodeNamedValue unicode_property_value_keypairs[2580] = {
     {"V1_1",117440513},{"V11",117440513},{"V2_0",117440514},{"V20",117440514},{"V2_1",117440515},{"V21",117440515},
     {"V3_0",117440516},{"V30",117440516},{"V3_1",117440517},{"V31",117440517},{"V3_2",117440518},{"V32",117440518},
     {"V4_0",117440519},{"V40",117440519},{"V4_1",117440520},{"V41",117440520},{"V5_0",117440521},{"V50",117440521},
@@ -33974,22 +33972,21 @@ static const MVMUnicodeNamedValue unicode_property_value_keypairs[2540] = {
     {"LineFeed",268435458},{"lf",268435458},{"NL",268435465},{"Next_Line",268435465},{"NextLine",268435465},{"nl",268435465},
     {"SG",268435460},{"Surrogate",268435460},{"sg",268435460},{"surrogate",268435460},{"SP",268435463},{"Space",268435463},
     {"sp",268435463},{"space",268435463},{"WJ",268435466},{"Word_Joiner",268435466},{"WordJoiner",268435466},
-    {"wj",268435466},{"ZW",268435464},{"ZWSpace",268435464},{"zw",268435464},{"zwspace",268435464},{"M",369098754},
-    {"Maybe",369098754},{"m",369098754},{"maybe",369098754},{"M",352321538},{"Maybe",352321538},{"m",352321538},
-    {"maybe",352321538},{"De",335544323},{"Decimal",335544323},{"de",335544323},{"decimal",335544323},{"Di",335544322},
-    {"Digit",335544322},{"di",335544322},{"digit",335544322},{"None",335544320},{"None",335544320},{"none",335544320},
-    {"none",335544320},{"Nu",335544321},{"Numeric",335544321},{"nu",335544321},{"numeric",335544321},{"Arab",134217735},
-    {"Arabic",134217735},{"arab",134217735},{"arabic",134217735},{"Armi",134217815},{"Imperial_Aramaic",134217815},
-    {"ImperialAramaic",134217815},{"armi",134217815},{"Armn",134217733},{"Armenian",134217733},{"armn",134217733},
-    {"armenian",134217733},{"Avst",134217808},{"Avestan",134217808},{"avst",134217808},{"avestan",134217808},
-    {"Bali",134217790},{"Balinese",134217790},{"bali",134217790},{"balinese",134217790},{"Bamu",134217812},
-    {"Bamum",134217812},{"bamu",134217812},{"bamum",134217812},{"Batk",134217821},{"Batak",134217821},{"batk",134217821},
-    {"batak",134217821},{"Beng",134217739},{"Bengali",134217739},{"beng",134217739},{"bengali",134217739},{"Bopo",134217763},
-    {"Bopomofo",134217763},{"bopo",134217763},{"bopomofo",134217763},{"Brah",134217822},{"Brahmi",134217822},
-    {"brah",134217822},{"brahmi",134217822},{"Brai",134217781},{"Braille",134217781},{"brai",134217781},
-    {"braille",134217781},{"Bugi",134217782},{"Buginese",134217782},{"bugi",134217782},{"buginese",134217782},
-    {"Buhd",134217772},{"Buhid",134217772},{"buhd",134217772},{"buhid",134217772},{"Cakm",134217824},{"Chakma",134217824},
-    {"cakm",134217824},{"chakma",134217824},{"Cans",134217756},{"Canadian_Aboriginal",134217756},
+    {"wj",268435466},{"ZW",268435464},{"ZWSpace",268435464},{"zw",268435464},{"zwspace",268435464},{"M",385875970},
+    {"Maybe",385875970},{"m",385875970},{"maybe",385875970},{"M",352321538},{"Maybe",352321538},{"m",352321538},
+    {"maybe",352321538},{"De",335544323},{"Decimal",335544323},{"de",335544323},{"decimal",335544323},{"None",335544320},
+    {"None",335544320},{"none",335544320},{"none",335544320},{"Nu",335544321},{"Numeric",335544321},{"nu",335544321},
+    {"numeric",335544321},{"Arab",134217735},{"Arabic",134217735},{"arab",134217735},{"arabic",134217735},{"Armi",134217815},
+    {"Imperial_Aramaic",134217815},{"ImperialAramaic",134217815},{"armi",134217815},{"Armn",134217733},
+    {"Armenian",134217733},{"armn",134217733},{"armenian",134217733},{"Avst",134217808},{"Avestan",134217808},
+    {"avst",134217808},{"avestan",134217808},{"Bali",134217790},{"Balinese",134217790},{"bali",134217790},
+    {"balinese",134217790},{"Bamu",134217812},{"Bamum",134217812},{"bamu",134217812},{"bamum",134217812},{"Batk",134217821},
+    {"Batak",134217821},{"batk",134217821},{"batak",134217821},{"Beng",134217739},{"Bengali",134217739},{"beng",134217739},
+    {"bengali",134217739},{"Bopo",134217763},{"Bopomofo",134217763},{"bopo",134217763},{"bopomofo",134217763},
+    {"Brah",134217822},{"Brahmi",134217822},{"brah",134217822},{"brahmi",134217822},{"Brai",134217781},{"Braille",134217781},
+    {"brai",134217781},{"braille",134217781},{"Bugi",134217782},{"Buginese",134217782},{"bugi",134217782},
+    {"buginese",134217782},{"Buhd",134217772},{"Buhid",134217772},{"buhd",134217772},{"buhid",134217772},{"Cakm",134217824},
+    {"Chakma",134217824},{"cakm",134217824},{"chakma",134217824},{"Cans",134217756},{"Canadian_Aboriginal",134217756},
     {"CanadianAboriginal",134217756},{"cans",134217756},{"Cari",134217803},{"Carian",134217803},{"cari",134217803},
     {"carian",134217803},{"Cham",134217805},{"Cham",134217805},{"cham",134217805},{"cham",134217805},{"Cher",134217755},
     {"Cherokee",134217755},{"cher",134217755},{"cherokee",134217755},{"Copt",134217783},{"Coptic",134217783},
@@ -34080,7 +34077,19 @@ static const MVMUnicodeNamedValue unicode_property_value_keypairs[2540] = {
     {"nl",201326598},{"newline",201326598},{"NU",201326607},{"Numeric",201326607},{"nu",201326607},{"numeric",201326607},
     {"RI",201326600},{"Regional_Indicator",201326600},{"RegionalIndicator",201326600},{"ri",201326600},{"SQ",201326594},
     {"Single_Quote",201326594},{"SingleQuote",201326594},{"sq",201326594},{"XX",201326592},{"Other",201326592},
-    {"xx",201326592},{"other",201326592}
+    {"xx",201326592},{"other",201326592},{"ASCII_Hex_Digit",436207617},{"ASCIIHexDigit",436207617},{"Hex_Digit",805306369},
+    {"HexDigit",805306369},{"Dash",654311425},{"Diacritic",704643073},{"Extender",721420289},{"Grapheme_Link",788529153},
+    {"GraphemeLink",788529153},{"Hyphen",822083585},{"IDS_Binary_Operator",838860801},{"IDSBinaryOperator",838860801},
+    {"IDS_Trinary_Operator",855638017},{"IDSTrinaryOperator",855638017},{"Join_Control",922746881},{"JoinControl",922746881},
+    {"Logical_Order_Exception",939524097},{"LogicalOrderException",939524097},{"Noncharacter_Code_Point",1023410177},
+    {"NoncharacterCodePoint",1023410177},{"Other_Alphabetic",1040187393},{"OtherAlphabetic",1040187393},
+    {"Other_Default_Ignorable_Code_Point",1056964609},{"OtherDefaultIgnorableCodePoint",1056964609},
+    {"Other_Grapheme_Extend",1073741825},{"OtherGraphemeExtend",1073741825},{"Other_Lowercase",1124073473},
+    {"OtherLowercase",1124073473},{"Other_Math",1140850689},{"OtherMath",1140850689},{"Other_Uppercase",1157627905},
+    {"OtherUppercase",1157627905},{"Quotation_Mark",1207959553},{"QuotationMark",1207959553},{"Radical",1224736769},
+    {"Quotation_Mark",1207959553},{"QuotationMark",1207959553},{"Soft_Dotted",1258291201},{"SoftDotted",1258291201},
+    {"Terminal_Punctuation",1275068417},{"TerminalPunctuation",1275068417},{"Unified_Ideograph",1291845633},
+    {"UnifiedIdeograph",1291845633},{"Digit",369098755}
 };
 static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint);
 static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
@@ -34180,6 +34189,10 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
 /* NFKC_QC bit_width: 2 bit_offset: 27 word_offset: 3 */
 
             return ((props_bitfield[bitfield_row][3] & 0x18) >> 3); /* mask: 00000000000000000000000000011000 */
+        case MVM_UNICODE_PROPERTY_DIGIT:
+/* Digit bit_width: 2 bit_offset: 25 word_offset: 3 */
+
+            return ((props_bitfield[bitfield_row][3] & 0x60) >> 5); /* mask: 00000000000000000000000001100000 */
         case MVM_UNICODE_PROPERTY_NFC_QC:
 /* NFC_QC bit_width: 2 bit_offset: 29 word_offset: 3 */
 
@@ -34423,6 +34436,673 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
         default:
             return 0;
     }
+}
+MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block) {
+    MVMCodepoint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, pos);
+    MVMuint64 size;
+    unsigned char *bname = MVM_string_ascii_encode(tc, block, &size);
+
+     if (ord >= 0x0000 && ord <= 0x007F) {
+        return strncmp("BasicLatin", bname, 10) == 0 || strncmp("basiclatin", bname, 10) == 0;
+    }
+    else if (ord >= 0x0080 && ord <= 0x00FF) {
+        return strncmp("Latin1Supplement", bname, 16) == 0 || strncmp("latin1supplement", bname, 16) == 0;
+    }
+    else if (ord >= 0x0100 && ord <= 0x017F) {
+        return strncmp("LatinExtendedA", bname, 14) == 0 || strncmp("latinextendeda", bname, 14) == 0;
+    }
+    else if (ord >= 0x0180 && ord <= 0x024F) {
+        return strncmp("LatinExtendedB", bname, 14) == 0 || strncmp("latinextendedb", bname, 14) == 0;
+    }
+    else if (ord >= 0x0250 && ord <= 0x02AF) {
+        return strncmp("IPAExtensions", bname, 13) == 0 || strncmp("ipaextensions", bname, 13) == 0;
+    }
+    else if (ord >= 0x02B0 && ord <= 0x02FF) {
+        return strncmp("SpacingModifierLetters", bname, 22) == 0 || strncmp("spacingmodifierletters", bname, 22) == 0;
+    }
+    else if (ord >= 0x0300 && ord <= 0x036F) {
+        return strncmp("CombiningDiacriticalMarks", bname, 25) == 0 || strncmp("combiningdiacriticalmarks", bname, 25) == 0;
+    }
+    else if (ord >= 0x0370 && ord <= 0x03FF) {
+        return strncmp("GreekandCoptic", bname, 14) == 0 || strncmp("greekandcoptic", bname, 14) == 0;
+    }
+    else if (ord >= 0x0400 && ord <= 0x04FF) {
+        return strncmp("Cyrillic", bname, 8) == 0 || strncmp("cyrillic", bname, 8) == 0;
+    }
+    else if (ord >= 0x0500 && ord <= 0x052F) {
+        return strncmp("CyrillicSupplement", bname, 18) == 0 || strncmp("cyrillicsupplement", bname, 18) == 0;
+    }
+    else if (ord >= 0x0530 && ord <= 0x058F) {
+        return strncmp("Armenian", bname, 8) == 0 || strncmp("armenian", bname, 8) == 0;
+    }
+    else if (ord >= 0x0590 && ord <= 0x05FF) {
+        return strncmp("Hebrew", bname, 6) == 0 || strncmp("hebrew", bname, 6) == 0;
+    }
+    else if (ord >= 0x0600 && ord <= 0x06FF) {
+        return strncmp("Arabic", bname, 6) == 0 || strncmp("arabic", bname, 6) == 0;
+    }
+    else if (ord >= 0x0700 && ord <= 0x074F) {
+        return strncmp("Syriac", bname, 6) == 0 || strncmp("syriac", bname, 6) == 0;
+    }
+    else if (ord >= 0x0750 && ord <= 0x077F) {
+        return strncmp("ArabicSupplement", bname, 16) == 0 || strncmp("arabicsupplement", bname, 16) == 0;
+    }
+    else if (ord >= 0x0780 && ord <= 0x07BF) {
+        return strncmp("Thaana", bname, 6) == 0 || strncmp("thaana", bname, 6) == 0;
+    }
+    else if (ord >= 0x07C0 && ord <= 0x07FF) {
+        return strncmp("NKo", bname, 3) == 0 || strncmp("nko", bname, 3) == 0;
+    }
+    else if (ord >= 0x0800 && ord <= 0x083F) {
+        return strncmp("Samaritan", bname, 9) == 0 || strncmp("samaritan", bname, 9) == 0;
+    }
+    else if (ord >= 0x0840 && ord <= 0x085F) {
+        return strncmp("Mandaic", bname, 7) == 0 || strncmp("mandaic", bname, 7) == 0;
+    }
+    else if (ord >= 0x08A0 && ord <= 0x08FF) {
+        return strncmp("ArabicExtendedA", bname, 15) == 0 || strncmp("arabicextendeda", bname, 15) == 0;
+    }
+    else if (ord >= 0x0900 && ord <= 0x097F) {
+        return strncmp("Devanagari", bname, 10) == 0 || strncmp("devanagari", bname, 10) == 0;
+    }
+    else if (ord >= 0x0980 && ord <= 0x09FF) {
+        return strncmp("Bengali", bname, 7) == 0 || strncmp("bengali", bname, 7) == 0;
+    }
+    else if (ord >= 0x0A00 && ord <= 0x0A7F) {
+        return strncmp("Gurmukhi", bname, 8) == 0 || strncmp("gurmukhi", bname, 8) == 0;
+    }
+    else if (ord >= 0x0A80 && ord <= 0x0AFF) {
+        return strncmp("Gujarati", bname, 8) == 0 || strncmp("gujarati", bname, 8) == 0;
+    }
+    else if (ord >= 0x0B00 && ord <= 0x0B7F) {
+        return strncmp("Oriya", bname, 5) == 0 || strncmp("oriya", bname, 5) == 0;
+    }
+    else if (ord >= 0x0B80 && ord <= 0x0BFF) {
+        return strncmp("Tamil", bname, 5) == 0 || strncmp("tamil", bname, 5) == 0;
+    }
+    else if (ord >= 0x0C00 && ord <= 0x0C7F) {
+        return strncmp("Telugu", bname, 6) == 0 || strncmp("telugu", bname, 6) == 0;
+    }
+    else if (ord >= 0x0C80 && ord <= 0x0CFF) {
+        return strncmp("Kannada", bname, 7) == 0 || strncmp("kannada", bname, 7) == 0;
+    }
+    else if (ord >= 0x0D00 && ord <= 0x0D7F) {
+        return strncmp("Malayalam", bname, 9) == 0 || strncmp("malayalam", bname, 9) == 0;
+    }
+    else if (ord >= 0x0D80 && ord <= 0x0DFF) {
+        return strncmp("Sinhala", bname, 7) == 0 || strncmp("sinhala", bname, 7) == 0;
+    }
+    else if (ord >= 0x0E00 && ord <= 0x0E7F) {
+        return strncmp("Thai", bname, 4) == 0 || strncmp("thai", bname, 4) == 0;
+    }
+    else if (ord >= 0x0E80 && ord <= 0x0EFF) {
+        return strncmp("Lao", bname, 3) == 0 || strncmp("lao", bname, 3) == 0;
+    }
+    else if (ord >= 0x0F00 && ord <= 0x0FFF) {
+        return strncmp("Tibetan", bname, 7) == 0 || strncmp("tibetan", bname, 7) == 0;
+    }
+    else if (ord >= 0x1000 && ord <= 0x109F) {
+        return strncmp("Myanmar", bname, 7) == 0 || strncmp("myanmar", bname, 7) == 0;
+    }
+    else if (ord >= 0x10A0 && ord <= 0x10FF) {
+        return strncmp("Georgian", bname, 8) == 0 || strncmp("georgian", bname, 8) == 0;
+    }
+    else if (ord >= 0x1100 && ord <= 0x11FF) {
+        return strncmp("HangulJamo", bname, 10) == 0 || strncmp("hanguljamo", bname, 10) == 0;
+    }
+    else if (ord >= 0x1200 && ord <= 0x137F) {
+        return strncmp("Ethiopic", bname, 8) == 0 || strncmp("ethiopic", bname, 8) == 0;
+    }
+    else if (ord >= 0x1380 && ord <= 0x139F) {
+        return strncmp("EthiopicSupplement", bname, 18) == 0 || strncmp("ethiopicsupplement", bname, 18) == 0;
+    }
+    else if (ord >= 0x13A0 && ord <= 0x13FF) {
+        return strncmp("Cherokee", bname, 8) == 0 || strncmp("cherokee", bname, 8) == 0;
+    }
+    else if (ord >= 0x1400 && ord <= 0x167F) {
+        return strncmp("UnifiedCanadianAboriginalSyllabics", bname, 34) == 0 || strncmp("unifiedcanadianaboriginalsyllabics", bname, 34) == 0;
+    }
+    else if (ord >= 0x1680 && ord <= 0x169F) {
+        return strncmp("Ogham", bname, 5) == 0 || strncmp("ogham", bname, 5) == 0;
+    }
+    else if (ord >= 0x16A0 && ord <= 0x16FF) {
+        return strncmp("Runic", bname, 5) == 0 || strncmp("runic", bname, 5) == 0;
+    }
+    else if (ord >= 0x1700 && ord <= 0x171F) {
+        return strncmp("Tagalog", bname, 7) == 0 || strncmp("tagalog", bname, 7) == 0;
+    }
+    else if (ord >= 0x1720 && ord <= 0x173F) {
+        return strncmp("Hanunoo", bname, 7) == 0 || strncmp("hanunoo", bname, 7) == 0;
+    }
+    else if (ord >= 0x1740 && ord <= 0x175F) {
+        return strncmp("Buhid", bname, 5) == 0 || strncmp("buhid", bname, 5) == 0;
+    }
+    else if (ord >= 0x1760 && ord <= 0x177F) {
+        return strncmp("Tagbanwa", bname, 8) == 0 || strncmp("tagbanwa", bname, 8) == 0;
+    }
+    else if (ord >= 0x1780 && ord <= 0x17FF) {
+        return strncmp("Khmer", bname, 5) == 0 || strncmp("khmer", bname, 5) == 0;
+    }
+    else if (ord >= 0x1800 && ord <= 0x18AF) {
+        return strncmp("Mongolian", bname, 9) == 0 || strncmp("mongolian", bname, 9) == 0;
+    }
+    else if (ord >= 0x18B0 && ord <= 0x18FF) {
+        return strncmp("UnifiedCanadianAboriginalSyllabicsExtended", bname, 42) == 0 || strncmp("unifiedcanadianaboriginalsyllabicsextended", bname, 42) == 0;
+    }
+    else if (ord >= 0x1900 && ord <= 0x194F) {
+        return strncmp("Limbu", bname, 5) == 0 || strncmp("limbu", bname, 5) == 0;
+    }
+    else if (ord >= 0x1950 && ord <= 0x197F) {
+        return strncmp("TaiLe", bname, 5) == 0 || strncmp("taile", bname, 5) == 0;
+    }
+    else if (ord >= 0x1980 && ord <= 0x19DF) {
+        return strncmp("NewTaiLue", bname, 9) == 0 || strncmp("newtailue", bname, 9) == 0;
+    }
+    else if (ord >= 0x19E0 && ord <= 0x19FF) {
+        return strncmp("KhmerSymbols", bname, 12) == 0 || strncmp("khmersymbols", bname, 12) == 0;
+    }
+    else if (ord >= 0x1A00 && ord <= 0x1A1F) {
+        return strncmp("Buginese", bname, 8) == 0 || strncmp("buginese", bname, 8) == 0;
+    }
+    else if (ord >= 0x1A20 && ord <= 0x1AAF) {
+        return strncmp("TaiTham", bname, 7) == 0 || strncmp("taitham", bname, 7) == 0;
+    }
+    else if (ord >= 0x1B00 && ord <= 0x1B7F) {
+        return strncmp("Balinese", bname, 8) == 0 || strncmp("balinese", bname, 8) == 0;
+    }
+    else if (ord >= 0x1B80 && ord <= 0x1BBF) {
+        return strncmp("Sundanese", bname, 9) == 0 || strncmp("sundanese", bname, 9) == 0;
+    }
+    else if (ord >= 0x1BC0 && ord <= 0x1BFF) {
+        return strncmp("Batak", bname, 5) == 0 || strncmp("batak", bname, 5) == 0;
+    }
+    else if (ord >= 0x1C00 && ord <= 0x1C4F) {
+        return strncmp("Lepcha", bname, 6) == 0 || strncmp("lepcha", bname, 6) == 0;
+    }
+    else if (ord >= 0x1C50 && ord <= 0x1C7F) {
+        return strncmp("OlChiki", bname, 7) == 0 || strncmp("olchiki", bname, 7) == 0;
+    }
+    else if (ord >= 0x1CC0 && ord <= 0x1CCF) {
+        return strncmp("SundaneseSupplement", bname, 19) == 0 || strncmp("sundanesesupplement", bname, 19) == 0;
+    }
+    else if (ord >= 0x1CD0 && ord <= 0x1CFF) {
+        return strncmp("VedicExtensions", bname, 15) == 0 || strncmp("vedicextensions", bname, 15) == 0;
+    }
+    else if (ord >= 0x1D00 && ord <= 0x1D7F) {
+        return strncmp("PhoneticExtensions", bname, 18) == 0 || strncmp("phoneticextensions", bname, 18) == 0;
+    }
+    else if (ord >= 0x1D80 && ord <= 0x1DBF) {
+        return strncmp("PhoneticExtensionsSupplement", bname, 28) == 0 || strncmp("phoneticextensionssupplement", bname, 28) == 0;
+    }
+    else if (ord >= 0x1DC0 && ord <= 0x1DFF) {
+        return strncmp("CombiningDiacriticalMarksSupplement", bname, 35) == 0 || strncmp("combiningdiacriticalmarkssupplement", bname, 35) == 0;
+    }
+    else if (ord >= 0x1E00 && ord <= 0x1EFF) {
+        return strncmp("LatinExtendedAdditional", bname, 23) == 0 || strncmp("latinextendedadditional", bname, 23) == 0;
+    }
+    else if (ord >= 0x1F00 && ord <= 0x1FFF) {
+        return strncmp("GreekExtended", bname, 13) == 0 || strncmp("greekextended", bname, 13) == 0;
+    }
+    else if (ord >= 0x2000 && ord <= 0x206F) {
+        return strncmp("GeneralPunctuation", bname, 18) == 0 || strncmp("generalpunctuation", bname, 18) == 0;
+    }
+    else if (ord >= 0x2070 && ord <= 0x209F) {
+        return strncmp("SuperscriptsandSubscripts", bname, 25) == 0 || strncmp("superscriptsandsubscripts", bname, 25) == 0;
+    }
+    else if (ord >= 0x20A0 && ord <= 0x20CF) {
+        return strncmp("CurrencySymbols", bname, 15) == 0 || strncmp("currencysymbols", bname, 15) == 0;
+    }
+    else if (ord >= 0x20D0 && ord <= 0x20FF) {
+        return strncmp("CombiningDiacriticalMarksforSymbols", bname, 35) == 0 || strncmp("combiningdiacriticalmarksforsymbols", bname, 35) == 0;
+    }
+    else if (ord >= 0x2100 && ord <= 0x214F) {
+        return strncmp("LetterlikeSymbols", bname, 17) == 0 || strncmp("letterlikesymbols", bname, 17) == 0;
+    }
+    else if (ord >= 0x2150 && ord <= 0x218F) {
+        return strncmp("NumberForms", bname, 11) == 0 || strncmp("numberforms", bname, 11) == 0;
+    }
+    else if (ord >= 0x2190 && ord <= 0x21FF) {
+        return strncmp("Arrows", bname, 6) == 0 || strncmp("arrows", bname, 6) == 0;
+    }
+    else if (ord >= 0x2200 && ord <= 0x22FF) {
+        return strncmp("MathematicalOperators", bname, 21) == 0 || strncmp("mathematicaloperators", bname, 21) == 0;
+    }
+    else if (ord >= 0x2300 && ord <= 0x23FF) {
+        return strncmp("MiscellaneousTechnical", bname, 22) == 0 || strncmp("miscellaneoustechnical", bname, 22) == 0;
+    }
+    else if (ord >= 0x2400 && ord <= 0x243F) {
+        return strncmp("ControlPictures", bname, 15) == 0 || strncmp("controlpictures", bname, 15) == 0;
+    }
+    else if (ord >= 0x2440 && ord <= 0x245F) {
+        return strncmp("OpticalCharacterRecognition", bname, 27) == 0 || strncmp("opticalcharacterrecognition", bname, 27) == 0;
+    }
+    else if (ord >= 0x2460 && ord <= 0x24FF) {
+        return strncmp("EnclosedAlphanumerics", bname, 21) == 0 || strncmp("enclosedalphanumerics", bname, 21) == 0;
+    }
+    else if (ord >= 0x2500 && ord <= 0x257F) {
+        return strncmp("BoxDrawing", bname, 10) == 0 || strncmp("boxdrawing", bname, 10) == 0;
+    }
+    else if (ord >= 0x2580 && ord <= 0x259F) {
+        return strncmp("BlockElements", bname, 13) == 0 || strncmp("blockelements", bname, 13) == 0;
+    }
+    else if (ord >= 0x25A0 && ord <= 0x25FF) {
+        return strncmp("GeometricShapes", bname, 15) == 0 || strncmp("geometricshapes", bname, 15) == 0;
+    }
+    else if (ord >= 0x2600 && ord <= 0x26FF) {
+        return strncmp("MiscellaneousSymbols", bname, 20) == 0 || strncmp("miscellaneoussymbols", bname, 20) == 0;
+    }
+    else if (ord >= 0x2700 && ord <= 0x27BF) {
+        return strncmp("Dingbats", bname, 8) == 0 || strncmp("dingbats", bname, 8) == 0;
+    }
+    else if (ord >= 0x27C0 && ord <= 0x27EF) {
+        return strncmp("MiscellaneousMathematicalSymbolsA", bname, 33) == 0 || strncmp("miscellaneousmathematicalsymbolsa", bname, 33) == 0;
+    }
+    else if (ord >= 0x27F0 && ord <= 0x27FF) {
+        return strncmp("SupplementalArrowsA", bname, 19) == 0 || strncmp("supplementalarrowsa", bname, 19) == 0;
+    }
+    else if (ord >= 0x2800 && ord <= 0x28FF) {
+        return strncmp("BraillePatterns", bname, 15) == 0 || strncmp("braillepatterns", bname, 15) == 0;
+    }
+    else if (ord >= 0x2900 && ord <= 0x297F) {
+        return strncmp("SupplementalArrowsB", bname, 19) == 0 || strncmp("supplementalarrowsb", bname, 19) == 0;
+    }
+    else if (ord >= 0x2980 && ord <= 0x29FF) {
+        return strncmp("MiscellaneousMathematicalSymbolsB", bname, 33) == 0 || strncmp("miscellaneousmathematicalsymbolsb", bname, 33) == 0;
+    }
+    else if (ord >= 0x2A00 && ord <= 0x2AFF) {
+        return strncmp("SupplementalMathematicalOperators", bname, 33) == 0 || strncmp("supplementalmathematicaloperators", bname, 33) == 0;
+    }
+    else if (ord >= 0x2B00 && ord <= 0x2BFF) {
+        return strncmp("MiscellaneousSymbolsandArrows", bname, 29) == 0 || strncmp("miscellaneoussymbolsandarrows", bname, 29) == 0;
+    }
+    else if (ord >= 0x2C00 && ord <= 0x2C5F) {
+        return strncmp("Glagolitic", bname, 10) == 0 || strncmp("glagolitic", bname, 10) == 0;
+    }
+    else if (ord >= 0x2C60 && ord <= 0x2C7F) {
+        return strncmp("LatinExtendedC", bname, 14) == 0 || strncmp("latinextendedc", bname, 14) == 0;
+    }
+    else if (ord >= 0x2C80 && ord <= 0x2CFF) {
+        return strncmp("Coptic", bname, 6) == 0 || strncmp("coptic", bname, 6) == 0;
+    }
+    else if (ord >= 0x2D00 && ord <= 0x2D2F) {
+        return strncmp("GeorgianSupplement", bname, 18) == 0 || strncmp("georgiansupplement", bname, 18) == 0;
+    }
+    else if (ord >= 0x2D30 && ord <= 0x2D7F) {
+        return strncmp("Tifinagh", bname, 8) == 0 || strncmp("tifinagh", bname, 8) == 0;
+    }
+    else if (ord >= 0x2D80 && ord <= 0x2DDF) {
+        return strncmp("EthiopicExtended", bname, 16) == 0 || strncmp("ethiopicextended", bname, 16) == 0;
+    }
+    else if (ord >= 0x2DE0 && ord <= 0x2DFF) {
+        return strncmp("CyrillicExtendedA", bname, 17) == 0 || strncmp("cyrillicextendeda", bname, 17) == 0;
+    }
+    else if (ord >= 0x2E00 && ord <= 0x2E7F) {
+        return strncmp("SupplementalPunctuation", bname, 23) == 0 || strncmp("supplementalpunctuation", bname, 23) == 0;
+    }
+    else if (ord >= 0x2E80 && ord <= 0x2EFF) {
+        return strncmp("CJKRadicalsSupplement", bname, 21) == 0 || strncmp("cjkradicalssupplement", bname, 21) == 0;
+    }
+    else if (ord >= 0x2F00 && ord <= 0x2FDF) {
+        return strncmp("KangxiRadicals", bname, 14) == 0 || strncmp("kangxiradicals", bname, 14) == 0;
+    }
+    else if (ord >= 0x2FF0 && ord <= 0x2FFF) {
+        return strncmp("IdeographicDescriptionCharacters", bname, 32) == 0 || strncmp("ideographicdescriptioncharacters", bname, 32) == 0;
+    }
+    else if (ord >= 0x3000 && ord <= 0x303F) {
+        return strncmp("CJKSymbolsandPunctuation", bname, 24) == 0 || strncmp("cjksymbolsandpunctuation", bname, 24) == 0;
+    }
+    else if (ord >= 0x3040 && ord <= 0x309F) {
+        return strncmp("Hiragana", bname, 8) == 0 || strncmp("hiragana", bname, 8) == 0;
+    }
+    else if (ord >= 0x30A0 && ord <= 0x30FF) {
+        return strncmp("Katakana", bname, 8) == 0 || strncmp("katakana", bname, 8) == 0;
+    }
+    else if (ord >= 0x3100 && ord <= 0x312F) {
+        return strncmp("Bopomofo", bname, 8) == 0 || strncmp("bopomofo", bname, 8) == 0;
+    }
+    else if (ord >= 0x3130 && ord <= 0x318F) {
+        return strncmp("HangulCompatibilityJamo", bname, 23) == 0 || strncmp("hangulcompatibilityjamo", bname, 23) == 0;
+    }
+    else if (ord >= 0x3190 && ord <= 0x319F) {
+        return strncmp("Kanbun", bname, 6) == 0 || strncmp("kanbun", bname, 6) == 0;
+    }
+    else if (ord >= 0x31A0 && ord <= 0x31BF) {
+        return strncmp("BopomofoExtended", bname, 16) == 0 || strncmp("bopomofoextended", bname, 16) == 0;
+    }
+    else if (ord >= 0x31C0 && ord <= 0x31EF) {
+        return strncmp("CJKStrokes", bname, 10) == 0 || strncmp("cjkstrokes", bname, 10) == 0;
+    }
+    else if (ord >= 0x31F0 && ord <= 0x31FF) {
+        return strncmp("KatakanaPhoneticExtensions", bname, 26) == 0 || strncmp("katakanaphoneticextensions", bname, 26) == 0;
+    }
+    else if (ord >= 0x3200 && ord <= 0x32FF) {
+        return strncmp("EnclosedCJKLettersandMonths", bname, 27) == 0 || strncmp("enclosedcjklettersandmonths", bname, 27) == 0;
+    }
+    else if (ord >= 0x3300 && ord <= 0x33FF) {
+        return strncmp("CJKCompatibility", bname, 16) == 0 || strncmp("cjkcompatibility", bname, 16) == 0;
+    }
+    else if (ord >= 0x3400 && ord <= 0x4DBF) {
+        return strncmp("CJKUnifiedIdeographsExtensionA", bname, 30) == 0 || strncmp("cjkunifiedideographsextensiona", bname, 30) == 0;
+    }
+    else if (ord >= 0x4DC0 && ord <= 0x4DFF) {
+        return strncmp("YijingHexagramSymbols", bname, 21) == 0 || strncmp("yijinghexagramsymbols", bname, 21) == 0;
+    }
+    else if (ord >= 0x4E00 && ord <= 0x9FFF) {
+        return strncmp("CJKUnifiedIdeographs", bname, 20) == 0 || strncmp("cjkunifiedideographs", bname, 20) == 0;
+    }
+    else if (ord >= 0xA000 && ord <= 0xA48F) {
+        return strncmp("YiSyllables", bname, 11) == 0 || strncmp("yisyllables", bname, 11) == 0;
+    }
+    else if (ord >= 0xA490 && ord <= 0xA4CF) {
+        return strncmp("YiRadicals", bname, 10) == 0 || strncmp("yiradicals", bname, 10) == 0;
+    }
+    else if (ord >= 0xA4D0 && ord <= 0xA4FF) {
+        return strncmp("Lisu", bname, 4) == 0 || strncmp("lisu", bname, 4) == 0;
+    }
+    else if (ord >= 0xA500 && ord <= 0xA63F) {
+        return strncmp("Vai", bname, 3) == 0 || strncmp("vai", bname, 3) == 0;
+    }
+    else if (ord >= 0xA640 && ord <= 0xA69F) {
+        return strncmp("CyrillicExtendedB", bname, 17) == 0 || strncmp("cyrillicextendedb", bname, 17) == 0;
+    }
+    else if (ord >= 0xA6A0 && ord <= 0xA6FF) {
+        return strncmp("Bamum", bname, 5) == 0 || strncmp("bamum", bname, 5) == 0;
+    }
+    else if (ord >= 0xA700 && ord <= 0xA71F) {
+        return strncmp("ModifierToneLetters", bname, 19) == 0 || strncmp("modifiertoneletters", bname, 19) == 0;
+    }
+    else if (ord >= 0xA720 && ord <= 0xA7FF) {
+        return strncmp("LatinExtendedD", bname, 14) == 0 || strncmp("latinextendedd", bname, 14) == 0;
+    }
+    else if (ord >= 0xA800 && ord <= 0xA82F) {
+        return strncmp("SylotiNagri", bname, 11) == 0 || strncmp("sylotinagri", bname, 11) == 0;
+    }
+    else if (ord >= 0xA830 && ord <= 0xA83F) {
+        return strncmp("CommonIndicNumberForms", bname, 22) == 0 || strncmp("commonindicnumberforms", bname, 22) == 0;
+    }
+    else if (ord >= 0xA840 && ord <= 0xA87F) {
+        return strncmp("Phagspa", bname, 7) == 0 || strncmp("phagspa", bname, 7) == 0;
+    }
+    else if (ord >= 0xA880 && ord <= 0xA8DF) {
+        return strncmp("Saurashtra", bname, 10) == 0 || strncmp("saurashtra", bname, 10) == 0;
+    }
+    else if (ord >= 0xA8E0 && ord <= 0xA8FF) {
+        return strncmp("DevanagariExtended", bname, 18) == 0 || strncmp("devanagariextended", bname, 18) == 0;
+    }
+    else if (ord >= 0xA900 && ord <= 0xA92F) {
+        return strncmp("KayahLi", bname, 7) == 0 || strncmp("kayahli", bname, 7) == 0;
+    }
+    else if (ord >= 0xA930 && ord <= 0xA95F) {
+        return strncmp("Rejang", bname, 6) == 0 || strncmp("rejang", bname, 6) == 0;
+    }
+    else if (ord >= 0xA960 && ord <= 0xA97F) {
+        return strncmp("HangulJamoExtendedA", bname, 19) == 0 || strncmp("hanguljamoextendeda", bname, 19) == 0;
+    }
+    else if (ord >= 0xA980 && ord <= 0xA9DF) {
+        return strncmp("Javanese", bname, 8) == 0 || strncmp("javanese", bname, 8) == 0;
+    }
+    else if (ord >= 0xAA00 && ord <= 0xAA5F) {
+        return strncmp("Cham", bname, 4) == 0 || strncmp("cham", bname, 4) == 0;
+    }
+    else if (ord >= 0xAA60 && ord <= 0xAA7F) {
+        return strncmp("MyanmarExtendedA", bname, 16) == 0 || strncmp("myanmarextendeda", bname, 16) == 0;
+    }
+    else if (ord >= 0xAA80 && ord <= 0xAADF) {
+        return strncmp("TaiViet", bname, 7) == 0 || strncmp("taiviet", bname, 7) == 0;
+    }
+    else if (ord >= 0xAAE0 && ord <= 0xAAFF) {
+        return strncmp("MeeteiMayekExtensions", bname, 21) == 0 || strncmp("meeteimayekextensions", bname, 21) == 0;
+    }
+    else if (ord >= 0xAB00 && ord <= 0xAB2F) {
+        return strncmp("EthiopicExtendedA", bname, 17) == 0 || strncmp("ethiopicextendeda", bname, 17) == 0;
+    }
+    else if (ord >= 0xABC0 && ord <= 0xABFF) {
+        return strncmp("MeeteiMayek", bname, 11) == 0 || strncmp("meeteimayek", bname, 11) == 0;
+    }
+    else if (ord >= 0xAC00 && ord <= 0xD7AF) {
+        return strncmp("HangulSyllables", bname, 15) == 0 || strncmp("hangulsyllables", bname, 15) == 0;
+    }
+    else if (ord >= 0xD7B0 && ord <= 0xD7FF) {
+        return strncmp("HangulJamoExtendedB", bname, 19) == 0 || strncmp("hanguljamoextendedb", bname, 19) == 0;
+    }
+    else if (ord >= 0xD800 && ord <= 0xDB7F) {
+        return strncmp("HighSurrogates", bname, 14) == 0 || strncmp("highsurrogates", bname, 14) == 0;
+    }
+    else if (ord >= 0xDB80 && ord <= 0xDBFF) {
+        return strncmp("HighPrivateUseSurrogates", bname, 24) == 0 || strncmp("highprivateusesurrogates", bname, 24) == 0;
+    }
+    else if (ord >= 0xDC00 && ord <= 0xDFFF) {
+        return strncmp("LowSurrogates", bname, 13) == 0 || strncmp("lowsurrogates", bname, 13) == 0;
+    }
+    else if (ord >= 0xE000 && ord <= 0xF8FF) {
+        return strncmp("PrivateUseArea", bname, 14) == 0 || strncmp("privateusearea", bname, 14) == 0;
+    }
+    else if (ord >= 0xF900 && ord <= 0xFAFF) {
+        return strncmp("CJKCompatibilityIdeographs", bname, 26) == 0 || strncmp("cjkcompatibilityideographs", bname, 26) == 0;
+    }
+    else if (ord >= 0xFB00 && ord <= 0xFB4F) {
+        return strncmp("AlphabeticPresentationForms", bname, 27) == 0 || strncmp("alphabeticpresentationforms", bname, 27) == 0;
+    }
+    else if (ord >= 0xFB50 && ord <= 0xFDFF) {
+        return strncmp("ArabicPresentationFormsA", bname, 24) == 0 || strncmp("arabicpresentationformsa", bname, 24) == 0;
+    }
+    else if (ord >= 0xFE00 && ord <= 0xFE0F) {
+        return strncmp("VariationSelectors", bname, 18) == 0 || strncmp("variationselectors", bname, 18) == 0;
+    }
+    else if (ord >= 0xFE10 && ord <= 0xFE1F) {
+        return strncmp("VerticalForms", bname, 13) == 0 || strncmp("verticalforms", bname, 13) == 0;
+    }
+    else if (ord >= 0xFE20 && ord <= 0xFE2F) {
+        return strncmp("CombiningHalfMarks", bname, 18) == 0 || strncmp("combininghalfmarks", bname, 18) == 0;
+    }
+    else if (ord >= 0xFE30 && ord <= 0xFE4F) {
+        return strncmp("CJKCompatibilityForms", bname, 21) == 0 || strncmp("cjkcompatibilityforms", bname, 21) == 0;
+    }
+    else if (ord >= 0xFE50 && ord <= 0xFE6F) {
+        return strncmp("SmallFormVariants", bname, 17) == 0 || strncmp("smallformvariants", bname, 17) == 0;
+    }
+    else if (ord >= 0xFE70 && ord <= 0xFEFF) {
+        return strncmp("ArabicPresentationFormsB", bname, 24) == 0 || strncmp("arabicpresentationformsb", bname, 24) == 0;
+    }
+    else if (ord >= 0xFF00 && ord <= 0xFFEF) {
+        return strncmp("HalfwidthandFullwidthForms", bname, 26) == 0 || strncmp("halfwidthandfullwidthforms", bname, 26) == 0;
+    }
+    else if (ord >= 0xFFF0 && ord <= 0xFFFF) {
+        return strncmp("Specials", bname, 8) == 0 || strncmp("specials", bname, 8) == 0;
+    }
+    else if (ord >= 0x10000 && ord <= 0x1007F) {
+        return strncmp("LinearBSyllabary", bname, 16) == 0 || strncmp("linearbsyllabary", bname, 16) == 0;
+    }
+    else if (ord >= 0x10080 && ord <= 0x100FF) {
+        return strncmp("LinearBIdeograms", bname, 16) == 0 || strncmp("linearbideograms", bname, 16) == 0;
+    }
+    else if (ord >= 0x10100 && ord <= 0x1013F) {
+        return strncmp("AegeanNumbers", bname, 13) == 0 || strncmp("aegeannumbers", bname, 13) == 0;
+    }
+    else if (ord >= 0x10140 && ord <= 0x1018F) {
+        return strncmp("AncientGreekNumbers", bname, 19) == 0 || strncmp("ancientgreeknumbers", bname, 19) == 0;
+    }
+    else if (ord >= 0x10190 && ord <= 0x101CF) {
+        return strncmp("AncientSymbols", bname, 14) == 0 || strncmp("ancientsymbols", bname, 14) == 0;
+    }
+    else if (ord >= 0x101D0 && ord <= 0x101FF) {
+        return strncmp("PhaistosDisc", bname, 12) == 0 || strncmp("phaistosdisc", bname, 12) == 0;
+    }
+    else if (ord >= 0x10280 && ord <= 0x1029F) {
+        return strncmp("Lycian", bname, 6) == 0 || strncmp("lycian", bname, 6) == 0;
+    }
+    else if (ord >= 0x102A0 && ord <= 0x102DF) {
+        return strncmp("Carian", bname, 6) == 0 || strncmp("carian", bname, 6) == 0;
+    }
+    else if (ord >= 0x10300 && ord <= 0x1032F) {
+        return strncmp("OldItalic", bname, 9) == 0 || strncmp("olditalic", bname, 9) == 0;
+    }
+    else if (ord >= 0x10330 && ord <= 0x1034F) {
+        return strncmp("Gothic", bname, 6) == 0 || strncmp("gothic", bname, 6) == 0;
+    }
+    else if (ord >= 0x10380 && ord <= 0x1039F) {
+        return strncmp("Ugaritic", bname, 8) == 0 || strncmp("ugaritic", bname, 8) == 0;
+    }
+    else if (ord >= 0x103A0 && ord <= 0x103DF) {
+        return strncmp("OldPersian", bname, 10) == 0 || strncmp("oldpersian", bname, 10) == 0;
+    }
+    else if (ord >= 0x10400 && ord <= 0x1044F) {
+        return strncmp("Deseret", bname, 7) == 0 || strncmp("deseret", bname, 7) == 0;
+    }
+    else if (ord >= 0x10450 && ord <= 0x1047F) {
+        return strncmp("Shavian", bname, 7) == 0 || strncmp("shavian", bname, 7) == 0;
+    }
+    else if (ord >= 0x10480 && ord <= 0x104AF) {
+        return strncmp("Osmanya", bname, 7) == 0 || strncmp("osmanya", bname, 7) == 0;
+    }
+    else if (ord >= 0x10800 && ord <= 0x1083F) {
+        return strncmp("CypriotSyllabary", bname, 16) == 0 || strncmp("cypriotsyllabary", bname, 16) == 0;
+    }
+    else if (ord >= 0x10840 && ord <= 0x1085F) {
+        return strncmp("ImperialAramaic", bname, 15) == 0 || strncmp("imperialaramaic", bname, 15) == 0;
+    }
+    else if (ord >= 0x10900 && ord <= 0x1091F) {
+        return strncmp("Phoenician", bname, 10) == 0 || strncmp("phoenician", bname, 10) == 0;
+    }
+    else if (ord >= 0x10920 && ord <= 0x1093F) {
+        return strncmp("Lydian", bname, 6) == 0 || strncmp("lydian", bname, 6) == 0;
+    }
+    else if (ord >= 0x10980 && ord <= 0x1099F) {
+        return strncmp("MeroiticHieroglyphs", bname, 19) == 0 || strncmp("meroitichieroglyphs", bname, 19) == 0;
+    }
+    else if (ord >= 0x109A0 && ord <= 0x109FF) {
+        return strncmp("MeroiticCursive", bname, 15) == 0 || strncmp("meroiticcursive", bname, 15) == 0;
+    }
+    else if (ord >= 0x10A00 && ord <= 0x10A5F) {
+        return strncmp("Kharoshthi", bname, 10) == 0 || strncmp("kharoshthi", bname, 10) == 0;
+    }
+    else if (ord >= 0x10A60 && ord <= 0x10A7F) {
+        return strncmp("OldSouthArabian", bname, 15) == 0 || strncmp("oldsoutharabian", bname, 15) == 0;
+    }
+    else if (ord >= 0x10B00 && ord <= 0x10B3F) {
+        return strncmp("Avestan", bname, 7) == 0 || strncmp("avestan", bname, 7) == 0;
+    }
+    else if (ord >= 0x10B40 && ord <= 0x10B5F) {
+        return strncmp("InscriptionalParthian", bname, 21) == 0 || strncmp("inscriptionalparthian", bname, 21) == 0;
+    }
+    else if (ord >= 0x10B60 && ord <= 0x10B7F) {
+        return strncmp("InscriptionalPahlavi", bname, 20) == 0 || strncmp("inscriptionalpahlavi", bname, 20) == 0;
+    }
+    else if (ord >= 0x10C00 && ord <= 0x10C4F) {
+        return strncmp("OldTurkic", bname, 9) == 0 || strncmp("oldturkic", bname, 9) == 0;
+    }
+    else if (ord >= 0x10E60 && ord <= 0x10E7F) {
+        return strncmp("RumiNumeralSymbols", bname, 18) == 0 || strncmp("ruminumeralsymbols", bname, 18) == 0;
+    }
+    else if (ord >= 0x11000 && ord <= 0x1107F) {
+        return strncmp("Brahmi", bname, 6) == 0 || strncmp("brahmi", bname, 6) == 0;
+    }
+    else if (ord >= 0x11080 && ord <= 0x110CF) {
+        return strncmp("Kaithi", bname, 6) == 0 || strncmp("kaithi", bname, 6) == 0;
+    }
+    else if (ord >= 0x110D0 && ord <= 0x110FF) {
+        return strncmp("SoraSompeng", bname, 11) == 0 || strncmp("sorasompeng", bname, 11) == 0;
+    }
+    else if (ord >= 0x11100 && ord <= 0x1114F) {
+        return strncmp("Chakma", bname, 6) == 0 || strncmp("chakma", bname, 6) == 0;
+    }
+    else if (ord >= 0x11180 && ord <= 0x111DF) {
+        return strncmp("Sharada", bname, 7) == 0 || strncmp("sharada", bname, 7) == 0;
+    }
+    else if (ord >= 0x11680 && ord <= 0x116CF) {
+        return strncmp("Takri", bname, 5) == 0 || strncmp("takri", bname, 5) == 0;
+    }
+    else if (ord >= 0x12000 && ord <= 0x123FF) {
+        return strncmp("Cuneiform", bname, 9) == 0 || strncmp("cuneiform", bname, 9) == 0;
+    }
+    else if (ord >= 0x12400 && ord <= 0x1247F) {
+        return strncmp("CuneiformNumbersandPunctuation", bname, 30) == 0 || strncmp("cuneiformnumbersandpunctuation", bname, 30) == 0;
+    }
+    else if (ord >= 0x13000 && ord <= 0x1342F) {
+        return strncmp("EgyptianHieroglyphs", bname, 19) == 0 || strncmp("egyptianhieroglyphs", bname, 19) == 0;
+    }
+    else if (ord >= 0x16800 && ord <= 0x16A3F) {
+        return strncmp("BamumSupplement", bname, 15) == 0 || strncmp("bamumsupplement", bname, 15) == 0;
+    }
+    else if (ord >= 0x16F00 && ord <= 0x16F9F) {
+        return strncmp("Miao", bname, 4) == 0 || strncmp("miao", bname, 4) == 0;
+    }
+    else if (ord >= 0x1B000 && ord <= 0x1B0FF) {
+        return strncmp("KanaSupplement", bname, 14) == 0 || strncmp("kanasupplement", bname, 14) == 0;
+    }
+    else if (ord >= 0x1D000 && ord <= 0x1D0FF) {
+        return strncmp("ByzantineMusicalSymbols", bname, 23) == 0 || strncmp("byzantinemusicalsymbols", bname, 23) == 0;
+    }
+    else if (ord >= 0x1D100 && ord <= 0x1D1FF) {
+        return strncmp("MusicalSymbols", bname, 14) == 0 || strncmp("musicalsymbols", bname, 14) == 0;
+    }
+    else if (ord >= 0x1D200 && ord <= 0x1D24F) {
+        return strncmp("AncientGreekMusicalNotation", bname, 27) == 0 || strncmp("ancientgreekmusicalnotation", bname, 27) == 0;
+    }
+    else if (ord >= 0x1D300 && ord <= 0x1D35F) {
+        return strncmp("TaiXuanJingSymbols", bname, 18) == 0 || strncmp("taixuanjingsymbols", bname, 18) == 0;
+    }
+    else if (ord >= 0x1D360 && ord <= 0x1D37F) {
+        return strncmp("CountingRodNumerals", bname, 19) == 0 || strncmp("countingrodnumerals", bname, 19) == 0;
+    }
+    else if (ord >= 0x1D400 && ord <= 0x1D7FF) {
+        return strncmp("MathematicalAlphanumericSymbols", bname, 31) == 0 || strncmp("mathematicalalphanumericsymbols", bname, 31) == 0;
+    }
+    else if (ord >= 0x1EE00 && ord <= 0x1EEFF) {
+        return strncmp("ArabicMathematicalAlphabeticSymbols", bname, 35) == 0 || strncmp("arabicmathematicalalphabeticsymbols", bname, 35) == 0;
+    }
+    else if (ord >= 0x1F000 && ord <= 0x1F02F) {
+        return strncmp("MahjongTiles", bname, 12) == 0 || strncmp("mahjongtiles", bname, 12) == 0;
+    }
+    else if (ord >= 0x1F030 && ord <= 0x1F09F) {
+        return strncmp("DominoTiles", bname, 11) == 0 || strncmp("dominotiles", bname, 11) == 0;
+    }
+    else if (ord >= 0x1F0A0 && ord <= 0x1F0FF) {
+        return strncmp("PlayingCards", bname, 12) == 0 || strncmp("playingcards", bname, 12) == 0;
+    }
+    else if (ord >= 0x1F100 && ord <= 0x1F1FF) {
+        return strncmp("EnclosedAlphanumericSupplement", bname, 30) == 0 || strncmp("enclosedalphanumericsupplement", bname, 30) == 0;
+    }
+    else if (ord >= 0x1F200 && ord <= 0x1F2FF) {
+        return strncmp("EnclosedIdeographicSupplement", bname, 29) == 0 || strncmp("enclosedideographicsupplement", bname, 29) == 0;
+    }
+    else if (ord >= 0x1F300 && ord <= 0x1F5FF) {
+        return strncmp("MiscellaneousSymbolsAndPictographs", bname, 34) == 0 || strncmp("miscellaneoussymbolsandpictographs", bname, 34) == 0;
+    }
+    else if (ord >= 0x1F600 && ord <= 0x1F64F) {
+        return strncmp("Emoticons", bname, 9) == 0 || strncmp("emoticons", bname, 9) == 0;
+    }
+    else if (ord >= 0x1F680 && ord <= 0x1F6FF) {
+        return strncmp("TransportAndMapSymbols", bname, 22) == 0 || strncmp("transportandmapsymbols", bname, 22) == 0;
+    }
+    else if (ord >= 0x1F700 && ord <= 0x1F77F) {
+        return strncmp("AlchemicalSymbols", bname, 17) == 0 || strncmp("alchemicalsymbols", bname, 17) == 0;
+    }
+    else if (ord >= 0x20000 && ord <= 0x2A6DF) {
+        return strncmp("CJKUnifiedIdeographsExtensionB", bname, 30) == 0 || strncmp("cjkunifiedideographsextensionb", bname, 30) == 0;
+    }
+    else if (ord >= 0x2A700 && ord <= 0x2B73F) {
+        return strncmp("CJKUnifiedIdeographsExtensionC", bname, 30) == 0 || strncmp("cjkunifiedideographsextensionc", bname, 30) == 0;
+    }
+    else if (ord >= 0x2B740 && ord <= 0x2B81F) {
+        return strncmp("CJKUnifiedIdeographsExtensionD", bname, 30) == 0 || strncmp("cjkunifiedideographsextensiond", bname, 30) == 0;
+    }
+    else if (ord >= 0x2F800 && ord <= 0x2FA1F) {
+        return strncmp("CJKCompatibilityIdeographsSupplement", bname, 36) == 0 || strncmp("cjkcompatibilityideographssupplement", bname, 36) == 0;
+    }
+    else if (ord >= 0xE0000 && ord <= 0xE007F) {
+        return strncmp("Tags", bname, 4) == 0 || strncmp("tags", bname, 4) == 0;
+    }
+    else if (ord >= 0xE0100 && ord <= 0xE01EF) {
+        return strncmp("VariationSelectorsSupplement", bname, 28) == 0 || strncmp("variationselectorssupplement", bname, 28) == 0;
+    }
+    else if (ord >= 0xF0000 && ord <= 0xFFFFF) {
+        return strncmp("SupplementaryPrivateUseAreaA", bname, 28) == 0 || strncmp("supplementaryprivateuseareaa", bname, 28) == 0;
+    }
+    else if (ord >= 0x100000 && ord <= 0x10FFFF) {
+        return strncmp("SupplementaryPrivateUseAreaB", bname, 28) == 0 || strncmp("supplementaryprivateuseareab", bname, 28) == 0;
+    }
+    return 0;
 }
 static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint) {
 
