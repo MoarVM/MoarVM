@@ -314,10 +314,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 * GET_REG(cur_op, 4).i64;
                 cur_op += 6;
                 goto NEXT;
-            OP(div_i):
-                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 / GET_REG(cur_op, 4).i64;
+            OP(div_i): {
+                int num   = GET_REG(cur_op, 2).i64;
+                int denom = GET_REG(cur_op, 4).i64;
+                // if we have a negative result, make sure we floor rather
+                // than rounding towards zero.
+                if ((num < 0) ^ (denom < 0)) {
+                    if ((num % denom) != 0) {
+                        GET_REG(cur_op, 0).i64 = num / denom - 1;
+                    } else {
+                        GET_REG(cur_op, 0).i64 = num / denom;
+                    }
+                } else {
+                    GET_REG(cur_op, 0).i64 = num / denom;
+                }
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(div_u):
                 GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 / GET_REG(cur_op, 4).ui64;
                 cur_op += 6;

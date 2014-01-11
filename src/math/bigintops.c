@@ -191,7 +191,28 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     mp_int *ia = get_bigint(tc, a);
     mp_int *ib = get_bigint(tc, b);
     mp_int *ic = get_bigint(tc, result);
-    mp_div(ia, ib, ic, NULL);
+    int cmp_a = mp_cmp_d(ia, 0);
+    int cmp_b = mp_cmp_d(ib, 0);
+    mp_int remainder;
+    mp_int intermediate;
+
+    // if we do a div with a negative, we need to make sure
+    // the result is floored rather than rounded towards
+    // zero, like C and libtommath would do.
+    if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
+        mp_init(&remainder);
+        mp_init(&intermediate);
+        mp_div(ia, ib, &intermediate, &remainder);
+        if (mp_iszero(&remainder) == 0) {
+            mp_sub_d(&intermediate, 1, ic);
+        } else {
+            mp_copy(&intermediate, ic);
+        }
+        mp_clear(&remainder);
+        mp_clear(&intermediate);
+    } else {
+        mp_div(ia, ib, ic, NULL);
+    }
 }
 
 void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
