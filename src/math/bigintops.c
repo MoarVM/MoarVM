@@ -176,7 +176,6 @@ MVM_BIGINT_UNARY_OP(neg)
 MVM_BIGINT_BINARY_OP(add)
 MVM_BIGINT_BINARY_OP(sub)
 MVM_BIGINT_BINARY_OP(mul)
-MVM_BIGINT_BINARY_OP(mod)
 MVM_BIGINT_BINARY_OP(gcd)
 MVM_BIGINT_BINARY_OP(lcm)
 
@@ -186,6 +185,16 @@ MVM_BIGINT_BINARY_OP_2(and)
 
 MVM_BIGINT_COMPARE_OP(cmp)
 
+void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
+    mp_int *ia = get_bigint(tc, a);
+    mp_int *ib = get_bigint(tc, b);
+    mp_int *ic = get_bigint(tc, result);
+    int result;
+
+    result = mp_mod(ia, ib, ic);
+    if (result == MP_VAL)
+        MVM_exception_throw_adhoc(tc, "Division by Zero");
+}
 
 void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
     mp_int *ia = get_bigint(tc, a);
