@@ -113,6 +113,44 @@ void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
 
 /* Checks if an object has a given type, delegating to the type_check or
  * accepts_type methods as needed. */
+static void do_accepts_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
+    MVMObject *HOW = STABLE(type)->HOW;
+    MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
+        tc->instance->str_consts.accepts_type);
+    if (meth) {
+        /* Set up the call, using the result register as the target. */
+        MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
+        MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
+        tc->cur_frame->args[0].o = HOW;
+        tc->cur_frame->args[1].o = type;
+        tc->cur_frame->args[2].o = obj;
+        STABLE(code)->invoke(tc, code, &tc_callsite, tc->cur_frame->args);
+        return;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Expected 'accepts_type' method, but none found in meta-object");
+    }
+}
+typedef struct {
+    MVMObject   *obj;
+    MVMObject   *type;
+    MVMRegister *res;
+} AcceptsTypeSRData;
+void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
+    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)sr_data;
+    MVMObject   *obj  = atd->obj;
+    MVMObject   *type = atd->type;
+    MVMRegister *res  = atd->res;
+    free(atd);
+    if (!res->i64)
+        do_accepts_type_check(tc, obj, type, res);
+}
+static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
+    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->special_return_data;
+    MVM_gc_worklist_add(tc, worklist, &atd->obj);
+    MVM_gc_worklist_add(tc, worklist, &atd->type);
+}
 void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
     MVMObject **cache;
     MVMSTable  *st;
@@ -160,6 +198,15 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
             tc->cur_frame->args[0].o = HOW;
             tc->cur_frame->args[1].o = obj;
             tc->cur_frame->args[2].o = type;
+            if (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) {
+                AcceptsTypeSRData *atd = malloc(sizeof(AcceptsTypeSRData));
+                atd->obj = obj;
+                atd->type = type;
+                atd->res = res;
+                tc->cur_frame->special_return           = accepts_type_sr;
+                tc->cur_frame->special_return_data      = atd;
+                tc->cur_frame->mark_special_return_data = mark_sr_data;
+            }
             STABLE(code)->invoke(tc, code, &tc_callsite, tc->cur_frame->args);
             return;
         }
@@ -167,27 +214,12 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
 
     /* If the flag to call .accepts_type on the target value is set, do so. */
     if (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) {
-        MVMObject *HOW = STABLE(type)->HOW;
-        MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
-            tc->instance->str_consts.accepts_type);
-        if (meth) {
-            /* Set up the call, using the result register as the target. */
-            MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
-            MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
-            tc->cur_frame->args[0].o = HOW;
-            tc->cur_frame->args[1].o = type;
-            tc->cur_frame->args[2].o = obj;
-            STABLE(code)->invoke(tc, code, &tc_callsite, tc->cur_frame->args);
-            return;
-        }
-        else {
-            MVM_exception_throw_adhoc(tc,
-                "Expected 'accepts_type' method, but none found in meta-object");
-        }
+        do_accepts_type_check(tc, obj, type, res);
     }
-
-    /* If all else fails... */
-    res->i64 = 0;
+    else {
+        /* If all else fails... */
+        res->i64 = 0;
+    }
 }
 
 /* Checks if an object has a given type, using the cache only. */
