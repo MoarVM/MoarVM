@@ -319,6 +319,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 int denom = GET_REG(cur_op, 4).i64;
                 // if we have a negative result, make sure we floor rather
                 // than rounding towards zero.
+                if (denom == 0)
+                    MVM_exception_throw_adhoc(tc, "Division by zero");
                 if ((num < 0) ^ (denom < 0)) {
                     if ((num % denom) != 0) {
                         GET_REG(cur_op, 0).i64 = num / denom - 1;
