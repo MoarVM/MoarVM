@@ -189,11 +189,11 @@ void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     mp_int *ia = get_bigint(tc, a);
     mp_int *ib = get_bigint(tc, b);
     mp_int *ic = get_bigint(tc, result);
-    int result;
+    int mp_result;
 
-    result = mp_mod(ia, ib, ic);
-    if (result == MP_VAL)
-        MVM_exception_throw_adhoc(tc, "Division by Zero");
+    mp_result = mp_mod(ia, ib, ic);
+    if (mp_result == MP_VAL)
+        MVM_exception_throw_adhoc(tc, "Division by zero");
 }
 
 void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
@@ -205,7 +205,7 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     mp_int remainder;
     mp_int intermediate;
 
-    int result;
+    int mp_result;
 
     // if we do a div with a negative, we need to make sure
     // the result is floored rather than rounded towards
@@ -213,11 +213,11 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
         mp_init(&remainder);
         mp_init(&intermediate);
-        result = mp_div(ia, ib, &intermediate, &remainder);
-        if (result == MP_VAL) {
+        mp_result = mp_div(ia, ib, &intermediate, &remainder);
+        if (mp_result == MP_VAL) {
             mp_clear(&remainder);
             mp_clear(&intermediate);
-            MVM_exception_throw_adhoc(tc, "Division by Zero");
+            MVM_exception_throw_adhoc(tc, "Division by zero");
         }
         if (mp_iszero(&remainder) == 0) {
             mp_sub_d(&intermediate, 1, ic);
@@ -227,9 +227,9 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
         mp_clear(&remainder);
         mp_clear(&intermediate);
     } else {
-        result = mp_div(ia, ib, ic, NULL);
-        if (result == MP_VAL)
-            MVM_exception_throw_adhoc(tc, "Division by Zero");
+        mp_result = mp_div(ia, ib, ic, NULL);
+        if (mp_result == MP_VAL)
+            MVM_exception_throw_adhoc(tc, "Division by zero");
     }
 }
 
