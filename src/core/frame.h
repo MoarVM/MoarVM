@@ -23,6 +23,9 @@ struct MVMContinuationTag {
     /* The tag itself. */
     MVMObject *tag;
 
+    /* The active exception handler at the point the tag was taken. */
+    MVMActiveHandler *active_handlers;
+
     /* The next continuation tag entry. */
     MVMContinuationTag *next;
 };

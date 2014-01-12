@@ -21,6 +21,7 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
     /* Save the tag. */
     MVMContinuationTag *tag_record = malloc(sizeof(MVMContinuationTag));
     tag_record->tag = tag;
+    tag_record->active_handlers = tc->active_handlers;
     tag_record->next = tc->cur_frame->continuation_tags;
     tc->cur_frame->continuation_tags = tag_record;
 
@@ -69,9 +70,21 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         ((MVMContinuation *)cont)->body.root    = MVM_frame_inc_ref(tc, root_frame);
     });
 
-    /* Save any active exception handler(s), and clear them. */
-    ((MVMContinuation *)cont)->body.active_handlers = tc->active_handlers;
-    tc->active_handlers = NULL;
+    /* Save and clear any active exception handler(s) added since reset. */
+    if (tc->active_handlers != tag_record->active_handlers) {
+        MVMActiveHandler *ah = tc->active_handlers;
+        while (ah) {
+            if (ah->next_handler == tag_record->active_handlers) {
+                /* Found the handler at the point of reset. Slice off the more
+                * recent ones. */
+                ((MVMContinuation *)cont)->body.active_handlers = tc->active_handlers;
+                tc->active_handlers = ah->next_handler;
+                ah->next_handler = NULL;
+                break;
+            }
+            ah = ah->next_handler;
+        }
+    }
 
     /* Move back to the frame with the reset in it. */
     MVM_frame_dec_ref(tc, tc->cur_frame);
@@ -102,7 +115,6 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
                              MVMObject *code, MVMRegister *res_reg) {
     /* Switch caller of the root to current invoker. */
-    /* XXX Probably not quite right yet. */
     MVMFrame *orig_caller = cont->body.root->caller;
     cont->body.root->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
     MVM_frame_dec_ref(tc, orig_caller);
@@ -124,8 +136,14 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     /* TODO: if we really need to support double-shot, this needs a re-visit.
      * As it is, Rakudo's gather/take only needs single-invoke continuations,
      * so we'll punt on the issue for now. */
-    tc->active_handlers = cont->body.active_handlers;
-    cont->body.active_handlers = NULL;
+    if (cont->body.active_handlers) {
+        MVMActiveHandler *ah = cont->body.active_handlers;
+        while (ah->next_handler)
+            ah = ah->next_handler;
+        ah->next_handler = tc->active_handlers;
+        tc->active_handlers = cont->body.active_handlers;
+        cont->body.active_handlers = NULL;
+    }
 
     /* Invoke the specified code, putting its result in the specified result
      * register. */
