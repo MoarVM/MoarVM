@@ -196,13 +196,20 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     mp_int remainder;
     mp_int intermediate;
 
+    int result;
+
     // if we do a div with a negative, we need to make sure
     // the result is floored rather than rounded towards
     // zero, like C and libtommath would do.
     if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
         mp_init(&remainder);
         mp_init(&intermediate);
-        mp_div(ia, ib, &intermediate, &remainder);
+        result = mp_div(ia, ib, &intermediate, &remainder);
+        if (result == MP_VAL) {
+            mp_clear(&remainder);
+            mp_clear(&intermediate);
+            MVM_exception_throw_adhoc(tc, "Division by Zero");
+        }
         if (mp_iszero(&remainder) == 0) {
             mp_sub_d(&intermediate, 1, ic);
         } else {
@@ -211,7 +218,9 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
         mp_clear(&remainder);
         mp_clear(&intermediate);
     } else {
-        mp_div(ia, ib, ic, NULL);
+        result = mp_div(ia, ib, ic, NULL);
+        if (result == MP_VAL)
+            MVM_exception_throw_adhoc(tc, "Division by Zero");
     }
 }
 
