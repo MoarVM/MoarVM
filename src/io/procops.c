@@ -142,6 +142,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     process_options.env         = _env; \
     process_options.stdio_count = 3; \
     process_options.exit_cb     = spawn_on_exit; \
+    uv_ref((uv_handle_t *)&process); \
     spawn_result = uv_spawn(tc->loop, &process, &process_options); \
     if (spawn_result) \
         result = spawn_result; \
@@ -150,7 +151,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 } while (0)
 
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
-    *((MVMint64 *)req->data) = exit_status;
+    *((MVMint64 *)req->data) = exit_status << 8;
+    uv_unref((uv_handle_t *)req);
     uv_close((uv_handle_t *)req, NULL);
 }
 
