@@ -24,7 +24,18 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVM_panic(MVM_exitcode_NYI, "MVMCallCapture cannot be copied");
+    MVMCallCaptureBody *src_body  = (MVMCallCaptureBody *)src;
+    MVMCallCaptureBody *dest_body = (MVMCallCaptureBody *)dest;
+
+    MVMuint32 arg_size = src_body->apc->arg_count * sizeof(MVMRegister);
+    MVMRegister *args = malloc(arg_size);
+    memcpy(args, src_body->apc->args, arg_size);
+
+    dest_body->apc = malloc(sizeof(MVMArgProcContext));
+    memset(dest_body->apc, 0, sizeof(MVMArgProcContext));
+    dest_body->mode = MVM_CALL_CAPTURE_MODE_SAVE;
+    dest_body->effective_callsite = src_body->effective_callsite;
+    MVM_args_proc_init(tc, dest_body->apc, dest_body->effective_callsite, args);
 }
 
 /* Adds held objects to the GC worklist. */
