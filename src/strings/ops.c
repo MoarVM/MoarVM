@@ -1259,13 +1259,13 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
         buffer[i] = (MVM_string_get_codepoint_at_nocheck(tc, a, i)
                    ^ MVM_string_get_codepoint_at_nocheck(tc, b, i));
 
-    /* Second pass, fill with negated characters of the longest string. */
+    /* Second pass, fill with characters of the longest string. */
     if (alen > blen)
         for (; i < sgraphs; i++)
-            buffer[i] = ~MVM_string_get_codepoint_at_nocheck(tc, a, i);
+            buffer[i] = MVM_string_get_codepoint_at_nocheck(tc, a, i);
     else
         for (; i < sgraphs; i++)
-            buffer[i] = ~MVM_string_get_codepoint_at_nocheck(tc, b, i);
+            buffer[i] = MVM_string_get_codepoint_at_nocheck(tc, b, i);
 
     res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     res->body.flags = MVM_STRING_TYPE_INT32;
