@@ -313,6 +313,22 @@ MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMStr
 
 /* Result setting. The frameless flag indicates that the currently
  * executing code does not have a MVMFrame of its own. */
+static MVMObject * decont_result(MVMThreadContext *tc, MVMObject *result) {
+    MVMContainerSpec const *contspec = STABLE(result)->container_spec;
+    if (contspec) {
+        if (contspec->fetch_never_invokes) {
+            MVMRegister r;
+            contspec->fetch(tc, result, &r);
+            return r.o;
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "Cannot auto-decontainerize return value");
+        }
+    }
+    else {
+        return result;
+    }
+}
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
     if (target) {
@@ -323,13 +339,13 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
                 target->return_value->o = result;
                 break;
             case MVM_RETURN_INT:
-                target->return_value->i64 = MVM_repr_get_int(tc, result);
+                target->return_value->i64 = MVM_repr_get_int(tc, decont_result(tc, result));
                 break;
             case MVM_RETURN_NUM:
-                target->return_value->n64 = MVM_repr_get_num(tc, result);
+                target->return_value->n64 = MVM_repr_get_num(tc, decont_result(tc, result));
                 break;
             case MVM_RETURN_STR:
-                target->return_value->s = MVM_repr_get_str(tc, result);
+                target->return_value->s = MVM_repr_get_str(tc, decont_result(tc, result));
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from obj NYI; expects type %u", target->return_type);
