@@ -1,0 +1,86 @@
+Here is the partial list of people who have contributed to MoarVM. It is
+sorted by name and formatted to allow easy grepping and beautification by
+scripts. The fields are: name (N), email (E), web-address (W), description (D)
+and GitHub username (U).
+
+Thanks,
+
+The MoarVM Team
+
+PS: Yes, this looks remarkably like the Linux CREDITS format
+PPS: This file is encoded in UTF-8
+
+----------
+
+N: Andy Dougherty
+D: Many portability and build improvements
+
+N: Brian Gernhardt
+D: Build system and IO patches
+
+N: Carl Mäsak
+E: cmasak@gmail.com
+U: masak
+D: Code cleanups and refactors
+
+N: Chris 'BinGOs' Williams
+D: BSD porting
+
+N: Dagur Valberg Johannsson
+D: Core fixes
+
+N: Geoff Broadwell
+U: japhb
+E: geoff@broadwell.org
+D: Big integer support, porting, many code and build improvements
+
+N: Gerhard R
+U: not_gerd
+D: Extension ops, bytecode validation, cgoto interpreter, RNG, build, and more
+
+U: grondilu
+D: Typo fix
+
+N: Jimmy Zhuo
+D: libuv integration, numerous core contributions and bug fixes
+
+N: Jonathan Worthington
+U: jnthn
+D: Project co-founder, lead architect, object model, GC, other bits
+
+N: Marc Chantreux
+D: Build tweaks
+
+N: Matthew Wilson
+U: diakopter
+D: Project co-founder, Unicode, GC, and much more
+
+N: Moritz Lenz
+E: moritz@faui2k3.org
+U: moritz
+D: Various build and ops improvements
+
+N: Nicholas Clark
+E: nick@ccl4.org
+D: Epic GC bug hunting and fixing
+
+N: Norbert Buchmuller
+D: Build fix
+
+N: Timo Paulssen
+U: timo
+E: timonator@perpetuum-immobile.de
+D: Various string and big integer fixes
+
+N: Tobias Leich
+U: FROGGS
+E: email@froggs.de
+D: Many contributions to core ops, IO, strings, and build system
+
+N: Tokuhiro Matsuno
+D: Documentation patch
+
+N: Will "Coke" Coleda
+U: coke
+E: will@coleda.com
+D: Basic Darwin build support
