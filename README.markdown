@@ -38,16 +38,31 @@ it to build the MoarVM and Parrot backends, for example.
 
 ## Status
 
-MoarVM is currently in development. It can run all of the NQP test suite
-and all MoarVM-specific NQP tests (with the exception of continuations)
-without needing cross-compilation. The `moar-support` branch of rakudo is
-progressing quickly and is expected to be merged into `nom` some time
-in or before February 2014.
+MoarVM is currently in development. It can run all of the NQP test suite, all
+of the Rakudo sanity tests, and >98% of the spectests that the current leading
+Rakudo backend (the JVM) can.
 
 Unlike the JVM backend of NQP, the MoarVM repo is not currently planned to be
 integrated into the main NQP source repo http://github.com/perl6/nqp but
 instead can be pulled in by `Configure.pl --gen-moar` configure script in the
 NQP repo, same as it can `--gen-parrot`.
+
+## Feature overview
+
+Some key features provided by MoarVM include:
+
+* Meta-object programming, using the 6model design
+* Precise, generational GC
+* Unicode support
+* First-class code objects, lexical variables and closures
+* Exceptions
+* Continuations
+* Bounded serialization
+* Code generation from MAST (MoarVM AST)
+* Runtime loading of code
+* Big integers
+* A range of IO and process support
+* Basic threads
 
 ## Contributing
 
