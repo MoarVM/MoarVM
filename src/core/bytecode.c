@@ -783,7 +783,7 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
                 break;
             cur_anno += 12;
         }
-        if (i == sfb->num_annotations)
+        if (i)
             cur_anno -= 12;
         ba = malloc(sizeof(MVMBytecodeAnnotation));
         ba->bytecode_offset = read_int32(cur_anno, 0);
