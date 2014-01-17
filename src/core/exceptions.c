@@ -211,7 +211,8 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     MVMuint8 *cur_op = not_top ? cur_frame->return_address : cur_frame->throw_address;
     MVMuint32 offset = cur_op - cur_frame->static_info->body.bytecode;
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
-    MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset - 1);
+    MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
+                                        offset > 0 ? offset - 1 : 0);
 
     MVMuint32 line_number = annot ? annot->line_number : 1;
     MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 0;
@@ -273,7 +274,8 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     while (cur_frame != NULL) {
         MVMuint8             *cur_op = count ? cur_frame->return_address : cur_frame->throw_address;
         MVMuint32             offset = cur_op - cur_frame->static_info->body.bytecode;
-        MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset - 1);
+        MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
+                                            offset > 0 ? offset - 1 : 0);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
         char            *line_number = malloc(16);
         snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
