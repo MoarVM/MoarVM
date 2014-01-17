@@ -102,7 +102,8 @@ MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     if (needed->body.outer) {
         /* See if the static code object has an outer. */
         MVMCode *outer_code = needed->body.outer->body.static_code;
-        if (outer_code->body.outer) {
+        if (outer_code->body.outer &&
+                outer_code->body.outer->static_info->body.bytecode == needed->body.bytecode) {
             /* Yes, just take it. */
             result->outer = MVM_frame_inc_ref(tc, outer_code->body.outer);
         }
