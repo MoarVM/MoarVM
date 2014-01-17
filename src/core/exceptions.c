@@ -213,7 +213,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset);
 
-    MVMuint32 line_number = annot ? annot->line_number + 1 : 1;
+    MVMuint32 line_number = annot ? annot->line_number : 1;
     MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 0;
     char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
         ? MVM_string_utf8_encode(tc,
@@ -276,7 +276,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body, offset);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
         char            *line_number = malloc(16);
-        snprintf(line_number, 16, "%d", annot ? annot->line_number + 1 : 1);
+        snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
 
         /* annotations hash will contain "file" and "line" */
         annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
