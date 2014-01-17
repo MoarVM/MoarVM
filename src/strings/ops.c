@@ -1431,7 +1431,7 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
 
         case MVM_CCLASS_NEWLINE: {
             MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
-            if (cp == '\n' || cp == '\r')
+            if (cp == '\n' || cp == '\r' || cp == 0x85)
                 return 1;
             return MVM_string_offset_has_unicode_property_value(tc, s, offset,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Zl);
