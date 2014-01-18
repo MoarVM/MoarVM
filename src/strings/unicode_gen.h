@@ -6,7 +6,7 @@ struct MVMUnicodeNamedValue {
     const char *name;
     MVMint32 value;
 };
-#define num_unicode_property_keypairs 4426
+#define num_unicode_property_keypairs 368
 
 MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);
 
