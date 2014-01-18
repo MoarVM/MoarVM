@@ -3932,6 +3932,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).s);
                 cur_op += 8;
                 goto NEXT;
+            OP(assertparamcheck): {
+                MVMint64 ok = GET_REG(cur_op, 0).i64;
+                cur_op += 2;
+                if (!ok)
+                    MVM_args_bind_failed(tc);
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

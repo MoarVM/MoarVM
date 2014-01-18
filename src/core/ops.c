@@ -3898,9 +3898,16 @@ static MVMOpInfo MVM_op_infos[] = {
         4,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_assertparamcheck,
+        "assertparamcheck",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_int64 }
+    },
 };
 
-static unsigned short MVM_op_counts = 556;
+static unsigned short MVM_op_counts = 557;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

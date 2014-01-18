@@ -140,6 +140,9 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless);
 MVM_PUBLIC void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *return_value, MVMReturnType return_type,
     MVMCallsite *callsite);
 
+/* Custom bind failure handling. */
+void MVM_args_bind_failed(MVMThreadContext *tc);
+
 /* Result setting frame constants. */
 #define MVM_RETURN_CALLER_FRAME     0
 #define MVM_RETURN_CURRENT_FRAME    1

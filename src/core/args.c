@@ -1,5 +1,9 @@
 #include "moar.h"
 
+/* Dummy one-arg callsite. */
+static MVMCallsiteEntry one_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     one_arg_callsite = { one_arg_flags, 1, 1, 0 };
+
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */
         memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
@@ -719,4 +723,57 @@ void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *res_reg, MVMReturnT
     tc->cur_frame->return_type       = return_type;
     tc->cur_frame->return_address    = *(tc->interp_cur_op);
     tc->cur_frame->cur_args_callsite = callsite; 
+}
+
+/* Custom bind failure handling. Invokes the HLL's bind failure handler, with
+ * an argument capture */
+static void bind_error_return(MVMThreadContext *tc, void *sr_data) {
+    MVMRegister *r   = (MVMRegister *)sr_data;
+    MVMObject   *res = r->o;
+    free(r);
+printf("here\n");
+    if (tc->cur_frame->caller)
+        MVM_args_set_result_obj(tc, res, 0);
+    else
+        MVM_exception_throw_adhoc(tc, "No caller to return to after bind_error");
+    MVM_frame_try_return(tc);
+}
+static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
+    MVMRegister *r = (MVMRegister *)frame->special_return_data;
+    MVM_gc_worklist_add(tc, worklist, &r->o);
+}
+void MVM_args_bind_failed(MVMThreadContext *tc) {
+    MVMObject   *bind_error;
+    MVMRegister *res;
+
+    /* Create a new call capture object. */
+    MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
+    MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
+
+    /* Copy the arguments. */
+    MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
+    MVMRegister *args = malloc(arg_size);
+    memcpy(args, tc->cur_frame->params.args, arg_size);
+
+    /* Create effective callsite. */
+    cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &tc->cur_frame->params);
+
+    /* Set up the call capture. */
+    cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
+    cc->body.apc  = malloc(sizeof(MVMArgProcContext));
+    memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
+    MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
+
+    /* Invoke the HLL's bind failure handler. */
+    bind_error = MVM_hll_current(tc)->bind_error;
+    if (!bind_error)
+        MVM_exception_throw_adhoc(tc, "Bind erorr occurred, but HLL has no handler");
+    bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
+    res = calloc(1, sizeof(MVMRegister));
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &one_arg_callsite);
+    tc->cur_frame->special_return           = bind_error_return;
+    tc->cur_frame->special_return_data      = res;
+    tc->cur_frame->mark_special_return_data = mark_sr_data;
+    tc->cur_frame->args[0].o = cc_obj;
+    STABLE(bind_error)->invoke(tc, bind_error, &one_arg_callsite, tc->cur_frame->args);
 }
