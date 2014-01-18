@@ -747,7 +747,6 @@ static void bind_error_return(MVMThreadContext *tc, void *sr_data) {
     MVMRegister *r   = (MVMRegister *)sr_data;
     MVMObject   *res = r->o;
     free(r);
-printf("here\n");
     if (tc->cur_frame->caller)
         MVM_args_set_result_obj(tc, res, 0);
     else
