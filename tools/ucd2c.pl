@@ -35,6 +35,7 @@ my %is_subtype = (
         of => 'Numeric_Type',
     }
 );
+my $gc_alias_checkers = [];
 
 sub progress($);
 sub main {
@@ -839,14 +840,25 @@ sub emit_unicode_property_value_keypairs {
             $enum->{$_} = $toadd->{$_};
         }
     }
-    my %done;
+    my %lines;
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         if (exists $prop_names->{$propname}) {
             return if $parts[0] eq 'Y' || $parts[0] eq 'N';
             my @others = ();
+            my $mainname;
+            my $secondname;
             for my $alias (@parts) {
+                $secondname = $alias
+                    if !$secondname && $mainname;
+                $mainname = $mainname || $alias;
+                if ($alias =~ /\|/) { # it's a union
+                    if (exists $prop_names->{$secondname}) {
+                        $prop_names->{$mainname} = $prop_names->{$secondname};
+                    }
+                    last;
+                }
                 my $newalias = lc("$alias");
                 $newalias =~ s/[_\-\s]/./g;
                 push @others, $newalias;
@@ -874,17 +886,20 @@ sub emit_unicode_property_value_keypairs {
                 return;
             }
             for my $alias (@parts) {
-                next if $alias =~ /\./;
-                $done{$alias} = 1;
-                push @lines, "{\"$alias\",".($prop_val + $value)."}";
-                if ($alias =~ /_/) {
-                    $alias =~ s/_//g;
-                    $done{$alias} = 1;
-                    push @lines, "{\"$alias\",".($prop_val + $value)."}";
-                }
+                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}";
++                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}" if $alias =~ s/_//g;
             }
         }
     });
+    my %done;
+    # Aliases like L appear in several categories, but we prefere gc and sc.
+    for my $propname (qw(gc sc), keys %lines) {
+        for my $alias (keys %{$lines{$propname}}) {
+            next if $done{$alias};
+            $done{$alias} = 1;
+            push @lines, $lines{$propname}->{$alias};
+        }
+    }
     # XXX This is worse than worse... We need a way to obtain that information from the unicode database somehow.
     my @one   = qw(ASCII_Hex_Digit Hex_Digit Dash Diacritic Extender Grapheme_Link Hyphen IDS_Binary_Operator IDS_Trinary_Operator
                    Join_Control Logical_Order_Exception Noncharacter_Code_Point Other_Alphabetic Other_Default_Ignorable_Code_Point
@@ -997,12 +1012,36 @@ sub write_file {
     print FILE $contents;
     close FILE;
 }
+sub register_gc_alias {
+    my ($alias, $mainname) = @_;
+    register_binary_property($alias);
+    push @$gc_alias_checkers, eval 'sub {
+        return ((shift) =~ /^(?:'.$alias.')$/)
+            ? "'.$mainname.'" : 0;
+    }';
+}
 sub UnicodeData {
     my ($bidi_classes, $general_categories, $ccclasses) = @_;
     my $plane = {
         number => 0,
         points => []
     };
+    each_line('PropertyValueAliases', sub { $_ = shift;
+        my @parts = split /\s*[#;]\s*/;
+        my $propname = shift @parts;
+        return if $propname ne 'gc';
+        return if $parts[0] eq 'Y' || $parts[0] eq 'N';
+        my @others = ();
+        my $mainname;
+        for my $alias (@parts) {
+            $mainname = $mainname || $alias;
+            if ($alias =~ /\|/) { # it's a union
+                print "found union: $mainname is '$alias'\n";
+                $alias =~ s/\s+//g;
+                register_gc_alias($mainname, $alias);
+            }
+        }
+    });
     push @$planes, $plane;
     my $ideograph_start;
     my $case_count = 1;
@@ -1048,6 +1087,10 @@ sub UnicodeData {
                 number => $plane->{number} + 1,
                 points => []
             }));
+        }
+        for my $checker (@$gc_alias_checkers) {
+            my $res = $checker->($gencat);
+            $point->{$res} = 1 if $res;
         }
         if ($name =~ /(Ideograph|Syllable|Private|Surrogate)(\s|.)*?First/) {
             $ideograph_start = $point;
