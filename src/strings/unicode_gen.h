@@ -6,7 +6,7 @@ struct MVMUnicodeNamedValue {
     const char *name;
     MVMint32 value;
 };
-#define num_unicode_property_keypairs 382
+#define num_unicode_property_keypairs 4416
 
 MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);
 
@@ -14,7 +14,7 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
 #define MVMNUMPROPERTYCODES 90
 
 
-#define num_unicode_property_value_keypairs 2075
+#define num_unicode_property_value_keypairs 2580
 
 typedef enum {
     MVM_UNICODE_PROPERTY_DECOMP_SPEC = 1,

@@ -865,6 +865,7 @@ sub emit_unicode_property_value_keypairs {
         }
     }
     my %lines;
+    my %done;
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
@@ -910,20 +911,17 @@ sub emit_unicode_property_value_keypairs {
                 return;
             }
             for my $alias (@parts) {
-                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}";
-                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}" if $alias =~ s/_//g;
+                next if $alias =~ /\./;
+                $done{$alias} = 1;
+                push @lines, "{\"$alias\",".($prop_val + $value)."}";
+                if ($alias =~ /_/) {
+                    $alias =~ s/_//g;
+                    $done{$alias} = 1;
+                    push @lines, "{\"$alias\",".($prop_val + $value)."}";
+                }
             }
         }
     });
-    my %done;
-    # Aliases like L appear in several categories, but we prefere gc and sc.
-    for my $propname (qw(gc sc), keys %lines) {
-        for my $alias (keys %{$lines{$propname}}) {
-            next if $done{$alias};
-            $done{$alias} = 1;
-            push @lines, $lines{$propname}->{$alias};
-        }
-    }
     # XXX This is worse than worse... We need a way to obtain that information from the unicode database somehow.
     my @one   = qw(ASCII_Hex_Digit Hex_Digit Dash Diacritic Extender Grapheme_Link Hyphen IDS_Binary_Operator IDS_Trinary_Operator
                    Join_Control Logical_Order_Exception Noncharacter_Code_Point Other_Alphabetic Other_Default_Ignorable_Code_Point
@@ -1060,7 +1058,7 @@ sub UnicodeData {
         for my $alias (@parts) {
             $mainname = $mainname || $alias;
             if ($alias =~ /\|/) { # it's a union
-                print "found union: $mainname is '$alias'\n";
+                #print "found union: $mainname is '$alias'\n";
                 $alias =~ s/\s+//g;
                 register_gc_alias($mainname, $alias);
             }
