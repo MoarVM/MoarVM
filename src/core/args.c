@@ -83,16 +83,24 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
+static void arity_fail(MVMThreadContext *tc, MVMuint16 got, MVMuint16 min, MVMuint16 max) {
+    char *problem = got > max ? "Too many" : "Not enough";
+    if (min == max)
+        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected %d",
+            problem, got, min);
+    else if (max == 0xFFFF)
+        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected at least %d",
+            problem, got, min);
+    else
+        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected between %d and %d",
+            problem, got, min, max);
+}
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos;
-
     flatten_args(tc, ctx);
-
     num_pos = ctx->num_pos;
-    if (num_pos < min)
-        MVM_exception_throw_adhoc(tc, "Not enough positional arguments; needed %u, got %u", min, num_pos);
-    if (num_pos > max)
-        MVM_exception_throw_adhoc(tc, "Too many positional arguments; max %u, got %u", max, num_pos);
+    if (num_pos < min || num_pos > max)
+        arity_fail(tc, num_pos, min, max);
 }
 
 /* Get positional arguments. */
