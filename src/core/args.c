@@ -120,12 +120,28 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     } \
 } while (0)
 
+static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
+    MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
+    if (contspec) {
+        if (contspec->fetch_never_invokes) {
+            MVMRegister r;
+            contspec->fetch(tc, arg, &r);
+            return r.o;
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "Cannot auto-decontainerize argument");
+        }
+    }
+    else {
+        return arg;
+    }
+}
 #define autounbox(tc, type_flag, expected, result) do { \
     if (result.exists && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
             MVMObject *obj; \
             MVMStorageSpec ss; \
-            obj = result.arg.o; \
+            obj = decont_arg(tc, result.arg.o); \
             ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
             switch (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
