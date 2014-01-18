@@ -453,5 +453,10 @@ distclean: realclean
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
 
+release:
+	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )
+	git archive --format=tar --prefix="MoarVM-$(VERSION)/" HEAD | gzip -9 > "MoarVM-$(VERSION)"
+
+
 sandwich:
 	@echo What? Make it yourself.
