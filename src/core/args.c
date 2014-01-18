@@ -273,7 +273,7 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
     for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) { \
         if (MVM_string_equal(tc, ctx->args[arg_pos].s, name)) { \
             if (ctx->named_used[(arg_pos - ctx->num_pos)/2]) { \
-                MVM_exception_throw_adhoc(tc, "Named argument already used: %s", MVM_string_utf8_encode_C_string(tc, name)); \
+                MVM_exception_throw_adhoc(tc, "Named argument '%s' already used", MVM_string_utf8_encode_C_string(tc, name)); \
             } \
             result.arg    = ctx->args[arg_pos + 1]; \
             result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
@@ -283,7 +283,7 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
         } \
     } \
     if (!result.exists && required) \
-        MVM_exception_throw_adhoc(tc, "Required named " _type " argument missing: %s", MVM_string_utf8_encode_C_string(tc, name)); \
+        MVM_exception_throw_adhoc(tc, "Required named parameter '%s' not passed", MVM_string_utf8_encode_C_string(tc, name)); \
      \
 } while (0)
 
