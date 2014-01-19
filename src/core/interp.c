@@ -2539,6 +2539,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(hintfor): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = REPR(obj)->attr_funcs.hint_for(tc,
+                    STABLE(obj), obj,
+                    GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(isnull):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).o ? 0 : 1;
                 cur_op += 4;
