@@ -83,6 +83,14 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    mp_clear(&((MVMP6bigintBody *)data)->i);
+}
+
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    mp_clear(&((MVMP6bigint *)obj)->body.i);
+}
+
 /* Serializes the bigint. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     mp_int *i = &((MVMP6bigintBody *)data)->i;
@@ -145,8 +153,8 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
     NULL, /* gc_mark */
-    NULL, /* gc_free */
-    NULL, /* gc_cleanup */
+    gc_free,
+    gc_cleanup,
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
