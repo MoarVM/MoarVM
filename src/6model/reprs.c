@@ -1,6 +1,5 @@
 #include "moar.h"
 #include "gcc_diag.h"
-#include "bithacks.h"
 
 /* Default REPR function handlers. */
 GCC_DIAG_OFF(return-type)
