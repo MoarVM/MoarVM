@@ -120,9 +120,10 @@ our %TC_POSIX = (
     ldsys => undef,
     ldimp => undef,
 
-    ccshared => '-fPIC',
-    ldshared => '-shared @ccshared@',
-    ldrpath  => '-Wl,-rpath,$(PREFIX)/lib',
+    ccshared   => '-fPIC',
+    ldshared   => '-shared @ccshared@',
+    moarshared => '',
+    ldrpath    => '-Wl,-rpath,$(PREFIX)/lib',
 
     arflags => 'rcs',
     arout   => '',
@@ -192,9 +193,10 @@ our %TC_MSVC = (
     ldsys => undef,
     ldimp => '%s.dll.lib',
 
-    ccshared => '',
-    ldshared => '/dll /implib:@moardll@.lib',
-    ldrpath  => '',
+    ccshared   => '',
+    ldshared   => '/dll',
+    moarshared => '/implib:@moardll@.lib',
+    ldrpath    => '',
 
     arflags => '/nologo',
     arout   => '/out:',
@@ -363,9 +365,10 @@ our %OS_MINGW32 = (
     dll   => '%s.dll',
     ldimp => '-l%s.dll',
 
-    ccshared => '',
-    ldshared => '-shared -Wl,--out-implib,lib$@.a',
-    ldrpath  => '',
+    ccshared   => '',
+    ldshared   => '-shared -Wl,--out-implib,lib$@.a',
+    moarshared => '',
+    ldrpath    => '',
 
     -thirdparty => {
         %{$OS_WIN32{-thirdparty}},
@@ -450,8 +453,9 @@ our %OS_DARWIN = (
 
     dll => 'lib%s.dylib',
 
-    ccshared => '',
-    ldshared => '-dynamiclib -install_name $(PREFIX)/lib/libmoar.dylib',
+    ccshared   => '',
+    ldshared   => '-dynamiclib',
+    moarshared => '-install_name $(PREFIX)/lib/libmoar.dylib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
