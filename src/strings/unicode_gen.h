@@ -14,7 +14,7 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
 #define MVMNUMPROPERTYCODES 90
 
 
-#define num_unicode_property_value_keypairs 2580
+#define num_unicode_property_value_keypairs 2560
 
 typedef enum {
     MVM_UNICODE_PROPERTY_DECOMP_SPEC = 1,

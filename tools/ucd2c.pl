@@ -879,8 +879,11 @@ sub emit_unicode_property_value_keypairs {
                     if !$secondname && $mainname;
                 $mainname = $mainname || $alias;
                 if ($alias =~ /\|/) { # it's a union
-                    if (exists $prop_names->{$secondname}) {
-                        $prop_names->{$mainname} = $prop_names->{$secondname};
+                    if (exists $binary_properties->{$mainname}) {
+                        my $prop_val = $binary_properties->{$mainname}->{field_index} << 24;
+                        my $value    = $binary_properties->{$mainname}->{bit_width};
+                        $lines{$propname}->{$mainname} = "{\"$mainname\",".($prop_val + $value)."}";
+                        $lines{$propname}->{$mainname} = "{\"$mainname\",".($prop_val + $value)."}" if $mainname =~ s/_//g;
                     }
                     last;
                 }
@@ -911,14 +914,9 @@ sub emit_unicode_property_value_keypairs {
                 return;
             }
             for my $alias (@parts) {
-                next if $alias =~ /\./;
-                $done{$alias} = 1;
-                push @lines, "{\"$alias\",".($prop_val + $value)."}";
-                if ($alias =~ /_/) {
-                    $alias =~ s/_//g;
-                    $done{$alias} = 1;
-                    push @lines, "{\"$alias\",".($prop_val + $value)."}";
-                }
+                next if $alias =~ /[\.\|]/;
+                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}";
+                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}" if $alias =~ s/_//g;
             }
         }
     });
@@ -939,6 +937,13 @@ sub emit_unicode_property_value_keypairs {
         my $v = ($prop_names->{$_} << 24) + 3;
         push @lines, "{\"$_\",$v}";
         push @lines, "{\"$_\",$v}" if s/_//g
+    }
+    # Aliases like L appear in several categories, but we prefere gc and sc.
+    for my $propname (qw(gc sc), keys %lines) {
+        for (keys %{$lines{$propname}}) {
+            next if $done{$_};
+            push @lines, $lines{$propname}->{$_};
+        }
     }
     $hout .= "
 #define num_unicode_property_value_keypairs ".scalar(@lines)."\n";
@@ -1051,7 +1056,6 @@ sub UnicodeData {
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
-        return if $propname ne 'gc';
         return if $parts[0] eq 'Y' || $parts[0] eq 'N';
         my @others = ();
         my $mainname;
