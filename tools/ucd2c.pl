@@ -1035,8 +1035,8 @@ sub write_file {
     close FILE;
 }
 sub register_gc_alias {
-    my ($alias, $mainname) = @_;
-    register_binary_property($alias);
+    my ($mainname, $alias) = @_;
+    register_binary_property($mainname);
     push @$gc_alias_checkers, eval 'sub {
         return ((shift) =~ /^(?:'.$alias.')$/)
             ? "'.$mainname.'" : 0;
