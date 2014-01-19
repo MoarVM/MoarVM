@@ -900,8 +900,10 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "check eof");
 
-    if ((r = uv_fs_lstat(tc->loop, &req, handle->body.filename, NULL)) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %d", errno);
+    if (handle->body.filename) {
+        if ((r = uv_fs_lstat(tc->loop, &req, handle->body.filename, NULL)) == -1) {
+            MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %d", errno);
+        }
     }
 
     if ((seek_pos = MVM_platform_lseek(handle->body.u.fd, 0, SEEK_CUR)) == -1) {
