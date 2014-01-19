@@ -95,9 +95,6 @@ typedef struct {
      * of name to a list of positions needing a fixup. */
     MASTNode *labels_to_resolve;
 
-    /* Hash for callsite descriptor strings to callsite IDs */
-    CallsiteReuseEntry *callsite_reuse_head;
-
     /* Handlers list. */
     FrameHandler *handlers;
 
@@ -161,6 +158,9 @@ typedef struct {
 
     /* The compilation unit we're compiling. */
     MAST_CompUnit *cu;
+
+    /* Hash for callsite descriptor strings to callsite IDs */
+    CallsiteReuseEntry *callsite_reuse_head;
 
     /* Last Annotated node, for error reporting */
     MAST_Annotated *last_annotated;
@@ -244,8 +244,6 @@ void cleanup_frame(VM, FrameState *fs) {
         free(fs->lexical_types);
     if (fs->handlers)
         free(fs->handlers);
-
-    MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, fs->callsite_reuse_head);
     free(fs);
 }
 
@@ -259,6 +257,7 @@ void cleanup_all(VM, WriterState *ws) {
         free(ws->frame_seg);
     if (ws->bytecode_seg)
         free(ws->bytecode_seg);
+    MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
     free(ws);
 }
 
@@ -535,14 +534,14 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
 
     for (i = 0; i < elems; i++)
         identifier[i] = (unsigned char)ATPOS_I_C(vm, flags, i);
-    HASH_FIND(hash_handle, ws->cur_frame->callsite_reuse_head, identifier, elems, entry);
+    HASH_FIND(hash_handle, ws->callsite_reuse_head, identifier, elems, entry);
     if (entry) {
         free(identifier);
         return entry->callsite_id;
     }
     entry = (CallsiteReuseEntry *)malloc(sizeof(CallsiteReuseEntry));
     entry->callsite_id = (unsigned short)ws->num_callsites;
-    HASH_ADD_KEYPTR(hash_handle, ws->cur_frame->callsite_reuse_head, identifier, elems, entry);
+    HASH_ADD_KEYPTR(hash_handle, ws->callsite_reuse_head, identifier, elems, entry);
 
     /* Emit callsite; be sure to pad if there's uneven number of flags. */
     ensure_space(vm, &ws->callsite_seg, &ws->callsite_alloc, ws->callsite_pos,
@@ -918,9 +917,6 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     fs->num_handlers = 0;
     fs->handlers = NULL;
 
-    /* initialize callsite reuse cache */
-    fs->callsite_reuse_head = NULL;
-
     /* Ensure space is available to write frame entry, and write the
      * header, apart from the bytecode length, which we'll fill in
      * later. */
@@ -1281,6 +1277,9 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
     ws->cu               = cu;
     ws->current_frame_idx= 0;
+
+    /* initialize callsite reuse cache */
+    ws->callsite_reuse_head = NULL;
 
     /* Store each of the dependent SCs. */
     num_depscs = ELEMS(vm, ws->cu->sc_handles);
