@@ -25,12 +25,19 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
     tag_record->next = tc->cur_frame->continuation_tags;
     tc->cur_frame->continuation_tags = tag_record;
 
-    /* Run the passed code. */
-    code = MVM_frame_find_invokee(tc, code, NULL);
-    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
-    tc->cur_frame->special_return = clear_tag;
-    tc->cur_frame->special_return_data = tag_record;
-    STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
+    /* Were we passed code or a continuation? */
+    if (REPR(code)->ID == MVM_REPR_ID_MVMContinuation) {
+        /* Continuation; invoke it. */
+        MVM_continuation_invoke(tc, (MVMContinuation *)code, NULL, res_reg);
+    }
+    else {
+        /* Run the passed code. */
+        code = MVM_frame_find_invokee(tc, code, NULL);
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
+        tc->cur_frame->special_return = clear_tag;
+        tc->cur_frame->special_return_data = tag_record;
+        STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
+    }
 }
 
 void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
@@ -145,11 +152,16 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         cont->body.active_handlers = NULL;
     }
 
-    /* Invoke the specified code, putting its result in the specified result
-     * register. */
-    code = MVM_frame_find_invokee(tc, code, NULL);
-    MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
-    STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
+    /* Provided we have it, invoke the specified code, putting its result in
+     * the specified result register. Otherwise, put a NULL there. */
+    if (code) {
+        code = MVM_frame_find_invokee(tc, code, NULL);
+        MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
+        STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
+    }
+    else {
+        cont->body.res_reg->o = NULL;
+    }
 }
 
 MVMContinuation * MVM_continuation_clone(MVMThreadContext *tc, MVMContinuation *cont) {
