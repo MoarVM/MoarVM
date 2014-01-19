@@ -710,11 +710,17 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "seek in filehandle");
 
-    if ((r = MVM_platform_lseek(handle->body.u.fd, 0, SEEK_CUR)) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+    if (handle->body.type == MVM_OSHANDLE_FD) {
+        if ((r = MVM_platform_lseek(handle->body.u.fd, 0, SEEK_CUR)) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+        return r;
     }
-
-    return r;
+    else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
+        return 0; /* XXX Not right, but unbreaks REPL. */
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot use eof on this type of handle");
+    }
 }
 
 /* locks a filehandle */
@@ -900,17 +906,19 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "check eof");
 
-    if (handle->body.filename) {
-        if ((r = uv_fs_lstat(tc->loop, &req, handle->body.filename, NULL)) == -1) {
+    if (handle->body.type == MVM_OSHANDLE_FD) {
+        if ((r = uv_fs_lstat(tc->loop, &req, handle->body.filename, NULL)) == -1)
             MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %d", errno);
-        }
+        if ((seek_pos = MVM_platform_lseek(handle->body.u.fd, 0, SEEK_CUR)) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+        return req.statbuf.st_size == seek_pos;
     }
-
-    if ((seek_pos = MVM_platform_lseek(handle->body.u.fd, 0, SEEK_CUR)) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+    else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
+        return 0; /* XXX Not right, but unbreaks REPL. */
     }
-
-    return req.statbuf.st_size == seek_pos;
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot use eof on this type of handle");
+    }
 }
 
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
