@@ -806,37 +806,46 @@ struct MVMUnicodeNamedValue {
         }
     });
     my %aliases;
+    my %lines;
     each_line('PropertyValueAliases', sub { $_ = shift;
-        my @aliases = split /\s*[#;]\s*/;
-        for my $name (@aliases) {
-            if (exists $prop_names->{$name}) {
-                for (@aliases) {
-                    # Only oush another alias if this is actually a new one.
-                    if (!$prop_names->{$_} && $_ ne $name) {
-                        push @{ $aliases{$name} }, $_
+        my @parts = split /\s*[#;]\s*/;
+        my $propname = shift @parts;
+        if (exists $prop_names->{$propname}) {
+            return if $parts[0] eq 'Y' || $parts[0] eq 'N';
+            if ($parts[-1] =~ /\|/) { # it's a union
+                pop @parts;
+                my $unionname = $parts[0];
+                if (exists $binary_properties->{$unionname}) {
+                    my $prop_val = $binary_properties->{$unionname}->{field_index};
+                    for (@parts) {
+                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
+                        $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
                     }
                 }
-                last;
+            }
+            elsif (exists $prop_names->{$propname}) {
+                for (@parts) {
+                    push @{ $aliases{$propname} }, $_
+                }
             }
         }
     });
-    for my $key (keys %$prop_names) {
-        my $name = $key;
-        $name =~ s/_//g;
-        my $k = lc($name);
-        push @lines, "{\"$key\",$prop_names->{$key}}";
-        push @lines, "{\"$name\",$prop_names->{$key}}" if $key =~ /_/;
-        # add a canonical one for fallback "fuzzy" matching
-        push @lines, "{\"$k\",$prop_names->{$key}}"
-            unless exists $prop_names->{$k};
-        for my $alias (@{ $aliases{$key} }) {
-            $name = $alias;
-            $name =~ s/_//g;
-            $k = lc($name);
-            push @lines, "{\"$alias\",$prop_names->{$key}}";
-            push @lines, "{\"$name\",$prop_names->{$key}}" if $alias =~ /_/;
-            push @lines, "{\"$k\",$prop_names->{$key}}"
-                unless exists $prop_names->{$k};
+    my %done;
+    for my $propname (qw(gc sc), keys %lines) {
+        for (keys %{$lines{$propname}}) {
+            $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
+        }
+    }
+    for my $key (qw(gc sc), keys %$prop_names) {
+        $_ = $key;
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
+        for (@{ $aliases{$key} }) {
+            $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}";
+            $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if s/_//g;
+            $done{"$key$_"} ||= push @lines, "{\"$_\",$prop_names->{$key}}" if y/A-Z/a-z/;
         }
     }
     $hout .= "
@@ -865,34 +874,25 @@ sub emit_unicode_property_value_keypairs {
         }
     }
     my %lines;
-    my %done;
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         if (exists $prop_names->{$propname}) {
             return if $parts[0] eq 'Y' || $parts[0] eq 'N';
-            my @others = ();
-            my $mainname;
-            my $secondname;
-            for my $alias (@parts) {
-                $secondname = $alias
-                    if !$secondname && $mainname;
-                $mainname = $mainname || $alias;
-                if ($alias =~ /\|/) { # it's a union
-                    if (exists $binary_properties->{$mainname}) {
-                        my $prop_val = $binary_properties->{$mainname}->{field_index} << 24;
-                        my $value    = $binary_properties->{$mainname}->{bit_width};
-                        $lines{$propname}->{$mainname} = "{\"$mainname\",".($prop_val + $value)."}";
-                        $lines{$propname}->{$mainname} = "{\"$mainname\",".($prop_val + $value)."}" if $mainname =~ s/_//g;
+            if ($parts[-1] =~ /\|/) { # it's a union
+                pop @parts;
+                my $unionname = $parts[0];
+                if (exists $binary_properties->{$unionname}) {
+                    my $prop_val = $binary_properties->{$unionname}->{field_index} << 24;
+                    my $value    = $binary_properties->{$unionname}->{bit_width};
+                    for (@parts) {
+                        $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}";
+                        $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if s/_//g;
+                        $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if y/A-Z/a-z/;
                     }
-                    last;
+                    die Dumper($propname) if /^letter$/
                 }
-                my $newalias = lc("$alias");
-                $newalias =~ s/[_\-\s]/./g;
-                push @others, $newalias;
-            }
-            for my $alias (@others) {
-                push @parts, $alias;
+                return
             }
             my $prop_val = $prop_names->{$propname} << 24;
             my $key = $prop_codes->{$propname};
@@ -900,9 +900,10 @@ sub emit_unicode_property_value_keypairs {
             my $enum = $all_properties->{$key}->{'enum'};
             die $propname unless $enum;
             my $value;
-            my $first;
-            for my $alias (@parts) {
-                $first = $alias unless defined $first;
+            for (@parts) {
+                my $alias = $_;
+                $alias    =~ s/[_\-\s]/./g;
+                $alias    = lc($alias);
                 if (exists $enum->{$alias}) {
                     $value = $enum->{$alias};
                     last;
@@ -913,10 +914,12 @@ sub emit_unicode_property_value_keypairs {
                 #print "warning: couldn't resolve property $propname property value alias $first\n";
                 return;
             }
-            for my $alias (@parts) {
-                next if $alias =~ /[\.\|]/;
-                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}";
-                $lines{$propname}->{$alias} = "{\"$alias\",".($prop_val + $value)."}" if $alias =~ s/_//g;
+            for (@parts) {
+                s/[\-\s]/./g;
+                next if /[\.\|]/;
+                $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}";
+                $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if s/_//g;
+                $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if y/A-Z/a-z/;
             }
         }
     });
@@ -926,23 +929,25 @@ sub emit_unicode_property_value_keypairs {
                    Other_Grapheme_Extend Other_Lowercase Other_Math Other_Uppercase Quotation_Mark Radical Quotation_Mark Soft_Dotted
                    Terminal_Punctuation Unified_Ideograph White_Space Other_Number);
     my @three = qw(Digit);
+    my %done;
     for (@one) {
-        next if $done{$_} || !$prop_names->{$_};
-        my $v = ($prop_names->{$_} << 24) + 1;
-        push @lines, "{\"$_\",$v}";
-        push @lines, "{\"$_\",$v}" if s/_//g
+        my $key = $prop_names->{$_} || next;
+        my $v = ($key << 24) + 1;
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}";
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if s/_//g;
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if y/A-Z/a-z/;
     }
     for (@three) {
-        next if $done{$_} || !$prop_names->{$_};
-        my $v = ($prop_names->{$_} << 24) + 3;
-        push @lines, "{\"$_\",$v}";
-        push @lines, "{\"$_\",$v}" if s/_//g
+        my $key = $prop_names->{$_} || next;
+        my $v = ($key << 24) + 3;
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}";
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if s/_//g;
+        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if y/A-Z/a-z/;
     }
     # Aliases like L appear in several categories, but we prefere gc and sc.
     for my $propname (qw(gc sc), keys %lines) {
         for (keys %{$lines{$propname}}) {
-            next if $done{$_};
-            push @lines, $lines{$propname}->{$_};
+            $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
     $hout .= "
@@ -1039,12 +1044,12 @@ sub write_file {
     print FILE $contents;
     close FILE;
 }
-sub register_gc_alias {
-    my ($mainname, $alias) = @_;
-    register_binary_property($mainname);
+sub register_union {
+    my ($unionname, $unionof) = @_;
+    register_binary_property($unionname);
     push @$gc_alias_checkers, eval 'sub {
-        return ((shift) =~ /^(?:'.$alias.')$/)
-            ? "'.$mainname.'" : 0;
+        return ((shift) =~ /^(?:'.$unionof.')$/)
+            ? "'.$unionname.'" : 0;
     }';
 }
 sub UnicodeData {
@@ -1057,15 +1062,11 @@ sub UnicodeData {
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         return if $parts[0] eq 'Y' || $parts[0] eq 'N';
-        my @others = ();
-        my $mainname;
-        for my $alias (@parts) {
-            $mainname = $mainname || $alias;
-            if ($alias =~ /\|/) { # it's a union
-                #print "found union: $mainname is '$alias'\n";
-                $alias =~ s/\s+//g;
-                register_gc_alias($mainname, $alias);
-            }
+        if ($parts[-1] =~ /\|/) { # it's a union
+            my $unionname = $parts[0];
+            my $unionof   = pop @parts;
+            $unionof      =~ s/\s+//g;
+            register_union($unionname, $unionof);
         }
     });
     push @$planes, $plane;
