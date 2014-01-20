@@ -1069,7 +1069,6 @@ sub UnicodeData {
             my $unionname = $parts[0];
             my $unionof   = pop @parts;
             $unionof      =~ s/\s+//g;
-            warn "register_union($unionname, $unionof);";
             register_union($unionname, $unionof);
         }
     });
