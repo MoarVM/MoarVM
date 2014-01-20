@@ -875,12 +875,27 @@ sub emit_unicode_property_value_keypairs {
         }
     }
     my %lines;
+    my %aliases;
     each_line('PropertyValueAliases', sub { $_ = shift;
+        if (/^# (\w+) \((\w+)\)/) {
+            $aliases{$2} = $1;
+            return
+        }
+        return if /^(?:#|\s*$)/;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         if (exists $prop_names->{$propname}) {
-            return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
-                   && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
+            my $prop_val = $prop_names->{$propname} << 24;
+            # emit binary properties
+            if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
+                $prop_val++; # one bit width
+                for ($propname, ($aliases{$propname} // ())) {
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+                }
+                return
+            }
             if ($parts[-1] =~ /\|/) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
@@ -896,7 +911,6 @@ sub emit_unicode_property_value_keypairs {
                 }
                 return
             }
-            my $prop_val = $prop_names->{$propname} << 24;
             my $key = $prop_codes->{$propname};
             my $found = 0;
             my $enum = $all_properties->{$key}->{'enum'};
@@ -924,28 +938,8 @@ sub emit_unicode_property_value_keypairs {
                 $lines{$propname}->{$_} = "{\"$_\",".($prop_val + $value)."}" if y/A-Z/a-z/;
             }
         }
-    });
-    # XXX This is worse than worse... We need a way to obtain that information from the unicode database somehow.
-    my @one   = qw(ASCII_Hex_Digit Hex_Digit Dash Diacritic Extender Grapheme_Link Hyphen IDS_Binary_Operator IDS_Trinary_Operator
-                   Join_Control Logical_Order_Exception Noncharacter_Code_Point Other_Alphabetic Other_Default_Ignorable_Code_Point
-                   Other_Grapheme_Extend Other_Lowercase Other_Math Other_Uppercase Quotation_Mark Radical Quotation_Mark Soft_Dotted
-                   Terminal_Punctuation Unified_Ideograph White_Space Other_Number);
-    my @three = qw(Digit);
+    }, 1);
     my %done;
-    for (@one) {
-        my $key = $prop_names->{$_} || next;
-        my $v = ($key << 24) + 1;
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}";
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if s/_//g;
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if y/A-Z/a-z/;
-    }
-    for (@three) {
-        my $key = $prop_names->{$_} || next;
-        my $v = ($key << 24) + 3;
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}";
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if s/_//g;
-        $done{"$key$_"} ||= push @lines, "{\"$_\",$v}" if y/A-Z/a-z/;
-    }
     # Aliases like L appear in several categories, but we prefere gc and sc.
     for my $propname (qw(gc sc), keys %lines) {
         for (keys %{$lines{$propname}}) {
