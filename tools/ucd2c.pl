@@ -811,7 +811,8 @@ struct MVMUnicodeNamedValue {
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         if (exists $prop_names->{$propname}) {
-            return if $parts[0] eq 'Y' || $parts[0] eq 'N';
+            return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
+                   && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
             if ($parts[-1] =~ /\|/) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
@@ -878,7 +879,8 @@ sub emit_unicode_property_value_keypairs {
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         if (exists $prop_names->{$propname}) {
-            return if $parts[0] eq 'Y' || $parts[0] eq 'N';
+            return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
+                   && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
             if ($parts[-1] =~ /\|/) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
@@ -1061,11 +1063,13 @@ sub UnicodeData {
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
-        return if $parts[0] eq 'Y' || $parts[0] eq 'N';
+        return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
+               && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
         if ($parts[-1] =~ /\|/) { # it's a union
             my $unionname = $parts[0];
             my $unionof   = pop @parts;
             $unionof      =~ s/\s+//g;
+            warn "register_union($unionname, $unionof);";
             register_union($unionname, $unionof);
         }
     });
