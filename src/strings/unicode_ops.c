@@ -13,6 +13,9 @@ MVMCodepoint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name)
 }
 
 MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
+    /* short circuit unkown property values to false */
+    if (property_code == 0 || property_value_code == 0)
+        return 0;
     return (MVMint64)MVM_unicode_get_property_value(tc,
         codepoint, property_code) == property_value_code ? 1 : 0;
 }
@@ -97,17 +100,19 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
 }
 
 MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
-    MVMuint64 size;
-    unsigned char *cname = MVM_string_ascii_encode(tc, name, &size);
-    MVMUnicodeNameRegistry *result;
-
-    if (property_code < 0 || property_code >= MVMNUMPROPERTYCODES)
+    if (property_code <= 0 || property_code >= MVMNUMPROPERTYCODES) {
         return 0;
-
-    if (!unicode_property_values_hashes) {
-        generate_unicode_property_values_hashes(tc);
     }
-    HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);
-    free(cname); /* not really codepoint, really just an index */
-    return result ? result->codepoint : 0;
+    else {
+        MVMuint64 size;
+        unsigned char *cname = MVM_string_ascii_encode(tc, name, &size);
+        MVMUnicodeNameRegistry *result;
+
+        if (!unicode_property_values_hashes) {
+            generate_unicode_property_values_hashes(tc);
+        }
+        HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);
+        free(cname); /* not really codepoint, really just an index */
+        return result ? result->codepoint : 0;
+    }
 }
