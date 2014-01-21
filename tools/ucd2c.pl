@@ -876,6 +876,12 @@ sub emit_unicode_property_value_keypairs {
     }
     my %lines;
     my %aliases;
+    for (keys %$binary_properties) {
+        my $prop_val = ($prop_names->{$_} << 24) + 1;
+        $lines{_custom_}->{$_} = "{\"$_\",$prop_val}";
+        $lines{_custom_}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
+        $lines{_custom_}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+    }
     each_line('PropertyValueAliases', sub { $_ = shift;
         if (/^# (\w+) \((\w+)\)/) {
             $aliases{$2} = $1;
@@ -1066,6 +1072,7 @@ sub UnicodeData {
             register_union($unionname, $unionof);
         }
     });
+    register_union('Assigned', 'C[cfos]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]');
     push @$planes, $plane;
     my $ideograph_start;
     my $case_count = 1;
