@@ -87,9 +87,6 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
         obj->header.size  = (MVMuint16)st->size;
         obj->header.owner = tc->thread_id;
         MVM_ASSIGN_REF(tc, obj, obj->st, st);
-        if ((obj->header.flags & MVM_CF_SECOND_GEN))
-            if (REPR(obj)->refs_frames)
-                MVM_gc_root_gen2_add(tc, (MVMCollectable *)obj);
     });
     return obj;
 }

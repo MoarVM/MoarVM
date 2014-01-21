@@ -11,7 +11,10 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c);
 void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
 void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc);
-void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame);
+void MVM_gc_root_gen2_frame_add(MVMThreadContext *tc, MVMFrame *new_frame);
+void MVM_gc_root_gen2_frame_remove(MVMThreadContext *tc, MVMFrame *to_remove);
+void MVM_gc_root_gen2_frame_remove_unsafe(MVMThreadContext *tc, MVMFrame *to_remove);
+void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *cur_frame);
 
 /* Macros related to rooting objects into the temporaries list, and
  * unrooting them afterwards. */

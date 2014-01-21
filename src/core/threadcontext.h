@@ -144,8 +144,8 @@ struct MVMThreadContext {
 
     /* threads to process this gc run. */
     MVMWorkThread   *gc_work;
-    MVMuint32                gc_work_size;
-    MVMuint32                gc_work_count;
+    MVMuint32        gc_work_size;
+    MVMuint32        gc_work_count;
 
     /* Pool table of chains of frames for each static frame. */
     MVMFrame **frame_pool_table;

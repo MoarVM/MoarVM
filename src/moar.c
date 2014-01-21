@@ -32,29 +32,16 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
-    /* Set up REPR registry mutex. */
+    /* Set up various mutexes. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
-
-    /* Set up HLL config mutex. */
     init_mutex(instance->mutex_hllconfigs, "hll configs");
-
-    /* Set up DLL registry mutex. */
     init_mutex(instance->mutex_dll_registry, "REPR registry");
-
-    /* Set up extension registry mutex. */
     init_mutex(instance->mutex_ext_registry, "extension registry");
-
-    /* Set up extension op registry mutex. */
     init_mutex(instance->mutex_extop_registry, "extension op registry");
-
-    /* Set up weak reference hash mutex. */
     init_mutex(instance->mutex_sc_weakhash, "sc weakhash");
-
-    /* Set up loaded compunits hash mutex. */
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
-
-    /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
+    init_mutex(instance->mutex_gen2_frame_roots, "gen2 frame roots");
 
     /* Allocate all things during following setup steps directly in gen2, as
      * they will have program lifetime. */
@@ -237,6 +224,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of hashes of symbol tables per hll. */
     uv_mutex_destroy(&instance->mutex_hll_syms);
+
+    /* Clean up gen2 frame roots mutex. */
+    uv_mutex_destroy(&instance->mutex_gen2_frame_roots);
 
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);

@@ -81,11 +81,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from TC objects\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
-        /* Add current frame to worklist. */
-        MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from current frame\n", worklist->items);
-        process_worklist(tc, worklist, &wtp, gen);
-
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
@@ -100,6 +95,35 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
             MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from gen2 \n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
+        }
+
+        /* For nursery only collects, also need to mark all frames that are
+         * in gen2 but may reference nursery objects. If any frame yields no
+         * nursery objects, then we can toss it from the gen2 roots list. */
+        if (gen == MVMGCGenerations_Nursery && what_to_do != MVMGCWhatToDo_NoInstance) {
+            MVMFrame *cur_frame = tc->instance->gen2_frame_roots;
+            MVMint64 nr = 0, tossed = 0;
+            while (cur_frame) {
+                MVMFrame *next_frame = cur_frame->next_gen2_root;
+                if (MVM_load(&cur_frame->gc_seq_number) != tc->instance->gc_seq_number) {
+                    MVMint64 has_nursery = 0;
+                    MVMint64 i;
+                    MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from gen2 frame \n", worklist->items);
+                    for (i = 0; i < worklist->items; i++) {
+                        MVMCollectable **cur_item_ptr = worklist->list[i];
+                        if (*cur_item_ptr && !((*cur_item_ptr)->flags & MVM_CF_SECOND_GEN)) {
+                            has_nursery = 1;
+                            break;
+                        }
+                    }
+                    process_worklist(tc, worklist, &wtp, gen);
+                    if (!has_nursery) { tossed++;
+                        MVM_gc_root_gen2_frame_remove_unsafe(tc, cur_frame); }
+                }
+                nr++;
+                cur_frame = next_frame;
+            }
         }
 
         /* Find roots in frames and process them. */
@@ -236,14 +260,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 memcpy(new_addr, item, item->size);
                 new_addr->flags ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags |= MVM_CF_SECOND_GEN;
-
-                /* If it references frames or static frames, we need to keep
-                 * on visiting it. */
-                if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
-                    MVMObject *new_obj_addr = (MVMObject *)new_addr;
-                    if (REPR(new_obj_addr)->refs_frames)
-                        MVM_gc_root_gen2_add(tc, (MVMCollectable *)new_obj_addr);
-                }
 
                 /* If we're going to sweep the second generation, also need
                  * to mark it as live. */

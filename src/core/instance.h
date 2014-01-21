@@ -126,6 +126,12 @@ struct MVMInstance {
     /* Linked list (via forwarder) of STables to free. */
     MVMSTable *stables_to_free;
 
+    /* Frames that we need to visit because they are no longer in the
+     * caller chain and they reference something that is in the nursery.
+     * This is a doubly linked list. Protected by mutex for now. */
+    MVMFrame   *gen2_frame_roots;
+    uv_mutex_t  mutex_gen2_frame_roots;
+
     /* MVMThreads completed starting, running, and/or exited. */
     /* note: used atomically */
     MVMThread *threads;

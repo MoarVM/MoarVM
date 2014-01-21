@@ -114,6 +114,17 @@ struct MVMFrame {
     /* note: used atomically */
     MVMObject *context_object;
 
+    /* When a frame is removed from the a thread's caller chain, but is kept
+     * alive by some other means, then it is put on a linked list of frames
+     * that reference nursery objects, and is flagged as a gen2 frame. When
+     * it no longer references any nursery objects, it is removed from the
+     * linked list; it may be placed back on it if it comes to point to gen2s
+     * again in the future. */
+    MVMFrame *next_gen2_root;
+    MVMFrame *prev_gen2_root;
+    MVMuint8 in_gen2_roots;
+    MVMuint8 gen2;
+
     /* Flags that the caller chain should be kept in place after return or
      * unwind; used to make sure we can get a backtrace after an exception. */
     MVMuint8 keep_caller;
@@ -162,10 +173,10 @@ MVM_PUBLIC MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVM_PUBLIC MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
-MVM_PUBLIC MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMuint8 bind);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMuint8 bind);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame, MVMuint8 bind);
+MVM_PUBLIC MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMuint8 bind);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);

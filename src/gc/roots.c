@@ -199,8 +199,6 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
             MVM_gc_worklist_add_frame_no_seq_check(tc, worklist, cur_frame);
             num_in_nursery++;
         }
-        if (!num_in_nursery && REPR(gen2roots[i])->refs_frames)
-            num_in_nursery = 1;
 
         /* If there were any nursery objects, then this root should stay. Put
          * it at the insert position. */
@@ -235,10 +233,48 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     tc->num_gen2roots = cur_survivor;
 }
 
+/* Adds a frame to the gen2 frame roots. */
+void MVM_gc_root_gen2_frame_add(MVMThreadContext *tc, MVMFrame *new_frame) {
+    MVMFrame *current_frame;
+    uv_mutex_lock(&tc->instance->mutex_gen2_frame_roots);
+    if (!new_frame->in_gen2_roots) {
+        current_frame = tc->instance->gen2_frame_roots;
+        new_frame->next_gen2_root = current_frame;
+        if (current_frame)
+            current_frame->prev_gen2_root = new_frame;
+        new_frame->prev_gen2_root = NULL;
+        tc->instance->gen2_frame_roots = new_frame;
+        new_frame->in_gen2_roots = 1;
+    }
+    uv_mutex_unlock(&tc->instance->mutex_gen2_frame_roots);
+}
+
+/* Removes a frame from the gen2 frame roots. */
+void MVM_gc_root_gen2_frame_remove(MVMThreadContext *tc, MVMFrame *to_remove) {
+    uv_mutex_lock(&tc->instance->mutex_gen2_frame_roots);
+    if (!to_remove->in_gen2_roots)
+        MVM_panic(1, "Trying to remove a frame that is not a gen2 root");
+    MVM_gc_root_gen2_frame_remove_unsafe(tc, to_remove);
+    to_remove->in_gen2_roots = 0;
+    uv_mutex_unlock(&tc->instance->mutex_gen2_frame_roots);
+}
+void MVM_gc_root_gen2_frame_remove_unsafe(MVMThreadContext *tc, MVMFrame *to_remove) {
+    if (to_remove->prev_gen2_root) {
+        to_remove->prev_gen2_root->next_gen2_root = to_remove->next_gen2_root;
+        if (to_remove->next_gen2_root)
+            to_remove->next_gen2_root->prev_gen2_root = to_remove->prev_gen2_root;
+    }
+    else {
+        tc->instance->gen2_frame_roots = to_remove->next_gen2_root;
+        if (tc->instance->gen2_frame_roots)
+            tc->instance->gen2_frame_roots->prev_gen2_root = NULL;
+    }
+    to_remove->in_gen2_roots = 0;
+}
+
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
-void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
-    MVMFrame *cur_frame = start_frame;
+void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *cur_frame) {
     MVMuint32 cur_seq_number = MVM_load(&tc->instance->gc_seq_number);
     /* If we already saw the frame this run, skip it. */
     MVMuint32 orig_seq = MVM_load(&cur_frame->gc_seq_number);

@@ -20,5 +20,16 @@
         update_addr = _r; \
     }
 
-/* Functions for if the write barriers are hit. */
+/* Function for if the write barrier is hit. */
 MVM_PUBLIC void MVM_gc_write_barrier_hit(MVMThreadContext *tc, MVMCollectable *update_root);
+
+/* Write barrier for binding lexicals in frames. */
+#define MVM_FRAME_LEX_WB(tc, bound_frame) \
+    { \
+        MVMFrame *wb_f = bound_frame; \
+        if (wb_f->gen2 && !wb_f->in_gen2_roots) \
+            MVM_gc_root_gen2_frame_add(tc, wb_f); \
+    }
+
+
+

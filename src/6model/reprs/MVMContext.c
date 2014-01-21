@@ -89,6 +89,9 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
                 MVM_string_utf8_encode_C_string(tc, name));
     }
     frame->env[entry->value] = value;
+    if (kind == MVM_reg_obj || kind == MVM_reg_str) {
+        MVM_FRAME_LEX_WB(tc, frame);
+    }
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {

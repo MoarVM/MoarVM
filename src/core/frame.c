@@ -58,6 +58,10 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         if (frame->caller)
             frame->caller = MVM_frame_dec_ref(tc, frame->caller);
 
+        /* Remove from gen2 roots list, if it's on it. */
+        if (frame->in_gen2_roots)
+            MVM_gc_root_gen2_frame_remove(tc, frame);
+
         if (node && MVM_load(&node->ref_count) >= MVMFramePoolLengthLimit) {
             /* There's no room on the free list, so destruction.*/
             if (frame->env) {
@@ -242,6 +246,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Clear frame flags. */
     frame->flags = 0;
 
+    /* Frames start out of gen2. */
+    frame->in_gen2_roots = frame->gen2 = 0;
+    frame->next_gen2_root = frame->prev_gen2_root = NULL; /* Not needed, really. */
+
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
@@ -338,6 +346,11 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
         memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
     }
 
+    /* Frame is considered in gen2 right away, since it never has chance to
+     * be alive on in the caller chain. */
+    frame->gen2 = 1;
+    MVM_gc_root_gen2_frame_add(tc, frame);
+
     /* Initial reference count is 0 (will become referenced by being set as
      * an outer context). So just return it now. */
     return frame;
@@ -385,6 +398,15 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
                 caller->keep_caller = 1;
             }
         }
+    }
+
+    /* At this point, the frame may be down to a ref-count of 1, which means it
+     * is only active because it was the current executing frame. If it's more
+     * than 1, it will live on, and so should be promoted to gen2 and be put on
+     * the gen2 frame roots list. */
+    if (MVM_load(&returner->ref_count) > 1) {
+        returner->gen2 = 1;
+        MVM_gc_root_gen2_frame_add(tc, returner);
     }
 
     /* Decrement the frame's ref-count by the 1 it got by virtue of being the
@@ -574,7 +596,7 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
  * specified type. Non-existing object lexicals produce NULL, expected
  * (for better or worse) by various things. Otherwise, an error is thrown
  * if it does not exist. Incorrect type always throws. */
-MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
+MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMuint8 bind) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
@@ -586,6 +608,8 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
+                if (bind)
+                    MVM_FRAME_LEX_WB(tc, cur_frame);
                 if (cur_frame->static_info->body.lexical_types[entry->value] == type)
                     return &cur_frame->env[entry->value];
                 else
@@ -604,7 +628,7 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. Only works if it's an object lexical.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMuint8 bind) {
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
@@ -615,6 +639,8 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
+                if (bind)
+                    MVM_FRAME_LEX_WB(tc, cur_frame);
                 if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj)
                     return &cur_frame->env[entry->value];
                 else
@@ -630,7 +656,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. It checks all outer frames of the caller frame chain.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
+MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame, MVMuint8 bind) {
     MVM_string_flatten(tc, name);
     while (cur_caller_frame != NULL) {
         MVMFrame *cur_frame = cur_caller_frame;
@@ -643,6 +669,8 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
                 MVM_HASH_GET(tc, lexical_names, name, entry)
 
                 if (entry) {
+                    if (bind)
+                        MVM_FRAME_LEX_WB(tc, cur_frame);
                     if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj)
                         return &cur_frame->env[entry->value];
                     else
@@ -661,7 +689,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
 
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame) {
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMuint8 bind) {
     if (!name) {
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     }
@@ -674,6 +702,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
+                if (bind)
+                    MVM_FRAME_LEX_WB(tc, cur_frame);
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
                 return &cur_frame->env[entry->value];
             }
@@ -685,7 +715,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
 
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
         switch (type) {
@@ -737,7 +767,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1);
     if (!lex_reg) {
         MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
             MVM_string_utf8_encode_C_string(tc, name));
@@ -770,6 +800,7 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
         MVMLexicalRegistry *entry;
         MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
+        MVM_FRAME_LEX_WB(tc, f);
         if (entry)
             return &f->env[entry->value];
     }
@@ -910,6 +941,11 @@ MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
     /* If there's an outer, there's now an extra frame pointing at it. */
     if (clone->outer)
         MVM_frame_inc_ref(tc, clone->outer);
+
+    /* Frame is considered in gen2 right away, since it never has chance to
+     * be alive on in the caller chain. */
+    clone->gen2 = 1;
+    MVM_gc_root_gen2_frame_add(tc, clone);
 
     return clone;
 }
