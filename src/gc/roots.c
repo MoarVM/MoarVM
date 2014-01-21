@@ -173,7 +173,12 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     /* We'll use an intermediate worklist, which is used as the target when
      * we mark each object on the gen2 roots list. Only things really in the
      * nursery make it onto the real worklist that was passed in. */
-    MVMGCWorklist *per_obj_worklist = MVM_gc_worklist_create(tc);
+    MVMGCWorklist *per_obj_worklist = MVM_gc_worklist_create(tc, 0);
+
+    /* The original worklist will only accept nursery things, but here we need
+     * to override that and accept everything. */
+    MVMuint8 orig_include_gen2 = worklist->include_gen2;
+    worklist->include_gen2 = 1;
 
     /* Guess that we'll end up with around num_roots entries, to avoid some
      * worklist growth reallocations. */
@@ -220,6 +225,9 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 
     /* Clear up the temporary, per-object worklist. */
     MVM_gc_worklist_destroy(tc, per_obj_worklist);
+
+    /* Restore main worklist's include_gen2 flag. */
+    worklist->include_gen2 = orig_include_gen2;
 }
 
 /* Visits all of the roots in the gen2 list and removes those that have been

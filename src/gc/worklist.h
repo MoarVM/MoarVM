@@ -26,16 +26,22 @@ struct MVMGCWorklist {
     /* The number of items the work list is allocated to hold. */
     MVMuint32 alloc;
     MVMuint32 frames_alloc;
+
+    /* Whether we should include gen2 entries. */
+    MVMuint8 include_gen2;
 };
 
 /* Some macros for doing stuff fast with worklists, defined to look like
  * functions since perhaps they become them in the future if needed. */
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
-        if (worklist->items == worklist->alloc) \
-            MVM_gc_worklist_add_slow(tc, worklist, (MVMCollectable **)(item)); \
-        else \
-            worklist->list[worklist->items++] = (MVMCollectable **)(item); \
+        MVMCollectable **item_to_add = (MVMCollectable **)(item);\
+        if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags & MVM_CF_SECOND_GEN))) { \
+            if (worklist->items == worklist->alloc) \
+                MVM_gc_worklist_add_slow(tc, worklist, item_to_add); \
+            else \
+                worklist->list[worklist->items++] = item_to_add; \
+        } \
     } while (0)
 
 #define MVM_gc_worklist_add_frame(tc, worklist, frame) \
@@ -69,7 +75,7 @@ struct MVMGCWorklist {
         NULL)
 
 /* Various functions for worklist manipulation. */
-MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc);
+MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2);
 MVM_PUBLIC void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
 MVM_PUBLIC void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items);
