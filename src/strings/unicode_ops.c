@@ -14,7 +14,7 @@ MVMCodepoint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name)
 
 MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
     /* short circuit unkown property values to false */
-    if (property_code == 0 || property_value_code == 0)
+    if (property_code == 0)
         return 0;
     return (MVMint64)MVM_unicode_get_property_value(tc,
         codepoint, property_code) == property_value_code ? 1 : 0;
