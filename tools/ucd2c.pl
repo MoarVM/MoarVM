@@ -808,11 +808,23 @@ struct MVMUnicodeNamedValue {
     my %aliases;
     my %lines;
     each_line('PropertyValueAliases', sub { $_ = shift;
+        if (/^# (\w+) \((\w+)\)/) {
+            $aliases{$2} = [$1];
+            return
+        }
+        return if /^(?:#|\s*$)/;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
         if (exists $prop_names->{$propname}) {
-            return if ($parts[0] eq 'Y'   || $parts[0] eq 'N')
-                   && ($parts[1] eq 'Yes' || $parts[1] eq 'No');
+            if (($parts[0] eq 'Y' || $parts[0] eq 'N') && ($parts[1] eq 'Yes' || $parts[1] eq 'No')) {
+                my $prop_val = $prop_names->{$propname};
+                for ($propname, @{$aliases{$propname} // []}) {
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if s/_//g;
+                    $lines{$propname}->{$_} = "{\"$_\",$prop_val}" if y/A-Z/a-z/;
+                }
+                return
+            }
             if ($parts[-1] =~ /\|/) { # it's a union
                 pop @parts;
                 my $unionname = $parts[0];
@@ -831,7 +843,7 @@ struct MVMUnicodeNamedValue {
                 }
             }
         }
-    });
+    }, 1);
     my %done;
     for my $propname (qw(gc sc), keys %lines) {
         for (keys %{$lines{$propname}}) {
