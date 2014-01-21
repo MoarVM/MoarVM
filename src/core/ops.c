@@ -3912,9 +3912,15 @@ static MVMOpInfo MVM_op_infos[] = {
         3,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
+    {
+        MVM_OP_paramnamesused,
+        "paramnamesused",
+        "  ",
+        0,
+    },
 };
 
-static unsigned short MVM_op_counts = 558;
+static unsigned short MVM_op_counts = 559;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

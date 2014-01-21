@@ -559,6 +559,7 @@
 #define MVM_OP_uniisblock 555
 #define MVM_OP_assertparamcheck 556
 #define MVM_OP_hintfor 557
+#define MVM_OP_paramnamesused 558
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

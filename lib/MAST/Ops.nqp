@@ -560,7 +560,8 @@ BEGIN {
     1324,
     1326,
     1330,
-    1331);
+    1331,
+    1334);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1118,7 +1119,8 @@ BEGIN {
     2,
     4,
     1,
-    3);
+    3,
+    0);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -3010,7 +3012,8 @@ BEGIN {
     'randscale_n', 554,
     'uniisblock', 555,
     'assertparamcheck', 556,
-    'hintfor', 557);
+    'hintfor', 557,
+    'paramnamesused', 558);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3568,5 +3571,6 @@ BEGIN {
     'randscale_n',
     'uniisblock',
     'assertparamcheck',
-    'hintfor');
+    'hintfor',
+    'paramnamesused');
 }

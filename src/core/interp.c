@@ -3947,6 +3947,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_args_bind_failed(tc);
                 goto NEXT;
             }
+            OP(paramnamesused): {
+                MVMArgProcContext *ctx = &tc->cur_frame->params;
+                if (ctx->callsite->num_pos != ctx->callsite->arg_count)
+                    MVM_args_assert_nameds_used(tc, ctx);
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

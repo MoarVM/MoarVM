@@ -338,6 +338,18 @@ MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMStr
             return 1;
     return 0;
 }
+void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    if (ctx->named_used) {
+        MVMuint16 size = (ctx->arg_count - ctx->num_pos) / 2;
+        MVMuint16 i;
+        for (i = 0; i < size; i++)
+            if (!ctx->named_used[i])
+                MVM_exception_throw_adhoc(tc,
+                    "Unexpected named parameter '%s' passed",
+                    MVM_string_utf8_encode_C_string(tc,
+                        ctx->args[ctx->num_pos + 2 * i].s));
+    }
+}
 
 /* Result setting. The frameless flag indicates that the currently
  * executing code does not have a MVMFrame of its own. */

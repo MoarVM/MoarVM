@@ -559,7 +559,7 @@ static const void * const LABELS[] = {
     &&OP_uniisblock,
     &&OP_assertparamcheck,
     &&OP_hintfor,
-    NULL,
+    &&OP_paramnamesused,
     NULL,
     NULL,
     NULL,
