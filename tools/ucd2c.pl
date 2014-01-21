@@ -1072,6 +1072,7 @@ sub UnicodeData {
         number => 0,
         points => []
     };
+    register_binary_property('Any');
     each_line('PropertyValueAliases', sub { $_ = shift;
         my @parts = split /\s*[#;]\s*/;
         my $propname = shift @parts;
@@ -1114,7 +1115,8 @@ sub UnicodeData {
             NFC_QC => 1, # which will be unset as appropriate
             NFKD_QC => 1,
             NFKC_QC => 1,
-            code => $code
+            code => $code,
+            Any => 1
         };
         $point->{Bidi_Mirrored} = 1 if $bidimirrored eq 'Y';
         if ($decmpspec) {
@@ -1143,7 +1145,7 @@ sub UnicodeData {
             $point->{name} = $ideograph_start->{name};
             my $current = $ideograph_start;
             while ($current->{code} < $point->{code} - 1) {
-                my $new = {};
+                my $new = { Any => 1 };
                 for (keys %$current) {
                     $new->{$_} = $current->{$_};
                 }
