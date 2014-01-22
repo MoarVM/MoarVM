@@ -93,30 +93,33 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     uv_fs_t req;
     char *       const a = MVM_string_utf8_encode_C_string(tc, src);
-    char *       const b = MVM_string_utf8_encode_C_string(tc, dest);
     const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
-    const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_MODE, NULL);
 
-    if (in_fd >= 0 && out_fd >= 0
-        && uv_fs_stat(tc->loop, &req, a, NULL) >= 0
-        && uv_fs_sendfile(tc->loop, &req, out_fd, in_fd, 0, req.statbuf.st_size, NULL) >= 0) {
+    if (in_fd >= 0 && uv_fs_stat(tc->loop, &req, a, NULL) >= 0) {
+        char *       const b = MVM_string_utf8_encode_C_string(tc, dest);
+        const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_MODE, NULL);
         free(a);
-        free(b);
 
-        if (uv_fs_close(tc->loop, &req, in_fd, NULL) < 0) {
-            uv_fs_close(tc->loop, &req, out_fd, NULL); /* should close out_fd before throw. */
-            MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+        if (out_fd >= 0
+        && uv_fs_sendfile(tc->loop, &req, out_fd, in_fd, 0, req.statbuf.st_size, NULL) >= 0) {
+            free(b);
+
+            if (uv_fs_close(tc->loop, &req, in_fd, NULL) < 0) {
+                uv_fs_close(tc->loop, &req, out_fd, NULL); /* should close out_fd before throw. */
+                MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+            }
+
+            if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
+                MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
+            }
+
+            return;
         }
-
-        if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
-            MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
-        }
-
-        return;
+        else
+            free(b);
     }
-
-    free(a);
-    free(b);
+    else
+        free(a);
 
     MVM_exception_throw_adhoc(tc, "Failed to copy file: %s", uv_strerror(req.result));
 }
