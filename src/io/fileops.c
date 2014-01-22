@@ -287,44 +287,82 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
-/* reads a line from a filehandle. */
+/* Reads a line from a filehandle.
+ * XXX TODO: implement buffering and reading decent side chunks properly. This
+ * code exists just so we can have a working-ish STDIN. Hacky in other ways
+ * too. */
+static void readline_on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+    buf->base = malloc(1);
+    buf->len  = 1;
+}
+static void readline_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    MVMOSHandle * const oshandle = (MVMOSHandle *)(handle->data);
+    if (nread > 0) {
+        char read_char = *((char *)buf->base);
+        if (oshandle->body.u.length && oshandle->body.u.length % 128 == 0) {
+            oshandle->body.u.data = realloc(oshandle->body.u.data,
+                oshandle->body.u.length * 2);
+        }
+        ((char *)oshandle->body.u.data)[oshandle->body.u.length] = read_char;
+        oshandle->body.u.length++;
+        if (read_char == 10)
+            uv_read_stop(handle);
+    }
+    else {
+        if (oshandle->body.u.length == 0)
+            oshandle->body.u.length = -1;
+        uv_read_stop(handle);
+    }
+    if (buf->base)
+        free(buf->base);
+}
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMint32 bytes_read = 0;
-    MVMint32 step_back  = 0; /* total reads = bytes_read + step_back */
-    MVMString *result;
+    MVMint32     bytes_read = 0;
+    MVMint32     bufsize    = 128;
+    char        *buf        = malloc(bufsize);
+    MVMString   *result;
     MVMOSHandle *handle;
-    uv_fs_t req;
-    char ch;
-    char *buf;
+    uv_fs_t      req;
+    char         ch;
 
     verify_filehandle_type(tc, oshandle, &handle, "readline from filehandle");
 
-    while (uv_fs_read(tc->loop, &req, handle->body.u.fd, &ch, 1, -1, NULL) > 0) {
-        bytes_read++;
-
-        if (ch == 10 || ch == 13)
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_HANDLE: {
+            MVMOSHandleBody * const body = &handle->body;
+            body->u.data   = buf;
+            body->u.length = 0;
+            uv_read_start((uv_stream_t *)body->u.handle, readline_on_alloc, readline_on_read);
+            uv_run(tc->loop, UV_RUN_DEFAULT);
+            bytes_read = body->u.length;
+            if (bytes_read < 0)
+                bytes_read = 0;
             break;
-    }
-
-    /* have a look if it is a windows newline. */
-    if (ch == 13) {
-        if (uv_fs_read(tc->loop, &req, handle->body.u.fd, &ch, 1, -1, NULL) > 0 && ch == 10) {
-            bytes_read++;
-        } else {
-            step_back++;
         }
+        case MVM_OSHANDLE_FD: {
+            MVMint32 res;
+            while ((res = uv_fs_read(tc->loop, &req, handle->body.u.fd, &ch, 1, -1, NULL)) > 0) {
+                if (bytes_read == bufsize) {
+                    bufsize *= 2;
+                    buf = realloc(buf, bufsize);
+                }
+                buf[bytes_read] = ch;
+                bytes_read++;
+                if (ch == 10)
+                    break;
+            }
+            if (res < 0) {
+                free(buf);
+                MVM_exception_throw_adhoc(tc, "readline from filehandle failed: %s",
+                    uv_strerror(req.result));
+            }
+            break;
+        }
+        default:
+            free(buf);
+            MVM_exception_throw_adhoc(tc, "Unknown handle type in readline");
     }
 
-    MVM_file_seek(tc, oshandle, -bytes_read - step_back, SEEK_CUR);
-
-    buf = malloc(bytes_read);
-
-    if (uv_fs_read(tc->loop, &req, handle->body.u.fd, buf, bytes_read, -1, NULL) < 0) {
-        free(buf);
-        MVM_exception_throw_adhoc(tc, "readline from filehandle failed: %s", uv_strerror(req.result));
-    }
-
-                                               /* XXX should this take a type object? */
     result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
     free(buf);
 
@@ -917,7 +955,7 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
         return req.statbuf.st_size == seek_pos;
     }
     else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
-        return 0; /* XXX Not right, but unbreaks REPL. */
+        return handle->body.u.length == -1;
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot use eof on this type of handle");
