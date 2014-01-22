@@ -65,15 +65,13 @@ void MVM_sc_set_description(MVMThreadContext *tc, MVMSerializationContext *sc, M
 
 /* Given an SC, looks up the index of an object that is in its root set. */
 MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
-    MVMObject *roots;
-    MVMint64   i, count;
+    MVMObject **roots;
+    MVMint64    i, count;
     roots = sc->body->root_objects;
-    count = MVM_repr_elems(tc, roots);
-    for (i = 0; i < count; i++) {
-        MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
-        if (test == obj)
+    count = sc->body->num_objects;
+    for (i = 0; i < count; i++)
+        if (roots[i] == obj)
             return i;
-    }
     MVM_exception_throw_adhoc(tc,
         "Object does not exist in serialization context");
 }
@@ -121,10 +119,10 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
 
 /* Given an SC and an index, fetch the object stored there. */
 MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    MVMObject *roots = sc->body->root_objects;
-    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
-    if (idx < count)
-        return MVM_repr_at_pos_o(tc, roots, idx);
+    MVMObject **roots = sc->body->root_objects;
+    MVMint64    count = sc->body->num_objects;
+    if (idx >= 0 && idx < count)
+        return roots[idx];
     else
         MVM_exception_throw_adhoc(tc,
             "No object at index %d", idx);
@@ -133,19 +131,43 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
 /* Given an SC and an index, fetch the object stored there, or return NULL if
  * there is none. */
 MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    MVMObject *roots = sc->body->root_objects;
-    MVMint64   count = REPR(roots)->elems(tc, STABLE(roots), roots, OBJECT_BODY(roots));
-    if (idx < count)
-        return MVM_repr_at_pos_o(tc, roots, idx);
+    MVMObject **roots = sc->body->root_objects;
+    MVMint64    count = sc->body->num_objects;
+    if (idx > 0 && idx < count)
+        return roots[idx];
     else
         return NULL;
 }
 
 /* Given an SC, an index, and an object, store the object at that index. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
-    MVMObject *roots = sc->body->root_objects;
-    MVMint64   count = MVM_repr_elems(tc, roots);
-    MVM_repr_bind_pos_o(tc, roots, idx, obj);
+    MVMObject **roots = sc->body->root_objects;
+    MVMint64    count = sc->body->num_objects;
+    if (idx < 0)
+        MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %d", idx);
+    if (idx < sc->body->num_objects) {
+        /* Just updating an existing one. */
+        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_objects[idx], obj);
+    }
+    else {
+        if (idx >= sc->body->alloc_objects) {
+            MVMint64 orig_size = sc->body->alloc_objects;
+            sc->body->alloc_objects *= 2;
+            if (sc->body->alloc_objects < idx + 1)
+                sc->body->alloc_objects = idx + 1;
+            sc->body->root_objects = realloc(sc->body->root_objects,
+                sc->body->alloc_objects * sizeof(MVMObject *));
+            memset(sc->body->root_objects + orig_size, 0,
+                (sc->body->alloc_objects - orig_size) * sizeof(MVMObject *));
+        }
+        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_objects[idx], obj);
+        sc->body->num_objects = idx + 1;
+    }
+}
+
+/* Given an SC and an object, push it onto the SC. */
+void MVM_sc_push_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
+    MVM_sc_set_object(tc, sc, sc->body->num_objects, obj);
 }
 
 /* Given an SC and an index, fetch the STable stored there. */
@@ -230,7 +252,7 @@ void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVM
 
 /* Gets the number of objects in the SC. */
 MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc) {
-    return MVM_repr_elems(tc, sc->body->root_objects);
+    return sc->body->num_objects;
 }
 
 /* Sets an object's SC. */
@@ -268,7 +290,7 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
     comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);
     if (obj->header.sc != comp_sc) {
         /* Get new slot ID. */
-        MVMint64 new_slot = MVM_repr_elems(tc, comp_sc->body->root_objects);
+        MVMint64 new_slot = comp_sc->body->num_objects;
 
         /* See if the object is actually owned by another, and it's the
          * owner we need to repossess. */

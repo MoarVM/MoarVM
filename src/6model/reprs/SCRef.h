@@ -10,7 +10,9 @@ struct MVMSerializationContextBody {
     MVMString *description;
 
     /* The root set of objects that live in this SC. */
-    MVMObject *root_objects;
+    MVMObject **root_objects;
+    MVMuint64   num_objects;
+    MVMuint64   alloc_objects;
 
     /* The root set of STables that live in this SC. */
     MVMSTable **root_stables;

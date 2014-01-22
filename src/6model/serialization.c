@@ -327,7 +327,7 @@ static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, 
         /* This object doesn't belong to an SC yet, so it must be serialized as part of
          * this compilation unit. Add it to the work list. */
         MVM_sc_set_obj_sc(tc, ref, writer->root.sc);
-        MVM_repr_push_o(tc, writer->objects_list, ref);
+        MVM_sc_push_object(tc, writer->root.sc, ref);
     }
     sc_id = get_sc_id(tc, writer, SC_OBJ(ref));
     idx   = (MVMint32)MVM_sc_find_object_idx(tc, SC_OBJ(ref), ref);
@@ -505,7 +505,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
         write_int32(writer->root.closures_table, offset + 12, 1);
         if (!code_obj->header.sc) {
             MVM_ASSIGN_REF(tc, code_obj, code_obj->header.sc, writer->root.sc);
-            MVM_repr_push_o(tc, writer->objects_list, code_obj);
+            MVM_sc_push_object(tc, writer->root.sc, code_obj);
         }
         write_int32(writer->root.closures_table, offset + 16,
             get_sc_id(tc, writer, code_obj->header.sc));
@@ -972,7 +972,7 @@ static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter
         MVMint32 orig_sc_id = get_sc_id(tc, writer, orig_sc);
         MVMint32 orig_idx   = (MVMint32)(is_st
             ? MVM_sc_find_stable_idx(tc, orig_sc, writer->root.sc->body->root_stables[obj_idx])
-            : MVM_sc_find_object_idx(tc, orig_sc, MVM_repr_at_pos_o(tc, writer->objects_list, obj_idx)));
+            : MVM_sc_find_object_idx(tc, orig_sc, writer->root.sc->body->root_objects[obj_idx]));
 
         /* Write table row. */
         write_int32(writer->root.repos_table, offset, is_st);
@@ -987,7 +987,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     do {
         /* Current work list sizes. */
         MVMuint64 stables_todo  = writer->root.sc->body->num_stables;
-        MVMuint64 objects_todo  = MVM_repr_elems(tc, writer->objects_list);
+        MVMuint64 objects_todo  = writer->root.sc->body->num_objects;
         MVMuint64 contexts_todo = MVM_repr_elems(tc, writer->contexts_list);
 
         /* Reset todo flag - if we do some work we'll go round again as it
@@ -1003,8 +1003,8 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 
         /* Serialize any objects on the todo list. */
         while (writer->objects_list_pos < objects_todo) {
-            serialize_object(tc, writer, MVM_repr_at_pos_o(tc,
-                writer->objects_list, writer->objects_list_pos));
+            serialize_object(tc, writer,
+                writer->root.sc->body->root_objects[writer->objects_list_pos]);
             writer->objects_list_pos++;
             work_todo = 1;
         }
@@ -1026,7 +1026,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *empty_string_heap) {
     MVMSerializationWriter *writer;
     MVMString *result   = NULL;
-    MVMint32   sc_elems = (MVMint32)MVM_repr_elems(tc, sc->body->root_objects);
+    MVMint32   sc_elems = (MVMint32)sc->body->num_objects;
 
     /* We don't sufficiently root things in here for the GC, so enforce gen2
      * allocation. */
@@ -1036,7 +1036,6 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer                      = calloc(1, sizeof(MVMSerializationWriter));
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
-    writer->objects_list        = sc->body->root_objects;
     writer->codes_list          = sc->body->root_codes;
     writer->contexts_list       = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     writer->root.string_heap    = empty_string_heap;
