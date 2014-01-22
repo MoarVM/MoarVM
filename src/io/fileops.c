@@ -305,13 +305,16 @@ static void readline_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t 
         }
         ((char *)oshandle->body.u.data)[oshandle->body.u.length] = read_char;
         oshandle->body.u.length++;
-        if (read_char == 10)
+        if (read_char == 10) {
             uv_read_stop(handle);
+            uv_unref((uv_handle_t*)handle);
+        }
     }
     else {
         if (oshandle->body.u.length == 0)
             oshandle->body.u.length = -1;
         uv_read_stop(handle);
+        uv_unref((uv_handle_t*)handle);
     }
     if (buf->base)
         free(buf->base);
@@ -333,6 +336,7 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
             body->u.data   = buf;
             body->u.length = 0;
             uv_read_start((uv_stream_t *)body->u.handle, readline_on_alloc, readline_on_read);
+            uv_ref(body->u.handle);
             uv_run(tc->loop, UV_RUN_DEFAULT);
             bytes_read = body->u.length;
             if (bytes_read < 0)
