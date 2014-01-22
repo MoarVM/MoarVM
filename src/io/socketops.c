@@ -110,7 +110,7 @@ MVMObject * MVM_socket_bind(MVMThreadContext *tc, MVMObject *type_object, MVMStr
             MVMOSHandleBody * const body = &result->body;
             uv_tcp_t *server = malloc(sizeof(uv_tcp_t));
             uv_tcp_init(tc->loop, server);
-            uv_tcp_bind(server, &bind_addr);
+            uv_tcp_bind(server, &bind_addr, 0);
             body->u.handle = (uv_handle_t *)server;
             body->u.handle->data = body;   /* this is needed in tcp_stream_on_read function. */
             body->type = MVM_OSHANDLE_TCP;
