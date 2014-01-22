@@ -39,10 +39,16 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
             res->o = meth;
             return;
         }
-        if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE)
+        if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
             MVM_exception_throw_adhoc(tc,
-                "Cannot find method '%s'",
-                MVM_string_utf8_encode_C_string(tc, name));
+                "No such method '%s' for invocant of type '%s'",
+                MVM_string_utf8_encode_C_string(tc, name), (
+                        STABLE(obj)->HOW &&
+                        ((MVMKnowHOWREPR *)STABLE(obj)->HOW)->body.name
+                    ? MVM_string_utf8_encode_C_string(tc,
+                        ((MVMKnowHOWREPR *)STABLE(obj)->HOW)->body.name)
+                    : "<anon>"));
+        }
     }
     
     /* Otherwise, need to call the find_method method. We make the assumption
