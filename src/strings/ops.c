@@ -361,8 +361,11 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     start_pos = offset < 0 ? offset + agraphs : offset;
     end_pos   = length == -1 ? agraphs : start_pos + length;
 
-    if (start_pos > agraphs)
-        MVM_exception_throw_adhoc(tc, "Substring start (%lld) cannot be greater than string size (%lld)", start_pos, agraphs);
+    /* return an empty string if start_pos is out of bounds but positive */
+    if (start_pos > agraphs) {
+        start_pos = 0;
+        end_pos   = 0;
+    }
 
     if (end_pos < 0)
         MVM_exception_throw_adhoc(tc, "Substring end (%lld) cannot be less than 0", end_pos);
