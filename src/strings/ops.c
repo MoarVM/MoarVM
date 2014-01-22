@@ -1086,7 +1086,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
         s->body.flags = MVM_STRING_TYPE_INT32;
         return;
     }
-    buffer = calloc(sizeof(MVMCodepoint32), sgraphs);
+    buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
     for (; position < sgraphs; position++) {
             /* XXX make this use the iterator */
         buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
