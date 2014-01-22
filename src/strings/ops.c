@@ -602,6 +602,8 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVM
 
 /* Compares two strings for equality. */
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    if (a == b)
+        return 1;
     if (NUM_GRAPHS(a) != NUM_GRAPHS(b))
         return 0;
     return MVM_string_equal_at(tc, a, b, 0);
