@@ -79,6 +79,9 @@ struct MVMStringBody {
      */
     MVMStringIndex codes;
 
+    /* Cached hash code. */
+    unsigned cached_hash_code;
+
     /* Lowest 2 bits: type of string: int32, uint8, or Rope. */
     MVMuint8 flags;
 };
