@@ -464,7 +464,7 @@ static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_k
     MVMint64 slot;
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using hint_for");
+        return MVM_NO_HINT;
     slot = try_get_slot(tc, repr_data, class_key, name);
     return slot >= 0 ? slot : MVM_NO_HINT;
 }
