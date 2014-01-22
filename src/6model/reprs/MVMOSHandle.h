@@ -12,6 +12,7 @@ struct MVMOSHandleBody {
           uv_handle_t *handle;
           void          *data;
           MVMint32     length;
+          MVMuint8        eof;
         };
         uv_file          fd;
 #ifdef _WIN32

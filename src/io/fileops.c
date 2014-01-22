@@ -310,9 +310,8 @@ static void readline_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t 
             uv_unref((uv_handle_t*)handle);
         }
     }
-    else {
-        if (oshandle->body.u.length == 0)
-            oshandle->body.u.length = -1;
+    else if (nread == UV_EOF) {
+        oshandle->body.u.eof = 1;
         uv_read_stop(handle);
         uv_unref((uv_handle_t*)handle);
     }
@@ -333,14 +332,14 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     switch (handle->body.type) {
         case MVM_OSHANDLE_HANDLE: {
             MVMOSHandleBody * const body = &handle->body;
-            body->u.data   = buf;
-            body->u.length = 0;
-            uv_read_start((uv_stream_t *)body->u.handle, readline_on_alloc, readline_on_read);
-            uv_ref(body->u.handle);
-            uv_run(tc->loop, UV_RUN_DEFAULT);
-            bytes_read = body->u.length;
-            if (bytes_read < 0)
-                bytes_read = 0;
+            if (!body->u.eof) {
+                body->u.data   = buf;
+                body->u.length = 0;
+                uv_read_start((uv_stream_t *)body->u.handle, readline_on_alloc, readline_on_read);
+                uv_ref(body->u.handle);
+                uv_run(tc->loop, UV_RUN_DEFAULT);
+                bytes_read = body->u.length;
+            }
             break;
         }
         case MVM_OSHANDLE_FD: {
@@ -959,7 +958,7 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
         return req.statbuf.st_size == seek_pos;
     }
     else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
-        return handle->body.u.length == -1;
+        return handle->body.u.eof;
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot use eof on this type of handle");
