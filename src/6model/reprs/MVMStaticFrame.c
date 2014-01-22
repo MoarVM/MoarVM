@@ -190,5 +190,5 @@ static const MVMREPROps this_repr = {
     compose,
     "MVMStaticFrame", /* name */
     MVM_REPR_ID_MVMStaticFrame,
-    1, /* refs_frames */
+    0, /* refs_frames */
 };
