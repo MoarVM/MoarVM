@@ -455,7 +455,7 @@ distclean: realclean
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )
-	git archive --format=tar --prefix="MoarVM-$(VERSION)/" HEAD | gzip -9 > "MoarVM-$(VERSION)"
+	./tools/release.sh $(VERSION)
 
 
 sandwich:
