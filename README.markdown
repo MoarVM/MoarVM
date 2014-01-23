@@ -40,7 +40,7 @@ will do all the work for you, including creating an `nqp-m`.
 ## Status
 
 MoarVM is currently in development. It can run all of the NQP test suite, all
-of the Rakudo sanity tests, and >98% of the spectests that the current leading
+of the Rakudo sanity tests, and >99% of the spectests that the current leading
 Rakudo backend (the JVM) can.
 
 Unlike the JVM backend of NQP, the MoarVM repo is not currently planned to be
