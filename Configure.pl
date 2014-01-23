@@ -49,10 +49,12 @@ Please specify another installation target by using --prefix=PATH.
 ENOTTOCWD
 }
 
-print dots("Updating submodules");
-my $msg = qx{git submodule --quiet update --init 2>&1};
-if ($? >> 8 == 0) { print "OK\n" }
-else { softfail("git error: $msg") }
+if (-d '.git') {
+    print dots("Updating submodules");
+    my $msg = qx{git submodule --quiet update --init 2>&1};
+    if ($? >> 8 == 0) { print "OK\n" }
+    else { softfail("git error: $msg") }
+}
 
 # fiddle with flags
 $args{optimize}     = 1 if not defined $args{optimize} or $args{optimize} eq "";
