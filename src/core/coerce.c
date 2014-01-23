@@ -159,7 +159,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     else {
         char buf[64];
         int i;
-        if (snprintf(buf, 64, "%-15f", n) < 0)
+        if (snprintf(buf, 64, "%.15g", n) < 0)
             MVM_exception_throw_adhoc(tc, "Could not stringify number");
         if (strstr(buf, ".")) {
             i = strlen(buf);
