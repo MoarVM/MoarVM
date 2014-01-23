@@ -2,7 +2,7 @@
 VERSION=$1
 exec >MANIFEST
 echo MANIFEST
-git ls-files
+git ls-files | perl -ne "print unless /^3rdparty\/\w+$/"
 for submod in 3rdparty/dyncall/ 3rdparty/libuv/ 3rdparty/linenoise/; do
 cd $submod
 git ls-files | perl -pe "s{^}{$submod}"
