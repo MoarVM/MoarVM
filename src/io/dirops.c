@@ -194,12 +194,14 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         wcscat(dir_name, abs_dirname);
     } else {
         dir_name = (wchar_t *)malloc((str_len + 3) * sizeof(wchar_t));
+        wcscpy(dir_name, wname);
+        free(wname);
     }
 
     wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
                                    * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx */
 
-    result->body.type          = MVM_OSHANDLE_DIR;
+    result->body.type            = MVM_OSHANDLE_DIR;
     result->body.u.dir_name      = dir_name;
     result->body.u.dir_handle    = INVALID_HANDLE_VALUE;
 
