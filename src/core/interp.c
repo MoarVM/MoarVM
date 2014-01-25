@@ -2895,22 +2895,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getcurhllsym): {
-                MVMObject *syms = tc->instance->hll_syms, *hash;
                 MVMString *hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
-                uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_o(tc, syms, hll_name);
-                if (!hash) {
-                    hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-                    /* must re-get syms in case it moved */
-                    syms = tc->instance->hll_syms;
-                    hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
-                    MVM_repr_bind_key_o(tc, syms, hll_name, hash);
-                    GET_REG(cur_op, 0).o = NULL;
-                }
-                else {
-                    GET_REG(cur_op, 0).o = MVM_repr_at_key_o(tc, hash, GET_REG(cur_op, 2).s);
-                }
-                uv_mutex_unlock(&tc->instance->mutex_hll_syms);
+                GET_REG(cur_op, 0).o = MVM_hll_sym_get(tc, hll_name, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3070,27 +3056,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(gethllsym): {
-                MVMObject *syms = tc->instance->hll_syms, *hash;
-                MVMString * const hll_name = GET_REG(cur_op, 2).s;
-                uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_o(tc, syms, hll_name);
-                if (!hash) {
-                    MVMROOT(tc, hll_name, {
-                        hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-                        /* must re-get syms in case it moved */
-                        syms = tc->instance->hll_syms;
-                        MVM_repr_bind_key_o(tc, syms, hll_name, hash);
-                    });
-                    GET_REG(cur_op, 0).o = NULL;
-                }
-                else {
-                    GET_REG(cur_op, 0).o = MVM_repr_at_key_o(tc, hash, GET_REG(cur_op, 4).s);
-                }
-                uv_mutex_unlock(&tc->instance->mutex_hll_syms);
+            OP(gethllsym):
+                GET_REG(cur_op, 0).o = MVM_hll_sym_get(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
-            }
             OP(freshcoderef): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
                 MVMCode *ncr;

@@ -204,3 +204,24 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
         }
     }
 }
+
+/* Looks up an object in the HLL symbols stash. */
+MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym) {
+    MVMObject *syms = tc->instance->hll_syms, *hash, *result;
+    uv_mutex_lock(&tc->instance->mutex_hll_syms);
+    hash = MVM_repr_at_key_o(tc, syms, hll);
+    if (!hash) {
+        MVMROOT(tc, hll, {
+        MVMROOT(tc, syms, {
+            hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+        });
+        });
+        MVM_repr_bind_key_o(tc, syms, hll, hash);
+        result = NULL;
+    }
+    else {
+        result = MVM_repr_at_key_o(tc, hash, sym);
+    }
+    uv_mutex_unlock(&tc->instance->mutex_hll_syms);
+    return result;
+}

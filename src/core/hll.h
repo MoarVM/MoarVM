@@ -50,7 +50,8 @@ struct MVMHLLConfig {
 
 MVMHLLConfig * MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name);
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash);
-MVMHLLConfig * MVM_hll_current(MVMThreadContext *tc);
+MVM_PUBLIC MVMHLLConfig * MVM_hll_current(MVMThreadContext *tc);
 void MVM_hll_enter_compilee_mode(MVMThreadContext *tc);
 void MVM_hll_leave_compilee_mode(MVMThreadContext *tc);
 void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMRegister *res_reg);
+MVM_PUBLIC MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym);
