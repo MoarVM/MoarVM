@@ -34,8 +34,9 @@ struct MVMHLLConfig {
     /* Language's handler to run at a block's exit time, if needed. */
     MVMObject *exit_handler;
 
-    /* Language's handler for bind errors, if needed. */
+    /* Language's handler for various errors, if needed. */
     MVMObject *bind_error;
+    MVMObject *method_not_found_error;
 
     /* Array of types to pass to compiler.c */
     MVMObject *mast_types;
