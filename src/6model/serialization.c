@@ -207,7 +207,7 @@ static size_t varintsize(int64_t value) {
     return needed_bytes;
 }
 
-static size_t write_varint128(char *buffer, size_t offset, int64_t value) {
+static size_t write_varint9(char *buffer, size_t offset, int64_t value) {
     // do we hvae to compare < or <= ?
     size_t position;
     size_t needed_bytes = varintsize(value);
@@ -315,12 +315,12 @@ static void write_int_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
     *(writer->cur_write_offset) += 8;
 }
 
-/* Writing function for varint128 */
+/* Writing function for varint9 */
 static void write_varint_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
     size_t storage_needed = varintsize(value);
     size_t actually_written;
     expand_storage_if_needed(tc, writer, storage_needed);
-    actually_written = write_varint128(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
+    actually_written = write_varint9(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
     *(writer->cur_write_offset) += storage_needed;
 }
 
@@ -1194,7 +1194,7 @@ static MVMnum64 read_double(char *buffer, size_t offset) {
 
 /* Reads an int64 from up to 128bits of storage.
  * Returns how far to advance the offset. */
-static size_t read_varint128(char *buffer, size_t offset, int64_t *value) {
+static size_t read_varint9(char *buffer, size_t offset, int64_t *value) {
     size_t inner_offset = 0;
     size_t shift_amount = 0;
     int64_t negation_mask = 0;
@@ -1305,7 +1305,7 @@ static MVMint64 read_varint_func(MVMThreadContext *tc, MVMSerializationReader *r
     MVMint64 result;
     size_t length;
     assert_can_read_varint(tc, reader);
-    length = read_varint128(*(reader->cur_read_buffer), *(reader->cur_read_offset), &result);
+    length = read_varint9(*(reader->cur_read_buffer), *(reader->cur_read_offset), &result);
     *(reader->cur_read_offset) += length;
     return result;
 }
@@ -1430,7 +1430,7 @@ static MVMObject * read_array_varint(MVMThreadContext *tc, MVMSerializationReade
 
     /* Read the element count. */
     assert_can_read_varint(tc, reader);
-    header_size = read_varint128(*(reader->cur_read_buffer), *(reader->cur_read_offset), &elems);
+    header_size = read_varint9(*(reader->cur_read_buffer), *(reader->cur_read_offset), &elems);
     *(reader->cur_read_offset) += header_size;
 
     /* Read in the elements. */
