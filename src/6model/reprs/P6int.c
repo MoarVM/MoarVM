@@ -99,8 +99,8 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
-    writer->write_int16(tc, writer, repr_data->bits);
-    writer->write_int16(tc, writer, repr_data->is_unsigned);
+    writer->write_varint(tc, writer, repr_data->bits);
+    writer->write_varint(tc, writer, repr_data->is_unsigned);
 }
 
 /* Deserializes representation data. */
@@ -108,8 +108,13 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)malloc(sizeof(MVMP6intREPRData));
 
     if (reader->root.version >= 8) {
-        repr_data->bits        = reader->read_int16(tc, reader);
-        repr_data->is_unsigned = reader->read_int16(tc, reader);
+        if (reader->root.version >= 9) {
+            repr_data->bits        = reader->read_varint(tc, reader);
+            repr_data->is_unsigned = reader->read_varint(tc, reader);
+        } else {
+            repr_data->bits        = reader->read_int16(tc, reader);
+            repr_data->is_unsigned = reader->read_int16(tc, reader);
+        }
         if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
          && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
             MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
@@ -123,11 +128,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    ((MVMP6intBody *)data)->value = reader->read_int(tc, reader);
+    ((MVMP6intBody *)data)->value = reader->read_varint(tc, reader);
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_int(tc, writer, ((MVMP6intBody *)data)->value);
+    writer->write_varint(tc, writer, ((MVMP6intBody *)data)->value);
 }
 
 /* Initializes the representation. */

@@ -75,24 +75,24 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     writer->write_ref(tc, writer, body->fates);
 
     /* Write number of states. */
-    writer->write_int(tc, writer, body->num_states);
+    writer->write_varint(tc, writer, body->num_states);
 
     /* Write state edge list counts. */
     for (i = 0; i < body->num_states; i++)
-        writer->write_int(tc, writer, body->num_state_edges[i]);
+        writer->write_varint(tc, writer, body->num_state_edges[i]);
 
     /* Write state graph. */
     for (i = 0; i < body->num_states; i++) {
         for (j = 0; j < body->num_state_edges[i]; j++) {
-            writer->write_int(tc, writer, body->states[i][j].act);
-            writer->write_int(tc, writer, body->states[i][j].to);
+            writer->write_varint(tc, writer, body->states[i][j].act);
+            writer->write_varint(tc, writer, body->states[i][j].to);
             switch (body->states[i][j].act) {
                 case MVM_NFA_EDGE_FATE:
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
-                    writer->write_int(tc, writer, body->states[i][j].arg.i);
+                    writer->write_varint(tc, writer, body->states[i][j].arg.i);
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
@@ -100,8 +100,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
                 case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
-                    writer->write_int(tc, writer, body->states[i][j].arg.uclc.lc);
-                    writer->write_int(tc, writer, body->states[i][j].arg.uclc.uc);
+                    writer->write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
+                    writer->write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
                     break;
                 }
             }
@@ -118,13 +118,13 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     body->fates = reader->read_ref(tc, reader);
 
     /* Read number of states. */
-    body->num_states = reader->read_int(tc, reader);
+    body->num_states = reader->read_varint(tc, reader);
 
     if (body->num_states > 0) {
         /* Read state edge list counts. */
         body->num_state_edges = malloc(body->num_states * sizeof(MVMint64));
         for (i = 0; i < body->num_states; i++)
-            body->num_state_edges[i] = reader->read_int(tc, reader);
+            body->num_state_edges[i] = reader->read_varint(tc, reader);
 
         /* Read state graph. */
         body->states = malloc(body->num_states * sizeof(MVMNFAStateInfo *));
@@ -133,15 +133,15 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             if (edges > 0)
                 body->states[i] = malloc(edges * sizeof(MVMNFAStateInfo));
             for (j = 0; j < edges; j++) {
-                body->states[i][j].act = reader->read_int(tc, reader);
-                body->states[i][j].to = reader->read_int(tc, reader);
+                body->states[i][j].act = reader->read_varint(tc, reader);
+                body->states[i][j].to = reader->read_varint(tc, reader);
                 switch (body->states[i][j].act) {
                     case MVM_NFA_EDGE_FATE:
                     case MVM_NFA_EDGE_CODEPOINT:
                     case MVM_NFA_EDGE_CODEPOINT_NEG:
                     case MVM_NFA_EDGE_CHARCLASS:
                     case MVM_NFA_EDGE_CHARCLASS_NEG:
-                        body->states[i][j].arg.i = reader->read_int(tc, reader);
+                        body->states[i][j].arg.i = reader->read_varint(tc, reader);
                         break;
                     case MVM_NFA_EDGE_CHARLIST:
                     case MVM_NFA_EDGE_CHARLIST_NEG:
@@ -149,8 +149,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                         break;
                     case MVM_NFA_EDGE_CODEPOINT_I:
                     case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
-                        body->states[i][j].arg.uclc.lc = reader->read_int(tc, reader);
-                        body->states[i][j].arg.uclc.uc = reader->read_int(tc, reader);
+                        body->states[i][j].arg.uclc.lc = reader->read_varint(tc, reader);
+                        body->states[i][j].arg.uclc.uc = reader->read_varint(tc, reader);
                         break;
                     }
                 }
