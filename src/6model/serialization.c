@@ -1207,7 +1207,7 @@ static size_t read_varint128(char *buffer, size_t offset, int64_t *value) {
         inner_offset++;
         shift_amount += 7;
     }
-    /*negation_mask = negation_mask >> 1;*/
+    negation_mask = negation_mask >> 1;
     // do we have a negative number so far?
     if (*value & ~negation_mask) {
         // we have to fill it up with ones all the way to the left.
