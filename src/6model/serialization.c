@@ -212,10 +212,13 @@ static size_t write_varint128(char *buffer, size_t offset, int64_t value) {
     size_t position;
     size_t needed_bytes = varintsize(value);
 
-    for (position = 0; position < needed_bytes; position++) {
+    for (position = 0; position < needed_bytes && position != 8; position++) {
         buffer[offset + position] = value & 0x7f;
         if (position != needed_bytes - 1) buffer[offset + position] = buffer[offset + position] | 0x80;
         value = value >> 7;
+    }
+    if (position == 8) {
+        buffer[offset + position] = value;
     }
     return needed_bytes;
 }
@@ -1197,7 +1200,7 @@ static size_t read_varint128(char *buffer, size_t offset, int64_t *value) {
     int64_t negation_mask = 0;
     *value = 0;
     int read_on = !!(buffer[offset] & 0x80) + 1;
-    while (read_on) {
+    while (read_on && inner_offset != 8) {
         *value = *value | ((buffer[offset + inner_offset] & 0x7f) << shift_amount);
         negation_mask = negation_mask | (0b1111111 << shift_amount);
         if (read_on == 1 && buffer[offset + inner_offset] & 0x80) {
@@ -1206,6 +1209,12 @@ static size_t read_varint128(char *buffer, size_t offset, int64_t *value) {
         read_on--;
         inner_offset++;
         shift_amount += 7;
+    }
+    // our last byte will be a full byte, so that we reach the full 64 bits
+    if (inner_offset == 8) {
+        shift_amount += 1;
+        *value = *value | (buffer[offset + inner_offset] << shift_amount);
+        negation_mask = negation_mask | (0b11111111 << shift_amount);
     }
     negation_mask = negation_mask >> 1;
     // do we have a negative number so far?
