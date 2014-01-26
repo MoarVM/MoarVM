@@ -196,6 +196,22 @@ static void write_double(char *buffer, size_t offset, double value) {
 #endif
 }
 
+/* Writes an int64 into up to 128 bits of storage.
+ * Returns how far to advance the offset. */
+static size_t write_varint128(char *buffer, size_t offset, int64_t value) {
+    // do we hvae to compare < or <= ?
+    int8_t sign_nudge = value < 0 ? 0: 1;
+    size_t varlog = ceil(log2(abs(value) + sign_nudge));
+    size_t needed_bytes = floor((varlog) / 7) + 1;
+    size_t position;
+
+    for (position = 0; position < needed_bytes; position++) {
+        buffer[offset + position] = value & 0x7f;
+        if (position != 0) buffer[offset + position] = buffer[offset + position] | 0x80;
+        value = value >> 7;
+    }
+    return needed_bytes;
+}
 #define STRING_IS_NULL(s) ((s) == NULL)
 
 /* Adds an item to the MVMString heap if needed, and returns the index where
@@ -1137,6 +1153,19 @@ static MVMnum64 read_double(char *buffer, size_t offset) {
 #endif
     memcpy(&value, buffer + offset, 8);
     return value;
+}
+
+/* Reads an int64 from up to 128bits of storage.
+ * Returns how far to advance the offset. */
+static size_t read_varint128(char *buffer, size_t offset, int64_t *value) {
+    size_t inner_offset = 0;
+    size_t shift_amount = 0;
+    while (buffer[offset + inner_offset] & 0x80) {
+        *value = *value | ((buffer[offset + inner_offset] & 0x7f) << shift_amount);
+        inner_offset++;
+        shift_amount += 7;
+    }
+    return inner_offset;
 }
 
 /* If deserialization should fail, cleans up before throwing an exception. */
