@@ -1,5 +1,6 @@
 #include <moar.h>
 #include <sha1.h>
+#include <math.h>
 
 #ifndef MAX
     #define MAX(x, y) ((y) > (x) ? (y) : (x))
@@ -7,7 +8,8 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 8
+#define CURRENT_VERSION 9
+#define VARINT_MIN_VERSION 9
 #define MIN_VERSION     5
 
 /* Various sizes (in bytes). */
@@ -196,6 +198,31 @@ static void write_double(char *buffer, size_t offset, double value) {
 #endif
 }
 
+/* Writes an int64 into up to 128 bits of storage.
+ * Returns how far to advance the offset. */
+static size_t varintsize(int64_t value) {
+    int8_t sign_nudge = value < 0 ? 0: 1;
+    size_t varlog = ceil(log2(abs(value) + sign_nudge));
+    size_t needed_bytes = floor((varlog) / 7) + 1;
+    return needed_bytes;
+}
+
+static size_t write_varint9(char *buffer, size_t offset, int64_t value) {
+    // do we hvae to compare < or <= ?
+    size_t position;
+    size_t needed_bytes = varintsize(value);
+
+    for (position = 0; position < needed_bytes && position != 8; position++) {
+        buffer[offset + position] = value & 0x7f;
+        if (position != needed_bytes - 1) buffer[offset + position] = buffer[offset + position] | 0x80;
+        value = value >> 7;
+    }
+    if (position == 8) {
+        buffer[offset + position] = value;
+    }
+    return needed_bytes;
+}
+
 #define STRING_IS_NULL(s) ((s) == NULL)
 
 /* Adds an item to the MVMString heap if needed, and returns the index where
@@ -288,6 +315,15 @@ static void write_int_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
     *(writer->cur_write_offset) += 8;
 }
 
+/* Writing function for varint9 */
+static void write_varint_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
+    size_t storage_needed = varintsize(value);
+    size_t actually_written;
+    expand_storage_if_needed(tc, writer, storage_needed);
+    actually_written = write_varint9(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
+    *(writer->cur_write_offset) += storage_needed;
+}
+
 /* Writing function for native 32-bit integers. */
 static void write_int32_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 value) {
     expand_storage_if_needed(tc, writer, 4);
@@ -368,6 +404,22 @@ static void write_array_int(MVMThreadContext *tc, MVMSerializationWriter *writer
     /* Write elements. */
     for (i = 0; i < elems; i++)
         write_int_func(tc, writer, MVM_repr_at_pos_i(tc, arr, i));
+}
+
+static void write_array_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
+    MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
+    MVMint32 i;
+    size_t storage_needed;
+
+    storage_needed = varintsize(elems);
+
+    /* Write out element count. */
+    expand_storage_if_needed(tc, writer, storage_needed);
+    write_varint_func(tc, writer, elems);
+
+    /* Write elements. */
+    for (i = 0; i < elems; i++)
+        write_varint_func(tc, writer, MVM_repr_at_pos_i(tc, arr, i));
 }
 
 /* Writes an array where each item is a MVMString. */
@@ -589,7 +641,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
             /* Nothing to do for these. */
             break;
         case REFVAR_VM_INT:
-            write_int_func(tc, writer, MVM_repr_get_int(tc, ref));
+            write_varint_func(tc, writer, MVM_repr_get_int(tc, ref));
             break;
         case REFVAR_VM_NUM:
             write_num_func(tc, writer, MVM_repr_get_num(tc, ref));
@@ -604,7 +656,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
             write_array_str(tc, writer, ref);
             break;
         case REFVAR_VM_ARR_INT:
-            write_array_int(tc, writer, ref);
+            write_array_varint(tc, writer, ref);
             break;
         case REFVAR_VM_HASH_STR_VAR:
             write_hash_str_var(tc, writer, ref);
@@ -1062,6 +1114,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
 
     /* Populate write functions table. */
     writer->write_int        = write_int_func;
+    writer->write_varint     = write_varint_func;
     writer->write_int16      = write_int16_func;
     writer->write_int32      = write_int32_func;
     writer->write_num        = write_num_func;
@@ -1139,6 +1192,39 @@ static MVMnum64 read_double(char *buffer, size_t offset) {
     return value;
 }
 
+/* Reads an int64 from up to 128bits of storage.
+ * Returns how far to advance the offset. */
+static size_t read_varint9(char *buffer, size_t offset, int64_t *value) {
+    size_t inner_offset = 0;
+    size_t shift_amount = 0;
+    int64_t negation_mask = 0;
+    *value = 0;
+    int read_on = !!(buffer[offset] & 0x80) + 1;
+    while (read_on && inner_offset != 8) {
+        *value = *value | ((buffer[offset + inner_offset] & 0x7f) << shift_amount);
+        negation_mask = negation_mask | (0b1111111 << shift_amount);
+        if (read_on == 1 && buffer[offset + inner_offset] & 0x80) {
+            read_on = 2;
+        }
+        read_on--;
+        inner_offset++;
+        shift_amount += 7;
+    }
+    // our last byte will be a full byte, so that we reach the full 64 bits
+    if (inner_offset == 8) {
+        shift_amount += 1;
+        *value = *value | (buffer[offset + inner_offset] << shift_amount);
+        negation_mask = negation_mask | (0b11111111 << shift_amount);
+    }
+    negation_mask = negation_mask >> 1;
+    // do we have a negative number so far?
+    if (*value & ~negation_mask) {
+        // we have to fill it up with ones all the way to the left.
+        *value = *value | ~negation_mask;
+    }
+    return inner_offset;
+}
+
 /* If deserialization should fail, cleans up before throwing an exception. */
 MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
@@ -1200,6 +1286,27 @@ static MVMint64 read_int_func(MVMThreadContext *tc, MVMSerializationReader *read
     assert_can_read(tc, reader, 8);
     result = read_int64(*(reader->cur_read_buffer), *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 8;
+    return result;
+}
+
+static int assert_can_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    size_t length_so_far = 1;
+    assert_can_read(tc, reader, 1);
+    while (length_so_far <= 8 && ((*reader->cur_read_buffer)[*reader->cur_read_offset + length_so_far - 1] & 0x80))
+        assert_can_read(tc, reader, ++length_so_far);
+    if (length_so_far > 9) {
+        return 0;
+    }
+    return 1;
+}
+
+/* Reading function for variable-sized integers */
+static MVMint64 read_varint_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint64 result;
+    size_t length;
+    assert_can_read_varint(tc, reader);
+    length = read_varint9(*(reader->cur_read_buffer), *(reader->cur_read_offset), &result);
+    *(reader->cur_read_offset) += length;
     return result;
 }
 
@@ -1315,6 +1422,24 @@ static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *
     return result;
 }
 
+/* Reads in an array of integers. */
+static MVMObject * read_array_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    MVMint64 elems, i;
+    size_t header_size;
+
+    /* Read the element count. */
+    assert_can_read_varint(tc, reader);
+    header_size = read_varint9(*(reader->cur_read_buffer), *(reader->cur_read_offset), &elems);
+    *(reader->cur_read_offset) += header_size;
+
+    /* Read in the elements. */
+    for (i = 0; i < elems; i++)
+        MVM_repr_bind_pos_i(tc, result, i, read_varint_func(tc, reader));
+
+    return result;
+}
+
 /* Reads in an array of strings. */
 static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
@@ -1365,7 +1490,11 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             return NULL;
         case REFVAR_VM_INT:
             result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTInt);
-            MVM_repr_set_int(tc, result, read_int_func(tc, reader));
+            if (reader->root.version < VARINT_MIN_VERSION) {
+                MVM_repr_set_int(tc, result, read_int_func(tc, reader));
+            } else {
+                MVM_repr_set_int(tc, result, read_varint_func(tc, reader));
+            }
             return result;
         case REFVAR_VM_NUM:
             result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTNum);
@@ -1386,7 +1515,11 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
 		case REFVAR_VM_ARR_STR:
             return read_array_str(tc, reader);
 		case REFVAR_VM_ARR_INT:
-            return read_array_int(tc, reader);
+            if (reader->root.version < VARINT_MIN_VERSION) {
+                return read_array_int(tc, reader);
+            } else {
+                return read_array_varint(tc, reader);
+            }
         case REFVAR_VM_HASH_STR_VAR:
             result = read_hash_str_var(tc, reader);
             if (reader->current_object) {
@@ -1458,6 +1591,10 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         fail_deserialize(tc, reader,
             "Unsupported serialization format version %d (current version is %d)",
             reader->root.version, CURRENT_VERSION);
+
+    if (reader->root.version < VARINT_MIN_VERSION) {
+        reader->read_varint = reader->read_int;
+    }
 
     /* Ensure that the data is at least as long as the header is expected to be. */
     if (data_len < HEADER_SIZE)
@@ -1918,6 +2055,9 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
 
     /* Put reader functions in place. */
     reader->read_int        = read_int_func;
+    /* if we are before VARINT_MIN_VERSION, this will be changed to point
+     * to read_int instead */
+    reader->read_varint     = read_varint_func;
     reader->read_int32      = read_int32_func;
     reader->read_int16      = read_int16_func;
     reader->read_num        = read_num_func;

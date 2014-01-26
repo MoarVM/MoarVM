@@ -77,6 +77,7 @@ struct MVMSerializationReader {
 
     /* Various reading functions. */
     MVMint64    (*read_int)   (MVMThreadContext *tc, MVMSerializationReader *reader);
+    MVMint64    (*read_varint)(MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMint32    (*read_int32) (MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMint16    (*read_int16) (MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMnum64    (*read_num)   (MVMThreadContext *tc, MVMSerializationReader *reader);
@@ -142,6 +143,7 @@ struct MVMSerializationWriter {
     
     /* Various writing functions. */
     void (*write_int) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
+    void (*write_varint) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
     void (*write_int32) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 value);
     void (*write_int16) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint16 value);
     void (*write_num) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
