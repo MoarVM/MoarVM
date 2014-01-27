@@ -336,7 +336,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     result_reg->o = cloned;
                     attr_st->REPR->copy_to(tc, attr_st,
                         (char *)real_data(OBJECT_BODY(root)) + repr_data->attribute_offsets[slot],
-                        cloned, OBJECT_BODY(cloned));	
+                        cloned, OBJECT_BODY(cloned));
                 });
                 });
             }
@@ -912,7 +912,6 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
         const MVMuint32 num_attrs = repr_data->name_to_index_mapping[i].num_attrs;
         MVMuint32 j;
         writer->write_ref(tc, writer, repr_data->name_to_index_mapping[i].class_key);
-        writer->write_varint(tc, writer, REFVAR_VM_HASH_STR_VAR);
         writer->write_varint(tc, writer, num_attrs);
         for (j = 0; j < num_attrs; j++) {
             MVM_repr_set_int(tc, slot, repr_data->name_to_index_mapping[i].slots[j]);
@@ -967,14 +966,15 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)calloc(1, (num_classes + 1) * sizeof(MVMP6opaqueNameMap));
     for (i = 0; i < num_classes; i++) {
         MVMint32 num_attrs = 0;
+        MVMint8  is_hash_str_var = 0;
+
         MVM_ASSIGN_REF(tc, st, repr_data->name_to_index_mapping[i].class_key,
             reader->read_ref(tc, reader));
-        MVMint64 refvar_value;
-        if (reader->root.version >= 9)
-            refvar_value = reader->read_varint(tc, reader);
-        else
-            refvar_value = reader->read_int16(tc, reader);
-        if (refvar_value == REFVAR_VM_HASH_STR_VAR) {
+
+        if (reader->root.version >= 9 || reader->read_int16(tc, reader) == REFVAR_VM_HASH_STR_VAR)
+            is_hash_str_var = 1;
+
+        if (is_hash_str_var) {
             if (reader->root.version >= 9)
                 num_attrs = reader->read_varint(tc, reader);
             else

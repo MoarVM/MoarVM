@@ -213,7 +213,7 @@ static size_t write_varint9(char *buffer, size_t offset, int64_t value) {
     size_t needed_bytes = varintsize(value);
 
     for (position = 0; position < needed_bytes && position != 8; position++) {
-        buffer[offset + position] = value & 0x7f;
+        buffer[offset + position] = value & 0x7F;
         if (position != needed_bytes - 1) buffer[offset + position] = buffer[offset + position] | 0x80;
         value = value >> 7;
     }
@@ -1198,11 +1198,11 @@ static size_t read_varint9(char *buffer, size_t offset, int64_t *value) {
     size_t inner_offset = 0;
     size_t shift_amount = 0;
     int64_t negation_mask = 0;
-    *value = 0;
     int read_on = !!(buffer[offset] & 0x80) + 1;
+    *value = 0;
     while (read_on && inner_offset != 8) {
-        *value = *value | ((buffer[offset + inner_offset] & 0x7f) << shift_amount);
-        negation_mask = negation_mask | (0b1111111 << shift_amount);
+        *value = *value | ((buffer[offset + inner_offset] & 0x7F) << shift_amount);
+        negation_mask = negation_mask | (0x7F << shift_amount);
         if (read_on == 1 && buffer[offset + inner_offset] & 0x80) {
             read_on = 2;
         }
@@ -1214,7 +1214,7 @@ static size_t read_varint9(char *buffer, size_t offset, int64_t *value) {
     if (inner_offset == 8) {
         shift_amount += 1;
         *value = *value | (buffer[offset + inner_offset] << shift_amount);
-        negation_mask = negation_mask | (0b11111111 << shift_amount);
+        negation_mask = negation_mask | (0x7F << shift_amount);
     }
     negation_mask = negation_mask >> 1;
     // do we have a negative number so far?
@@ -1742,7 +1742,7 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
             /* Read in and look up representation. */
             const MVMREPROps *repr = MVM_repr_get_by_name(tc,
                 read_string_from_heap(tc, reader, read_int32(st_table_row, 0)));
-    
+
             /* Allocate and store stub STable. */
             st = MVM_gc_allocate_stable(tc, repr, NULL);
             MVM_sc_set_stable(tc, reader->root.sc, i, st);
@@ -1995,7 +1995,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
 static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint64 i) {
     /* Calculate location of table row. */
     char *table_row = reader->root.repos_table + i * REPOS_TABLE_ENTRY_SIZE;
-    
+
     /* Do appropriate type of repossession. */
     MVMint32 repo_type = read_int32(table_row, 0);
     if (repo_type == 0) {
