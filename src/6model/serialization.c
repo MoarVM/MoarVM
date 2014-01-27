@@ -2005,11 +2005,26 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         /* Put it into objects root set at the apporpriate slot. */
         MVM_sc_set_object(tc, reader->root.sc, read_int32(table_row, 4), orig_obj);
 
-        /* Ensure we aren't already trying to repossess the object. */
-        if (orig_obj->header.sc != orig_sc)
-            fail_deserialize(tc, reader,
-                "Object conflict detected during deserialization.\n"
-                "(Probable attempt to load two modules that cannot be loaded together).");
+        /* If we have a reposession conflict, make a copy of the original object
+         * and reference it from the conflicts list. Push the original (about to
+         * be overwritten) object reference too. */
+        if (orig_obj->header.sc != orig_sc) {
+            MVMROOT(tc, orig_obj, {
+                MVMObject *backup = NULL;
+                MVMROOT(tc, backup, {
+                    if (IS_CONCRETE(orig_obj)) {
+                        backup = REPR(orig_obj)->allocate(tc, STABLE(orig_obj));
+                        REPR(orig_obj)->copy_to(tc, STABLE(orig_obj), OBJECT_BODY(orig_obj), backup, OBJECT_BODY(backup));
+                    }
+                    else
+                        backup = MVM_gc_allocate_type_object(tc, STABLE(orig_obj));
+                });
+
+                MVM_SC_WB_OBJ(tc, backup);
+                MVM_repr_push_o(tc, reader->repo_conflicts_list, backup);
+                MVM_repr_push_o(tc, reader->repo_conflicts_list, orig_obj);
+            });
+        }
 
         /* Clear it up, since we'll re-allocate all the bits inside
          * it on deserialization. */
@@ -2069,6 +2084,8 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     MVM_sc_set_code_list(tc, sc, codes_static);
     reader->codes_list = codes_static;
     scodes = (MVMint32)MVM_repr_elems(tc, codes_static);
+
+    reader->repo_conflicts_list = repo_conflicts;
 
     /* Mark all the static code refs we've been provided with as static. */
      for (i = 0; i < scodes; i++) {
