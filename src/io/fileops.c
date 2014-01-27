@@ -877,8 +877,16 @@ void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "sync filehandle");
 
-    if(uv_fs_fsync(tc->loop, &req, handle->body.u.fd, NULL) < 0 ) {
-        MVM_exception_throw_adhoc(tc, "Failed to sync filehandle: %s", uv_strerror(req.result));
+    if (handle->body.type == MVM_OSHANDLE_FD) {
+        if (uv_fs_fsync(tc->loop, &req, handle->body.u.fd, NULL) < 0 ) {
+            MVM_exception_throw_adhoc(tc, "Failed to sync filehandle: %s", uv_strerror(req.result));
+        }
+    }
+    else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
+        /* Nothing in libuv to sync this, it seems. */
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot use flush on this type of handle");
     }
 }
 
