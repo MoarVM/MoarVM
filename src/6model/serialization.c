@@ -202,16 +202,15 @@ static void write_double(char *buffer, size_t offset, double value) {
  * Returns how far to advance the offset. */
 static size_t varintsize(int64_t value) {
     int8_t sign_nudge = value < 0 ? 0: 1;
-    size_t varlog = ceil(log2(abs(value) + sign_nudge));
+    size_t varlog = ceil(log(abs(value) + sign_nudge) / log(2));
     size_t needed_bytes = floor((varlog) / 7) + 1;
     return needed_bytes;
 }
 
-static size_t write_varint9(char *buffer, size_t offset, int64_t value) {
+static size_t write_varint9(MVMuint8 *buffer, size_t offset, int64_t value) {
     // do we hvae to compare < or <= ?
     size_t position;
     size_t needed_bytes = varintsize(value);
-
     for (position = 0; position < needed_bytes && position != 8; position++) {
         buffer[offset + position] = value & 0x7F;
         if (position != needed_bytes - 1) buffer[offset + position] = buffer[offset + position] | 0x80;
@@ -1194,7 +1193,7 @@ static MVMnum64 read_double(char *buffer, size_t offset) {
 
 /* Reads an int64 from up to 128bits of storage.
  * Returns how far to advance the offset. */
-static size_t read_varint9(char *buffer, size_t offset, int64_t *value) {
+static size_t read_varint9(MVMuint8 *buffer, size_t offset, int64_t *value) {
     size_t inner_offset = 0;
     size_t shift_amount = 0;
     int64_t negation_mask = 0;
