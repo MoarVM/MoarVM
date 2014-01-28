@@ -99,7 +99,10 @@ typedef enum {
 
     /* Has already been added to the gen2 aggregates pointing to nursery
      * objects list. */
-    MVM_CF_IN_GEN2_ROOT_LIST = 32
+    MVM_CF_IN_GEN2_ROOT_LIST = 32,
+
+    /* GC has found this object to be live. */
+    MVM_CF_SECOND_GEN_LIVE = 64
 } MVMCollectableFlags;
 
 /* Things that every GC-collectable entity has. These fall into two
