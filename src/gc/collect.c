@@ -170,13 +170,18 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's in the second generation and we're only doing a nursery,
          * collection, we have nothing to do. */
         item_gen2 = item->flags & MVM_CF_SECOND_GEN;
-        if (item_gen2 && gen == MVMGCGenerations_Nursery)
-            continue;
-
-        /* If the item was already seen and copied, then it will have a
-         * forwarding address already. Just update this pointer to the
-         * new address and we're done. */
-        if (!item_gen2 && item->forwarder) {
+        if (item_gen2) {
+            if (gen == MVMGCGenerations_Nursery)
+                continue;
+            if (item->forwarder) {
+                /* gen2 and marked as live. */
+                assert(*item_ptr == item->forwarder);
+                continue;
+            }
+        } else if (item->forwarder) {
+            /* If the item was already seen and copied, then it will have a
+             * forwarding address already. Just update this pointer to the
+             * new address and we're done. */
             assert(*item_ptr != item->forwarder);
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 if (*item_ptr != item->forwarder) {
@@ -188,20 +193,16 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
             *item_ptr = item->forwarder;
             continue;
-        } else if (item->forwarder) {
-            /* gen2 and marked as live. */
-            assert(*item_ptr == item->forwarder);
-            continue;
+        } else {
+            /* If the pointer is already into tospace (the bit we've already
+               copied into), we already updated it, so we're done. */
+            if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc) {
+                continue;
+            }
         }
 
-        /* If the pointer is already into tospace (the bit we've already copied
-         * into), we already updated it, so we're done. If it's in to-space but
-         * *ahead* of our copy offset then it's an out-of-date pointer and we
-         * have some kind of corruption. */
-        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc) {
-            assert(!item_gen2);
-            continue;
-        }
+        /* If it's in to-space but *ahead* of our copy offset then it's an
+           out-of-date pointer and we have some kind of corruption. */
         if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
             MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
 
