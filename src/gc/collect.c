@@ -160,6 +160,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* Dereference the object we're considering. */
         MVMCollectable *item = *item_ptr;
         MVMuint8 item_gen2;
+        MVMuint8 to_gen2 = 0;
 
         /* If the item is NULL, that's fine - it's just a null reference and
          * thus we've no object to consider. */
@@ -227,6 +228,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             if (item->flags & MVM_CF_NURSERY_SEEN) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
+                to_gen2 = 1;
                 new_addr = MVM_gc_gen2_allocate(gen2, item->size);
 
                 /* Copy the object to the second generation and mark it as
@@ -288,7 +290,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 
         /* In moving an object to generation 2, we may have left it pointing
          * to nursery objects. If so, make sure it's in the gen2 roots. */
-        if (new_addr->flags & MVM_CF_SECOND_GEN) {
+        if (to_gen2) {
             MVMCollectable **j;
             MVMuint32 max = worklist->items, k;
 
