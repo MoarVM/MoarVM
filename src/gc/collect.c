@@ -176,7 +176,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If the item was already seen and copied, then it will have a
          * forwarding address already. Just update this pointer to the
          * new address and we're done. */
-        if (item->forwarder) {
+        if (!item_gen2 && item->forwarder) {
+            assert(*item_ptr != item->forwarder);
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 if (*item_ptr != item->forwarder) {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->forwarder);
@@ -187,14 +188,20 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
             *item_ptr = item->forwarder;
             continue;
+        } else if (item->forwarder) {
+            /* gen2 and marked as live. */
+            assert(*item_ptr == item->forwarder);
+            continue;
         }
 
         /* If the pointer is already into tospace (the bit we've already copied
          * into), we already updated it, so we're done. If it's in to-space but
          * *ahead* of our copy offset then it's an out-of-date pointer and we
          * have some kind of corruption. */
-        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc)
+        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc) {
+            assert(!item_gen2);
             continue;
+        }
         if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
             MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
 
@@ -216,7 +223,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
             }
-            *item_ptr = item->forwarder = new_addr;
+            item->forwarder = new_addr;
+            assert(*item_ptr == new_addr);
         } else {
             /* Catch NULL stable (always sign of trouble) in debug mode. */
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && !STABLE(item)) {
