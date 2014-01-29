@@ -32,7 +32,7 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
         assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE)); \
         assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID)); \
         assert(!(obj->header.forwarder));                      \
-        if (check->header.sc) \
+        if (check->header.sc_forward_u.sc) \
             MVM_sc_wb_hit_obj(tc, check); \
     } while (0);
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
@@ -42,7 +42,7 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
         assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE)); \
         assert(!(st->header.flags & MVM_CF_FORWARDER_VALID)); \
         assert(!(st->header.forwarder));                      \
-        if (check->header.sc) \
+        if (check->header.sc_forward_u.sc) \
             MVM_sc_wb_hit_st(tc, check); \
     } while (0);
 void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st);

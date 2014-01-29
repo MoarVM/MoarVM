@@ -132,8 +132,10 @@ struct MVMCollectable {
     /* Forwarding pointer, for copying/compacting GC purposes. */
     MVMCollectable *forwarder;
 
-    /* Pointer to the serialization context this collectable lives in, if any. */
-    MVMSerializationContext *sc;
+    union {
+        /* Pointer to the serialization context this collectable lives in, if any. */
+        MVMSerializationContext *sc;
+    } sc_forward_u;
 };
 
 /* The common things every object has. */
