@@ -3388,11 +3388,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         "Must provide an SCRef operand to scsetobj");
                 MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, obj);
-                if (STABLE(obj)->header.sc == NULL) {
+                if (MVM_sc_get_stable_sc(tc, STABLE(obj)) == NULL) {
                     /* Need to claim the SC also; typical case for new type objects. */
                     MVMSTable *st = STABLE(obj);
                     MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
-                    MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+                    MVM_sc_set_stable_sc(tc, st, (MVMSerializationContext *)sc);
                 }
                 cur_op += 6;
                 goto NEXT;
@@ -3405,7 +3405,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         "Must provide an SCRef operand to scsetcode");
                 MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, code);
-                MVM_ASSIGN_REF(tc, code, code->header.sc, sc);
+                MVM_sc_set_obj_sc(tc, code, (MVMSerializationContext *)sc);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3465,13 +3465,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to setobjsc");
-                MVM_ASSIGN_REF(tc, obj, obj->header.sc,
-                    (MVMSerializationContext *)sc);
+                MVM_sc_set_obj_sc(tc, obj, (MVMSerializationContext *)sc);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(getobjsc):
-                GET_REG(cur_op, 0).o = (MVMObject *)GET_REG(cur_op, 2).o->header.sc;
+                GET_REG(cur_op, 0).o = (MVMObject *)MVM_sc_get_obj_sc(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(serialize): {

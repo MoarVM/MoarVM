@@ -288,14 +288,14 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
 static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *writer,
                                 MVMSTable *st, MVMint32 *sc, MVMint32 *sc_idx) {
     /* Add to this SC if needed. */
-    if (st->header.sc == NULL) {
-        MVM_ASSIGN_REF(tc, st, st->header.sc, writer->root.sc);
+    if (MVM_sc_get_stable_sc(tc, st) == NULL) {
+        MVM_sc_set_stable_sc(tc, st, writer->root.sc);
         MVM_sc_push_stable(tc, writer->root.sc, st);
     }
 
     /* Work out SC reference. */
-    *sc     = get_sc_id(tc, writer, st->header.sc);
-    *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, st->header.sc, st);
+    *sc     = get_sc_id(tc, writer, MVM_sc_get_stable_sc(tc, st));
+    *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, MVM_sc_get_stable_sc(tc, st), st);
 }
 
 /* Expands current target storage as needed. */
@@ -352,20 +352,18 @@ static void write_str_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
     *(writer->cur_write_offset) += 4;
 }
 
-#define SC_OBJ(obj) ((obj)->header.sc)
-
 /* Writes an object reference. */
 static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     MVMint32 sc_id, idx;
 
-    if (OBJ_IS_NULL(SC_OBJ(ref))) {
+    if (OBJ_IS_NULL(MVM_sc_get_obj_sc(tc, ref))) {
         /* This object doesn't belong to an SC yet, so it must be serialized as part of
          * this compilation unit. Add it to the work list. */
         MVM_sc_set_obj_sc(tc, ref, writer->root.sc);
         MVM_sc_push_object(tc, writer->root.sc, ref);
     }
-    sc_id = get_sc_id(tc, writer, SC_OBJ(ref));
-    idx   = (MVMint32)MVM_sc_find_object_idx(tc, SC_OBJ(ref), ref);
+    sc_id = get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, ref));
+    idx   = (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, ref), ref);
 
     expand_storage_if_needed(tc, writer, 8);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
@@ -457,7 +455,7 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
 
 /* Writes a reference to a code object in some SC. */
 static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *code) {
-    MVMSerializationContext *sc = code->header.sc;
+    MVMSerializationContext *sc = MVM_sc_get_obj_sc(tc, code);
     MVMint32  sc_id   = get_sc_id(tc, writer, sc);
     MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, sc, code);
     expand_storage_if_needed(tc, writer, 8);
@@ -472,7 +470,7 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
 static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *closure, MVMint64 fatal) {
     MVMObject *scr = (MVMObject *)(((MVMCode *)closure)->body.sf)->body.static_code;
 
-    if (scr == NULL || scr->header.sc == NULL) {
+    if (scr == NULL || MVM_sc_get_obj_sc(tc, scr) == NULL) {
         if (fatal)
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: missing static code ref for closure '%s'",
@@ -486,20 +484,20 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
 static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
-    if (OBJ_IS_NULL(ctx->header.sc)) {
+    if (OBJ_IS_NULL(MVM_sc_get_obj_sc(tc, ctx))) {
         /* Make sure we should chase a level down. */
         if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ((MVMContext *)ctx)->body.context->code_ref, 0))) {
             return 0;
         }
         else {
             MVM_repr_push_o(tc, writer->contexts_list, ctx);
-            MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
+            MVM_sc_set_obj_sc(tc, ctx, writer->root.sc);
             return (MVMint32)MVM_repr_elems(tc, writer->contexts_list);
         }
     }
     else {
         MVMint64 i, c;
-        if (ctx->header.sc != writer->root.sc)
+        if (MVM_sc_get_obj_sc(tc, ctx) != writer->root.sc)
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: reference to context outside of SC");
         c = MVM_repr_elems(tc, writer->contexts_list);
@@ -530,7 +528,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Locate the static code object. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, closure, 1);
-    MVMSerializationContext *static_code_sc = static_code_ref->header.sc;
+    MVMSerializationContext *static_code_sc = MVM_sc_get_obj_sc(tc, static_code_ref);
 
     /* Ensure there's space in the closures table; grow if not. */
     MVMint32 offset = writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
@@ -554,14 +552,14 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     if (((MVMCode *)closure)->body.code_object) {
         MVMObject *code_obj = (MVMObject *)((MVMCode *)closure)->body.code_object;
         write_int32(writer->root.closures_table, offset + 12, 1);
-        if (!code_obj->header.sc) {
-            MVM_ASSIGN_REF(tc, code_obj, code_obj->header.sc, writer->root.sc);
+        if (!MVM_sc_get_obj_sc(tc, code_obj)) {
+            MVM_sc_set_obj_sc(tc, code_obj, writer->root.sc);
             MVM_sc_push_object(tc, writer->root.sc, code_obj);
         }
         write_int32(writer->root.closures_table, offset + 16,
-            get_sc_id(tc, writer, code_obj->header.sc));
+            get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, code_obj)));
         write_int32(writer->root.closures_table, offset + 20,
-            (MVMint32)MVM_sc_find_object_idx(tc, code_obj->header.sc, code_obj));
+            (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, code_obj), code_obj));
     }
     else {
         write_int32(writer->root.closures_table, offset + 12, 0);
@@ -572,7 +570,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Add the closure to this SC, and mark it as as being in it. */
     MVM_repr_push_o(tc, writer->codes_list, closure);
-    MVM_ASSIGN_REF(tc, closure, closure->header.sc, writer->root.sc);
+    MVM_sc_set_obj_sc(tc, closure, writer->root.sc);
 }
 
 /* Writing function for references to things. */
@@ -607,11 +605,11 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
         discrim = REFVAR_VM_HASH_STR_VAR;
     }
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode) {
-        if (ref->header.sc && ((MVMCode *)ref)->body.is_static) {
+        if (MVM_sc_get_obj_sc(tc, ref) && ((MVMCode *)ref)->body.is_static) {
             /* Static code reference. */
             discrim = REFVAR_STATIC_CODEREF;
         }
-        else if (ref->header.sc) {
+        else if (MVM_sc_get_obj_sc(tc, ref)) {
             /* Closure, but already seen and serialization already handled. */
             discrim = REFVAR_CLONED_CODEREF;
         }
@@ -930,7 +928,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, frame->code_ref, 1);
-    MVMSerializationContext *static_code_sc  = static_code_ref->header.sc;
+    MVMSerializationContext *static_code_sc  = MVM_sc_get_obj_sc(tc, static_code_ref);
     if (OBJ_IS_NULL(static_code_sc))
         MVM_exception_throw_adhoc(tc,
             "Serialization Error: closure outer is a code object not in an SC");
@@ -994,7 +992,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
         }
     }
-    MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
+    MVM_sc_set_obj_sc(tc, ctx, writer->root.sc);
 }
 
 /* Goes through the list of repossessions and serializes them all. */
@@ -2008,7 +2006,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         /* If we have a reposession conflict, make a copy of the original object
          * and reference it from the conflicts list. Push the original (about to
          * be overwritten) object reference too. */
-        if (orig_obj->header.sc != orig_sc) {
+        if (MVM_sc_get_obj_sc(tc, orig_obj) != orig_sc) {
             MVMROOT(tc, orig_obj, {
                 MVMObject *backup = NULL;
                 MVMROOT(tc, backup, {
@@ -2040,7 +2038,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         MVM_sc_set_stable(tc, reader->root.sc, read_int32(table_row, 4), orig_st);
 
         /* Make sure we don't have a reposession conflict. */
-        if (orig_st->header.sc != orig_sc)
+        if (MVM_sc_get_stable_sc(tc, orig_st) != orig_sc)
             fail_deserialize(tc, reader,
                 "STable conflict detected during deserialization.\n"
                 "(Probable attempt to load two modules that cannot be loaded together).");
