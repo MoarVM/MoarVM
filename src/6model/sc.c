@@ -260,7 +260,7 @@ MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *tc, MVMObject *obj
     assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
     assert(!(obj->header.forwarder));
-    return obj->header.sc;
+    return obj->header.sc_forward_u.sc;
 }
 
 /* Gets an STables's SC. */
@@ -268,7 +268,7 @@ MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *
     assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
     assert(!(st->header.forwarder));
-    return st->header.sc;
+    return st->header.sc_forward_u.sc;
 }
 
 /* Sets an object's SC. */
@@ -276,7 +276,7 @@ void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationCon
     assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
     assert(!(obj->header.forwarder));
-    MVM_ASSIGN_REF(tc, obj, obj->header.sc, sc);
+    MVM_ASSIGN_REF(tc, obj, obj->header.sc_forward_u.sc, sc);
 }
 
 /* Sets an STable's SC. */
@@ -284,7 +284,7 @@ void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationC
     assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
     assert(!(st->header.forwarder));
-    MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+    MVM_ASSIGN_REF(tc, st, st->header.sc_forward_u.sc, sc);
 }
 
 /* Resolves an SC handle using the SC weakhash. */
