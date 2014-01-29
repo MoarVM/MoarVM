@@ -257,21 +257,33 @@ MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext 
 
 /* Gets an object's SC. */
 MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *tc, MVMObject *obj) {
+    assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE));
+    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(!(obj->header.forwarder));
     return obj->header.sc;
 }
 
 /* Gets an STables's SC. */
 MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *st) {
+    assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE));
+    assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(!(st->header.forwarder));
     return st->header.sc;
 }
 
 /* Sets an object's SC. */
 void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
+    assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE));
+    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(!(obj->header.forwarder));
     MVM_ASSIGN_REF(tc, obj, obj->header.sc, sc);
 }
 
 /* Sets an STable's SC. */
 void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc) {
+    assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE));
+    assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(!(st->header.forwarder));
     MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
 }
 
