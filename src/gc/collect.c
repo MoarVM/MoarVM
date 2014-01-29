@@ -177,7 +177,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 /* gen2 and marked as live. */
                 continue;
             }
-        } else if (item->forwarder) {
+        } else if (item->flags & MVM_CF_FORWARDER_VALID) {
             /* If the item was already seen and copied, then it will have a
              * forwarding address already. Just update this pointer to the
              * new address and we're done. */
@@ -280,6 +280,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, REPR(item)->ID, new_addr);
             }
             *item_ptr = item->forwarder = new_addr;
+            /* Set the flag on the copy of item *in fromspace* to mark that the
+               forwarder pointer is valid. */
+            item->flags |= MVM_CF_FORWARDER_VALID;
         }
 
         /* make sure any rooted frames mark their stuff */
@@ -512,7 +515,12 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
         /* The object here is dead if it never got a forwarding pointer
          * written in to it. */
         MVMCollectable *item = (MVMCollectable *)scan;
-        MVMuint8 dead = item->forwarder == NULL;
+        MVMuint8 dead = !(item->flags & MVM_CF_FORWARDER_VALID);
+
+        if (!dead)
+            assert(item->forwarder != NULL);
+        else
+            assert(item->forwarder == NULL);
 
         /* Now go by collectable type. */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
