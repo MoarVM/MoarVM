@@ -317,6 +317,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable *new_addr) {
     MVMuint16 i;
 
+    assert(!new_addr->forwarder);
+    assert(!(new_addr->flags & MVM_CF_FORWARDER_VALID));
+    assert(REPR(new_addr));
     MVM_gc_worklist_add(tc, worklist, &new_addr->sc);
 
     if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {

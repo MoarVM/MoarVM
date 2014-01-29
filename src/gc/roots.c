@@ -140,6 +140,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     /* Ensure the collectable is not null. */
     if (c == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null collectable address as an inter-generational root");
+    assert(!(c->flags & MVM_CF_FORWARDER_VALID));
 
     /* Allocate extra gen2 aggregate space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
@@ -187,6 +188,8 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     /* Visit each gen2 root and... */
     for (i = 0; i < num_roots; i++) {
         int num_in_nursery = 0;
+
+        assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
 
         /* Mark it, putting marks into temporary worklist. */
         MVM_gc_mark_collectable(tc, per_obj_worklist, gen2roots[i]);
