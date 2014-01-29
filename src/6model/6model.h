@@ -135,6 +135,8 @@ struct MVMCollectable {
     union {
         /* Pointer to the serialization context this collectable lives in, if any. */
         MVMSerializationContext *sc;
+        /* Used to chain STables queued to be freed. */
+        MVMSTable *st;
     } sc_forward_u;
 };
 
