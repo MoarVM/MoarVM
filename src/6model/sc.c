@@ -255,6 +255,16 @@ MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext 
     return sc->body->num_objects;
 }
 
+/* Gets an object's SC. */
+MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *tc, MVMObject *obj) {
+    return obj->header.sc;
+}
+
+/* Gets an STables's SC. */
+MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *st) {
+    return st->header.sc;
+}
+
 /* Sets an object's SC. */
 void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
     MVM_ASSIGN_REF(tc, obj, obj->header.sc, sc);
@@ -288,7 +298,7 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
     /* Otherwise, check that the object's SC is different from the SC
      * of the compilation we're currently in. Repossess if so. */
     comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);
-    if (obj->header.sc != comp_sc) {
+    if (MVM_sc_get_obj_sc(tc, obj) != comp_sc) {
         /* Get new slot ID. */
         MVMint64 new_slot = comp_sc->body->num_objects;
 
@@ -296,14 +306,14 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
          * owner we need to repossess. */
         if (obj->st->WHAT == tc->instance->boot_types.BOOTArray ||
             obj->st->WHAT == tc->instance->boot_types.BOOTHash) {
-            MVMObject *owned_objects = obj->header.sc->body->owned_objects;
+            MVMObject *owned_objects = MVM_sc_get_obj_sc(tc, obj)->body->owned_objects;
             MVMint64 n = MVM_repr_elems(tc, owned_objects);
             MVMint64 found = 0;
             MVMint64 i;
             for (i = 0; i < n; i += 2) {
                 if (MVM_repr_at_pos_o(tc, owned_objects, i) == obj) {
                     obj = MVM_repr_at_pos_o(tc, owned_objects, i + 1);
-                    if (obj->header.sc == comp_sc)
+                    if (MVM_sc_get_obj_sc(tc, obj) == comp_sc)
                         return;
                     found = 1;
                     break;
@@ -318,10 +328,10 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
 
         /* Add repossession entry. */
         MVM_repr_push_i(tc, comp_sc->body->rep_indexes, new_slot << 1);
-        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)obj->header.sc);
+        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)MVM_sc_get_obj_sc(tc, obj));
 
         /* Update SC of the object, claiming it. */
-        MVM_ASSIGN_REF(tc, obj, obj->header.sc, comp_sc);
+        MVM_sc_set_obj_sc(tc, obj, comp_sc);
     }
 }
 
@@ -338,16 +348,16 @@ void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
     /* Otherwise, check that the STable's SC is different from the SC
      * of the compilation we're currently in. Repossess if so. */
     comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);
-    if (st->header.sc != comp_sc) {
+    if (MVM_sc_get_stable_sc(tc, st) != comp_sc) {
         /* Add to root set. */
         MVMint64 new_slot = comp_sc->body->num_stables;
         MVM_sc_push_stable(tc, comp_sc, st);
 
         /* Add repossession entry. */
         MVM_repr_push_i(tc, comp_sc->body->rep_indexes, (new_slot << 1) | 1);
-        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)st->header.sc);
+        MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)MVM_sc_get_stable_sc(tc, st));
 
         /* Update SC of the STable, claiming it. */
-        MVM_ASSIGN_REF(tc, st, st->header.sc, comp_sc);
+        MVM_sc_set_stable_sc(tc, st, comp_sc);
     }
 }
