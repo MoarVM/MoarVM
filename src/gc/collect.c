@@ -502,7 +502,7 @@ static void MVM_gc_collect_enqueue_stable_for_deletion(MVMThreadContext *tc, MVM
     MVMSTable *old_head;
     do {
         old_head = tc->instance->stables_to_free;
-        st->header.forwarder = (MVMCollectable *)old_head;
+        st->header.sc_forward_u.st = old_head;
     } while (!MVM_trycas(&tc->instance->stables_to_free, old_head, st));
 }
 
@@ -573,8 +573,8 @@ void MVM_gc_collect_free_stables(MVMThreadContext *tc) {
     MVMSTable *st = tc->instance->stables_to_free;
     while (st) {
         MVMSTable *st_to_free = st;
-        st = (MVMSTable *)st_to_free->header.forwarder;
-        st_to_free->header.forwarder = NULL;
+        st = st_to_free->header.sc_forward_u.st;
+        st_to_free->header.sc_forward_u.st = NULL;
         MVM_6model_stable_gc_free(tc, st_to_free);
     }
     tc->instance->stables_to_free = NULL;
