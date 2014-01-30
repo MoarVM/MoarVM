@@ -10,6 +10,9 @@ tools/nqp-cross-compiler/nqp/
 .gcccheck
 tools/check.mk
 
+# Releases
+MoarVM-*
+
 # Generated files
 Makefile
 3rdparty/libatomic_ops/autom4te.cache/

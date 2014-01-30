@@ -92,7 +92,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
-    writer->write_int16(tc, writer, repr_data->bits);
+    writer->write_varint(tc, writer, repr_data->bits);
 }
 
 /* Deserializes representation data. */
@@ -100,7 +100,10 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)malloc(sizeof(MVMP6numREPRData));
 
     if (reader->root.version >= 8) {
-        repr_data->bits        = reader->read_int16(tc, reader);
+        if (reader->root.version >= 9)
+            repr_data->bits        = reader->read_varint(tc, reader);
+        else
+            repr_data->bits        = reader->read_int16(tc, reader);
         if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
          && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
             MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported int size (%dbit)", repr_data->bits);

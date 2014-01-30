@@ -6,6 +6,11 @@ static MVMCallsiteEntry fm_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_STR };
 static MVMCallsite     fm_callsite = { fm_flags, 3, 3, 0 };
 
+/* Dummy callsite for method not found errors. */
+static MVMCallsiteEntry mnfe_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                         MVM_CALLSITE_ARG_STR };
+static MVMCallsite     mnfe_callsite = { mnfe_flags, 2, 2, 0 };
+
 /* Dummy callsite for type_check. */
 static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ,
@@ -24,7 +29,7 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
  * exception if it can not be found. */
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
-    
+
     if (!obj)
         MVM_exception_throw_adhoc(tc,
             "Cannot call method '%s' on a null object",
@@ -39,10 +44,22 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
             res->o = meth;
             return;
         }
-        if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE)
-            MVM_exception_throw_adhoc(tc,
-                "Cannot find method '%s'",
-                MVM_string_utf8_encode_C_string(tc, name));
+        if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
+            MVMObject *handler = MVM_hll_current(tc)->method_not_found_error;
+            if (handler) {
+                handler = MVM_frame_find_invokee(tc, handler, NULL);
+                MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &mnfe_callsite);
+                tc->cur_frame->args[0].o = obj;
+                tc->cur_frame->args[1].s = name;
+                STABLE(handler)->invoke(tc, handler, &mnfe_callsite, tc->cur_frame->args);
+                return;
+            }
+            else {
+                MVM_exception_throw_adhoc(tc,
+                    "Cannot find method '%s'",
+                    MVM_string_utf8_encode_C_string(tc, name));
+            }
+        }
     }
     
     /* Otherwise, need to call the find_method method. We make the assumption
@@ -68,6 +85,11 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
+    
+    if (!obj)
+        MVM_exception_throw_adhoc(tc,
+            "Cannot look for method '%s' on a null object",
+             MVM_string_utf8_encode_C_string(tc, name));
     
     /* First consider method cache. */
     cache = STABLE(obj)->method_cache;

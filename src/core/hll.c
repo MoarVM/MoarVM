@@ -33,6 +33,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->null_value = NULL;
         entry->exit_handler = NULL;
         entry->bind_error = NULL;
+        entry->method_not_found_error = NULL;
         if (tc->instance->hll_compilee_depth)
             HASH_ADD_KEYPTR(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
         else
@@ -53,6 +54,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->null_value);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->exit_handler);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->bind_error);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->method_not_found_error);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     }
 
@@ -95,6 +97,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "null_value", null_value, config);
             check_config_key(tc, config_hash, "exit_handler", exit_handler, config);
             check_config_key(tc, config_hash, "bind_error", bind_error, config);
+            check_config_key(tc, config_hash, "method_not_found_error", method_not_found_error, config);
         });
 
     return config_hash;
@@ -200,4 +203,25 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 res_reg->o = obj;
         }
     }
+}
+
+/* Looks up an object in the HLL symbols stash. */
+MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym) {
+    MVMObject *syms = tc->instance->hll_syms, *hash, *result;
+    uv_mutex_lock(&tc->instance->mutex_hll_syms);
+    hash = MVM_repr_at_key_o(tc, syms, hll);
+    if (!hash) {
+        MVMROOT(tc, hll, {
+        MVMROOT(tc, syms, {
+            hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+        });
+        });
+        MVM_repr_bind_key_o(tc, syms, hll, hash);
+        result = NULL;
+    }
+    else {
+        result = MVM_repr_at_key_o(tc, hash, sym);
+    }
+    uv_mutex_unlock(&tc->instance->mutex_hll_syms);
+    return result;
 }

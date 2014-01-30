@@ -2895,22 +2895,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getcurhllsym): {
-                MVMObject *syms = tc->instance->hll_syms, *hash;
                 MVMString *hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
-                uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_o(tc, syms, hll_name);
-                if (!hash) {
-                    hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-                    /* must re-get syms in case it moved */
-                    syms = tc->instance->hll_syms;
-                    hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
-                    MVM_repr_bind_key_o(tc, syms, hll_name, hash);
-                    GET_REG(cur_op, 0).o = NULL;
-                }
-                else {
-                    GET_REG(cur_op, 0).o = MVM_repr_at_key_o(tc, hash, GET_REG(cur_op, 2).s);
-                }
-                uv_mutex_unlock(&tc->instance->mutex_hll_syms);
+                GET_REG(cur_op, 0).o = MVM_hll_sym_get(tc, hll_name, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3070,27 +3056,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(gethllsym): {
-                MVMObject *syms = tc->instance->hll_syms, *hash;
-                MVMString * const hll_name = GET_REG(cur_op, 2).s;
-                uv_mutex_lock(&tc->instance->mutex_hll_syms);
-                hash = MVM_repr_at_key_o(tc, syms, hll_name);
-                if (!hash) {
-                    MVMROOT(tc, hll_name, {
-                        hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-                        /* must re-get syms in case it moved */
-                        syms = tc->instance->hll_syms;
-                        MVM_repr_bind_key_o(tc, syms, hll_name, hash);
-                    });
-                    GET_REG(cur_op, 0).o = NULL;
-                }
-                else {
-                    GET_REG(cur_op, 0).o = MVM_repr_at_key_o(tc, hash, GET_REG(cur_op, 4).s);
-                }
-                uv_mutex_unlock(&tc->instance->mutex_hll_syms);
+            OP(gethllsym):
+                GET_REG(cur_op, 0).o = MVM_hll_sym_get(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
-            }
             OP(freshcoderef): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
                 MVMCode *ncr;
@@ -3778,19 +3748,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getlexrelcaller): {
-                MVMObject *ctx  = GET_REG(cur_op, 2).o;
+                MVMObject   *ctx  = GET_REG(cur_op, 2).o;
+                MVMRegister *res;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexrelcaller needs a context");
-                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel_caller(tc,
-                        GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context)->o;
+                res = MVM_frame_find_lexical_by_name_rel_caller(tc, GET_REG(cur_op, 4).s,
+                    ((MVMContext *)ctx)->body.context);
+                GET_REG(cur_op, 0).o = res ? res->o : NULL;
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(getlexcaller):
-                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel_caller(tc,
-                        GET_REG(cur_op, 2).s, tc->cur_frame->caller)->o;
+            OP(getlexcaller): {
+                MVMRegister *res = MVM_frame_find_lexical_by_name_rel_caller(tc,
+                    GET_REG(cur_op, 2).s, tc->cur_frame->caller);
+                GET_REG(cur_op, 0).o = res ? res->o : NULL;
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(bitand_s):
                 GET_REG(cur_op, 0).s = MVM_string_bitand(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);

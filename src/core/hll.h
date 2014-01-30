@@ -34,8 +34,9 @@ struct MVMHLLConfig {
     /* Language's handler to run at a block's exit time, if needed. */
     MVMObject *exit_handler;
 
-    /* Language's handler for bind errors, if needed. */
+    /* Language's handler for various errors, if needed. */
     MVMObject *bind_error;
+    MVMObject *method_not_found_error;
 
     /* Array of types to pass to compiler.c */
     MVMObject *mast_types;
@@ -49,7 +50,8 @@ struct MVMHLLConfig {
 
 MVMHLLConfig * MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name);
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash);
-MVMHLLConfig * MVM_hll_current(MVMThreadContext *tc);
+MVM_PUBLIC MVMHLLConfig * MVM_hll_current(MVMThreadContext *tc);
 void MVM_hll_enter_compilee_mode(MVMThreadContext *tc);
 void MVM_hll_leave_compilee_mode(MVMThreadContext *tc);
 void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMRegister *res_reg);
+MVM_PUBLIC MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym);
