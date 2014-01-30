@@ -29,7 +29,7 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
  * exception if it can not be found. */
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
-    
+
     if (!obj)
         MVM_exception_throw_adhoc(tc,
             "Cannot call method '%s' on a null object",
@@ -85,6 +85,11 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
+    
+    if (!obj)
+        MVM_exception_throw_adhoc(tc,
+            "Cannot look for method '%s' on a null object",
+             MVM_string_utf8_encode_C_string(tc, name));
     
     /* First consider method cache. */
     cache = STABLE(obj)->method_cache;
