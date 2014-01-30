@@ -3748,19 +3748,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getlexrelcaller): {
-                MVMObject *ctx  = GET_REG(cur_op, 2).o;
+                MVMObject   *ctx  = GET_REG(cur_op, 2).o;
+                MVMRegister *res;
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexrelcaller needs a context");
-                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel_caller(tc,
-                        GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context)->o;
+                res = MVM_frame_find_lexical_by_name_rel_caller(tc, GET_REG(cur_op, 4).s,
+                    ((MVMContext *)ctx)->body.context);
+                GET_REG(cur_op, 0).o = res ? res->o : NULL;
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(getlexcaller):
-                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_rel_caller(tc,
-                        GET_REG(cur_op, 2).s, tc->cur_frame->caller)->o;
+            OP(getlexcaller): {
+                MVMRegister *res = MVM_frame_find_lexical_by_name_rel_caller(tc,
+                    GET_REG(cur_op, 2).s, tc->cur_frame->caller);
+                GET_REG(cur_op, 0).o = res ? res->o : NULL;
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(bitand_s):
                 GET_REG(cur_op, 0).s = MVM_string_bitand(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
