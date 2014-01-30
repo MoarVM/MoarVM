@@ -32,7 +32,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s
     static use-readline
     build=s host=s big-endian
-    prefix=s make-install
+    prefix=s make-install profilecalls
 )) or die "See --help for further information\n";
 
 pod2usage(1) if $args{help};
@@ -61,6 +61,7 @@ $args{optimize}     = 1 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 $args{instrument} //= 0;
 $args{static}     //= 0;
+$args{profilecalls} //= 0;
 
 $args{'use-readline'} //= 0;
 $args{'big-endian'}   //= 0;
@@ -80,6 +81,7 @@ $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
+$config{profilecalls} = $args{profilecalls};
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );

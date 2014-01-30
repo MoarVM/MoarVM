@@ -45,6 +45,13 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->rand_state[0] = 'T';
     tc->rand_state[1] = 'M';
 
+#if MVM_HLL_PROFILE_CALLS
+#define PROFILE_INITIAL_SIZE (1 << 29)
+    tc->profile_data_size = PROFILE_INITIAL_SIZE;
+    tc->profile_data = malloc(sizeof(MVMProfileRecord) * PROFILE_INITIAL_SIZE);
+    tc->profile_index = 0;
+#endif
+
     return tc;
 }
 

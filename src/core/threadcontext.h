@@ -44,6 +44,14 @@ typedef enum {
 #define MVMInitialFramePoolTableSize    64
 #define MVMFramePoolLengthLimit         64
 
+#if MVM_HLL_PROFILE_CALLS
+typedef struct _MVMProfileRecord {
+    MVMuint32 callsite_id;
+    MVMuint32 code_id;
+    MVMuint64 duration_nanos;
+} MVMProfileRecord;
+#endif
+
 /* Information associated with an executing thread. */
 struct MVMThreadContext {
     /* The current allocation pointer, where the next object to be allocated
@@ -171,6 +179,15 @@ struct MVMThreadContext {
 
     /* Random number generator state. */
     MVMuint64 rand_state[2];
+
+#if MVM_HLL_PROFILE_CALLS
+    /* storage of profile timings */
+    MVMProfileRecord *profile_data;
+    /* allocated size of profile_data in count */
+    MVMuint32 profile_data_size;
+    /* next index of record to store */
+    MVMuint32 profile_index;
+#endif
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);

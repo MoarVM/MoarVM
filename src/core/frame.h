@@ -124,6 +124,11 @@ struct MVMFrame {
 
     /* Assorted frame flags. */
     MVMuint8 flags;
+
+#if MVM_HLL_PROFILE_CALLS
+    /* Index of the profile data record. */
+    MVMuint32 profile_index;
+#endif
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
