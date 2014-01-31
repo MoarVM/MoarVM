@@ -151,9 +151,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
 #if MVM_HLL_PROFILE_CALLS
     frame->profile_index = tc->profile_index;
-    tc->profile_data[tc->profile_index].duration_nanos = MVM_platform_now();
-    tc->profile_data[tc->profile_index].callsite_id = 0; /* XXX get a real callsite id */
-    tc->profile_data[tc->profile_index].code_id = 0; /* XXX get a real code id */
+    tc->profile_data[frame->profile_index].duration_nanos = MVM_platform_now();
+    tc->profile_data[frame->profile_index].callsite_id = 0; /* XXX get a real callsite id */
+    tc->profile_data[frame->profile_index].code_id = 0; /* XXX get a real code id */
 
     /* increment the profile data index */
     ++tc->profile_index;
