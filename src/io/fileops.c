@@ -277,12 +277,15 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle;
     uv_fs_t req;
+    int status;
 
     verify_filehandle_type(tc, oshandle, &handle, "close filehandle");
 
     MVM_checked_free_null(handle->body.filename);
 
-    if (uv_fs_close(tc->loop, &req, handle->body.u.fd, NULL) < 0) {
+    status = uv_fs_close(tc->loop, &req, handle->body.u.fd, NULL);
+    handle->body.u.fd = -1;
+    if (status < 0) {
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
 }
