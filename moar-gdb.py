@@ -1,5 +1,6 @@
 import gdb
-import blessings
+from collections import defaultdict
+#import blessings
 
 str_t_info = {0: 'int32s',
               1: 'uint8s',
@@ -83,6 +84,41 @@ class MVMObjectPPrinter(object):
         else:
             return self.stringify()
 
+sizes_histogram = defaultdict(lambda: 0)
+reprs_histogram = defaultdict(lambda: 0)
+
+reprs_gen2_histogram = defaultdict(lambda: 0)
+reprs_nursery_killed_histogram = defaultdict(lambda: 0)
+
+reprs_nursery_seen = defaultdict(lambda: 0)
+reprs_gen2_seen = defaultdict(lambda: 0)
+
+class StartAnalyzeGC(gdb.Command):
+    def __init__(self):
+         super (StartAnalyzeGC, self).__init__ ("start-analyze-gc", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        # set a breakpoint for gc_run
+        gdb.write("please type 'end' into the prompt now")
+        gdb.execute("break orchestrate.c:run_gc")
+        gdb.execute("commands")
+        gdb.execute("run-gc-triggered")
+        gdb.execute("continue")
+        gdb.execute("end")
+
+class RunGCTriggered(gdb.Command):
+    def __init__(self):
+        super (RunGCTriggered, self).__init__("run-gc-triggered", gdb.COMMAND_DATA) # XXX invisible command
+
+    def invoke(self, arg, from_tty):
+        if from_tty:
+            gdb.write("the run-gc-triggered command should only be run by the breakpoint set up by the start-analyze-gc command!")
+        for i in range(20):
+            gdb.execute("step")
+            frame = gdb.newest_frame()
+            print frame.name()
+
+
 def str_lookup_function(val):
     if str(val.type) == "MVMString":
         return MVMStringPPrinter(val)
@@ -109,5 +145,11 @@ def register_printers(objfile):
     objfile.pretty_printers.append(mvmobject_lookup_function)
     print "MoarVM Object pretty printer registered"
 
+commands = []
+def register_commands(objfile):
+    commands.append(StartAnalyzeGC())
+    commands.append(RunGCTriggered())
+
 if __name__ == "__main__":
     register_printers(gdb.current_objfile())
+    register_commands(gdb.current_objfile())
