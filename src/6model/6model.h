@@ -59,6 +59,9 @@ struct MVMStorageSpec {
 
     /* The types that this one can box/unbox to. */
     MVMuint16 can_box;
+
+    /* For ints, whether it's an unsigned value. */
+    MVMuint8 is_unsigned;
 };
 
 /* Inlined or not. */

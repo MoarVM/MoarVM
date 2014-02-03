@@ -20,6 +20,10 @@ struct MVMArrayBody {
         MVMint8    *i8;
         MVMnum64   *n64;
         MVMnum32   *n32;
+        MVMuint64  *u64;
+        MVMuint32  *u32;
+        MVMuint16  *u16;
+        MVMuint8   *u8;
         void       *any;
     } slots;
 };
@@ -37,6 +41,10 @@ struct MVMArray {
 #define MVM_ARRAY_I8    5
 #define MVM_ARRAY_N64   6
 #define MVM_ARRAY_N32   7
+#define MVM_ARRAY_U64   8
+#define MVM_ARRAY_U32   9
+#define MVM_ARRAY_U16   10
+#define MVM_ARRAY_U8    11
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc);
