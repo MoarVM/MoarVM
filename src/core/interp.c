@@ -3854,7 +3854,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(openpipe):
-                MVM_exception_throw_adhoc(tc, "openpipe NYI");
+                GET_REG(cur_op, 0).o = MVM_file_openpipe(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s);
+                cur_op += 10;
+                goto NEXT;
             OP(backtrace):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;

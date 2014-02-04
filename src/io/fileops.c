@@ -33,7 +33,7 @@ static void verify_filehandle_type(MVMThreadContext *tc, MVMObject *oshandle, MV
         MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
     }
     *handle = (MVMOSHandle *)oshandle;
-    if ((*handle)->body.type != MVM_OSHANDLE_FD && (*handle)->body.type != MVM_OSHANDLE_HANDLE) {
+    if ((*handle)->body.type != MVM_OSHANDLE_FD && (*handle)->body.type != MVM_OSHANDLE_PIPE && (*handle)->body.type != MVM_OSHANDLE_HANDLE) {
         MVM_exception_throw_adhoc(tc, "%s requires an MVMOSHandle of type file handle", msg);
     }
 }
@@ -277,16 +277,28 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle;
     uv_fs_t req;
-    int status;
 
     verify_filehandle_type(tc, oshandle, &handle, "close filehandle");
 
     MVM_checked_free_null(handle->body.filename);
 
-    status = uv_fs_close(tc->loop, &req, handle->body.u.fd, NULL);
-    handle->body.u.fd = -1;
-    if (status < 0) {
-        MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
+    if (handle->body.type == MVM_OSHANDLE_PIPE) {
+        /* closing the in-/output std filehandle will shutdown the child process. */
+        uv_unref((uv_handle_t*)handle->body.u.handle);
+        uv_close((uv_handle_t*)handle->body.u.handle, NULL);
+        uv_run(tc->loop, UV_RUN_DEFAULT);
+        if (handle->body.u.process)
+            waitpid(handle->body.u.process->pid);
+        uv_unref((uv_handle_t *)handle->body.u.process);
+        uv_run(tc->loop, UV_RUN_DEFAULT);
+        handle->body.u.process = NULL;
+    }
+    else {
+        if (uv_fs_close(tc->loop, &req, handle->body.u.fd, NULL) < 0) {
+            handle->body.u.fd = -1;
+            MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
+        }
+        handle->body.u.fd = -1;
     }
 }
 
@@ -333,6 +345,7 @@ MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     verify_filehandle_type(tc, oshandle, &handle, "readline from filehandle");
 
     switch (handle->body.type) {
+        case MVM_OSHANDLE_PIPE:
         case MVM_OSHANDLE_HANDLE: {
             MVMOSHandleBody * const body = &handle->body;
             if (!body->u.eof) {
@@ -500,6 +513,7 @@ MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint6
     }
 
     switch (handle->body.type) {
+        case MVM_OSHANDLE_PIPE:
         case MVM_OSHANDLE_HANDLE: {
             MVMOSHandleBody * const body = &handle->body;
             body->u.length = length;
@@ -551,6 +565,7 @@ void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     }
 
     switch (handle->body.type) {
+        case MVM_OSHANDLE_PIPE:
         case MVM_OSHANDLE_HANDLE: {
             MVMOSHandleBody * const body = &handle->body;
             body->u.length = length;
@@ -579,12 +594,31 @@ void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     ((MVMArray *)result)->body.elems    = bytes_read;
 }
 
+static void readall_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    MVMOSHandle * const oshandle = (MVMOSHandle *)(handle->data);
+    if (nread > 0) {
+        char read_char = *((char *)buf->base);
+        if (oshandle->body.u.length && oshandle->body.u.length % 128 == 0) {
+            oshandle->body.u.data = realloc(oshandle->body.u.data,
+                oshandle->body.u.length * 2);
+        }
+        ((char *)oshandle->body.u.data)[oshandle->body.u.length] = read_char;
+        oshandle->body.u.length++;
+    }
+    else if (nread == UV_EOF) {
+        oshandle->body.u.eof = 1;
+        uv_read_stop(handle);
+        uv_unref((uv_handle_t*)handle);
+    }
+    if (buf->base)
+        free(buf->base);
+}
 /* read all of a filehandle into a string. */
 MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMString *result;
     MVMOSHandle *handle;
-    MVMint64 file_size;
-    MVMint64 bytes_read;
+    MVMint64 length;
+    MVMint64 bytes_read = 0;
     uv_fs_t req;
     char *buf;
 
@@ -593,26 +627,48 @@ MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "Readall from filehandle");
 
-    if (uv_fs_fstat(tc->loop, &req, handle->body.u.fd, NULL) < 0) {
-        MVM_exception_throw_adhoc(tc, "Readall from filehandle failed: %s", uv_strerror(req.result));
-    }
-
-    file_size = req.statbuf.st_size;
-
-    if (file_size > 0) {
-        buf = malloc(file_size);
-
-        bytes_read = uv_fs_read(tc->loop, &req, handle->body.u.fd, buf, file_size, -1, NULL);
-        if (bytes_read < 0) {
-            free(buf);
-            MVM_exception_throw_adhoc(tc, "Readall from filehandle failed: %s", uv_strerror(req.result));
+    switch (handle->body.type) {
+        case MVM_OSHANDLE_PIPE:
+        case MVM_OSHANDLE_HANDLE: {
+            MVMOSHandleBody * const body = &handle->body;
+            MVMint32 bufsize = 128;
+            body->u.data     = malloc(bufsize);
+            if (!body->u.eof) {
+                body->u.length = 0;
+                uv_read_start((uv_stream_t *)body->u.handle, readline_on_alloc, readall_on_read);
+                uv_ref(body->u.handle);
+                uv_run(tc->loop, UV_RUN_DEFAULT);
+                bytes_read = body->u.length;
+            }
+            result = MVM_string_decode(tc, tc->instance->VMString, body->u.data, bytes_read, handle->body.encoding_type);
+            free(body->u.data);
+            break;
         }
-                                                   /* XXX should this take a type object? */
-        result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
-        free(buf);
-    }
-    else {
-        result = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
+        case MVM_OSHANDLE_FD:
+            if (uv_fs_fstat(tc->loop, &req, handle->body.u.fd, NULL) < 0) {
+                MVM_exception_throw_adhoc(tc, "Readall from filehandle failed: %s", uv_strerror(req.result));
+            }
+
+            length = req.statbuf.st_size;
+
+            if (length > 0) {
+                buf = malloc(length);
+
+                bytes_read = uv_fs_read(tc->loop, &req, handle->body.u.fd, buf, length, -1, NULL);
+                if (bytes_read < 0) {
+                    free(buf);
+                    MVM_exception_throw_adhoc(tc, "Readall from filehandle failed: %s", uv_strerror(req.result));
+                }
+                                                           /* XXX should this take a type object? */
+                result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, handle->body.encoding_type);
+                free(buf);
+            }
+            else {
+                result = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
+            }
+            break;
+        default:
+            break;
     }
 
     return result;
@@ -654,6 +710,7 @@ MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString
     }
 
     switch (handle->body.type) {
+        case MVM_OSHANDLE_PIPE:
         case MVM_OSHANDLE_HANDLE: {
             uv_write_t *req = malloc(sizeof(uv_write_t));
             uv_buf_t buf = uv_buf_init(output, bytes_written = output_size);
@@ -705,6 +762,7 @@ void MVM_file_write_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
     output_size = ((MVMArray *)buffer)->body.elems;
 
     switch (handle->body.type) {
+        case MVM_OSHANDLE_PIPE:
         case MVM_OSHANDLE_HANDLE: {
             uv_write_t *req = malloc(sizeof(uv_write_t));
             uv_buf_t buf = uv_buf_init(output, bytes_written = output_size);
@@ -762,7 +820,7 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
             MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
         return r;
     }
-    else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
+    else if (handle->body.type == MVM_OSHANDLE_PIPE || handle->body.type == MVM_OSHANDLE_HANDLE) {
         return 0; /* XXX Not right, but unbreaks REPL. */
     }
     else {
@@ -885,7 +943,7 @@ void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
             MVM_exception_throw_adhoc(tc, "Failed to sync filehandle: %s", uv_strerror(req.result));
         }
     }
-    else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
+    else if (handle->body.type == MVM_OSHANDLE_PIPE || handle->body.type == MVM_OSHANDLE_HANDLE) {
         /* Nothing in libuv to sync this, it seems. */
     }
     else {
@@ -968,7 +1026,7 @@ MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
             MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
         return req.statbuf.st_size == seek_pos;
     }
-    else if (handle->body.type == MVM_OSHANDLE_HANDLE) {
+    else if (handle->body.type == MVM_OSHANDLE_PIPE || handle->body.type == MVM_OSHANDLE_HANDLE) {
         return handle->body.u.eof;
     }
     else {
