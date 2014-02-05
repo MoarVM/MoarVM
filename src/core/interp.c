@@ -2742,7 +2742,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
                 MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
                 for (i = 0; i < elems; i++) {
-                    cache[i] = MVM_repr_at_pos_o(tc, types, i);
+                    MVM_ASSIGN_REF(tc, STABLE(obj), cache[i], MVM_repr_at_pos_o(tc, types, i));
                 }
                 /* technically this free isn't thread safe */
                 if (STABLE(obj)->type_check_cache)
