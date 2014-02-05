@@ -681,7 +681,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMP6opaqueNameMap *name_map = &repr_data->name_to_index_mapping[cur_type];
         num_attrs = REPR(attr_list)->elems(tc, STABLE(attr_list),
             attr_list, OBJECT_BODY(attr_list));
-        name_map->class_key = type_obj;
+        MVM_ASSIGN_REF(tc, st, name_map->class_key, type_obj);
         name_map->num_attrs = num_attrs;
         if (num_attrs) {
             name_map->names = malloc(num_attrs * sizeof(MVMString *));
@@ -705,10 +705,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
             /* Attribute will live at the current position in the object. */
             repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
-            if (REPR(name_obj)->ID == MVM_REPR_ID_MVMString)
-                name_map->names[i] = (MVMString *)name_obj;
-            else
-                name_map->names[i] = MVM_repr_get_str(tc, name_obj);
+            if (REPR(name_obj)->ID == MVM_REPR_ID_MVMString) {
+                MVM_ASSIGN_REF(tc, st, name_map->names[i], (MVMString *)name_obj);
+            }
+            else {
+                MVM_ASSIGN_REF(tc, st, name_map->names[i], MVM_repr_get_str(tc, name_obj));
+            }
             name_map->slots[i] = cur_slot;
 
             /* Consider the type. */
@@ -721,7 +723,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     /* Yes, it's something we'll flatten. */
                     unboxed_type = spec.boxed_primitive;
                     bits = spec.bits;
-                    repr_data->flattened_stables[cur_slot] = STABLE(type);
+                    MVM_ASSIGN_REF(tc, st, repr_data->flattened_stables[cur_slot], STABLE(type));
                     inlined = 1;
 
                     /* Does it need special initialization? */
