@@ -2795,10 +2795,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(setboolspec): {
+                MVMSTable            *st = GET_REG(cur_op, 0).o->st;
                 MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
                 bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
-                bs->method = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o->st->boolification_spec = bs;
+                MVM_ASSIGN_REF(tc, st, bs->method, GET_REG(cur_op, 4).o);
+                st->boolification_spec = bs;
                 cur_op += 6;
                 goto NEXT;
             }
