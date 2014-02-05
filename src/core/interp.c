@@ -2928,11 +2928,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHO;
                 cur_op += 4;
                 goto NEXT;
-            OP(setwho):
-                STABLE(GET_REG(cur_op, 2).o)->WHO = GET_REG(cur_op, 4).o;
+            OP(setwho): {
+                MVMSTable *st = STABLE(GET_REG(cur_op, 2).o);
+                MVM_ASSIGN_REF(tc, st, st->WHO, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(rebless):
                 if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
                     MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
