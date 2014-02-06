@@ -259,7 +259,6 @@ MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext 
 MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *tc, MVMObject *obj) {
     assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(!(obj->header.forwarder));
     return obj->header.sc_forward_u.sc;
 }
 
@@ -267,7 +266,6 @@ MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *tc, MVMObject *obj
 MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *st) {
     assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(!(st->header.forwarder));
     return st->header.sc_forward_u.sc;
 }
 
@@ -275,7 +273,6 @@ MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *
 void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
     assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(!(obj->header.forwarder));
     MVM_ASSIGN_REF(tc, obj, obj->header.sc_forward_u.sc, sc);
 }
 
@@ -283,7 +280,6 @@ void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationCon
 void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc) {
     assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE));
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(!(st->header.forwarder));
     MVM_ASSIGN_REF(tc, st, st->header.sc_forward_u.sc, sc);
 }
 
