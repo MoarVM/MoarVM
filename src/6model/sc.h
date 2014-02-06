@@ -29,7 +29,7 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
 #define MVM_SC_WB_OBJ(tc, obj) \
     do { \
         MVMObject *check = (MVMObject *)obj; \
-        assert(!(obj->header.flags & MVM_CF_SECOND_GEN_LIVE)); \
+        assert(!(obj->header.flags & MVM_CF_GEN2_LIVE)); \
         assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID)); \
         if (check->header.sc_forward_u.sc) \
             MVM_sc_wb_hit_obj(tc, check); \
@@ -38,7 +38,7 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
 #define MVM_SC_WB_ST(tc, st) \
     do { \
         MVMSTable *check = st; \
-        assert(!(st->header.flags & MVM_CF_SECOND_GEN_LIVE)); \
+        assert(!(st->header.flags & MVM_CF_GEN2_LIVE)); \
         assert(!(st->header.flags & MVM_CF_FORWARDER_VALID)); \
         if (check->header.sc_forward_u.sc) \
             MVM_sc_wb_hit_st(tc, check); \

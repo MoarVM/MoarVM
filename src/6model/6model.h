@@ -102,7 +102,7 @@ typedef enum {
     MVM_CF_IN_GEN2_ROOT_LIST = 32,
 
     /* GC has found this object to be live. */
-    MVM_CF_SECOND_GEN_LIVE = 64,
+    MVM_CF_GEN2_LIVE = 64,
     /* This object in fromspace is live with a valid forwarder. */
     /* TODO - should be possible to use the same bit for these two flags. */
     MVM_CF_FORWARDER_VALID = 128

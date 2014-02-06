@@ -173,7 +173,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         if (item_gen2) {
             if (gen == MVMGCGenerations_Nursery)
                 continue;
-            if (item->flags & MVM_CF_SECOND_GEN_LIVE) {
+            if (item->flags & MVM_CF_GEN2_LIVE) {
                 /* gen2 and marked as live. */
                 continue;
             }
@@ -222,7 +222,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
             }
-            item->flags |= MVM_CF_SECOND_GEN_LIVE;
+            item->flags |= MVM_CF_GEN2_LIVE;
             assert(*item_ptr == new_addr);
         } else {
             /* Catch NULL stable (always sign of trouble) in debug mode. */
@@ -257,7 +257,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 /* If we're going to sweep the second generation, also need
                  * to mark it as live. */
                 if (gen == MVMGCGenerations_Both)
-                    new_addr->flags |= MVM_CF_SECOND_GEN_LIVE;
+                    new_addr->flags |= MVM_CF_GEN2_LIVE;
             }
             else {
                 /* No, so it will live in the nursery for another GC
@@ -561,7 +561,7 @@ void MVM_gc_collect_cleanup_gen2roots(MVMThreadContext *tc) {
     MVMuint32        ins_pos   = 0;
     MVMuint32        i;
     for (i = 0; i < num_roots; i++)
-        if (gen2roots[i]->flags & MVM_CF_SECOND_GEN_LIVE)
+        if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
             gen2roots[ins_pos++] = gen2roots[i];
     tc->num_gen2roots = ins_pos;
 }
@@ -618,9 +618,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
 
                 /* Otherwise, it must be a collectable of some kind. Is it
                  * live? */
-                else if (col->flags & MVM_CF_SECOND_GEN_LIVE) {
+                else if (col->flags & MVM_CF_GEN2_LIVE) {
                     /* Yes; clear the mark. */
-                    col->flags &= ~MVM_CF_SECOND_GEN_LIVE;
+                    col->flags &= ~MVM_CF_GEN2_LIVE;
                 }
                 else {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %p in the gen2\n", col);
@@ -676,9 +676,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
     for (i = 0; i < gen2->num_overflows; i++) {
         if (gen2->overflows[i]) {
             MVMCollectable *col = gen2->overflows[i];
-            if (col->flags & MVM_CF_SECOND_GEN_LIVE) {
+            if (col->flags & MVM_CF_GEN2_LIVE) {
                 /* A living over-sized object; just clear the mark. */
-                col->flags &= ~MVM_CF_SECOND_GEN_LIVE;
+                col->flags &= ~MVM_CF_GEN2_LIVE;
             }
             else {
                 /* Dead over-sized object. We know if it's this big it cannot

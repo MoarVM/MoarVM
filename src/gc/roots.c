@@ -242,7 +242,7 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     MVMuint32        cur_survivor = 0;
     MVMuint32        i;
     for (i = 0; i < num_roots; i++)
-        if (gen2roots[i]->flags & MVM_CF_SECOND_GEN_LIVE) {
+        if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE) {
             assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
             gen2roots[cur_survivor++] = gen2roots[i];
         }
