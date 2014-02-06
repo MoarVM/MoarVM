@@ -129,10 +129,9 @@ struct MVMCollectable {
     /* Object size, in bytes. */
     MVMuint16 size;
 
-    /* Forwarding pointer, for copying/compacting GC purposes. */
-    MVMCollectable *forwarder;
-
     union {
+        /* Forwarding pointer, for copying/compacting GC purposes. */
+        MVMCollectable *forwarder;
         /* Pointer to the serialization context this collectable lives in, if any. */
         MVMSerializationContext *sc;
         /* Used to chain STables queued to be freed. */
@@ -147,11 +146,6 @@ struct MVMObject {
 
     /* The s-table for the object. */
     MVMSTable *st;
-
-    /* Padding for 32-bit systems. */
-#if !defined(_M_X64) && !defined(__amd64__)
-    MVMuint32 pad;
-#endif
 };
 
 /* An dummy object, mostly used to compute the offset of the data part of

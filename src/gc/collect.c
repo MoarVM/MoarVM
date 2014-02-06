@@ -181,16 +181,16 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* If the item was already seen and copied, then it will have a
              * forwarding address already. Just update this pointer to the
              * new address and we're done. */
-            assert(*item_ptr != item->forwarder);
+            assert(*item_ptr != item->sc_forward_u.forwarder);
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
-                if (*item_ptr != item->forwarder) {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->forwarder);
+                if (*item_ptr != item->sc_forward_u.forwarder) {
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->sc_forward_u.forwarder);
                 }
                 else {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : already visited handle %p to forwarder %p\n", item_ptr, item->forwarder);
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : already visited handle %p to forwarder %p\n", item_ptr, item->sc_forward_u.forwarder);
                 }
             }
-            *item_ptr = item->forwarder;
+            *item_ptr = item->sc_forward_u.forwarder;
             continue;
         } else {
             /* If the pointer is already into tospace (the bit we've already
@@ -216,7 +216,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* At this point, we didn't already see the object, which means we
          * need to take some action. Go on the generation... */
         if (item_gen2) {
-            assert(!item->forwarder);
+            assert(!(item->flags & MVM_CF_FORWARDER_VALID));
             /* It's in the second generation. We'll just mark it. */
             new_addr = item;
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
@@ -279,7 +279,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && new_addr != item) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, REPR(item)->ID, new_addr);
             }
-            *item_ptr = item->forwarder = new_addr;
+            *item_ptr = new_addr;
+            item->sc_forward_u.forwarder = new_addr;
             /* Set the flag on the copy of item *in fromspace* to mark that the
                forwarder pointer is valid. */
             item->flags |= MVM_CF_FORWARDER_VALID;
@@ -317,9 +318,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable *new_addr) {
     MVMuint16 i;
 
-    assert(!new_addr->forwarder);
     assert(!(new_addr->flags & MVM_CF_FORWARDER_VALID));
-    assert(REPR(new_addr));
+    /*assert(REPR(new_addr));*/
     MVM_gc_worklist_add(tc, worklist, &new_addr->sc_forward_u.sc);
 
     if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
@@ -521,9 +521,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
         MVMuint8 dead = !(item->flags & MVM_CF_FORWARDER_VALID);
 
         if (!dead)
-            assert(item->forwarder != NULL);
-        else
-            assert(item->forwarder == NULL);
+            assert(item->sc_forward_u.forwarder != NULL);
 
         /* Now go by collectable type. */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
@@ -637,7 +635,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         /* Type object; doesn't have anything extra that needs freeing. */
                     }
                     else if (col->flags & MVM_CF_STABLE) {
-                        if (col->sc_forward_u.sc == (MVMSerializationContext *)1) {
+                        if (col->sc_forward_u.sc == (MVMSerializationContext *)3) {
                             /* We marked it dead last time, kill it. */
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }
@@ -648,7 +646,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);
                             } else {
                                 /* There will definitely be another gc run, so mark it as "died last time". */
-                                col->sc_forward_u.sc = (MVMSerializationContext *)1;
+                                col->sc_forward_u.sc = (MVMSerializationContext *)3;
                             }
                             /* Skip the freelist updating. */
                             cur_ptr += obj_size;
