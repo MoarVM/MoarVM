@@ -174,7 +174,10 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     char **_env = malloc((size + 1) * sizeof(char *));
 
 #ifdef _WIN32
-    char *args[2];
+    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
+    char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
+    char *args[3];
+    args[0] = "/c";
     {
         MVMint64 len = strlen(cmdin);
         MVMint64 i;
@@ -182,12 +185,15 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
             if (cmdin[i] == '/')
                 cmdin[i] = '\\';
     }
-    args[0] = cmdin;
-    args[1] = NULL;
+    args[1] = cmdin;
+    args[2] = NULL;
 #else
-    char *args[2];
-    args[0] = cmdin;
-    args[1] = NULL;
+    char * const _cmd = "/bin/sh";
+    char *args[4];
+    args[0] = "/bin/sh";
+    args[1] = "-c";
+    args[2] = cmdin;
+    args[3] = NULL;
 #endif
 
     INIT_ENV();
@@ -218,7 +224,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     process_stdio[2].flags      = UV_INHERIT_FD; // child's stderr
     process_stdio[2].data.fd    = 2;
     process_options.stdio       = process_stdio;
-    process_options.file        = cmdin;
+    process_options.file        = _cmd;
     process_options.args        = args;
     process_options.cwd         = _cwd;
     process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
