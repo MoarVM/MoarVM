@@ -204,7 +204,8 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
             MVM_gc_worklist_add_frame_no_seq_check(tc, worklist, cur_frame);
             num_in_nursery++;
         }
-        if (!num_in_nursery && REPR(gen2roots[i])->refs_frames)
+        if (!num_in_nursery && !(gen2roots[i]->flags & MVM_CF_STABLE)
+            && REPR(gen2roots[i])->refs_frames)
             num_in_nursery = 1;
 
         /* If there were any nursery objects, then this root should stay. Put
