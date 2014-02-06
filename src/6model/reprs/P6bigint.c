@@ -24,6 +24,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    /* XXX Needs smallint handling. */
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     body->u.bigint = malloc(sizeof(mp_int));
     mp_init(body->u.bigint);
@@ -34,11 +35,18 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMP6bigintBody *src_body = (MVMP6bigintBody *)src;
     MVMP6bigintBody *dest_body = (MVMP6bigintBody *)dest;
-    dest_body->u.bigint = malloc(sizeof(mp_int));
-    mp_init_copy(dest_body->u.bigint, src_body->u.bigint);
+    if (MVM_BIGINT_IS_BIG(src_body)) {
+        dest_body->u.bigint = malloc(sizeof(mp_int));
+        mp_init_copy(dest_body->u.bigint, src_body->u.bigint);
+    }
+    else {
+        dest_body->u.smallint.flag = src_body->u.smallint.flag;
+        dest_body->u.smallint.value = src_body->u.smallint.value;
+    }
 }
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
+    /* XXX Needs smallint handling. */
     mp_int *i = ((MVMP6bigintBody *)data)->u.bigint;
     if (value >= 0) {
         mp_set_long(i, value);
@@ -49,16 +57,22 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
 }
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMint64 ret;
-    mp_int *i = ((MVMP6bigintBody *)data)->u.bigint;
-    if (MP_LT == mp_cmp_d(i, 0)) {
-        mp_neg(i, i);
-        ret = mp_get_long(i);
-        mp_neg(i, i);
-        return -ret;
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    if (MVM_BIGINT_IS_BIG(body)) {
+        mp_int *i = body->u.bigint;
+        if (MP_LT == mp_cmp_d(i, 0)) {
+            MVMint64 ret;
+            mp_neg(i, i);
+            ret = mp_get_long(i);
+            mp_neg(i, i);
+            return -ret;
+        }
+        else {
+            return mp_get_long(i);
+        }
     }
     else {
-        return mp_get_long(i);
+        return body->u.smallint.value;
     }
 }
 
@@ -86,30 +100,42 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
-    mp_clear(((MVMP6bigintBody *)data)->u.bigint);
-    free(((MVMP6bigintBody *)data)->u.bigint);
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    if (MVM_BIGINT_IS_BIG(body)) {
+        mp_clear(body->u.bigint);
+        free(body->u.bigint);
+    }
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    mp_clear(((MVMP6bigint *)obj)->body.u.bigint);
-    free(((MVMP6bigint *)obj)->body.u.bigint);
+    MVMP6bigintBody *body = &((MVMP6bigint *)obj)->body;
+    if (MVM_BIGINT_IS_BIG(body)) {
+        mp_clear(body->u.bigint);
+        free(body->u.bigint);
+    }
 }
 
 /* Serializes the bigint. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    mp_int *i = ((MVMP6bigintBody *)data)->u.bigint;
-    int len;
-    char *buf;
-    MVMString *str;
-    mp_radix_size(i, 10, &len);
-    buf = (char *)malloc(len);
-    mp_toradix(i, buf, 10);
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    if (MVM_BIGINT_IS_BIG(body)) {
+        mp_int *i = body->u.bigint;
+        int len;
+        char *buf;
+        MVMString *str;
+        mp_radix_size(i, 10, &len);
+        buf = (char *)malloc(len);
+        mp_toradix(i, buf, 10);
 
-    /* len - 1 because buf is \0-terminated */
-    str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
+        /* len - 1 because buf is \0-terminated */
+        str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
 
-    writer->write_str(tc, writer, str);
-    free(buf);
+        writer->write_str(tc, writer, str);
+        free(buf);
+    }
+    else {
+        writer->write_str(tc, writer, MVM_coerce_i_s(tc, body->u.smallint.value));
+    }
 }
 
 /* Set the size on the STable. */
@@ -119,6 +145,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 /* Deserializes the bigint. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    /* XXX Needs smallint handling. */
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     MVMuint64 output_size;
     const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
