@@ -1110,8 +1110,13 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
 #endif
         heap_size += bytelen;
 
-        /* Add alignment. */
-        heap_size += align;
+        /* Add alignment. Whilst we never read this memory, it's useful to
+           ensure it is initialised, otherwise valgrind (and similar tools)
+           will rightly complain that we're writing garbage to disk. */
+        if (align) {
+            memset(heap + heap_size, 0, align);
+            heap_size += align;
+        }
     }
 
     *string_heap_size = heap_size;
