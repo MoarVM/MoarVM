@@ -101,6 +101,74 @@ static int can_be_smallint(mp_int *i) {
     return MVM_IS_32BIT_INT(DIGIT(i, 0));
 }
 
+/* Forces a bigint, even if we only have a smallint. Takes a parameter that
+ * indicates where to allocate a temporary mp_int if needed. */
+static mp_int * force_bigint(MVMP6bigintBody *body, mp_int **tmp) {
+    if (MVM_BIGINT_IS_BIG(body)) {
+        return body->u.bigint;
+    }
+    else {
+        MVMint32 value = body->u.smallint.value;
+        mp_int *i = malloc(sizeof(mp_int));
+        mp_init(i);
+        if (value >= 0) {
+            mp_set_long(i, value);
+        }
+        else {
+            mp_set_long(i, -value);
+            mp_neg(i, i);
+        }
+        *tmp = i;
+        return i;
+    }
+}
+
+/* Clears an array that may contain tempory big ints. */
+static void clear_temp_bigints(mp_int **ints, MVMint32 n) {
+    MVMint32 i;
+    for (i = 0; i < n; i++)
+        if (ints[i]) {
+            mp_clear(ints[i]);
+            free(ints[i]);
+        }
+}
+
+/* Stores an int64 in a bigint result body, either as a 32-bit smallint if it
+ * is in range, or a big integer if not. */
+static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
+    if (MVM_IS_32BIT_INT(result)) {
+        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+        body->u.smallint.value = (MVMint32)result;
+    }
+    else {
+        mp_int *i = malloc(sizeof(mp_int));
+        mp_init(i);
+        if (result >= 0) {
+            mp_set_long(i, result);
+        }
+        else {
+            mp_set_long(i, -result);
+            mp_neg(i, i);
+        }
+        body->u.bigint = i;
+    }
+}
+
+/* Stores an bigint in a bigint result body, either as a 32-bit smallint if it
+ * is in range, or a big integer if not. Clears and frees the passed bigint if
+ * it is not being used. */
+static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
+    if (can_be_smallint(i)) {
+        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+        body->u.smallint.value = SIGN(i) ? -DIGIT(i, 0) : DIGIT(i, 0);
+        mp_clear(i);
+        free(i);
+    }
+    else {
+        body->u.bigint = i;
+    }
+}
+
 static void grow_and_negate(mp_int *a, int size, mp_int *b) {
     int i;
     int actual_size = MAX(size, USED(a));
@@ -173,6 +241,30 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, 
     mp_##opname(ia, ib, ic); \
 }
 
+#define MVM_BIGINT_BINARY_OP_SIMPLE(opname, SMALLINT_OP) \
+void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
+    MVMP6bigintBody *ba = get_bigint_body(tc, a); \
+    MVMP6bigintBody *bb = get_bigint_body(tc, b); \
+    MVMP6bigintBody *bc = get_bigint_body(tc, result); \
+    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
+        mp_int *tmp[2] = { NULL, NULL }; \
+        mp_int *ia = force_bigint(ba, tmp); \
+        mp_int *ib = force_bigint(bb, tmp); \
+        mp_int *ic = malloc(sizeof(mp_int)); \
+        mp_init(ic); \
+        mp_##opname(ia, ib, ic); \
+        store_bigint_result(bc, ic); \
+        clear_temp_bigints(tmp, 2); \
+    } \
+    else { \
+        MVMint64 sc; \
+        MVMint64 sa = ba->u.smallint.value; \
+        MVMint64 sb = bb->u.smallint.value; \
+        SMALLINT_OP; \
+        store_int64_result(bc, sc); \
+    } \
+}
+
 #define MVM_BIGINT_BINARY_OP_2(opname) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
     mp_int *ia = get_bigint(tc, a); \
@@ -181,21 +273,14 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, 
     two_complement_bitop(ia, ib, ic, mp_##opname); \
 }
 
-#define MVM_BIGINT_COMPARE_OP(opname) \
-MVMint64 MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = get_bigint(tc, a); \
-    mp_int *ib = get_bigint(tc, b); \
-    return (MVMint64) mp_##opname(ia, ib); \
-}
-
 MVM_BIGINT_UNARY_OP(abs)
 MVM_BIGINT_UNARY_OP(neg)
 /* unused */
 /* MVM_BIGINT_UNARY_OP(sqrt) */
 
-MVM_BIGINT_BINARY_OP(add)
-MVM_BIGINT_BINARY_OP(sub)
-MVM_BIGINT_BINARY_OP(mul)
+MVM_BIGINT_BINARY_OP_SIMPLE(add, { sc = sa + sb; })
+MVM_BIGINT_BINARY_OP_SIMPLE(sub, { sc = sa - sb; })
+MVM_BIGINT_BINARY_OP_SIMPLE(mul, { sc = sa * sb; })
 MVM_BIGINT_BINARY_OP(gcd)
 MVM_BIGINT_BINARY_OP(lcm)
 
@@ -203,7 +288,24 @@ MVM_BIGINT_BINARY_OP_2(or)
 MVM_BIGINT_BINARY_OP_2(xor)
 MVM_BIGINT_BINARY_OP_2(and)
 
-MVM_BIGINT_COMPARE_OP(cmp)
+MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        mp_int *tmp[2] = { NULL, NULL };
+        mp_int *ia = force_bigint(ba, tmp);
+        mp_int *ib = force_bigint(bb, tmp);
+        MVMint64 r = (MVMint64)mp_cmp(ia, ib);
+        clear_temp_bigints(tmp, 2);
+        return r;
+    }
+    else {
+        MVMint64 sc;
+        MVMint64 sa = ba->u.smallint.value;
+        MVMint64 sb = bb->u.smallint.value;
+        return sa == sb ? 0 : sa <  sb ? -1 : 1;
+    }
+}
 
 void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
     mp_int *ia = get_bigint(tc, a);
@@ -329,7 +431,7 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
     mp_read_radix(i, (const char *)buf, 10);
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = DIGIT(i, 0);
+        body->u.smallint.value = SIGN(i) ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
         free(i);
     }
@@ -534,5 +636,9 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
 }
 
 MVMint64 MVM_bigint_bool(MVMThreadContext *tc, MVMObject *a) {
-    return !mp_iszero(get_bigint(tc, a));
+    MVMP6bigintBody *body = get_bigint_body(tc, a);
+    if (MVM_BIGINT_IS_BIG(body))
+        return !mp_iszero(body->u.bigint);
+    else
+        return body->u.smallint.value != 0;
 }
