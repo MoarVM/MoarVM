@@ -204,7 +204,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     if (readable) {
         /* We want to read from the child's stdout. */
         out = malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, out, 1);
+        uv_pipe_init(tc->loop, out, 0);
         uv_pipe_open(out, 0);
         process_stdio[0].flags       = UV_INHERIT_FD; // child's stdin
         process_stdio[0].data.fd     = 0;
@@ -214,7 +214,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     else {
         /* We want to print to the child's stdin. */
         in  = malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, in, 1);
+        uv_pipe_init(tc->loop, in, 0);
         uv_pipe_open(in, 1);
         process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE; // child's stdin
         process_stdio[0].data.stream = (uv_stream_t*)in;
