@@ -25,19 +25,21 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
-    mp_init(&body->i);
-    mp_zero(&body->i);
+    body->bigint = malloc(sizeof(mp_int));
+    mp_init(body->bigint);
+    mp_zero(body->bigint);
 }
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMP6bigintBody *src_body = (MVMP6bigintBody *)src;
     MVMP6bigintBody *dest_body = (MVMP6bigintBody *)dest;
-    mp_init_copy(&dest_body->i, &src_body->i);
+    dest_body->bigint = malloc(sizeof(mp_int));
+    mp_init_copy(dest_body->bigint, src_body->bigint);
 }
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
-    mp_int *i = &((MVMP6bigintBody *)data)->i;
+    mp_int *i = ((MVMP6bigintBody *)data)->bigint;
     if (value >= 0) {
         mp_set_long(i, value);
     }
@@ -48,7 +50,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 }
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMint64 ret;
-    mp_int *i = &((MVMP6bigintBody *)data)->i;
+    mp_int *i = ((MVMP6bigintBody *)data)->bigint;
     if (MP_LT == mp_cmp_d(i, 0)) {
         mp_neg(i, i);
         ret = mp_get_long(i);
@@ -62,7 +64,7 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     if (repr_id == MVM_REPR_ID_P6bigint)
-        return &((MVMP6bigintBody *)data)->i;
+        return data;
 
     MVM_exception_throw_adhoc(tc,
         "P6bigint representation cannot unbox to other types");
@@ -72,7 +74,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
     spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.bits            = sizeof(mp_int) * 8;
+    spec.bits            = sizeof(MVMP6bigintBody) * 8;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
     spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
     return spec;
@@ -84,16 +86,18 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
-    mp_clear(&((MVMP6bigintBody *)data)->i);
+    mp_clear(((MVMP6bigintBody *)data)->bigint);
+    free(((MVMP6bigintBody *)data)->bigint);
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    mp_clear(&((MVMP6bigint *)obj)->body.i);
+    mp_clear(((MVMP6bigint *)obj)->body.bigint);
+    free(((MVMP6bigint *)obj)->body.bigint);
 }
 
 /* Serializes the bigint. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    mp_int *i = &((MVMP6bigintBody *)data)->i;
+    mp_int *i = ((MVMP6bigintBody *)data)->bigint;
     int len;
     char *buf;
     MVMString *str;
@@ -118,8 +122,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     MVMuint64 output_size;
     const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
-    mp_init(&body->i);
-    mp_read_radix(&body->i, buf, 10);
+    body->bigint = malloc(sizeof(mp_int));
+    mp_init(body->bigint);
+    mp_read_radix(body->bigint, buf, 10);
 }
 
 /* Initializes the representation. */

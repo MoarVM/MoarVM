@@ -1,9 +1,9 @@
 #include "tommath.h"
 
-/* Representation used by P6 Ints. */
+/* Representation used by big integers; inlined into P6bigint. */
 struct MVMP6bigintBody {
-    /* Big integer storage slot. */
-    mp_int i;
+    /* Pointer to a libtommath big integer. */
+    mp_int *bigint;
 };
 struct MVMP6bigint {
     MVMObject common;
