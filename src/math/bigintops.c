@@ -79,12 +79,26 @@ static void from_num(MVMnum64 d, mp_int *a) {
 /* XXX This doesn't work at all on smallint. It survives while we upgrade all
  * the code calling it to cope with the smallint case. Then we toss it. */
 static mp_int * get_bigint(MVMThreadContext *tc, MVMObject *obj) {
-    MVMP6bigintBody *body = REPR(obj)->box_funcs.get_boxed_ref(tc, STABLE(obj), obj,
-        OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
+    MVMP6bigintBody *body = (MVMP6bigintBody *)REPR(obj)->box_funcs.get_boxed_ref(tc,
+        STABLE(obj), obj, OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
     if (MVM_BIGINT_IS_BIG(body))
         return body->u.bigint;
     else
         MVM_exception_throw_adhoc(tc, "Incomplete smallint handling!");
+}
+
+/* Returns the body of a P6bigint, containing the bigint/smallint union, for
+ * operations that want to explicitly handle the two. */
+static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
+    return (MVMP6bigintBody *)REPR(obj)->box_funcs.get_boxed_ref(tc,
+        STABLE(obj), obj, OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
+}
+
+/* Checks if a bigint can be stored small. */
+static int can_be_smallint(mp_int *i) {
+    if (USED(i) != 1)
+        return 0;
+    return MVM_IS_32BIT_INT(DIGIT(i, 0));
 }
 
 static void grow_and_negate(mp_int *a, int size, mp_int *b) {
@@ -309,22 +323,67 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
 }
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
-    mp_int *i = get_bigint(tc, a);
+    MVMP6bigintBody *body = get_bigint_body(tc, a);
+    mp_int *i = malloc(sizeof(mp_int));
+    mp_init(i);
     mp_read_radix(i, (const char *)buf, 10);
+    if (can_be_smallint(i)) {
+        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+        body->u.smallint.value = DIGIT(i, 0);
+        mp_clear(i);
+        free(i);
+    }
+    else {
+        body->u.bigint = i;
+    }
 }
 
-/* XXXX: This feels wrongly factored and possibly GC-unsafe */
 MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
-    mp_int *i = get_bigint(tc, a);
-    int len;
-    char *buf;
-    MVMString *result;
-    mp_radix_size(i, base, &len);
-    buf = (char *) malloc(len);
-    mp_toradix_n(i, buf, base, len);
-    result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
-    free(buf);
-    return result;
+    MVMP6bigintBody *body = get_bigint_body(tc, a);
+    if (MVM_BIGINT_IS_BIG(body)) {
+        mp_int *i = body->u.bigint;
+        int len;
+        char *buf;
+        MVMString *result;
+        mp_radix_size(i, base, &len);
+        buf = (char *) malloc(len);
+        mp_toradix_n(i, buf, base, len);
+        result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
+        free(buf);
+        return result;
+    }
+    else {
+        if (base == 10) {
+            return MVM_coerce_i_s(tc, body->u.smallint.value);
+        }
+        else {
+            /* It's small, but shove it through bigint lib, as it knows how to
+             * get other bases right. */
+            mp_int i;
+            int len;
+            char *buf;
+            MVMString *result;
+
+            MVMint32 value = body->u.smallint.value;
+            mp_init(&i);
+            if (value >= 0) {
+                mp_set_long(&i, value);
+            }
+            else {
+                mp_set_long(&i, -value);
+                mp_neg(&i, &i);
+            }
+
+            mp_radix_size(&i, base, &len);
+            buf = (char *) malloc(len);
+            mp_toradix_n(&i, buf, base, len);
+            result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
+            free(buf);
+            mp_clear(&i);
+
+            return result;
+        }
+    }
 }
 
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
