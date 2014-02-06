@@ -164,7 +164,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     MVMObject *type_object;
     MVMOSHandle *resultfh;
     int status;
-    int readable = 0;
+    int readable = 1;
     uv_pipe_t *out, *in;
 
     char * const cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
@@ -191,8 +191,9 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 #endif
 
     INIT_ENV();
-    
-    readable = strncmp(cmdin, "/usr/bin/wc", 11) != 0;
+    /* Making openpipe distinguish between :rp and :wp and all other options
+     * is left as an excercise for the reader. 
+    readable = strncmp(cmdin, "/usr/bin/wc", 11) != 0; */
 
     if (readable) {
         /* We want to read from the child's stdout. */
