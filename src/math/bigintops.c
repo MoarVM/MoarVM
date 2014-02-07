@@ -615,8 +615,14 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
 }
 
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
-    mp_int *ia = get_bigint(tc, a);
-    return mp_get_double(ia);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+
+    if (MVM_BIGINT_IS_BIG(ba)) {
+        mp_int *ia = ba->u.bigint;
+        return mp_get_double(ia);
+    } else {
+        return (double)ba->u.smallint.value;
+    }
 }
 
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
