@@ -703,12 +703,18 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     MVMint64 chars  = NUM_GRAPHS(str);
     MVMuint16  neg  = 0;
     MVMint64   ch;
+
     mp_int zvalue;
     mp_int zbase;
+
     MVMObject *value_obj;
     mp_int *value;
+    MVMP6bigintBody *bvalue;
+
     MVMObject *base_obj;
     mp_int *base;
+    MVMP6bigintBody *bbase;
+
     MVMObject *pos_obj;
     MVMint64   pos  = -1;
 
@@ -734,8 +740,14 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     base_obj = MVM_repr_alloc_init(tc, type);
     MVM_repr_push_o(tc, result, base_obj);
 
-    value = get_bigint(tc, value_obj);
-    base = get_bigint(tc, base_obj);
+    bvalue = get_bigint_body(tc, value_obj);
+    bbase  = get_bigint_body(tc, base_obj);
+
+    value = malloc(sizeof(mp_int));
+    base  = malloc(sizeof(mp_int));
+
+    mp_init(value);
+    mp_init(base);
 
     mp_set_int(base, 1);
 
@@ -771,6 +783,9 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     if (neg || flag & 0x01) {
         mp_neg(value, value);
     }
+
+    store_bigint_result(bvalue, value);
+    store_bigint_result(bbase, base);
 
     pos_obj = MVM_repr_alloc_init(tc, type);
     MVM_repr_set_int(tc, pos_obj, pos);
