@@ -124,6 +124,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
+        // write the "is big" flag
+        writer->write_varint(tc, writer, 1);
         mp_int *i = body->u.bigint;
         int len;
         char *buf;
@@ -139,7 +141,9 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         free(buf);
     }
     else {
-        writer->write_str(tc, writer, MVM_coerce_i_s(tc, body->u.smallint.value));
+        // write the "is small" flag
+        writer->write_varint(tc, writer, 1);
+        writer->write_varint(tc, writer, body->u.smallint.value);
     }
 }
 
@@ -150,13 +154,26 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 /* Deserializes the bigint. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    /* XXX Needs smallint handling. */
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     MVMuint64 output_size;
-    const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
-    body->u.bigint = malloc(sizeof(mp_int));
-    mp_init(body->u.bigint);
-    mp_read_radix(body->u.bigint, buf, 10);
+    int read_bigint = 0;
+
+    if (reader->root.version >= 10) {
+        if (reader->read_varint(tc, reader) == 1) {
+            body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+            body->u.smallint.value = reader->read_varint(tc, reader);
+        } else {
+            read_bigint = 1;
+        }
+    } else {
+        read_bigint = 1;
+    }
+    if (read_bigint) {
+        const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
+        body->u.bigint = malloc(sizeof(mp_int));
+        mp_init(body->u.bigint);
+        mp_read_radix(body->u.bigint, buf, 10);
+    }
 }
 
 /* Initializes the representation. */

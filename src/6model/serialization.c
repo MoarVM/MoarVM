@@ -8,7 +8,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 9
+#define CURRENT_VERSION 10
 #define VARINT_MIN_VERSION 9
 #define MIN_VERSION     5
 
