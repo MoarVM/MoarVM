@@ -500,11 +500,21 @@ void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
 }
 
 void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a) {
-    mp_int *ia = get_bigint(tc, a);
-    mp_int *ib = get_bigint(tc, result);
-    /* two's complement not: add 1 and negate */
-    mp_add_d(ia, 1, ib);
-    mp_neg(ib, ib);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, result);
+    if (MVM_BIGINT_IS_BIG(ba)) {
+        mp_int *ia = ba->u.bigint;
+        mp_int *ib = malloc(sizeof(mp_int));
+        mp_init(ib);
+        /* two's complement not: add 1 and negate */
+        mp_add_d(ia, 1, ib);
+        mp_neg(ib, ib);
+        store_bigint_result(bb, ib);
+    } else {
+        MVMint32 value = ba->u.smallint.value;
+        MVMint32 result = ~value;
+        store_int64_result(bb, result);
+    }
 }
 
 void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b, MVMObject *c) {
