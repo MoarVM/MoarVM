@@ -669,14 +669,25 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
     /* mp_prime_is_prime returns True for 1, and I think
      * it's worth special-casing this particular number :-)
      */
-    mp_int *ia = get_bigint(tc, a);
-    if (mp_cmp_d(ia, 1) == MP_EQ) {
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+
+    if (MVM_BIGINT_IS_BIG(ba) || ba->u.smallint.value != 1) {
+        mp_int *tmp[1] = { NULL };
+        mp_int *ia = force_bigint(ba, tmp);
+        if (mp_cmp_d(ia, 1) == MP_EQ) {
+            clear_temp_bigints(tmp, 1);
+            return 0;
+        }
+        else {
+            int result;
+            mp_prime_is_prime(ia, b, &result);
+            clear_temp_bigints(tmp, 1);
+            return result;
+        }
+    } else {
+        // we only reach this if we have a smallint that's equal to 1.
+        // which we define as not-prime.
         return 0;
-    }
-    else {
-        int result;
-        mp_prime_is_prime(ia, b, &result);
-        return result;
     }
 }
 
