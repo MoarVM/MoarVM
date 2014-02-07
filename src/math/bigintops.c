@@ -517,12 +517,14 @@ void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
 void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, result);
-    if (MVM_BIGINT_IS_BIG(ba)) {
-        mp_int *ia = ba->u.bigint;
+    if (MVM_BIGINT_IS_BIG(ba) || n < 0) {
+        mp_int *tmp[1] = { NULL };
+        mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = malloc(sizeof(mp_int));
         mp_init(ib);
         two_complement_shl(ib, ia, -n);
         store_bigint_result(bb, ib);
+        clear_temp_bigints(tmp, 1);
     } else {
         MVMint32 value = ba->u.smallint.value;
         MVMint32 result = value >> n;
