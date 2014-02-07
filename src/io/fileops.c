@@ -283,6 +283,9 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVM_checked_free_null(handle->body.filename);
 
     if (handle->body.type == MVM_OSHANDLE_PIPE) {
+        if (uv_is_closing((uv_handle_t*)handle->body.u.handle)) {
+            return;
+        }
         /* closing the in-/output std filehandle will shutdown the child process. */
         uv_unref((uv_handle_t*)handle->body.u.handle);
         uv_close((uv_handle_t*)handle->body.u.handle, NULL);
