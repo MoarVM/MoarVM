@@ -265,12 +265,28 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, 
     } \
 }
 
-#define MVM_BIGINT_BINARY_OP_2(opname) \
+#define MVM_BIGINT_BINARY_OP_2(opname, SMALLINT_OP) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = get_bigint(tc, a); \
-    mp_int *ib = get_bigint(tc, b); \
-    mp_int *ic = get_bigint(tc, result); \
-    two_complement_bitop(ia, ib, ic, mp_##opname); \
+    MVMP6bigintBody *ba = get_bigint_body(tc, a); \
+    MVMP6bigintBody *bb = get_bigint_body(tc, b); \
+    MVMP6bigintBody *bc = get_bigint_body(tc, result); \
+    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
+        mp_int *tmp[2] = { NULL, NULL }; \
+        mp_int *ia = force_bigint(ba, tmp); \
+        mp_int *ib = force_bigint(bb, tmp); \
+        mp_int *ic = malloc(sizeof(mp_int)); \
+        mp_init(ic); \
+        two_complement_bitop(ia, ib, ic, mp_##opname); \
+        store_bigint_result(bc, ic); \
+        clear_temp_bigints(tmp, 2); \
+    } \
+    else { \
+        MVMint64 sc; \
+        MVMint64 sa = ba->u.smallint.value; \
+        MVMint64 sb = bb->u.smallint.value; \
+        SMALLINT_OP; \
+        store_int64_result(bc, sc); \
+    } \
 }
 
 MVM_BIGINT_UNARY_OP(abs)
@@ -284,9 +300,9 @@ MVM_BIGINT_BINARY_OP_SIMPLE(mul, { sc = sa * sb; })
 MVM_BIGINT_BINARY_OP(gcd)
 MVM_BIGINT_BINARY_OP(lcm)
 
-MVM_BIGINT_BINARY_OP_2(or)
-MVM_BIGINT_BINARY_OP_2(xor)
-MVM_BIGINT_BINARY_OP_2(and)
+MVM_BIGINT_BINARY_OP_2(or , { sc = sa | sb; })
+MVM_BIGINT_BINARY_OP_2(xor, { sc = sa ^ sb; })
+MVM_BIGINT_BINARY_OP_2(and, { sc = sa & sb; })
 
 MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
