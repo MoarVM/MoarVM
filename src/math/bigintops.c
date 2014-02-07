@@ -501,10 +501,13 @@ void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, result);
     if (MVM_BIGINT_IS_BIG(ba) || n >= 31) {
-        mp_int *ia = ba->u.bigint;
+        mp_int *tmp[1] = { NULL };
+        mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = malloc(sizeof(mp_int));
+        mp_init(ib);
         two_complement_shl(ib, ia, n);
         store_bigint_result(bb, ib);
+        clear_temp_bigints(tmp, 1);
     } else {
         MVMint64 result = ((MVMint64)ba->u.smallint.value) << n;
         store_int64_result(bb, result);
