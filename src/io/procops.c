@@ -151,12 +151,13 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 } while (0)
 
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
+    *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
     uv_unref((uv_handle_t *)req);
     uv_close((uv_handle_t *)req, NULL);
 }
 
 MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
-    MVMint64 result = 0, spawn_result;
+    MVMint64 result = 0, spawn_result = 0;
     uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
@@ -258,7 +259,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 }
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
-    MVMint64 result, spawn_result;
+    MVMint64 result = 0, spawn_result = 0;
     uv_process_t process = {0};
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
@@ -308,7 +309,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 }
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
-    MVMint64 result, spawn_result;
+    MVMint64 result = 0, spawn_result = 0;
     uv_process_t process = {0};
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
