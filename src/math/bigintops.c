@@ -441,9 +441,19 @@ void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
 }
 
 void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n) {
-    mp_int *ia = get_bigint(tc, a);
-    mp_int *ib = get_bigint(tc, result);
-    two_complement_shl(ib, ia, n);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, result);
+    if (MVM_BIGINT_IS_BIG(ba) || n >= 31) {
+        mp_int *tmp[1] = { NULL };
+        mp_int *ia = ba->u.bigint;
+        mp_int *ib = force_bigint(bb, tmp);
+        two_complement_shl(ib, ia, n);
+        clear_temp_bigints(tmp, 1);
+        store_bigint_result(bb, ib);
+    } else {
+        MVMint64 result = ((MVMint64)ba->u.smallint.value) << n;
+        store_int64_result(bb, result);
+    }
 }
 
 void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n) {
