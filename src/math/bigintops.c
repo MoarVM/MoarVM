@@ -525,11 +525,22 @@ void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a) {
 }
 
 void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b, MVMObject *c) {
-    mp_int *ia = get_bigint(tc, a);
-    mp_int *ib = get_bigint(tc, b);
-    mp_int *ic = get_bigint(tc, c);
-    mp_int *id = get_bigint(tc, result);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a); \
+    MVMP6bigintBody *bb = get_bigint_body(tc, b); \
+    MVMP6bigintBody *bc = get_bigint_body(tc, c); \
+    MVMP6bigintBody *bd = get_bigint_body(tc, result); \
+
+    mp_int *tmp[3] = { NULL, NULL, NULL };
+
+    mp_int *ia = force_bigint(ba, tmp);
+    mp_int *ib = force_bigint(bb, tmp);
+    mp_int *ic = force_bigint(bc, tmp);
+    mp_int *id = malloc(sizeof(mp_int));
+    mp_init(id);
+
     mp_exptmod(ia, ib, ic, id);
+    store_bigint_result(bd, id);
+    clear_temp_bigints(tmp, 3);
 }
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
