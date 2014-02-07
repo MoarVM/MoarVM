@@ -525,10 +525,10 @@ void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a) {
 }
 
 void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b, MVMObject *c) {
-    MVMP6bigintBody *ba = get_bigint_body(tc, a); \
-    MVMP6bigintBody *bb = get_bigint_body(tc, b); \
-    MVMP6bigintBody *bc = get_bigint_body(tc, c); \
-    MVMP6bigintBody *bd = get_bigint_body(tc, result); \
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+    MVMP6bigintBody *bc = get_bigint_body(tc, c);
+    MVMP6bigintBody *bd = get_bigint_body(tc, result);
 
     mp_int *tmp[3] = { NULL, NULL, NULL };
 
