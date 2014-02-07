@@ -226,11 +226,23 @@ static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
     }
 }
 
-#define MVM_BIGINT_UNARY_OP(opname) \
+#define MVM_BIGINT_UNARY_OP(opname, SMALLINT_OP) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *source) { \
-    mp_int *ia = get_bigint(tc, source); \
-    mp_int *ib = get_bigint(tc, result); \
-    mp_##opname(ia, ib); \
+    MVMP6bigintBody *ba = get_bigint_body(tc, source); \
+    MVMP6bigintBody *bb = get_bigint_body(tc, result); \
+    if (MVM_BIGINT_IS_BIG(ba)) { \
+        mp_int *ia = ba->u.bigint; \
+        mp_int *ib = malloc(sizeof(mp_int)); \
+        mp_init(ib); \
+        mp_##opname(ia, ib); \
+        store_bigint_result(bb, ib); \
+    } \
+    else { \
+        MVMint64 sb; \
+        MVMint64 sa = ba->u.smallint.value; \
+        SMALLINT_OP; \
+        store_int64_result(bb, sb); \
+    } \
 }
 
 #define MVM_BIGINT_BINARY_OP(opname) \
@@ -289,8 +301,9 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, 
     } \
 }
 
-MVM_BIGINT_UNARY_OP(abs)
-MVM_BIGINT_UNARY_OP(neg)
+MVM_BIGINT_UNARY_OP(abs, { sb = abs(sa); })
+MVM_BIGINT_UNARY_OP(neg, { sb = -sa; })
+
 /* unused */
 /* MVM_BIGINT_UNARY_OP(sqrt) */
 
