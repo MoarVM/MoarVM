@@ -429,9 +429,14 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
 }
 
 void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
-    mp_int *base        = get_bigint(tc, a);
-    mp_int *exponent    = get_bigint(tc, b);
-    mp_int *ic          = get_bigint(tc, result);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+    MVMP6bigintBody *bc = get_bigint_body(tc, result);
+
+    mp_int *tmp[2] = { NULL, NULL };
+    mp_int *base        = force_bigint(ba, tmp);
+    mp_int *exponent    = force_bigint(bb, tmp);
+    mp_int *ic          = malloc(sizeof(mp_int));
     mp_digit exponent_d = 0;
     int cmp             = mp_cmp_d(exponent, 0);
     mp_init(ic);
@@ -467,6 +472,8 @@ void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
             mp_set_int(ic, pow(f_base, f_exp));
         }
     }
+    store_bigint_result(bc, ic);
+    clear_temp_bigints(tmp, 2);
 }
 
 void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n) {
