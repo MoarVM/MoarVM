@@ -460,11 +460,9 @@ void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, result);
     if (MVM_BIGINT_IS_BIG(ba) || n >= 31) {
-        mp_int *tmp[1] = { NULL };
         mp_int *ia = ba->u.bigint;
-        mp_int *ib = force_bigint(bb, tmp);
+        mp_int *ib = malloc(sizeof(mp_int));
         two_complement_shl(ib, ia, n);
-        clear_temp_bigints(tmp, 1);
         store_bigint_result(bb, ib);
     } else {
         MVMint64 result = ((MVMint64)ba->u.smallint.value) << n;
@@ -476,11 +474,9 @@ void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, result);
     if (MVM_BIGINT_IS_BIG(ba)) {
-        mp_int *tmp[1] = { NULL };
         mp_int *ia = ba->u.bigint;
-        mp_int *ib = force_bigint(result, tmp);
+        mp_int *ib = malloc(sizeof(mp_int));
         two_complement_shl(ib, ia, -n);
-        clear_temp_bigints(tmp, 1);
         store_bigint_result(bb, ib);
     } else {
         MVMint32 value = ba->u.smallint.value;
