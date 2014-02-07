@@ -247,10 +247,17 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *sou
 
 #define MVM_BIGINT_BINARY_OP(opname) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
-    mp_int *ia = get_bigint(tc, a); \
-    mp_int *ib = get_bigint(tc, b); \
-    mp_int *ic = get_bigint(tc, result); \
+    MVMP6bigintBody *ba = get_bigint_body(tc, a); \
+    MVMP6bigintBody *bb = get_bigint_body(tc, b); \
+    MVMP6bigintBody *bc = get_bigint_body(tc, result); \
+    mp_int *tmp[2] = { NULL, NULL }; \
+    mp_int *ia = force_bigint(ba, tmp); \
+    mp_int *ib = force_bigint(bb, tmp); \
+    mp_int *ic = malloc(sizeof(mp_int)); \
+    mp_init(ic); \
     mp_##opname(ia, ib, ic); \
+    store_bigint_result(bc, ic); \
+    clear_temp_bigints(tmp, 2); \
 }
 
 #define MVM_BIGINT_BINARY_OP_SIMPLE(opname, SMALLINT_OP) \
