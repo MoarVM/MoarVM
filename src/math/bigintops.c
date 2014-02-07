@@ -344,14 +344,28 @@ MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
 }
 
 void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
-    mp_int *ia = get_bigint(tc, a);
-    mp_int *ib = get_bigint(tc, b);
-    mp_int *ic = get_bigint(tc, result);
-    int mp_result;
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+    MVMP6bigintBody *bc = get_bigint_body(tc, result);
 
-    mp_result = mp_mod(ia, ib, ic);
-    if (mp_result == MP_VAL)
-        MVM_exception_throw_adhoc(tc, "Division by zero");
+    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        mp_int *tmp[2] = { NULL, NULL };
+        mp_int *ia = force_bigint(ba, tmp);
+        mp_int *ib = force_bigint(bb, tmp);
+        mp_int *ic = malloc(sizeof(mp_int));
+        int mp_result;
+
+        mp_init(ic);
+
+        mp_result = mp_mod(ia, ib, ic);
+        if (mp_result == MP_VAL) {
+            clear_temp_bigints(tmp, 2);
+            MVM_exception_throw_adhoc(tc, "Division by zero");
+        }
+        store_bigint_result(bc, ic);
+    } else {
+        store_int64_result(bc, ba->u.smallint.value % bb->u.smallint.value);
+    }
 }
 
 void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
