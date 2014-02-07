@@ -621,22 +621,31 @@ void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
 }
 
 MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
     MVMnum64 c;
-    mp_int *ia = get_bigint(tc, a);
-    mp_int *ib = get_bigint(tc, b);
 
-    int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
-    if (max_size > 1023) {
-        mp_int reduced_a, reduced_b;
-        mp_init(&reduced_a);
-        mp_init(&reduced_b);
-        mp_div_2d(ia, max_size - 1023, &reduced_a, NULL);
-        mp_div_2d(ib, max_size - 1023, &reduced_b, NULL);
-        c = mp_get_double(&reduced_a) / mp_get_double(&reduced_b);
-        mp_clear(&reduced_a);
-        mp_clear(&reduced_b);
+    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        mp_int *tmp[2] = { NULL, NULL };
+        mp_int *ia = force_bigint(ba, tmp);
+        mp_int *ib = force_bigint(bb, tmp);
+
+        int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
+        if (max_size > 1023) {
+            mp_int reduced_a, reduced_b;
+            mp_init(&reduced_a);
+            mp_init(&reduced_b);
+            mp_div_2d(ia, max_size - 1023, &reduced_a, NULL);
+            mp_div_2d(ib, max_size - 1023, &reduced_b, NULL);
+            c = mp_get_double(&reduced_a) / mp_get_double(&reduced_b);
+            mp_clear(&reduced_a);
+            mp_clear(&reduced_b);
+        } else {
+            c = mp_get_double(ia) / mp_get_double(ib);
+        }
+        clear_temp_bigints(tmp, 2);
     } else {
-        c = mp_get_double(ia) / mp_get_double(ib);
+        c = (double)ba->u.smallint.value / (double)bb->u.smallint.value;
     }
     return c;
 }
