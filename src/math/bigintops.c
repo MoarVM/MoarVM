@@ -602,8 +602,11 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
 }
 
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
-    mp_int *ia = get_bigint(tc, a);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    mp_int *ia = malloc(sizeof(mp_int));
+    mp_init(ia);
     from_num(n, ia);
+    store_bigint_result(ba, ia);
 }
 
 MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
