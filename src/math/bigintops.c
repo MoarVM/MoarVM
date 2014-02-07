@@ -476,6 +476,7 @@ void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
     if (MVM_BIGINT_IS_BIG(ba)) {
         mp_int *ia = ba->u.bigint;
         mp_int *ib = malloc(sizeof(mp_int));
+        mp_init(ib);
         two_complement_shl(ib, ia, -n);
         store_bigint_result(bb, ib);
     } else {
