@@ -319,39 +319,83 @@ void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
 }
 
 void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
-    mp_int *ia = get_bigint(tc, a);
-    mp_int *ib = get_bigint(tc, b);
-    mp_int *ic = get_bigint(tc, result);
-    int cmp_a = mp_cmp_d(ia, 0);
-    int cmp_b = mp_cmp_d(ib, 0);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+    MVMP6bigintBody *bc = get_bigint_body(tc, result);
+    mp_int *ia, *ib, *ic;
+    int cmp_a;
+    int cmp_b;
     mp_int remainder;
     mp_int intermediate;
 
     int mp_result;
 
-    // if we do a div with a negative, we need to make sure
-    // the result is floored rather than rounded towards
-    // zero, like C and libtommath would do.
-    if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
-        mp_init(&remainder);
-        mp_init(&intermediate);
-        mp_result = mp_div(ia, ib, &intermediate, &remainder);
-        if (mp_result == MP_VAL) {
+    if (MVM_BIGINT_IS_BIG(ba)) {
+        cmp_a = mp_cmp_d(ba->u.bigint, 0);
+    } else {
+        // we only care about MP_LT or !MP_LT, so we give MP_GT even for 0.
+        cmp_a = ba->u.smallint.value < 0 ? MP_LT : MP_GT;
+    }
+    if (MVM_BIGINT_IS_BIG(bb)) {
+        cmp_b = mp_cmp_d(bb->u.bigint, 0);
+    } else {
+        cmp_b = bb->u.smallint.value < 0 ? MP_LT : MP_GT;
+    }
+
+    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        mp_int *tmp[2] = { NULL, NULL };
+        ia = force_bigint(ba, tmp);
+        ib = force_bigint(bb, tmp);
+
+        ic = malloc(sizeof(mp_int));
+        mp_init(ic);
+
+        // if we do a div with a negative, we need to make sure
+        // the result is floored rather than rounded towards
+        // zero, like C and libtommath would do.
+        if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
+            mp_init(&remainder);
+            mp_init(&intermediate);
+            mp_result = mp_div(ia, ib, &intermediate, &remainder);
+            if (mp_result == MP_VAL) {
+                mp_clear(&remainder);
+                mp_clear(&intermediate);
+                clear_temp_bigints(tmp, 2);
+                MVM_exception_throw_adhoc(tc, "Division by zero");
+            }
+            if (mp_iszero(&remainder) == 0) {
+                mp_sub_d(&intermediate, 1, ic);
+            } else {
+                mp_copy(&intermediate, ic);
+            }
             mp_clear(&remainder);
             mp_clear(&intermediate);
-            MVM_exception_throw_adhoc(tc, "Division by zero");
-        }
-        if (mp_iszero(&remainder) == 0) {
-            mp_sub_d(&intermediate, 1, ic);
         } else {
-            mp_copy(&intermediate, ic);
+            mp_result = mp_div(ia, ib, ic, NULL);
+            if (mp_result == MP_VAL) {
+                clear_temp_bigints(tmp, 2);
+                MVM_exception_throw_adhoc(tc, "Division by zero");
+            }
         }
-        mp_clear(&remainder);
-        mp_clear(&intermediate);
+        store_bigint_result(bc, ic);
+        clear_temp_bigints(tmp, 2);
     } else {
-        mp_result = mp_div(ia, ib, ic, NULL);
-        if (mp_result == MP_VAL)
-            MVM_exception_throw_adhoc(tc, "Division by zero");
+        MVMint32 num   = ba->u.smallint.value;
+        MVMint32 denom = bb->u.smallint.value;
+        MVMint32 result;
+        if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
+            if (denom == 0) {
+                MVM_exception_throw_adhoc(tc, "Division by zero");
+            }
+            if ((num % denom) != 0) {
+                result = num / denom - 1;
+            } else {
+                result = num / denom;
+            }
+        } else {
+            result = num / denom;
+        }
+        store_int64_result(bc, result);
     }
 }
 
