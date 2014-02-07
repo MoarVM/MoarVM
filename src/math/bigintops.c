@@ -651,10 +651,18 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
 }
 
 void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
-    mp_int *rnd = get_bigint(tc, a);
-    mp_int *max = get_bigint(tc, b);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+
+    mp_int *tmp[1] = { NULL };
+    mp_int *rnd = malloc(sizeof(mp_int));
+    mp_int *max = force_bigint(bb, tmp);
+
+    mp_init(rnd);
     mp_rand(rnd, USED(max) + 1);
     mp_mod(rnd, max, rnd);
+    store_bigint_result(ba, rnd);
+    clear_temp_bigints(tmp, 1);
 }
 
 MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
