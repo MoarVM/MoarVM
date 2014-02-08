@@ -128,7 +128,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 } while (0)
 
 #define SPAWN(shell) do { \
-    process.data                = &result; \
+    process->data               = &result; \
     process_stdio[0].flags      = UV_IGNORE; \
     process_stdio[1].flags      = UV_INHERIT_FD; \
     process_stdio[1].data.fd    = 1; \
@@ -142,8 +142,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     process_options.env         = _env; \
     process_options.stdio_count = 3; \
     process_options.exit_cb     = spawn_on_exit; \
-    uv_ref((uv_handle_t *)&process); \
-    spawn_result = uv_spawn(tc->loop, &process, &process_options); \
+    uv_ref((uv_handle_t *)process); \
+    spawn_result = uv_spawn(tc->loop, process, &process_options); \
     if (spawn_result) \
         result = spawn_result; \
     else \
@@ -222,6 +222,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
         process_stdio[1].flags       = UV_INHERIT_FD; // child's stdout
         process_stdio[1].data.fd     = 1;
     }
+    process->data               = &result;
     process_stdio[2].flags      = UV_INHERIT_FD; // child's stderr
     process_stdio[2].data.fd    = 2;
     process_options.stdio       = process_stdio;
@@ -260,7 +261,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
     MVMint64 result = 0, spawn_result = 0;
-    uv_process_t process = {0};
+    uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -310,7 +311,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
     MVMint64 result = 0, spawn_result = 0;
-    uv_process_t process = {0};
+    uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
