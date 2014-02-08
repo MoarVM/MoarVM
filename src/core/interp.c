@@ -3864,7 +3864,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(symlink):
                 MVM_exception_throw_adhoc(tc, "symlink NYI");
             OP(link):
-                MVM_exception_throw_adhoc(tc, "link NYI");
+                MVM_file_link(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(gethostname):
                 GET_REG(cur_op, 0).s = MVM_get_hostname(tc);
                 cur_op += 2;

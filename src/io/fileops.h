@@ -54,3 +54,4 @@ void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
 void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);
 MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig);
+void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);
