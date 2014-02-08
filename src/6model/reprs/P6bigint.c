@@ -135,8 +135,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         /* len - 1 because buf is \0-terminated */
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
 
-        /* write the "is big" flag */
-        writer->write_varint(tc, writer, 1);
+        /* write the "is small" flag */
+        writer->write_varint(tc, writer, 0);
         writer->write_str(tc, writer, str);
         free(buf);
     }
