@@ -76,6 +76,32 @@ static void from_num(MVMnum64 d, mp_int *a) {
     mp_shrink(a);
 }
 
+/* Taken from mp_set_long, but portably accepts a 64-bit number. */
+static int mp_set_uint64(mp_int * a, MVMuint64 b) {
+  int     x, res;
+
+  mp_zero (a);
+  
+  /* set four bits at a time */
+  for (x = 0; x < sizeof(MVMuint64) * 2; x++) {
+    /* shift the number up four bits */
+    if ((res = mp_mul_2d (a, 4, a)) != MP_OKAY) {
+      return res;
+    }
+
+    /* OR in the top four bits of the source */
+    a->dp[0] |= (b >> ((sizeof(MVMuint64)) * 8 - 4)) & 15;
+
+    /* shift the source up to the next four bits */
+    b <<= 4;
+
+    /* ensure that digits are not clamped off */
+    a->used += 1;
+  }
+  mp_clamp(a);
+  return MP_OKAY;
+}
+
 /* Returns the body of a P6bigint, containing the bigint/smallint union, for
  * operations that want to explicitly handle the two. */
 static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
@@ -133,10 +159,10 @@ static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
         mp_int *i = malloc(sizeof(mp_int));
         mp_init(i);
         if (result >= 0) {
-            mp_set_long(i, result);
+            mp_set_uint64(i, (MVMuint64)result);
         }
         else {
-            mp_set_long(i, -result);
+            mp_set_uint64(i, (MVMuint64)-result);
             mp_neg(i, i);
         }
         body->u.bigint = i;
