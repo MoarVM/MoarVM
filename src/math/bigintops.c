@@ -76,17 +76,6 @@ static void from_num(MVMnum64 d, mp_int *a) {
     mp_shrink(a);
 }
 
-/* XXX This doesn't work at all on smallint. It survives while we upgrade all
- * the code calling it to cope with the smallint case. Then we toss it. */
-static mp_int * get_bigint(MVMThreadContext *tc, MVMObject *obj) {
-    MVMP6bigintBody *body = (MVMP6bigintBody *)REPR(obj)->box_funcs.get_boxed_ref(tc,
-        STABLE(obj), obj, OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
-    if (MVM_BIGINT_IS_BIG(body))
-        return body->u.bigint;
-    else
-        MVM_exception_throw_adhoc(tc, "Incomplete smallint handling!");
-}
-
 /* Returns the body of a P6bigint, containing the bigint/smallint union, for
  * operations that want to explicitly handle the two. */
 static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
