@@ -260,22 +260,31 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 }
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
-    MVMint64 result = 0, spawn_result = 0;
+    MVMint64 result = 0, spawn_result = 0, size;
     uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
+    MVMIter *iter;
     int i;
-
-    char * const cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
-    char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
-    const MVMuint64 size = MVM_repr_elems(tc, env);
-    MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
-    char **_env = malloc((size + 1) * sizeof(char *));
-
 #ifdef _WIN32
     const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
-    char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
-    char *args[3];
+    char *cmdin, *_cwd, *_cmd, **_env, *args[3];
+#else
+    char *cmdin, *_cwd, *_cmd, **_env, *args[4];
+#endif
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&env);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&cwd);
+    cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
+    _cwd  = MVM_string_utf8_encode_C_string(tc, cwd);
+    MVM_gc_root_temp_pop(tc); /* cwd */
+    size  = MVM_repr_elems(tc, env);
+    iter  = (MVMIter *)MVM_iter(tc, env);
+    MVM_gc_root_temp_pop(tc); /* env */
+    _env  = malloc((size + 1) * sizeof(char *));
+
+#ifdef _WIN32
+    _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
     args[0] = "/c";
     {
         MVMint64 len = strlen(cmdin);
@@ -287,8 +296,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     args[1] = cmdin;
     args[2] = NULL;
 #else
-    char * const _cmd = "/bin/sh";
-    char *args[4];
+    _cmd = "/bin/sh";
     args[0] = "/bin/sh";
     args[1] = "-c";
     args[2] = cmdin;
@@ -310,25 +318,31 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 }
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
-    MVMint64 result = 0, spawn_result = 0;
+    MVMint64 result = 0, spawn_result = 0, size, arg_size;
     uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
+    MVMIter *iter;
     int i;
+    char *cmdin, *_cwd, *_cmd, **_env, **args;
+    MVMRegister reg;
 
-    char   * const      _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
-    const MVMuint64     size = MVM_repr_elems(tc, env);
-    MVMIter * const     iter = (MVMIter *)MVM_iter(tc, env);
-    char              **_env = malloc((size + 1) * sizeof(char *));
-    const MVMuint64  arg_size = MVM_repr_elems(tc, argv);
-    char             **args = malloc((arg_size + 1) * sizeof(char *));
-    MVMRegister        reg;
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&argv);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&env);
+    _cwd     = MVM_string_utf8_encode_C_string(tc, cwd);
+    size     = MVM_repr_elems(tc, env);
+    iter     = (MVMIter *)MVM_iter(tc, env);
+    MVM_gc_root_temp_pop(tc); /* env */
+    _env     = malloc((size + 1) * sizeof(char *));
+    arg_size = MVM_repr_elems(tc, argv);
+    args     = malloc((arg_size + 1) * sizeof(char *));
 
     i = 0;
     while(i < arg_size) {
         REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
         args[i++] = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
     }
+    MVM_gc_root_temp_pop(tc); /* argv */
     args[arg_size] = NULL;
 
     INIT_ENV();
