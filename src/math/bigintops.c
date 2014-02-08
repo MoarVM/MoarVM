@@ -469,52 +469,53 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     }
 }
 
-void MVM_bigint_pow(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
+MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
+        MVMObject *num_type, MVMObject *int_type) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
-    MVMP6bigintBody *bc = get_bigint_body(tc, result);
+    MVMObject       *r  = NULL;
 
     mp_int *tmp[2] = { NULL, NULL };
     mp_int *base        = force_bigint(ba, tmp);
     mp_int *exponent    = force_bigint(bb, tmp);
-    mp_int *ic          = malloc(sizeof(mp_int));
     mp_digit exponent_d = 0;
     int cmp             = mp_cmp_d(exponent, 0);
-    mp_init(ic);
 
     if ((cmp == MP_EQ) || (MP_EQ == mp_cmp_d(base, 1))) {
-        mp_set_int(ic, 1);
+        r = MVM_repr_box_int(tc, int_type, 1);
     }
-    else {
-        if (cmp == MP_GT) {
-            exponent_d = mp_get_int(exponent);
-            if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
-                cmp = mp_cmp_d(base, 0);
-                if ((MP_EQ == cmp) || (MP_EQ == mp_cmp_d(base, 1))) {
-                    mp_copy(base, ic);
-                }
-                else {
-                    MVMnum64 ZERO = 0.0;
-                    if (MP_GT == cmp) {
-                        mp_set_int(ic, (MVMnum64)1.0 / ZERO);
-                    }
-                    else {
-                        mp_set_int(ic, (MVMnum64)(-1.0) / ZERO);
-                    }
-                }
+    else if (cmp == MP_GT) {
+        mp_int *ic = malloc(sizeof(mp_int));
+        mp_init(ic);
+        exponent_d = mp_get_int(exponent);
+        if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
+            cmp = mp_cmp_d(base, 0);
+            if ((MP_EQ == cmp) || (MP_EQ == mp_cmp_d(base, 1))) {
+                mp_copy(base, ic);
             }
             else {
-                mp_expt_d(base, exponent_d, ic);
+                MVMnum64 ZERO = 0.0;
+                if (MP_GT == cmp) {
+                    mp_set_int(ic, (MVMnum64)1.0 / ZERO);
+                }
+                else {
+                    mp_set_int(ic, (MVMnum64)(-1.0) / ZERO);
+                }
             }
         }
         else {
-            MVMnum64 f_base = mp_get_double(base);
-            MVMnum64 f_exp = mp_get_double(exponent);
-            mp_set_int(ic, pow(f_base, f_exp));
+            mp_expt_d(base, exponent_d, ic);
         }
+        r = MVM_repr_alloc_init(tc, int_type);
+        store_bigint_result(get_bigint_body(tc, r), ic);
     }
-    store_bigint_result(bc, ic);
+    else {
+        MVMnum64 f_base = mp_get_double(base);
+        MVMnum64 f_exp = mp_get_double(exponent);
+        r = MVM_repr_box_num(tc, num_type, pow(f_base, f_exp));
+    }
     clear_temp_bigints(tmp, 2);
+    return r;
 }
 
 void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n) {
