@@ -334,8 +334,35 @@ MVM_BIGINT_UNARY_OP(neg, { sb = -sa; })
 MVM_BIGINT_BINARY_OP_SIMPLE(add, { sc = sa + sb; })
 MVM_BIGINT_BINARY_OP_SIMPLE(sub, { sc = sa - sb; })
 MVM_BIGINT_BINARY_OP_SIMPLE(mul, { sc = sa * sb; })
-MVM_BIGINT_BINARY_OP(gcd)
 MVM_BIGINT_BINARY_OP(lcm)
+
+void MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+    MVMP6bigintBody *bc = get_bigint_body(tc, result);
+    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        mp_int *tmp[2] = { NULL, NULL };
+        mp_int *ia = force_bigint(ba, tmp);
+        mp_int *ib = force_bigint(bb, tmp);
+        mp_int *ic = malloc(sizeof(mp_int));
+        mp_init(ic);
+        mp_gcd(ia, ib, ic);
+        store_bigint_result(bc, ic);
+        clear_temp_bigints(tmp, 2);
+    } else {
+        MVMint32 sa = ba->u.smallint.value;
+        MVMint32 sb = bb->u.smallint.value;
+        MVMint32 t;
+        sa = abs(sa);
+        sb = abs(sb);
+        while (sb != 0) {
+            t  = sb;
+            sb = sa % sb;
+            sa = t;
+        }
+        store_int64_result(bc, sa);
+    }
+}
 
 MVM_BIGINT_BINARY_OP_2(or , { sc = sa | sb; })
 MVM_BIGINT_BINARY_OP_2(xor, { sc = sa ^ sb; })
