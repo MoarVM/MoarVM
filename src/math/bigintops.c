@@ -133,6 +133,8 @@ static mp_int * force_bigint(MVMP6bigintBody *body, mp_int **tmp) {
             mp_set_long(i, -value);
             mp_neg(i, i);
         }
+        while (tmp[0])
+            tmp++;
         *tmp = i;
         return i;
     }
