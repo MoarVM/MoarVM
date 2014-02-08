@@ -124,8 +124,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
-        // write the "is big" flag
-        writer->write_varint(tc, writer, 1);
         mp_int *i = body->u.bigint;
         int len;
         char *buf;
@@ -137,11 +135,13 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         /* len - 1 because buf is \0-terminated */
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
 
+        /* write the "is big" flag */
+        writer->write_varint(tc, writer, 1);
         writer->write_str(tc, writer, str);
         free(buf);
     }
     else {
-        // write the "is small" flag
+        /* write the "is small" flag */
         writer->write_varint(tc, writer, 1);
         writer->write_varint(tc, writer, body->u.smallint.value);
     }
