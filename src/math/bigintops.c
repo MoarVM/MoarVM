@@ -509,7 +509,11 @@ void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
         store_bigint_result(bb, ib);
         clear_temp_bigints(tmp, 1);
     } else {
-        MVMint64 result = ((MVMint64)ba->u.smallint.value) << n;
+        MVMint64 result;
+        if (n < 0)
+            result = ((MVMint64)ba->u.smallint.value) >> -n;
+        else
+            result = ((MVMint64)ba->u.smallint.value) << n;
         store_int64_result(bb, result);
     }
 }
