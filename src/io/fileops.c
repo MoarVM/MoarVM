@@ -1110,3 +1110,33 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
         return orig;
     }
 }
+
+void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath) {
+    uv_fs_t req;
+    char * const oldpath_s = MVM_string_utf8_encode_C_string(tc, oldpath);
+    char * const newpath_s = MVM_string_utf8_encode_C_string(tc, newpath);
+
+    if (uv_fs_link(tc->loop, &req, oldpath_s, newpath_s, NULL)) {
+        free(oldpath_s);
+        free(newpath_s);
+        MVM_exception_throw_adhoc(tc, "Failed to link file: %s", uv_strerror(req.result));
+    }
+
+    free(oldpath_s);
+    free(newpath_s);
+}
+
+void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath) {
+    uv_fs_t req;
+    char * const oldpath_s = MVM_string_utf8_encode_C_string(tc, oldpath);
+    char * const newpath_s = MVM_string_utf8_encode_C_string(tc, newpath);
+
+    if (uv_fs_symlink(tc->loop, &req, oldpath_s, newpath_s, 0, NULL)) {
+        free(oldpath_s);
+        free(newpath_s);
+        MVM_exception_throw_adhoc(tc, "Failed to symlink file: %s", uv_strerror(req.result));
+    }
+
+    free(oldpath_s);
+    free(newpath_s);
+}

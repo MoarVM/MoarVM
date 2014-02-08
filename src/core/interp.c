@@ -481,10 +481,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 / GET_REG(cur_op, 4).n64;
                 cur_op += 6;
                 goto NEXT;
-            OP(mod_n):
-                GET_REG(cur_op, 0).n64 = fmod(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
+            OP(mod_n): {
+                MVMnum64 a = GET_REG(cur_op, 2).n64;
+                MVMnum64 b = GET_REG(cur_op, 4).n64;
+                GET_REG(cur_op, 0).n64 = b == 0 ? a : a - b * floor(a / b);
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(neg_n):
                 GET_REG(cur_op, 0).n64 = -GET_REG(cur_op, 2).n64;
                 cur_op += 4;
@@ -1804,15 +1807,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
-            OP(pow_I): {
-                /* XXX Needs to handle the Num fallback case too. */
-                MVMObject *   const type = GET_REG(cur_op, 8).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_pow(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(pow_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_pow(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
                 cur_op += 10;
                 goto NEXT;
-            }
             OP(cmp_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
                 GET_REG(cur_op, 0).i64 = MVM_bigint_cmp(tc, a, b);
@@ -3864,9 +3863,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(symlink):
-                MVM_exception_throw_adhoc(tc, "symlink NYI");
+                MVM_file_symlink(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(link):
-                MVM_exception_throw_adhoc(tc, "link NYI");
+                MVM_file_link(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(gethostname):
                 GET_REG(cur_op, 0).s = MVM_get_hostname(tc);
                 cur_op += 2;
