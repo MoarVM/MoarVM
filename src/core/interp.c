@@ -481,10 +481,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 / GET_REG(cur_op, 4).n64;
                 cur_op += 6;
                 goto NEXT;
-            OP(mod_n):
-                GET_REG(cur_op, 0).n64 = fmod(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
+            OP(mod_n): {
+                MVMnum64 a = GET_REG(cur_op, 2).n64;
+                MVMnum64 b = GET_REG(cur_op, 4).n64;
+                GET_REG(cur_op, 0).n64 = b == 0 ? a : a - b * floor(a / b);
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(neg_n):
                 GET_REG(cur_op, 0).n64 = -GET_REG(cur_op, 2).n64;
                 cur_op += 4;
