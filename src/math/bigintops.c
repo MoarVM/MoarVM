@@ -348,7 +348,10 @@ void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
     MVMP6bigintBody *bc = get_bigint_body(tc, result);
 
-    if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+    // XXX the behavior of C's mod operator is not correct
+    // for our purposes. So we rely on mp_mod for all our modulus
+    // calculations for now.
+    if (1 || MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
         mp_int *tmp[2] = { NULL, NULL };
         mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = force_bigint(bb, tmp);
