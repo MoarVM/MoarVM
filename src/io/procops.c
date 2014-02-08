@@ -235,11 +235,13 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     process_options.exit_cb     = spawn_on_exit;
     uv_ref((uv_handle_t *)process);
     spawn_result = uv_spawn(tc->loop, process, &process_options);
-    if (spawn_result)
+    if (spawn_result) {
+        FREE_ENV();
+        free(_cwd);
+        free(cmdin);
+        uv_unref((uv_handle_t *)process);
         MVM_exception_throw_adhoc(tc, "Failed to open pipe: %d", errno);
-
-    if (spawn_result)
-        result = spawn_result;
+    }
 
     FREE_ENV();
     free(_cwd);
