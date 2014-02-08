@@ -1,3 +1,5 @@
+int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b);
+
 void MVM_bigint_abs(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
 void MVM_bigint_neg(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
 void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
