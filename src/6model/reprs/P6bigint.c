@@ -52,10 +52,10 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         mp_int *i = malloc(sizeof(mp_int));
         mp_init(i);
         if (value >= 0) {
-            mp_set_long(i, value);
+            MVM_bigint_mp_set_uint64(i, (MVMuint64)value);
         }
         else {
-            mp_set_long(i, -value);
+            MVM_bigint_mp_set_uint64(i, (MVMuint64)-value);
             mp_neg(i, i);
         }
         body->u.bigint = i;
