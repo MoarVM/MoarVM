@@ -42,8 +42,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
         tc->cur_usecapture = MVM_repr_alloc_init(tc, instance->CallCapture);
 
     /* Initialize random number generator state. */
-    tc->rand_state[0] = 'T';
-    tc->rand_state[1] = 'M';
+    MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
 
 #if MVM_HLL_PROFILE_CALLS
 #define PROFILE_INITIAL_SIZE (1 << 29)
