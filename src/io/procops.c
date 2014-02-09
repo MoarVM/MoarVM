@@ -369,7 +369,9 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
 
 /* seed random number generator */
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
+    /* Seed our one, plus the normal C srand for libtommath. */
     tinymt64_init(tc->rand_state, (MVMuint64)seed);
+    srand((MVMuint32)seed);
 }
 
 /* gets the system time since the epoch truncated to integral seconds */
