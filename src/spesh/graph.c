@@ -365,6 +365,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g = calloc(1, sizeof(MVMSpeshGraph));
+    g->sf = sf;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {

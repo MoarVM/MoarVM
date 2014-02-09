@@ -1,6 +1,9 @@
 /* Top level of a spesh graph, representing a particular static frame (and
  * potentially having others inlined into it). */
 struct MVMSpeshGraph {
+    /* The static frame this is the spesh graph for. */
+    MVMStaticFrame *sf;
+
     /* The entry basic block. */
     MVMSpeshBB *entry;
 
