@@ -202,7 +202,7 @@ static void write_double(char *buffer, size_t offset, double value) {
  * Returns how far to advance the offset. */
 static size_t varintsize(int64_t value) {
     if(value < 0)
-        value = abs(value + 1);
+        value = -value - 1;
     if(value < 64) /* 7 bits */
         return 1;
     if(value < 8192) /* 14 bits */
