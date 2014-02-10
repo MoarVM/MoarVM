@@ -129,6 +129,7 @@ static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
  * an exception object already, it will be used; NULL can be passed if there
  * is not one, meaning it will be created if needed. */
 static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
+static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data);
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj) {
     switch (lh.handler->action) {
         case MVM_EX_ACTION_GOTO:
@@ -159,6 +160,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
             tc->cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
             tc->cur_frame->return_type         = MVM_RETURN_OBJ;
             tc->cur_frame->special_return      = unwind_after_handler;
+            tc->cur_frame->special_unwind      = cleanup_active_handler;
             tc->cur_frame->special_return_data = ah;
 
             /* Invoke the handler frame and return to runloop. */
@@ -200,6 +202,20 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     else {
         MVM_frame_unwind_to(tc, frame, NULL, goto_offset, NULL);
     }
+}
+
+/* Cleans up an active handler record if we unwind over it. */
+static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
+    /* Get active handler; sanity check (though it's possible other cases
+     * should be supported). */
+    MVMActiveHandler *ah = (MVMActiveHandler *)sr_data;
+    if (tc->active_handlers != ah)
+        MVM_panic(1, "Trying to unwind over wrong handler");
+
+    /* Clean up. */
+    tc->active_handlers = ah->next_handler;
+    MVM_frame_dec_ref(tc, ah->frame);
+    free(ah);
 }
 
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top) {
@@ -463,6 +479,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
 
     /* Clear special return handler; we'll do its work here. */
     target->special_return = NULL;
+    target->special_unwind = NULL;
 
     /* Clear the current active handler. */
     ah = tc->active_handlers;
