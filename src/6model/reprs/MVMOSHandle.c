@@ -1,5 +1,9 @@
 #include "moar.h"
 
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
+
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
@@ -62,7 +66,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 #ifdef _WIN32
                     uv_process_close(tc->loop, handle->body.u.process);
 #else
-                    waitpid(handle->body.u.process->pid);
+                    waitpid(handle->body.u.process->pid, NULL, 0);
 #endif
                 uv_unref((uv_handle_t *)handle->body.u.process);
                 uv_run(tc->loop, UV_RUN_DEFAULT);

@@ -2,6 +2,7 @@
 #include "platform/io.h"
 
 #ifndef _WIN32
+#include <sys/wait.h>
 #include <sys/types.h>
 #include <unistd.h>
 #define DEFAULT_MODE 0x0FFF
@@ -294,7 +295,7 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 #ifdef _WIN32
             uv_process_close(tc->loop, handle->body.u.process);
 #else
-            waitpid(handle->body.u.process->pid);
+            waitpid(handle->body.u.process->pid, NULL, 0);
 #endif
         uv_unref((uv_handle_t *)handle->body.u.process);
         uv_run(tc->loop, UV_RUN_DEFAULT);
