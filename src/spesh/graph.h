@@ -10,6 +10,9 @@ struct MVMSpeshGraph {
     /* Memory blocks we allocate to store spesh nodes, and which we free along
      * with the graph. Contains a link to previous blocks. */
     MVMSpeshMemBlock *mem_block;
+
+    /* Number of basic blocks we have. */
+    MVMint32 num_bbs;
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
@@ -44,6 +47,10 @@ struct MVMSpeshBB {
 
     /* The next basic block in original linear code order. */
     MVMSpeshBB *linear_next;
+
+    /* Index (just an ascending integer along the linear_next chain), used as
+     * the block identifier in dominance computation and for debug output. */
+    MVMint32 idx;
 };
 
 /* An instruction in the spesh graph. */

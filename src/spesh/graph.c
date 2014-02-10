@@ -1,5 +1,10 @@
 #include "moar.h"
 
+/* This is where the spesh stuff all begins. The logic in here takes bytecode
+ * and builds a spesh graph from it. This is a CFG in SSA form. Transforming
+ * to SSA involves computing dominance frontiers, done by the algorithm found
+ * in http://www.cs.rice.edu/~keith/EMBED/dom.pdf. */
+
 #define GET_I8(pc, idx)     *((MVMint8 *)(pc + idx))
 #define GET_UI8(pc, idx)    *((MVMuint8 *)(pc + idx))
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
@@ -63,6 +68,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMSpeshBB  *cur_bb, *prev_bb;
     MVMSpeshIns *last_ins;
     MVMint64     i;
+    MVMint32     bb_idx;
 
     /* Temporary array of all MVMSpeshIns we create (one per instruction).
      * Overestimate at size. Has the flat view, matching the bytecode. */
@@ -235,6 +241,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     last_ins  = NULL;
     ins_to_bb = calloc(ins_idx, sizeof(MVMSpeshBB *));
     ins_idx   = 0;
+    bb_idx    = 0;
     for (i = 0; i < sf->body.bytecode_size; i++) {
         MVMSpeshIns *cur_ins;
 
@@ -253,9 +260,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 MVM_exception_throw_adhoc(tc, "Spesh: confused during basic block analysis (in block)");
             }
 
-            /* Create it, and set first instruction. */
+            /* Create it, and set first instruction and index. */
             cur_bb = spesh_alloc(tc, g, sizeof(MVMSpeshBB));
             cur_bb->first_ins = cur_ins;
+            cur_bb->idx = bb_idx;
+            bb_idx++;
 
             /* Record instruction -> BB start mapping. */
             ins_to_bb[ins_idx] = cur_bb;
@@ -291,6 +300,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
         ins_idx++;
     }
+    g->num_bbs = bb_idx;
 
     /* Finally, link the basic blocks up to form a CFG. Along the way, any of
      * the instruction operands get the target BB stored. */
@@ -355,10 +365,80 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     free(ins_to_bb);
 }
 
+/* Produces an array of the basic blocks, sorted in reverse postorder from
+ * the entry point. */
+static void dfs(MVMSpeshBB **rpo, MVMint32 *insert_pos, MVMuint8 *seen, MVMSpeshBB *bb) {
+    MVMint32 i;
+    seen[bb->idx] = 1;
+    for (i = 0; i < bb->num_succ; i++) {
+        MVMSpeshBB *succ = bb->succ[i];
+        if (!seen[succ->idx])
+            dfs(rpo, insert_pos, seen, succ);
+    }
+    rpo[*insert_pos] = bb;
+    (*insert_pos)--;
+}
+static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB **rpo  = calloc(g->num_bbs, sizeof(MVMSpeshBB *));
+    MVMuint8    *seen = calloc(g->num_bbs, 1);
+    MVMint32     ins  = g->num_bbs - 1;
+    dfs(rpo, &ins, seen, g->entry);
+    if (ins != -1) {
+        printf("%s", MVM_spesh_dump(tc, g));
+        MVM_spesh_graph_destroy(tc, g);
+        MVM_exception_throw_adhoc(tc, "Spesh: reverse postorder calculation failed");
+    }
+    return rpo;
+}
+
+/* 2-finger insersection algorithm, to find new immediate dominator. */
+static MVMint32 intersect(MVMint32 *doms, MVMint32 finger1, MVMint32 finger2) {
+    while (finger1 != finger2) {
+        while (finger1 < finger2)
+            finger1 = doms[finger1];
+        while (finger2 < finger1)
+            finger2 = doms[finger2];
+    }
+    return finger1;
+}
+
+/* Computes dominator information about the basic blocks. */
+static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo) {
+    MVMint32 i, changed;
+
+    /* Create result list, with all initialized to undefined (use -1, as it's
+     * not a valid basic block index). Start node dominates itself. */
+    MVMint32 *doms = malloc(g->num_bbs * sizeof(MVMint32));
+    doms[0] = 0;
+    for (i = 1; i < g->num_bbs; i++)
+        doms[i] = -1;
+
+    /* Iterate to fixed point. */
+    changed = 1;
+    while (changed) {
+        changed = 0;
+        for (i = 1; i < g->num_bbs; i++) {
+            MVMSpeshBB *b = rpo[i];
+            
+        }
+    }
+
+    return doms;
+}
+
 /* Transforms a spesh graph into SSA form. After this, the graph will have all
  * register accesses given an SSA "version", and phi instructions inserted as
  * needed. */
 static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* Compute dominators. */
+    MVMSpeshBB **rpo  = reverse_postorder(tc, g);
+    MVMint32    *doms = compute_dominators(tc, g, rpo);
+
+    /* XXX TODO */
+
+    /* Clean up. */
+    free(rpo);
+    free(doms);
 }
 
 /* Takes a static frame and creates a spesh graph for it. */

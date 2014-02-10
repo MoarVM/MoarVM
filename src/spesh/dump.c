@@ -36,26 +36,13 @@ static void append_str(MVMThreadContext *tc, DumpStr *ds, MVMString *s) {
     free(cs);
 }
 
-/* Gets the (linear) index for a basic block. */
-static int bb_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
-    MVMSpeshBB *cur_bb = g->entry;
-    int         idx    = 0;
-    while (cur_bb) {
-        if (cur_bb == bb)
-            return idx;
-        idx++;
-        cur_bb = cur_bb->linear_next;
-    }
-    return -1;
-}
-
 /* Dumps a basic block. */
 static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshIns *cur_ins;
     MVMint64     i;
 
     /* Heading. */
-    appendf(ds, "  BB %d:\n", bb_idx(tc, g, bb));
+    appendf(ds, "  BB %d:\n", bb->idx);
 
     /* Instructions. */
     append(ds, "    Instructions:\n");
@@ -72,7 +59,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     /* Successors. */
     append(ds, "    Successors: ");
     for (i = 0; i < bb->num_succ; i++)
-        appendf(ds, (i == 0 ? "%d" : ", %d"), bb_idx(tc, g, bb->succ[i]));
+        appendf(ds, (i == 0 ? "%d" : ", %d"), bb->succ[i]->idx);
     append(ds, "\n\n");
 }
 
