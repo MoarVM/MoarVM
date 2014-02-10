@@ -139,8 +139,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame = malloc(sizeof(MVMFrame));
         frame->params.named_used = NULL;
 
-        /* Ensure special return pointer and continuation tags are null. */
+        /* Ensure special return pointers and continuation tags are null. */
         frame->special_return = NULL;
+        frame->special_unwind = NULL;
         frame->continuation_tags = NULL;
     }
     else {
@@ -421,10 +422,14 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_cu) = caller->static_info->body.cu;
 
         /* Handle any special return hooks. */
-        if (caller->special_return) {
+        if (caller->special_return || caller->special_unwind) {
             MVMSpecialReturn sr = caller->special_return;
+            MVMSpecialReturn su = caller->special_unwind;
             caller->special_return = NULL;
-            if (!unwind)
+            caller->special_unwind = NULL;
+            if (unwind && su)
+                su(tc, caller->special_return_data);
+            else if (!unwind && sr)
                 sr(tc, caller->special_return_data);
             caller->mark_special_return_data = NULL;
         }

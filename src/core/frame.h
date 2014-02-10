@@ -93,6 +93,10 @@ struct MVMFrame {
      * frame, this function pointer is set. */
     MVMSpecialReturn special_return;
 
+    /* If we want to invoke a special handler upon unwinding past a
+     * frame, this function pointer is set. */
+    MVMSpecialReturn special_unwind;
+
     /* Data slot for the special return handler function. */
     void *special_return_data;
 
