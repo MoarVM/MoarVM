@@ -1197,38 +1197,34 @@ static MVMnum64 read_double(const char *buffer, size_t offset) {
     return value;
 }
 
-/* Reads an int64 from up to 128bits of storage.
+/* Reads an int64 from up to 9 bytes of storage.
  * Returns how far to advance the offset. */
-static size_t read_varint9(const char *c_buffer, size_t offset, int64_t *value) {
+static size_t read_varint9(const char *c_buffer, size_t offset, int64_t *value_p) {
     MVMuint8 *buffer = (MVMuint8 *)c_buffer;
-    size_t inner_offset = 0;
-    size_t shift_amount = 0;
-    int64_t negation_mask = 0;
-    int read_on = !!(buffer[offset] & 0x80) + 1;
-    *value = 0;
-    while (read_on && inner_offset != 8) {
-        *value = *value | ((int64_t)(buffer[offset + inner_offset] & 0x7F) << shift_amount);
-        negation_mask = negation_mask | ((int64_t)0x7F << shift_amount);
-        if (read_on == 1 && buffer[offset + inner_offset] & 0x80) {
-            read_on = 2;
-        }
-        read_on--;
-        inner_offset++;
+    MVMuint8 *const start = buffer + offset;
+    MVMuint8 *const ninth = start + 8;
+    MVMuint8 *p = start;
+    int64_t value = 0;
+    int shift_amount = 0;
+
+    while (*p & 0x80 && p < ninth) {
+        value |= ((int64_t)(*p & 0x7F) << shift_amount);
         shift_amount += 7;
+        ++p;
     }
-    // our last byte will be a full byte, so that we reach the full 64 bits
-    if (read_on && inner_offset == 8) {
-        *value = *value | ((int64_t)buffer[offset + inner_offset] << shift_amount);
-        negation_mask = negation_mask | ((int64_t)0xFF << shift_amount);
-        ++inner_offset;
+    if (p == ninth) {
+        /* our last byte will be a full byte, so that we reach the full 64 bits
+           As we have the full 64 bits, no need to sign extend. */
+        value |= ((int64_t)(*p) << shift_amount);
+    } else {
+        value |= ((int64_t)(*p & 0x7F) << shift_amount);
+        /* Now sign extend the highest bit that we read. */
+        value = value << (57 - shift_amount);
+        value = value >> (57 - shift_amount);
     }
-    negation_mask = negation_mask >> 1;
-    // do we have a negative number so far?
-    if (*value & ~negation_mask) {
-        // we have to fill it up with ones all the way to the left.
-        *value = *value | ~negation_mask;
-    }
-    return inner_offset;
+    *value_p = value;
+
+    return p + 1 - start;
 }
 
 /* If deserialization should fail, cleans up before throwing an exception. */
@@ -1411,10 +1407,9 @@ static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *
 static MVMObject * read_array_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
     MVMint64 elems, i;
-    size_t header_size;
 
     /* Read the element count. */
-    elems = read_varint_func(tc, reader);
+    elems = MVM_serialization_read_varint(tc, reader);
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
