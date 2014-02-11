@@ -1414,9 +1414,7 @@ static MVMObject * read_array_varint(MVMThreadContext *tc, MVMSerializationReade
     size_t header_size;
 
     /* Read the element count. */
-    assert_can_read_varint(tc, reader);
-    header_size = read_varint9(*(reader->cur_read_buffer), *(reader->cur_read_offset), &elems);
-    *(reader->cur_read_offset) += header_size;
+    elems = read_varint_func(tc, reader);
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
