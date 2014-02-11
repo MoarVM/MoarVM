@@ -231,7 +231,8 @@ static size_t write_varint9(MVMuint8 *buffer, size_t offset, int64_t value) {
         if (position != needed_bytes - 1) buffer[offset + position] = buffer[offset + position] | 0x80;
         value = value >> 7;
     }
-    if (position == 8) {
+    if (needed_bytes == 9) {
+        assert(position == 8);
         buffer[offset + position] = value;
     }
     return needed_bytes;
@@ -1213,8 +1214,8 @@ static size_t read_varint9(MVMuint8 *buffer, size_t offset, int64_t *value) {
     int read_on = !!(buffer[offset] & 0x80) + 1;
     *value = 0;
     while (read_on && inner_offset != 8) {
-        *value = *value | ((buffer[offset + inner_offset] & 0x7F) << shift_amount);
-        negation_mask = negation_mask | (0x7F << shift_amount);
+        *value = *value | ((int64_t)(buffer[offset + inner_offset] & 0x7F) << shift_amount);
+        negation_mask = negation_mask | ((int64_t)0x7F << shift_amount);
         if (read_on == 1 && buffer[offset + inner_offset] & 0x80) {
             read_on = 2;
         }
@@ -1223,10 +1224,10 @@ static size_t read_varint9(MVMuint8 *buffer, size_t offset, int64_t *value) {
         shift_amount += 7;
     }
     // our last byte will be a full byte, so that we reach the full 64 bits
-    if (inner_offset == 8) {
-        shift_amount += 1;
-        *value = *value | (buffer[offset + inner_offset] << shift_amount);
-        negation_mask = negation_mask | (0x7F << shift_amount);
+    if (read_on && inner_offset == 8) {
+        *value = *value | ((int64_t)buffer[offset + inner_offset] << shift_amount);
+        negation_mask = negation_mask | ((int64_t)0xFF << shift_amount);
+        ++inner_offset;
     }
     negation_mask = negation_mask >> 1;
     // do we have a negative number so far?
