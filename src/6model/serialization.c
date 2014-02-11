@@ -391,12 +391,8 @@ static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer
 static void write_array_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
     MVMint32 i;
-    size_t storage_needed;
-
-    storage_needed = varintsize(elems);
 
     /* Write out element count. */
-    expand_storage_if_needed(tc, writer, storage_needed);
     MVM_serialization_write_varint(tc, writer, elems);
 
     /* Write elements. */
