@@ -1197,36 +1197,6 @@ static MVMnum64 read_double(const char *buffer, size_t offset) {
     return value;
 }
 
-/* Reads an int64 from up to 9 bytes of storage.
- * Returns how far to advance the offset. */
-static size_t read_varint9(const char *c_buffer, size_t offset, int64_t *value_p) {
-    MVMuint8 *buffer = (MVMuint8 *)c_buffer;
-    MVMuint8 *const start = buffer + offset;
-    MVMuint8 *const ninth = start + 8;
-    MVMuint8 *p = start;
-    int64_t value = 0;
-    int shift_amount = 0;
-
-    while (*p & 0x80 && p < ninth) {
-        value |= ((int64_t)(*p & 0x7F) << shift_amount);
-        shift_amount += 7;
-        ++p;
-    }
-    if (p == ninth) {
-        /* our last byte will be a full byte, so that we reach the full 64 bits
-           As we have the full 64 bits, no need to sign extend. */
-        value |= ((int64_t)(*p) << shift_amount);
-    } else {
-        value |= ((int64_t)(*p & 0x7F) << shift_amount);
-        /* Now sign extend the highest bit that we read. */
-        value = value << (57 - shift_amount);
-        value = value >> (57 - shift_amount);
-    }
-    *value_p = value;
-
-    return p + 1 - start;
-}
-
 /* If deserialization should fail, cleans up before throwing an exception. */
 MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
@@ -1302,13 +1272,33 @@ static int assert_can_read_varint(MVMThreadContext *tc, MVMSerializationReader *
     return 1;
 }
 
-/* Reading function for variable-sized integers */
+/* Reading function for variable-sized integers, using between 1 and 9 bytes of
+ * storage for an int64. */
 MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint64 result;
-    size_t length;
+    MVMint64 result = 0;
+    MVMuint8 *const start = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
+    MVMuint8 *const ninth = start + 8;
+    MVMuint8 *p = start;
+    int shift_amount = 0;
     assert_can_read_varint(tc, reader);
-    length = read_varint9(*(reader->cur_read_buffer), *(reader->cur_read_offset), &result);
-    *(reader->cur_read_offset) += length;
+
+    while (*p & 0x80 && p < ninth) {
+        result |= ((MVMint64)(*p & 0x7F) << shift_amount);
+        shift_amount += 7;
+        ++p;
+    }
+    if (p == ninth) {
+        /* our last byte will be a full byte, so that we reach the full 64 bits
+           As we have the full 64 bits, no need to sign extend. */
+        result |= ((MVMint64)(*p) << shift_amount);
+    } else {
+        result |= ((MVMint64)(*p & 0x7F) << shift_amount);
+        /* Now sign extend the highest bit that we read. */
+        result = result << (57 - shift_amount);
+        result = result >> (57 - shift_amount);
+    }
+
+    *(reader->cur_read_offset) += p + 1 - start;
     return result;
 }
 
