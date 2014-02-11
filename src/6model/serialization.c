@@ -221,23 +221,6 @@ static size_t varintsize(int64_t value) {
     return 9;
 }
 
-static size_t write_varint9(char *c_buffer, size_t offset, int64_t value) {
-    MVMuint8 *buffer = (MVMuint8 *)c_buffer;
-    size_t needed_bytes = varintsize(value);
-    size_t count = needed_bytes;
-
-    while (--count) {
-        buffer[offset++] = value & 0x7F | 0x80;
-        value = value >> 7;
-    }
-    if (needed_bytes == 9) {
-        buffer[offset] = value;
-    } else {
-        buffer[offset] = value & 0x7F;
-    }
-    return needed_bytes;
-}
-
 #define STRING_IS_NULL(s) ((s) == NULL)
 
 /* Adds an item to the MVMString heap if needed, and returns the index where
@@ -328,12 +311,29 @@ void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *w
     *(writer->cur_write_offset) += 8;
 }
 
-/* Writing function for varint9 */
+/* Writing function for variable sized integers. Writes out a 64 bit value
+   using between 1 and 9 bytes. */
 void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
     size_t storage_needed = varintsize(value);
-    size_t actually_written;
+    size_t count = storage_needed;
+    char *buffer;
+    size_t offset;
+
     expand_storage_if_needed(tc, writer, storage_needed);
-    actually_written = write_varint9(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
+
+    buffer = *(writer->cur_write_buffer);
+    offset = *(writer->cur_write_offset);
+
+    while (--count) {
+        buffer[offset++] = value & 0x7F | 0x80;
+        value = value >> 7;
+    }
+    if (storage_needed == 9) {
+        buffer[offset] = value;
+    } else {
+        buffer[offset] = value & 0x7F;
+    }
+
     *(writer->cur_write_offset) += storage_needed;
 }
 
