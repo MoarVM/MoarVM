@@ -222,18 +222,18 @@ static size_t varintsize(int64_t value) {
 }
 
 static size_t write_varint9(char *c_buffer, size_t offset, int64_t value) {
-    // do we have to compare < or <= ?
     MVMuint8 *buffer = (MVMuint8 *)c_buffer;
-    size_t position;
     size_t needed_bytes = varintsize(value);
-    for (position = 0; position < needed_bytes && position != 8; position++) {
-        buffer[offset + position] = value & 0x7F;
-        if (position != needed_bytes - 1) buffer[offset + position] = buffer[offset + position] | 0x80;
+    size_t count = needed_bytes;
+
+    while (--count) {
+        buffer[offset++] = value & 0x7F | 0x80;
         value = value >> 7;
     }
     if (needed_bytes == 9) {
-        assert(position == 8);
-        buffer[offset + position] = value;
+        buffer[offset] = value;
+    } else {
+        buffer[offset] = value & 0x7F;
     }
     return needed_bytes;
 }
