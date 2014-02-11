@@ -786,10 +786,14 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
             case MVM_ARRAY_I32: elem_size = 4; break;
             case MVM_ARRAY_I16: elem_size = 2; break;
             case MVM_ARRAY_I8:  elem_size = 1; break;
+            case MVM_ARRAY_U64: elem_size = 8; break;
+            case MVM_ARRAY_U32: elem_size = 4; break;
+            case MVM_ARRAY_U16: elem_size = 2; break;
+            case MVM_ARRAY_U8:  elem_size = 1; break;
         }
     }
     if (!elem_size)
-        MVM_exception_throw_adhoc(tc, "encode requires  a native int array");
+        MVM_exception_throw_adhoc(tc, "encode requires a native int array");
     if (((MVMArray *)buf)->body.slots.any)
         MVM_exception_throw_adhoc(tc, "encode requires an empty array");
 
@@ -826,10 +830,14 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
             case MVM_ARRAY_I32: elem_size = 4; break;
             case MVM_ARRAY_I16: elem_size = 2; break;
             case MVM_ARRAY_I8:  elem_size = 1; break;
+            case MVM_ARRAY_U64: elem_size = 8; break;
+            case MVM_ARRAY_U32: elem_size = 4; break;
+            case MVM_ARRAY_U16: elem_size = 2; break;
+            case MVM_ARRAY_U8:  elem_size = 1; break;
         }
     }
     if (!elem_size)
-        MVM_exception_throw_adhoc(tc, "encode requires  a native int array");
+        MVM_exception_throw_adhoc(tc, "encode requires a native int array");
 
     /* Decode. */
     MVMROOT(tc, buf, {

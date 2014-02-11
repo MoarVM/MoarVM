@@ -170,31 +170,38 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's in the second generation and we're only doing a nursery,
          * collection, we have nothing to do. */
         item_gen2 = item->flags & MVM_CF_SECOND_GEN;
-        if (item_gen2 && gen == MVMGCGenerations_Nursery)
-            continue;
-
-        /* If the item was already seen and copied, then it will have a
-         * forwarding address already. Just update this pointer to the
-         * new address and we're done. */
-        if (item->forwarder) {
+        if (item_gen2) {
+            if (gen == MVMGCGenerations_Nursery)
+                continue;
+            if (item->flags & MVM_CF_GEN2_LIVE) {
+                /* gen2 and marked as live. */
+                continue;
+            }
+        } else if (item->flags & MVM_CF_FORWARDER_VALID) {
+            /* If the item was already seen and copied, then it will have a
+             * forwarding address already. Just update this pointer to the
+             * new address and we're done. */
+            assert(*item_ptr != item->sc_forward_u.forwarder);
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
-                if (*item_ptr != item->forwarder) {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->forwarder);
+                if (*item_ptr != item->sc_forward_u.forwarder) {
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->sc_forward_u.forwarder);
                 }
                 else {
-                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : already visited handle %p to forwarder %p\n", item_ptr, item->forwarder);
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : already visited handle %p to forwarder %p\n", item_ptr, item->sc_forward_u.forwarder);
                 }
             }
-            *item_ptr = item->forwarder;
+            *item_ptr = item->sc_forward_u.forwarder;
             continue;
+        } else {
+            /* If the pointer is already into tospace (the bit we've already
+               copied into), we already updated it, so we're done. */
+            if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc) {
+                continue;
+            }
         }
 
-        /* If the pointer is already into tospace (the bit we've already copied
-         * into), we already updated it, so we're done. If it's in to-space but
-         * *ahead* of our copy offset then it's an out-of-date pointer and we
-         * have some kind of corruption. */
-        if (item >= (MVMCollectable *)tc->nursery_tospace && item < (MVMCollectable *)tc->nursery_alloc)
-            continue;
+        /* If it's in to-space but *ahead* of our copy offset then it's an
+           out-of-date pointer and we have some kind of corruption. */
         if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
             MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
 
@@ -209,14 +216,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* At this point, we didn't already see the object, which means we
          * need to take some action. Go on the generation... */
         if (item_gen2) {
-            /* It's in the second generation. We'll just mark it, which is
-             * done by setting the forwarding pointer to the object itself,
-             * since we don't do moving. */
+            assert(!(item->flags & MVM_CF_FORWARDER_VALID));
+            /* It's in the second generation. We'll just mark it. */
             new_addr = item;
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
             }
-            *item_ptr = item->forwarder = new_addr;
+            item->flags |= MVM_CF_GEN2_LIVE;
+            assert(*item_ptr == new_addr);
         } else {
             /* Catch NULL stable (always sign of trouble) in debug mode. */
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && !STABLE(item)) {
@@ -250,7 +257,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 /* If we're going to sweep the second generation, also need
                  * to mark it as live. */
                 if (gen == MVMGCGenerations_Both)
-                    new_addr->forwarder = new_addr;
+                    new_addr->flags |= MVM_CF_GEN2_LIVE;
             }
             else {
                 /* No, so it will live in the nursery for another GC
@@ -272,7 +279,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && new_addr != item) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, REPR(item)->ID, new_addr);
             }
-            *item_ptr = item->forwarder = new_addr;
+            *item_ptr = new_addr;
+            item->sc_forward_u.forwarder = new_addr;
+            /* Set the flag on the copy of item *in fromspace* to mark that the
+               forwarder pointer is valid. */
+            item->flags |= MVM_CF_FORWARDER_VALID;
         }
 
         /* make sure any rooted frames mark their stuff */
@@ -307,7 +318,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable *new_addr) {
     MVMuint16 i;
 
-    MVM_gc_worklist_add(tc, worklist, &new_addr->sc);
+    assert(!(new_addr->flags & MVM_CF_FORWARDER_VALID));
+    /*assert(REPR(new_addr));*/
+    MVM_gc_worklist_add(tc, worklist, &new_addr->sc_forward_u.sc);
 
     if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
         /* Need to view it as an object in here. */
@@ -489,7 +502,7 @@ static void MVM_gc_collect_enqueue_stable_for_deletion(MVMThreadContext *tc, MVM
     MVMSTable *old_head;
     do {
         old_head = tc->instance->stables_to_free;
-        st->header.forwarder = (MVMCollectable *)old_head;
+        st->header.sc_forward_u.st = old_head;
     } while (!MVM_trycas(&tc->instance->stables_to_free, old_head, st));
 }
 
@@ -505,7 +518,10 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
         /* The object here is dead if it never got a forwarding pointer
          * written in to it. */
         MVMCollectable *item = (MVMCollectable *)scan;
-        MVMuint8 dead = item->forwarder == NULL;
+        MVMuint8 dead = !(item->flags & MVM_CF_FORWARDER_VALID);
+
+        if (!dead)
+            assert(item->sc_forward_u.forwarder != NULL);
 
         /* Now go by collectable type. */
         if (!(item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
@@ -545,7 +561,7 @@ void MVM_gc_collect_cleanup_gen2roots(MVMThreadContext *tc) {
     MVMuint32        ins_pos   = 0;
     MVMuint32        i;
     for (i = 0; i < num_roots; i++)
-        if (gen2roots[i]->forwarder)
+        if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
             gen2roots[ins_pos++] = gen2roots[i];
     tc->num_gen2roots = ins_pos;
 }
@@ -555,8 +571,8 @@ void MVM_gc_collect_free_stables(MVMThreadContext *tc) {
     MVMSTable *st = tc->instance->stables_to_free;
     while (st) {
         MVMSTable *st_to_free = st;
-        st = (MVMSTable *)st_to_free->header.forwarder;
-        st_to_free->header.forwarder = NULL;
+        st = st_to_free->header.sc_forward_u.st;
+        st_to_free->header.sc_forward_u.st = NULL;
         MVM_6model_stable_gc_free(tc, st_to_free);
     }
     tc->instance->stables_to_free = NULL;
@@ -602,9 +618,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
 
                 /* Otherwise, it must be a collectable of some kind. Is it
                  * live? */
-                else if (col->forwarder) {
+                else if (col->flags & MVM_CF_GEN2_LIVE) {
                     /* Yes; clear the mark. */
-                    col->forwarder = NULL;
+                    col->flags &= ~MVM_CF_GEN2_LIVE;
                 }
                 else {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %p in the gen2\n", col);
@@ -619,7 +635,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         /* Type object; doesn't have anything extra that needs freeing. */
                     }
                     else if (col->flags & MVM_CF_STABLE) {
-                        if (col->sc == (MVMSerializationContext *)1) {
+                        if (col->sc_forward_u.sc == (MVMSerializationContext *)3) {
                             /* We marked it dead last time, kill it. */
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }
@@ -630,7 +646,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);
                             } else {
                                 /* There will definitely be another gc run, so mark it as "died last time". */
-                                col->sc = (MVMSerializationContext *)1;
+                                col->sc_forward_u.sc = (MVMSerializationContext *)3;
                             }
                             /* Skip the freelist updating. */
                             cur_ptr += obj_size;
@@ -660,9 +676,9 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
     for (i = 0; i < gen2->num_overflows; i++) {
         if (gen2->overflows[i]) {
             MVMCollectable *col = gen2->overflows[i];
-            if (col->forwarder) {
+            if (col->flags & MVM_CF_GEN2_LIVE) {
                 /* A living over-sized object; just clear the mark. */
-                col->forwarder = NULL;
+                col->flags &= ~MVM_CF_GEN2_LIVE;
             }
             else {
                 /* Dead over-sized object. We know if it's this big it cannot

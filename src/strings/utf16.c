@@ -82,25 +82,16 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     return result;
 }
 
-/* Encodes the specified substring to utf16. Anything outside of utf16 range
- * will become a ?. The result string is NULL terminated, but the specified
- * size is the non-null part. */
+/* Encodes the specified substring to utf16. The result string is NULL terminated, but
+ * the specified size is the non-null part. (This being UTF-16, there are 2 null bytes
+ * on the end.) */
 MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
-    /* latin-1 is a single byte encoding, so each grapheme will just become
-     * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
     MVMStringIndex strgraphs = NUM_GRAPHS(str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
-    MVMuint8 *result;
+    MVMuint16 *result;
     size_t str_pos;
-    MVMuint8 * result_pos;
-#ifdef MVM_BIGENDIAN
-    int low = 1;
-    int high = 0;
-#else
-    int low = 0;
-    int high = 1;
-#endif
+    MVMuint16 *result_pos;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
@@ -109,27 +100,24 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     /* make the result grow as needed instead of allocating so much to start? */
-    result = malloc(length * 4 + 1);
+    result = malloc(length * 4 + 2);
     result_pos = result;
     for (str_pos = 0; str_pos < length; str_pos++) {
         MVMCodepoint32 value = MVM_string_get_codepoint_at_nocheck(tc, str, start + str_pos);
 
         if (value < 0x10000) {
-            result_pos[high] = value >> 8;
-            result_pos[low] = value & 0xFF;
-            result_pos += 2;
+            result_pos[0] = value;
+            result_pos++;
         }
         else {
             value -= 0x10000;
-            result_pos[high] = 0xD8 + (value >> 18);
-            result_pos[low] = (value >> 10) & 0xFF;
-            result_pos[high+2] = 0xDC + ((value >> 8) & 0xFF);
-            result_pos[low+2] = value & 0xFF;
-            result_pos += 4;
+            result_pos[0] = 0xD800 + (value >> 10);
+            result_pos[1] = 0xDC00 + (value & 0x3FF);
+            result_pos += 2;
         }
     }
-    result[str_pos] = 0;
+    result_pos[0] = 0;
     if (output_size)
-        *output_size = result_pos - result;
-    return result;
+        *output_size = (char *)result_pos - (char *)result;
+    return (MVMuint8 *)result;
 }

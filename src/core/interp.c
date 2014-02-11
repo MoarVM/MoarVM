@@ -247,11 +247,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_reg_str)->s = GET_REG(cur_op, 4).s;
                 cur_op += 6;
                 goto NEXT;
-            OP(bindlex_no):
-                MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
-                    MVM_reg_obj)->o = GET_REG(cur_op, 4).o;
+            OP(bindlex_no): {
+                MVMString *str = cu->body.strings[GET_UI32(cur_op, 0)];
+                MVMRegister *r = MVM_frame_find_lexical_by_name(tc, str, MVM_reg_obj);
+                if (r)
+                    r->o = GET_REG(cur_op, 4).o;
+                else
+                    MVM_exception_throw_adhoc(tc, "Cannot bind to non-existing object lexical '%s'",
+                        MVM_string_utf8_encode_C_string(tc, str));
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(getlex_ng):
             OP(bindlex_ng):
                 MVM_exception_throw_adhoc(tc, "get/bindlex_ng NYI");
@@ -475,10 +481,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = GET_REG(cur_op, 2).n64 / GET_REG(cur_op, 4).n64;
                 cur_op += 6;
                 goto NEXT;
-            OP(mod_n):
-                GET_REG(cur_op, 0).n64 = fmod(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
+            OP(mod_n): {
+                MVMnum64 a = GET_REG(cur_op, 2).n64;
+                MVMnum64 b = GET_REG(cur_op, 4).n64;
+                GET_REG(cur_op, 0).n64 = b == 0 ? a : a - b * floor(a / b);
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(neg_n):
                 GET_REG(cur_op, 0).n64 = -GET_REG(cur_op, 2).n64;
                 cur_op += 4;
@@ -1798,15 +1807,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
-            OP(pow_I): {
-                /* XXX Needs to handle the Num fallback case too. */
-                MVMObject *   const type = GET_REG(cur_op, 8).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_pow(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(pow_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_pow(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
                 cur_op += 10;
                 goto NEXT;
-            }
             OP(cmp_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
                 GET_REG(cur_op, 0).i64 = MVM_bigint_cmp(tc, a, b);
@@ -2736,7 +2741,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
                 MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
                 for (i = 0; i < elems; i++) {
-                    cache[i] = MVM_repr_at_pos_o(tc, types, i);
+                    MVM_ASSIGN_REF(tc, STABLE(obj), cache[i], MVM_repr_at_pos_o(tc, types, i));
                 }
                 /* technically this free isn't thread safe */
                 if (STABLE(obj)->type_check_cache)
@@ -2789,10 +2794,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(setboolspec): {
+                MVMSTable            *st = GET_REG(cur_op, 0).o->st;
                 MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
                 bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
-                bs->method = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o->st->boolification_spec = bs;
+                MVM_ASSIGN_REF(tc, st, bs->method, GET_REG(cur_op, 4).o);
+                st->boolification_spec = bs;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2922,11 +2928,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHO;
                 cur_op += 4;
                 goto NEXT;
-            OP(setwho):
-                STABLE(GET_REG(cur_op, 2).o)->WHO = GET_REG(cur_op, 4).o;
+            OP(setwho): {
+                MVMSTable *st = STABLE(GET_REG(cur_op, 2).o);
+                MVM_ASSIGN_REF(tc, st, st->WHO, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(rebless):
                 if (!REPR(GET_REG(cur_op, 2).o)->change_type) {
                     MVM_exception_throw_adhoc(tc, "This REPR cannot change type");
@@ -3379,11 +3387,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         "Must provide an SCRef operand to scsetobj");
                 MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, obj);
-                if (STABLE(obj)->header.sc == NULL) {
+                if (MVM_sc_get_stable_sc(tc, STABLE(obj)) == NULL) {
                     /* Need to claim the SC also; typical case for new type objects. */
                     MVMSTable *st = STABLE(obj);
                     MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
-                    MVM_ASSIGN_REF(tc, st, st->header.sc, sc);
+                    MVM_sc_set_stable_sc(tc, st, (MVMSerializationContext *)sc);
                 }
                 cur_op += 6;
                 goto NEXT;
@@ -3396,7 +3404,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         "Must provide an SCRef operand to scsetcode");
                 MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
                     GET_REG(cur_op, 2).i64, code);
-                MVM_ASSIGN_REF(tc, code, code->header.sc, sc);
+                MVM_sc_set_obj_sc(tc, code, (MVMSerializationContext *)sc);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3456,13 +3464,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
                         "Must provide an SCRef operand to setobjsc");
-                MVM_ASSIGN_REF(tc, obj, obj->header.sc,
-                    (MVMSerializationContext *)sc);
+                MVM_sc_set_obj_sc(tc, obj, (MVMSerializationContext *)sc);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(getobjsc):
-                GET_REG(cur_op, 0).o = (MVMObject *)GET_REG(cur_op, 2).o->header.sc;
+                GET_REG(cur_op, 0).o = (MVMObject *)MVM_sc_get_obj_sc(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(serialize): {
@@ -3848,15 +3855,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(openpipe):
-                MVM_exception_throw_adhoc(tc, "openpipe NYI");
+                GET_REG(cur_op, 0).o = MVM_file_openpipe(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s);
+                cur_op += 10;
+                goto NEXT;
             OP(backtrace):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(symlink):
-                MVM_exception_throw_adhoc(tc, "symlink NYI");
+                MVM_file_symlink(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(link):
-                MVM_exception_throw_adhoc(tc, "link NYI");
+                MVM_file_link(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(gethostname):
                 GET_REG(cur_op, 0).s = MVM_get_hostname(tc);
                 cur_op += 2;

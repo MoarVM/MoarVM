@@ -18,6 +18,8 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *code);
 void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *code_list);
 MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc);
+MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *tc, MVMObject *obj);
+MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *st);
 void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc);
 void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc);
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle);
@@ -27,14 +29,18 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
 #define MVM_SC_WB_OBJ(tc, obj) \
     do { \
         MVMObject *check = (MVMObject *)obj; \
-        if (check->header.sc) \
+        assert(!(obj->header.flags & MVM_CF_GEN2_LIVE)); \
+        assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID)); \
+        if (check->header.sc_forward_u.sc) \
             MVM_sc_wb_hit_obj(tc, check); \
     } while (0);
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
 #define MVM_SC_WB_ST(tc, st) \
     do { \
         MVMSTable *check = st; \
-        if (check->header.sc) \
+        assert(!(st->header.flags & MVM_CF_GEN2_LIVE)); \
+        assert(!(st->header.flags & MVM_CF_FORWARDER_VALID)); \
+        if (check->header.sc_forward_u.sc) \
             MVM_sc_wb_hit_st(tc, check); \
     } while (0);
 void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st);

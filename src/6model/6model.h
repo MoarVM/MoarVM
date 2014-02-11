@@ -59,6 +59,9 @@ struct MVMStorageSpec {
 
     /* The types that this one can box/unbox to. */
     MVMuint16 can_box;
+
+    /* For ints, whether it's an unsigned value. */
+    MVMuint8 is_unsigned;
 };
 
 /* Inlined or not. */
@@ -96,7 +99,14 @@ typedef enum {
 
     /* Has already been added to the gen2 aggregates pointing to nursery
      * objects list. */
-    MVM_CF_IN_GEN2_ROOT_LIST = 32
+    MVM_CF_IN_GEN2_ROOT_LIST = 32,
+
+    /* GC has found this object to be live. */
+    MVM_CF_GEN2_LIVE = 64,
+    /* This object in fromspace is live with a valid forwarder. */
+    /* TODO - should be possible to use the same bit for these two flags. */
+    MVM_CF_FORWARDER_VALID = 128
+
 } MVMCollectableFlags;
 
 /* Things that every GC-collectable entity has. These fall into two
@@ -119,11 +129,14 @@ struct MVMCollectable {
     /* Object size, in bytes. */
     MVMuint16 size;
 
-    /* Forwarding pointer, for copying/compacting GC purposes. */
-    MVMCollectable *forwarder;
-
-    /* Pointer to the serialization context this collectable lives in, if any. */
-    MVMSerializationContext *sc;
+    union {
+        /* Forwarding pointer, for copying/compacting GC purposes. */
+        MVMCollectable *forwarder;
+        /* Pointer to the serialization context this collectable lives in, if any. */
+        MVMSerializationContext *sc;
+        /* Used to chain STables queued to be freed. */
+        MVMSTable *st;
+    } sc_forward_u;
 };
 
 /* The common things every object has. */
@@ -133,11 +146,6 @@ struct MVMObject {
 
     /* The s-table for the object. */
     MVMSTable *st;
-
-    /* Padding for 32-bit systems. */
-#if !defined(_M_X64) && !defined(__amd64__)
-    MVMuint32 pad;
-#endif
 };
 
 /* An dummy object, mostly used to compute the offset of the data part of

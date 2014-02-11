@@ -9,10 +9,11 @@ struct MVMOSHandleBody {
     union {
         struct
         {
-          uv_handle_t *handle;
-          void          *data;
-          MVMint32     length;
-          MVMuint8        eof;
+          uv_handle_t   *handle;
+          void            *data;
+          MVMint32       length;
+          uv_process_t *process;
+          MVMuint8          eof;
         };
         uv_file          fd;
 #ifdef _WIN32
@@ -39,7 +40,8 @@ typedef enum {
    MVM_OSHANDLE_DIR    = 3,
    MVM_OSHANDLE_TCP    = 4,
    MVM_OSHANDLE_UDP    = 5,
-   MVM_OSHANDLE_SOCKET = 6 /* XXX: not need after fully port to libuv */
+   MVM_OSHANDLE_SOCKET = 6,/* XXX: not need after fully port to libuv */
+   MVM_OSHANDLE_PIPE   = 7
 }  MVMOSHandleTypes;
 
 /* Function for REPR setup. */

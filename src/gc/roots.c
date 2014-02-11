@@ -140,6 +140,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     /* Ensure the collectable is not null. */
     if (c == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null collectable address as an inter-generational root");
+    assert(!(c->flags & MVM_CF_FORWARDER_VALID));
 
     /* Allocate extra gen2 aggregate space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
@@ -188,6 +189,8 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     for (i = 0; i < num_roots; i++) {
         int num_in_nursery = 0;
 
+        assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
+
         /* Mark it, putting marks into temporary worklist. */
         MVM_gc_mark_collectable(tc, per_obj_worklist, gen2roots[i]);
 
@@ -204,7 +207,8 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
             MVM_gc_worklist_add_frame_no_seq_check(tc, worklist, cur_frame);
             num_in_nursery++;
         }
-        if (!num_in_nursery && REPR(gen2roots[i])->refs_frames)
+        if (!num_in_nursery && !(gen2roots[i]->flags & MVM_CF_STABLE)
+            && REPR(gen2roots[i])->refs_frames)
             num_in_nursery = 1;
 
         /* If there were any nursery objects, then this root should stay. Put
@@ -238,8 +242,10 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     MVMuint32        cur_survivor = 0;
     MVMuint32        i;
     for (i = 0; i < num_roots; i++)
-        if (gen2roots[i]->forwarder)
-            gen2roots[cur_survivor++] = gen2roots[i]->forwarder;
+        if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE) {
+            assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
+            gen2roots[cur_survivor++] = gen2roots[i];
+        }
     tc->num_gen2roots = cur_survivor;
 }
 

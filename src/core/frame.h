@@ -93,6 +93,10 @@ struct MVMFrame {
      * frame, this function pointer is set. */
     MVMSpecialReturn special_return;
 
+    /* If we want to invoke a special handler upon unwinding past a
+     * frame, this function pointer is set. */
+    MVMSpecialReturn special_unwind;
+
     /* Data slot for the special return handler function. */
     void *special_return_data;
 
@@ -124,6 +128,11 @@ struct MVMFrame {
 
     /* Assorted frame flags. */
     MVMuint8 flags;
+
+#if MVM_HLL_PROFILE_CALLS
+    /* Index of the profile data record. */
+    MVMuint32 profile_index;
+#endif
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for

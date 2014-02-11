@@ -31,3 +31,7 @@
 #if @hasreadline@
 #define MVM_HAS_READLINE @hasreadline@
 #endif
+
+#if @profilecalls@
+#define MVM_HLL_PROFILE_CALLS @profilecalls@
+#endif

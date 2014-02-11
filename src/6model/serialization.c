@@ -8,7 +8,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 9
+#define CURRENT_VERSION 10
 #define VARINT_MIN_VERSION 9
 #define MIN_VERSION     5
 
@@ -201,10 +201,25 @@ static void write_double(char *buffer, size_t offset, double value) {
 /* Writes an int64 into up to 128 bits of storage.
  * Returns how far to advance the offset. */
 static size_t varintsize(int64_t value) {
-    int8_t sign_nudge = value < 0 ? 0: 1;
-    size_t varlog = ceil(log(abs(value) + sign_nudge) / log(2));
-    size_t needed_bytes = floor((varlog) / 7) + 1;
-    return needed_bytes;
+    if(value < 0)
+        value = -value - 1;
+    if(value < 64) /* 7 bits */
+        return 1;
+    if(value < 8192) /* 14 bits */
+        return 2;
+    if(value < 1048576) /* 21 bits */
+        return 3;
+    if(value < 134217728) /* 28 bits */
+        return 4;
+    if(value < 17179869184LL) /* 35 bits */
+        return 5;
+    if(value < 2199023255552LL) /* 42 bits */
+        return 6;
+    if(value < 281474976710656LL) /* 49 bits */
+        return 7;
+    if(value < 36028797018963968LL) /* 56 bits */
+        return 8;
+    return 9;
 }
 
 static size_t write_varint9(MVMuint8 *buffer, size_t offset, int64_t value) {
@@ -216,7 +231,8 @@ static size_t write_varint9(MVMuint8 *buffer, size_t offset, int64_t value) {
         if (position != needed_bytes - 1) buffer[offset + position] = buffer[offset + position] | 0x80;
         value = value >> 7;
     }
-    if (position == 8) {
+    if (needed_bytes == 9) {
+        assert(position == 8);
         buffer[offset + position] = value;
     }
     return needed_bytes;
@@ -288,14 +304,14 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
 static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *writer,
                                 MVMSTable *st, MVMint32 *sc, MVMint32 *sc_idx) {
     /* Add to this SC if needed. */
-    if (st->header.sc == NULL) {
-        MVM_ASSIGN_REF(tc, st, st->header.sc, writer->root.sc);
+    if (MVM_sc_get_stable_sc(tc, st) == NULL) {
+        MVM_sc_set_stable_sc(tc, st, writer->root.sc);
         MVM_sc_push_stable(tc, writer->root.sc, st);
     }
 
     /* Work out SC reference. */
-    *sc     = get_sc_id(tc, writer, st->header.sc);
-    *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, st->header.sc, st);
+    *sc     = get_sc_id(tc, writer, MVM_sc_get_stable_sc(tc, st));
+    *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, MVM_sc_get_stable_sc(tc, st), st);
 }
 
 /* Expands current target storage as needed. */
@@ -352,20 +368,18 @@ static void write_str_func(MVMThreadContext *tc, MVMSerializationWriter *writer,
     *(writer->cur_write_offset) += 4;
 }
 
-#define SC_OBJ(obj) ((obj)->header.sc)
-
 /* Writes an object reference. */
 static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     MVMint32 sc_id, idx;
 
-    if (OBJ_IS_NULL(SC_OBJ(ref))) {
+    if (OBJ_IS_NULL(MVM_sc_get_obj_sc(tc, ref))) {
         /* This object doesn't belong to an SC yet, so it must be serialized as part of
          * this compilation unit. Add it to the work list. */
         MVM_sc_set_obj_sc(tc, ref, writer->root.sc);
         MVM_sc_push_object(tc, writer->root.sc, ref);
     }
-    sc_id = get_sc_id(tc, writer, SC_OBJ(ref));
-    idx   = (MVMint32)MVM_sc_find_object_idx(tc, SC_OBJ(ref), ref);
+    sc_id = get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, ref));
+    idx   = (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, ref), ref);
 
     expand_storage_if_needed(tc, writer, 8);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
@@ -457,7 +471,7 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
 
 /* Writes a reference to a code object in some SC. */
 static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *code) {
-    MVMSerializationContext *sc = code->header.sc;
+    MVMSerializationContext *sc = MVM_sc_get_obj_sc(tc, code);
     MVMint32  sc_id   = get_sc_id(tc, writer, sc);
     MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, sc, code);
     expand_storage_if_needed(tc, writer, 8);
@@ -472,7 +486,7 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
 static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *closure, MVMint64 fatal) {
     MVMObject *scr = (MVMObject *)(((MVMCode *)closure)->body.sf)->body.static_code;
 
-    if (scr == NULL || scr->header.sc == NULL) {
+    if (scr == NULL || MVM_sc_get_obj_sc(tc, scr) == NULL) {
         if (fatal)
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: missing static code ref for closure '%s'",
@@ -486,20 +500,20 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
 static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
-    if (OBJ_IS_NULL(ctx->header.sc)) {
+    if (OBJ_IS_NULL(MVM_sc_get_obj_sc(tc, ctx))) {
         /* Make sure we should chase a level down. */
         if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ((MVMContext *)ctx)->body.context->code_ref, 0))) {
             return 0;
         }
         else {
             MVM_repr_push_o(tc, writer->contexts_list, ctx);
-            MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
+            MVM_sc_set_obj_sc(tc, ctx, writer->root.sc);
             return (MVMint32)MVM_repr_elems(tc, writer->contexts_list);
         }
     }
     else {
         MVMint64 i, c;
-        if (ctx->header.sc != writer->root.sc)
+        if (MVM_sc_get_obj_sc(tc, ctx) != writer->root.sc)
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: reference to context outside of SC");
         c = MVM_repr_elems(tc, writer->contexts_list);
@@ -530,7 +544,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Locate the static code object. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, closure, 1);
-    MVMSerializationContext *static_code_sc = static_code_ref->header.sc;
+    MVMSerializationContext *static_code_sc = MVM_sc_get_obj_sc(tc, static_code_ref);
 
     /* Ensure there's space in the closures table; grow if not. */
     MVMint32 offset = writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
@@ -554,14 +568,14 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     if (((MVMCode *)closure)->body.code_object) {
         MVMObject *code_obj = (MVMObject *)((MVMCode *)closure)->body.code_object;
         write_int32(writer->root.closures_table, offset + 12, 1);
-        if (!code_obj->header.sc) {
-            MVM_ASSIGN_REF(tc, code_obj, code_obj->header.sc, writer->root.sc);
+        if (!MVM_sc_get_obj_sc(tc, code_obj)) {
+            MVM_sc_set_obj_sc(tc, code_obj, writer->root.sc);
             MVM_sc_push_object(tc, writer->root.sc, code_obj);
         }
         write_int32(writer->root.closures_table, offset + 16,
-            get_sc_id(tc, writer, code_obj->header.sc));
+            get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, code_obj)));
         write_int32(writer->root.closures_table, offset + 20,
-            (MVMint32)MVM_sc_find_object_idx(tc, code_obj->header.sc, code_obj));
+            (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, code_obj), code_obj));
     }
     else {
         write_int32(writer->root.closures_table, offset + 12, 0);
@@ -572,7 +586,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Add the closure to this SC, and mark it as as being in it. */
     MVM_repr_push_o(tc, writer->codes_list, closure);
-    MVM_ASSIGN_REF(tc, closure, closure->header.sc, writer->root.sc);
+    MVM_sc_set_obj_sc(tc, closure, writer->root.sc);
 }
 
 /* Writing function for references to things. */
@@ -607,11 +621,11 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
         discrim = REFVAR_VM_HASH_STR_VAR;
     }
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode) {
-        if (ref->header.sc && ((MVMCode *)ref)->body.is_static) {
+        if (MVM_sc_get_obj_sc(tc, ref) && ((MVMCode *)ref)->body.is_static) {
             /* Static code reference. */
             discrim = REFVAR_STATIC_CODEREF;
         }
-        else if (ref->header.sc) {
+        else if (MVM_sc_get_obj_sc(tc, ref)) {
             /* Closure, but already seen and serialization already handled. */
             discrim = REFVAR_CLONED_CODEREF;
         }
@@ -930,7 +944,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, frame->code_ref, 1);
-    MVMSerializationContext *static_code_sc  = static_code_ref->header.sc;
+    MVMSerializationContext *static_code_sc  = MVM_sc_get_obj_sc(tc, static_code_ref);
     if (OBJ_IS_NULL(static_code_sc))
         MVM_exception_throw_adhoc(tc,
             "Serialization Error: closure outer is a code object not in an SC");
@@ -994,7 +1008,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
         }
     }
-    MVM_ASSIGN_REF(tc, ctx, ctx->header.sc, writer->root.sc);
+    MVM_sc_set_obj_sc(tc, ctx, writer->root.sc);
 }
 
 /* Goes through the list of repossessions and serializes them all. */
@@ -1200,8 +1214,8 @@ static size_t read_varint9(MVMuint8 *buffer, size_t offset, int64_t *value) {
     int read_on = !!(buffer[offset] & 0x80) + 1;
     *value = 0;
     while (read_on && inner_offset != 8) {
-        *value = *value | ((buffer[offset + inner_offset] & 0x7F) << shift_amount);
-        negation_mask = negation_mask | (0x7F << shift_amount);
+        *value = *value | ((int64_t)(buffer[offset + inner_offset] & 0x7F) << shift_amount);
+        negation_mask = negation_mask | ((int64_t)0x7F << shift_amount);
         if (read_on == 1 && buffer[offset + inner_offset] & 0x80) {
             read_on = 2;
         }
@@ -1210,10 +1224,10 @@ static size_t read_varint9(MVMuint8 *buffer, size_t offset, int64_t *value) {
         shift_amount += 7;
     }
     // our last byte will be a full byte, so that we reach the full 64 bits
-    if (inner_offset == 8) {
-        shift_amount += 1;
-        *value = *value | (buffer[offset + inner_offset] << shift_amount);
-        negation_mask = negation_mask | (0x7F << shift_amount);
+    if (read_on && inner_offset == 8) {
+        *value = *value | ((int64_t)buffer[offset + inner_offset] << shift_amount);
+        negation_mask = negation_mask | ((int64_t)0xFF << shift_amount);
+        ++inner_offset;
     }
     negation_mask = negation_mask >> 1;
     // do we have a negative number so far?
@@ -1955,10 +1969,10 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* Invocation spec. */
     if (read_int_func(tc, reader)) {
         st->invocation_spec = (MVMInvocationSpec *)malloc(sizeof(MVMInvocationSpec));
-        st->invocation_spec->class_handle = read_ref_func(tc, reader);
-        st->invocation_spec->attr_name = read_str_func(tc, reader);
+        MVM_ASSIGN_REF(tc, st, st->invocation_spec->class_handle, read_ref_func(tc, reader));
+        MVM_ASSIGN_REF(tc, st, st->invocation_spec->attr_name, read_str_func(tc, reader));
         st->invocation_spec->hint = read_int_func(tc, reader);
-        st->invocation_spec->invocation_handler = read_ref_func(tc, reader);
+        MVM_ASSIGN_REF(tc, st, st->invocation_spec->invocation_handler, read_ref_func(tc, reader));
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */
@@ -2008,7 +2022,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         /* If we have a reposession conflict, make a copy of the original object
          * and reference it from the conflicts list. Push the original (about to
          * be overwritten) object reference too. */
-        if (orig_obj->header.sc != orig_sc) {
+        if (MVM_sc_get_obj_sc(tc, orig_obj) != orig_sc) {
             MVMROOT(tc, orig_obj, {
                 MVMObject *backup = NULL;
                 MVMROOT(tc, backup, {
@@ -2040,7 +2054,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         MVM_sc_set_stable(tc, reader->root.sc, read_int32(table_row, 4), orig_st);
 
         /* Make sure we don't have a reposession conflict. */
-        if (orig_st->header.sc != orig_sc)
+        if (MVM_sc_get_stable_sc(tc, orig_st) != orig_sc)
             fail_deserialize(tc, reader,
                 "STable conflict detected during deserialization.\n"
                 "(Probable attempt to load two modules that cannot be loaded together).");

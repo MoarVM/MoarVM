@@ -48,6 +48,11 @@ struct MVMCallsite {
 
     /* Cached version of this callsite with an extra invocant arg. */
     MVMCallsite *with_invocant;
+
+#if MVM_HLL_PROFILE_CALLS
+    MVMuint32 static_frame_id;
+    MVMuint8 *cuuid, *name;
+#endif
 };
 
 /* Minimum callsite size is due to certain things internally expecting us to

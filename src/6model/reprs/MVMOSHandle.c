@@ -1,5 +1,9 @@
 #include "moar.h"
 
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
+
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
@@ -36,6 +40,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMOSHandleBody *handle = (MVMOSHandleBody *)data;
     switch (handle->type) {
+        case MVM_OSHANDLE_PIPE:
         case MVM_OSHANDLE_HANDLE:
             if (handle->u.handle && handle->u.handle->data)
                 MVM_gc_worklist_add(tc, worklist, &handle->u.handle->data);
@@ -49,12 +54,32 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     switch(handle->body.type) {
         case MVM_OSHANDLE_UNINIT:
             break;
+        case MVM_OSHANDLE_PIPE:
+            if (handle->body.u.handle
+            && !uv_is_closing(handle->body.u.handle)
+            && tc->instance->stdin_handle  != obj
+            && tc->instance->stdout_handle != obj
+            && tc->instance->stderr_handle != obj) {
+                uv_unref((uv_handle_t *)handle->body.u.handle);
+                uv_close(handle->body.u.handle, NULL);
+                if (handle->body.u.process)
+#ifdef _WIN32
+                    uv_process_close(tc->loop, handle->body.u.process);
+#else
+                    waitpid(handle->body.u.process->pid, NULL, 0);
+#endif
+                uv_unref((uv_handle_t *)handle->body.u.process);
+                uv_run(tc->loop, UV_RUN_DEFAULT);
+                handle->body.u.process = NULL;
+            }
+            break;
         case MVM_OSHANDLE_HANDLE:
             if (handle->body.u.handle
             && !uv_is_closing(handle->body.u.handle)
             && tc->instance->stdin_handle  != obj
             && tc->instance->stdout_handle != obj
             && tc->instance->stderr_handle != obj) {
+                uv_unref((uv_handle_t *)handle->body.u.handle);
                 uv_close(handle->body.u.handle, NULL);
             }
             break;

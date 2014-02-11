@@ -139,8 +139,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame = malloc(sizeof(MVMFrame));
         frame->params.named_used = NULL;
 
-        /* Ensure special return pointer and continuation tags are null. */
+        /* Ensure special return pointers and continuation tags are null. */
         frame->special_return = NULL;
+        frame->special_unwind = NULL;
         frame->continuation_tags = NULL;
     }
     else {
@@ -148,6 +149,21 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         node->outer = NULL;
         frame = node;
     }
+
+#if MVM_HLL_PROFILE_CALLS
+    frame->profile_index = tc->profile_index;
+    tc->profile_data[frame->profile_index].duration_nanos = MVM_platform_now();
+    tc->profile_data[frame->profile_index].callsite_id = 0; /* XXX get a real callsite id */
+    tc->profile_data[frame->profile_index].code_id = 0; /* XXX get a real code id */
+
+    /* increment the profile data index */
+    ++tc->profile_index;
+
+    if (tc->profile_index == tc->profile_data_size) {
+        tc->profile_data_size *= 2;
+        tc->profile_data = realloc(tc->profile_data, tc->profile_data_size);
+    }
+#endif
 
     /* Copy thread context (back?) into the frame. */
     frame->tc = tc;
@@ -351,7 +367,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Some cleanup we only need do if we're not a frame involved in a
      * continuation (otherwise we need to allow for multi-shot
-     * re-invocation. */
+     * re-invocation). */
     if (!returner->in_continuation) {
         /* Arguments buffer no longer in use (saves GC visiting it). */
         returner->cur_args_callsite = NULL;
@@ -387,6 +403,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         }
     }
 
+#if MVM_HLL_PROFILE_CALLS
+    tc->profile_data[returner->profile_index].duration_nanos =
+        MVM_platform_now() -
+        tc->profile_data[returner->profile_index].duration_nanos;
+#endif
+
     /* Decrement the frame's ref-count by the 1 it got by virtue of being the
      * currently executing frame. */
     MVM_frame_dec_ref(tc, returner);
@@ -400,10 +422,14 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_cu) = caller->static_info->body.cu;
 
         /* Handle any special return hooks. */
-        if (caller->special_return) {
+        if (caller->special_return || caller->special_unwind) {
             MVMSpecialReturn sr = caller->special_return;
+            MVMSpecialReturn su = caller->special_unwind;
             caller->special_return = NULL;
-            if (!unwind)
+            caller->special_unwind = NULL;
+            if (unwind && su)
+                su(tc, caller->special_return_data);
+            else if (!unwind && sr)
                 sr(tc, caller->special_return_data);
             caller->mark_special_return_data = NULL;
         }

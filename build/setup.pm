@@ -255,7 +255,7 @@ our %COMPILERS = (
 
         ccmiscflags  => '',
         ccwarnflags  => '',
-        ccoptiflags  => '-O%s',
+        ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-pg',
 
@@ -276,7 +276,7 @@ our %COMPILERS = (
 
         ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
         ccwarnflags  => '',
-        ccoptiflags  => '-O%s',
+        ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-fsanitize=address',
 
@@ -297,7 +297,7 @@ our %COMPILERS = (
 
         ccmiscflags  => '/nologo /MT',
         ccwarnflags  => '',
-        ccoptiflags  => '/Ox /GL',
+        ccoptiflags  => '/Ox /GL /DNDEBUG',
         ccdebugflags => '/Zi',
         ccinstflags  => '',
 
@@ -318,7 +318,7 @@ our %COMPILERS = (
 
         ccmiscflags  => '',
         ccwarnflags  => '',
-        ccoptiflags  => '-O',
+        ccoptiflags  => '-O -DNDEBUG',
         ccdebugflags => '-g',
         ccinstflags  => '',
 

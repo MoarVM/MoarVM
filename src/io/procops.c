@@ -128,7 +128,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 } while (0)
 
 #define SPAWN(shell) do { \
-    process.data                = &result; \
+    process->data               = &result; \
     process_stdio[0].flags      = UV_IGNORE; \
     process_stdio[1].flags      = UV_INHERIT_FD; \
     process_stdio[1].data.fd    = 1; \
@@ -142,8 +142,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     process_options.env         = _env; \
     process_options.stdio_count = 3; \
     process_options.exit_cb     = spawn_on_exit; \
-    uv_ref((uv_handle_t *)&process); \
-    spawn_result = uv_spawn(tc->loop, &process, &process_options); \
+    uv_ref((uv_handle_t *)process); \
+    spawn_result = uv_spawn(tc->loop, process, &process_options); \
     if (spawn_result) \
         result = spawn_result; \
     else \
@@ -151,14 +151,119 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 } while (0)
 
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
-    *((MVMint64 *)req->data) = exit_status << 8;
+    *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
     uv_unref((uv_handle_t *)req);
     uv_close((uv_handle_t *)req, NULL);
 }
 
+MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
+    MVMint64 result = 0, spawn_result = 0;
+    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_options_t process_options = {0};
+    uv_stdio_container_t process_stdio[3];
+    int i;
+    MVMObject *type_object;
+    MVMOSHandle *resultfh;
+    int status;
+    int readable = 1;
+    uv_pipe_t *out, *in;
+
+    char * const cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
+    char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
+    const MVMuint64 size = MVM_repr_elems(tc, env);
+    MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
+    char **_env = malloc((size + 1) * sizeof(char *));
+
+#ifdef _WIN32
+    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
+    char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
+    char *args[3];
+    args[0] = "/c";
+    {
+        MVMint64 len = strlen(cmdin);
+        MVMint64 i;
+        for (i = 0; i < len; i++)
+            if (cmdin[i] == '/')
+                cmdin[i] = '\\';
+    }
+    args[1] = cmdin;
+    args[2] = NULL;
+#else
+    char * const _cmd = "/bin/sh";
+    char *args[4];
+    args[0] = "/bin/sh";
+    args[1] = "-c";
+    args[2] = cmdin;
+    args[3] = NULL;
+#endif
+
+    INIT_ENV();
+    /* Making openpipe distinguish between :rp and :wp and all other options
+     * is left as an excercise for the reader. 
+    readable = strncmp(cmdin, "/usr/bin/wc", 11) != 0; */
+
+    if (readable) {
+        /* We want to read from the child's stdout. */
+        out = malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(tc->loop, out, 0);
+        uv_pipe_open(out, 0);
+        process_stdio[0].flags       = UV_INHERIT_FD; // child's stdin
+        process_stdio[0].data.fd     = 0;
+        process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE; // child's stdout
+        process_stdio[1].data.stream = (uv_stream_t*)out;
+    }
+    else {
+        /* We want to print to the child's stdin. */
+        in  = malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(tc->loop, in, 0);
+        uv_pipe_open(in, 1);
+        process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE; // child's stdin
+        process_stdio[0].data.stream = (uv_stream_t*)in;
+        process_stdio[1].flags       = UV_INHERIT_FD; // child's stdout
+        process_stdio[1].data.fd     = 1;
+    }
+    process->data               = &result;
+    process_stdio[2].flags      = UV_INHERIT_FD; // child's stderr
+    process_stdio[2].data.fd    = 2;
+    process_options.stdio       = process_stdio;
+    process_options.file        = _cmd;
+    process_options.args        = args;
+    process_options.cwd         = _cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env         = _env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = spawn_on_exit;
+    uv_ref((uv_handle_t *)process);
+    spawn_result = uv_spawn(tc->loop, process, &process_options);
+    if (spawn_result) {
+        FREE_ENV();
+        free(_cwd);
+        free(cmdin);
+        uv_unref((uv_handle_t *)process);
+        MVM_exception_throw_adhoc(tc, "Failed to open pipe: %d", errno);
+    }
+
+    FREE_ENV();
+    free(_cwd);
+    free(cmdin);
+
+    type_object = tc->instance->boot_types.BOOTIO;
+    resultfh = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+
+    resultfh->body.filename       = strdup("<pipe>"); // FIXME
+    resultfh->body.u.handle       = (uv_handle_t *)(readable ? out : in);
+    resultfh->body.u.handle->data = resultfh; /* same weirdness as in MVM_file_get_stdstream */
+    resultfh->body.u.process      = process;
+    resultfh->body.type           = MVM_OSHANDLE_PIPE;
+    resultfh->body.encoding_type  = MVM_encoding_type_utf8;
+    uv_unref((uv_handle_t *)process);
+
+    return (MVMObject *)resultfh;
+}
+
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
-    MVMint64 result, spawn_result;
-    uv_process_t process = {0};
+    MVMint64 result = 0, spawn_result = 0;
+    uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -207,8 +312,8 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 }
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
-    MVMint64 result, spawn_result;
-    uv_process_t process = {0};
+    MVMint64 result = 0, spawn_result = 0;
+    uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -264,7 +369,9 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
 
 /* seed random number generator */
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
+    /* Seed our one, plus the normal C srand for libtommath. */
     tinymt64_init(tc->rand_state, (MVMuint64)seed);
+    srand((MVMuint32)seed);
 }
 
 /* gets the system time since the epoch truncated to integral seconds */

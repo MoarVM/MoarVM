@@ -189,6 +189,38 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             else
                 value->n64 = (MVMnum64)body->slots.n32[body->start + index];
             break;
+        case MVM_ARRAY_U64:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (index >= body->elems)
+                value->i64 = 0;
+            else
+                value->i64 = (MVMint64)body->slots.u64[body->start + index];
+            break;
+        case MVM_ARRAY_U32:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (index >= body->elems)
+                value->i64 = 0;
+            else
+                value->i64 = (MVMint64)body->slots.u32[body->start + index];
+            break;
+        case MVM_ARRAY_U16:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (index >= body->elems)
+                value->i64 = 0;
+            else
+                value->i64 = (MVMint64)body->slots.u16[body->start + index];
+            break;
+        case MVM_ARRAY_U8:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (index >= body->elems)
+                value->i64 = 0;
+            else
+                value->i64 = (MVMint64)body->slots.u8[body->start + index];
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
@@ -228,6 +260,22 @@ static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
         case MVM_ARRAY_N32:
             while (elems < ssize)
                 body->slots.n32[elems++] = 0.0;
+            break;
+        case MVM_ARRAY_U64:
+            while (elems < ssize)
+                body->slots.u64[elems++] = 0;
+            break;
+        case MVM_ARRAY_U32:
+            while (elems < ssize)
+                body->slots.u32[elems++] = 0;
+            break;
+        case MVM_ARRAY_U16:
+            while (elems < ssize)
+                body->slots.u16[elems++] = 0;
+            break;
+        case MVM_ARRAY_U8:
+            while (elems < ssize)
+                body->slots.u8[elems++] = 0;
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
@@ -346,6 +394,26 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected num register");
             body->slots.n32[body->start + index] = (MVMnum32)value.n64;
             break;
+        case MVM_ARRAY_U64:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            body->slots.u64[body->start + index] = value.i64;
+            break;
+        case MVM_ARRAY_U32:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            body->slots.u32[body->start + index] = (MVMuint32)value.i64;
+            break;
+        case MVM_ARRAY_U16:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            body->slots.u16[body->start + index] = (MVMuint16)value.i64;
+            break;
+        case MVM_ARRAY_U8:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            body->slots.u8[body->start + index] = (MVMuint8)value.i64;
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
@@ -422,6 +490,26 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
                 MVM_exception_throw_adhoc(tc, "MVMArray: push expected num register");
             body->slots.n32[body->start + body->elems - 1] = (MVMnum32)value.n64;
             break;
+        case MVM_ARRAY_U64:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: push expected int register");
+            body->slots.u64[body->start + body->elems - 1] = (MVMuint64)value.i64;
+            break;
+        case MVM_ARRAY_U32:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: push expected int register");
+            body->slots.u32[body->start + body->elems - 1] = (MVMuint32)value.i64;
+            break;
+        case MVM_ARRAY_U16:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: push expected int register");
+            body->slots.u16[body->start + body->elems - 1] = (MVMuint16)value.i64;
+            break;
+        case MVM_ARRAY_U8:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: push expected int register");
+            body->slots.u8[body->start + body->elems - 1] = (MVMuint8)value.i64;
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
@@ -476,6 +564,26 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected num register");
             value->n64 = (MVMnum64)body->slots.n32[body->start + body->elems];
+            break;
+        case MVM_ARRAY_U64:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
+            value->i64 = (MVMint64)body->slots.u64[body->start + body->elems];
+            break;
+        case MVM_ARRAY_U32:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
+            value->i64 = (MVMint64)body->slots.u32[body->start + body->elems];
+            break;
+        case MVM_ARRAY_U16:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
+            value->i64 = (MVMint64)body->slots.u16[body->start + body->elems];
+            break;
+        case MVM_ARRAY_U8:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
+            value->i64 = (MVMint64)body->slots.u8[body->start + body->elems];
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
@@ -551,6 +659,26 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected num register");
             body->slots.n32[body->start] = (MVMnum32)value.n64;
             break;
+        case MVM_ARRAY_U64:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
+            body->slots.u64[body->start] = (MVMuint64)value.i64;
+            break;
+        case MVM_ARRAY_U32:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
+            body->slots.u32[body->start] = (MVMuint32)value.i64;
+            break;
+        case MVM_ARRAY_U16:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
+            body->slots.u16[body->start] = (MVMuint16)value.i64;
+            break;
+        case MVM_ARRAY_U8:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
+            body->slots.u8[body->start] = (MVMuint8)value.i64;
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
@@ -605,6 +733,26 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: shift expected num register");
             value->n64 = (MVMnum64)body->slots.n32[body->start];
+            break;
+        case MVM_ARRAY_U64:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: shift expected int register");
+            value->i64 = (MVMint64)body->slots.u64[body->start];
+            break;
+        case MVM_ARRAY_U32:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: shift expected int register");
+            value->i64 = (MVMint64)body->slots.u32[body->start];
+            break;
+        case MVM_ARRAY_U16:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: shift expected int register");
+            value->i64 = (MVMint64)body->slots.u16[body->start];
+            break;
+        case MVM_ARRAY_U8:
+            if (kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: shift expected int register");
+            value->i64 = (MVMint64)body->slots.u8[body->start];
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
@@ -709,6 +857,12 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             case MVM_ARRAY_N32:
                 kind = MVM_reg_num64;
                 break;
+            case MVM_ARRAY_U64:
+            case MVM_ARRAY_U32:
+            case MVM_ARRAY_U16:
+            case MVM_ARRAY_U8:
+                kind = MVM_reg_int64;
+                break;
         }
         for (i = 0; i < elems1; i++) {
             MVMRegister to_copy;
@@ -742,6 +896,15 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
             spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
             spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
             break;
+        case MVM_ARRAY_U64:
+        case MVM_ARRAY_U32:
+        case MVM_ARRAY_U16:
+        case MVM_ARRAY_U8:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
+            spec.is_unsigned     = 1;
+            break;
         default:
             spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
             spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
@@ -763,26 +926,51 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVM_ASSIGN_REF(tc, st, repr_data->elem_type, type);
             switch (spec.boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT:
-                    switch (spec.bits) {
-                        case 64:
-                            repr_data->slot_type = MVM_ARRAY_I64;
-                            repr_data->elem_size = sizeof(MVMint64);
-                            break;
-                        case 32:
-                            repr_data->slot_type = MVM_ARRAY_I32;
-                            repr_data->elem_size = sizeof(MVMint32);
-                            break;
-                        case 16:
-                            repr_data->slot_type = MVM_ARRAY_I16;
-                            repr_data->elem_size = sizeof(MVMint16);
-                            break;
-                        case 8:
-                            repr_data->slot_type = MVM_ARRAY_I8;
-                            repr_data->elem_size = sizeof(MVMint8);
-                            break;
-                        default:
-                            MVM_exception_throw_adhoc(tc,
-                                "MVMArray: Unsupported int size");
+                    if (spec.is_unsigned) {
+                        switch (spec.bits) {
+                            case 64:
+                                repr_data->slot_type = MVM_ARRAY_U64;
+                                repr_data->elem_size = sizeof(MVMuint64);
+                                break;
+                            case 32:
+                                repr_data->slot_type = MVM_ARRAY_U32;
+                                repr_data->elem_size = sizeof(MVMuint32);
+                                break;
+                            case 16:
+                                repr_data->slot_type = MVM_ARRAY_U16;
+                                repr_data->elem_size = sizeof(MVMuint16);
+                                break;
+                            case 8:
+                                repr_data->slot_type = MVM_ARRAY_U8;
+                                repr_data->elem_size = sizeof(MVMuint8);
+                                break;
+                            default:
+                                MVM_exception_throw_adhoc(tc,
+                                    "MVMArray: Unsupported uint size");
+                        }
+                    }
+                    else {
+                        switch (spec.bits) {
+                            case 64:
+                                repr_data->slot_type = MVM_ARRAY_I64;
+                                repr_data->elem_size = sizeof(MVMint64);
+                                break;
+                            case 32:
+                                repr_data->slot_type = MVM_ARRAY_I32;
+                                repr_data->elem_size = sizeof(MVMint32);
+                                break;
+                            case 16:
+                                repr_data->slot_type = MVM_ARRAY_I16;
+                                repr_data->elem_size = sizeof(MVMint16);
+                                break;
+                            case 8:
+                                repr_data->slot_type = MVM_ARRAY_I8;
+                                repr_data->elem_size = sizeof(MVMint8);
+                                break;
+                            default:
+                                MVM_exception_throw_adhoc(tc,
+                                    "MVMArray: Unsupported int size");
+                        }
                     }
                     break;
                 case MVM_STORAGE_SPEC_BP_NUM:
@@ -834,26 +1022,51 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
         switch (spec.boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
-                switch (spec.bits) {
-                    case 64:
-                        repr_data->slot_type = MVM_ARRAY_I64;
-                        repr_data->elem_size = sizeof(MVMint64);
-                        break;
-                    case 32:
-                        repr_data->slot_type = MVM_ARRAY_I32;
-                        repr_data->elem_size = sizeof(MVMint32);
-                        break;
-                    case 16:
-                        repr_data->slot_type = MVM_ARRAY_I16;
-                        repr_data->elem_size = sizeof(MVMint16);
-                        break;
-                    case 8:
-                        repr_data->slot_type = MVM_ARRAY_I8;
-                        repr_data->elem_size = sizeof(MVMint8);
-                        break;
-                    default:
-                        MVM_exception_throw_adhoc(tc,
-                            "MVMArray: Unsupported int size");
+                if (spec.is_unsigned) {
+                    switch (spec.bits) {
+                        case 64:
+                            repr_data->slot_type = MVM_ARRAY_U64;
+                            repr_data->elem_size = sizeof(MVMuint64);
+                            break;
+                        case 32:
+                            repr_data->slot_type = MVM_ARRAY_U32;
+                            repr_data->elem_size = sizeof(MVMuint32);
+                            break;
+                        case 16:
+                            repr_data->slot_type = MVM_ARRAY_U16;
+                            repr_data->elem_size = sizeof(MVMuint16);
+                            break;
+                        case 8:
+                            repr_data->slot_type = MVM_ARRAY_U8;
+                            repr_data->elem_size = sizeof(MVMuint8);
+                            break;
+                        default:
+                            MVM_exception_throw_adhoc(tc,
+                                "MVMArray: Unsupported uint size");
+                    }
+                }
+                else {
+                    switch (spec.bits) {
+                        case 64:
+                            repr_data->slot_type = MVM_ARRAY_I64;
+                            repr_data->elem_size = sizeof(MVMint64);
+                            break;
+                        case 32:
+                            repr_data->slot_type = MVM_ARRAY_I32;
+                            repr_data->elem_size = sizeof(MVMint32);
+                            break;
+                        case 16:
+                            repr_data->slot_type = MVM_ARRAY_I16;
+                            repr_data->elem_size = sizeof(MVMint16);
+                            break;
+                        case 8:
+                            repr_data->slot_type = MVM_ARRAY_I8;
+                            repr_data->elem_size = sizeof(MVMint8);
+                            break;
+                        default:
+                            MVM_exception_throw_adhoc(tc,
+                                "MVMArray: Unsupported int size");
+                    }
                 }
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
