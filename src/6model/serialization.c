@@ -197,30 +197,6 @@ static void write_double(char *buffer, size_t offset, double value) {
 #endif
 }
 
-/* Writes an int64 into up to 128 bits of storage.
- * Returns how far to advance the offset. */
-static size_t varintsize(int64_t value) {
-    if(value < 0)
-        value = -value - 1;
-    if(value < 64) /* 7 bits */
-        return 1;
-    if(value < 8192) /* 14 bits */
-        return 2;
-    if(value < 1048576) /* 21 bits */
-        return 3;
-    if(value < 134217728) /* 28 bits */
-        return 4;
-    if(value < 17179869184LL) /* 35 bits */
-        return 5;
-    if(value < 2199023255552LL) /* 42 bits */
-        return 6;
-    if(value < 281474976710656LL) /* 49 bits */
-        return 7;
-    if(value < 36028797018963968LL) /* 56 bits */
-        return 8;
-    return 9;
-}
-
 #define STRING_IS_NULL(s) ((s) == NULL)
 
 /* Adds an item to the MVMString heap if needed, and returns the index where
@@ -309,6 +285,29 @@ void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *w
     expand_storage_if_needed(tc, writer, 8);
     write_int64(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
     *(writer->cur_write_offset) += 8;
+}
+
+/* Size of the variable length encoding for a given value. */
+static int varintsize(int64_t value) {
+    if(value < 0)
+        value = -value - 1;
+    if(value < 64) /* 7 bits */
+        return 1;
+    if(value < 8192) /* 14 bits */
+        return 2;
+    if(value < 1048576) /* 21 bits */
+        return 3;
+    if(value < 134217728) /* 28 bits */
+        return 4;
+    if(value < 17179869184LL) /* 35 bits */
+        return 5;
+    if(value < 2199023255552LL) /* 42 bits */
+        return 6;
+    if(value < 281474976710656LL) /* 49 bits */
+        return 7;
+    if(value < 36028797018963968LL) /* 56 bits */
+        return 8;
+    return 9;
 }
 
 /* Writing function for variable sized integers. Writes out a 64 bit value
