@@ -142,8 +142,18 @@ static MVMString * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 cha
 
 /* Reads the specified number of bytes into a the supplied buffer, returing
  * the number actually read.. */
-static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
-    MVM_exception_throw_adhoc(tc, "read_bytes NYI on file handles");
+static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    MVMint64 bytes_read;
+    uv_fs_t  req;
+    *buf = malloc(bytes);
+    bytes_read = uv_fs_read(tc->loop, &req, data->fd, *buf, bytes, -1, NULL);
+    if (bytes_read < 0) {
+        free(*buf);
+        *buf = NULL;
+        MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
+    }
+    return bytes_read;
 }
 
 /* Checks if the end of file has been reached. */
@@ -185,18 +195,29 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
 
 /* Writes the specified bytes to the file handle. */
 static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
-    MVM_exception_throw_adhoc(tc, "write_bytes NYI on file handles");
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    uv_fs_t  req;
+    MVMint64 bytes_written;
+    bytes_written = uv_fs_write(tc->loop, &req, data->fd, (const void *)buf, bytes, -1, NULL);
+    if (bytes_written < 0)
+        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
+    return bytes_written;
 }
 
 /* Flushes the file handle. */
 static void flush(MVMThreadContext *tc, MVMOSHandle *h){
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    uv_fs_t req;
+    if (uv_fs_fsync(tc->loop, &req, data->fd, NULL) < 0 )
+        MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", uv_strerror(req.result));
 }
 
 /* Frees data associated with the handle. */
 void gc_free(MVMThreadContext *tc, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
     if (data) {
-        free(data->filename);
+        if (data->filename)
+            free(data->filename);
         free(data);
     }
 }

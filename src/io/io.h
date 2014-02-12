@@ -33,7 +33,7 @@ struct MVMIOSyncReadable {
     MVMString * (*read_line) (MVMThreadContext *tc, MVMOSHandle *h);
     MVMString * (*slurp) (MVMThreadContext *tc, MVMOSHandle *h);
     MVMString * (*read_chars) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars);
-    MVMint64 (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
+    MVMint64 (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes);
     MVMint64 (*eof) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
