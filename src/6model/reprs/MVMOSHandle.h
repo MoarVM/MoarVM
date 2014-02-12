@@ -23,7 +23,6 @@ struct MVMOSHandleBody {
           uv_process_t *process;
           MVMuint8          eof;
         };
-        uv_file          fd;
 #ifdef _WIN32
         struct {
             wchar_t   *dir_name;

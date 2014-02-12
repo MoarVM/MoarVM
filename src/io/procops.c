@@ -250,7 +250,6 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     type_object = tc->instance->boot_types.BOOTIO;
     resultfh = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
 
-    resultfh->body.filename       = strdup("<pipe>"); // FIXME
     resultfh->body.u.handle       = (uv_handle_t *)(readable ? out : in);
     resultfh->body.u.handle->data = resultfh; /* same weirdness as in MVM_file_get_stdstream */
     resultfh->body.u.process      = process;
