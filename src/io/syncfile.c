@@ -278,3 +278,14 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
     return (MVMObject *)result;
 }
+
+/* Opens a file, returning a synchronous file handle. */
+MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, uv_file fd) {
+    MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+    MVMIOFileData * const data   = calloc(1, sizeof(MVMIOFileData));
+    data->fd          = fd;
+    data->encoding    = MVM_encoding_type_utf8;
+    result->body.ops  = &op_table;
+    result->body.data = data;
+    return (MVMObject *)result;
+}

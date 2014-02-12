@@ -825,8 +825,8 @@ void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offse
 /* return an OSHandle representing one of the standard streams */
 MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
     MVMObject * const type_object = tc->instance->boot_types.BOOTIO;
-    MVMOSHandle * const    result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-    MVMOSHandleBody * const body  = &result->body;
+    MVMOSHandle *result;
+    MVMOSHandleBody *body;
 
     switch(uv_guess_handle(type)) {
         case UV_TTY: {
@@ -837,15 +837,16 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
 #else
             ((uv_stream_t *)handle)->flags = 0x80; /* UV_STREAM_BLOCKING */
 #endif
+            result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+            body = &result->body;
             body->u.handle = (uv_handle_t *)handle;
             body->u.handle->data = result;       /* this is needed in tty_on_read function. */
             body->type = MVM_OSHANDLE_HANDLE;
+            body->encoding_type = MVM_encoding_type_utf8;
             break;
         }
         case UV_FILE:
-            body->u.fd     = type;
-            body->type     = MVM_OSHANDLE_FD;
-            body->filename = NULL;
+            result = (MVMOSHandle *)MVM_file_handle_from_fd(tc, type);
             break;
         case UV_NAMED_PIPE: {
             uv_pipe_t * const handle = malloc(sizeof(uv_pipe_t));
@@ -856,9 +857,12 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             ((uv_stream_t *)handle)->flags = 0x80; /* UV_STREAM_BLOCKING */
 #endif
             uv_pipe_open(handle, type);
+            result = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
+            body = &result->body;
             body->u.handle = (uv_handle_t *)handle;
             body->u.handle->data = result;
             body->type = MVM_OSHANDLE_HANDLE;
+            body->encoding_type = MVM_encoding_type_utf8;
             break;
         }
         default:
@@ -866,7 +870,6 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             break;
     }
 
-    body->encoding_type = MVM_encoding_type_utf8;
     return (MVMObject *)result;
 }
 
