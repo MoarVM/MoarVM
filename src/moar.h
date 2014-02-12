@@ -84,6 +84,7 @@ typedef double   MVMnum64;
 #include "gc/gen2.h"
 #include "gc/roots.h"
 #include "gc/wb.h"
+#include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/utf16.h"

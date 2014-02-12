@@ -123,3 +123,6 @@ typedef struct MVMIOSeekable MVMIOSeekable;
 typedef struct MVMIOBindable MVMIOBindable;
 typedef struct MVMIOInteractive MVMIOInteractive;
 typedef struct MVMIOLockable MVMIOLockable;
+typedef struct MVMDecodeStream MVMDecodeStream;
+typedef struct MVMDecodeStreamBytes MVMDecodeStreamBytes;
+typedef struct MVMDecodeStreamChars MVMDecodeStreamChars;

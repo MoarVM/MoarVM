@@ -121,6 +121,7 @@ OBJECTS = src/core/args@obj@ \
           src/6model/serialization@obj@ \
           src/mast/compiler@obj@ \
           src/mast/driver@obj@ \
+          src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
           src/strings/ops@obj@ \
@@ -204,6 +205,7 @@ HEADERS = src/moar.h \
           src/mast/driver.h \
           src/mast/nodes_moar.h \
           src/strings/unicode_gen.h \
+          src/strings/decode_stream.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
           src/strings/ops.h \
