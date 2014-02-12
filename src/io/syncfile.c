@@ -17,6 +17,9 @@
 #define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
 #endif
 
+/* Number of bytes we pull in at a time to the buffer. */
+#define CHUNK_SIZE 32768
+
 /* Data that we keep for a file-based handle. */
 typedef struct {
     /* libuv file descriptor. */
@@ -27,12 +30,19 @@ typedef struct {
 
     /* The encoding we're using. */
     MVMint64 encoding;
+
+    /* Decode stream, for turning bytes from disk into strings. */
+    MVMDecodeStream *ds;
 } MVMIOFileData;
 
 /* Closes the file. */
 static void close(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
+    if (data->ds) {
+        MVM_string_decodestream_destory(tc, data->ds);
+        data->ds = NULL;
+    }
     if (uv_fs_close(tc->loop, &req, data->fd, NULL) < 0) {
         data->fd = -1;
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
@@ -43,23 +53,34 @@ static void close(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Sets the encoding used for string-based I/O. */
 static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    if (data->ds)
+        MVM_exception_throw_adhoc(tc, "Too late to change handle encoding");
     data->encoding = encoding;
 }
 
 /* Seek to the specified position in the file. */
 static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    MVMint64 r;
+
+    if (data->ds) {
+        /* We'll start over from a new position. */
+        MVM_string_decodestream_destory(tc, data->ds);
+        data->ds = NULL;
+    }
+
+    /* Seek, then get absolute position for new decodestream. */
     if (MVM_platform_lseek(data->fd, offset, whence) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+    if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+    data->ds = MVM_string_decodestream_create(tc, data->encoding, r);
 }
 
 /* Get curernt position in the file. */
 static MVMint64 tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
-    if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    return r;
+    return data->ds ? MVM_string_decodestream_tell_bytes(tc, data->ds) : 0;
 }
 
 /* Set the line separator. */
@@ -67,77 +88,73 @@ static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) 
     MVM_exception_throw_adhoc(tc, "set_separator NYI on file handles");
 }
 
+/* Read a bunch of bytes into the current decode stream. */
+static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
+    char *buf = malloc(bytes);
+    uv_fs_t req;
+    MVMint32 read;
+    if ((read = uv_fs_read(tc->loop, &req, data->fd, buf, bytes, -1, NULL)) < 0) {
+        free(buf);
+        MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
+            uv_strerror(req.result));
+    }
+    MVM_string_decodestream_add_bytes(tc, data->ds, buf, read);
+    return read;
+}
+
+/* Ensures we have a decode stream, creating it if we're missing one. */
+static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
+    if (!data->ds)
+        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0);
+}
+
 /* Reads a single line from the file handle. May serve it from a buffer, if we
  * already read enough data. */
 static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h) {
-    MVMIOFileData *data       = (MVMIOFileData *)h->body.data;
-    MVMint32       bytes_read = 0;
-    MVMint32       bufsize    = 128;
-    char          *buf        = malloc(bufsize);
-    MVMString     *result;
-    uv_fs_t        req;
-    MVMint32       res;
-    char           ch;
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    ensure_decode_stream(tc, data);
 
-    while ((res = uv_fs_read(tc->loop, &req, data->fd, &ch, 1, -1, NULL)) > 0) {
-        if (bytes_read == bufsize) {
-            bufsize *= 2;
-            buf = realloc(buf, bufsize);
-        }
-        buf[bytes_read] = ch;
-        bytes_read++;
-        if (ch == 10)
-            break;
-    }
+    /* Pull data until we can read a line. */
+    do {
+        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, '\n');
+        if (line != NULL)
+            return line;
+    } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
 
-    if (res < 0) {
-        free(buf);
-        MVM_exception_throw_adhoc(tc, "readline from filehandle failed: %s",
-            uv_strerror(req.result));
-    }
-
-    result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, data->encoding);
-    free(buf);
-    return result;
+    /* Reached end of file, or last (non-termianted) line. */
+    return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
 /* Reads the file from the current position to the end into a string. */
 static MVMString * slurp(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMString *result;
-    MVMint64 length;
-    MVMint64 bytes_read = 0;
     uv_fs_t req;
-    char *buf;
+    ensure_decode_stream(tc, data);
 
+    /* Typically we're slurping an entire file, so just request the bytes
+     * until the end; repeat to ensure we get 'em all. */
     if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) < 0) {
         MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", uv_strerror(req.result));
     }
-
-    length = req.statbuf.st_size;
-
-    if (length > 0) {
-        buf = malloc(length);
-
-        bytes_read = uv_fs_read(tc->loop, &req, data->fd, buf, length, -1, NULL);
-        if (bytes_read < 0) {
-            free(buf);
-            MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", uv_strerror(req.result));
-        }
-
-        result = MVM_string_decode(tc, tc->instance->VMString, buf, bytes_read, data->encoding);
-        free(buf);
-    }
-    else {
-        result = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
-    }
-    
-    return result;
+    while (read_to_buffer(tc, data, req.statbuf.st_size) > 0)
+        ;
+    return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
 /* Gets the specified number of characters from the file. */
 static MVMString * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars) {
-    MVM_exception_throw_adhoc(tc, "read_chars NYI on file handles");
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    ensure_decode_stream(tc, data);
+
+    /* Pull data until we can read a line. */
+    do {
+        MVMString *result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
+        if (result != NULL)
+            return result;
+    } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
+
+    /* Reached end of file, or last (non-termianted) line. */
+    return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
 /* Reads the specified number of bytes into a the supplied buffer, returing
@@ -162,6 +179,8 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMint64 r;
     MVMint64 seek_pos;
     uv_fs_t  req;
+    if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
+        return 0;
     if ((r = uv_fs_lstat(tc->loop, &req, data->filename, NULL)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %d", errno);
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
