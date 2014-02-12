@@ -1,6 +1,7 @@
 import gdb
 from collections import defaultdict
 #import blessings
+import sys
 
 str_t_info = {0: 'int32s',
               1: 'uint8s',
@@ -135,6 +136,9 @@ class NurseryData(CommonHeapData):
     def analyze(self, tc):
         print "starting to analyze the nursery:"
         cursor = gdb.Value(self.start_addr)
+        info_step = int(self.allocation_offs - cursor) / 50
+        next_info = cursor + info_step
+        print "_" * 50
         while cursor < self.allocation_offs:
             stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
             size = stooge['common']['header']['size']
@@ -158,6 +162,13 @@ class NurseryData(CommonHeapData):
             self.repr_histogram[REPRname] += 1
             if REPRname == "P6opaque":
                 self.opaq_histogram[int(size)] += 1
+
+            if cursor > next_info:
+                next_info += info_step
+                sys.stdout.write("-")
+                sys.stdout.flush()
+
+        print
 
     def summarize(self):
         print "nursery state:"
