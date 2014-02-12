@@ -1292,7 +1292,10 @@ MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationRea
            As we have the full 64 bits, no need to sign extend. */
         result |= ((MVMint64)(*p) << shift_amount);
     } else {
-        result |= ((MVMint64)(*p & 0x7F) << shift_amount);
+        /* As the loop above terminated before the ninth byte, the top bit must
+           be clear. */
+        assert(!(*p & 0x80));
+        result |= ((MVMint64)(*p) << shift_amount);
         /* Now sign extend the highest bit that we read. */
         result = result << (57 - shift_amount);
         result = result >> (57 - shift_amount);
