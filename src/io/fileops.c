@@ -259,8 +259,6 @@ void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
 
     verify_filehandle_type(tc, oshandle, &handle, "close filehandle");
 
-    MVM_checked_free_null(handle->body.filename);
-
     if (handle->body.type == MVM_OSHANDLE_PIPE) {
         if (uv_is_closing((uv_handle_t*)handle->body.u.handle)) {
             return;

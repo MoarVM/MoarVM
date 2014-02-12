@@ -33,7 +33,6 @@ struct MVMOSHandleBody {
         DIR     *dir_handle;
 #endif
     } u;
-    char *filename;
     MVMuint8 encoding_type;
 };
 struct MVMOSHandle {
@@ -44,7 +43,6 @@ struct MVMOSHandle {
 typedef enum {
    MVM_OSHANDLE_UNINIT = 0,
    MVM_OSHANDLE_HANDLE = 1,
-   MVM_OSHANDLE_FD     = 2,
    MVM_OSHANDLE_DIR    = 3,
    MVM_OSHANDLE_TCP    = 4,
    MVM_OSHANDLE_UDP    = 5,
