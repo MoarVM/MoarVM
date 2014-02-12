@@ -33,7 +33,6 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f);
 MVMint64 MVM_file_isreadable(MVMThreadContext *tc, MVMString *filename);
 MVMint64 MVM_file_iswritable(MVMThreadContext *tc, MVMString *filename);
 MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename);
-MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode);
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt);
