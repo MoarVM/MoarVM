@@ -220,6 +220,105 @@ void truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
         MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
 }
 
+/* Locks a file. */
+MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+#ifdef _WIN32
+    const DWORD len = 0xffffffff;
+    HANDLE hf;
+    OVERLAPPED offset;
+#else
+  struct flock l;
+  ssize_t r;
+  int fc;
+  const int fd = data->fd;
+#endif
+
+#ifdef _WIN32
+    hf = (HANDLE)_get_osfhandle(data->fd);
+    if (hf == INVALID_HANDLE_VALUE) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
+    }
+
+    flag = ((flag & MVM_FILE_FLOCK_NONBLOCK) ? LOCKFILE_FAIL_IMMEDIATELY : 0)
+          + ((flag & MVM_FILE_FLOCK_TYPEMASK) == MVM_FILE_FLOCK_SHARED
+                                       ? 0 : LOCKFILE_EXCLUSIVE_LOCK);
+
+    memset (&offset, 0, sizeof(offset));
+    if (LockFileEx(hf, flag, 0, len, len, &offset)) {
+        return 1;
+    }
+
+    MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", GetLastError());
+
+    return 0;
+#else
+    l.l_whence = SEEK_SET;
+    l.l_start = 0;
+    l.l_len = 0;
+
+    if ((flag & MVM_FILE_FLOCK_TYPEMASK) == MVM_FILE_FLOCK_SHARED)
+        l.l_type = F_RDLCK;
+    else
+        l.l_type = F_WRLCK;
+
+    fc = (flag & MVM_FILE_FLOCK_NONBLOCK) ? F_SETLK : F_SETLKW;
+
+    do {
+        r = fcntl(fd, fc, &l);
+    } while (r == -1 && errno == EINTR);
+
+    if (r == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", errno);
+        return 0;
+    }
+
+    return 1;
+#endif
+}
+
+/* Unlocks a file. */
+void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+#ifdef _WIN32
+    const DWORD len = 0xffffffff;
+    HANDLE hf;
+    OVERLAPPED offset;
+#else
+  struct flock l;
+  ssize_t r;
+  const int fd = data->fd;
+#endif
+
+#ifdef _WIN32
+    hf = (HANDLE)_get_osfhandle(data->fd);
+    if (hf == INVALID_HANDLE_VALUE) {
+        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
+    }
+
+    memset (&offset, 0, sizeof(offset));
+    if (UnlockFileEx(hf, 0, len, len, &offset)) {
+        return;
+    }
+
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
+#else
+
+    l.l_whence = SEEK_SET;
+    l.l_start = 0;
+    l.l_len = 0;
+    l.l_type = F_UNLCK;
+
+    do {
+        r = fcntl(fd, F_SETLKW, &l);
+    } while (r == -1 && errno == EINTR);
+
+    if (r == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", errno);
+    }
+#endif
+}
+
 /* Frees data associated with the handle. */
 void gc_free(MVMThreadContext *tc, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
@@ -236,6 +335,7 @@ static MVMIOEncodable    encodable     = { set_encoding };
 static MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
 static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncate };
 static MVMIOSeekable     seekable      = { seek, tell };
+struct MVMIOLockable     lockable      = { lock, unlock };
 static MVMIOOps op_table = {
     &closable,
     &encodable,
@@ -244,6 +344,7 @@ static MVMIOOps op_table = {
     &seekable,
     NULL,
     NULL,
+    &lockable,
     NULL,
     gc_free
 };

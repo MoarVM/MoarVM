@@ -122,3 +122,4 @@ typedef struct MVMIOSyncWritable MVMIOSyncWritable;
 typedef struct MVMIOSeekable MVMIOSeekable;
 typedef struct MVMIOBindable MVMIOBindable;
 typedef struct MVMIOInteractive MVMIOInteractive;
+typedef struct MVMIOLockable MVMIOLockable;

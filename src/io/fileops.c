@@ -696,107 +696,22 @@ MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
-/* locks a filehandle */
+/* Locks a filehandle */
 MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag) {
-    MVMOSHandle *handle;
-#ifdef _WIN32
-    const DWORD len = 0xffffffff;
-    HANDLE hf;
-    OVERLAPPED offset;
-#else
-  struct flock l;
-  ssize_t r;
-  int fc;
-  const int fd = handle->body.u.fd;
-#endif
-
-    verify_filehandle_type(tc, oshandle, &handle, "lock filehandle");
-
-#ifdef _WIN32
-    hf = (HANDLE)_get_osfhandle(handle->body.u.fd);
-    if (hf == INVALID_HANDLE_VALUE) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
-    }
-
-    flag = ((flag & MVM_FILE_FLOCK_NONBLOCK) ? LOCKFILE_FAIL_IMMEDIATELY : 0)
-          + ((flag & MVM_FILE_FLOCK_TYPEMASK) == MVM_FILE_FLOCK_SHARED
-                                       ? 0 : LOCKFILE_EXCLUSIVE_LOCK);
-
-    memset (&offset, 0, sizeof(offset));
-    if (LockFileEx(hf, flag, 0, len, len, &offset)) {
-        return 1;
-    }
-
-    MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", GetLastError());
-
-    return 0;
-#else
-    l.l_whence = SEEK_SET;
-    l.l_start = 0;
-    l.l_len = 0;
-
-    if ((flag & MVM_FILE_FLOCK_TYPEMASK) == MVM_FILE_FLOCK_SHARED)
-        l.l_type = F_RDLCK;
+    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
+    if (handle->body.ops->lockable)
+        return handle->body.ops->lockable->lock(tc, handle, flag);
     else
-        l.l_type = F_WRLCK;
-
-    fc = (flag & MVM_FILE_FLOCK_NONBLOCK) ? F_SETLK : F_SETLKW;
-
-    do {
-        r = fcntl(fd, fc, &l);
-    } while (r == -1 && errno == EINTR);
-
-    if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", errno);
-        return 0;
-    }
-
-    return 1;
-#endif
+        MVM_exception_throw_adhoc(tc, "Cannot lock this kind of handle");
 }
 
-/* unlocks a filehandle */
+/* Unlocks a filehandle */
 void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle;
-#ifdef _WIN32
-    const DWORD len = 0xffffffff;
-    HANDLE hf;
-    OVERLAPPED offset;
-#else
-  struct flock l;
-  ssize_t r;
-  const int fd = handle->body.u.fd;
-#endif
-
-    verify_filehandle_type(tc, oshandle, &handle, "unlock filehandle");
-
-#ifdef _WIN32
-    hf = (HANDLE)_get_osfhandle(handle->body.u.fd);
-    if (hf == INVALID_HANDLE_VALUE) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
-    }
-
-    memset (&offset, 0, sizeof(offset));
-    if (UnlockFileEx(hf, 0, len, len, &offset)) {
-        return;
-    }
-
-    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
-#else
-
-    l.l_whence = SEEK_SET;
-    l.l_start = 0;
-    l.l_len = 0;
-    l.l_type = F_UNLCK;
-
-    do {
-        r = fcntl(fd, F_SETLKW, &l);
-    } while (r == -1 && errno == EINTR);
-
-    if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", errno);
-    }
-#endif
+    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
+    if (handle->body.ops->lockable)
+        handle->body.ops->lockable->unlock(tc, handle);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot unlock this kind of handle");
 }
 
 /* Syncs a filehandle (Transfer all file modified data and metadata to disk.) */

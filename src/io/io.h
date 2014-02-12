@@ -9,6 +9,7 @@ struct MVMIOOps {
     MVMIOSeekable     *seekable;
     MVMIOBindable     *bindable;
     MVMIOInteractive  *interactive;
+    MVMIOLockable     *lockable;
 
     /* How to mark the handle's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
@@ -60,4 +61,10 @@ struct MVMIOBindable {
 /* I/O operations on handles that can do interactive readline. */
 struct MVMIOInteractive {
     MVMString * (*read_line) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *prompt);
+};
+
+/* I/O operations on handles that can lock/unlock. */
+struct MVMIOLockable {
+    MVMint64 (*lock) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag);
+    void (*unlock) (MVMThreadContext *tc, MVMOSHandle *h);
 };
