@@ -42,6 +42,7 @@ struct MVMIOSyncWritable {
     MVMint64 (*write_str) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *s, MVMint64 newline);
     MVMint64 (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
     void (*flush) (MVMThreadContext *tc, MVMOSHandle *h);
+    void (*truncate) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);
 };
 
 /* I/O operations on handles that can seek/tell. */

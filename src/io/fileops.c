@@ -727,7 +727,7 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
         return 1;
     }
 
-    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
+    MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", GetLastError());
 
     return 0;
 #else
@@ -747,7 +747,7 @@ MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag)
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", errno);
         return 0;
     }
 
@@ -799,7 +799,7 @@ void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
 #endif
 }
 
-/* syncs a filehandle (Transfer all file modified data and metadata to disk.) */
+/* Syncs a filehandle (Transfer all file modified data and metadata to disk.) */
 void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = (MVMOSHandle *)oshandle;
     if (handle->body.ops->sync_writable)
@@ -808,16 +808,13 @@ void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
         MVM_exception_throw_adhoc(tc, "Cannot flush this kind of handle");
 }
 
-/* syncs a filehandle (Transfer all file modified data and metadata to disk.) */
+/* Truncates a file handle to the specified length. */
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset) {
-    MVMOSHandle *handle;
-    uv_fs_t req;
-
-    verify_filehandle_type(tc, oshandle, &handle, "truncate filehandle");
-
-    if(uv_fs_ftruncate(tc->loop, &req, handle->body.u.fd, offset, NULL) < 0 ) {
-        MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
-    }
+    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
+    if (handle->body.ops->sync_writable)
+        handle->body.ops->sync_writable->truncate(tc, handle, offset);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot truncate this kind of handle");
 }
 
 /* return an OSHandle representing one of the standard streams */

@@ -212,6 +212,14 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h){
         MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", uv_strerror(req.result));
 }
 
+/* Truncates the file handle. */
+void truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    uv_fs_t req;
+    if(uv_fs_ftruncate(tc->loop, &req, data->fd, bytes, NULL) < 0 )
+        MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
+}
+
 /* Frees data associated with the handle. */
 void gc_free(MVMThreadContext *tc, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
@@ -226,7 +234,7 @@ void gc_free(MVMThreadContext *tc, void *d) {
 static MVMIOClosable     closable      = { close };
 static MVMIOEncodable    encodable     = { set_encoding };
 static MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
-static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush };
+static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncate };
 static MVMIOSeekable     seekable      = { seek, tell };
 static MVMIOOps op_table = {
     &closable,
