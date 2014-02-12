@@ -39,6 +39,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMOSHandleBody *handle = (MVMOSHandleBody *)data;
+    if (handle->ops && handle->ops->gc_mark)
+        handle->ops->gc_mark(tc, handle->data, worklist);
     switch (handle->type) {
         case MVM_OSHANDLE_PIPE:
         case MVM_OSHANDLE_HANDLE:
@@ -51,6 +53,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMOSHandle *handle = (MVMOSHandle *)obj;
+    if (handle->body.ops && handle->body.ops->gc_free)
+        handle->body.ops->gc_free(tc, handle->body.data);
     switch(handle->body.type) {
         case MVM_OSHANDLE_UNINIT:
             break;

@@ -153,6 +153,7 @@ HEADERS = src/moar.h \
           src/core/dll.h \
           src/core/ext.h \
           src/core/continuation.h \
+          src/io/io.h \
           src/io/fileops.h \
           src/io/socketops.h \
           src/io/dirops.h \
