@@ -1261,31 +1261,31 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
     return result;
 }
 
-static int assert_can_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    size_t length_so_far = 1;
-    assert_can_read(tc, reader, 1);
-    while (length_so_far <= 8 && ((*reader->cur_read_buffer)[*reader->cur_read_offset + length_so_far - 1] & 0x80))
-        assert_can_read(tc, reader, ++length_so_far);
-    if (length_so_far > 9) {
-        return 0;
-    }
-    return 1;
-}
-
 /* Reading function for variable-sized integers, using between 1 and 9 bytes of
  * storage for an int64. */
 MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint64 result = 0;
     MVMuint8 *const start = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
+    MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
     MVMuint8 *const ninth = start + 8;
     MVMuint8 *p = start;
     int shift_amount = 0;
-    assert_can_read_varint(tc, reader);
+
+    /* We can't know how many bytes we need to read without actually reading
+       them, so it's easiest to inline the over-the-end test into the loop.
+       read_end is exclusive - it's the address of the first thing we can't
+       read. Therefore if we're about to read at it, we're too far. */
+    if (p == read_end)
+        fail_deserialize(tc, reader,
+                         "Read past end of serialization data buffer");
 
     while (*p & 0x80 && p < ninth) {
         result |= ((MVMint64)(*p & 0x7F) << shift_amount);
         shift_amount += 7;
         ++p;
+        if (p == read_end)
+            fail_deserialize(tc, reader,
+                             "Read past end of serialization data buffer");
     }
     if (p == ninth) {
         /* our last byte will be a full byte, so that we reach the full 64 bits
