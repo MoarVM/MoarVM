@@ -312,8 +312,8 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
 
 MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag) {
     MVMObject *result;
-    MVMnum64 zvalue = 0.0;
-    MVMnum64 zbase  = 1.0;
+    MVMint64 zvalue = 0;
+    MVMint64 zbase  = 1;
     MVMint64 chars  = NUM_GRAPHS(str);
     MVMint64 value  = zvalue;
     MVMint64 base   = zbase;
