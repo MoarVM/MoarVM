@@ -7,6 +7,8 @@ str_t_info = {0: 'int32s',
               2: 'rope',
               3: 'mask'}
 
+PRETTY_WIDTH=50
+
 class MVMStringPPrinter(object):
     def __init__(self, val, pointer = False):
         self.val = val
@@ -73,9 +75,9 @@ class MVMObjectPPrinter(object):
             as_mvmobject = self.val.cast("MVMObject")
 
         _repr = as_mvmobject['st']['REPR']
-        
+
         reprname = _repr['name'].string()
-        
+
         return str(self.val.type.name) + " of repr " + reprname
 
     def to_string(self):
@@ -84,40 +86,137 @@ class MVMObjectPPrinter(object):
         else:
             return self.stringify()
 
-sizes_histogram = defaultdict(lambda: 0)
-reprs_histogram = defaultdict(lambda: 0)
+def show_histogram(hist, sort="value"):
+    if sort == "value":
+        items = sorted(list(hist.iteritems()), key = lambda (k, v): -v)
+    elif sort == "key":
+        items = sorted(list(hist.iteritems()), key = lambda (k, v): k)
+    else:
+        print "sorting mode", sort, "not implemented"
+    maximum = max(hist.values())
+    keymax = max([len(str(key)) for key in hist.keys()])
+    for key, val in items:
+        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), hist[key]
+    print
 
-reprs_gen2_histogram = defaultdict(lambda: 0)
-reprs_nursery_killed_histogram = defaultdict(lambda: 0)
+class CommonHeapData(object):
+    start_addr     = None
+    end_addr       = None
 
-reprs_nursery_seen = defaultdict(lambda: 0)
-reprs_gen2_seen = defaultdict(lambda: 0)
+    number_objects = None
+    number_stables = None
+    size_histogram = None
+    repr_histogram = None
+    opaq_histogram = None
 
-class StartAnalyzeGC(gdb.Command):
+    generation     = None
+
+    is_diff        = None
+
+    def __init__(self, generation, start_addr, end_addr):
+        self.generation = generation
+        self.start_addr = start_addr
+        self.end_addr = end_addr
+
+        self.size_histogram = defaultdict(lambda: 0)
+        self.repr_histogram = defaultdict(lambda: 0)
+        self.opaq_histogram = defaultdict(lambda: 0)
+
+        self.number_objects = 0
+        self.number_stables = 0
+
+class NurseryData(CommonHeapData):
+    allocation_offs = None
+
+    def __init__(self, generation, start_addr, end_addr, allocation_offs):
+        super(NurseryData, self).__init__(generation, gdb.Value(start_addr), gdb.Value(end_addr))
+        self.allocation_offs = allocation_offs
+
+    def analyze(self, tc):
+        print "starting to analyze the nursery:"
+        cursor = gdb.Value(self.start_addr)
+        while cursor < self.allocation_offs:
+            stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
+            size = stooge['common']['header']['size']
+            flags = stooge['common']['header']['flags']
+
+            is_typeobj = flags & 1
+            is_stable = flags & 2
+
+            STable = stooge['common']['st'].dereference()
+            if not is_stable:
+                REPR = STable["REPR"]
+                REPRname = REPR["name"].string()
+                self.number_objects += 1
+            else:
+                REPR = None
+                REPRname = "STable"
+                self.number_stables += 1
+            cursor += size
+
+            self.size_histogram[int(size)] += 1
+            self.repr_histogram[REPRname] += 1
+            if REPRname == "P6opaque":
+                self.opaq_histogram[int(size)] += 1
+
+    def summarize(self):
+        print "nursery state:"
+        print self.start_addr
+        print self.allocation_offs
+        print self.end_addr
+        sizes = (int(self.allocation_offs - self.start_addr), int(self.end_addr - self.allocation_offs))
+        relsizes = [1.0 * size / (float(int(self.end_addr - self.start_addr))) for size in sizes]
+        print "[" + "=" * int(relsizes[0] * 20) + " " * int(relsizes[1] * 20) + "] ", int(relsizes[0] * 100),"%"
+
+        print self.number_objects, "objects;", self.number_stables, " STables"
+
+        print "sizes of objects/stables:"
+        show_histogram(self.size_histogram, "key")
+        print "sizes of P6opaques only:"
+        show_histogram(self.opaq_histogram, "key")
+        print "REPRs"
+        show_histogram(self.repr_histogram)
+
+class Gen2Data(CommonHeapData):
+    size_bucket     = None
+    length_freelist = None
+
+    def sizes(self):
+        # XXX this ought to return a tuple with the sizes we
+        # accept in this bucket
+        return self.size_bucket
+
+    def __init__(self, generation, start_addr, end_addr, size_bucket):
+        super(Gen2Data, self).__init__(generation, start_addr, end_addr)
+
+        self.size_bucket = size_bucket
+
+
+class HeapData(object):
+    run_nursery = None
+    run_gen2    = None
+
+    generation  = None
+
+class AnalyzeHeapCommand(gdb.Command):
     def __init__(self):
-         super (StartAnalyzeGC, self).__init__ ("start-analyze-gc", gdb.COMMAND_DATA)
+        super(AnalyzeHeapCommand, self).__init__("moar-heap", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        # set a breakpoint for gc_run
-        gdb.write("please type 'end' into the prompt now")
-        gdb.execute("break orchestrate.c:run_gc")
-        gdb.execute("commands")
-        gdb.execute("run-gc-triggered")
-        gdb.execute("continue")
-        gdb.execute("end")
+        tc = gdb.selected_frame().read_var(arg if arg else "tc")
+        if not str(tc.type).startswith("MVMThreadContext"):
+            raise ValueError("Please invoke the heap analyzer command on a MVMThreadContext, usually tc.")
 
-class RunGCTriggered(gdb.Command):
-    def __init__(self):
-        super (RunGCTriggered, self).__init__("run-gc-triggered", gdb.COMMAND_DATA) # XXX invisible command
+        # find out the GC generation we're in (just a number increasing by 1 every time we GC)
+        instance = tc['instance']
+        generation = instance['gc_seq_number']
 
-    def invoke(self, arg, from_tty):
-        if from_tty:
-            gdb.write("the run-gc-triggered command should only be run by the breakpoint set up by the start-analyze-gc command!")
-        for i in range(20):
-            gdb.execute("step")
-            frame = gdb.newest_frame()
-            print frame.name()
+        nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
+        nursery.analyze(tc)
 
+        print "the current generation of the gc is", generation
+
+        nursery.summarize()
 
 def str_lookup_function(val):
     if str(val.type) == "MVMString":
@@ -147,8 +246,8 @@ def register_printers(objfile):
 
 commands = []
 def register_commands(objfile):
-    commands.append(StartAnalyzeGC())
-    commands.append(RunGCTriggered())
+    commands.append(AnalyzeHeapCommand())
+    print "moar-heap registered"
 
 if __name__ == "__main__":
     register_printers(gdb.current_objfile())
