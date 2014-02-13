@@ -10,6 +10,9 @@ str_t_info = {0: 'int32s',
 
 PRETTY_WIDTH=50
 
+MVM_GEN2_PAGE_ITEMS = 256
+MVM_GEN2_BIN_BITS   = 3
+
 class MVMStringPPrinter(object):
     def __init__(self, val, pointer = False):
         self.val = val
@@ -101,11 +104,9 @@ def show_histogram(hist, sort="value"):
     print
 
 class CommonHeapData(object):
-    start_addr     = None
-    end_addr       = None
-
     number_objects = None
     number_stables = None
+    number_typeobs = None
     size_histogram = None
     repr_histogram = None
     opaq_histogram = None
@@ -114,10 +115,8 @@ class CommonHeapData(object):
 
     is_diff        = None
 
-    def __init__(self, generation, start_addr, end_addr):
+    def __init__(self, generation):
         self.generation = generation
-        self.start_addr = start_addr
-        self.end_addr = end_addr
 
         self.size_histogram = defaultdict(lambda: 0)
         self.repr_histogram = defaultdict(lambda: 0)
@@ -125,12 +124,17 @@ class CommonHeapData(object):
 
         self.number_objects = 0
         self.number_stables = 0
+        self.number_typeobs = 0
 
 class NurseryData(CommonHeapData):
     allocation_offs = None
+    start_addr     = None
+    end_addr       = None
 
     def __init__(self, generation, start_addr, end_addr, allocation_offs):
-        super(NurseryData, self).__init__(generation, gdb.Value(start_addr), gdb.Value(end_addr))
+        super(NurseryData, self).__init__(generation)
+        self.start_addr = gdb.Value(start_addr)
+        self.end_addr = gdb.Value(end_addr)
         self.allocation_offs = allocation_offs
 
     def analyze(self, tc):
@@ -151,7 +155,10 @@ class NurseryData(CommonHeapData):
             if not is_stable:
                 REPR = STable["REPR"]
                 REPRname = REPR["name"].string()
-                self.number_objects += 1
+                if is_typeobj:
+                    self.number_typeobs += 1
+                else:
+                    self.number_objects += 1
             else:
                 REPR = None
                 REPRname = "STable"
@@ -172,14 +179,11 @@ class NurseryData(CommonHeapData):
 
     def summarize(self):
         print "nursery state:"
-        print self.start_addr
-        print self.allocation_offs
-        print self.end_addr
         sizes = (int(self.allocation_offs - self.start_addr), int(self.end_addr - self.allocation_offs))
         relsizes = [1.0 * size / (float(int(self.end_addr - self.start_addr))) for size in sizes]
         print "[" + "=" * int(relsizes[0] * 20) + " " * int(relsizes[1] * 20) + "] ", int(relsizes[0] * 100),"%"
 
-        print self.number_objects, "objects;", self.number_stables, " STables"
+        print self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables"
 
         print "sizes of objects/stables:"
         show_histogram(self.size_histogram, "key")
@@ -188,20 +192,42 @@ class NurseryData(CommonHeapData):
         print "REPRs"
         show_histogram(self.repr_histogram)
 
+def bucket_index_to_size(idx):
+    return (idx + 1) << MVM_GEN2_BIN_BITS
+
 class Gen2Data(CommonHeapData):
     size_bucket     = None
     length_freelist = None
+    bucket_size     = None
+    g2sc   = None
 
     def sizes(self):
         # XXX this ought to return a tuple with the sizes we
         # accept in this bucket
         return self.size_bucket
 
-    def __init__(self, generation, start_addr, end_addr, size_bucket):
-        super(Gen2Data, self).__init__(generation, start_addr, end_addr)
+    def __init__(self, generation, gen2sizeclass, size_bucket):
+        super(Gen2Data, self).__init__(generation)
 
         self.size_bucket = size_bucket
+        self.g2sc = gen2sizeclass
+        self.bucket_size = bucket_index_to_size(self.size_bucket)
 
+    def analyze(self, tc):
+        pagebuckets = [[None] * MVM_GEN2_PAGE_ITEMS for i in range(int(self.g2sc['num_pages']))]
+        page_addrs  = []
+
+        page_cursor = self.g2sc['pages']
+        for page_idx in range(self.g2sc['num_pages']):
+            page_addrs.append(page_cursor.dereference())
+            page_cursor += 1
+
+        free_cursor = self.g2sc['free_list']
+
+
+
+    def summarize(self):
+        pass
 
 class HeapData(object):
     run_nursery = None
