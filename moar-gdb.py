@@ -149,6 +149,43 @@ class CommonHeapData(object):
         self.number_stables = 0
         self.number_typeobs = 0
 
+    def analyze_single_object(self, cursor):
+        stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
+        size = stooge['common']['header']['size']
+        flags = stooge['common']['header']['flags']
+
+        is_typeobj = flags & 1
+        is_stable = flags & 2
+
+        STable = stooge['common']['st'].dereference()
+        if not is_stable:
+            REPR = STable["REPR"]
+            REPRname = REPR["name"].string()
+            if is_typeobj:
+                self.number_typeobs += 1
+            else:
+                self.number_objects += 1
+        else:
+            REPR = None
+            REPRname = "STable"
+            self.number_stables += 1
+
+        self.size_histogram[int(size)] += 1
+        self.repr_histogram[REPRname] += 1
+        if REPRname == "P6opaque":
+            self.opaq_histogram[int(size)] += 1
+        elif REPRname == "VMArray":
+            slot_type = int(STable['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer())['slot_type'])
+            self.arrstr_hist[array_storage_types[slot_type]] += 1
+            array_body = cursor.cast(gdb.lookup_type("MVMArray").pointer())['body']
+            if array_body['ssize'] == 0:
+                usage_perc = "N/A"
+            else:
+                usage_perc = (int(array_body['elems'] * 10) / int(array_body['ssize'])) * 10
+                if usage_perc < 0 or usage_perc > 100:
+                    usage_perc = "inv"
+            self.arrusg_hist[usage_perc] += 1
+
 class NurseryData(CommonHeapData):
     allocation_offs = None
     start_addr     = None
@@ -167,43 +204,9 @@ class NurseryData(CommonHeapData):
         next_info = cursor + info_step
         print "_" * 50
         while cursor < self.allocation_offs:
-            stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
-            size = stooge['common']['header']['size']
-            flags = stooge['common']['header']['flags']
+            self.analyze_single_object(cursor)
 
-            is_typeobj = flags & 1
-            is_stable = flags & 2
-
-            STable = stooge['common']['st'].dereference()
-            if not is_stable:
-                REPR = STable["REPR"]
-                REPRname = REPR["name"].string()
-                if is_typeobj:
-                    self.number_typeobs += 1
-                else:
-                    self.number_objects += 1
-            else:
-                REPR = None
-                REPRname = "STable"
-                self.number_stables += 1
             cursor += size
-
-            self.size_histogram[int(size)] += 1
-            self.repr_histogram[REPRname] += 1
-            if REPRname == "P6opaque":
-                self.opaq_histogram[int(size)] += 1
-            elif REPRname == "VMArray":
-                slot_type = int(STable['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer())['slot_type'])
-                self.arrstr_hist[array_storage_types[slot_type]] += 1
-                array_body = cursor.cast(gdb.lookup_type("MVMArray").pointer())['body']
-                if array_body['ssize'] == 0:
-                    usage_perc = "N/A"
-                else:
-                    usage_perc = (int(array_body['elems'] * 10) / int(array_body['ssize'])) * 10
-                    if usage_perc < 0 or usage_perc > 100:
-                        usage_perc = "inv"
-                self.arrusg_hist[usage_perc] += 1
-
             if cursor > next_info:
                 next_info += info_step
                 sys.stdout.write("-")
