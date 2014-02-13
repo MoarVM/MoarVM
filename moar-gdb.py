@@ -1,5 +1,6 @@
 import gdb
 from collections import defaultdict
+from itertools import chain
 #import blessings
 import sys
 
@@ -119,8 +120,50 @@ def show_histogram(hist, sort="value", multiply=False):
     keymax = max([len(str(key)) for key in hist.keys()])
     for key, val in items:
         appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
-        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(hist[key]).ljust(len(str(maximum)) + 2), appendix
+        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
     print
+
+def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
+    max_hist = defaultdict(lambda: 0)
+    min_hist = defaultdict(lambda: 0)
+    zip_hist = {}
+    max_val = 0
+    max_key = 0
+    longest_key = ""
+    for k,v in chain(hist_before.iteritems(), hist_after.iteritems()):
+        max_hist[k] = max(max_hist[k], v)
+        min_hist[k] = min(max_hist[k], v)
+        max_val = max(max_val, v)
+        max_key = max(max_key, k)
+        longest_key = str(k) if len(str(k)) > len(longest_key) else longest_key
+
+    for k in max_hist.keys():
+        zip_hist[k] = (hist_before[k], hist_after[k])
+
+    if sort == "value":
+        items = sorted(list(zip_hist.iteritems()), key = lambda (k, (v1, v2)): -max(v1, v2))
+    elif sort == "key":
+        items = sorted(list(zip_hist.iteritems()), key = lambda (k, (v1, v2)): k)
+    else:
+        print "sorting mode", sort, "not implemented"
+
+    for key, (val1, val2) in items:
+        lv, rv = min(val1, val2), max(val1, val2)
+        lc, rc = ("+", "-") if val1 > val2 else ("-", "+")
+        bars = "[" \
+               + lc * int((float(lv) / max_val) * PRETTY_WIDTH) \
+               + rc * int((float(rv - lv) / max_val) * PRETTY_WIDTH)
+
+        values = str(val1).ljust(len(str(max_val)) + 1) \
+                + " -> " \
+                + str(val2).ljust(len(str(max_val)) + 1)
+
+        appendix = prettify_size(int(key) * int(val1)).rjust(10) \
+                   + " -> " \
+                   + prettify_size(int(key) * int(val2)).rjust(10) \
+                       if multiply else ""
+
+        print str(key).ljust(len(longest_key) + 2), bars.ljust(PRETTY_WIDTH), values, appendix
 
 class CommonHeapData(object):
     number_objects = None
@@ -133,8 +176,6 @@ class CommonHeapData(object):
     arrusg_hist    = None
 
     generation     = None
-
-    is_diff        = None
 
     def __init__(self, generation):
         self.generation = generation
@@ -186,6 +227,8 @@ class CommonHeapData(object):
                     usage_perc = "inv"
             self.arrusg_hist[usage_perc] += 1
 
+        return size
+
 class NurseryData(CommonHeapData):
     allocation_offs = None
     start_addr     = None
@@ -204,7 +247,7 @@ class NurseryData(CommonHeapData):
         next_info = cursor + info_step
         print "_" * 50
         while cursor < self.allocation_offs:
-            self.analyze_single_object(cursor)
+            size = self.analyze_single_object(cursor)
 
             cursor += size
             if cursor > next_info:
@@ -232,6 +275,21 @@ class NurseryData(CommonHeapData):
         show_histogram(self.arrstr_hist)
         print "VMArray usage percentages:"
         show_histogram(self.arrusg_hist, "key")
+
+    def diff(self, other):
+        print "nursery state --DIFF--:"
+
+        print "sizes of objects/stables:"
+        diff_histogram(self.size_histogram, other.size_histogram, "key", True)
+        print "sizes of P6opaques only:"
+        diff_histogram(self.opaq_histogram, other.opaq_histogram, "key", True)
+        print "REPRs:"
+        diff_histogram(self.repr_histogram, other.repr_histogram)
+        print "VMArray storage types:"
+        diff_histogram(self.arrstr_hist, other.arrstr_hist)
+        print "VMArray usage percentages:"
+        diff_histogram(self.arrusg_hist, other.arrusg_hist, "key")
+
 
 def bucket_index_to_size(idx):
     return (idx + 1) << MVM_GEN2_BIN_BITS
@@ -276,6 +334,8 @@ class HeapData(object):
 
     generation  = None
 
+nursery_memory = []
+
 class AnalyzeHeapCommand(gdb.Command):
     def __init__(self):
         super(AnalyzeHeapCommand, self).__init__("moar-heap", gdb.COMMAND_DATA)
@@ -295,6 +355,24 @@ class AnalyzeHeapCommand(gdb.Command):
         print "the current generation of the gc is", generation
 
         nursery.summarize()
+
+        nursery_memory.append(nursery)
+
+class DiffHeapCommand(gdb.Command):
+    def __init__(self):
+        super(DiffHeapCommand, self).__init__("diff-moar-heap", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        if arg != "":
+            if " " in arg:
+                pos1, pos2 = map(int, arg.split(" "))
+            else:
+                pos1, pos2 = int(arg), int(arg - 1)
+        else:
+            pos1 = -1
+            pos2 = -2
+        assert len(nursery_memory) > max(pos1, pos2)
+        nursery_memory[pos2].diff(nursery_memory[pos1])
 
 def str_lookup_function(val):
     if str(val.type) == "MVMString":
@@ -326,6 +404,8 @@ commands = []
 def register_commands(objfile):
     commands.append(AnalyzeHeapCommand())
     print "moar-heap registered"
+    commands.append(DiffHeapCommand())
+    print "diff-moar-heap registered"
 
 if __name__ == "__main__":
     register_printers(gdb.current_objfile())
