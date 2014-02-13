@@ -13,6 +13,24 @@ PRETTY_WIDTH=50
 MVM_GEN2_PAGE_ITEMS = 256
 MVM_GEN2_BIN_BITS   = 3
 
+array_storage_types = [
+        'obj',
+        'str',
+        'i64', 'i32', 'i16', 'i8',
+        'n64', 'n32',
+        'u64', 'u32', 'u16', 'u8'
+        ]
+
+def prettify_size(num):
+    rest = str(num)
+    result = ""
+    while len(rest) > 3:
+        result = rest[-3:] + "." + result
+        rest = rest[:-3]
+    if len(rest) >= 1:
+        result = rest + "." + result
+    return result[:-1]
+
 class MVMStringPPrinter(object):
     def __init__(self, val, pointer = False):
         self.val = val
@@ -90,7 +108,7 @@ class MVMObjectPPrinter(object):
         else:
             return self.stringify()
 
-def show_histogram(hist, sort="value"):
+def show_histogram(hist, sort="value", multiply=False):
     if sort == "value":
         items = sorted(list(hist.iteritems()), key = lambda (k, v): -v)
     elif sort == "key":
@@ -100,7 +118,8 @@ def show_histogram(hist, sort="value"):
     maximum = max(hist.values())
     keymax = max([len(str(key)) for key in hist.keys()])
     for key, val in items:
-        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), hist[key]
+        appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
+        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(hist[key]).ljust(len(str(maximum)) + 2), appendix
     print
 
 class CommonHeapData(object):
@@ -110,6 +129,8 @@ class CommonHeapData(object):
     size_histogram = None
     repr_histogram = None
     opaq_histogram = None
+    arrstr_hist    = None
+    arrusg_hist    = None
 
     generation     = None
 
@@ -121,6 +142,8 @@ class CommonHeapData(object):
         self.size_histogram = defaultdict(lambda: 0)
         self.repr_histogram = defaultdict(lambda: 0)
         self.opaq_histogram = defaultdict(lambda: 0)
+        self.arrstr_hist    = defaultdict(lambda: 0)
+        self.arrusg_hist    = defaultdict(lambda: 0)
 
         self.number_objects = 0
         self.number_stables = 0
@@ -169,6 +192,17 @@ class NurseryData(CommonHeapData):
             self.repr_histogram[REPRname] += 1
             if REPRname == "P6opaque":
                 self.opaq_histogram[int(size)] += 1
+            elif REPRname == "VMArray":
+                slot_type = int(STable['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer())['slot_type'])
+                self.arrstr_hist[array_storage_types[slot_type]] += 1
+                array_body = cursor.cast(gdb.lookup_type("MVMArray").pointer())['body']
+                if array_body['ssize'] == 0:
+                    usage_perc = "N/A"
+                else:
+                    usage_perc = (int(array_body['elems'] * 10) / int(array_body['ssize'])) * 10
+                    if usage_perc < 0 or usage_perc > 100:
+                        usage_perc = "inv"
+                self.arrusg_hist[usage_perc] += 1
 
             if cursor > next_info:
                 next_info += info_step
@@ -186,11 +220,15 @@ class NurseryData(CommonHeapData):
         print self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables"
 
         print "sizes of objects/stables:"
-        show_histogram(self.size_histogram, "key")
+        show_histogram(self.size_histogram, "key", True)
         print "sizes of P6opaques only:"
-        show_histogram(self.opaq_histogram, "key")
-        print "REPRs"
+        show_histogram(self.opaq_histogram, "key", True)
+        print "REPRs:"
         show_histogram(self.repr_histogram)
+        print "VMArray storage types:"
+        show_histogram(self.arrstr_hist)
+        print "VMArray usage percentages:"
+        show_histogram(self.arrusg_hist, "key")
 
 def bucket_index_to_size(idx):
     return (idx + 1) << MVM_GEN2_BIN_BITS
