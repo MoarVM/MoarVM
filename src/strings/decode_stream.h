@@ -43,6 +43,8 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars);
 MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMCodepoint32 sep);
 MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds);
+MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 bytes);
+MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, char **buf, MVMint32 bytes);
 MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, MVMDecodeStream *ds);
 MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream *ds);
 void MVM_string_decodestream_destory(MVMThreadContext *tc, MVMDecodeStream *ds);

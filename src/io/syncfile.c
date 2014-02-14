@@ -158,19 +158,20 @@ static MVMString * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 cha
 }
 
 /* Reads the specified number of bytes into a the supplied buffer, returing
- * the number actually read.. */
+ * the number actually read. */
 static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 bytes_read;
-    uv_fs_t  req;
-    *buf = malloc(bytes);
-    bytes_read = uv_fs_read(tc->loop, &req, data->fd, *buf, bytes, -1, NULL);
-    if (bytes_read < 0) {
-        free(*buf);
-        *buf = NULL;
-        MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
+    ensure_decode_stream(tc, data);
+
+    /* Keep requesting bytes until we have enough in the buffer or we hit
+     * end of file. */
+    while (!MVM_string_decodestream_have_bytes(tc, data->ds, bytes)) {
+        if (read_to_buffer(tc, data, bytes) <= 0)
+            break;
     }
-    return bytes_read;
+
+    /* Read as many as we can, up to the limit. */
+    return MVM_string_decodestream_bytes_to_buf(tc, data->ds, buf, bytes);
 }
 
 /* Checks if the end of file has been reached. */

@@ -266,6 +266,58 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
     return result;
 }
 
+/* Checks if we have the number of bytes requested. */
+MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 bytes) {
+    MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
+    MVMint32 found = 0;
+    while (cur_bytes) {
+        found += cur_bytes == ds->bytes_head
+            ? cur_bytes->length - ds->bytes_head_pos
+            : cur_bytes->length;
+        if (found >= bytes)
+            return 1;
+        cur_bytes = cur_bytes->next;
+    }
+    return 0;
+}
+
+/* Copies up to the requested number of bytes into the supplied buffer, and
+ * returns the number of bytes we actually copied. Takes from from the start
+ * of the stream. */
+MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, char **buf, MVMint32 bytes) {
+    MVMint32 taken = 0;
+    *buf = NULL;
+    while (taken < bytes && ds->bytes_head) {
+        /* Take what we can. */
+        MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
+        MVMint32 required  = bytes - taken;
+        MVMint32 available = cur_bytes->length - ds->bytes_head_pos;
+        if (available <= required) {
+            /* Take everything in this buffer and remove it. */
+            if (!*buf)
+                *buf = malloc(cur_bytes->next ? bytes : available);
+            memcpy(*buf + taken, cur_bytes->bytes + ds->bytes_head_pos, available);
+            taken += available;
+            ds->bytes_head = cur_bytes->next;
+            ds->bytes_head_pos = 0;
+            free(cur_bytes->bytes);
+            free(cur_bytes);
+        }
+        else {
+            /* Just take what we need. */
+            if (!*buf)
+                *buf = malloc(required);
+            memcpy(*buf + taken, cur_bytes->bytes + ds->bytes_head_pos, required);
+            taken += required;
+            ds->bytes_head_pos += available;
+        }
+    }
+    if (ds->bytes_head == NULL)
+        ds->bytes_tail = NULL;
+    ds->abs_byte_pos += taken;
+    return taken;
+}
+
 /* Gets the absolute byte offset (the amount we started with plus what we've
  * chewed and handed back in decoded characters). */
 MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, MVMDecodeStream *ds) {
