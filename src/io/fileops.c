@@ -396,20 +396,6 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     return return_str;
 }
 
-static void tty_on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    const MVMint64 length = ((MVMOSHandle *)handle->data)->body.u.length;
-
-    buf->base = malloc(length);
-    buf->len = length;
-}
-
-static void tty_on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
-    MVMOSHandle * const oshandle = (MVMOSHandle *)(handle->data);
-
-    oshandle->body.u.data = buf->base;
-    oshandle->body.u.length = buf->len;
-}
-
 /* reads a string from a filehandle. */
 MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 chars) {
     MVMOSHandle *handle = (MVMOSHandle *)oshandle;
@@ -437,33 +423,11 @@ void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
     }
 
-    if (((MVMOSHandle *)oshandle)->body.ops) {
-        handle = (MVMOSHandle *)oshandle;
-        if (handle->body.ops->sync_readable)
-            bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
-        else
-            MVM_exception_throw_adhoc(tc, "Cannot read charcaters this kind of handle");
-    }
-    else {
-        verify_filehandle_type(tc, oshandle, &handle, "read from filehandle");
-        switch (handle->body.type) {
-            case MVM_OSHANDLE_PIPE:
-            case MVM_OSHANDLE_HANDLE: {
-                MVMOSHandleBody * const body = &handle->body;
-                body->u.length = length;
-                uv_read_start((uv_stream_t *)body->u.handle, tty_on_alloc, tty_on_read);
-                buf = body->u.data;
-                bytes_read = body->u.length;
-                if (bytes_read < 0) {
-                    free(buf);
-                    MVM_exception_throw_adhoc(tc, "Read from filehandle failed: %s", uv_strerror(req.result));
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
+    handle = (MVMOSHandle *)oshandle;
+    if (handle->body.ops->sync_readable)
+        bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot read charcaters this kind of handle");
 
     /* Stash the data in the VMArray. */
     ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
