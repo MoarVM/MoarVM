@@ -146,14 +146,14 @@ static MVMString * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 cha
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     ensure_decode_stream(tc, data);
 
-    /* Pull data until we can read a line. */
+    /* Pull data until we can read the chars we want. */
     do {
         MVMString *result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
         if (result != NULL)
             return result;
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
 
-    /* Reached end of file, or last (non-termianted) line. */
+    /* Reached end of file, so just take what we have. */
     return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
