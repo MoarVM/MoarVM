@@ -1,6 +1,8 @@
+# -*- coding: utf8 -*-
 import gdb
 from collections import defaultdict
 from itertools import chain
+import math
 #import blessings
 import sys
 
@@ -13,6 +15,7 @@ PRETTY_WIDTH=50
 
 MVM_GEN2_PAGE_ITEMS = 256
 MVM_GEN2_BIN_BITS   = 3
+MVM_GEN2_BINS       = 32
 
 array_storage_types = [
         'obj',
@@ -21,6 +24,62 @@ array_storage_types = [
         'n64', 'n32',
         'u64', 'u32', 'u16', 'u8'
         ]
+
+halfblocks = u"█▀▄ ░▒▓"
+
+def shade_block(u, d):
+    if u == d == True:
+        return halfblocks[0]
+    elif u == True and d == False:
+        return halfblocks[1]
+    elif u == False and d == True:
+        return halfblocks[2]
+    elif u == d == False:
+        return halfblocks[3]
+    elif u == d == None:
+        return halfblocks[4]
+    elif u == None and d == False or u == False and d == None:
+        return halfblocks[5]
+    elif u == None and d == True or u == True and d == None:
+        return halfblocks[6]
+
+
+def generate_hilbert(amount):
+    hilbert_coords = []
+
+    # adapted from the english wikipedia article on the Hilbert Curve
+    n = int(math.sqrt(amount))
+    def rot(s, x, y, rx, ry):
+        if ry == 0:
+            if rx == 1:
+                x = s - 1 - x
+                y = s - 1 - y
+            return (y, x)
+        return (x, y)
+
+    def xy2d(x, y):
+        rx = 0
+        ry = 0
+        d = 0
+
+        s = int(n / 2)
+        while s > 0:
+            rx = (x & s) > 0
+            ry = (y & s) > 0
+            d += s * s * ((3 * rx) ^ ry)
+            (x, y) = rot(s, x, y, rx, ry)
+            s /= 2
+
+        return d
+
+    for y in range(n):
+        hilbert_coords.append([])
+        for x in range(n):
+            hilbert_coords[-1].append(xy2d(x, y))
+
+    return hilbert_coords
+
+hilbert_coords = generate_hilbert(MVM_GEN2_PAGE_ITEMS)
 
 def prettify_size(num):
     rest = str(num)
@@ -297,13 +356,19 @@ def bucket_index_to_size(idx):
 class Gen2Data(CommonHeapData):
     size_bucket     = None
     length_freelist = None
+    allocd_freelist = None
     bucket_size     = None
     g2sc   = None
+
+    page_addrs  = None
+    pagebuckets = None
+    empty       = False
+    cur_page    = 0
 
     def sizes(self):
         # XXX this ought to return a tuple with the sizes we
         # accept in this bucket
-        return self.size_bucket
+        return bucket_index_to_size(self.size_bucket), bucket_index_to_size(self.size_bucket + 1) - 1
 
     def __init__(self, generation, gen2sizeclass, size_bucket):
         super(Gen2Data, self).__init__(generation)
@@ -313,20 +378,93 @@ class Gen2Data(CommonHeapData):
         self.bucket_size = bucket_index_to_size(self.size_bucket)
 
     def analyze(self, tc):
-        pagebuckets = [[None] * MVM_GEN2_PAGE_ITEMS for i in range(int(self.g2sc['num_pages']))]
+        if int(self.g2sc['pages'].cast(gdb.lookup_type("int"))) == 0:
+            self.empty = True
+            return
+        pagebuckets = [[True for i in range(MVM_GEN2_PAGE_ITEMS)] for i in range(int(self.g2sc['num_pages']))]
         page_addrs  = []
+
+        self.page_addrs = page_addrs
+        self.pagebuckets = pagebuckets
+
+        self.cur_page = int(self.g2sc['cur_page'])
 
         page_cursor = self.g2sc['pages']
         for page_idx in range(self.g2sc['num_pages']):
             page_addrs.append(page_cursor.dereference())
+            if page_idx == self.cur_page:
+                alloc_bucket_idx = int(int(self.g2sc['alloc_pos'] - page_cursor.dereference()) / self.bucket_size)
+                pagebuckets[page_idx][alloc_bucket_idx:] = [False] * (MVM_GEN2_PAGE_ITEMS - alloc_bucket_idx)
+            elif page_idx > self.cur_page:
+                pagebuckets[page_idx] = [False] * MVM_GEN2_PAGE_ITEMS
             page_cursor += 1
 
+        # now punch holes in our page_buckets
         free_cursor = self.g2sc['free_list']
 
+        def address_to_page_and_bucket(addr):
+            for idx, base in enumerate(page_addrs):
+                end = base + self.bucket_size * MVM_GEN2_PAGE_ITEMS
+                if base <= addr < end:
+                    return idx, int((addr - base) / self.bucket_size)
+
+        self.length_freelist = 0
+        self.allocd_freelist = 0
+        while free_cursor.cast(gdb.lookup_type("int")) != 0:
+            if free_cursor.dereference().cast(gdb.lookup_type("int")) != 0:
+                result = address_to_page_and_bucket(free_cursor.dereference())
+                page, bucket = result
+                pagebuckets[page][bucket] = None
+                self.length_freelist += 1
+            self.allocd_freelist += 1
+            free_cursor = self.g2sc['free_list'][self.allocd_freelist]
 
 
     def summarize(self):
-        pass
+        print "size bucket:", self.bucket_size
+        if self.empty:
+            print "(unallocated)"
+            return
+        # hacky "take two at a time"
+        cols_per_block = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
+        lines_per_block = cols_per_block / 2
+        outlines = [[] for i in range(lines_per_block + 1)]
+        break_step = PRETTY_WIDTH / (lines_per_block + 1)
+        next_break = break_step
+        pgct = 0
+        fullpages = 0
+        drawn = False
+        for pgnum, page in enumerate(self.pagebuckets):
+            if pgnum > self.cur_page:
+                break
+            if not all(page) and any(page):
+                for outline, (line, nextline) in enumerate(zip(*[iter(hilbert_coords)] * 2)):
+                    for idx, (upper, lower) in enumerate(zip(line, nextline)):
+                        upper, lower = page[upper], page[lower]
+                        outlines[-lines_per_block + outline].append(shade_block(upper, lower))
+                outlines[-lines_per_block - 1].append(str(str(pgnum + 1) + "st pg").center(cols_per_block) + " ")
+                pgct += 1
+                drawn = True
+            else:
+                fullpages += 1
+                drawn = False
+
+            if pgct > next_break:
+                outlines.extend([[] for i in range(lines_per_block + 2)])
+                next_break += break_step
+            elif pgct != self.cur_page and drawn:
+                for line_num in range(lines_per_block):
+                    outlines[-line_num - 1].append(" ")
+
+
+        print (u"\n".join(map(lambda l: u"".join(l), outlines))).encode("utf8")
+        if fullpages > 0:
+            print "(and", fullpages, "completely filled pages)",
+        if self.cur_page < len(self.pagebuckets):
+            print "(and", (len(self.pagebuckets) - self.cur_page + 1), "empty pages)",
+        if self.allocd_freelist > 0:
+            print "(freelist with", self.length_freelist, "entries out of an allocd", self.allocd_freelist,")",
+        print ""
 
 class HeapData(object):
     run_nursery = None
@@ -349,14 +487,19 @@ class AnalyzeHeapCommand(gdb.Command):
         instance = tc['instance']
         generation = instance['gc_seq_number']
 
-        nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
-        nursery.analyze(tc)
+        #nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
+        #nursery.analyze(tc)
 
-        print "the current generation of the gc is", generation
+        #print "the current generation of the gc is", generation
 
-        nursery.summarize()
+        #nursery.summarize()
 
-        nursery_memory.append(nursery)
+        #nursery_memory.append(nursery)
+
+        for sizeclass in range(MVM_GEN2_BINS):
+            g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
+            g2sc.analyze(tc)
+            g2sc.summarize()
 
 class DiffHeapCommand(gdb.Command):
     def __init__(self):
