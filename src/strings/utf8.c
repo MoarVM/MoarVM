@@ -266,11 +266,10 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
 }
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
- * buffers. */
+ * buffers, or until a stopper is reached. */
 void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                   MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
     MVMint32 count = 0, total = 0, stopped = 0;
-    MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMCodepoint32 codepoint = 0;
     MVMint32 bufsize;

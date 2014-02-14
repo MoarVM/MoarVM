@@ -73,6 +73,12 @@ static run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 *stopper_c
     case MVM_encoding_type_utf8:
         MVM_string_utf8_decodestream(tc, ds, stopper_chars, stopper_sep);
         break;
+    case MVM_encoding_type_ascii:
+        MVM_string_ascii_decodestream(tc, ds, stopper_chars, stopper_sep);
+        break;
+    case MVM_encoding_type_latin1:
+        MVM_string_latin1_decodestream(tc, ds, stopper_chars, stopper_sep);
+        break;
     default:
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
             (int)ds->encoding);
