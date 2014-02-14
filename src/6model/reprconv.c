@@ -229,8 +229,12 @@ void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val) {
 }
 
 MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val) {
-    MVMObject *res = MVM_repr_alloc_init(tc, type);
-    MVM_repr_set_int(tc, res, val);
+    MVMObject *res;
+    res = MVM_intcache_get(tc, type, val);
+    if (res == 0) {
+        res = MVM_repr_alloc_init(tc, type);
+        MVM_repr_set_int(tc, res, val);
+    }
     return res;
 }
 

@@ -658,4 +658,6 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Get initial __6MODEL_CORE__ serialization context set up. */
     setup_core_sc(tc);
     MVM_6model_containers_setup(tc);
+
+    MVM_intcache_for(tc, tc->instance->boot_types.BOOTInt);
 }
