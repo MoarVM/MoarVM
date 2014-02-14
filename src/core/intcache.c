@@ -44,13 +44,7 @@ MVMObject *MVM_intcache_get(MVMThreadContext *tc, MVMObject *type, MVMint64 valu
         }
     }
     if (right_slot != -1) {
-        MVMint64 res_val;
-        result = tc->instance->int_const_cache->cache[right_slot][value];
-        res_val = MVM_repr_get_int(tc, result);
-        if (res_val != value) {
-            printf("the num is %ld, expected %ld\n", res_val, value);
-        }
-        return result;
+        return tc->instance->int_const_cache->cache[right_slot][value];
     }
     return NULL;
 }
