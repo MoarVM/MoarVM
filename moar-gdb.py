@@ -3,6 +3,7 @@ import gdb
 from collections import defaultdict
 from itertools import chain
 import math
+import random
 #import blessings
 import sys
 
@@ -16,6 +17,10 @@ PRETTY_WIDTH=50
 MVM_GEN2_PAGE_ITEMS = 256
 MVM_GEN2_BIN_BITS   = 3
 MVM_GEN2_BINS       = 32
+
+MVM_GEN2_PAGE_CUBE_SIZE = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
+
+EXTRA_SAMPLES = 8
 
 array_storage_types = [
         'obj',
@@ -365,6 +370,9 @@ class Gen2Data(CommonHeapData):
     empty       = False
     cur_page    = 0
 
+    repr_histogram = None
+    size_histogram = None
+
     def sizes(self):
         # XXX this ought to return a tuple with the sizes we
         # accept in this bucket
@@ -376,6 +384,8 @@ class Gen2Data(CommonHeapData):
         self.size_bucket = size_bucket
         self.g2sc = gen2sizeclass
         self.bucket_size = bucket_index_to_size(self.size_bucket)
+        self.repr_histogram = defaultdict(lambda: 0)
+        self.size_histogram = defaultdict(lambda: 0)
 
     def analyze(self, tc):
         if int(self.g2sc['pages'].cast(gdb.lookup_type("int"))) == 0:
@@ -389,6 +399,10 @@ class Gen2Data(CommonHeapData):
 
         self.cur_page = int(self.g2sc['cur_page'])
 
+        # we need to make sure we don't accidentally run into free_list'd slots
+        # that's why we just collect addresses up front and sample them later on.
+        sample_stooges = []
+
         page_cursor = self.g2sc['pages']
         for page_idx in range(self.g2sc['num_pages']):
             page_addrs.append(page_cursor.dereference())
@@ -396,7 +410,17 @@ class Gen2Data(CommonHeapData):
                 alloc_bucket_idx = int(int(self.g2sc['alloc_pos'] - page_cursor.dereference()) / self.bucket_size)
                 pagebuckets[page_idx][alloc_bucket_idx:] = [False] * (MVM_GEN2_PAGE_ITEMS - alloc_bucket_idx)
             elif page_idx > self.cur_page:
+                alloc_bucket_idx = 0
                 pagebuckets[page_idx] = [False] * MVM_GEN2_PAGE_ITEMS
+            else:
+                alloc_bucket_idx = MVM_GEN2_PAGE_ITEMS
+            # sample a few objects for their size
+            samplecount = int(min(MVM_GEN2_PAGE_CUBE_SIZE * EXTRA_SAMPLES, math.sqrt(alloc_bucket_idx)))
+            samples = random.sample(range(0, alloc_bucket_idx), samplecount)
+            for idx in samples:
+                stooge = (page_cursor.dereference() + (idx * self.bucket_size)).cast(gdb.lookup_type("MVMObjectStooge").pointer())
+                sample_stooges.append((stooge, page_idx, idx))
+
             page_cursor += 1
 
         # now punch holes in our page_buckets
@@ -416,16 +440,60 @@ class Gen2Data(CommonHeapData):
                 page, bucket = result
                 pagebuckets[page][bucket] = None
                 self.length_freelist += 1
+                print "punch!",
             self.allocd_freelist += 1
             free_cursor = self.g2sc['free_list'][self.allocd_freelist]
+        print ""
 
+        integers = defaultdict(lambda: 0)
+
+        # now we can actually sample our objects
+        for stooge, page, idx in sample_stooges:
+            if pagebuckets[page][idx] is None:
+                continue
+            try:
+                # XXX this really ought to get factored out
+                size = int(stooge['common']['header']['size'])
+                flags = stooge['common']['header']['flags']
+
+                if size == 0:
+                    print "found a null object!"
+                    continue
+
+                is_typeobj = flags & 1
+                is_stable = flags & 2
+
+                STable = stooge['common']['st'].dereference()
+                if not is_stable:
+                    REPR = STable["REPR"]
+                    REPRname = REPR["name"].string()
+                    if is_typeobj:
+                        self.number_typeobs += 1
+                    else:
+                        self.number_objects += 1
+                else:
+                    REPR = None
+                    REPRname = "STable"
+                    self.number_stables += 1
+
+                if REPRname == "P6int":
+                    data = stooge['data'].cast(gdb.lookup_type("MVMP6intBody"))
+                    integers[int(data['value'])] += 1
+
+                self.repr_histogram[REPRname] += 1
+                self.size_histogram[size]     += 1
+            except Exception as e:
+                print e
+
+        if len(integers) > 10:
+            show_histogram(integers)
 
     def summarize(self):
         print "size bucket:", self.bucket_size
         if self.empty:
             print "(unallocated)"
             return
-        # hacky "take two at a time"
+        print "setting up stuff"
         cols_per_block = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
         lines_per_block = cols_per_block / 2
         outlines = [[] for i in range(lines_per_block + 1)]
@@ -438,6 +506,7 @@ class Gen2Data(CommonHeapData):
             if pgnum > self.cur_page:
                 break
             if not all(page) and any(page):
+                # hacky "take two at a time"
                 for outline, (line, nextline) in enumerate(zip(*[iter(hilbert_coords)] * 2)):
                     for idx, (upper, lower) in enumerate(zip(line, nextline)):
                         upper, lower = page[upper], page[lower]
@@ -452,7 +521,7 @@ class Gen2Data(CommonHeapData):
             if pgct > next_break:
                 outlines.extend([[] for i in range(lines_per_block + 2)])
                 next_break += break_step
-            elif pgct != self.cur_page and drawn:
+            elif pgnum != self.cur_page and drawn:
                 for line_num in range(lines_per_block):
                     outlines[-line_num - 1].append(" ")
 
@@ -465,6 +534,11 @@ class Gen2Data(CommonHeapData):
         if self.allocd_freelist > 0:
             print "(freelist with", self.length_freelist, "entries out of an allocd", self.allocd_freelist,")",
         print ""
+
+        print "sizes of objects/stables:"
+        show_histogram(self.size_histogram, "key", True)
+        print "REPRs:"
+        show_histogram(self.repr_histogram)
 
 class HeapData(object):
     run_nursery = None
