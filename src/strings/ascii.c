@@ -38,12 +38,14 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
     MVMCodepoint32 *buffer;
-    MVMDecodeStreamBytes *cur_bytes, *last_accept_bytes;
+    MVMDecodeStreamBytes *cur_bytes;
+    MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
         return;
+    last_accept_pos = ds->bytes_head_pos;
 
     /* If we're asked for zero chars, also done. */
     if (stopper_chars && *stopper_chars == 0)
@@ -88,8 +90,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
      * what we chewed through. */
     if (count)
         MVM_string_decodestream_add_chars(tc, ds, buffer, count);
-    if (total)
-        MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
+    MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
 }
 
 /* Encodes the specified substring to ASCII. Anything outside of ASCII range

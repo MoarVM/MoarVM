@@ -18,14 +18,16 @@ MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 
 
 /* Adds another byte buffer into the decoding stream. */
 void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, char *bytes, MVMint32 length) {
-    MVMDecodeStreamBytes *new_bytes = calloc(1, sizeof(MVMDecodeStreamBytes));
-    new_bytes->bytes  = bytes;
-    new_bytes->length = length;
-    if (ds->bytes_tail)
-        ds->bytes_tail->next = new_bytes;
-    ds->bytes_tail = new_bytes;
-    if (!ds->bytes_head)
-        ds->bytes_head = new_bytes;
+    if (length > 0) {
+        MVMDecodeStreamBytes *new_bytes = calloc(1, sizeof(MVMDecodeStreamBytes));
+        new_bytes->bytes  = bytes;
+        new_bytes->length = length;
+        if (ds->bytes_tail)
+            ds->bytes_tail->next = new_bytes;
+        ds->bytes_tail = new_bytes;
+        if (!ds->bytes_head)
+            ds->bytes_head = new_bytes;
+    }
 }
 
 /* Adds another char result buffer into the decoding stream. */
@@ -50,6 +52,8 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
         free(discard->bytes);
         free(discard);
     }
+    if (!ds->bytes_head && pos == 0)
+        return;
     if (ds->bytes_head->length == pos) {
         /* We ate all of the new head buffer too; also free it. */
         MVMDecodeStreamBytes *discard = ds->bytes_head;
