@@ -128,6 +128,7 @@ OBJECTS = src/core/args@obj@ \
           src/strings/unicode@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
+          src/strings/windows1252@obj@ \
           src/math/bigintops@obj@ \
           src/moar@obj@ \
           @platform@
@@ -212,6 +213,7 @@ HEADERS = src/moar.h \
           src/strings/unicode.h \
           src/strings/latin1.h \
           src/strings/utf16.h \
+          src/strings/windows1252.h \
           src/math/bigintops.h \
           src/platform/mmap.h \
           src/platform/time.h \

@@ -1,9 +1,10 @@
-#define MVM_encoding_type_MIN       1
-#define MVM_encoding_type_utf8      1
-#define MVM_encoding_type_ascii     2
-#define MVM_encoding_type_latin1    3
-#define MVM_encoding_type_utf16     4
-#define MVM_encoding_type_MAX       4
+#define MVM_encoding_type_MIN           1
+#define MVM_encoding_type_utf8          1
+#define MVM_encoding_type_ascii         2
+#define MVM_encoding_type_latin1        3
+#define MVM_encoding_type_utf16         4
+#define MVM_encoding_type_windows1252   5
+#define MVM_encoding_type_MAX           5
 #define ENCODING_VALID(enc) \
     (((enc) >= MVM_encoding_type_MIN && (enc) <= MVM_encoding_type_MAX) \
     || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
