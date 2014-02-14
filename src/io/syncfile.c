@@ -233,7 +233,7 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h){
 }
 
 /* Truncates the file handle. */
-void truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
+static void truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if(uv_fs_ftruncate(tc->loop, &req, data->fd, bytes, NULL) < 0 )
