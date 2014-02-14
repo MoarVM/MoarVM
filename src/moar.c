@@ -60,6 +60,7 @@ MVMInstance * MVM_vm_create_instance(void) {
      * they will have program lifetime. */
     MVM_gc_allocate_gen2_default_set(instance->main_thread);
 
+    init_mutex(instance->mutex_int_const_cache, "int constant cache");
     instance->int_const_cache = calloc(1, sizeof(MVMIntConstCache));
 
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */

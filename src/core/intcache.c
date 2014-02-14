@@ -1,16 +1,16 @@
 #include "moar.h"
 
-/* XXX adding new types to the cache should be protected by a mutex */
-
 void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
     int type_index;
     int right_slot = -1;
+    uv_mutex_lock(&tc->instance->mutex_int_const_cache);
     for (type_index = 0; type_index < 4; type_index++) {
         if (tc->instance->int_const_cache->types[type_index] == NULL) {
             right_slot = type_index;
             break;
         }
         else if (tc->instance->int_const_cache->types[type_index] == type) {
+            uv_mutex_unlock(&tc->instance->mutex_int_const_cache);
             return;
         }
     }
@@ -26,6 +26,7 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
         tc->instance->int_const_cache->types[type_index] = type;
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->int_const_cache->types[type_index]);
     }
+    uv_mutex_unlock(&tc->instance->mutex_int_const_cache);
 }
 
 MVMObject *MVM_intcache_get(MVMThreadContext *tc, MVMObject *type, MVMint64 value) {
