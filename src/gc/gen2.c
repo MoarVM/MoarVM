@@ -50,6 +50,9 @@ static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[cur_page];
     al->size_classes[bin].alloc_limit = al->size_classes[bin].alloc_pos + page_size;
+
+    /* set the cur_page to a proper value */
+    al->size_classes[bin].cur_page = cur_page;
 }
 
 /* Allocates space using the second generation allocator and returns
