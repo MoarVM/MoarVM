@@ -77,8 +77,12 @@ OBJECTS = src/core/args@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
           src/gc/roots@obj@ \
+          src/io/io@obj@ \
+          src/io/syncfile@obj@ \
+          src/io/syncstream@obj@ \
+          src/io/syncpipe@obj@ \
+          src/io/syncsocket@obj@ \
           src/io/fileops@obj@ \
-          src/io/socketops@obj@ \
           src/io/dirops@obj@ \
           src/io/procops@obj@ \
           src/gc/collect@obj@ \
@@ -121,12 +125,14 @@ OBJECTS = src/core/args@obj@ \
           src/6model/serialization@obj@ \
           src/mast/compiler@obj@ \
           src/mast/driver@obj@ \
+          src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
           src/strings/ops@obj@ \
           src/strings/unicode@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
+          src/strings/windows1252@obj@ \
           src/math/bigintops@obj@ \
           src/moar@obj@ \
           @platform@
@@ -155,8 +161,12 @@ HEADERS = src/moar.h \
           src/core/ext.h \
           src/core/continuation.h \
           src/core/intcache.h \
+          src/io/io.h \
+          src/io/syncfile.h \
+          src/io/syncstream.h \
+          src/io/syncpipe.h \
+          src/io/syncsocket.h \
           src/io/fileops.h \
-          src/io/socketops.h \
           src/io/dirops.h \
           src/io/procops.h \
           src/gc/orchestrate.h \
@@ -203,12 +213,14 @@ HEADERS = src/moar.h \
           src/mast/driver.h \
           src/mast/nodes_moar.h \
           src/strings/unicode_gen.h \
+          src/strings/decode_stream.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
           src/strings/ops.h \
           src/strings/unicode.h \
           src/strings/latin1.h \
           src/strings/utf16.h \
+          src/strings/windows1252.h \
           src/math/bigintops.h \
           src/platform/mmap.h \
           src/platform/time.h \

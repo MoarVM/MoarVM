@@ -265,6 +265,74 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     return result;
 }
 
+/* Decodes using a decodestream. Decodes as far as it can with the input
+ * buffers, or until a stopper is reached. */
+void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                  MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+    MVMint32 count = 0, total = 0, stopped = 0;
+    MVMint32 state = 0;
+    MVMCodepoint32 codepoint = 0;
+    MVMint32 bufsize;
+    MVMCodepoint32 *buffer;
+    MVMDecodeStreamBytes *cur_bytes;
+    MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
+    MVMint32 last_accept_pos;
+
+    /* If there's no buffers, we're done. */
+    if (!ds->bytes_head)
+        return;
+    last_accept_pos = ds->bytes_head_pos;
+
+    /* If we're asked for zero chars, also done. */
+    if (stopper_chars && *stopper_chars == 0)
+        return;
+
+    /* Rough starting-size estimate is number of bytes in the head buffer. */
+    bufsize = ds->bytes_head->length;
+    buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+
+    /* Decode each of the buffers. */
+    cur_bytes = ds->bytes_head;
+    while (cur_bytes) {
+        /* Process this buffer. */
+        MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
+        char     *bytes = cur_bytes->bytes;
+        while (pos < cur_bytes->length) {
+            switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
+            case UTF8_ACCEPT:
+                if (count == bufsize) {
+                    /* Valid character, but we filled the buffer. Attach this
+                     * one to the buffers linked list, and continue with a new
+                     * one. */
+                    MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
+                    buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+                    count = 0;
+                }
+                buffer[count++] = codepoint;
+                last_accept_bytes = cur_bytes;
+                last_accept_pos = pos;
+                total++;
+                if (stopper_chars && *stopper_chars == total)
+                    goto done;
+                if (stopper_sep && *stopper_sep == codepoint)
+                    goto done;
+                break;
+            case UTF8_REJECT:
+                MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+                break;
+            }
+        }
+        cur_bytes = cur_bytes->next;
+    }
+  done:
+
+    /* Attach what we successfully parsed as a result buffer, and trim away
+     * what we chewed through. */
+    if (count)
+        MVM_string_decodestream_add_chars(tc, ds, buffer, count);
+    MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
+}
+
 /* Encodes the specified string to UTF-8. */
 MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
