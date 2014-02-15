@@ -446,7 +446,7 @@ class Gen2Data(CommonHeapData):
 
         # now we can actually sample our objects
         for stooge, page, idx in sample_stooges:
-            if pagebuckets[page][idx] is None:
+            if pagebuckets[page][idx] != True:
                 continue
             try:
                 # XXX this really ought to get factored out
@@ -455,6 +455,7 @@ class Gen2Data(CommonHeapData):
 
                 if size == 0:
                     print "found a null object!"
+                    pagebuckets[page][idx] = None
                     continue
 
                 is_typeobj = flags & 1
