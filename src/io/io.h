@@ -68,3 +68,19 @@ struct MVMIOLockable {
     MVMint64 (*lock) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag);
     void (*unlock) (MVMThreadContext *tc, MVMOSHandle *h);
 };
+
+void MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);
+void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
+MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);
+MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle);
+MVMString * MVM_io_read_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
+void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length);
+MVMString * MVM_io_slurp(MVMThreadContext *tc, MVMObject *oshandle);
+MVMint64 MVM_io_write_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl);
+void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer);
+MVMint64 MVM_io_eof(MVMThreadContext *tc, MVMObject *oshandle);
+MVMint64 MVM_io_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
+void MVM_io_unlock(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_flush(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);

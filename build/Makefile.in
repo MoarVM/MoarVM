@@ -76,6 +76,7 @@ OBJECTS = src/core/args@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
           src/gc/roots@obj@ \
+          src/io/io@obj@ \
           src/io/syncfile@obj@ \
           src/io/syncstream@obj@ \
           src/io/syncpipe@obj@ \

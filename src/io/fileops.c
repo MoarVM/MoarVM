@@ -231,26 +231,7 @@ FILE_IS(writable, W)
 FILE_IS(executable, X)
 #endif
 
-void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->closable)
-        handle->body.ops->closable->close(tc, handle);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot close this kind of handle");
-}
-
-/* Reads a line from a filehandle. */
-MVMString * MVM_file_readline_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->sync_readable) {
-        return handle->body.ops->sync_readable->read_line(tc, handle);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot read lines from this kind of handle");
-    }
-}
-
-/* reads a line from a filehandle. */
+/* Readline interactive; needs a re-visit soon. */
 MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt) {
     MVMString *return_str = NULL;
     char *line;
@@ -289,169 +270,24 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     return return_str;
 }
 
-/* reads a string from a filehandle. */
-MVMString * MVM_file_read_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 chars) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->sync_readable)
-        return handle->body.ops->sync_readable->read_chars(tc, handle, chars);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot read charcaters this kind of handle");
-}
-
-/* reads a buf from a filehandle. */
-void MVM_file_read_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
-    MVMOSHandle *handle;
-    MVMint64 bytes_read;
-    uv_fs_t req;
-    char *buf;
-
-    /* Ensure the target is in the correct form. */
-    if (!IS_CONCRETE(result) || REPR(result)->ID != MVM_REPR_ID_MVMArray)
-        MVM_exception_throw_adhoc(tc, "read_fhb requires a native array to write to");
-    if (((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_U8
-        && ((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_I8)
-        MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of uint8 or int8");
-
-    if (length < 1 || length > 99999999) {
-        MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
-    }
-
-    handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->sync_readable)
-        bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot read charcaters this kind of handle");
-
-    /* Stash the data in the VMArray. */
-    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
-    ((MVMArray *)result)->body.start    = 0;
-    ((MVMArray *)result)->body.ssize    = bytes_read;
-    ((MVMArray *)result)->body.elems    = bytes_read;
-}
-
-/* Read all of a filehandle into a string. */
-MVMString * MVM_file_readall_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->sync_readable) {
-        return handle->body.ops->sync_readable->slurp(tc, handle);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot slurp this kind of handle");
-    }
-}
-
-/* read all of a file into a string */
+/* Read all of a file into a string. */
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding) {
     MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "r", 1);
     MVMObject *oshandle = (MVMObject *)MVM_file_open_fh(tc, filename, mode);
     MVMString *result;
-    MVM_file_set_encoding(tc, oshandle, encoding);
-    result = MVM_file_readall_fh(tc, oshandle);
-    MVM_file_close_fh(tc, oshandle);
+    MVM_io_set_encoding(tc, oshandle, encoding);
+    result = MVM_io_slurp(tc, oshandle);
+    MVM_io_close(tc, oshandle);
     return result;
 }
 
-static void write_cb(uv_write_t* req, int status) {
-    uv_unref((uv_handle_t *)req);
-    free(req);
-}
-
-/* writes a string to a filehandle. */
-MVMint64 MVM_file_write_fhs(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (str == NULL)
-        MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL string given");
-    if (handle->body.ops->sync_writable) {
-        return handle->body.ops->sync_writable->write_str(tc, handle, str, addnl);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot write a string to this kind of handle");
-    }
-}
-
-void MVM_file_write_fhb(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    MVMuint8 *output;
-    MVMint64 output_size;
-    MVMint64 bytes_written;
-
-    /* Ensure the target is in the correct form. */
-    if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
-        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array to read from");
-    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_U8
-        && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
-        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of uint8 or int8");
-
-    output = ((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start;
-    output_size = ((MVMArray *)buffer)->body.elems;
-
-    if (handle->body.ops->sync_writable)
-        bytes_written = handle->body.ops->sync_writable->write_bytes(tc, handle, output, output_size);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot write bytes to this kind of handle");
-}
-
-/* writes a string to a file, overwriting it if necessary */
+/* Writes a string to a file, overwriting it if necessary */
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMString *encoding) {
     MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "w", 1);
     MVMObject *fh = MVM_file_open_fh(tc, filename, mode);
-    MVM_file_set_encoding(tc, fh, encoding);
-    MVM_file_write_fhs(tc, fh, output, 0);
-    MVM_file_close_fh(tc, fh);
-}
-
-/* seeks in a filehandle */
-void MVM_file_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->seekable)
-        handle->body.ops->seekable->seek(tc, handle, offset, flag);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot seek this kind of handle");
-}
-
-/* tells position within file */
-MVMint64 MVM_file_tell_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->seekable)
-        return handle->body.ops->seekable->tell(tc, handle);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot tell this kind of handle");
-}
-
-/* Locks a filehandle */
-MVMint64 MVM_file_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->lockable)
-        return handle->body.ops->lockable->lock(tc, handle, flag);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot lock this kind of handle");
-}
-
-/* Unlocks a filehandle */
-void MVM_file_unlock(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->lockable)
-        handle->body.ops->lockable->unlock(tc, handle);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot unlock this kind of handle");
-}
-
-/* Syncs a filehandle (Transfer all file modified data and metadata to disk.) */
-void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->sync_writable)
-        handle->body.ops->sync_writable->flush(tc, handle);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot flush this kind of handle");
-}
-
-/* Truncates a file handle to the specified length. */
-void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->sync_writable)
-        handle->body.ops->sync_writable->truncate(tc, handle, offset);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot truncate this kind of handle");
+    MVM_io_set_encoding(tc, fh, encoding);
+    MVM_io_write_string(tc, fh, output, 0);
+    MVM_io_close(tc, fh);
 }
 
 /* return an OSHandle representing one of the standard streams */
@@ -483,29 +319,6 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
         default:
             MVM_exception_throw_adhoc(tc, "get_stream failed, unsupported std handle");
     }
-}
-
-MVMint64 MVM_file_eof(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    if (handle->body.ops->sync_readable) {
-        return handle->body.ops->sync_readable->eof(tc, handle);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot eof this kind of handle");
-    }
-}
-
-void MVM_file_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
-    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
-    MVMROOT(tc, oshandle, {
-        const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, encoding_name);
-        if (handle->body.ops->encodable) {
-            handle->body.ops->encodable->set_encoding(tc, handle, encoding_flag);
-        }
-        else {
-            MVM_exception_throw_adhoc(tc, "Cannot set encoding on this kind of handle");
-        }
-    });
 }
 
 /* Takes a filename and prepends any --libpath value we have, if it's not an

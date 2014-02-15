@@ -3164,11 +3164,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(close_fh):
-                MVM_file_close_fh(tc, GET_REG(cur_op, 0).o);
+                MVM_io_close(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(read_fhs):
-                GET_REG(cur_op, 0).s = MVM_file_read_fhs(tc, GET_REG(cur_op, 2).o,
+                GET_REG(cur_op, 0).s = MVM_io_read_string(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
@@ -3182,33 +3182,33 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(write_fhs):
-                GET_REG(cur_op, 0).i64 = MVM_file_write_fhs(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, 0);
+                GET_REG(cur_op, 0).i64 = MVM_io_write_string(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, 0);
                 cur_op += 6;
                 goto NEXT;
             OP(seek_fh):
-                MVM_file_seek(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64,
+                MVM_io_seek(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(lock_fh):
-                GET_REG(cur_op, 0).i64 = MVM_file_lock(tc, GET_REG(cur_op, 2).o,
+                GET_REG(cur_op, 0).i64 = MVM_io_lock(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(unlock_fh):
-                MVM_file_unlock(tc, GET_REG(cur_op, 0).o);
+                MVM_io_unlock(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(sync_fh):
-                MVM_file_sync(tc, GET_REG(cur_op, 0).o);
+                MVM_io_flush(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(trunc_fh):
-                MVM_file_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                MVM_io_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             OP(eof_fh):
-                GET_REG(cur_op, 0).i64 = MVM_file_eof(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).i64 = MVM_io_eof(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(getstdin):
@@ -3266,7 +3266,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(setencoding):
-                MVM_file_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
+                MVM_io_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(print):
@@ -3278,11 +3278,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(readall_fh):
-                GET_REG(cur_op, 0).s = MVM_file_readall_fh(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).s = MVM_io_slurp(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(tell_fh):
-                GET_REG(cur_op, 0).i64 = MVM_file_tell_fh(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).i64 = MVM_io_tell(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(stat):
@@ -3290,14 +3290,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(readline_fh):
-                GET_REG(cur_op, 0).s = MVM_file_readline_fh(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).s = MVM_io_readline(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(readlineint_fh):
                 /* XXX Avoid readline for now; spews infinite prompts on some
                  * platforms. */
-                MVM_file_write_fhs(tc, tc->instance->stdout_handle, GET_REG(cur_op, 4).s, 0);
-                GET_REG(cur_op, 0).s = MVM_file_readline_fh(tc, GET_REG(cur_op, 2).o);
+                MVM_io_write_string(tc, tc->instance->stdout_handle, GET_REG(cur_op, 4).s, 0);
+                GET_REG(cur_op, 0).s = MVM_io_readline(tc, GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
             OP(chdir):
@@ -3825,7 +3825,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(say_fhs):
-                GET_REG(cur_op, 0).i64 = MVM_file_write_fhs(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, 1);
+                GET_REG(cur_op, 0).i64 = MVM_io_write_string(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, 1);
                 cur_op += 6;
                 goto NEXT;
             OP(capturenamedshash): {
@@ -3841,12 +3841,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(read_fhb):
-                MVM_file_read_fhb(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o,
+                MVM_io_read_bytes(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(write_fhb):
-                MVM_file_write_fhb(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                MVM_io_write_bytes(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(newexception):
