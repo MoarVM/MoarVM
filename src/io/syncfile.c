@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/io.h"
 
 /* Here we implement synchronous file I/O. It's done using libuv's file I/O
  * functions, without specifying callbacks, thus easily giving synchronous
