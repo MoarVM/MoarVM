@@ -234,7 +234,7 @@ FILE_IS(executable, X)
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = (MVMOSHandle *)oshandle;
     if (handle->body.ops->closable)
-        handle->body.ops->closable->closefh(tc, handle);
+        handle->body.ops->closable->close(tc, handle);
     else
         MVM_exception_throw_adhoc(tc, "Cannot close this kind of handle");
 }
@@ -449,7 +449,7 @@ void MVM_file_sync(MVMThreadContext *tc, MVMObject *oshandle) {
 void MVM_file_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset) {
     MVMOSHandle *handle = (MVMOSHandle *)oshandle;
     if (handle->body.ops->sync_writable)
-        handle->body.ops->sync_writable->truncatefh(tc, handle, offset);
+        handle->body.ops->sync_writable->truncate(tc, handle, offset);
     else
         MVM_exception_throw_adhoc(tc, "Cannot truncate this kind of handle");
 }

@@ -3,9 +3,7 @@
 /* Here we implement synchronous file I/O. It's done using libuv's file I/O
  * functions, without specifying callbacks, thus easily giving synchronous
  * behavior. */
-
-#include "platform/io.h"
-
+ 
 #ifndef _WIN32
 #include <sys/types.h>
 #include <unistd.h>
@@ -38,7 +36,7 @@ typedef struct {
 } MVMIOFileData;
 
 /* Closes the file. */
-static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+static void close(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if (data->ds) {
@@ -235,7 +233,7 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h){
 }
 
 /* Truncates the file handle. */
-static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
+static void truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if(uv_fs_ftruncate(tc->loop, &req, data->fd, bytes, NULL) < 0 )
@@ -354,10 +352,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 }
 
 /* IO ops table, populated with functions. */
-static MVMIOClosable     closable      = { closefh };
+static MVMIOClosable     closable      = { close };
 static MVMIOEncodable    encodable     = { set_encoding };
 static MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
-static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
+static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncate };
 static MVMIOSeekable     seekable      = { seek, tell };
 struct MVMIOLockable     lockable      = { lock, unlock };
 static MVMIOOps op_table = {

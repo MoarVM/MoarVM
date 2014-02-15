@@ -36,7 +36,7 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
         data->ss.ds = NULL;
     }
 }
-static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+static void close(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
     do_close(tc, data);
 }
@@ -48,7 +48,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 }
 
 /* IO ops table, populated with functions. */
-static MVMIOClosable     closable      = { closefh };
+static MVMIOClosable     closable      = { close };
 static MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
 static MVMIOSyncReadable sync_readable = { MVM_io_syncstream_set_separator,
                                            MVM_io_syncstream_read_line,
