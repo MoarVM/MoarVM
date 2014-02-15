@@ -488,12 +488,12 @@
 #define MVM_OP_getstdout 484
 #define MVM_OP_getstderr 485
 #define MVM_OP_connect_sk 486
-#define MVM_OP_close_sk 487
+#define MVM_OP_socket 487
 #define MVM_OP_bind_sk 488
-#define MVM_OP_listen_sk 489
+#define MVM_OP_DEPCRATED_0 489
 #define MVM_OP_accept_sk 490
-#define MVM_OP_send_sks 491
-#define MVM_OP_recv_sks 492
+#define MVM_OP_DEPCRATED_1 491
+#define MVM_OP_DEPCRATED_2 492
 #define MVM_OP_setencoding 493
 #define MVM_OP_print 494
 #define MVM_OP_say 495

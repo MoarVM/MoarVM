@@ -120,7 +120,7 @@ typedef struct MVMIOEncodable MVMIOEncodable;
 typedef struct MVMIOSyncReadable MVMIOSyncReadable;
 typedef struct MVMIOSyncWritable MVMIOSyncWritable;
 typedef struct MVMIOSeekable MVMIOSeekable;
-typedef struct MVMIOBindable MVMIOBindable;
+typedef struct MVMIOSockety MVMIOSockety;
 typedef struct MVMIOInteractive MVMIOInteractive;
 typedef struct MVMIOLockable MVMIOLockable;
 typedef struct MVMIOSyncStreamData MVMIOSyncStreamData;

@@ -167,3 +167,27 @@ void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset)
     else
         MVM_exception_throw_adhoc(tc, "Cannot truncate this kind of handle");
 }
+
+void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "connect");
+    if (handle->body.ops->sockety)
+        handle->body.ops->sockety->connect(tc, handle, host, port);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot connect this kind of handle");
+}
+
+void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "bind");
+    if (handle->body.ops->sockety)
+        handle->body.ops->sockety->bind(tc, handle, host, port);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot bind this kind of handle");
+}
+
+MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "accept");
+    if (handle->body.ops->sockety)
+        return handle->body.ops->sockety->accept(tc, handle);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot accept this kind of handle");
+}

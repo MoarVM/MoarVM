@@ -80,8 +80,8 @@ OBJECTS = src/core/args@obj@ \
           src/io/syncfile@obj@ \
           src/io/syncstream@obj@ \
           src/io/syncpipe@obj@ \
+          src/io/syncsocket@obj@ \
           src/io/fileops@obj@ \
-          src/io/socketops@obj@ \
           src/io/dirops@obj@ \
           src/io/procops@obj@ \
           src/gc/collect@obj@ \
@@ -163,8 +163,8 @@ HEADERS = src/moar.h \
           src/io/syncfile.h \
           src/io/syncstream.h \
           src/io/syncpipe.h \
+          src/io/syncsocket.h \
           src/io/fileops.h \
-          src/io/socketops.h \
           src/io/dirops.h \
           src/io/procops.h \
           src/gc/orchestrate.h \

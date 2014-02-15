@@ -7,7 +7,7 @@ struct MVMIOOps {
     MVMIOSyncReadable *sync_readable;
     MVMIOSyncWritable *sync_writable;
     MVMIOSeekable     *seekable;
-    MVMIOBindable     *bindable;
+    MVMIOSockety      *sockety;
     MVMIOInteractive  *interactive;
     MVMIOLockable     *lockable;
 
@@ -52,8 +52,9 @@ struct MVMIOSeekable {
     MVMint64 (*tell) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
-/* I/O operations on handles that can bind. */
-struct MVMIOBindable {
+/* I/O operations on handles that do socket-y things (connect, bind, accept). */
+struct MVMIOSockety {
+    void (*connect) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port);
     void (*bind) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port);
     MVMObject * (*accept) (MVMThreadContext *tc, MVMOSHandle *h);
 };
@@ -84,3 +85,6 @@ MVMint64 MVM_io_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_io_unlock(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_flush(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
+void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port);
+void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port);
+MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle);

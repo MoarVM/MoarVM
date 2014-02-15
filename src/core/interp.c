@@ -3230,40 +3230,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(connect_sk):
-                GET_REG(cur_op, 0).o = MVM_socket_connect(tc,
-                    tc->instance->boot_types.BOOTIO,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64,
-                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
-                cur_op += 10;
+                MVM_io_connect(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
                 goto NEXT;
-            OP(close_sk):
-                MVM_socket_close(tc, GET_REG(cur_op, 0).o);
-                cur_op += 2;
+            OP(socket):
+                GET_REG(cur_op, 0).o = MVM_io_socket_create(tc, GET_REG(cur_op, 2).i64);
+                cur_op += 4;
                 goto NEXT;
             OP(bind_sk):
-                GET_REG(cur_op, 0).o = MVM_socket_bind(tc,
-                    tc->instance->boot_types.BOOTIO,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64,
-                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
-                cur_op += 10;
+                MVM_io_bind(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
                 goto NEXT;
-            OP(listen_sk):
-                MVM_socket_listen(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
-                cur_op += 4;
+            OP(DEPCRATED_0):
+                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
                 goto NEXT;
             OP(accept_sk):
-                GET_REG(cur_op, 0).o = MVM_socket_accept(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).o = MVM_io_accept(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(send_sks):
-                GET_REG(cur_op, 0).i64 = MVM_socket_send_string(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
-                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
-                cur_op += 10;
+            OP(DEPCRATED_1):
+                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
                 goto NEXT;
-            OP(recv_sks):
-                GET_REG(cur_op, 0).s = MVM_socket_receive_string(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).i64);
-                cur_op += 6;
+            OP(DEPCRATED_2):
+                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
                 goto NEXT;
             OP(setencoding):
                 MVM_io_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
@@ -3871,7 +3862,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(gethostname):
-                GET_REG(cur_op, 0).s = MVM_get_hostname(tc);
+                GET_REG(cur_op, 0).s = MVM_io_get_hostname(tc);
                 cur_op += 2;
                 goto NEXT;
             OP(exreturnafterunwind): {

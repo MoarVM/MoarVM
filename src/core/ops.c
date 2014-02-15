@@ -3412,29 +3412,28 @@ static MVMOpInfo MVM_op_infos[] = {
         MVM_OP_connect_sk,
         "connect_sk",
         "  ",
-        5,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        3,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_close_sk,
-        "close_sk",
+        MVM_OP_socket,
+        "socket",
         "  ",
-        1,
-        { MVM_operand_read_reg | MVM_operand_obj }
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
         MVM_OP_bind_sk,
         "bind_sk",
         "  ",
-        5,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        3,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_listen_sk,
-        "listen_sk",
+        MVM_OP_DEPCRATED_0,
+        "DEPCRATED_0",
         "  ",
-        2,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        0,
     },
     {
         MVM_OP_accept_sk,
@@ -3444,18 +3443,16 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_send_sks,
-        "send_sks",
+        MVM_OP_DEPCRATED_1,
+        "DEPCRATED_1",
         "  ",
-        5,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        0,
     },
     {
-        MVM_OP_recv_sks,
-        "recv_sks",
+        MVM_OP_DEPCRATED_2,
+        "DEPCRATED_2",
         "  ",
-        3,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        0,
     },
     {
         MVM_OP_setencoding,

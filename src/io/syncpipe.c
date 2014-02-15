@@ -3,7 +3,7 @@
 /* This heavily re-uses the logic from syncstream, but with different close
  * and gc_free semantics. */
  
- /* Data that we keep for a piepe-based handle. */
+ /* Data that we keep for a pipe-based handle. */
 struct MVMIOSyncPipeData {
     /* Start with same fields as a sync stream, since we will re-use most
      * of its logic. */
