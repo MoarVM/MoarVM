@@ -533,8 +533,11 @@ class Gen2Data(CommonHeapData):
             print "(freelist with", self.length_freelist, "entries)",
         print ""
 
-        print "sizes of objects/stables:"
-        show_histogram(self.size_histogram, "key", True)
+        # does the allocator/copier set the size of the object to the exact bucket size
+        # automatically?
+        if len(self.size_histogram) > 1:
+            print "sizes of objects/stables:"
+            show_histogram(self.size_histogram, "key", True)
         print "REPRs:"
         show_histogram(self.repr_histogram)
 
