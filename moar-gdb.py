@@ -414,8 +414,8 @@ class Gen2Data(CommonHeapData):
             else:
                 alloc_bucket_idx = MVM_GEN2_PAGE_ITEMS
             # sample a few objects for their size
-            samplecount = int(min(MVM_GEN2_PAGE_CUBE_SIZE * EXTRA_SAMPLES, math.sqrt(alloc_bucket_idx)))
-            samples = random.sample(range(0, alloc_bucket_idx), samplecount)
+            samplecount = int(min(MVM_GEN2_PAGE_CUBE_SIZE * EXTRA_SAMPLES, alloc_bucket_idx / 4))
+            samples = sorted(random.sample(range(0, alloc_bucket_idx), samplecount))
             for idx in samples:
                 stooge = (page_cursor.dereference() + (idx * self.bucket_size)).cast(gdb.lookup_type("MVMObjectStooge").pointer())
                 sample_stooges.append((stooge, page_idx, idx))
