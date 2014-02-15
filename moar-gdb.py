@@ -537,9 +537,16 @@ class Gen2Data(CommonHeapData):
         # automatically?
         if len(self.size_histogram) > 1:
             print "sizes of objects/stables:"
-            show_histogram(self.size_histogram, "key", True)
-        print "REPRs:"
-        show_histogram(self.repr_histogram)
+            try:
+                show_histogram(self.size_histogram, "key", True)
+            except Exception as e:
+                print e
+        if len(self.repr_histogram) >= 1:
+            print "REPRs:"
+            try:
+                show_histogram(self.repr_histogram)
+            except Exception as e:
+                print e
 
 class HeapData(object):
     run_nursery = None
@@ -571,9 +578,13 @@ class AnalyzeHeapCommand(gdb.Command):
 
         #nursery_memory.append(nursery)
 
+        sizeclass_data = []
         for sizeclass in range(MVM_GEN2_BINS):
             g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
+            sizeclass_data.append(g2sc)
             g2sc.analyze(tc)
+
+        for g2sc in sizeclass_data:
             g2sc.summarize()
 
 class DiffHeapCommand(gdb.Command):
