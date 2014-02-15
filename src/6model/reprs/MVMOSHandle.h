@@ -20,8 +20,6 @@ struct MVMOSHandleBody {
           uv_handle_t   *handle;
           void            *data;
           MVMint32       length;
-          uv_process_t *process;
-          MVMuint8          eof;
         };
 #ifdef _WIN32
         struct {
