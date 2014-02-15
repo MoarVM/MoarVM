@@ -442,6 +442,7 @@ class Gen2Data(CommonHeapData):
             free_cursor = free_cursor.dereference().cast(gdb.lookup_type("char").pointer().pointer())
         print ""
 
+        #doubles = defaultdict(lambda: 0)
 
         # now we can actually sample our objects
         for stooge, page, idx in sample_stooges:
@@ -472,17 +473,17 @@ class Gen2Data(CommonHeapData):
                     REPRname = "STable"
                     self.number_stables += 1
 
-                if REPRname == "P6num":
-                    data = stooge['data'].cast(gdb.lookup_type("MVMP6numBody"))
-                    doubles[str(float(data['value']))] += 1
+                #if REPRname == "P6num":
+                    #data = stooge['data'].cast(gdb.lookup_type("MVMP6numBody"))
+                    #doubles[str(float(data['value']))] += 1
 
                 self.repr_histogram[REPRname] += 1
                 self.size_histogram[size]     += 1
             except Exception as e:
                 print e
 
-        if len(doubles) > 10:
-            show_histogram(doubles)
+        #if len(doubles) > 10:
+            #show_histogram(doubles)
 
     def summarize(self):
         print "size bucket:", self.bucket_size
