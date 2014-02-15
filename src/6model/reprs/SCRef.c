@@ -77,6 +77,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSerializationContext *sc = (MVMSerializationContext *)obj;
 
+    if (sc->body == NULL)
+        return;
+
     /* Remove from weakref lookup hash (which doesn't count as a root). */
     uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
     HASH_DELETE(hash_handle, tc->instance->sc_weakhash, sc->body);
