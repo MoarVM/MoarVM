@@ -36,7 +36,7 @@ typedef struct {
 } MVMIOFileData;
 
 /* Closes the file. */
-static void close(MVMThreadContext *tc, MVMOSHandle *h) {
+static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if (data->ds) {
@@ -233,7 +233,7 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h){
 }
 
 /* Truncates the file handle. */
-static void truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
+static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if(uv_fs_ftruncate(tc->loop, &req, data->fd, bytes, NULL) < 0 )
@@ -352,10 +352,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 }
 
 /* IO ops table, populated with functions. */
-static MVMIOClosable     closable      = { close };
+static MVMIOClosable     closable      = { closefh };
 static MVMIOEncodable    encodable     = { set_encoding };
 static MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
-static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncate };
+static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
 static MVMIOSeekable     seekable      = { seek, tell };
 struct MVMIOLockable     lockable      = { lock, unlock };
 static MVMIOOps op_table = {
