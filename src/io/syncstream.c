@@ -119,16 +119,19 @@ MVMString * MVM_io_syncstream_slurp(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Gets the specified number of characters from the stream. */
 MVMString * MVM_io_syncstream_read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    MVMString *result;
     ensure_decode_stream(tc, data);
 
-    /* Pull data until we can read the chars we want. */
-    do {
-        MVMString *result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
+    /* Do we already have the chars available? */
+    result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
+    if (!result) {
+        /* No; read and try again. */
+        read_to_buffer(tc, data, CHUNK_SIZE);
         if (result != NULL)
             return result;
-    } while (read_to_buffer(tc, data, CHUNK_SIZE));
+    }
 
-    /* Reached end of stream, so just take what we have. */
+    /* Fetched all we immediately can, so just take what we have. */
     return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
@@ -138,12 +141,9 @@ MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     ensure_decode_stream(tc, data);
 
-    /* Keep requesting bytes until we have enough in the buffer or we hit
-     * end of stream. */
-    while (!MVM_string_decodestream_have_bytes(tc, data->ds, bytes)) {
-        if (!read_to_buffer(tc, data, bytes > CHUNK_SIZE ? bytes : CHUNK_SIZE))
-            break;
-    }
+    /* See if we've already enough; if not, try and grab more. */
+    if (!MVM_string_decodestream_have_bytes(tc, data->ds, bytes))
+        read_to_buffer(tc, data, bytes > CHUNK_SIZE ? bytes : CHUNK_SIZE);
 
     /* Read as many as we can, up to the limit. */
     return MVM_string_decodestream_bytes_to_buf(tc, data->ds, buf, bytes);
