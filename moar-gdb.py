@@ -361,7 +361,6 @@ def bucket_index_to_size(idx):
 class Gen2Data(CommonHeapData):
     size_bucket     = None
     length_freelist = None
-    allocd_freelist = None
     bucket_size     = None
     g2sc   = None
 
@@ -433,19 +432,16 @@ class Gen2Data(CommonHeapData):
                     return idx, int((addr - base) / self.bucket_size)
 
         self.length_freelist = 0
-        self.allocd_freelist = 0
         while free_cursor.cast(gdb.lookup_type("int")) != 0:
             if free_cursor.dereference().cast(gdb.lookup_type("int")) != 0:
                 result = address_to_page_and_bucket(free_cursor.dereference())
-                page, bucket = result
-                pagebuckets[page][bucket] = None
-                self.length_freelist += 1
-                print "punch!",
-            self.allocd_freelist += 1
-            free_cursor = self.g2sc['free_list'][self.allocd_freelist]
+                if result:
+                    page, bucket = result
+                    pagebuckets[page][bucket] = False
+                    self.length_freelist += 1
+            free_cursor = free_cursor.dereference().cast(gdb.lookup_type("char").pointer().pointer())
         print ""
 
-        doubles = defaultdict(lambda: 0)
 
         # now we can actually sample our objects
         for stooge, page, idx in sample_stooges:
@@ -531,8 +527,8 @@ class Gen2Data(CommonHeapData):
             print "(and", fullpages, "completely filled pages)",
         if self.cur_page < len(self.pagebuckets):
             print "(and", (len(self.pagebuckets) - self.cur_page + 1), "empty pages)",
-        if self.allocd_freelist > 0:
-            print "(freelist with", self.length_freelist, "entries out of an allocd", self.allocd_freelist,")",
+        if self.length_freelist > 0:
+            print "(freelist with", self.length_freelist, "entries)",
         print ""
 
         print "sizes of objects/stables:"
