@@ -41,7 +41,6 @@ struct MVMOSHandle {
 
 typedef enum {
    MVM_OSHANDLE_UNINIT = 0,
-   MVM_OSHANDLE_HANDLE = 1,
    MVM_OSHANDLE_DIR    = 3,
    MVM_OSHANDLE_TCP    = 4,
    MVM_OSHANDLE_UDP    = 5,

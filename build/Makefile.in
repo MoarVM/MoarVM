@@ -77,6 +77,7 @@ OBJECTS = src/core/args@obj@ \
           src/gc/worklist@obj@ \
           src/gc/roots@obj@ \
           src/io/syncfile@obj@ \
+          src/io/syncstream@obj@ \
           src/io/fileops@obj@ \
           src/io/socketops@obj@ \
           src/io/dirops@obj@ \
@@ -158,6 +159,7 @@ HEADERS = src/moar.h \
           src/core/continuation.h \
           src/io/io.h \
           src/io/syncfile.h \
+          src/io/syncstream.h \
           src/io/fileops.h \
           src/io/socketops.h \
           src/io/dirops.h \

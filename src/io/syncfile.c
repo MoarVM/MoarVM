@@ -340,9 +340,11 @@ void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
 }
 
 /* Frees data associated with the handle. */
-void gc_free(MVMThreadContext *tc, void *d) {
+static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
     if (data) {
+        if (data->ds)
+            MVM_string_decodestream_destory(tc, data->ds);
         if (data->filename)
             free(data->filename);
         free(data);

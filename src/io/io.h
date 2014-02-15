@@ -15,7 +15,7 @@ struct MVMIOOps {
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
 
     /* How to free the handle's data. */
-    void (*gc_free) (MVMThreadContext *tc, void *data);
+    void (*gc_free) (MVMThreadContext *tc, MVMObject *h, void *data);
 };
 
 /* I/O operations on handles that can be closed. */

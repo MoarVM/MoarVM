@@ -95,6 +95,7 @@ typedef double   MVMnum64;
 #include "strings/windows1252.h"
 #include "io/io.h"
 #include "io/syncfile.h"
+#include "io/syncstream.h"
 #include "io/fileops.h"
 #include "io/socketops.h"
 #include "io/dirops.h"
