@@ -232,38 +232,11 @@ FILE_IS(executable, X)
 #endif
 
 void MVM_file_close_fh(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle;
-    uv_fs_t req;
-
-    if (((MVMOSHandle *)oshandle)->body.ops) {
-        handle = (MVMOSHandle *)oshandle;
-        if (handle->body.ops->closable) {
-            handle->body.ops->closable->close(tc, handle);
-        }
-        else {
-            MVM_exception_throw_adhoc(tc, "Cannot close this kind of handle");
-        }
-        return;
-    }
-
-    if (handle->body.type == MVM_OSHANDLE_PIPE) {
-        if (uv_is_closing((uv_handle_t*)handle->body.u.handle)) {
-            return;
-        }
-        /* closing the in-/output std filehandle will shutdown the child process. */
-        uv_unref((uv_handle_t*)handle->body.u.handle);
-        uv_close((uv_handle_t*)handle->body.u.handle, NULL);
-        uv_run(tc->loop, UV_RUN_DEFAULT);
-        if (handle->body.u.process)
-#ifdef _WIN32
-            uv_process_close(tc->loop, handle->body.u.process);
-#else
-            waitpid(handle->body.u.process->pid, NULL, 0);
-#endif
-        uv_unref((uv_handle_t *)handle->body.u.process);
-        uv_run(tc->loop, UV_RUN_DEFAULT);
-        handle->body.u.process = NULL;
-    }
+    MVMOSHandle *handle = (MVMOSHandle *)oshandle;
+    if (handle->body.ops->closable)
+        handle->body.ops->closable->close(tc, handle);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot close this kind of handle");
 }
 
 /* Reads a line from a filehandle. */

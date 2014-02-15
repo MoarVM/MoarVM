@@ -124,6 +124,7 @@ typedef struct MVMIOBindable MVMIOBindable;
 typedef struct MVMIOInteractive MVMIOInteractive;
 typedef struct MVMIOLockable MVMIOLockable;
 typedef struct MVMIOSyncStreamData MVMIOSyncStreamData;
+typedef struct MVMIOSyncPipeData MVMIOSyncPipeData;
 typedef struct MVMDecodeStream MVMDecodeStream;
 typedef struct MVMDecodeStreamBytes MVMDecodeStreamBytes;
 typedef struct MVMDecodeStreamChars MVMDecodeStreamChars;

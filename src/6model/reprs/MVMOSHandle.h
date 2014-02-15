@@ -44,7 +44,6 @@ typedef enum {
    MVM_OSHANDLE_DIR    = 3,
    MVM_OSHANDLE_TCP    = 4,
    MVM_OSHANDLE_UDP    = 5,
-   MVM_OSHANDLE_PIPE   = 7
 }  MVMOSHandleTypes;
 
 /* Function for REPR setup. */

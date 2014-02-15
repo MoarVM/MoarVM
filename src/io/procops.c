@@ -162,8 +162,6 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
-    MVMObject *type_object;
-    MVMOSHandle *resultfh;
     int status;
     int readable = 1;
     uv_pipe_t *out, *in;
@@ -246,18 +244,9 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     FREE_ENV();
     free(_cwd);
     free(cmdin);
-
-    type_object = tc->instance->boot_types.BOOTIO;
-    resultfh = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-
-    resultfh->body.u.handle       = (uv_handle_t *)(readable ? out : in);
-    resultfh->body.u.handle->data = resultfh; /* same weirdness as in MVM_file_get_stdstream */
-    resultfh->body.u.process      = process;
-    resultfh->body.type           = MVM_OSHANDLE_PIPE;
-    resultfh->body.encoding_type  = MVM_encoding_type_utf8;
     uv_unref((uv_handle_t *)process);
 
-    return (MVMObject *)resultfh;
+    return MVM_io_syncpipe(tc, (uv_stream_t *)(readable ? out : in), process);
 }
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {

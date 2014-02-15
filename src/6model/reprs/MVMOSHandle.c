@@ -41,12 +41,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMOSHandleBody *handle = (MVMOSHandleBody *)data;
     if (handle->ops && handle->ops->gc_mark)
         handle->ops->gc_mark(tc, handle->data, worklist);
-    switch (handle->type) {
-        case MVM_OSHANDLE_PIPE:
-            if (handle->u.handle && handle->u.handle->data)
-                MVM_gc_worklist_add(tc, worklist, &handle->u.handle->data);
-            break;
-    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -54,29 +48,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMOSHandle *handle = (MVMOSHandle *)obj;
     if (handle->body.ops && handle->body.ops->gc_free)
         handle->body.ops->gc_free(tc, obj, handle->body.data);
-    switch(handle->body.type) {
-        case MVM_OSHANDLE_UNINIT:
-            break;
-        case MVM_OSHANDLE_PIPE:
-            if (handle->body.u.handle
-            && !uv_is_closing(handle->body.u.handle)
-            && tc->instance->stdin_handle  != obj
-            && tc->instance->stdout_handle != obj
-            && tc->instance->stderr_handle != obj) {
-                uv_unref((uv_handle_t *)handle->body.u.handle);
-                uv_close(handle->body.u.handle, NULL);
-                if (handle->body.u.process)
-#ifdef _WIN32
-                    uv_process_close(tc->loop, handle->body.u.process);
-#else
-                    waitpid(handle->body.u.process->pid, NULL, 0);
-#endif
-                uv_unref((uv_handle_t *)handle->body.u.process);
-                uv_run(tc->loop, UV_RUN_DEFAULT);
-                handle->body.u.process = NULL;
-            }
-            break;
-    }
 }
 
 /* Gets the storage specification for this representation. */
