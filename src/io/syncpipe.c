@@ -23,7 +23,8 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
     uv_run(tc->loop, UV_RUN_DEFAULT);
     if (data->process)
 #ifdef _WIN32
-        uv_process_close(tc->loop, data->process);
+        if (!uv_is_closing((uv_handle_t*)data->process))
+            uv_process_close(tc->loop, data->process);
 #else
         waitpid(data->process->pid, NULL, 0);
 #endif
