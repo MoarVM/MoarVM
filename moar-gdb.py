@@ -1,4 +1,37 @@
 # -*- coding: utf8 -*-
+
+# GDB will automatically load this module when you attach to the binary moar.
+# but first you'll have to tell gdb that it's okay to load it. gdb will instruct
+# you on how to do that.
+# If it doesn't, you may need to copy or symlink this script right next to the
+# moar binary in install/bin.
+
+# This script contains a few helpers to make debugging MoarVM a bit more pleasant.
+#
+# So far, there's:
+#
+# - A semi-functional pretty-printer for MVMString and MVMString*
+# - A non-working pretty-printer for MVMObject in general
+# - A command "moar-heap" that walks the nursery and gen2 and displays
+#   statistics about the REPRs found in them, as well as a display of
+#   the fragmentation of the gen2 pages.
+# - A command "diff-moar-heap" that diffs (so far only) the two last
+#   snapshots of the nursery, or whatever snapshot number you supply
+#   as the argument.
+
+# Here's the TODO list:
+#
+# - Figure out if the string pretty-printer is hosed wrt. ropes or if
+#   it's something wrong with MaarVM's ropes in general.
+# - Implement diffing for the gen2 in some sensible manner
+# - The backtrace should also display a backtrace of the interpreter
+#   state. That's relatively easy, as you can just dump_backtrace(tc).
+
+# Here's some wishlist items
+#
+# - Offer an HTML rendering of the stats, since gdb insists on printing
+#   a pager header right in between our pretty gen2 graphs most of the time
+
 import gdb
 from collections import defaultdict
 from itertools import chain
@@ -7,21 +40,34 @@ import random
 #import blessings
 import sys
 
+# These are the flags from MVMString's body.flags
 str_t_info = {0: 'int32s',
               1: 'uint8s',
               2: 'rope',
               3: 'mask'}
 
+# How big to make the histograms and such
 PRETTY_WIDTH=50
 
+# This must be kept in sync with your MoarVM binary, otherwise we'll end up
+# reading bogus data from the gen2 pages.
 MVM_GEN2_PAGE_ITEMS = 256
 MVM_GEN2_BIN_BITS   = 3
 MVM_GEN2_BINS       = 32
 
+# This ought to give the same results as the equivalent code in gen2.
+def bucket_index_to_size(idx):
+    return (idx + 1) << MVM_GEN2_BIN_BITS
+
+# This is the size the gen2 pictures should have, just so we don't have to
+# calculate the same sqrt of a constant over and over again.
 MVM_GEN2_PAGE_CUBE_SIZE = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
 
-EXTRA_SAMPLES = 8
+# If you'd like more precision for the REPR histogram in the gen2, and have a
+# bit of extra patience, turn this up.
+EXTRA_SAMPLES = 2
 
+# This corresponds to the defines in MVMArray.h for MVMArrayREPRData.slot_type.
 array_storage_types = [
         'obj',
         'str',
@@ -30,6 +76,7 @@ array_storage_types = [
         'u64', 'u32', 'u16', 'u8'
         ]
 
+# These are used to display the hilbert curves extra-prettily.
 halfblocks = u"█▀▄ ░▒▓"
 
 def shade_block(u, d):
@@ -49,6 +96,8 @@ def shade_block(u, d):
         return halfblocks[6]
 
 
+# Precalculate which index into the gen2 page goes at which coordinates in
+# our super pretty hilbert curve.
 def generate_hilbert(amount):
     hilbert_coords = []
 
@@ -86,6 +135,7 @@ def generate_hilbert(amount):
 
 hilbert_coords = generate_hilbert(MVM_GEN2_PAGE_ITEMS)
 
+# Sizes are easier to read if they have .s in them.
 def prettify_size(num):
     rest = str(num)
     result = ""
@@ -97,6 +147,9 @@ def prettify_size(num):
     return result[:-1]
 
 class MVMStringPPrinter(object):
+    """Whenever gdb encounters an MVMString or an MVMString*, this class gets
+    instantiated and its to_string method tries its best to print out the
+    actual contents of the MVMString's storage."""
     def __init__(self, val, pointer = False):
         self.val = val
         self.pointer = pointer
@@ -108,15 +161,22 @@ class MVMStringPPrinter(object):
             data = self.val['body'][stringtyp]
             i = 0
             pieces = []
+            # XXX are the strings actually null-terminated, or do we have to
+            # XXX check the graphs attribute?
             while not zero_reached:
                 pdata = int((data + i).dereference())
                 if pdata == 0:
                     zero_reached = True
                 else:
-                    pieces.append(chr(pdata))
+                    try:
+                        # ugh, unicode woes ...
+                        pieces.append(chr(pdata))
+                    except:
+                        pieces.append("\\x%x" % pdata)
                 i += 1
             return "".join(pieces)
         elif stringtyp == "rope":
+            # XXX here be dragons and/or wrong code
             i = 0
             pieces = []
             data = self.val['body']['strands']
@@ -174,6 +234,19 @@ class MVMObjectPPrinter(object):
             return self.stringify()
 
 def show_histogram(hist, sort="value", multiply=False):
+    """In the context of this function, a histogram is a hash from an object
+    that is to be counted to the number the object was found.
+
+    sort takes "value" or "key" and gives you the ability to either sort
+    by "order of buckets" or by "frequency of occurence".
+
+    when giving multiply a value, you'll get a display of key * value on
+    the right of the histogram, useful for a "size of object" to
+    "count of objects" histogram so you'll get a sum of the taken space
+
+    The histogram will not include values that are less than 2, because
+    that may sometimes lead to "long tail" trouble and buttloads of
+    pages of output to scroll through."""
     if len(hist) == 0:
         print "(empty histogram)"
         return
@@ -184,13 +257,18 @@ def show_histogram(hist, sort="value", multiply=False):
     else:
         print "sorting mode", sort, "not implemented"
     maximum = max(hist.values())
-    keymax = max([len(str(key)) for key in hist.keys()])
+    keymax = min(max([len(str(key)) for key in hist.keys()]), 20)
     for key, val in items:
+        if val < 2:
+            continue
         appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
         print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
     print
 
 def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
+    """Works almost exactly like show_histogram, but takes two histograms that
+    should have matching keys and displays the difference both in graphical
+    form and as numbers on the side."""
     max_hist = defaultdict(lambda: 0)
     min_hist = defaultdict(lambda: 0)
     zip_hist = {}
@@ -233,6 +311,9 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
         print str(key).ljust(len(longest_key) + 2), bars.ljust(PRETTY_WIDTH), values, appendix
 
 class CommonHeapData(object):
+    """This base class holds a bunch of histograms and stuff that are
+    interesting regardless of wether we are looking at nursery objects
+    or gen2 objects."""
     number_objects = None
     number_stables = None
     number_typeobs = None
@@ -241,6 +322,8 @@ class CommonHeapData(object):
     opaq_histogram = None
     arrstr_hist    = None
     arrusg_hist    = None
+    
+    string_histogram = None
 
     generation     = None
 
@@ -253,11 +336,19 @@ class CommonHeapData(object):
         self.arrstr_hist    = defaultdict(lambda: 0)
         self.arrusg_hist    = defaultdict(lambda: 0)
 
+        self.string_histogram = defaultdict(lambda: 0)
+
         self.number_objects = 0
         self.number_stables = 0
         self.number_typeobs = 0
 
     def analyze_single_object(self, cursor):
+        """Given a pointer into the nursery or gen2 that points at the
+        beginning of a MVMObject of any sort, run a statistical analysis
+        of what the object is and some extra info depending on its REPR.
+
+        To make this scheme work well with the nursery analysis, it returns
+        the size of the object analysed."""
         stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
         size = stooge['common']['header']['size']
         flags = stooge['common']['header']['flags']
@@ -293,10 +384,20 @@ class CommonHeapData(object):
                 if usage_perc < 0 or usage_perc > 100:
                     usage_perc = "inv"
             self.arrusg_hist[usage_perc] += 1
+        elif REPRname == "MVMString":
+            try:
+                casted = cursor.cast(gdb.lookup_type('MVMString').pointer())
+                self.string_histogram[int(casted['body']['flags'])] += 1
+            except gdb.MemoryError as e:
+                print e
+                print cursor.cast(gdb.lookup_type('MVMString').pointer())
+                pass
 
         return size
 
 class NurseryData(CommonHeapData):
+    """The Nursery Data contains the current position where we allocate as
+    well as the beginning and end of the given nursery."""
     allocation_offs = None
     start_addr     = None
     end_addr       = None
@@ -343,6 +444,9 @@ class NurseryData(CommonHeapData):
         print "VMArray usage percentages:"
         show_histogram(self.arrusg_hist, "key")
 
+        print "strings:"
+        show_histogram(self.string_histogram)
+
     def diff(self, other):
         print "nursery state --DIFF--:"
 
@@ -358,10 +462,15 @@ class NurseryData(CommonHeapData):
         diff_histogram(self.arrusg_hist, other.arrusg_hist, "key")
 
 
-def bucket_index_to_size(idx):
-    return (idx + 1) << MVM_GEN2_BIN_BITS
 
 class Gen2Data(CommonHeapData):
+    """One Gen2Data instance gets created per size class.
+
+    Thus, every instance corresponds to an exact size of object.
+
+    The class also handles the free list that is chained through the
+    gen2, so that fragmentation can be determined and stale objects not
+    sampled for analysis."""
     size_bucket     = None
     length_freelist = None
     bucket_size     = None
@@ -407,16 +516,27 @@ class Gen2Data(CommonHeapData):
 
         page_cursor = self.g2sc['pages']
         for page_idx in range(self.g2sc['num_pages']):
+            # collect the page addresses so that we can match arbitrary
+            # pointers to page index/bucket index pairs later on.
             page_addrs.append(page_cursor.dereference())
             if page_idx == self.cur_page:
+                # XXX cur_page is going to be removed from MoarVM, as it's only
+                # XXX needed for this exact code here.
+
+                # if the page we're looking at is the "current" page, we look
+                # at the alloc_pos to find out where allocated objects stop.
                 alloc_bucket_idx = int(int(self.g2sc['alloc_pos'] - page_cursor.dereference()) / self.bucket_size)
                 pagebuckets[page_idx][alloc_bucket_idx:] = [False] * (MVM_GEN2_PAGE_ITEMS - alloc_bucket_idx)
             elif page_idx > self.cur_page:
+                # if we're past the page we're currently allocating in, the
+                # pages are empty by definition
                 alloc_bucket_idx = 0
                 pagebuckets[page_idx] = [False] * MVM_GEN2_PAGE_ITEMS
             else:
+                # otherwise, the whole page is potentially allocated objects.
                 alloc_bucket_idx = MVM_GEN2_PAGE_ITEMS
-            # sample a few objects for their size
+
+            # sample a few objects for later analysis (after free list checking)
             samplecount = int(min(MVM_GEN2_PAGE_CUBE_SIZE * EXTRA_SAMPLES, alloc_bucket_idx / 4))
             samples = sorted(random.sample(range(0, alloc_bucket_idx), samplecount))
             for idx in samples:
@@ -452,37 +572,7 @@ class Gen2Data(CommonHeapData):
             if pagebuckets[page][idx] != True:
                 continue
             try:
-                # XXX this really ought to get factored out
-                size = int(stooge['common']['header']['size'])
-                flags = stooge['common']['header']['flags']
-
-                if size == 0:
-                    print "found a null object!"
-                    pagebuckets[page][idx] = None
-                    continue
-
-                is_typeobj = flags & 1
-                is_stable = flags & 2
-
-                STable = stooge['common']['st'].dereference()
-                if not is_stable:
-                    REPR = STable["REPR"]
-                    REPRname = REPR["name"].string()
-                    if is_typeobj:
-                        self.number_typeobs += 1
-                    else:
-                        self.number_objects += 1
-                else:
-                    REPR = None
-                    REPRname = "STable"
-                    self.number_stables += 1
-
-                #if REPRname == "P6num":
-                    #data = stooge['data'].cast(gdb.lookup_type("MVMP6numBody"))
-                    #doubles[str(float(data['value']))] += 1
-
-                self.repr_histogram[REPRname] += 1
-                self.size_histogram[size]     += 1
+                size = self.analyze_single_object(stooge)
             except Exception as e:
                 print e
 
@@ -550,6 +640,8 @@ class Gen2Data(CommonHeapData):
                 show_histogram(self.repr_histogram)
             except Exception as e:
                 print e
+        print "strings:"
+        show_histogram(self.string_histogram)
 
 class HeapData(object):
     run_nursery = None
@@ -560,6 +652,8 @@ class HeapData(object):
 nursery_memory = []
 
 class AnalyzeHeapCommand(gdb.Command):
+    """Analyze the nursery and gen2 of MoarVM's garbage collector corresponding
+    to the current tc, or the tc you pass as the first argument"""
     def __init__(self):
         super(AnalyzeHeapCommand, self).__init__("moar-heap", gdb.COMMAND_DATA)
 
@@ -591,6 +685,7 @@ class AnalyzeHeapCommand(gdb.Command):
         nursery.summarize()
 
 class DiffHeapCommand(gdb.Command):
+    """Display the difference between two snapshots of the nursery."""
     def __init__(self):
         super(DiffHeapCommand, self).__init__("diff-moar-heap", gdb.COMMAND_DATA)
 
@@ -615,7 +710,6 @@ def str_lookup_function(val):
     return None
 
 def mvmobject_lookup_function(val):
-    return None
     pointer = str(val.type).endswith("*")
     if str(val.type).startswith("MVM"):
         try:
@@ -629,8 +723,9 @@ def mvmobject_lookup_function(val):
 def register_printers(objfile):
     objfile.pretty_printers.append(str_lookup_function)
     print "MoarVM string pretty printer registered"
-    objfile.pretty_printers.append(mvmobject_lookup_function)
-    print "MoarVM Object pretty printer registered"
+    # XXX since this is currently nonfunctional, just ignore it for now
+    # objfile.pretty_printers.append(mvmobject_lookup_function)
+    # print "MoarVM Object pretty printer registered"
 
 commands = []
 def register_commands(objfile):
@@ -639,6 +734,7 @@ def register_commands(objfile):
     commands.append(DiffHeapCommand())
     print "diff-moar-heap registered"
 
+# We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
     register_printers(gdb.current_objfile())
     register_commands(gdb.current_objfile())
