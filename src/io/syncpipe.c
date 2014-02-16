@@ -83,6 +83,7 @@ MVMObject * MVM_io_syncpipe(MVMThreadContext *tc, uv_stream_t *handle, uv_proces
     data->process     = process;
     data->ss.handle   = handle;
     data->ss.encoding = MVM_encoding_type_utf8;
+    data->ss.sep      = '\n';
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;

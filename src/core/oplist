@@ -518,10 +518,10 @@ getstderr           w(obj)
 connect_sk          r(obj) r(str) r(int64)
 socket              w(obj) r(int64)
 bind_sk             r(obj) r(str) r(int64)
-DEPCRATED_0
+setinputlinesep_fh  r(obj) r(str)
 accept_sk           w(obj) r(obj)
-DEPCRATED_1
-DEPCRATED_2
+DEPRECATED_1
+DEPRECATED_2
 setencoding         r(obj) r(str)
 print               r(str)
 say                 r(str)

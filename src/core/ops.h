@@ -490,10 +490,10 @@
 #define MVM_OP_connect_sk 486
 #define MVM_OP_socket 487
 #define MVM_OP_bind_sk 488
-#define MVM_OP_DEPCRATED_0 489
+#define MVM_OP_setinputlinesep_fh 489
 #define MVM_OP_accept_sk 490
-#define MVM_OP_DEPCRATED_1 491
-#define MVM_OP_DEPCRATED_2 492
+#define MVM_OP_DEPRECATED_1 491
+#define MVM_OP_DEPRECATED_2 492
 #define MVM_OP_setencoding 493
 #define MVM_OP_print 494
 #define MVM_OP_say 495

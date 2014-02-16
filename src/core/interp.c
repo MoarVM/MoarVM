@@ -3249,17 +3249,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
-            OP(DEPCRATED_0):
-                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
+            OP(setinputlinesep_fh):
+                MVM_io_set_separator(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
+                cur_op += 4;
                 goto NEXT;
             OP(accept_sk):
                 GET_REG(cur_op, 0).o = MVM_io_accept(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(DEPCRATED_1):
+            OP(DEPRECATED_1):
                 MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
                 goto NEXT;
-            OP(DEPCRATED_2):
+            OP(DEPRECATED_2):
                 MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
                 goto NEXT;
             OP(setencoding):

@@ -44,6 +44,14 @@ MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle) {
         MVM_exception_throw_adhoc(tc, "Cannot tell this kind of handle");
 }
 
+void MVM_io_set_separator(MVMThreadContext *tc, MVMObject *oshandle, MVMString *sep) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set separator");
+    if (handle->body.ops->sync_readable)
+        handle->body.ops->sync_readable->set_separator(tc, handle, sep);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot set a separator on this kind of handle");
+}
+
 MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "readline");
     if (handle->body.ops->sync_readable)
