@@ -1,4 +1,7 @@
 #include "moar.h"
+#ifndef _WIN32
+#include <dirent.h>
+#endif
 
 #ifdef _WIN32
 #  define IS_SLASH(c)     ((c) == L'\\' || (c) == L'/')
@@ -337,7 +340,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 
     if (ret == 0) {
         if (result == NULL)
-            return MVM_string_decode(tc, tc->instance->VMString, "", 0, data->encoding_type);
+            return MVM_string_decode(tc, tc->instance->VMString, "", 0, data->encoding);
         return MVM_string_decode(tc, tc->instance->VMString, entry.d_name, strlen(entry.d_name), data->encoding);
     }
 
