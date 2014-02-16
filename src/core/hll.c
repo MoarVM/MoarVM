@@ -100,6 +100,8 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "method_not_found_error", method_not_found_error, config);
         });
 
+    MVM_intcache_for(tc, config->int_box_type);
+
     return config_hash;
 }
 

@@ -312,11 +312,11 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
 
 MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag) {
     MVMObject *result;
-    MVMnum64 zvalue = 0.0;
-    MVMnum64 zbase  = 1.0;
+    MVMint64 zvalue = 0;
+    MVMint64 zbase  = 1;
     MVMint64 chars  = NUM_GRAPHS(str);
-    MVMnum64 value  = zvalue;
-    MVMnum64 base   = zbase;
+    MVMint64 value  = zvalue;
+    MVMint64 base   = zbase;
     MVMint64   pos  = -1;
     MVMuint16  neg  = 0;
     MVMint64   ch;
@@ -355,13 +355,13 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     /* initialize the object */
     result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
     MVMROOT(tc, result, {
-        MVMObject *box_type = MVM_hll_current(tc)->num_box_type;
+        MVMObject *box_type = MVM_hll_current(tc)->int_box_type;
         MVMROOT(tc, box_type, {
-            MVMObject *boxed = MVM_repr_box_num(tc, box_type, value);
+            MVMObject *boxed = MVM_repr_box_int(tc, box_type, value);
             MVM_repr_push_o(tc, result, boxed);
-            boxed = MVM_repr_box_num(tc, box_type, base);
+            boxed = MVM_repr_box_int(tc, box_type, base);
             MVM_repr_push_o(tc, result, boxed);
-            boxed = MVM_repr_box_num(tc, box_type, pos);
+            boxed = MVM_repr_box_int(tc, box_type, pos);
             MVM_repr_push_o(tc, result, boxed);
         });
     });

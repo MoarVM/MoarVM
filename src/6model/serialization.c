@@ -1501,14 +1501,16 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
             return read_obj_ref(tc, reader);
         case REFVAR_VM_NULL:
             return NULL;
-        case REFVAR_VM_INT:
-            result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTInt);
+        case REFVAR_VM_INT: {
+            MVMint64 value;
             if (reader->root.version < VARINT_MIN_VERSION) {
-                MVM_repr_set_int(tc, result, read_int_func(tc, reader));
+                value = read_int_func(tc, reader);
             } else {
-                MVM_repr_set_int(tc, result, read_varint_func(tc, reader));
+                value = read_varint_func(tc, reader);
             }
+            result = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, value);
             return result;
+        }
         case REFVAR_VM_NUM:
             result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTNum);
             MVM_repr_set_num(tc, result, read_num_func(tc, reader));

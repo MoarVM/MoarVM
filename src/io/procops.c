@@ -151,19 +151,18 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 } while (0)
 
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
-    *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
+    if (req->data)
+        *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
     uv_unref((uv_handle_t *)req);
     uv_close((uv_handle_t *)req, NULL);
 }
 
 MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
-    MVMint64 result = 0, spawn_result = 0;
+    MVMint64 spawn_result = 0;
     uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
-    MVMObject *type_object;
-    MVMOSHandle *resultfh;
     int status;
     int readable = 1;
     uv_pipe_t *out, *in;
@@ -222,7 +221,6 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
         process_stdio[1].flags       = UV_INHERIT_FD; // child's stdout
         process_stdio[1].data.fd     = 1;
     }
-    process->data               = &result;
     process_stdio[2].flags      = UV_INHERIT_FD; // child's stderr
     process_stdio[2].data.fd    = 2;
     process_options.stdio       = process_stdio;
@@ -246,19 +244,9 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     FREE_ENV();
     free(_cwd);
     free(cmdin);
-
-    type_object = tc->instance->boot_types.BOOTIO;
-    resultfh = (MVMOSHandle *)REPR(type_object)->allocate(tc, STABLE(type_object));
-
-    resultfh->body.filename       = strdup("<pipe>"); // FIXME
-    resultfh->body.u.handle       = (uv_handle_t *)(readable ? out : in);
-    resultfh->body.u.handle->data = resultfh; /* same weirdness as in MVM_file_get_stdstream */
-    resultfh->body.u.process      = process;
-    resultfh->body.type           = MVM_OSHANDLE_PIPE;
-    resultfh->body.encoding_type  = MVM_encoding_type_utf8;
     uv_unref((uv_handle_t *)process);
 
-    return (MVMObject *)resultfh;
+    return MVM_io_syncpipe(tc, (uv_stream_t *)(readable ? out : in), process);
 }
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {

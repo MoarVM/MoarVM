@@ -157,6 +157,11 @@ struct MVMInstance {
     MVMint64      hll_compilee_depth;
     uv_mutex_t    mutex_hllconfigs;
 
+    /* By far the most common integers are between 0 and 8, but we cache up to 15
+     * so that it lines up properly. */
+    MVMIntConstCache    *int_const_cache;
+    uv_mutex_t mutex_int_const_cache;
+
     /* Atomically-incremented counter of newly invoked frames,
      * so each can obtain an index into each threadcontext's pool table */
     AO_t num_frame_pools;

@@ -803,7 +803,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
 
     /* initialize the object */
-    result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
 
     mp_init(&zvalue);
@@ -864,8 +864,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     store_bigint_result(bvalue, value);
     store_bigint_result(bbase, base);
 
-    pos_obj = MVM_repr_alloc_init(tc, type);
-    MVM_repr_set_int(tc, pos_obj, pos);
+    pos_obj = MVM_repr_box_int(tc, type, pos);
     MVM_repr_push_o(tc, result, pos_obj);
 
     MVM_gc_root_temp_pop_n(tc, 4);
