@@ -33,11 +33,11 @@ my @orig = (
 0x00F0,0x00F1,0x00F2,0x00F3,0x00F4,0x00F5,0x00F6,0x00F7,
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF);
 
-my $fh = open("src/strings/latin1.c", :w);
+my $fh = open("src/strings/windows1252.c", :w);
 
 $fh.say('#include "moar.h"');
 $fh.say('
-#define LATIN1_CHAR_TO_CP(character) codepoints[character];
+#define WINDOWS1252_CHAR_TO_CP(character) codepoints[character];
 
 static const MVMuint16 codepoints[] = {
     0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -74,7 +74,7 @@ static const MVMuint16 codepoints[] = {
     0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
 
-static MVMuint8 latin1_cp_to_char(MVMint32 codepoint) {');
+static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {');
 
 my @entries = ();
 push @entries, [@orig[$_], $_] for 128..151;
@@ -105,11 +105,11 @@ $fh.say('    return \'?\';');
 $fh.say('
 }
 
-/* Decodes the specified number of bytes of latin1 (well, really Windows 1252)
- into an NFG string, creating
- * a result of the specified type. The type must have the MVMString REPR. */
-MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
-        MVMObject *result_type, MVMuint8 *latin1, size_t bytes) {
+/* Decodes the specified number of bytes of windows1252 into an NFG string,
+ * creating a result of the specified type. The type must have the MVMString
+ * REPR. */
+MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
+        MVMObject *result_type, MVMuint8 *windows1252, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
@@ -118,19 +118,17 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc,
 
     result->body.int32s = malloc(sizeof(MVMint32) * bytes);
     for (i = 0; i < bytes; i++)
-        /* actually decode like Windows-1252, since that is mostly a superset,
-           and is recommended by the HTML5 standard when latin1 is claimed */
-        result->body.int32s[i] = LATIN1_CHAR_TO_CP(latin1[i]);
+        result->body.int32s[i] = WINDOWS1252_CHAR_TO_CP(windows1252[i]);
     result->body.flags = MVM_STRING_TYPE_INT32;
 
     return result;
 }
 
-/* Encodes the specified substring to latin-1. Anything outside of latin-1 range
+/* Encodes the specified substring to Windows-1252. Anything outside of Windows-1252 range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
-    /* latin-1 is a single byte encoding, so each grapheme will just become
+MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+    /* Windows-1252 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
     MVMStringIndex strgraphs = NUM_GRAPHS(str);
@@ -154,7 +152,7 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
             result[i] = \'?\';
         }
         else {
-            result[i] = latin1_cp_to_char(codepoint);
+            result[i] = windows1252_cp_to_char(codepoint);
         }
     }
     result[i] = 0;
