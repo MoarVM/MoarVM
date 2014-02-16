@@ -174,6 +174,9 @@ class MVMObjectPPrinter(object):
             return self.stringify()
 
 def show_histogram(hist, sort="value", multiply=False):
+    if len(hist) == 0:
+        print "(empty histogram)"
+        return
     if sort == "value":
         items = sorted(list(hist.iteritems()), key = lambda (k, v): -v)
     elif sort == "key":
@@ -569,14 +572,12 @@ class AnalyzeHeapCommand(gdb.Command):
         instance = tc['instance']
         generation = instance['gc_seq_number']
 
-        #nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
-        #nursery.analyze(tc)
+        nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
+        nursery.analyze(tc)
+
+        nursery_memory.append(nursery)
 
         #print "the current generation of the gc is", generation
-
-        #nursery.summarize()
-
-        #nursery_memory.append(nursery)
 
         sizeclass_data = []
         for sizeclass in range(MVM_GEN2_BINS):
@@ -586,6 +587,8 @@ class AnalyzeHeapCommand(gdb.Command):
 
         for g2sc in sizeclass_data:
             g2sc.summarize()
+
+        nursery.summarize()
 
 class DiffHeapCommand(gdb.Command):
     def __init__(self):
