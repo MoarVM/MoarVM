@@ -4,7 +4,7 @@
 /* Here we implement synchronous file I/O. It's done using libuv's file I/O
  * functions, without specifying callbacks, thus easily giving synchronous
  * behavior. */
- 
+
 #ifndef _WIN32
 #include <sys/types.h>
 #include <unistd.h>
@@ -353,13 +353,13 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 }
 
 /* IO ops table, populated with functions. */
-static MVMIOClosable     closable      = { closefh };
-static MVMIOEncodable    encodable     = { set_encoding };
-static MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
-static MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
-static MVMIOSeekable     seekable      = { seek, tell };
-struct MVMIOLockable     lockable      = { lock, unlock };
-static MVMIOOps op_table = {
+static const MVMIOClosable     closable      = { closefh };
+static const MVMIOEncodable    encodable     = { set_encoding };
+static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
+static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
+static const MVMIOSeekable     seekable      = { seek, tell };
+static const MVMIOLockable     lockable      = { lock, unlock };
+static const MVMIOOps op_table = {
     &closable,
     &encodable,
     &sync_readable,

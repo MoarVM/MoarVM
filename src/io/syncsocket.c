@@ -134,24 +134,24 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
 
 /* IO ops table, populated with functions. */
-static MVMIOClosable     closable      = { close_socket };
-static MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
-static MVMIOSyncReadable sync_readable = { MVM_io_syncstream_set_separator,
-                                           MVM_io_syncstream_read_line,
-                                           MVM_io_syncstream_slurp,
-                                           MVM_io_syncstream_read_chars,
-                                           MVM_io_syncstream_read_bytes,
-                                           MVM_io_syncstream_eof };
-static MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
-                                           MVM_io_syncstream_write_bytes,
-                                           MVM_io_syncstream_flush,
-                                           MVM_io_syncstream_truncate };
-static MVMIOSeekable     seekable      = { MVM_io_syncstream_seek,
-                                           MVM_io_syncstream_tell };
-static MVMIOSockety      sockety       = { socket_connect,
-                                           socket_bind,
-                                           socket_accept };
-static MVMIOOps op_table = {
+static const MVMIOClosable     closable      = { close_socket };
+static const MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
+static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_set_separator,
+                                                 MVM_io_syncstream_read_line,
+                                                 MVM_io_syncstream_slurp,
+                                                 MVM_io_syncstream_read_chars,
+                                                 MVM_io_syncstream_read_bytes,
+                                                 MVM_io_syncstream_eof };
+static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
+                                                 MVM_io_syncstream_write_bytes,
+                                                 MVM_io_syncstream_flush,
+                                                 MVM_io_syncstream_truncate };
+static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
+                                                 MVM_io_syncstream_tell };
+static const MVMIOSockety            sockety = { socket_connect,
+                                                 socket_bind,
+                                                 socket_accept };
+static const MVMIOOps op_table = {
     &closable,
     &encodable,
     &sync_readable,

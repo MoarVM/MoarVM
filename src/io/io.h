@@ -2,14 +2,14 @@
  * these sections. */
 struct MVMIOOps {
     /* The various sections that may be implemented. */
-    MVMIOClosable     *closable;
-    MVMIOEncodable    *encodable;
-    MVMIOSyncReadable *sync_readable;
-    MVMIOSyncWritable *sync_writable;
-    MVMIOSeekable     *seekable;
-    MVMIOSockety      *sockety;
-    MVMIOInteractive  *interactive;
-    MVMIOLockable     *lockable;
+    const MVMIOClosable     *closable;
+    const MVMIOEncodable    *encodable;
+    const MVMIOSyncReadable *sync_readable;
+    const MVMIOSyncWritable *sync_writable;
+    const MVMIOSeekable     *seekable;
+    const MVMIOSockety      *sockety;
+    const MVMIOInteractive  *interactive;
+    const MVMIOLockable     *lockable;
 
     /* How to mark the handle's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
