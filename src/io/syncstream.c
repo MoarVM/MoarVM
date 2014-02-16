@@ -124,9 +124,13 @@ MVMString * MVM_io_syncstream_read_chars(MVMThreadContext *tc, MVMOSHandle *h, M
 
     /* Do we already have the chars available? */
     result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
-    if (!result) {
+    if (result) {
+        return result;
+    }
+    else {
         /* No; read and try again. */
         read_to_buffer(tc, data, CHUNK_SIZE);
+        result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
         if (result != NULL)
             return result;
     }
