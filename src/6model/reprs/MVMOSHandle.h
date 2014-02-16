@@ -32,8 +32,7 @@ struct MVMOSHandle {
 };
 
 typedef enum {
-   MVM_OSHANDLE_UNINIT = 0,
-   MVM_OSHANDLE_DIR    = 3,
+   MVM_OSHANDLE_DIR    = 3
 }  MVMOSHandleTypes;
 
 /* Function for REPR setup. */
