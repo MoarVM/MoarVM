@@ -193,7 +193,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMCodepoint32 codepoint;
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
-    MVMint32 bufsize = 16;
+    MVMint32 bufsize = bytes;
     MVMint32 *buffer = malloc(sizeof(MVMint32) * bufsize);
     size_t orig_bytes;
     const char *orig_utf8;
@@ -256,6 +256,10 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
      * memory */
+    if (bufsize - count > 4) {
+        buffer = realloc(buffer, count * sizeof(MVMint32));
+        bufsize = count;
+    }
     result->body.int32s = buffer;
 
     /* XXX set codes */
