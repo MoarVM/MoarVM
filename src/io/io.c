@@ -65,7 +65,7 @@ MVMString * MVM_io_read_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint
     if (handle->body.ops->sync_readable)
         return handle->body.ops->sync_readable->read_chars(tc, handle, chars);
     else
-        MVM_exception_throw_adhoc(tc, "Cannot read charcaters this kind of handle");
+        MVM_exception_throw_adhoc(tc, "Cannot read charcaters from this kind of handle");
 }
 
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
@@ -87,7 +87,7 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     if (handle->body.ops->sync_readable)
         bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
     else
-        MVM_exception_throw_adhoc(tc, "Cannot read charcaters this kind of handle");
+        MVM_exception_throw_adhoc(tc, "Cannot read charcaters from this kind of handle");
 
     /* Stash the data in the VMArray. */
     ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
