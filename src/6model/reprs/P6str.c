@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6str);
     });
 
@@ -26,11 +26,11 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMP6strBody *src_body  = (MVMP6strBody *)src;
     MVMP6strBody *dest_body = (MVMP6strBody *)dest;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->value, src_body->value);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->value, src_body->value);
 }
 
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
-    MVM_ASSIGN_REF(tc, root, ((MVMP6strBody *)data)->value, value);
+    MVM_ASSIGN_REF(tc, &(root->header), ((MVMP6strBody *)data)->value, value);
 }
 
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -62,7 +62,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    MVM_ASSIGN_REF(tc, root, ((MVMP6strBody *)data)->value,
+    MVM_ASSIGN_REF(tc, &(root->header), ((MVMP6strBody *)data)->value,
         reader->read_str(tc, reader));
 }
 

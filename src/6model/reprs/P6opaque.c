@@ -49,7 +49,7 @@ static MVMString * get_str_at_offset(void *data, MVMint64 offset) {
 }
 static void set_str_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMString *value) {
     void *location = (char *)data + offset;
-    MVM_ASSIGN_REF(tc, root, *((MVMString **)location), value);
+    MVM_ASSIGN_REF(tc, &(root->header), *((MVMString **)location), value);
 }
 static MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
@@ -63,7 +63,7 @@ static MVMObject * get_obj_at_offset_direct(void *data, MVMint64 offset) {
 static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
     void *location = (char *)data + offset;
     if (value) {
-        MVM_ASSIGN_REF(tc, root, *((MVMObject **)location), value);
+        MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
     }
     else {
         *((MVMObject **)location) = ass_null;
@@ -98,7 +98,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = 0; /* Is updated later. */
     });
 
@@ -681,7 +681,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMP6opaqueNameMap *name_map = &repr_data->name_to_index_mapping[cur_type];
         num_attrs = REPR(attr_list)->elems(tc, STABLE(attr_list),
             attr_list, OBJECT_BODY(attr_list));
-        MVM_ASSIGN_REF(tc, st, name_map->class_key, type_obj);
+        MVM_ASSIGN_REF(tc, &(st->header), name_map->class_key, type_obj);
         name_map->num_attrs = num_attrs;
         if (num_attrs) {
             name_map->names = malloc(num_attrs * sizeof(MVMString *));
@@ -706,10 +706,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             /* Attribute will live at the current position in the object. */
             repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
             if (REPR(name_obj)->ID == MVM_REPR_ID_MVMString) {
-                MVM_ASSIGN_REF(tc, st, name_map->names[i], (MVMString *)name_obj);
+                MVM_ASSIGN_REF(tc, &(st->header), name_map->names[i], (MVMString *)name_obj);
             }
             else {
-                MVM_ASSIGN_REF(tc, st, name_map->names[i], MVM_repr_get_str(tc, name_obj));
+                MVM_ASSIGN_REF(tc, &(st->header), name_map->names[i], MVM_repr_get_str(tc, name_obj));
             }
             name_map->slots[i] = cur_slot;
 
@@ -723,7 +723,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     /* Yes, it's something we'll flatten. */
                     unboxed_type = spec.boxed_primitive;
                     bits = spec.bits;
-                    MVM_ASSIGN_REF(tc, st, repr_data->flattened_stables[cur_slot], STABLE(type));
+                    MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[cur_slot], STABLE(type));
                     inlined = 1;
 
                     /* Does it need special initialization? */
@@ -783,7 +783,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             if (!inlined) {
                 repr_data->gc_obj_mark_offsets[cur_obj_attr] = cur_alloc_addr;
                 if (MVM_repr_exists_key(tc, attr_info, str_avc))
-                    MVM_ASSIGN_REF(tc, st, repr_data->auto_viv_values[cur_slot],
+                    MVM_ASSIGN_REF(tc, &(st->header), repr_data->auto_viv_values[cur_slot],
                         MVM_repr_at_key_o(tc, attr_info, str_avc));
                 cur_obj_attr++;
             }
@@ -938,7 +938,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->flattened_stables = (MVMSTable **)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
     for (i = 0; i < repr_data->num_attributes; i++)
         if (reader->read_varint(tc, reader)) {
-            MVM_ASSIGN_REF(tc, st, repr_data->flattened_stables[i], reader->read_stable_ref(tc, reader));
+            MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], reader->read_stable_ref(tc, reader));
         }
         else {
             repr_data->flattened_stables[i] = NULL;
@@ -949,7 +949,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     if (reader->read_varint(tc, reader)) {
         repr_data->auto_viv_values = (MVMObject **)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMObject *));
         for (i = 0; i < repr_data->num_attributes; i++)
-            MVM_ASSIGN_REF(tc, st, repr_data->auto_viv_values[i], reader->read_ref(tc, reader));
+            MVM_ASSIGN_REF(tc, &(st->header), repr_data->auto_viv_values[i], reader->read_ref(tc, reader));
     }
 
     repr_data->unbox_int_slot = reader->read_varint(tc, reader);
@@ -970,7 +970,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         MVMint32 num_attrs = 0;
         MVMint8  is_hash_str_var = 0;
 
-        MVM_ASSIGN_REF(tc, st, repr_data->name_to_index_mapping[i].class_key,
+        MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].class_key,
             reader->read_ref(tc, reader));
 
         if (reader->root.version >= 9 || reader->read_int16(tc, reader) == REFVAR_VM_HASH_STR_VAR)
@@ -984,7 +984,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             repr_data->name_to_index_mapping[i].names = (MVMString **)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMString *));
             repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMuint16));
             for (j = 0; j < num_attrs; j++) {
-                MVM_ASSIGN_REF(tc, st, repr_data->name_to_index_mapping[i].names[j],
+                MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].names[j],
                     reader->read_str(tc, reader));
                 repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)MVM_repr_get_int(tc,
                     reader->read_ref(tc, reader));
@@ -1139,7 +1139,7 @@ void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
     }
 
     /* Finally, ready to switch over the STable. */
-    MVM_ASSIGN_REF(tc, obj, obj->st, STABLE(new_type));
+    MVM_ASSIGN_REF(tc, &(obj->header), obj->st, STABLE(new_type));
 }
 
 static void die_no_pos_del(MVMThreadContext *tc) {

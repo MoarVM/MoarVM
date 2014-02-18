@@ -36,14 +36,14 @@ MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContex
 MVM_STATIC_INLINE void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
     assert(!(obj->header.flags & MVM_CF_GEN2_LIVE));
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    MVM_ASSIGN_REF(tc, obj, obj->header.sc_forward_u.sc, sc);
+    MVM_ASSIGN_REF(tc, &(obj->header), obj->header.sc_forward_u.sc, sc);
 }
 
 /* Sets an STable's SC. */
 MVM_STATIC_INLINE void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc) {
     assert(!(st->header.flags & MVM_CF_GEN2_LIVE));
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
-    MVM_ASSIGN_REF(tc, st, st->header.sc_forward_u.sc, sc);
+    MVM_ASSIGN_REF(tc, &(st->header), st->header.sc_forward_u.sc, sc);
 }
 
 /* Given an SC, an index and a code ref, store it and the index. */
@@ -55,7 +55,7 @@ MVM_STATIC_INLINE void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationCon
 
 /* Sets the full list of code refs. */
 MVM_STATIC_INLINE void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *code_list) {
-    MVM_ASSIGN_REF(tc, sc, sc->body->root_codes, code_list);
+    MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_codes, code_list);
 }
 
 /* Gets the number of objects in the SC. */

@@ -21,7 +21,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->invoke = invoke_handler;
         st->size = sizeof(MVMCode);
     });
@@ -38,10 +38,10 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMCodeBody *src_body  = (MVMCodeBody *)src;
     MVMCodeBody *dest_body = (MVMCodeBody *)dest;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->sf, src_body->sf);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->sf, src_body->sf);
     if (src_body->outer)
         dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->name, src_body->name);
     /* Explicitly do *not* copy state vars in a (presumably closure) clone. */
 }
 

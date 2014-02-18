@@ -309,7 +309,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                     goto redo_state;
                 case 1:
                     frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
-                    MVM_ASSIGN_REF(tc, frame->code_ref, state[i].o, frame->env[i].o);
+                    MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, frame->env[i].o);
                     break;
                 case 2:
                     frame->env[i].o = state[i].o;
@@ -588,10 +588,10 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
         closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
     });
 
-    MVM_ASSIGN_REF(tc, closure, closure->body.sf, ((MVMCode *)code)->body.sf);
-    MVM_ASSIGN_REF(tc, closure, closure->body.name, ((MVMCode *)code)->body.name);
+    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.sf, ((MVMCode *)code)->body.sf);
+    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.name, ((MVMCode *)code)->body.name);
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
-    MVM_ASSIGN_REF(tc, closure, closure->body.code_object, ((MVMCode *)code)->body.code_object);
+    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object, ((MVMCode *)code)->body.code_object);
 
     return (MVMObject *)closure;
 }

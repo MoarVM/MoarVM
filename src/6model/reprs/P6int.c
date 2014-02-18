@@ -20,7 +20,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         repr_data->bits = sizeof(MVMint64) * 8;
         repr_data->is_unsigned = 0;
 
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6int);
         st->REPR_data = repr_data;
     });

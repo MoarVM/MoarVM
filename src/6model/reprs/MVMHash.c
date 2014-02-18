@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMHash);
     });
 
@@ -45,8 +45,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         size_t klen;
         void *kdata;
         MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
-        MVM_ASSIGN_REF(tc, dest_root, new_entry->key, current->key);
-        MVM_ASSIGN_REF(tc, dest_root, new_entry->value, current->value);
+        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
+        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         extract_key(tc, &kdata, &klen, new_entry->key);
 
         HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
@@ -100,9 +100,9 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     }
     else
         entry->hash_handle.key = (void *)kdata;
-    MVM_ASSIGN_REF(tc, root, entry->key, key);
+    MVM_ASSIGN_REF(tc, &(root->header), entry->key, key);
     if (kind == MVM_reg_obj) {
-        MVM_ASSIGN_REF(tc, root, entry->value, value.o);
+        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
     }
     else {
         MVM_exception_throw_adhoc(tc,

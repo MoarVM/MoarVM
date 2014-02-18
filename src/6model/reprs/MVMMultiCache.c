@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMMultiCache);
     });
 
@@ -131,7 +131,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 
     /* If it's zero arity, just stick it in that slot. */
     if (num_args == 0) {
-        MVM_ASSIGN_REF(tc, cache_obj, cache->zero_arity, result);
+        MVM_ASSIGN_REF(tc, &(cache_obj->header), cache->zero_arity, result);
         return cache_obj;
     }
 
@@ -184,7 +184,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     ins_type = entries * num_args;
     for (i = 0; i < num_args; i++)
         cache->arity_caches[num_args - 1].type_ids[ins_type + i] = arg_tup[i];
-    MVM_ASSIGN_REF(tc, cache_obj, cache->arity_caches[num_args - 1].results[entries], result);
+    MVM_ASSIGN_REF(tc, &(cache_obj->header), cache->arity_caches[num_args - 1].results[entries], result);
     cache->arity_caches[num_args - 1].named_ok[entries] = has_nameds;
     cache->arity_caches[num_args - 1].num_entries = entries + 1;
 

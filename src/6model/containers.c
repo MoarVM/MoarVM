@@ -62,8 +62,8 @@ static void code_pair_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
-    MVM_ASSIGN_REF(tc, st, data->fetch_code, reader->read_ref(tc, reader));
-    MVM_ASSIGN_REF(tc, st, data->store_code, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), data->store_code, reader->read_ref(tc, reader));
 }
 
 static const MVMContainerSpec code_pair_spec = {
@@ -97,14 +97,14 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
         if (!MVM_repr_exists_key(tc, config, fetch))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
 
-        MVM_ASSIGN_REF(tc, st, data->fetch_code, MVM_repr_at_key_o(tc, config, fetch));
+        MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, MVM_repr_at_key_o(tc, config, fetch));
 
         store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
 
         if (!MVM_repr_exists_key(tc, config, store))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
 
-        MVM_ASSIGN_REF(tc, st, data->store_code, MVM_repr_at_key_o(tc, config, store));
+        MVM_ASSIGN_REF(tc, &(st->header), data->store_code, MVM_repr_at_key_o(tc, config, store));
     });
 }
 

@@ -15,7 +15,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->invoke = invoke_handler;
         st->size = sizeof(MVMStaticFrame);
     });
@@ -36,10 +36,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->bytecode = src_body->bytecode;
     dest_body->bytecode_size = src_body->bytecode_size;
 
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->cu, src_body->cu);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->cuuid, src_body->cuuid);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->static_code, src_body->static_code);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->cu, src_body->cu);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->cuuid, src_body->cuuid);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->name, src_body->name);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->static_code, src_body->static_code);
 
     dest_body->num_locals = src_body->num_locals;
     dest_body->num_lexicals = src_body->num_lexicals;
@@ -61,7 +61,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             MVMLexicalRegistry *new_entry = malloc(sizeof(MVMLexicalRegistry));
 
             /* don't need to clone the string */
-            MVM_ASSIGN_REF(tc, dest_root, new_entry->key, current->key);
+            MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
             new_entry->value = current->value;
 
             MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, current->key, "really broken")
@@ -93,7 +93,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->work_size = src_body->work_size;
 
     if (src_body->outer)
-        MVM_ASSIGN_REF(tc, dest_root, dest_body->outer, src_body->outer);
+        MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->outer, src_body->outer);
 
     dest_body->num_handlers = src_body->num_handlers;
     dest_body->handlers = malloc(src_body->num_handlers * sizeof(MVMFrameHandler));

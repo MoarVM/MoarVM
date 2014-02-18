@@ -1849,7 +1849,7 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
         MVMObject *obj = MVM_sc_get_object(tc,
             locate_sc(tc, reader, read_int32(table_row, 16)),
             read_int32(table_row, 20));
-        MVM_ASSIGN_REF(tc, closure, ((MVMCode *)closure)->body.code_object, obj);
+        MVM_ASSIGN_REF(tc, &(closure->header), ((MVMCode *)closure)->body.code_object, obj);
     }
 }
 
@@ -1930,24 +1930,24 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     reader->cur_read_end        = &(reader->stables_data_end);
 
     /* Read the HOW, WHAT and WHO. */
-    MVM_ASSIGN_REF(tc, st, st->HOW, read_obj_ref(tc, reader));
-    MVM_ASSIGN_REF(tc, st, st->WHAT, read_obj_ref(tc, reader));
-    MVM_ASSIGN_REF(tc, st, st->WHO, read_ref_func(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), st->HOW, read_obj_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, read_obj_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), st->WHO, read_ref_func(tc, reader));
 
     /* Method cache and v-table. */
-    MVM_ASSIGN_REF(tc, st, st->method_cache, read_ref_func(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), st->method_cache, read_ref_func(tc, reader));
     st->vtable_length = read_int_func(tc, reader);
     if (st->vtable_length > 0)
         st->vtable = (MVMObject **)malloc(st->vtable_length * sizeof(MVMObject *));
     for (i = 0; i < st->vtable_length; i++)
-        MVM_ASSIGN_REF(tc, st, st->vtable[i], read_ref_func(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), st->vtable[i], read_ref_func(tc, reader));
 
     /* Type check cache. */
     st->type_check_cache_length = read_int_func(tc, reader);
     if (st->type_check_cache_length > 0) {
         st->type_check_cache = (MVMObject **)malloc(st->type_check_cache_length * sizeof(MVMObject *));
         for (i = 0; i < st->type_check_cache_length; i++)
-            MVM_ASSIGN_REF(tc, st, st->type_check_cache[i], read_ref_func(tc, reader));
+            MVM_ASSIGN_REF(tc, &(st->header), st->type_check_cache[i], read_ref_func(tc, reader));
     }
 
     /* Mode flags. */
@@ -1957,7 +1957,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     if (read_int_func(tc, reader)) {
         st->boolification_spec = (MVMBoolificationSpec *)malloc(sizeof(MVMBoolificationSpec));
         st->boolification_spec->mode = read_int_func(tc, reader);
-        MVM_ASSIGN_REF(tc, st, st->boolification_spec->method, read_ref_func(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, read_ref_func(tc, reader));
     }
 
     /* Container spec. */
@@ -1971,10 +1971,10 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* Invocation spec. */
     if (read_int_func(tc, reader)) {
         st->invocation_spec = (MVMInvocationSpec *)malloc(sizeof(MVMInvocationSpec));
-        MVM_ASSIGN_REF(tc, st, st->invocation_spec->class_handle, read_ref_func(tc, reader));
-        MVM_ASSIGN_REF(tc, st, st->invocation_spec->attr_name, read_str_func(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, read_ref_func(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, read_str_func(tc, reader));
         st->invocation_spec->hint = read_int_func(tc, reader);
-        MVM_ASSIGN_REF(tc, st, st->invocation_spec->invocation_handler, read_ref_func(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, read_ref_func(tc, reader));
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */

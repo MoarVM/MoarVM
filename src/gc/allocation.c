@@ -61,7 +61,7 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr,
         st->REPR          = repr;
         st->invoke        = MVM_6model_invoke_default;
         st->type_cache_id = MVM_6model_next_type_cache_id(tc);
-        MVM_ASSIGN_REF(tc, st, st->HOW, how);
+        MVM_ASSIGN_REF(tc, &(st->header), st->HOW, how);
     });
     return st;
 }
@@ -74,7 +74,7 @@ MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
         obj->header.flags |= MVM_CF_TYPE_OBJECT;
         obj->header.size   = sizeof(MVMObject);
         obj->header.owner  = tc->thread_id;
-        MVM_ASSIGN_REF(tc, obj, obj->st, st);
+        MVM_ASSIGN_REF(tc, &(obj->header), obj->st, st);
     });
     return obj;
 }
@@ -86,7 +86,7 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
         obj               = MVM_gc_allocate_zeroed(tc, st->size);
         obj->header.size  = (MVMuint16)st->size;
         obj->header.owner = tc->thread_id;
-        MVM_ASSIGN_REF(tc, obj, obj->st, st);
+        MVM_ASSIGN_REF(tc, &(obj->header), obj->st, st);
         if ((obj->header.flags & MVM_CF_SECOND_GEN))
             if (REPR(obj)->refs_frames)
                 MVM_gc_root_gen2_add(tc, (MVMCollectable *)obj);

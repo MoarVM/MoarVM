@@ -18,7 +18,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
         repr_data->bits = sizeof(MVMnum64) * 8;
 
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6num);
         st->REPR_data = repr_data;
     });

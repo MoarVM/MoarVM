@@ -277,7 +277,7 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
         /* Ensure we can read in the string of this size, and decode
          * it if so. */
         ensure_can_read(tc, cu, rs, pos, ss);
-        MVM_ASSIGN_REF(tc, cu, strings[i], MVM_string_utf8_decode(tc, tc->instance->VMString, pos, ss));
+        MVM_ASSIGN_REF(tc, &(cu->common.header), strings[i], MVM_string_utf8_decode(tc, tc->instance->VMString, pos, ss));
         pos += ss;
 
         /* Add alignment. */
@@ -322,7 +322,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
         if (scb && scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
-            MVM_ASSIGN_REF(tc, cu, cu_body->scs[i], scb->sc);
+            MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], scb->sc);
         }
         else {
             if (!scb) {
@@ -499,7 +499,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Allocate frame and get/check bytecode start/length. */
         static_frame = (MVMStaticFrame *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStaticFrame);
-        MVM_ASSIGN_REF(tc, cu, frames[i], static_frame);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), frames[i], static_frame);
         static_frame_body = &static_frame->body;
 
         bytecode_pos = read_int32(pos, 0);
@@ -520,8 +520,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         static_frame_body->num_lexicals = read_int32(pos, 12);
 
         /* Get compilation unit unique ID and name. */
-        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->cuuid, get_heap_string(tc, cu, rs, pos, 16));
-        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->name, get_heap_string(tc, cu, rs, pos, 20));
+        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->cuuid, get_heap_string(tc, cu, rs, pos, 16));
+        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->name, get_heap_string(tc, cu, rs, pos, 20));
 
         /* Add frame outer fixup to fixup list. */
         rs->frame_outer_fixups[i] = read_int16(pos, 24);
@@ -570,7 +570,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 MVMString *name = get_heap_string(tc, cu, rs, pos, 6 * j + 2);
                 MVMLexicalRegistry *entry = calloc(1, sizeof(MVMLexicalRegistry));
 
-                MVM_ASSIGN_REF(tc, static_frame, entry->key, name);
+                MVM_ASSIGN_REF(tc, &(static_frame->common.header), entry->key, name);
                 static_frame_body->lexical_names_list[j] = entry;
                 entry->value = j;
 
@@ -600,7 +600,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         }
 
         /* Associate frame with compilation unit. */
-        MVM_ASSIGN_REF(tc, static_frame, static_frame_body->cu, cu);
+        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->cu, cu);
 
         /* Allocate default lexical environment storage. */
         static_frame_body->env_size = static_frame_body->num_lexicals * sizeof(MVMRegister);
@@ -612,7 +612,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     for (i = 0; i < rs->expected_frames; i++) {
         if (rs->frame_outer_fixups[i] != i) {
             if (rs->frame_outer_fixups[i] < rs->expected_frames) {
-                MVM_ASSIGN_REF(tc, frames[i], frames[i]->body.outer, frames[rs->frame_outer_fixups[i]]);
+                MVM_ASSIGN_REF(tc, &(frames[i]->common.header), frames[i]->body.outer, frames[rs->frame_outer_fixups[i]]);
             }
             else {
                 cleanup_all(tc, rs);
@@ -712,10 +712,10 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
     code_type = tc->instance->boot_types.BOOTCode;
     for (i = 0; i < cu_body->num_frames; i++) {
         MVMCode *coderef = (MVMCode *)REPR(code_type)->allocate(tc, STABLE(code_type));
-        MVM_ASSIGN_REF(tc, cu, cu_body->coderefs[i], coderef);
-        MVM_ASSIGN_REF(tc, coderef, coderef->body.sf, cu_body->frames[i]);
-        MVM_ASSIGN_REF(tc, coderef, coderef->body.name, cu_body->frames[i]->body.name);
-        MVM_ASSIGN_REF(tc, cu_body->frames[i], cu_body->frames[i]->body.static_code, coderef);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->coderefs[i], coderef);
+        MVM_ASSIGN_REF(tc, &(coderef->common.header), coderef->body.sf, cu_body->frames[i]);
+        MVM_ASSIGN_REF(tc, &(coderef->common.header), coderef->body.name, cu_body->frames[i]->body.name);
+        MVM_ASSIGN_REF(tc, &(cu_body->frames[i]->common.header), cu_body->frames[i]->body.static_code, coderef);
     }
 }
 
@@ -753,15 +753,15 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu_body->num_callsites = rs->expected_callsites;
 
     /* Resolve HLL name. */
-    MVM_ASSIGN_REF(tc, cu, cu_body->hll_name, cu_body->strings[rs->hll_str_idx]);
+    MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->hll_name, cu_body->strings[rs->hll_str_idx]);
 
     /* Resolve special frames. */
     if (rs->main_frame)
-        MVM_ASSIGN_REF(tc, cu, cu_body->main_frame, cu_body->frames[rs->main_frame - 1]);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->main_frame, cu_body->frames[rs->main_frame - 1]);
     if (rs->load_frame)
-        MVM_ASSIGN_REF(tc, cu, cu_body->load_frame, cu_body->frames[rs->load_frame - 1]);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->load_frame, cu_body->frames[rs->load_frame - 1]);
     if (rs->deserialize_frame)
-        MVM_ASSIGN_REF(tc, cu, cu_body->deserialize_frame, cu_body->frames[rs->deserialize_frame - 1]);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->deserialize_frame, cu_body->frames[rs->deserialize_frame - 1]);
 
     /* Clean up reader state. */
     cleanup_all(tc, rs);

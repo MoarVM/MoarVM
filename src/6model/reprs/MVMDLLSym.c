@@ -7,7 +7,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMDLLSym);
     });
 
@@ -57,7 +57,7 @@ const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
     MVMROOT(tc, st, {
         MVMObject *WHAT = MVM_gc_allocate_type_object(tc, st);
         tc->instance->raw_types.RawDLLSym = WHAT;
-        MVM_ASSIGN_REF(tc, st, st->WHAT, WHAT);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, WHAT);
         st->size = sizeof(MVMDLLSym);
     });
 

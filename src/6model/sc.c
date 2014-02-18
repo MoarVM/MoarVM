@@ -17,7 +17,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
             if (!scb) {
                 sc->body = scb = calloc(1, sizeof(MVMSerializationContextBody));
-                MVM_ASSIGN_REF(tc, (MVMObject *)sc, scb->handle, handle);
+                MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
                 MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
                 /* Calling repr_init will allocate, BUT if it does so, and we
                  * get unlucky, the GC will try to acquire mutex_sc_weakhash.
@@ -38,7 +38,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             else {
                 scb->sc = sc;
                 sc->body = scb;
-                MVM_ASSIGN_REF(tc, sc, scb->handle, handle);
+                MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
                 MVM_repr_init(tc, (MVMObject *)sc);
             }
             uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
@@ -60,7 +60,7 @@ MVMString * MVM_sc_get_description(MVMThreadContext *tc, MVMSerializationContext
 
 /* Given an SC, sets its description. */
 void MVM_sc_set_description(MVMThreadContext *tc, MVMSerializationContext *sc, MVMString *desc) {
-    MVM_ASSIGN_REF(tc, sc, sc->body->description, desc);
+    MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->description, desc);
 }
 
 /* Given an SC, looks up the index of an object that is in its root set. */
@@ -112,7 +112,7 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
         sc = scb->sc;
         if (sc == NULL)
             return NULL;
-        MVM_ASSIGN_REF(tc, cu, cu->body.scs[dep], sc);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu->body.scs[dep], sc);
     }
     return sc;
 }
@@ -147,7 +147,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
         MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %d", idx);
     if (idx < sc->body->num_objects) {
         /* Just updating an existing one. */
-        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_objects[idx], obj);
+        MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
     }
     else {
         if (idx >= sc->body->alloc_objects) {
@@ -160,7 +160,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             memset(sc->body->root_objects + orig_size, 0,
                 (sc->body->alloc_objects - orig_size) * sizeof(MVMObject *));
         }
-        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_objects[idx], obj);
+        MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
         sc->body->num_objects = idx + 1;
     }
 }
@@ -190,7 +190,7 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             "Invalid (negative) STable index", idx);
     if (idx < sc->body->num_stables) {
         /* Just updating an existing one. */
-        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
+        MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_stables[idx], st);
     }
     else {
         if (idx >= sc->body->alloc_stables) {
@@ -203,7 +203,7 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             memset(sc->body->root_stables + orig_size, 0,
                 (sc->body->alloc_stables - orig_size) * sizeof(MVMSTable *));
         }
-        MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
+        MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_stables[idx], st);
         sc->body->num_stables = idx + 1;
     }
 }
@@ -217,7 +217,7 @@ void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMST
         sc->body->root_stables = realloc(sc->body->root_stables,
             sc->body->alloc_stables * sizeof(MVMSTable *));
     }
-    MVM_ASSIGN_REF(tc, (MVMObject *)sc, sc->body->root_stables[idx], st);
+    MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_stables[idx], st);
     sc->body->num_stables++;
 }
 

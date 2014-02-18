@@ -896,7 +896,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMLexicalRegistry *entry;
                         MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
                         if (entry && sf->body.lexical_types[entry->value] == MVM_reg_obj) {
-                            MVM_ASSIGN_REF(tc, sf, sf->body.static_env[entry->value].o, val);
+                            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[entry->value].o, val);
                             sf->body.static_env_flags[entry->value] = (MVMuint8)flag;
                             found = 1;
                         }
@@ -919,7 +919,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindexmessage): {
                 MVMObject *ex = GET_REG(cur_op, 0).o;
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
-                    MVM_ASSIGN_REF(tc, ex, ((MVMException *)ex)->body.message,
+                    MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.message,
                         GET_REG(cur_op, 2).s);
                 }
                 else {
@@ -931,7 +931,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindexpayload): {
                 MVMObject *ex = GET_REG(cur_op, 0).o;
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
-                    MVM_ASSIGN_REF(tc, ex, ((MVMException *)ex)->body.payload,
+                    MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.payload,
                         GET_REG(cur_op, 2).o);
                 }
                 else {
@@ -1022,7 +1022,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
                 MVMRegister  *rr = &GET_REG(cur_op, 0);
                 ex->body.category = MVM_EX_CAT_CATCH;
-                MVM_ASSIGN_REF(tc, ex, ex->body.message, GET_REG(cur_op, 2).s);
+                MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, rr);
                 goto NEXT;
@@ -2724,7 +2724,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
 
                 stable = STABLE(GET_REG(cur_op, 0).o);
-                MVM_ASSIGN_REF(tc, stable, stable->method_cache, cache);
+                MVM_ASSIGN_REF(tc, &(stable->header), stable->method_cache, cache);
                 MVM_SC_WB_ST(tc, stable);
 
                 cur_op += 4;
@@ -2747,7 +2747,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
                 MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
                 for (i = 0; i < elems; i++) {
-                    MVM_ASSIGN_REF(tc, STABLE(obj), cache[i], MVM_repr_at_pos_o(tc, types, i));
+                    MVM_ASSIGN_REF(tc, &(STABLE(obj)->header), cache[i], MVM_repr_at_pos_o(tc, types, i));
                 }
                 /* technically this free isn't thread safe */
                 if (STABLE(obj)->type_check_cache)
@@ -2764,10 +2764,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *name = GET_REG(cur_op, 4).s;
                 MVMInvocationSpec *is = malloc(sizeof(MVMInvocationSpec));
                 MVMSTable *st = STABLE(obj);
-                MVM_ASSIGN_REF(tc, st, is->class_handle, ch);
-                MVM_ASSIGN_REF(tc, st, is->attr_name, name);
+                MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
+                MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);
                 is->hint = MVM_NO_HINT;
-                MVM_ASSIGN_REF(tc, st, is->invocation_handler, invocation_handler);
+                MVM_ASSIGN_REF(tc, &(st->header), is->invocation_handler, invocation_handler);
                 /* XXX not thread safe, but this should occur on non-shared objects anyway... */
                 if (st->invocation_spec)
                     free(st->invocation_spec);
@@ -2803,7 +2803,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable            *st = GET_REG(cur_op, 0).o->st;
                 MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
                 bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
-                MVM_ASSIGN_REF(tc, st, bs->method, GET_REG(cur_op, 4).o);
+                MVM_ASSIGN_REF(tc, &(st->header), bs->method, GET_REG(cur_op, 4).o);
                 st->boolification_spec = bs;
                 cur_op += 6;
                 goto NEXT;
@@ -2846,7 +2846,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(setcodeobj): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
-                    MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.code_object,
+                    MVM_ASSIGN_REF(tc, &(obj->header), ((MVMCode *)obj)->body.code_object,
                         GET_REG(cur_op, 2).o);
                 }
                 else {
@@ -2858,7 +2858,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(setcodename): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
-                    MVM_ASSIGN_REF(tc, obj, ((MVMCode *)obj)->body.name,
+                    MVM_ASSIGN_REF(tc, &(obj->header), ((MVMCode *)obj)->body.name,
                         GET_REG(cur_op, 2).s);
                 }
                 else {
@@ -2936,7 +2936,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(setwho): {
                 MVMSTable *st = STABLE(GET_REG(cur_op, 2).o);
-                MVM_ASSIGN_REF(tc, st, st->WHO, GET_REG(cur_op, 4).o);
+                MVM_ASSIGN_REF(tc, &(st->header), st->WHO, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 cur_op += 6;
                 goto NEXT;
@@ -3084,8 +3084,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMROOT(tc, ncr, {
                     MVMStaticFrame *nsf = (MVMStaticFrame *)MVM_repr_clone(tc,
                         (MVMObject *)ncr->body.sf);
-                    MVM_ASSIGN_REF(tc, ncr, ncr->body.sf, nsf);
-                    MVM_ASSIGN_REF(tc, ncr, ncr->body.sf->body.static_code, ncr);
+                    MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf, nsf);
+                    MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf->body.static_code, ncr);
                 });
                 cur_op += 4;
                 goto NEXT;

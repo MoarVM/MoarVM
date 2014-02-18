@@ -20,7 +20,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         repr_data->elem_size = sizeof(MVMObject *);
         repr_data->elem_type = NULL;
 
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMArray);
         st->REPR_data = repr_data;
     });
@@ -357,12 +357,12 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected object register");
-            MVM_ASSIGN_REF(tc, root, body->slots.o[body->start + index], value.o);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[body->start + index], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected string register");
-            MVM_ASSIGN_REF(tc, root, body->slots.s[body->start + index], value.s);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[body->start + index], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
@@ -453,12 +453,12 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: push expected object register");
-            MVM_ASSIGN_REF(tc, root, body->slots.o[body->start + body->elems - 1], value.o);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[body->start + body->elems - 1], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: push expected string register");
-            MVM_ASSIGN_REF(tc, root, body->slots.s[body->start + body->elems - 1], value.s);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[body->start + body->elems - 1], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
@@ -622,12 +622,12 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected object register");
-            MVM_ASSIGN_REF(tc, root, body->slots.o[body->start], value.o);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[body->start], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected string register");
-            MVM_ASSIGN_REF(tc, root, body->slots.s[body->start], value.s);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[body->start], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
@@ -923,7 +923,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMObject *type = MVM_repr_at_key_o(tc, info, str_type);
         if (type != NULL) {
             MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-            MVM_ASSIGN_REF(tc, st, repr_data->elem_type, type);
+            MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
             switch (spec.boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT:
                     if (spec.is_unsigned) {
@@ -1013,7 +1013,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
 
     MVMObject *type = reader->root.version >= 7 ? reader->read_ref(tc, reader) : NULL;
-    MVM_ASSIGN_REF(tc, st, repr_data->elem_type, type);
+    MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
     repr_data->slot_type = MVM_ARRAY_OBJ;
     repr_data->elem_size = sizeof(MVMObject *);
     st->REPR_data = repr_data;
@@ -1105,10 +1105,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     for (i = 0; i < body->elems; i++) {
         switch (repr_data->slot_type) {
             case MVM_ARRAY_OBJ:
-                MVM_ASSIGN_REF(tc, root, body->slots.o[i], reader->read_ref(tc, reader));
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[i], reader->read_ref(tc, reader));
                 break;
             case MVM_ARRAY_STR:
-                MVM_ASSIGN_REF(tc, root, body->slots.s[i], reader->read_str(tc, reader));
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[i], reader->read_str(tc, reader));
                 break;
             case MVM_ARRAY_I64:
                 body->slots.i64[i] = reader->read_varint(tc, reader);

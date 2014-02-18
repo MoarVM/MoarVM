@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMKnowHOWAttributeREPR);
     });
 
@@ -26,8 +26,8 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMKnowHOWAttributeREPRBody *src_body  = (MVMKnowHOWAttributeREPRBody *)src;
     MVMKnowHOWAttributeREPRBody *dest_body = (MVMKnowHOWAttributeREPRBody *)dest;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->type, src_body->type);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->name, src_body->name);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->type, src_body->type);
     dest_body->box_target = src_body->box_target;
 }
 
@@ -66,8 +66,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 /* Deserializes the data. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMKnowHOWAttributeREPRBody *body = (MVMKnowHOWAttributeREPRBody *)data;
-    MVM_ASSIGN_REF(tc, root, body->name, reader->read_str(tc, reader));
-    MVM_ASSIGN_REF(tc, root, body->type, tc->instance->KnowHOW);
+    MVM_ASSIGN_REF(tc, &(root->header), body->name, reader->read_str(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->type, tc->instance->KnowHOW);
 }
 
 /* Initializes the representation. */

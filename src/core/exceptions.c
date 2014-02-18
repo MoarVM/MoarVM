@@ -567,7 +567,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
         free(c_message);
-        MVM_ASSIGN_REF(tc, ex, ex->body.message, message);
+        MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, message);
         if (tc->cur_frame) {
             ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
             tc->cur_frame->throw_address = *(tc->interp_cur_op);

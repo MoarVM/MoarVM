@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMKnowHOWREPR);
     });
 
@@ -31,12 +31,12 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&methods);
-    MVM_ASSIGN_REF(tc, root, ((MVMKnowHOWREPR *)root)->body.methods, methods);
+    MVM_ASSIGN_REF(tc, &(root->header), ((MVMKnowHOWREPR *)root)->body.methods, methods);
     REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
 
     BOOTArray  = tc->instance->boot_types.BOOTArray;
     attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
-    MVM_ASSIGN_REF(tc, root, ((MVMKnowHOWREPR *)root)->body.attributes, attributes);
+    MVM_ASSIGN_REF(tc, &(root->header), ((MVMKnowHOWREPR *)root)->body.attributes, attributes);
 
     MVM_gc_root_temp_pop_n(tc, 2);
 }
@@ -45,9 +45,9 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMKnowHOWREPRBody *src_body  = (MVMKnowHOWREPRBody *)src;
     MVMKnowHOWREPRBody *dest_body = (MVMKnowHOWREPRBody *)dest;
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->methods, src_body->methods);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->attributes, src_body->attributes);
-    MVM_ASSIGN_REF(tc, dest_root, dest_body->name, src_body->name);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->methods, src_body->methods);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->attributes, src_body->attributes);
+    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->name, src_body->name);
 }
 
 /* Gets the storage specification for this representation. */
@@ -88,9 +88,9 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 /* Deserializes the data. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
-    MVM_ASSIGN_REF(tc, root, body->name, reader->read_str(tc, reader));
-    MVM_ASSIGN_REF(tc, root, body->attributes, reader->read_ref(tc, reader));
-    MVM_ASSIGN_REF(tc, root, body->methods, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->name, reader->read_str(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->attributes, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->methods, reader->read_ref(tc, reader));
 }
 
 /* Initializes the representation. */

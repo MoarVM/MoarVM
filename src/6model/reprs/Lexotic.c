@@ -13,7 +13,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
             MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
             MVM_args_proc_init(tc, &arg_ctx, callsite, args);
             result = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
-            MVM_ASSIGN_REF(tc, invokee, ((MVMLexotic *)invokee)->body.result, result);
+            MVM_ASSIGN_REF(tc, &(invokee->header), ((MVMLexotic *)invokee)->body.result, result);
             MVM_args_proc_cleanup(tc, &arg_ctx);
         });
 
@@ -35,7 +35,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->invoke = invoke_handler;
         st->size = sizeof(MVMLexotic);
     });

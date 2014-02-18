@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMNFA);
     });
 
@@ -145,7 +145,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                         break;
                     case MVM_NFA_EDGE_CHARLIST:
                     case MVM_NFA_EDGE_CHARLIST_NEG:
-                        MVM_ASSIGN_REF(tc, root, body->states[i][j].arg.s, reader->read_str(tc, reader));
+                        MVM_ASSIGN_REF(tc, &(root->header), body->states[i][j].arg.s, reader->read_str(tc, reader));
                         break;
                     case MVM_NFA_EDGE_CODEPOINT_I:
                     case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
@@ -253,7 +253,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
-                    MVM_ASSIGN_REF(tc, nfa_obj,
+                    MVM_ASSIGN_REF(tc, &(nfa_obj->header),
                         nfa->states[i][cur_edge].arg.s,
                         MVM_repr_get_str(tc, MVM_repr_at_pos_o(tc, edge_info, j + 1)));
                     break;

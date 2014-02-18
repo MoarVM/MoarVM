@@ -35,7 +35,7 @@ static void create_stub_VMString(MVMThreadContext *tc) {
 
         /* Set the WHAT in the STable we just made to point to the type
         * object (this is completely normal). */
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
 
         /* REPR normally sets up size, but we'll have to do that manually
         * here also. */
@@ -83,14 +83,14 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
     /* See if we were given a name; put it into the meta-object if so. */
     name = name_arg.exists ? name_arg.arg.s : str_anon;
-    MVM_ASSIGN_REF(tc, HOW, ((MVMKnowHOWREPR *)HOW)->body.name, name);
+    MVM_ASSIGN_REF(tc, &(HOW->header), ((MVMKnowHOWREPR *)HOW)->body.name, name);
 
     /* Set .WHO to an empty hash. */
     BOOTHash = tc->instance->boot_types.BOOTHash;
     stash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&stash);
     REPR(stash)->initialize(tc, STABLE(stash), stash, OBJECT_BODY(stash));
-    MVM_ASSIGN_REF(tc, STABLE(type_object), STABLE(type_object)->WHO, stash);
+    MVM_ASSIGN_REF(tc, &(STABLE(type_object)->header), STABLE(type_object)->WHO, stash);
 
     /* Return the type object. */
     MVM_args_set_result_obj(tc, type_object, MVM_RETURN_CURRENT_FRAME);
@@ -168,11 +168,11 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
 
     /* Fill out STable. */
     method_table = ((MVMKnowHOWREPR *)self)->body.methods;
-    MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->method_cache, method_table);
+    MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->method_cache, method_table);
     STABLE(type_obj)->mode_flags              = MVM_METHOD_CACHE_AUTHORITATIVE;
     STABLE(type_obj)->type_check_cache_length = 1;
     STABLE(type_obj)->type_check_cache        = malloc(sizeof(MVMObject *));
-    MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->type_check_cache[0], type_obj);
+    MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->type_check_cache[0], type_obj);
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
 
     /* Next steps will allocate, so make sure we keep hold of the type
@@ -353,11 +353,11 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
     meta_obj = MVM_repr_alloc_init(tc, STABLE(tc->instance->KnowHOW)->HOW);
     MVMROOT(tc, meta_obj, {
         /* Put it in place. */
-        MVM_ASSIGN_REF(tc, STABLE(type_obj), STABLE(type_obj)->HOW, meta_obj);
+        MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->HOW, meta_obj);
 
         /* Set name. */
         name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
-        MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
+        MVM_ASSIGN_REF(tc, &(meta_obj->header), ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
     });
 }
 
@@ -386,8 +386,8 @@ static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     obj = repr->allocate(tc, STABLE(self));
 
     /* Populate it. */
-    MVM_ASSIGN_REF(tc, obj, ((MVMKnowHOWAttributeREPR *)obj)->body.name, name_arg.arg.s);
-    MVM_ASSIGN_REF(tc, obj, ((MVMKnowHOWAttributeREPR *)obj)->body.type, type_arg.exists ? type_arg.arg.o : tc->instance->KnowHOW);
+    MVM_ASSIGN_REF(tc, &(obj->header), ((MVMKnowHOWAttributeREPR *)obj)->body.name, name_arg.arg.s);
+    MVM_ASSIGN_REF(tc, &(obj->header), ((MVMKnowHOWAttributeREPR *)obj)->body.type, type_arg.exists ? type_arg.arg.o : tc->instance->KnowHOW);
     ((MVMKnowHOWAttributeREPR *)obj)->body.box_target = bt_arg.exists ? bt_arg.arg.i64 : 0;
 
     /* Return produced object. */
@@ -462,7 +462,7 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
 
         /* Set name. */
         name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "KnowHOWAttribute");
-        MVM_ASSIGN_REF(tc, meta_obj, ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
+        MVM_ASSIGN_REF(tc, &(meta_obj->header), ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
 
         /* Create a new type object with the correct REPR. */
         repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWAttributeREPR);

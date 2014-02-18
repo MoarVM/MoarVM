@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVM_ASSIGN_REF(tc, st, st->WHAT, obj);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMIter);
     });
 
@@ -204,7 +204,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVM_hll_current(tc)->array_iterator_type);
             iterator->body.array_state.index = -1;
             iterator->body.array_state.limit = REPR(target)->elems(tc, STABLE(target), target, OBJECT_BODY(target));
-            MVM_ASSIGN_REF(tc, iterator, iterator->body.target, target);
+            MVM_ASSIGN_REF(tc, &(iterator->common.header), iterator->body.target, target);
             switch (REPR(target)->pos_funcs.get_elem_storage_spec(tc, STABLE(target)).boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT: iterator->body.mode = MVM_ITER_MODE_ARRAY_INT; break;
                 case MVM_STORAGE_SPEC_BP_NUM: iterator->body.mode = MVM_ITER_MODE_ARRAY_NUM; break;
@@ -217,7 +217,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVM_hll_current(tc)->hash_iterator_type);
             iterator->body.mode = MVM_ITER_MODE_HASH;
             iterator->body.hash_state.next = ((MVMHash *)target)->body.hash_head;
-            MVM_ASSIGN_REF(tc, iterator, iterator->body.target, target);
+            MVM_ASSIGN_REF(tc, &(iterator->common.header), iterator->body.target, target);
         }
         else if (REPR(target)->ID == MVM_REPR_ID_MVMContext) {
             /* Turn the context into a VMHash and then iterate that. */
