@@ -66,21 +66,19 @@ MVM_STATIC_INLINE MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSer
 
 
 /* SC repossession write barriers. */
-#define MVM_SC_WB_OBJ(tc, obj) \
-    do { \
-        MVMObject *check = (MVMObject *)obj; \
-        assert(!(obj->header.flags & MVM_CF_GEN2_LIVE)); \
-        assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID)); \
-        if (check->header.sc_forward_u.sc) \
-            MVM_sc_wb_hit_obj(tc, check); \
-    } while (0);
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
-#define MVM_SC_WB_ST(tc, st) \
-    do { \
-        MVMSTable *check = st; \
-        assert(!(st->header.flags & MVM_CF_GEN2_LIVE)); \
-        assert(!(st->header.flags & MVM_CF_FORWARDER_VALID)); \
-        if (check->header.sc_forward_u.sc) \
-            MVM_sc_wb_hit_st(tc, check); \
-    } while (0);
 void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st);
+
+MVM_STATIC_INLINE void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
+    assert(!(obj->header.flags & MVM_CF_GEN2_LIVE));
+    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
+    if (obj->header.sc_forward_u.sc)
+        MVM_sc_wb_hit_obj(tc, obj);
+}
+
+MVM_STATIC_INLINE void MVM_SC_WB_ST(MVMThreadContext *tc, MVMSTable *st) {
+    assert(!(st->header.flags & MVM_CF_GEN2_LIVE));
+    assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
+    if (st->header.sc_forward_u.sc)
+        MVM_sc_wb_hit_st(tc, st);
+}
