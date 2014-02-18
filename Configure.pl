@@ -11,6 +11,7 @@ use File::Spec;
 
 use build::setup;
 use build::auto;
+use build::probe;
 
 my $NAME    = 'moar';
 my $GENLIST = 'build/gen.list';
@@ -201,9 +202,11 @@ print "OK\n";
 
 if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
+    build::probe::static_inline_cross(\%config, \%defaults);
 }
 else {
     build::auto::detect_native(\%config, \%defaults);
+    build::probe::static_inline_native(\%config, \%defaults);
 }
 
 my $order = $config{be} ? 'big endian' : 'little endian';
