@@ -82,10 +82,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
         for (i = 0; i < count; i++) {
             if (type_map[i] == MVM_reg_str) {
-                MVM_WB(tc, dest_root, dest_body->static_env[i].s);
+                MVM_gc_write_barrier(tc, (MVMCollectable *)dest_root, (MVMCollectable *)dest_body->static_env[i].s);
             }
             else if (type_map[i] == MVM_reg_obj) {
-                MVM_WB(tc, dest_root, dest_body->static_env[i].o);
+                MVM_gc_write_barrier(tc, (MVMCollectable *)dest_root, (MVMCollectable *)dest_body->static_env[i].o);
             }
         }
     }

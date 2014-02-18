@@ -92,7 +92,7 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
         }
     } while (next && (t = next));
     if (tail)
-        MVM_WB(tc, t, tail);
+        MVM_gc_write_barrier(tc, (MVMCollectable *)t, (MVMCollectable *)tail);
     t->body.next = tail;
     return count;
 }

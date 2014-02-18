@@ -308,7 +308,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             for (k = gen2count; k < max; k++) {
                 j = worklist->list[k];
                 if (*j)
-                    MVM_WB(tc, new_addr, *j);
+                    MVM_gc_write_barrier(tc, new_addr, *j);
             }
         }
     }
