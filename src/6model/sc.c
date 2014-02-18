@@ -165,11 +165,6 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
     }
 }
 
-/* Given an SC and an object, push it onto the SC. */
-void MVM_sc_push_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
-    MVM_sc_set_object(tc, sc, sc->body->num_objects, obj);
-}
-
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     if (idx >= 0 && idx < sc->body->num_stables && sc->body->root_stables[idx])
