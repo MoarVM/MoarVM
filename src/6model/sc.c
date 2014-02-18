@@ -238,23 +238,6 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
             "No code ref at index %d", idx);
 }
 
-/* Given an SC, an index and a code ref, store it and the index. */
-void MVM_sc_set_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *code) {
-    MVMObject *roots = sc->body->root_codes;
-    MVMuint64   count = MVM_repr_elems(tc, roots);
-    MVM_repr_bind_pos_o(tc, roots, idx, code);
-}
-
-/* Sets the full list of code refs. */
-void MVM_sc_set_code_list(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *code_list) {
-    MVM_ASSIGN_REF(tc, sc, sc->body->root_codes, code_list);
-}
-
-/* Gets the number of objects in the SC. */
-MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSerializationContext *sc) {
-    return sc->body->num_objects;
-}
-
 /* Resolves an SC handle using the SC weakhash. */
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContextBody *scb;
