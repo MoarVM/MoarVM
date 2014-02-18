@@ -52,6 +52,7 @@ typedef double   MVMnum64;
 
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
+#include "gc/wb.h"
 #include "core/threadcontext.h"
 #include "core/instance.h"
 #include "core/interp.h"
@@ -83,7 +84,6 @@ typedef double   MVMnum64;
 #include "gc/orchestrate.h"
 #include "gc/gen2.h"
 #include "gc/roots.h"
-#include "gc/wb.h"
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"
