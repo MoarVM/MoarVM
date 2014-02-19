@@ -51,13 +51,13 @@ sub compile {
     my @objs;
     foreach my $file ("$leaf.c", @$files) {
         (my $obj = $file) =~ s/\.c/$config->{obj}/;
-        my $command = "$config->{cc} $cl_define $config->{ccout} $obj $config->{ccswitch} $file >$devnull 2>&1";
+        my $command = "$config->{cc} $cl_define $config->{ccout}$obj $config->{ccswitch} $file >$devnull 2>&1";
         system $command
             and return;
         push @objs, $obj;
     }
 
-    my $command = "$config->{ld} $config->{ldout} $leaf @objs  >$devnull 2>&1";
+    my $command = "$config->{ld} $config->{ldout}$leaf @objs  >$devnull 2>&1";
     system $command
         and return;
     return 1;
