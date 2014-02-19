@@ -182,9 +182,6 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
         MVMThread *thread_obj = other->thread_obj;
         cleanup_sent_items(other);
         if (MVM_load(&thread_obj->body.stage) == MVM_thread_stage_clearing_nursery) {
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : freeing gen2 of thread %d\n", other->thread_id);
-            /* always free gen2 */
-            MVM_gc_collect_free_gen2_unmarked(other);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
             MVM_gc_gen2_transfer(other, tc);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : destroying thread %d\n", other->thread_id);
