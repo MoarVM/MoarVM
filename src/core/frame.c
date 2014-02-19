@@ -4,6 +4,19 @@
 static MVMCallsiteEntry exit_arg_flags[] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     exit_arg_callsite = { exit_arg_flags, 2, 2, 0 };
 
+static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
+    MVMuint32 old_size = tc->frame_pool_table_size;
+    MVMuint32 new_size = tc->frame_pool_table_size;
+    do {
+        new_size *= 2;
+    } while (pool_index >= new_size);
+    tc->frame_pool_table = realloc(tc->frame_pool_table,
+        new_size * sizeof(MVMFrame *));
+    memset(tc->frame_pool_table + old_size, 0,
+        (new_size - old_size) * sizeof(MVMFrame *));
+    tc->frame_pool_table_size = new_size;
+}
+
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
@@ -20,18 +33,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
     /* Obtain an index to each threadcontext's pool table */
     static_frame_body->pool_index = MVM_incr(&tc->instance->num_frame_pools);
     if (static_frame_body->pool_index >= tc->frame_pool_table_size) {
-        /* Grow the threadcontext's pool table */
-        MVMuint32 old_size = tc->frame_pool_table_size;
-        MVMuint32 new_size = tc->frame_pool_table_size;
-        do {
-            new_size *= 2;
-        } while (static_frame_body->pool_index >= new_size);
-
-        tc->frame_pool_table = realloc(tc->frame_pool_table,
-            new_size * sizeof(MVMFrame *));
-        memset(tc->frame_pool_table + old_size, 0,
-            (new_size - old_size) * sizeof(MVMFrame *));
-        tc->frame_pool_table_size = new_size;
+        grow_frame_pool(tc, static_frame_body->pool_index);
     }
 
     /* Mark frame as invoked, so we need not do these calculations again. */
@@ -132,6 +134,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         prepare_and_verify_static_frame(tc, static_frame);
 
     pool_index = static_frame_body->pool_index;
+    if (pool_index >= tc->frame_pool_table_size)
+        grow_frame_pool(tc, pool_index);
     node = tc->frame_pool_table[pool_index];
 
     if (node == NULL) {
