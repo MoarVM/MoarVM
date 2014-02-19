@@ -4,7 +4,6 @@
 /* Temporary structure for passing data to thread start. */
 typedef struct {
     MVMThreadContext *tc;
-    MVMFrame         *caller;
     MVMObject        *thread_obj;
     MVMCallsite       no_arg_callsite;
 } ThreadStart;
@@ -53,10 +52,6 @@ static void start_thread(void *data) {
     ThreadStart *ts = (ThreadStart *)data;
     MVMThreadContext *tc = ts->tc;
 
-    /* Set the current frame in the thread to be the initial caller;
-     * the ref count for this was incremented in the original thread. */
-    tc->cur_frame = ts->caller;
-
     /* Stash thread ID. */
     tc->thread_obj->body.thread_id = uv_thread_self();
 
@@ -69,9 +64,6 @@ static void start_thread(void *data) {
 
     /* mark as exited, so the GC will know to clear our stuff. */
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
-
-    /* Now we're done, decrement the reference count of the caller. */
-    MVM_frame_dec_ref(tc, ts->caller);
 
     /* Mark ourselves as dying, so that another thread will take care
      * of GC-ing our objects and cleaning up our thread context. */
@@ -104,14 +96,9 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
         child_tc->thread_obj = child;
         child_tc->thread_id = MVM_incr(&tc->instance->next_user_thread_id);
 
-        /* Create the thread. Note that we take a reference to the current frame,
-         * since it must survive to be the dynamic scope of where the thread was
-         * started, and there's no promises that the thread won't start before
-         * the code creating the thread returns. The count is decremented when
-         * the thread is done. */
+        /* Create thread state, to pass to the thread start callback. */
         ts = malloc(sizeof(ThreadStart));
         ts->tc = child_tc;
-        ts->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
         ts->thread_obj = thread_obj;
 
         /* Push this to the *child* tc's temp roots. */
