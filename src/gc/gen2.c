@@ -206,14 +206,16 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
             freelist_insert_pos = (char ***)*freelist_insert_pos;
         }
         /* chain the destination's freelist through any remaining unallocated area */
-        cur_ptr = (char *)freelist_insert_pos > dest_gen2->size_classes[bin].alloc_pos
-            ? (char *)freelist_insert_pos : dest_gen2->size_classes[bin].alloc_pos;
-        end_ptr = dest_gen2->size_classes[bin].alloc_limit;
-        while (cur_ptr < end_ptr) {
-            *freelist_insert_pos = (char **)cur_ptr;
-            freelist_insert_pos = (char ***)cur_ptr;
-            cur_ptr += obj_size;
+        if (dest_gen2->size_classes[bin].alloc_pos) {
+            cur_ptr = dest_gen2->size_classes[bin].alloc_pos;
+            end_ptr = dest_gen2->size_classes[bin].alloc_limit;
+            while (cur_ptr < end_ptr) {
+                *freelist_insert_pos = (char **)cur_ptr;
+                freelist_insert_pos = (char ***)cur_ptr;
+                cur_ptr += obj_size;
+            }
         }
+
         /* link to the new pages, if any */
         *freelist_insert_pos = gen2->size_classes[bin].free_list;
 
