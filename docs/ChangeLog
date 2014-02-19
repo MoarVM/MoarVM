@@ -1,0 +1,39 @@
+New in 2014.02
+
++ Increased precision of num => str coercion
++ Mechanism for per-HLL handling of method resolution errors
++ Gave can the same null-check semantics as findmethod
++ Fixed various "not found" lexical lookup semantics
++ Use a more efficient encoding for intergers in the serialization blob
++ Implemented reposession conflict resolution handling for objects
++ Optimized GC worklist processing to avoid unrequired barriers
++ Added a GDB plugin to help analyse VM data structures, heap use, etc.
++ Zeroed memory in a few places, to avoid reading junk and quiet Valgrind
++ Simplified and fixed UTF-16 encoding
++ Implemented unsigned native integer array support
++ Added various missing write barriers on STables
++ Added openpipe functionality, to support qx/qqx in Perl 6
++ Corrected accidental and potentially explosive use of REPR(...) on STables
++ Switched to using flag bits to mark liveness in GC
++ GC forwarder pointer used in nursery now overwrites existing object body,
+  saving 4 or 8 bytes on every collectable object
++ Added various GC sanity checking asserts to aid debugging
++ Encapsulated all serialization context accesses
++ Defined NDEBUG in optimized builds
++ P6bigint no longer uses libtommath for integers fitting within 32 bits
++ Optimized serialization of P6bigints fitting within 32 bits
++ Implemented link and symlink
++ Fixed mod_n op's behavior on negatives
+* Implemented floating point fallback case of the pow_I op
+* Fixed srand op to also control rand_I
+* Initialize the random seed at startup
++ Properly clean up active handlers that we unwind over
++ Radix parsing now returns an array of integers, not floating point
++ Huge refactor of I/O, fixing many bugs and leading to cleaner code
++ Proper handling of characters split over byte buffer boundaries in I/O
++ Corrected Latin-1 to be Latin-1, and added Windows-1252 encoding
++ Added a constant cache for boxing integers 0 through 15
++ Properly implemented synchronous client and server TCP socket support
++ Better estimate and perhaps shrink string memory for UTF-8 decode
++ Added probing to Configure to learn how the compiler does 'static inline'
++ Switched many macros over to static inline functions
