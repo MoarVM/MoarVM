@@ -4,6 +4,10 @@
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
 static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
+    MVMint32 i;
+    for (i = 0; i < tc->gc_work_count; i++)
+        if (tc->gc_work[i].tc == stolen)
+            return;
     if (tc->gc_work == NULL) {
         tc->gc_work_size = 16;
         tc->gc_work = malloc(tc->gc_work_size * sizeof(MVMWorkThread));
