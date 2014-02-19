@@ -81,7 +81,7 @@ static void start_thread(void *data) {
     MVM_platform_thread_exit(NULL);
 }
 
-/* Beings execution of a thread. */
+/* Begins execution of a thread. */
 void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
     MVMThread *child = (MVMThread *)thread_obj;
     int status;
