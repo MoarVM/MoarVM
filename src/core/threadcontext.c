@@ -36,11 +36,6 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
 
     tc->loop = instance->default_loop ? uv_loop_new() : uv_default_loop();
 
-    /* Create a CallCapture for usecapture instructions in this thread (needs
-     * special handling in initial thread as this runs before bootstrap). */
-    if (instance->CallCapture)
-        tc->cur_usecapture = MVM_repr_alloc_init(tc, instance->CallCapture);
-
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
 
