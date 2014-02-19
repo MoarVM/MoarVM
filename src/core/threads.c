@@ -165,9 +165,8 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
 MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *thread = (MVMThread *)thread_obj;
-        if (thread->body.stage < MVM_thread_stage_started)
-            MVM_exception_throw_adhoc(tc,
-                "Thread has not yet started and so has no ID");
+        while (MVM_load(&thread->body.stage) < MVM_thread_stage_started)
+            MVM_platform_thread_yield();
         return thread->body.thread_id;
     }
     else {
