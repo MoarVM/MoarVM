@@ -4,7 +4,7 @@ New in 2014.02
 + Mechanism for per-HLL handling of method resolution errors
 + Gave can the same null-check semantics as findmethod
 + Fixed various "not found" lexical lookup semantics
-+ Use a more efficient encoding for intergers in the serialization blob
++ Use a more efficient encoding for integers in the serialization blob
 + Implemented reposession conflict resolution handling for objects
 + Optimized GC worklist processing to avoid unrequired barriers
 + Added a GDB plugin to help analyse VM data structures, heap use, etc.
@@ -24,9 +24,9 @@ New in 2014.02
 + Optimized serialization of P6bigints fitting within 32 bits
 + Implemented link and symlink
 + Fixed mod_n op's behavior on negatives
-* Implemented floating point fallback case of the pow_I op
-* Fixed srand op to also control rand_I
-* Initialize the random seed at startup
++ Implemented floating point fallback case of the pow_I op
++ Fixed srand op to also control rand_I
++ Initialize the random seed at startup
 + Properly clean up active handlers that we unwind over
 + Radix parsing now returns an array of integers, not floating point
 + Huge refactor of I/O, fixing many bugs and leading to cleaner code
