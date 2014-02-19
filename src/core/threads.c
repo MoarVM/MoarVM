@@ -5,11 +5,22 @@
 typedef struct {
     MVMThreadContext *tc;
     MVMFrame         *caller;
-    /* was formerly the MVMCode invokee representing the object, but now
-     * it is the MVMThread (which in turns has a handle to the invokee). */
     MVMObject        *thread_obj;
     MVMCallsite       no_arg_callsite;
 } ThreadStart;
+
+/* Creates a new thread handle with the MVMThread representation. Does not
+ * actually start execution of the thread. */
+MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 app_lifetime) {
+    MVMThread *thread;
+    MVMROOT(tc, invokee, {
+        thread = (MVMThread *)MVM_repr_alloc_init(tc, tc->instance->Thread);
+    });
+    thread->body.stage = MVM_thread_stage_unstarted;
+    MVM_ASSIGN_REF(tc, &(thread->common.header), thread->body.invokee, invokee);
+    thread->body.app_lifetime = app_lifetime;
+    return (MVMObject *)thread;
+}
 
 /* This callback is passed to the interpreter code. It takes care of making
  * the initial invocation of the thread code. */
@@ -22,12 +33,13 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     thread->body.invokee = NULL;
 
     /* Dummy, 0-arg callsite. */
-    ts->no_arg_callsite.arg_flags = NULL;
-    ts->no_arg_callsite.arg_count = 0;
-    ts->no_arg_callsite.num_pos   = 0;
+    ts->no_arg_callsite.arg_flags      = NULL;
+    ts->no_arg_callsite.arg_count      = 0;
+    ts->no_arg_callsite.num_pos        = 0;
     ts->no_arg_callsite.has_flattening = 0;
 
     /* Create initial frame, which sets up all of the interpreter state also. */
+    invokee = MVM_frame_find_invokee(tc, invokee, NULL);
     STABLE(invokee)->invoke(tc, invokee, &ts->no_arg_callsite, NULL);
 
     /* This frame should be marked as the thread entry frame, so that any
@@ -44,6 +56,9 @@ static void start_thread(void *data) {
     /* Set the current frame in the thread to be the initial caller;
      * the ref count for this was incremented in the original thread. */
     tc->cur_frame = ts->caller;
+
+    /* Stash thread ID. */
+    tc->thread_obj->body.thread_id = uv_thread_self();
 
     /* wait for the GC to finish if it's not finished stealing us. */
     MVM_gc_mark_thread_unblocked(tc);
@@ -70,23 +85,22 @@ static void start_thread(void *data) {
     MVM_platform_thread_exit(NULL);
 }
 
-MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject *result_type) {
+/* Beings execution of a thread. */
+void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
+    MVMThread *child = (MVMThread *)thread_obj;
     int status;
     ThreadStart *ts;
-    MVMObject *child_obj;
 
-    /* Create a thread object to wrap it up in. */
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&invokee);
-    child_obj = REPR(result_type)->allocate(tc, STABLE(result_type));
-    MVM_gc_root_temp_pop(tc);
-    if (REPR(child_obj)->ID == MVM_REPR_ID_MVMThread) {
-        MVMThread *child = (MVMThread *)child_obj;
+    if (REPR(child)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread * volatile *threads;
+        MVMThreadContext *child_tc;
+
+        /* Move thread to starting stage. */
+        child->body.stage = MVM_thread_stage_starting;
 
         /* Create a new thread context and set it up. */
-        MVMThreadContext *child_tc = MVM_tc_create(tc->instance);
+        child_tc = MVM_tc_create(tc->instance);
         child->body.tc = child_tc;
-        MVM_ASSIGN_REF(tc, &(child->common.header), child->body.invokee, invokee);
         child_tc->thread_obj = child;
         child_tc->thread_id = MVM_incr(&tc->instance->next_user_thread_id);
 
@@ -98,9 +112,9 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         ts = malloc(sizeof(ThreadStart));
         ts->tc = child_tc;
         ts->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
-        ts->thread_obj = child_obj;
+        ts->thread_obj = thread_obj;
 
-        /* push this to the *child* tc's temp roots. */
+        /* Push this to the *child* tc's temp roots. */
         MVM_gc_root_temp_push(child_tc, (MVMCollectable **)&ts->thread_obj);
 
         /* Signal to the GC we have a childbirth in progress. The GC
@@ -108,33 +122,30 @@ MVMObject * MVM_thread_start(MVMThreadContext *tc, MVMObject *invokee, MVMObject
         MVM_gc_mark_thread_blocked(child_tc);
         MVM_ASSIGN_REF(tc, &(tc->thread_obj->common.header), tc->thread_obj->body.new_child, child);
 
-        /* push to starting threads list */
+        /* Push to starting threads list */
         threads = &tc->instance->threads;
         do {
             MVMThread *curr = *threads;
             MVM_ASSIGN_REF(tc, &(child->common.header), child->body.next, curr);
         } while (MVM_casptr(threads, child->body.next, child) != child->body.next);
 
-
+        /* Do the actual thread creation. */
         status = uv_thread_create(&child->body.thread, &start_thread, ts);
-
-        if (status < 0) {
+        if (status < 0)
             MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", status);
-        }
 
-        /* need to run the GC to clear our new_child field in case we try
+        /* Need to run the GC to clear our new_child field in case we try
          * try to launch another thread before the GC runs and before the
          * thread starts. */
         GC_SYNC_POINT(tc);
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Thread result type must have representation MVMThread");
+            "Thread handle passed to run must have representation MVMThread");
     }
-
-    return child_obj;
 }
 
+/* Waits for a thread to finish. */
 void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread *thread = (MVMThread *)thread_obj;
@@ -144,8 +155,8 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
         if (((MVMThread *)thread_obj)->body.stage < MVM_thread_stage_exited) {
             status = uv_thread_join(&thread->body.thread);
         }
-        else { /* the target already ended */
-            /* used to be APR_SUCCESS, but then we ditched APR */
+        else {
+            /* the target already ended */
             status = 0;
         }
         MVM_gc_mark_thread_unblocked(tc);
@@ -157,6 +168,31 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
         MVM_exception_throw_adhoc(tc,
             "Thread handle passed to join must have representation MVMThread");
     }
+}
+
+/* Gets the ID of a thread. */
+MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread_obj) {
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
+        MVMThread *thread = (MVMThread *)thread_obj;
+        if (thread->body.stage < MVM_thread_stage_started)
+            MVM_exception_throw_adhoc(tc,
+                "Thread has not yet started and so has no ID");
+        return thread->body.thread_id;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Thread handle passed to id must have representation MVMThread");
+    }
+}
+
+/* Yields control to another thread. */
+void MVM_thread_yield(MVMThreadContext *tc) {
+    MVM_platform_thread_yield();
+}
+
+/* Gets the object representing the current thread. */
+MVMObject * MVM_thread_current(MVMThreadContext *tc) {
+    return (MVMObject *)tc->thread_obj;
 }
 
 void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {

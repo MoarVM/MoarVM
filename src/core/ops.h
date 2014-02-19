@@ -509,7 +509,7 @@
 #define MVM_OP_time_i 505
 #define MVM_OP_sleep 506
 #define MVM_OP_newthread 507
-#define MVM_OP_jointhread 508
+#define MVM_OP_threadjoin 508
 #define MVM_OP_time_n 509
 #define MVM_OP_exit 510
 #define MVM_OP_shell 511
@@ -560,6 +560,10 @@
 #define MVM_OP_assertparamcheck 556
 #define MVM_OP_hintfor 557
 #define MVM_OP_paramnamesused 558
+#define MVM_OP_threadrun 559
+#define MVM_OP_threadid 560
+#define MVM_OP_threadyield 561
+#define MVM_OP_currentthread 562
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

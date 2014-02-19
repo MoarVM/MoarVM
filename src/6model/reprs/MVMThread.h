@@ -1,31 +1,39 @@
-/* Representation used for VM thread handles. */
+/* Various stages a thread can be in. */
 typedef enum {
-    MVM_thread_stage_starting = 0,
-    MVM_thread_stage_waiting = 1,
-    MVM_thread_stage_started = 2,
-    MVM_thread_stage_exited = 3,
-    MVM_thread_stage_clearing_nursery = 4,
-    MVM_thread_stage_destroyed = 5
+    MVM_thread_stage_unstarted = 0,
+    MVM_thread_stage_starting = 1,
+    MVM_thread_stage_waiting = 2,
+    MVM_thread_stage_started = 3,
+    MVM_thread_stage_exited = 4,
+    MVM_thread_stage_clearing_nursery = 5,
+    MVM_thread_stage_destroyed = 6
 } MVMThreadStages;
 
+/* Representation used for VM thread handles. */
 struct MVMThreadBody {
-    MVMThreadContext *tc;
-
-    /* handle to the invokee of this thread, so that if
-     * the GC runs while a thread is starting, it initializes
-     * with the correct reference if the code object is moved. */
+    /* The code object we will invoke to start the thread.. */
     MVMObject *invokee;
 
+    /* The underlying OS thread handle. */
     uv_thread_t thread;
 
-    /* next in tc's threads list */
+    /* The thread context for the thread. */
+    MVMThreadContext *tc;
+
+    /* Next in tc's threads list. */
     MVMThread *next;
 
-    /* MVMThreadStages */
+    /* The current stage the thread is in (one of MVMThreadStages). */
     AO_t stage;
 
-    /* child currently spawning, so GC can steal it */
+    /* Child currently spawning, so GC can steal it. */
     MVMThread *new_child;
+
+    /* Thread's OS-level thread ID. */
+    MVMint64 thread_id;
+
+    /* Whether this thread should be automatically killed at VM exit. */
+    MVMint32 app_lifetime;
 };
 struct MVMThread {
     MVMObject common;

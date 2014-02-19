@@ -85,7 +85,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
-    "MVMThread", /* name */
+    "VMThread", /* name */
     MVM_REPR_ID_MVMThread,
     0, /* refs_frames */
 };

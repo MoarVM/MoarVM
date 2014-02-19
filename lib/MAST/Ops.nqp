@@ -561,7 +561,11 @@ BEGIN {
     1315,
     1319,
     1320,
-    1323);
+    1323,
+    1323,
+    1324,
+    1326,
+    1326);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1120,7 +1124,11 @@ BEGIN {
     4,
     1,
     3,
-    0);
+    0,
+    1,
+    2,
+    0,
+    1);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -2334,7 +2342,7 @@ BEGIN {
     49,
     66,
     65,
-    65,
+    33,
     65,
     50,
     33,
@@ -2443,7 +2451,11 @@ BEGIN {
     33,
     34,
     65,
-    57);
+    57,
+    65,
+    34,
+    65,
+    66);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -2952,7 +2964,7 @@ BEGIN {
     'time_i', 505,
     'sleep', 506,
     'newthread', 507,
-    'jointhread', 508,
+    'threadjoin', 508,
     'time_n', 509,
     'exit', 510,
     'shell', 511,
@@ -3002,7 +3014,11 @@ BEGIN {
     'uniisblock', 555,
     'assertparamcheck', 556,
     'hintfor', 557,
-    'paramnamesused', 558);
+    'paramnamesused', 558,
+    'threadrun', 559,
+    'threadid', 560,
+    'threadyield', 561,
+    'currentthread', 562);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3511,7 +3527,7 @@ BEGIN {
     'time_i',
     'sleep',
     'newthread',
-    'jointhread',
+    'threadjoin',
     'time_n',
     'exit',
     'shell',
@@ -3561,5 +3577,9 @@ BEGIN {
     'uniisblock',
     'assertparamcheck',
     'hintfor',
-    'paramnamesused');
+    'paramnamesused',
+    'threadrun',
+    'threadid',
+    'threadyield',
+    'currentthread');
 }

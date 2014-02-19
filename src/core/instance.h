@@ -92,6 +92,9 @@ struct MVMInstance {
     /* CallCapture type, used by custom dispatchers. */
     MVMObject *CallCapture;
 
+    /* Thread type, representing a VM-level thread. */
+    MVMObject *Thread;
+
     /* Set of bootstrapping types. */
     MVMBootTypes boot_types;
 

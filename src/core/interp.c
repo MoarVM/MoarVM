@@ -3323,11 +3323,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(newthread):
-                GET_REG(cur_op, 0).o = MVM_thread_start(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = MVM_thread_new(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
-            OP(jointhread):
+            OP(threadjoin):
                 MVM_thread_join(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
@@ -3941,6 +3941,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_args_assert_nameds_used(tc, ctx);
                 goto NEXT;
             }
+            OP(threadrun):
+                MVM_thread_run(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(threadid):
+                GET_REG(cur_op, 0).i64 = MVM_thread_id(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(threadyield):
+                MVM_thread_yield(tc);
+                goto NEXT;
+            OP(currentthread):
+                GET_REG(cur_op, 0).o = MVM_thread_current(tc);
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

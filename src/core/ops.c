@@ -3558,11 +3558,11 @@ static MVMOpInfo MVM_op_infos[] = {
         "newthread",
         "  ",
         3,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_jointhread,
-        "jointhread",
+        MVM_OP_threadjoin,
+        "threadjoin",
         "  ",
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
@@ -3916,9 +3916,36 @@ static MVMOpInfo MVM_op_infos[] = {
         "  ",
         0,
     },
+    {
+        MVM_OP_threadrun,
+        "threadrun",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_threadid,
+        "threadid",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_threadyield,
+        "threadyield",
+        "  ",
+        0,
+    },
+    {
+        MVM_OP_currentthread,
+        "currentthread",
+        "  ",
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
 };
 
-static unsigned short MVM_op_counts = 559;
+static unsigned short MVM_op_counts = 563;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
