@@ -99,7 +99,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_free_repr_data */
     compose,
     "Semaphore", /* name */
-    MVM_REPR_ID_ReentrantMutex,
+    MVM_REPR_ID_Semaphore,
     0, /* Semaphore */
 };
 
