@@ -565,7 +565,9 @@ BEGIN {
     1323,
     1324,
     1326,
-    1326);
+    1326,
+    1327,
+    1328);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1128,6 +1130,8 @@ BEGIN {
     1,
     2,
     0,
+    1,
+    1,
     1);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
@@ -2455,7 +2459,9 @@ BEGIN {
     65,
     34,
     65,
-    66);
+    66,
+    65,
+    65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -3018,7 +3024,9 @@ BEGIN {
     'threadrun', 559,
     'threadid', 560,
     'threadyield', 561,
-    'currentthread', 562);
+    'currentthread', 562,
+    'lock', 563,
+    'unlock', 564);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3581,5 +3589,7 @@ BEGIN {
     'threadrun',
     'threadid',
     'threadyield',
-    'currentthread');
+    'currentthread',
+    'lock',
+    'unlock');
 }
