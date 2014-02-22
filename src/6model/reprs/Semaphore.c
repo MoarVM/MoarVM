@@ -27,7 +27,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_exception_throw_adhoc(tc, "Cannot copy object with representation Semaphore");
 }
 
-/* set a new Semaphore value. */
+/* Set up the Semaphore with its initial value. */
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
     int r;
@@ -38,7 +38,6 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    /* The ThreadContext has already been destroyed by the GC. */
     MVMSemaphore *sem = (MVMSemaphore *)obj;
     uv_sem_destroy(&sem->body.sem);
 }
