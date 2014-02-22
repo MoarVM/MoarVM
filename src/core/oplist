@@ -594,3 +594,6 @@ threadyield
 currentthread       w(obj)
 lock                r(obj)
 unlock              r(obj)
+semacquire          r(obj)
+semtryacquire       w(int64) r(obj)
+semrelease          r(obj)

@@ -3957,9 +3957,30 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_semacquire,
+        "semacquire",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_semtryacquire,
+        "semtryacquire",
+        "  ",
+        2,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_semrelease,
+        "semrelease",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
-static unsigned short MVM_op_counts = 565;
+static unsigned short MVM_op_counts = 568;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

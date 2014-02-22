@@ -566,6 +566,9 @@
 #define MVM_OP_currentthread 562
 #define MVM_OP_lock 563
 #define MVM_OP_unlock 564
+#define MVM_OP_semacquire 565
+#define MVM_OP_semtryacquire 566
+#define MVM_OP_semrelease 567
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

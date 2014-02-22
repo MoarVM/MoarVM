@@ -3978,6 +3978,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(semacquire): {
+                MVMObject *sem = GET_REG(cur_op, 0).o;
+                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore)
+                    MVM_semaphore_acquire(tc, (MVMSemaphore *)sem);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "semacquire requires an object with REPR Semaphore");
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(semtryacquire): {
+                MVMObject *sem = GET_REG(cur_op, 2).o;
+                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore)
+                    GET_REG(cur_op, 0).i64 = MVM_semaphore_tryacquire(tc,
+                        (MVMSemaphore *)sem);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "semtryacquire requires an object with REPR Semaphore");
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(semrelease): {
+                MVMObject *sem = GET_REG(cur_op, 0).o;
+                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore)
+                    MVM_semaphore_release(tc, (MVMSemaphore *)sem);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "semrelease requires an object with REPR Semaphore");
+                cur_op += 2;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
