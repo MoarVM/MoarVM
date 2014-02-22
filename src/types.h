@@ -70,6 +70,8 @@ typedef struct MVMContinuation MVMContinuation;
 typedef struct MVMContinuationBody MVMContinuationBody;
 typedef struct MVMReentrantMutex MVMReentrantMutex;
 typedef struct MVMReentrantMutexBody MVMReentrantMutexBody;
+typedef struct MVMSemaphore MVMSemaphore;
+typedef struct MVMSemaphoreBody MVMSemaphoreBody;
 typedef struct MVMObject MVMObject;
 typedef struct MVMObjectStooge MVMObjectStooge;
 typedef struct MVMOpInfo MVMOpInfo;

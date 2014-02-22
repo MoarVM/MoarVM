@@ -28,6 +28,7 @@
 #include "6model/reprs/MVMMultiCache.h"
 #include "6model/reprs/MVMContinuation.h"
 #include "6model/reprs/ReentrantMutex.h"
+#include "6model/reprs/Semaphore.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -66,8 +67,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMMultiCache           26
 #define MVM_REPR_ID_MVMContinuation         27
 #define MVM_REPR_ID_ReentrantMutex          28
+#define MVM_REPR_ID_Semaphore               29
 
-#define MVM_REPR_CORE_COUNT                 29
+#define MVM_REPR_CORE_COUNT                 30
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */

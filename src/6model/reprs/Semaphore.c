@@ -1,0 +1,118 @@
+#include "moar.h"
+
+/* This representation's function pointer table. */
+static const MVMREPROps this_repr;
+
+/* Creates a new type object of this representation, and associates it with
+ * the given HOW. */
+static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+
+    MVMROOT(tc, st, {
+        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
+        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
+        st->size = sizeof(MVMSemaphore);
+    });
+
+    return st->WHAT;
+}
+
+/* Creates a new instance based on the type object. */
+static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
+    return MVM_gc_allocate_object(tc, st);
+}
+
+/* Copies the body of one object to another. */
+static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
+    MVM_exception_throw_adhoc(tc, "Cannot copy object with representation Semaphore");
+}
+
+/* set a new Semaphore value. */
+static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
+    MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
+    int r;
+    if ((r = uv_sem_init(&body->sem, (MVMuint32) value)) < 0)
+        MVM_exception_throw_adhoc(tc, "Failed to initialize Semaphore: %s",
+            uv_strerror(r));
+}
+
+/* Called by the VM in order to free memory associated with this object. */
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    /* The ThreadContext has already been destroyed by the GC. */
+    MVMSemaphore *sem = (MVMSemaphore *)obj;
+    uv_sem_destroy(&sem->body.sem);
+}
+
+/* Gets the storage specification for this representation. */
+static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    MVMStorageSpec spec;
+    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec.can_box         = 0;
+    return spec;
+}
+
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* Nothing to do for this REPR. */
+}
+
+/* Set the size of the STable. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMSemaphore);
+}
+
+/* Initializes the representation. */
+const MVMREPROps * MVMSemaphore_initialize(MVMThreadContext *tc) {
+    return &this_repr;
+}
+
+static const MVMREPROps this_repr = {
+    type_object_for,
+    allocate,
+    NULL, /* initialize */
+    copy_to,
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    {
+        set_int,
+        MVM_REPR_DEFAULT_GET_INT,
+        MVM_REPR_DEFAULT_SET_NUM,
+        MVM_REPR_DEFAULT_GET_NUM,
+        MVM_REPR_DEFAULT_SET_STR,
+        MVM_REPR_DEFAULT_GET_STR,
+        MVM_REPR_DEFAULT_GET_BOXED_REF
+    },    /* box_funcs */
+    MVM_REPR_DEFAULT_POS_FUNCS,
+    MVM_REPR_DEFAULT_ASS_FUNCS,
+    MVM_REPR_DEFAULT_ELEMS,
+    get_storage_spec,
+    NULL, /* change_type */
+    NULL, /* serialize */
+    NULL, /* deserialize */
+    NULL, /* serialize_repr_data */
+    NULL, /* deserialize_repr_data */
+    deserialize_stable_size,
+    NULL, /* gc_mark */
+    gc_free,
+    NULL, /* gc_cleanup */
+    NULL, /* gc_mark_repr_data */
+    NULL, /* gc_free_repr_data */
+    compose,
+    "Semaphore", /* name */
+    MVM_REPR_ID_ReentrantMutex,
+    0, /* Semaphore */
+};
+
+MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
+    int r;
+    while ((r = uv_sem_trywait(&sem->body.sem)) == UV_EAGAIN);
+    return !r;
+}
+
+void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
+    uv_sem_wait(&sem->body.sem);
+}
+
+void MVM_semaphore_release(MVMThreadContext *tc, MVMSemaphore *sem) {
+    uv_sem_post(&sem->body.sem);
+}
