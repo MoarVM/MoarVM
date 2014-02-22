@@ -3958,6 +3958,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_thread_current(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(lock): {
+                MVMObject *lock = GET_REG(cur_op, 0).o;
+                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex)
+                    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)lock);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "lock requires an object with REPR ReentrantMutex");
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(unlock): {
+                MVMObject *lock = GET_REG(cur_op, 0).o;
+                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex)
+                    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)lock);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "lock requires an object with REPR ReentrantMutex");
+                cur_op += 2;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

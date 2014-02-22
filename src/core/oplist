@@ -592,3 +592,5 @@ threadrun           r(obj)
 threadid            w(int64) r(obj)
 threadyield
 currentthread       w(obj)
+lock                r(obj)
+unlock              r(obj)

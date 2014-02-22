@@ -20,11 +20,12 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(instance);
+    instance->main_thread->thread_id = 1;
 
-    /* No user threads when we start, and next thread to be created gets ID 1
-     * (the main thread got ID 0). */
+    /* No user threads when we start, and next thread to be created gets ID 2
+     * (the main thread got ID 1). */
     instance->num_user_threads    = 0;
-    MVM_store(&instance->next_user_thread_id, 1);
+    MVM_store(&instance->next_user_thread_id, 2);
 
     /* Set up the permanent roots storage. */
     instance->num_permroots   = 0;

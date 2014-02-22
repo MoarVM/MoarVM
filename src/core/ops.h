@@ -564,6 +564,8 @@
 #define MVM_OP_threadid 560
 #define MVM_OP_threadyield 561
 #define MVM_OP_currentthread 562
+#define MVM_OP_lock 563
+#define MVM_OP_unlock 564
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
