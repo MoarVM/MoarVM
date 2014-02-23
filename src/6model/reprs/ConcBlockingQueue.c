@@ -157,8 +157,15 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 
     uv_mutex_lock(&cbq->locks->head_lock);
 
-    while (MVM_load(&cbq->elems) == 0)
-        uv_cond_wait(&cbq->locks->head_cond, &cbq->locks->head_lock);
+    while (MVM_load(&cbq->elems) == 0) {
+        MVMROOT(tc, root, {
+            MVM_gc_mark_thread_blocked(tc);
+            uv_cond_wait(&cbq->locks->head_cond, &cbq->locks->head_lock);
+            MVM_gc_mark_thread_unblocked(tc);
+            data = OBJECT_BODY(root);
+            cbq  = (MVMConcBlockingQueueBody *)data;
+        });
+    }
 
     taken = cbq->head->next;
     free(cbq->head);
