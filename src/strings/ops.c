@@ -1102,19 +1102,19 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
         return;
     }
     buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
-    if (s->flags & MVM_STRING_TYPE_MASK == MVM_STRING_TYPE_ROPE
+    if ((s->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE
             && s->body.num_strands == 2
-            && (s->body.strands[0].string->flags & MVM_STRING_TYPE_MASK == MVM_STRING_TYPE_INT32)
-            && (s->body.strands[1].string->flags & MVM_STRING_TYPE_MASK == MVM_STRING_TYPE_INT32)) {
-        MVMString *s1, *s2;
-        s1 = s->body.strands[0].string;
-        s2 = s->body.strands[1].string;
+            && ((s->body.strands[0].string->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)
+            && ((s->body.strands[1].string->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_INT32)) {
+        MVMStrand *s1, *s2;
+        s1 = &s->body.strands[0];
+        s2 = &s->body.strands[1];
         memcpy(buffer,
-               s1->int32s + s2->string_offset,
-               s2->compare_offset - s1->compare_offset);
-        memcpy(buffer + s1->string_offset,
-               s2->int32s + s2->string_offset,
-               sgraphs - s2->string_offset);
+               s1->string->body.int32s + s1->string_offset,
+               (s2->compare_offset - s1->compare_offset) * 4);
+        memcpy(buffer + s2->compare_offset,
+               s2->string->body.int32s + s2->string_offset,
+               (sgraphs - s2->compare_offset) * 4);
     } else {
         for (; position < sgraphs; position++) {
                 /* XXX make this use the iterator */
