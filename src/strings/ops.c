@@ -1102,9 +1102,24 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
         return;
     }
     buffer = malloc(sizeof(MVMCodepoint32) * sgraphs);
-    for (; position < sgraphs; position++) {
-            /* XXX make this use the iterator */
-        buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
+    if (s->flags & MVM_STRING_TYPE_MASK == MVM_STRING_TYPE_ROPE
+            && s->body.num_strands == 2
+            && (s->body.strands[0].string->flags & MVM_STRING_TYPE_MASK == MVM_STRING_TYPE_INT32)
+            && (s->body.strands[1].string->flags & MVM_STRING_TYPE_MASK == MVM_STRING_TYPE_INT32)) {
+        MVMString *s1, *s2;
+        s1 = s->body.strands[0].string;
+        s2 = s->body.strands[1].string;
+        memcpy(buffer,
+               s1->int32s + s2->string_offset,
+               s2->compare_offset - s1->compare_offset);
+        memcpy(buffer + s1->string_offset,
+               s2->int32s + s2->string_offset,
+               sgraphs - s2->string_offset);
+    } else {
+        for (; position < sgraphs; position++) {
+                /* XXX make this use the iterator */
+            buffer[position] = MVM_string_get_codepoint_at_nocheck(tc, s, position);
+        }
     }
     s->body.flags = MVM_STRING_TYPE_INT32;
     s->body.graphs = sgraphs;
