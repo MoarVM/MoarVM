@@ -1443,12 +1443,12 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
 
         case MVM_CCLASS_CONTROL: {
             MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
-            return (cp >= 0 && cp < 32) || cp == 127;
+            return (cp >= 0 && cp < 32) || (cp >= 127 && cp < 160);
         }
 
         case MVM_CCLASS_PRINTING: {
             MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
-            return !((cp >= 0 && cp < 32) || cp == 127);
+            return !(cp >= 0 && cp < 32) || (cp >= 127 && cp < 160);
         }
 
         case MVM_CCLASS_PUNCTUATION:
