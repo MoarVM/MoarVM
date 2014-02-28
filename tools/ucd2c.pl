@@ -1,8 +1,14 @@
+use v5.14;
 use warnings; use strict;
 use Data::Dumper;
 use Carp qw(cluck);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
+my $DEBUG = 0;
+
+my @name_lines;
+open(LOG, ">extents") or die "can't create extents: $!" if $DEBUG;
+my $LOG;
 
 my $db_sections = {};
 my $h_sections = {};
@@ -117,6 +123,11 @@ sub main {
         thousands($estimated_total_bytes).
         ".\nEstimated bytes saved by various compressions: ".
         thousands($total_bytes_saved).".\n";
+    if ($DEBUG) {
+	$LOG =~ s/('fate_really' => )(\d+)/$1$name_lines[$2]/g;
+	print LOG $LOG;
+	close LOG;
+    }
 }
 sub thousands {
     my $in = shift;
@@ -416,11 +427,15 @@ sub emit_extent_fate {
 }
 sub add_extent($$) {
     my ($extents, $extent) = @_;
+    if ($DEBUG) {
+	$LOG .= "\n" . join '', 
+	    grep /code|fate|name|bitfield/,
+	    sort split /^/m, "EXTENT " . Dumper($extent);
+    }
     push @$extents, $extent;
 }
 sub emit_codepoints_and_planes {
     my @bitfield_index_lines;
-    my @name_lines;
     my @offsets;
     my $index = 0;
     my $bytes = 0;
@@ -482,12 +497,13 @@ sub emit_codepoints_and_planes {
                 $span_length = 0;
             }
             if ($compress_codepoints
-                    && $last_code < $point->{code} - $gap_length_threshold) {
+                    && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $gap_length_threshold : 1)) {
                 $bytes_saved += 10 * ($point->{code} - $last_code - 1);
                 add_extent $extents, { fate_type => $FATE_NULL,
                     code => $last_code + 1 };
                 $code_offset += ($point->{code} - $last_code - 1);
                 $last_code = $point->{code} - 1;
+		$toadd = $point;
             }
             while ($last_code < $point->{code} - 1) {
                 push @bitfield_index_lines, "0";
@@ -497,9 +513,10 @@ sub emit_codepoints_and_planes {
                 $bytes += 10;
             }
             die "$last_code ".Dumper($point) unless $last_code == $point->{code} - 1;
-            if ($toadd || $plane->{number} == 1 && $plane->{points}->[0]->{code} == $point->{code} && !exists($point->{fate_type})) {
+            if ($toadd && !exists($point->{fate_type})) {
                 $point->{fate_type} = $FATE_NORMAL;
                 $point->{fate_offset} = $code_offset;
+                $point->{fate_really} = $point->{code} - $code_offset;
                 add_extent $extents, $point;
             }
             # a normal codepoint that we don't want to compress
@@ -533,7 +550,7 @@ sub emit_codepoint_row_lookup {
     my $i = 0;
     for (@$extents) {
         # handle the first recursion specially to optimize for most common BMP lookups
-        if ($_->{code} == 0x10000) {
+        if ($_->{code} >= 0x10000) {
             $SMP_start = $i;
             last;
         }
@@ -721,14 +738,16 @@ sub emit_block_lookup {
 sub emit_names_hash_builder {
     my $num_extents = scalar(@$extents);
     my $out = "
-static MVMint32 codepoint_extents[".($num_extents + 1)."][2] = {";
+static MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
     $estimated_total_bytes += 4 * 2 * ($num_extents + 1);
     for my $extent (@$extents) {
-        $out .= "
-    {0x".sprintf("%x",$extent->{code}).",$extent->{fate_type}},";
+        $out .= sprintf("    {0x%04x,%d,%d},\n",
+	                        $extent->{code},
+				     $extent->{fate_type},
+				          ($extent->{fate_really}//0));
     }
     $h_sections->{MVMNUMUNICODEEXTENTS} = "#define MVMNUMUNICODEEXTENTS $num_extents\n";
-    $out .= "
+    $out .= <<"END";
     {0x10FFFE,0}
 };
 
@@ -750,6 +769,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         switch (codepoint_extents[extent_index][1]) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
+		codepoint_table_index = codepoint_extents[extent_index][2];
                 for (; extent_span_index < length
                     && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
@@ -782,7 +802,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         }
     }
 }
-";
+END
     $db_sections->{names_hash_builder} = $out;
 }#"
 sub emit_unicode_property_keypairs {
@@ -1150,10 +1170,7 @@ sub UnicodeData {
                     $new->{$_} = $current->{$_};
                 }
                 $new->{code}++;
-                $code_str = uc(sprintf '%x', $new->{code});
-                while(length($code_str) < 4) {
-                    $code_str = "0$code_str";
-                }
+                $code_str = uc(sprintf '%04x', $new->{code});
                 $new->{code_str} = $code_str;
                 push @{$plane->{points}}, $new;
                 $points_by_hex->{$new->{code_str}} = $points_by_code->{$new->{code}} =
