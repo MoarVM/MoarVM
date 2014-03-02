@@ -47,8 +47,8 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     cur_bytes = ds->bytes_head;
     while (cur_bytes) {
         /* Process this buffer. */
-        MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        char     *bytes = cur_bytes->bytes;
+        MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
+        unsigned char *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length) {
             MVMCodepoint32 codepoint = bytes[pos++];
             if (count == bufsize) {
