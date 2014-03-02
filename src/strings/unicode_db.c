@@ -35180,29 +35180,29 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                     }
                                 }
                                 else {
-                                    return 5231; /* F900 CJK COMPATIBILITY IDEOGRAPH-F900 */
+                                    return 28549; /* F900 CJK COMPATIBILITY IDEOGRAPH-F900 */
                                 }
                             }
                             else {
                                 if (codepoint >= 0xDC00) { /* <Low Surrogate> */
-                                    return 5230; /* E000 <Private Use> */
+                                    return 28548; /* E000 <Private Use> */
                                 }
                                 else {
-                                    return 5229; /* DC00 <Low Surrogate> */
+                                    return 28547; /* DC00 <Low Surrogate> */
                                 }
                             }
                         }
                         else {
                             if (codepoint >= 0x9FA6) { /* <CJK Ideograph> */
                                 if (codepoint >= 0xD800) { /* <Non Private Use High Surrogate> */
-                                    return 5228; /* DB80 <Private Use High Surrogate> */
+                                    return 28546; /* DB80 <Private Use High Surrogate> */
                                 }
                                 else {
                                     return codepoint - 26750;
                                 }
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 14119; /* 4E03 <CJK Ideograph> */
                             }
                         }
                     }
@@ -35214,7 +35214,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                         return codepoint - 24528;
                                     }
                                     else {
-                                        return 4839; /* 4E03 <CJK Ideograph> */
+                                        return 14117; /* 4E03 <CJK Ideograph> */
                                     }
                                 }
                                 else {
@@ -35222,7 +35222,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 }
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 14028; /* 4E03 <CJK Ideograph> */
                             }
                         }
                         else {
@@ -35230,7 +35230,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 return codepoint - 22117;
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 14026; /* 4E03 <CJK Ideograph> */
                             }
                         }
                     }
@@ -35244,7 +35244,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                         return codepoint - 21994;
                                     }
                                     else {
-                                        return 4839; /* 4E03 <CJK Ideograph> */
+                                        return 14019; /* 4E03 <CJK Ideograph> */
                                     }
                                 }
                                 else {
@@ -35252,7 +35252,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 }
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 14017; /* 4E03 <CJK Ideograph> */
                             }
                         }
                         else {
@@ -35261,7 +35261,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                     return codepoint - 18886;
                                 }
                                 else {
-                                    return 4839; /* 4E03 <CJK Ideograph> */
+                                    return 14015; /* 4E03 <CJK Ideograph> */
                                 }
                             }
                             else {
@@ -35274,14 +35274,14 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                             if (codepoint >= 0x6F07) { /* <CJK Ideograph> */
                                 if (codepoint >= 0x7396) { /* <CJK Ideograph> */
                                     if (codepoint >= 0x7397) { /* <CJK Ideograph> */
-                                        return 4839; /* 4E03 <CJK Ideograph> */
+                                        return 14013; /* 4E03 <CJK Ideograph> */
                                     }
                                     else {
                                         return codepoint - 15578;
                                     }
                                 }
                                 else {
-                                    return 4839; /* 4E03 <CJK Ideograph> */
+                                    return 14011; /* 4E03 <CJK Ideograph> */
                                 }
                             }
                             else {
@@ -35290,7 +35290,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                         }
                         else {
                             if (codepoint >= 0x67D3) { /* <CJK Ideograph> */
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 14009; /* 4E03 <CJK Ideograph> */
                             }
                             else {
                                 return codepoint - 12570;
@@ -35306,14 +35306,14 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                             if (codepoint >= 0x5F11) { /* <CJK Ideograph> */
                                 if (codepoint >= 0x62FE) { /* <CJK Ideograph> */
                                     if (codepoint >= 0x634D) { /* <CJK Ideograph> */
-                                        return 4839; /* 4E03 <CJK Ideograph> */
+                                        return 14007; /* 4E03 <CJK Ideograph> */
                                     }
                                     else {
                                         return codepoint - 11414;
                                     }
                                 }
                                 else {
-                                    return 4839; /* 4E03 <CJK Ideograph> */
+                                    return 13927; /* 4E03 <CJK Ideograph> */
                                 }
                             }
                             else {
@@ -35323,14 +35323,14 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                         else {
                             if (codepoint >= 0x5E7A) { /* <CJK Ideograph> */
                                 if (codepoint >= 0x5E7B) { /* <CJK Ideograph> */
-                                    return 4839; /* 4E03 <CJK Ideograph> */
+                                    return 13907; /* 4E03 <CJK Ideograph> */
                                 }
                                 else {
                                     return codepoint - 10280;
                                 }
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 13905; /* 4E03 <CJK Ideograph> */
                             }
                         }
                     }
@@ -35342,7 +35342,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                         return codepoint - 8873;
                                     }
                                     else {
-                                        return 4839; /* 4E03 <CJK Ideograph> */
+                                        return 13895; /* 4E03 <CJK Ideograph> */
                                     }
                                 }
                                 else {
@@ -35350,7 +35350,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 }
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 13893; /* 4E03 <CJK Ideograph> */
                             }
                         }
                         else {
@@ -35358,7 +35358,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 return codepoint - 7552;
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 13888; /* 4E03 <CJK Ideograph> */
                             }
                         }
                     }
@@ -35372,7 +35372,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                         return codepoint - 7437;
                                     }
                                     else {
-                                        return 4839; /* 4E03 <CJK Ideograph> */
+                                        return 13875; /* 4E03 <CJK Ideograph> */
                                     }
                                 }
                                 else {
@@ -35380,7 +35380,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 }
                             }
                             else {
-                                return 4839; /* 4E03 <CJK Ideograph> */
+                                return 13768; /* 4E03 <CJK Ideograph> */
                             }
                         }
                         else {
@@ -35389,7 +35389,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                     return codepoint - 6569;
                                 }
                                 else {
-                                    return 4833; /* 3405 <CJK Ideograph Extension A> */
+                                    return 13324; /* 3405 <CJK Ideograph Extension A> */
                                 }
                             }
                             else {
@@ -35401,14 +35401,14 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                         if (codepoint >= 0x3484) { /* <CJK Ideograph Extension A> */
                             if (codepoint >= 0x382A) { /* <CJK Ideograph Extension A> */
                                 if (codepoint >= 0x382B) { /* <CJK Ideograph Extension A> */
-                                    return 4833; /* 3405 <CJK Ideograph Extension A> */
+                                    return 13322; /* 3405 <CJK Ideograph Extension A> */
                                 }
                                 else {
                                     return codepoint - 1057;
                                 }
                             }
                             else {
-                                return 4833; /* 3405 <CJK Ideograph Extension A> */
+                                return 13320; /* 3405 <CJK Ideograph Extension A> */
                             }
                         }
                         else {
@@ -35416,7 +35416,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 return codepoint - 124;
                             }
                             else {
-                                return 4833; /* 3405 <CJK Ideograph Extension A> */
+                                return 13318; /* 3405 <CJK Ideograph Extension A> */
                             }
                         }
                     }
@@ -35446,7 +35446,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                     }
                                 }
                                 else {
-                                    return 9097; /* 100000 <Plane 16 Private Use> */
+                                    return 43826; /* 100000 <Plane 16 Private Use> */
                                 }
                             }
                             else {
@@ -35478,15 +35478,15 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 }
                             }
                             else {
-                                return 8548; /* 2F800 CJK COMPATIBILITY IDEOGRAPH-2F800 */
+                                return 42787; /* 2F800 CJK COMPATIBILITY IDEOGRAPH-2F800 */
                             }
                         }
                         else {
                             if (codepoint >= 0x2A700) { /* <CJK Ideograph Extension C> */
-                                return 8547; /* 2B740 <CJK Ideograph Extension D> */
+                                return 42775; /* 2B740 <CJK Ideograph Extension D> */
                             }
                             else {
-                                return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                return 42733; /* 20064 <CJK Ideograph Extension B> */
                             }
                         }
                     }
@@ -35500,7 +35500,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                         return codepoint - 113537;
                                     }
                                     else {
-                                        return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                        return 42731; /* 20064 <CJK Ideograph Extension B> */
                                     }
                                 }
                                 else {
@@ -35508,7 +35508,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 }
                             }
                             else {
-                                return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                return 42729; /* 20064 <CJK Ideograph Extension B> */
                             }
                         }
                         else {
@@ -35516,7 +35516,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 return codepoint - 98992;
                             }
                             else {
-                                return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                return 42727; /* 20064 <CJK Ideograph Extension B> */
                             }
                         }
                     }
@@ -35527,7 +35527,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                     return codepoint - 97450;
                                 }
                                 else {
-                                    return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                    return 42725; /* 20064 <CJK Ideograph Extension B> */
                                 }
                             }
                             else {
@@ -35536,7 +35536,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                         }
                         else {
                             if (codepoint >= 0x2099D) { /* <CJK Ideograph Extension B> */
-                                return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                return 42676; /* 20064 <CJK Ideograph Extension B> */
                             }
                             else {
                                 return codepoint - 90857;
@@ -35552,14 +35552,14 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                             if (codepoint >= 0x20065) { /* <CJK Ideograph Extension B> */
                                 if (codepoint >= 0x200E2) { /* <CJK Ideograph Extension B> */
                                     if (codepoint >= 0x20122) { /* <CJK Ideograph Extension B> */
-                                        return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                        return 42560; /* 20064 <CJK Ideograph Extension B> */
                                     }
                                     else {
                                         return codepoint - 88802;
                                     }
                                 }
                                 else {
-                                    return 8538; /* 20064 <CJK Ideograph Extension B> */
+                                    return 42495; /* 20064 <CJK Ideograph Extension B> */
                                 }
                             }
                             else {
@@ -35659,53 +35659,53 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
 
 static MVMint32 codepoint_extents[99][3] = {
     {0x0000,0,0},
-    {0x3406,2,0},
+    {0x3406,2,13318},
     {0x3483,0,13319},
-    {0x3484,2,0},
+    {0x3484,2,13320},
     {0x382a,0,13321},
-    {0x382b,2,0},
+    {0x382b,2,13322},
     {0x3b4d,0,13323},
-    {0x3b4e,2,0},
+    {0x3b4e,2,13324},
     {0x4dc0,0,13335},
-    {0x4f71,2,0},
+    {0x4f71,2,13768},
     {0x5104,0,13769},
-    {0x516e,2,0},
+    {0x516e,2,13875},
     {0x5341,0,13876},
-    {0x534d,2,0},
+    {0x534d,2,13888},
     {0x53c1,0,13889},
-    {0x53c5,2,0},
+    {0x53c5,2,13893},
     {0x56db,0,13894},
-    {0x56dc,2,0},
+    {0x56dc,2,13895},
     {0x58f1,0,13896},
-    {0x58fa,2,0},
+    {0x58fa,2,13905},
     {0x5e7a,0,13906},
-    {0x5e7b,2,0},
+    {0x5e7b,2,13907},
     {0x5efe,0,13908},
-    {0x5f11,2,0},
+    {0x5f11,2,13927},
     {0x62fe,0,13928},
-    {0x634d,2,0},
+    {0x634d,2,14007},
     {0x67d2,0,14008},
-    {0x67d3,2,0},
+    {0x67d3,2,14009},
     {0x6f06,0,14010},
-    {0x6f07,2,0},
+    {0x6f07,2,14011},
     {0x7396,0,14012},
-    {0x7397,2,0},
+    {0x7397,2,14013},
     {0x767e,0,14014},
-    {0x767f,2,0},
+    {0x767f,2,14015},
     {0x8086,0,14016},
-    {0x8087,2,0},
+    {0x8087,2,14017},
     {0x842c,0,14018},
-    {0x842d,2,0},
+    {0x842d,2,14019},
     {0x8cae,0,14020},
-    {0x8cb4,2,0},
+    {0x8cb4,2,14026},
     {0x8d30,0,14027},
-    {0x8d31,2,0},
+    {0x8d31,2,14028},
     {0x9621,0,14029},
-    {0x9679,2,0},
+    {0x9679,2,14117},
     {0x96f6,0,14118},
-    {0x96f7,2,0},
+    {0x96f7,2,14119},
     {0x9fa6,0,14120},
-    {0xd800,2,0},
+    {0xd800,2,28546},
     {0xdb80,2,28547},
     {0xdc00,2,28548},
     {0xe000,2,28549},
@@ -35730,21 +35730,21 @@ static MVMint32 codepoint_extents[99][3] = {
     {0x1ee00,0,39974},
     {0x1f774,1,0},
     {0x20000,0,42394},
-    {0x20065,2,0},
+    {0x20065,2,42495},
     {0x200e2,0,42496},
-    {0x20122,2,0},
+    {0x20122,2,42560},
     {0x2092a,0,42561},
-    {0x2099d,2,0},
+    {0x2099d,2,42676},
     {0x20aea,0,42677},
-    {0x20b1a,2,0},
+    {0x20b1a,2,42725},
     {0x22390,0,42726},
-    {0x22391,2,0},
+    {0x22391,2,42727},
     {0x22998,0,42728},
-    {0x22999,2,0},
+    {0x22999,2,42729},
     {0x23b1b,0,42730},
-    {0x23b1c,2,0},
+    {0x23b1c,2,42731},
     {0x2626d,0,42732},
-    {0x2626e,2,0},
+    {0x2626e,2,42733},
     {0x2a700,2,42775},
     {0x2b740,2,42787},
     {0x2b81e,1,0},
@@ -35753,7 +35753,7 @@ static MVMint32 codepoint_extents[99][3] = {
     {0xe0001,0,43330},
     {0xe01f0,1,0},
     {0xf0000,0,43825},
-    {0xf0001,2,0},
+    {0xf0001,2,43826},
     {0xffffe,1,0},
     {0x100000,0,43827},
     {0x10FFFE,0}
@@ -35777,7 +35777,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         switch (codepoint_extents[extent_index][1]) {
             case 0: {
                 MVMint32 extent_span_index = 0;
-		codepoint_table_index = codepoint_extents[extent_index][2];
+                codepoint_table_index = codepoint_extents[extent_index][2];
                 for (; extent_span_index < length
                     && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];

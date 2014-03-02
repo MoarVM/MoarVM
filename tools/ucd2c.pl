@@ -124,17 +124,19 @@ sub main {
         ".\nEstimated bytes saved by various compressions: ".
         thousands($total_bytes_saved).".\n";
     if ($DEBUG) {
-	$LOG =~ s/('fate_really' => )(\d+)/$1$name_lines[$2]/g;
-	print LOG $LOG;
-	close LOG;
+        $LOG =~ s/('fate_really' => )(\d+)/$1$name_lines[$2]/g;
+        print LOG $LOG;
+        close LOG;
     }
 }
+
 sub thousands {
     my $in = shift;
     $in = reverse "$in"; # stringify or copy the string
     $in =~ s/(\d\d\d)(?=\d)/$1,/g;
     reverse $in
 }
+
 sub stack_lines {
     # interleave @$lines with separator $sep, using a different
     # separator $break every $num lines or when $wrap columns is reached
@@ -164,12 +166,14 @@ sub stack_lines {
     }
     $out
 }
+
 sub join_sections {
     my $sections = shift;
     my $content = "";
     $content .= "\n".$sections->{$_} for (sort keys %{$sections});
     $content
 }
+
 sub apply_to_range {
     # apply a function to a range of codepoints. The starting and
     # ending codepoint of the range need not exist; the function will
@@ -198,11 +202,13 @@ sub apply_to_range {
     #    unless $last_point->{code} == hex $last;
     # can't die there because some ranges end on points that don't exist (Blocks)
 }
+
 sub progress($) {
     my $txt = shift;
     local $| = 1;
     print $txt;
 }
+
 sub binary_props {
     # process a file, extracting binary properties and applying them to ranges
     my $fname = shift; # filename
@@ -215,11 +221,13 @@ sub binary_props {
         });
     });
 }
+
 sub break_property {
     my ($fname, $pname) = @_;
     enumerated_property("auxiliary/${fname}BreakProperty",
         $pname, { Other => 0 }, 1, 1);
 }
+
 sub derived_property {
     # filename, property name, property object, starting counter
     my ($fname, $pname, $base, $j) = @_;
@@ -242,6 +250,7 @@ sub derived_property {
     $base->{bit_width} = least_int_ge_lg2($j);
     register_enumerated_property($pname, $base);
 }
+
 sub enumerated_property {
     my ($fname, $pname, $base, $j, $value_index) = @_;
     $base = { enum => $base };
@@ -276,9 +285,11 @@ sub enumerated_property {
     $base->{keys} = \@keys;
     register_enumerated_property($pname, $base);
 }
+
 sub least_int_ge_lg2 {
     int(log(shift)/log(2) - 0.00001) + 1;
 }
+
 sub each_line {
     my ($fname, $fn, $force) = @_;
     progress "done.\nprocessing $fname.txt...";
@@ -287,6 +298,7 @@ sub each_line {
         $fn->($_) unless !$force && /^(?:#|\s*$)/;
     } @{read_file("UNIDATA/$fname.txt")};
 }
+
 sub allocate_bitfield {
     my @biggest = map { $enumerated_properties->{$_} }
         sort { $enumerated_properties->{$b}->{bit_width}
@@ -346,6 +358,7 @@ sub allocate_bitfield {
     $h_sections->{num_property_codes} = "#define MVMNUMPROPERTYCODES $index\n";
     $allocated
 }
+
 sub compute_properties {
     local $| = 1;
     my $fields = shift;
@@ -389,6 +402,7 @@ sub compute_properties {
         }
     }
 }
+
 sub emit_binary_search_algorithm {
     # $extents is arrayref to the heads of the gaps, spans, and
     # normal stretches of codepoints. $first and $last are the
@@ -412,31 +426,34 @@ ${indent}}
 ${indent}else {$low
 ${indent}}";
 }
+
 my $FATE_NORMAL = 0;
 my $FATE_NULL = 1;
 my $FATE_SPAN = 2;
+
 sub emit_extent_fate {
     my ($fate, $indent) = @_;
     my $type = $fate->{fate_type};
     return "\n${indent}return -1;" if $type == $FATE_NULL;
-    return "\n${indent}return $fate->{bitfield_index}; /* ".
+    return "\n${indent}return " . ($fate->{code} - $fate->{fate_offset}) . "; /* ".
         "$bitfield_table->[$fate->{bitfield_index}]->{code_str}".
         " $bitfield_table->[$fate->{bitfield_index}]->{name} */" if $type == $FATE_SPAN;
     return "\n${indent}return codepoint - $fate->{fate_offset};"
     .($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
 }
+
 sub add_extent($$) {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
-	$LOG .= "\n" . join '', 
-	    grep /code|fate|name|bitfield/,
-	    sort split /^/m, "EXTENT " . Dumper($extent);
+        $LOG .= "\n" . join '', 
+            grep /code|fate|name|bitfield/,
+            sort split /^/m, "EXTENT " . Dumper($extent);
     }
     push @$extents, $extent;
 }
+
 sub emit_codepoints_and_planes {
     my @bitfield_index_lines;
-    my @offsets;
     my $index = 0;
     my $bytes = 0;
     my $bytes_saved = 0;
@@ -451,8 +468,8 @@ sub emit_codepoints_and_planes {
 
     # a bunch of spaghetti code.  Yes.
     for my $plane (@$planes) {
+        my $toadd = undef;
         for my $point (@{$plane->{points}}) {
-            my $toadd = undef;
             # extremely simplistic compression of identical neighbors and gaps
             # this point is identical to the previous point
             if ($compress_codepoints && $last_point
@@ -469,14 +486,18 @@ sub emit_codepoints_and_planes {
                 }
                 next;
             }
+
             # the span ended, either bridge it or skip it
-            elsif ($span_length) {
+            if ($span_length) {
                 if ($span_length >= $span_length_threshold) {
                     $bytes_saved += 10 * ($span_length - 1);
                     if (!exists($last_point->{fate_type})) {
                         add_extent $extents, $last_point;
                     }
                     $last_point->{fate_type} = $FATE_SPAN;
+		    $code_offset = $last_point->{code} - @name_lines + 1;
+		    $last_point->{fate_offset} = $code_offset;
+		    $last_point->{fate_really} = $last_point->{code} - $code_offset;
                     $code_offset += $span_length - 1;
                     $toadd = $point;
                     $span_length = 0;
@@ -490,12 +511,16 @@ sub emit_codepoints_and_planes {
                     push @name_lines, "/*$index*/".
                     ($last_point->{name} =~ /^</ ? "NULL" : "\"$last_point->{name}\"").
                         "/* $last_point->{code_str} */";
+		    $code_offset = $last_point->{code} - @name_lines;
+		    $last_point->{fate_offset} = $code_offset;
+		    $last_point->{fate_really} = $last_point->{code} - $code_offset;
                     $index++;
                     $bytes += 10 + ($last_point->{name} =~ /^</ ? 0 : length($last_point->{name}) + 1);
                     $span_length--;
                 }
                 $span_length = 0;
             }
+
             if ($compress_codepoints
                     && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $gap_length_threshold : 1)) {
                 $bytes_saved += 10 * ($point->{code} - $last_code - 1);
@@ -503,8 +528,9 @@ sub emit_codepoints_and_planes {
                     code => $last_code + 1 };
                 $code_offset += ($point->{code} - $last_code - 1);
                 $last_code = $point->{code} - 1;
-		$toadd = $point;
+                $toadd = $point;
             }
+
             while ($last_code < $point->{code} - 1) {
                 push @bitfield_index_lines, "0";
                 push @name_lines, "NULL";
@@ -512,6 +538,7 @@ sub emit_codepoints_and_planes {
                 $index++;
                 $bytes += 10;
             }
+
             die "$last_code ".Dumper($point) unless $last_code == $point->{code} - 1;
             if ($toadd && !exists($point->{fate_type})) {
                 $point->{fate_type} = $FATE_NORMAL;
@@ -519,6 +546,7 @@ sub emit_codepoints_and_planes {
                 $point->{fate_really} = $point->{code} - $code_offset;
                 add_extent $extents, $point;
             }
+            $toadd = undef;
             # a normal codepoint that we don't want to compress
             push @bitfield_index_lines, "/*$index*/$point->{bitfield_index}/* $point->{code_str} */";
             $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
@@ -544,6 +572,7 @@ sub emit_codepoints_and_planes {
     $h_sections->{codepoint_names_count} = "#define MVMCODEPOINTNAMESCOUNT $index";
     $extents
 }
+
 sub emit_codepoint_row_lookup {
     my $extents = shift;
     my $SMP_start;
@@ -577,6 +606,7 @@ sub emit_codepoint_row_lookup {
 }";
     $db_sections->{codepoint_row_lookup} = $out;
 }
+
 sub emit_case_changes {
     my $point = shift;
     my @lines = ();
@@ -595,6 +625,7 @@ sub emit_case_changes {
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
     $db_sections->{BBB_case_changes} = $out;
 }
+
 sub emit_bitfield {
     my $point = shift;
     my $wide = $point->{bitfield_width};
@@ -640,6 +671,7 @@ sub emit_bitfield {
         stack_lines(\@lines, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
     $db_sections->{BBB_main_bitfield} = $out;
 }
+
 sub emit_property_value_lookup {
     my $allocated = shift;
     my $hout = "typedef enum {\n";
@@ -702,6 +734,7 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
     $db_sections->{MVM_unicode_get_property_value} = $out;
     $h_sections->{property_code_definitions} = $hout;
 }
+
 sub emit_block_lookup {
     my $hout = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);\n";
     my $out  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block) {
@@ -735,6 +768,7 @@ sub emit_block_lookup {
     $db_sections->{block_lookup} = $out;
     $h_sections->{block_lookup} = $hout;
 }
+
 sub emit_names_hash_builder {
     my $num_extents = scalar(@$extents);
     my $out = "
@@ -742,9 +776,9 @@ static MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
     $estimated_total_bytes += 4 * 2 * ($num_extents + 1);
     for my $extent (@$extents) {
         $out .= sprintf("    {0x%04x,%d,%d},\n",
-	                        $extent->{code},
-				     $extent->{fate_type},
-				          ($extent->{fate_really}//0));
+                                $extent->{code},
+                                     $extent->{fate_type},
+                                          ($extent->{fate_really}//0));
     }
     $h_sections->{MVMNUMUNICODEEXTENTS} = "#define MVMNUMUNICODEEXTENTS $num_extents\n";
     $out .= <<"END";
@@ -769,7 +803,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         switch (codepoint_extents[extent_index][1]) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
-		codepoint_table_index = codepoint_extents[extent_index][2];
+                codepoint_table_index = codepoint_extents[extent_index][2];
                 for (; extent_span_index < length
                     && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
@@ -805,6 +839,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
 END
     $db_sections->{names_hash_builder} = $out;
 }#"
+
 sub emit_unicode_property_keypairs {
     my $hout = "
 struct MVMUnicodeNamedValue {
@@ -890,6 +925,7 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[".scalar(@lines)."] 
     $db_sections->{BBB_unicode_property_keypairs} = $out;
     $h_sections->{MVMUnicodeNamedValue} = $hout;
 }
+
 sub emit_unicode_property_value_keypairs {
     my $hout = "";
     my @lines = ();
@@ -994,6 +1030,7 @@ static const MVMUnicodeNamedValue unicode_property_value_keypairs[".scalar(@line
     $db_sections->{BBB_unicode_property_value_keypairs} = $out;
     $h_sections->{num_unicode_property_value_keypairs} = $hout;
 }
+
 sub compute_bitfield {
     my $point = shift;
     my $index = 1;
@@ -1019,6 +1056,7 @@ sub compute_bitfield {
     $total_bytes_saved += $bytes_saved;
     print "\nSaved ".thousands($bytes_saved)." bytes by uniquing the bitfield table.\n";
 }
+
 sub header {
 '/*   DO NOT MODIFY THIS FILE!  YOU WILL LOSE YOUR CHANGES!
 This file is generated by ucd2c.pl from the Unicode database.
@@ -1072,12 +1110,14 @@ sub read_file {
     close FILE;
     \@lines;
 }
+
 sub write_file {
     my ($fname, $contents) = @_;
     open FILE, ">$fname" or die "Couldn't open file '$fname': $!";
     print FILE $contents;
     close FILE;
 }
+
 sub register_union {
     my ($unionname, $unionof) = @_;
     register_binary_property($unionname);
@@ -1086,6 +1126,7 @@ sub register_union {
             ? "'.$unionname.'" : 0;
     }';
 }
+
 sub UnicodeData {
     my ($bidi_classes, $general_categories, $ccclasses) = @_;
     my $plane = {
@@ -1197,6 +1238,7 @@ sub UnicodeData {
         bit_width => least_int_ge_lg2($decomp_index)
     });
 }
+
 sub CaseFolding {
     my $simple_count = 1;
     my $grows_count = 1;
@@ -1230,6 +1272,7 @@ sub CaseFolding {
     $db_sections->{BBB_CaseFolding_simple} = $simple_out;
     $db_sections->{BBB_CaseFolding_grows} = $grows_out;
 }
+
 sub DerivedNormalizationProps {
     my $binary = {
         Full_Composition_Exclusion => 1,
@@ -1272,12 +1315,14 @@ sub DerivedNormalizationProps {
         });
     });
 }
+
 sub Jamo {
     each_line('Jamo', sub { $_ = shift;
         my ($code_str, $name) = split /\s*[;#]\s*/;
         $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
     });
 }
+
 sub LineBreak {
     my $enum = {};
     my $base = { enum => $enum };
@@ -1300,12 +1345,14 @@ sub LineBreak {
     $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
     register_enumerated_property('Line_Break', $base);
 }
+
 sub NameAliases {
     each_line('NameAliases', sub { $_ = shift;
         my ($code_str, $name) = split /\s*[;#]\s*/;
         $aliases->{$name} = hex $code_str;
     });
 }
+
 sub NamedSequences {
     each_line('NamedSequences', sub { $_ = shift;
         my ($name, $codes) = split /\s*[;#]\s*/;
@@ -1313,6 +1360,7 @@ sub NamedSequences {
         $named_sequences->{$name} = \@parts;
     });
 }
+
 sub register_binary_property {
     my $name = shift;
     $all_properties->{$name} = $binary_properties->{$name} = {
@@ -1321,6 +1369,7 @@ sub register_binary_property {
         bit_width => 1
     } unless exists $binary_properties->{$name};
 }
+
 sub register_enumerated_property {
     my ($pname, $obj) = @_;
     die if exists $enumerated_properties->{$pname};
@@ -1329,4 +1378,7 @@ sub register_enumerated_property {
     $obj->{property_index} = $property_index++;
     $obj
 }
+
 main();
+
+# vim: ft=perl6 expandtab sw=4
