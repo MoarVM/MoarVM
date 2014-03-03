@@ -12,6 +12,19 @@ MVMCodepoint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name)
     return result ? result->codepoint : -1;
 }
 
+MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint32 codepoint) {
+
+    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+
+    if (codepoint_row == -1) /* non-existent codepoint; XXX should throw? */
+        return 0;
+
+    const char *name = codepoint_names[codepoint_row];
+
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));
+}
+
+
 MVMint64 MVM_unicode_codepoint_get_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
     /* short circuit unkown property values to false */
     if (property_code == 0)
