@@ -1386,93 +1386,112 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
 MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
     if (offset < 0 || offset >= NUM_GRAPHS(s))
         return 0;
+ 
+    MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
 
     switch (cclass) {
         case MVM_CCLASS_ANY:
             return 1;
 
         case MVM_CCLASS_UPPERCASE:
-            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+            return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lu);
 
         case MVM_CCLASS_LOWERCASE:
-            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+            return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ll);
 
         case MVM_CCLASS_WORD:
-            if (MVM_string_get_codepoint_at(tc, s, offset) == '_')
-                return 1;
+            if (cp <= 'z') {  /* short circuit common case */
+		if (cp >= 'a' || cp == '_' || (cp >= 'A' && cp <= 'Z') || (cp >= '0' && cp <= '9'))
+		    return 1;
+		else
+		    return 0;
+	    }
             /* Deliberate fall-through; word is _ or digit or alphabetic. */
 
         case MVM_CCLASS_ALPHANUMERIC:
-            if (MVM_string_offset_has_unicode_property_value(tc, s, offset,
+	    if (cp <= '9' && cp >= '0')  /* short circuit common case */
+		return 1;
+            if (MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd))
                 return 1;
             /* Deliberate fall-through; alphanumeric is digit or alphabetic. */
 
         case MVM_CCLASS_ALPHABETIC:
+            if (cp <= 'z') {  /* short circuit common case */
+		if (cp >= 'a' || (cp >= 'A' && cp <= 'Z'))
+		    return 1;
+		else
+		    return 0;
+	    }
             return
-                MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ll)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lu)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lt)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lm)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lo);
 
         case MVM_CCLASS_NUMERIC:
-            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+	    if (cp <= '9' && cp >= '0')  /* short circuit common case */
+		return 1;
+            return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd);
 
         case MVM_CCLASS_HEXADECIMAL:
-            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+            return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_ASCII_HEX_DIGIT, 1);
 
         case MVM_CCLASS_WHITESPACE:
-            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+	    if (cp <= '~') {
+		if (cp == ' ' || (cp <= 13 && cp >= 9))
+		    return 1;
+		else
+		    return 0;
+	    }
+            return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_WHITE_SPACE, 1);
 
         case MVM_CCLASS_BLANK:
-            if (MVM_string_get_codepoint_at(tc, s, offset) == '\t')
+            if (cp == '\t')
                 return 1;
-            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+            return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Zs);
 
         case MVM_CCLASS_CONTROL: {
-            MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
             return (cp >= 0 && cp < 32) || (cp >= 127 && cp < 160);
         }
 
         case MVM_CCLASS_PRINTING: {
-            MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
             return !(cp >= 0 && cp < 32) || (cp >= 127 && cp < 160);
         }
 
         case MVM_CCLASS_PUNCTUATION:
             return
-                MVM_string_offset_has_unicode_property_value(tc, s, offset,
+                MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pc)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pd)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ps)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pe)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pi)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Pf)
-             || MVM_string_offset_has_unicode_property_value(tc, s, offset,
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Po);
 
         case MVM_CCLASS_NEWLINE: {
-            MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
             if (cp == '\n' || cp == '\r' || cp == 0x85)
                 return 1;
-            return MVM_string_offset_has_unicode_property_value(tc, s, offset,
+            return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Zl);
         }
 
