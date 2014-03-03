@@ -588,3 +588,5 @@ uniisblock          w(int64) r(str) r(int64) r(str)
 assertparamcheck    r(int64)
 hintfor             w(int64) r(obj) r(str)
 paramnamesused
+getuniname          w(str) r(int64)
+getuniprop          w(int64) r(int64) r(int64) r(int64)

@@ -1469,6 +1469,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     (MVMint64)GET_UI16(cur_op, 8));
                 cur_op += 10;
                 goto NEXT;
+            OP(getuniprop):
+                GET_REG(cur_op, 0).i64 = MVM_unicode_codepoint_get_property_value(tc,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(getuniname): {
+                GET_REG(cur_op, 0).s = MVM_unicode_get_name(tc, GET_REG(cur_op, 2).i64);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(chars):
                 GET_REG(cur_op, 0).i64 = NUM_GRAPHS(GET_REG(cur_op, 2).s);
                 cur_op += 4;

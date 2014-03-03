@@ -502,6 +502,7 @@ sub emit_codepoints_and_planes {
                     $toadd = $point;
                     $span_length = 0;
                 }
+		my $usually = 1;  # occasionally change NULL to the name to cut name search time
                 while ($span_length > 1) {
                     # catch up to last code
                     $last_point = $last_point->{next_point};
@@ -509,7 +510,7 @@ sub emit_codepoints_and_planes {
                         "/*$index*/$last_point->{bitfield_index}/*".
                         "$last_point->{code_str} */";
                     push @name_lines, "/*$index*/".
-                    ($last_point->{name} =~ /^</ ? "NULL" : "\"$last_point->{name}\"").
+                    ($last_point->{name} =~ /^</ && $usually++ % 25 ? "NULL" : "\"$last_point->{name}\"").
                         "/* $last_point->{code_str} */";
 		    $code_offset = $last_point->{code} - @name_lines;
 		    $last_point->{fate_offset} = $code_offset;
