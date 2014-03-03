@@ -1427,15 +1427,15 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
 	    }
             return
                 MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ll)
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lo) /* lots of CJK chars */
+             || MVM_unicode_codepoint_has_property_value(tc, cp,
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Ll) /* (ascii handled above) */
              || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lu)
              || MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lt)
              || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lm)
-             || MVM_unicode_codepoint_has_property_value(tc, cp,
-                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lo);
+                    MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lm);
 
         case MVM_CCLASS_NUMERIC:
 	    if (cp <= '9' && cp >= '0')  /* short circuit common case */
