@@ -563,6 +563,8 @@
 #define MVM_OP_getuniname 559
 #define MVM_OP_getuniprop_int 560
 #define MVM_OP_getuniprop_str 561
+#define MVM_OP_getuniprop_bool 562
+#define MVM_OP_matchuniprop 563
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

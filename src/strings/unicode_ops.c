@@ -32,20 +32,26 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
     return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));
 }
 
-MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
-    const char *name = MVM_unicode_get_property_str(tc, codepoint, property_code);
-    return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));
+MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code) {
+    const char *s = MVM_unicode_get_property_str(tc, codepoint, property_code);
+    if (!s)
+	s = "";
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, s, strlen(s));
 }
 
-MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
-    /* short circuit unkown property values to false */
+MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code) {
     if (property_code == 0)
         return 0;
     return (MVMint64)MVM_unicode_get_property_int(tc, codepoint, property_code);
 }
 
+MVMint64 MVM_unicode_codepoint_get_property_bool(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code) {
+    if (property_code == 0)
+        return 0;
+    return (MVMint64)MVM_unicode_get_property_int(tc, codepoint, property_code) != 0;
+}
+
 MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
-    /* short circuit unkown property values to false */
     if (property_code == 0)
         return 0;
     return (MVMint64)MVM_unicode_get_property_int(tc,

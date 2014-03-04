@@ -88,8 +88,9 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input);
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);
 MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMString *s, MVMint64 offset, MVMint64 property_code, MVMint64 property_value_code);
-MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code);
-MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code);
+MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code);
+MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code);
+MVMint64 MVM_unicode_codepoint_get_property_bool(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code);
 MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint);
 void MVM_string_flatten(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s);

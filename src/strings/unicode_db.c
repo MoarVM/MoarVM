@@ -41210,6 +41210,9 @@ static char *NFC_QC_enums[3] = {
 
 
 static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint);
+
+static const char *bogus = "<BOGUS>"; /* only for table too short; return null string for no mapping */
+
 static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
@@ -41217,79 +41220,78 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
     MVMuint16 bitfield_row;
 
     if (codepoint_row == -1) /* non-existent codepoint; XXX should throw? */
-        return 0;
+        return "";
 
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
 
     switch (switch_val) {
         case 0: return "";
-
         case MVM_UNICODE_PROPERTY_DECOMP_SPEC: /* Decomp_Spec bits:13 offset:0 */
             result_val |= ((props_bitfield[bitfield_row][0] & 0xfff80000) >> 19); /* mask: 11111111111110000000000000000000 */
-	    return Decomp_Spec_enums[result_val];
+	    return result_val < 5709 ? Decomp_Spec_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_NUMERIC_VALUE_NUMERATOR: /* Numeric_Value_Numerator bits:7 offset:25 */
             result_val |= ((props_bitfield[bitfield_row][0] & 0x7f) >> 0); /* mask: 00000000000000000000000001111111 */
-	    return Numeric_Value_Numerator_enums[result_val];
+	    return result_val < 89 ? Numeric_Value_Numerator_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_BIDI_MIRRORING_GLYPH: /* Bidi_Mirroring_Glyph bits:9 offset:11 */
             result_val |= ((props_bitfield[bitfield_row][1] & 0x1ff000) >> 12); /* mask: 00000000000111111111000000000000 */
-	    return Bidi_Mirroring_Glyph_enums[result_val];
+	    return result_val < 364 ? Bidi_Mirroring_Glyph_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_BLOCK: /* Block bits:8 offset:20 */
             result_val |= ((props_bitfield[bitfield_row][1] & 0xff0) >> 4); /* mask: 00000000000000000000111111110000 */
-	    return Block_enums[result_val];
+	    return result_val < 221 ? Block_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_AGE: /* Age bits:4 offset:28 */
             result_val |= ((props_bitfield[bitfield_row][1] & 0xf) >> 0); /* mask: 00000000000000000000000000001111 */
-	    return Age_enums[result_val];
+	    return result_val < 16 ? Age_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_NUMERIC_VALUE: /* Numeric_Value bits:7 offset:0 */
             result_val |= ((props_bitfield[bitfield_row][2] & 0xfe000000) >> 25); /* mask: 11111110000000000000000000000000 */
-	    return Numeric_Value_enums[result_val];
+	    return result_val < 117 ? Numeric_Value_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_SCRIPT: /* Script bits:7 offset:7 */
             result_val |= ((props_bitfield[bitfield_row][2] & 0x1fc0000) >> 18); /* mask: 00000001111111000000000000000000 */
-	    return Script_enums[result_val];
+	    return result_val < 103 ? Script_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS: /* Canonical_Combining_Class bits:6 offset:14 */
             result_val |= ((props_bitfield[bitfield_row][2] & 0x3f000) >> 12); /* mask: 00000000000000111111000000000000 */
-	    return Canonical_Combining_Class_enums[result_val];
+	    return result_val < 56 ? Canonical_Combining_Class_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_JOINING_GROUP: /* Joining_Group bits:6 offset:20 */
             result_val |= ((props_bitfield[bitfield_row][2] & 0xfc0) >> 6); /* mask: 00000000000000000000111111000000 */
-	    return Joining_Group_enums[result_val];
+	    return result_val < 58 ? Joining_Group_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_BIDI_CLASS: /* Bidi_Class bits:5 offset:26 */
             result_val |= ((props_bitfield[bitfield_row][2] & 0x3e) >> 1); /* mask: 00000000000000000000000000111110 */
-	    return Bidi_Class_enums[result_val];
+	    return result_val < 23 ? Bidi_Class_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_WORD_BREAK: /* Word_Break bits:5 offset:0 */
             result_val |= ((props_bitfield[bitfield_row][3] & 0xf8000000) >> 27); /* mask: 11111000000000000000000000000000 */
-	    return Word_Break_enums[result_val];
+	    return result_val < 17 ? Word_Break_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_GENERAL_CATEGORY: /* General_Category bits:5 offset:5 */
             result_val |= ((props_bitfield[bitfield_row][3] & 0x7c00000) >> 22); /* mask: 00000111110000000000000000000000 */
-	    return General_Category_enums[result_val];
+	    return result_val < 30 ? General_Category_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE: /* Decomposition_Type bits:5 offset:10 */
             result_val |= ((props_bitfield[bitfield_row][3] & 0x3e0000) >> 17); /* mask: 00000000001111100000000000000000 */
-	    return Decomposition_Type_enums[result_val];
+	    return result_val < 18 ? Decomposition_Type_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_LINE_BREAK: /* Line_Break bits:4 offset:15 */
             result_val |= ((props_bitfield[bitfield_row][3] & 0x1e000) >> 13); /* mask: 00000000000000011110000000000000 */
-	    return Line_Break_enums[result_val];
+	    return result_val < 16 ? Line_Break_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_NUMERIC_VALUE_DENOMINATOR: /* Numeric_Value_Denominator bits:4 offset:19 */
             result_val |= ((props_bitfield[bitfield_row][3] & 0x1e00) >> 9); /* mask: 00000000000000000001111000000000 */
-	    return Numeric_Value_Denominator_enums[result_val];
+	    return result_val < 12 ? Numeric_Value_Denominator_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_SENTENCE_BREAK: /* Sentence_Break bits:4 offset:23 */
             result_val |= ((props_bitfield[bitfield_row][3] & 0x1e0) >> 5); /* mask: 00000000000000000000000111100000 */
-	    return Sentence_Break_enums[result_val];
+	    return result_val < 15 ? Sentence_Break_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK: /* Grapheme_Cluster_Break bits:4 offset:27 */
             result_val |= ((props_bitfield[bitfield_row][3] & 0x1e) >> 1); /* mask: 00000000000000000000000000011110 */
-	    return Grapheme_Cluster_Break_enums[result_val];
+	    return result_val < 12 ? Grapheme_Cluster_Break_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_JOINING_TYPE: /* Joining_Type bits:3 offset:0 */
             result_val |= ((props_bitfield[bitfield_row][4] & 0xe0000000) >> 29); /* mask: 11100000000000000000000000000000 */
-	    return Joining_Type_enums[result_val];
+	    return result_val < 5 ? Joining_Type_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_HANGUL_SYLLABLE_TYPE: /* Hangul_Syllable_Type bits:3 offset:3 */
             result_val |= ((props_bitfield[bitfield_row][4] & 0x1c000000) >> 26); /* mask: 00011100000000000000000000000000 */
-	    return Hangul_Syllable_Type_enums[result_val];
+	    return result_val < 6 ? Hangul_Syllable_Type_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_NUMERIC_TYPE: /* Numeric_Type bits:2 offset:6 */
             result_val |= ((props_bitfield[bitfield_row][4] & 0x3000000) >> 24); /* mask: 00000011000000000000000000000000 */
-	    return Numeric_Type_enums[result_val];
+	    return result_val < 4 ? Numeric_Type_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_NFKC_QC: /* NFKC_QC bits:2 offset:8 */
             result_val |= ((props_bitfield[bitfield_row][4] & 0xc00000) >> 22); /* mask: 00000000110000000000000000000000 */
-	    return NFKC_QC_enums[result_val];
+	    return result_val < 3 ? NFKC_QC_enums[result_val] : bogus;
         case MVM_UNICODE_PROPERTY_NFC_QC: /* NFC_QC bits:2 offset:10 */
             result_val |= ((props_bitfield[bitfield_row][4] & 0x300000) >> 20); /* mask: 00000000001100000000000000000000 */
-	    return NFC_QC_enums[result_val];
+	    return result_val < 3 ? NFC_QC_enums[result_val] : bogus;
         default:
 	    return "";
     }
@@ -41308,7 +41310,6 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 code
 
     switch (switch_val) {
         case 0: return 0;
-
         case MVM_UNICODE_PROPERTY_DECOMP_SPEC: /* Decomp_Spec bits:13 offset:0 */
             return ((props_bitfield[bitfield_row][0] & 0xfff80000) >> 19); /* mask: 11111111111110000000000000000000 */
             
