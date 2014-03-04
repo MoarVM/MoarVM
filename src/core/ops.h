@@ -561,7 +561,8 @@
 #define MVM_OP_hintfor 557
 #define MVM_OP_paramnamesused 558
 #define MVM_OP_getuniname 559
-#define MVM_OP_getuniprop 560
+#define MVM_OP_getuniprop_int 560
+#define MVM_OP_getuniprop_str 561
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

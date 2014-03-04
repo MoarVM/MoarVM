@@ -3924,15 +3924,22 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_getuniprop,
-        "getuniprop",
+        MVM_OP_getuniprop_int,
+        "getuniprop_int",
         "  ",
         4,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
+    {
+        MVM_OP_getuniprop_str,
+        "getuniprop_str",
+        "  ",
+        4,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
 };
 
-static unsigned short MVM_op_counts = 561;
+static unsigned short MVM_op_counts = 562;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

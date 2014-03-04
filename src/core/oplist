@@ -589,4 +589,5 @@ assertparamcheck    r(int64)
 hintfor             w(int64) r(obj) r(str)
 paramnamesused
 getuniname          w(str) r(int64)
-getuniprop          w(int64) r(int64) r(int64) r(int64)
+getuniprop_int      w(int64) r(int64) r(int64) r(int64)
+getuniprop_str      w(str) r(int64) r(int64) r(int64)

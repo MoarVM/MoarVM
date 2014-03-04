@@ -4,7 +4,7 @@ use Data::Dumper;
 use Carp qw(cluck);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
-my $DEBUG = 0;
+my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 my @name_lines;
 open(LOG, ">extents") or die "can't create extents: $!" if $DEBUG;
@@ -70,12 +70,12 @@ sub main {
         'Numeric_Value', { NaN => 0 }, 1, 1);
     enumerated_property('extracted/DerivedNumericValues',
         'Numeric_Value_Numerator', { NaN => 0 }, 1, sub {
-            my @fraction = split('/', (shift));
+            my @fraction = split('/', (shift->[3]));
             return $fraction[0];
         });
     enumerated_property('extracted/DerivedNumericValues',
         'Numeric_Value_Denominator', { NaN => 0 }, 1, sub {
-            my @fraction = split('/', (shift));
+            my @fraction = split('/', (shift->[3]));
             return $fraction[1] || '1';
         });
     enumerated_property('extracted/DerivedNumericType',
@@ -238,6 +238,7 @@ sub derived_property {
         unless (exists $base->{enum}->{$class}) {
             # haven't seen this property's value before
             # add it, and give it an index.
+	    print "\n  adding derived property for $pname: $j $class" if $DEBUG;
             $base->{enum}->{$class} = $j++;
         }
     });
@@ -263,6 +264,8 @@ sub enumerated_property {
         my $index = $base->{enum}->{$value};
         # haven't seen this property value before
         # add it, and give it an index.
+	print("\n  adding enum property for $pname: $j $value")
+	    if $DEBUG and not defined $index;
         ($base->{enum}->{$value} = $index
             = $j++) unless defined $index;
         apply_to_range($range, sub {
@@ -271,6 +274,7 @@ sub enumerated_property {
         });
     });
     $base->{bit_width} = least_int_ge_lg2($j);
+    print "\n    bitwidth: ",$base->{bit_width},"\n" if $DEBUG;
     my @keys = ();
     # stash the keys in an array so they can be put in a table later
     for my $key (keys %{$base->{enum}}) {
@@ -282,6 +286,7 @@ sub enumerated_property {
             $keys[$base->{enum}->{$key}] = $key;
         }
     }
+    print "\n    keys = @keys" if $DEBUG;
     $base->{keys} = \@keys;
     register_enumerated_property($pname, $base);
 }
@@ -366,7 +371,7 @@ sub compute_properties {
         my $bit_offset = $field->{bit_offset};
         my $bit_width = $field->{bit_width};
         my $point = $first_point;
-        print "..$field->{name} width:$bit_width bits";
+        print "\n	$field->{name} bit width:$bit_width";
         my $i = 0;
         my $bit = 0;
         my $mask = 0;
@@ -675,9 +680,10 @@ sub emit_bitfield {
 
 sub emit_property_value_lookup {
     my $allocated = shift;
+    my $enumtables = "\n\n";
     my $hout = "typedef enum {\n";
-    my $out = "static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint);
-static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
+    my $out = "
+static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
     MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
@@ -689,16 +695,50 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
 
     switch (switch_val) {
-        case 0: return 0;";
+        case 0: return 0;
+";
+
+    my $eout = "
+static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint);
+static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
+    MVMuint32 switch_val = (MVMuint32)property_code;
+    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    MVMuint16 bitfield_row;
+
+    if (codepoint_row == -1) /* non-existent codepoint; XXX should throw? */
+        return 0;
+
+    bitfield_row = codepoint_bitfield_indexes[codepoint_row];
+
+    switch (switch_val) {
+        case 0: return \"\";
+";
+
     for my $prop (@$allocated) {
+	my $enum = exists $prop->{keys};
+	if ($enum) {
+	    $enum = $prop->{name} . "_enums";
+	    my $esize = scalar @{$prop->{keys}};
+	    $enumtables .= "static char *$enum\[$esize] = {";
+	    $enumtables .= "\n    \"$_\"," for @{$prop->{keys}};
+	    $enumtables .= "\n};\n\n";
+	}
         $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
         $prop_names->{$prop->{name}} = $prop->{field_index};
+
         $out .= "
         case ".uc("MVM_unicode_property_$prop->{name}").":";
+	$eout .= "
+        case ".uc("MVM_unicode_property_$prop->{name}").":" if $enum;
+
         my $bit_width = $prop->{bit_width};
-        my $bit_offset = $prop->{bit_offset};
-        my $word_offset = $prop->{word_offset};
-        $out .= "\n/* $prop->{name} bit_width: $bit_width bit_offset: $bit_offset word_offset: $word_offset */\n";
+        my $bit_offset = $prop->{bit_offset} // 0;
+        my $word_offset = $prop->{word_offset} // 0;
+
+        $out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */";
+        $eout .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */" if $enum;
+
         my $one_word_only = $bit_offset + $bit_width <= $bitfield_cell_bitwidth ? 1 : 0;
         while ($bit_width > 0) {
             my $original_bit_offset = $bit_offset;
@@ -717,22 +757,43 @@ static MVMint32 MVM_unicode_get_property_value(MVMThreadContext *tc, MVMint32 co
             while ($pos++ < $bitfield_cell_bitwidth) {
                 $binary_string .= "0";
             }
+
             $out .= "
             ".($one_word_only ? 'return' : 'result_val |=')." ((props_bitfield[bitfield_row][$word_offset] & 0x".
                 sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */";
+            $eout .= "
+            result_val |= ((props_bitfield[bitfield_row][$word_offset] & 0x".
+                sprintf("%x",$binary_mask).") >> $shift); /* mask: $binary_string */" if $enum;
+
             $word_offset++;
             $bit_offset = 0;
         }
+
         $out .= "
-            return result_val;" unless $one_word_only;
+            ";
+	$eout .= "
+	    " if $enum;
+
+        $out .= "return result_val;" unless $one_word_only;
+        $eout .= "return $enum\[result_val];" if $enum;
     }
+
     $out .= "
         default:
             return 0;
     }
-}";
+}
+";
+    $eout .= "
+        default:
+	    return \"\";
+    }
+}
+";  # or should we try to stringify numeric value?
+
     $hout .= "} MVM_unicode_property_codes;";
-    $db_sections->{MVM_unicode_get_property_value} = $out;
+ 
+    $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
 }
 
