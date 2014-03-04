@@ -695,11 +695,13 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 code
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
 
     switch (switch_val) {
-        case 0: return 0;
-";
+        case 0: return 0;";
 
     my $eout = "
 static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepoint);
+
+static const char *bogus = \"<BOGUS>\"; /* only for table too short; return null string for no mapping */
+
 static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
@@ -707,19 +709,19 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
     MVMuint16 bitfield_row;
 
     if (codepoint_row == -1) /* non-existent codepoint; XXX should throw? */
-        return 0;
+        return \"\";
 
     bitfield_row = codepoint_bitfield_indexes[codepoint_row];
 
     switch (switch_val) {
-        case 0: return \"\";
-";
+        case 0: return \"\";";
 
     for my $prop (@$allocated) {
 	my $enum = exists $prop->{keys};
+	my $esize = 0;
 	if ($enum) {
 	    $enum = $prop->{name} . "_enums";
-	    my $esize = scalar @{$prop->{keys}};
+	    $esize = scalar @{$prop->{keys}};
 	    $enumtables .= "static char *$enum\[$esize] = {";
 	    $enumtables .= "\n    \"$_\"," for @{$prop->{keys}};
 	    $enumtables .= "\n};\n\n";
@@ -775,7 +777,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 	    " if $enum;
 
         $out .= "return result_val;" unless $one_word_only;
-        $eout .= "return $enum\[result_val];" if $enum;
+        $eout .= "return result_val < $esize ? $enum\[result_val] : bogus;" if $enum;
     }
 
     $out .= "
