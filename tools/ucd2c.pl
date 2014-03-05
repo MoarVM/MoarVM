@@ -58,7 +58,7 @@ sub main {
     binary_props('extracted/DerivedBinaryProperties');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', {}, 0, 1);
+    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     CaseFolding();
