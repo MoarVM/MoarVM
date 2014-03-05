@@ -1388,6 +1388,9 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
         return 0;
  
     MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
+    if (cp < 0) {
+        MVM_exception_throw_adhoc(tc, "Negative character fed to cclass: '%d'", cp);
+    }
 
     switch (cclass) {
         case MVM_CCLASS_ANY:
