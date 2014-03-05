@@ -562,8 +562,8 @@
 #define MVM_OP_paramnamesused 558
 #define MVM_OP_getuniname 559
 #define MVM_OP_getuniprop_int 560
-#define MVM_OP_getuniprop_str 561
-#define MVM_OP_getuniprop_bool 562
+#define MVM_OP_getuniprop_bool 561
+#define MVM_OP_getuniprop_str 562
 #define MVM_OP_matchuniprop 563
 
 #define MVM_OP_EXT_BASE 1024

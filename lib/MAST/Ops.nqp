@@ -2459,7 +2459,7 @@ BEGIN {
     34,
     33,
     33,
-    58,
+    34,
     33,
     33,
     58,
@@ -3030,8 +3030,8 @@ BEGIN {
     'paramnamesused', 558,
     'getuniname', 559,
     'getuniprop_int', 560,
-    'getuniprop_str', 561,
-    'getuniprop_bool', 562,
+    'getuniprop_bool', 561,
+    'getuniprop_str', 562,
     'matchuniprop', 563);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
@@ -3594,7 +3594,7 @@ BEGIN {
     'paramnamesused',
     'getuniname',
     'getuniprop_int',
-    'getuniprop_str',
     'getuniprop_bool',
+    'getuniprop_str',
     'matchuniprop');
 }
