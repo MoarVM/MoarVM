@@ -238,7 +238,7 @@ sub derived_property {
         unless (exists $base->{enum}->{$class}) {
             # haven't seen this property's value before
             # add it, and give it an index.
-	    print "\n  adding derived property for $pname: $j $class" if $DEBUG;
+            print "\n  adding derived property for $pname: $j $class" if $DEBUG;
             $base->{enum}->{$class} = $j++;
         }
     });
@@ -264,8 +264,8 @@ sub enumerated_property {
         my $index = $base->{enum}->{$value};
         # haven't seen this property value before
         # add it, and give it an index.
-	print("\n  adding enum property for $pname: $j $value")
-	    if $DEBUG and not defined $index;
+        print("\n  adding enum property for $pname: $j $value")
+            if $DEBUG and not defined $index;
         ($base->{enum}->{$value} = $index
             = $j++) unless defined $index;
         apply_to_range($range, sub {
@@ -371,7 +371,7 @@ sub compute_properties {
         my $bit_offset = $field->{bit_offset};
         my $bit_width = $field->{bit_width};
         my $point = $first_point;
-        print "\n	$field->{name} bit width:$bit_width";
+        print "\n        $field->{name} bit width:$bit_width";
         my $i = 0;
         my $bit = 0;
         my $mask = 0;
@@ -500,14 +500,14 @@ sub emit_codepoints_and_planes {
                         add_extent $extents, $last_point;
                     }
                     $last_point->{fate_type} = $FATE_SPAN;
-		    $code_offset = $last_point->{code} - @name_lines + 1;
-		    $last_point->{fate_offset} = $code_offset;
-		    $last_point->{fate_really} = $last_point->{code} - $code_offset;
+                    $code_offset = $last_point->{code} - @name_lines + 1;
+                    $last_point->{fate_offset} = $code_offset;
+                    $last_point->{fate_really} = $last_point->{code} - $code_offset;
                     $code_offset += $span_length - 1;
                     $toadd = $point;
                     $span_length = 0;
                 }
-		my $usually = 1;  # occasionally change NULL to the name to cut name search time
+                my $usually = 1;  # occasionally change NULL to the name to cut name search time
                 while ($span_length > 1) {
                     # catch up to last code
                     $last_point = $last_point->{next_point};
@@ -517,9 +517,9 @@ sub emit_codepoints_and_planes {
                     push @name_lines, "/*$index*/".
                     ($last_point->{name} =~ /^</ && $usually++ % 25 ? "NULL" : "\"$last_point->{name}\"").
                         "/* $last_point->{code_str} */";
-		    $code_offset = $last_point->{code} - @name_lines;
-		    $last_point->{fate_offset} = $code_offset;
-		    $last_point->{fate_really} = $last_point->{code} - $code_offset;
+                    $code_offset = $last_point->{code} - @name_lines;
+                    $last_point->{fate_offset} = $code_offset;
+                    $last_point->{fate_really} = $last_point->{code} - $code_offset;
                     $index++;
                     $bytes += 10 + ($last_point->{name} =~ /^</ ? 0 : length($last_point->{name}) + 1);
                     $span_length--;
@@ -717,21 +717,21 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
         case 0: return \"\";";
 
     for my $prop (@$allocated) {
-	my $enum = exists $prop->{keys};
-	my $esize = 0;
-	if ($enum) {
-	    $enum = $prop->{name} . "_enums";
-	    $esize = scalar @{$prop->{keys}};
-	    $enumtables .= "static char *$enum\[$esize] = {";
-	    $enumtables .= "\n    \"$_\"," for @{$prop->{keys}};
-	    $enumtables .= "\n};\n\n";
-	}
+        my $enum = exists $prop->{keys};
+        my $esize = 0;
+        if ($enum) {
+            $enum = $prop->{name} . "_enums";
+            $esize = scalar @{$prop->{keys}};
+            $enumtables .= "static char *$enum\[$esize] = {";
+            $enumtables .= "\n    \"$_\"," for @{$prop->{keys}};
+            $enumtables .= "\n};\n\n";
+        }
         $hout .= "    ".uc("MVM_unicode_property_$prop->{name}")." = $prop->{field_index},\n";
         $prop_names->{$prop->{name}} = $prop->{field_index};
 
         $out .= "
         case ".uc("MVM_unicode_property_$prop->{name}").":";
-	$eout .= "
+        $eout .= "
         case ".uc("MVM_unicode_property_$prop->{name}").":" if $enum;
 
         my $bit_width = $prop->{bit_width};
@@ -773,8 +773,8 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 
         $out .= "
             ";
-	$eout .= "
-	    " if $enum;
+        $eout .= "
+            " if $enum;
 
         $out .= "return result_val;" unless $one_word_only;
         $eout .= "return result_val < $esize ? $enum\[result_val] : bogus;" if $enum;
@@ -788,7 +788,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 ";
     $eout .= "
         default:
-	    return \"\";
+            return \"\";
     }
 }
 ";  # or should we try to stringify numeric value?
