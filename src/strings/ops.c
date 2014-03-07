@@ -1384,10 +1384,12 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
 /* Checks if the character at the specified offset is a member of the
  * indicated character class. */
 MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
+    MVMCodepoint32 cp;
+
     if (offset < 0 || offset >= NUM_GRAPHS(s))
         return 0;
- 
-    MVMCodepoint32 cp = MVM_string_get_codepoint_at(tc, s, offset);
+
+    cp = MVM_string_get_codepoint_at(tc, s, offset);
     if (cp < 0) {
         MVM_exception_throw_adhoc(tc, "Negative character fed to cclass: '%d'", cp);
     }
