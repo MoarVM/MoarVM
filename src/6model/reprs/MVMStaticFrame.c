@@ -142,6 +142,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
+    MVM_checked_free_null(body->instr_offsets);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
 }
 
