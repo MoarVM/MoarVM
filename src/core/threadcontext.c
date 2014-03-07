@@ -71,12 +71,12 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
 
     /* Free the thread-specific storage */
+    MVM_frame_free_frame_pool(tc);
     MVM_checked_free_null(tc->gc_work);
     MVM_checked_free_null(tc->temproots);
     MVM_checked_free_null(tc->gen2roots);
-    MVM_checked_free_null(tc->frame_pool_table);
 
-    /* destroy the libuv event loop */
+    /* Destroy the libuv event loop */
     uv_loop_delete(tc->loop);
 
     /* Free the thread context itself. */

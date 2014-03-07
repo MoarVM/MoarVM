@@ -596,6 +596,26 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     return (MVMObject *)closure;
 }
 
+/* Cleans up the frame pool for a thread context. */
+void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
+    MVMuint32 i;
+    for (i = 0; i < tc->frame_pool_table_size; i++) {
+        MVMFrame *cur = tc->frame_pool_table[i];
+        while (cur) {
+            MVMFrame *next = cur->outer;
+            if (cur->env)
+                free(cur->env);
+            if (cur->work) {
+                MVM_args_proc_cleanup(tc, &cur->params);
+                free(cur->work);
+            }
+            free(cur);
+            cur = next;
+        }
+    }
+    MVM_checked_free_null(tc->frame_pool_table);
+}
+
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Non-existing object lexicals produce NULL, expected
  * (for better or worse) by various things. Otherwise, an error is thrown
