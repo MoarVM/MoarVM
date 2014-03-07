@@ -50,6 +50,14 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         ctx->body.top = MVM_frame_dec_ref(tc, ctx->body.top);
     if (ctx->body.root)
         ctx->body.root = MVM_frame_dec_ref(tc, ctx->body.root);
+    if (ctx->body.active_handlers) {
+        MVMActiveHandler *cur_ah = ctx->body.active_handlers;
+        while (cur_ah != NULL) {
+            MVMActiveHandler *next_ah = cur_ah->next_handler;
+            free(cur_ah);
+            cur_ah = next_ah;
+        }
+    }
 }
 
 /* Gets the storage specification for this representation. */
