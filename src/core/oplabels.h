@@ -578,7 +578,7 @@ static const void * const LABELS[] = {
     &&OP_condwait,
     &&OP_condsignalone,
     &&OP_condsignalall,
-    NULL,
+    &&OP_queuepoll,
     NULL,
     NULL,
     NULL,

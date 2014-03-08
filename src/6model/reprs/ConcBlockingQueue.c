@@ -229,3 +229,28 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_ConcBlockingQueue,
     0, /* refs_frames */
 };
+
+/* Polls a queue for a value, returning NULL if none is available. */
+MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueue *queue) {
+    MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)queue;
+    MVMConcBlockingQueueNode *taken;
+    MVMObject *result = NULL;
+
+    uv_mutex_lock(&cbq->body.locks->head_lock);
+
+    if (MVM_load(&cbq->body.elems) > 0) {
+        taken = cbq->body.head->next;
+        free(cbq->body.head);
+        cbq->body.head = taken;
+        MVM_barrier();
+        result = taken->value;
+        taken->value = NULL;
+        MVM_barrier();
+        if (MVM_decr(&cbq->body.elems) > 1)
+            uv_cond_signal(&cbq->body.locks->head_cond);
+    }
+
+    uv_mutex_unlock(&cbq->body.locks->head_lock);
+
+    return result;
+}

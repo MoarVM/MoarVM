@@ -4076,6 +4076,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(queuepoll): {
+                MVMObject *queue = GET_REG(cur_op, 2).o;
+                if (REPR(queue)->ID == MVM_REPR_ID_ConcBlockingQueue)
+                    GET_REG(cur_op, 0).o = MVM_concblockingqueue_poll(tc,
+                        (MVMConcBlockingQueue *)queue);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "queuepoll requires an object with REPR ConcBlockingQueue");
+                cur_op += 4;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

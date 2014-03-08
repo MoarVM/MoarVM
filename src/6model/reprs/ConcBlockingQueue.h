@@ -32,3 +32,6 @@ struct MVMConcBlockingQueue {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMConcBlockingQueue_initialize(MVMThreadContext *tc);
+
+/* Operations on concurrent blocking queues. */
+MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueue *queue);
