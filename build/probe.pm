@@ -2,7 +2,7 @@ package build::probe;
 use strict;
 use warnings;
 
-use File::Path qw(make_path remove_tree);
+use File::Path qw(mkpath rmtree);
 use File::Spec::Functions qw(curdir catdir rel2abs devnull);
 
 my $devnull = devnull();
@@ -10,7 +10,7 @@ my $devnull = devnull();
 my $probe_dir;
 
 END {
-    remove_tree($probe_dir)
+    rmtree($probe_dir)
         if defined $probe_dir;
 }
 
@@ -34,7 +34,7 @@ END {
 sub _to_probe_dir {
     unless (defined $probe_dir) {
         $probe_dir = rel2abs(catdir(curdir(), 'probe'));
-        make_path($probe_dir);
+        mkpath($probe_dir);
     }
     my $restore = build::probe::restore_cwd->new();
     chdir $probe_dir

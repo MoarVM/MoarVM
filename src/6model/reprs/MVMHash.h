@@ -73,6 +73,7 @@ else { \
         if (current != head_node) \
             free(current); \
     } \
+    tmp = head_node; \
     HASH_CLEAR(hash_handle, head_node); \
-    MVM_checked_free_null(head_node); \
+    MVM_checked_free_null(tmp); \
 } while (0)

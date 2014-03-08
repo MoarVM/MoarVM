@@ -12,16 +12,54 @@ MVMCodepoint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name)
     return result ? result->codepoint : -1;
 }
 
-MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
-    /* short circuit unkown property values to false */
+MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
+
+    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+
+    const char *name = (codepoint < 0 || codepoint > 0x10ffff) ? "<illegal>" : "<unassigned>";
+
+    if (codepoint_row != -1) {
+	name = codepoint_names[codepoint_row];
+	if (!name) {
+	    while (codepoint_row && !codepoint_names[codepoint_row])
+		codepoint_row--;
+	    name = codepoint_names[codepoint_row];
+	    if (!name || name[0] != '<')
+		name = "<reserved>";
+	}
+    }
+ 
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));
+}
+
+MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code) {
+    const char *s = MVM_unicode_get_property_str(tc, codepoint, property_code);
+    if (!s)
+	s = "";
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, s, strlen(s));
+}
+
+MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code) {
     if (property_code == 0)
         return 0;
-    return (MVMint64)MVM_unicode_get_property_value(tc,
+    return (MVMint64)MVM_unicode_get_property_int(tc, codepoint, property_code);
+}
+
+MVMint64 MVM_unicode_codepoint_get_property_bool(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code) {
+    if (property_code == 0)
+        return 0;
+    return (MVMint64)MVM_unicode_get_property_int(tc, codepoint, property_code) != 0;
+}
+
+MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code) {
+    if (property_code == 0)
+        return 0;
+    return (MVMint64)MVM_unicode_get_property_int(tc,
         codepoint, property_code) == property_value_code ? 1 : 0;
 }
 
 MVMCodepoint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint32 case_) {
-    MVMint32 changes_index = MVM_unicode_get_property_value(tc,
+    MVMint32 changes_index = MVM_unicode_get_property_int(tc,
         codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
 
     if (changes_index) {

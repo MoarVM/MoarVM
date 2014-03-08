@@ -484,6 +484,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     /* Clear the current active handler. */
     ah = tc->active_handlers;
     tc->active_handlers = ah->next_handler;
+    MVM_frame_dec_ref(tc, ah->frame);
     free(ah);
 
     /* Unwind to the thrower of the exception; set PC. */
