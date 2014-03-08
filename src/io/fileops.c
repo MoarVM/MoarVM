@@ -363,6 +363,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
                 if (!MVM_file_exists(tc, result))
                     result = orig;
                 else {
+                    free(orig_cstr);
                     MVM_gc_root_temp_pop_n(tc, 2); /* orig and result */
                     return result;
                 }
@@ -370,6 +371,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
             }
             if (!result || !MVM_file_exists(tc, result))
                 result = orig;
+            free(orig_cstr);
             MVM_gc_root_temp_pop_n(tc, 2); /* orig and result */
             return result;
         }
