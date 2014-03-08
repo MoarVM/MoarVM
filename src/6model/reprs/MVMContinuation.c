@@ -54,6 +54,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVMActiveHandler *cur_ah = ctx->body.active_handlers;
         while (cur_ah != NULL) {
             MVMActiveHandler *next_ah = cur_ah->next_handler;
+            MVM_frame_dec_ref(tc, cur_ah->frame);
             free(cur_ah);
             cur_ah = next_ah;
         }
