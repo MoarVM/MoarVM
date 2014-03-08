@@ -253,10 +253,16 @@ void cleanup_all(VM, WriterState *ws) {
         cleanup_frame(vm, ws->cur_frame);
     if (ws->scdep_seg)
         free(ws->scdep_seg);
+    if (ws->extops_seg)
+        free(ws->extops_seg);
     if (ws->frame_seg)
         free(ws->frame_seg);
+    if (ws->callsite_seg)
+        free(ws->callsite_seg);
     if (ws->bytecode_seg)
         free(ws->bytecode_seg);
+    if (ws->annotation_seg)
+        free(ws->annotation_seg);
     MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
     free(ws);
 }
