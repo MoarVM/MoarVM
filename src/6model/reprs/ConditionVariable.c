@@ -35,7 +35,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMConditionVariableBody *cv = (MVMConditionVariableBody *)data;
-    MVM_gc_worklist_add(tc, worklist, cv->mutex);
+    MVM_gc_worklist_add(tc, worklist, &cv->mutex);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
