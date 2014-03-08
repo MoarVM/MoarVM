@@ -575,7 +575,11 @@ BEGIN {
     1343,
     1344,
     1345,
-    1347);
+    1347,
+    1348,
+    1351,
+    1352,
+    1353);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1148,6 +1152,10 @@ BEGIN {
     1,
     1,
     2,
+    1,
+    3,
+    1,
+    1,
     1);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
@@ -2496,6 +2504,12 @@ BEGIN {
     65,
     34,
     65,
+    65,
+    66,
+    65,
+    65,
+    65,
+    65,
     65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
@@ -3069,7 +3083,11 @@ BEGIN {
     'unlock', 569,
     'semacquire', 570,
     'semtryacquire', 571,
-    'semrelease', 572);
+    'semrelease', 572,
+    'getlockcondvar', 573,
+    'condwait', 574,
+    'condsignalone', 575,
+    'condsignalall', 576);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3642,5 +3660,9 @@ BEGIN {
     'unlock',
     'semacquire',
     'semtryacquire',
-    'semrelease');
+    'semrelease',
+    'getlockcondvar',
+    'condwait',
+    'condsignalone',
+    'condsignalall');
 }

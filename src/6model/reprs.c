@@ -207,6 +207,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(MultiCache);
     register_core_repr(Continuation);
     register_core_repr(ReentrantMutex);
+    register_core_repr(ConditionVariable);
     register_core_repr(Semaphore);
     register_core_repr(ConcBlockingQueue);
 

@@ -4013,9 +4013,37 @@ static MVMOpInfo MVM_op_infos[] = {
         1,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_getlockcondvar,
+        "getlockcondvar",
+        "  ",
+        3,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_condwait,
+        "condwait",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_condsignalone,
+        "condsignalone",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_condsignalall,
+        "condsignalall",
+        "  ",
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
-static unsigned short MVM_op_counts = 573;
+static unsigned short MVM_op_counts = 577;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

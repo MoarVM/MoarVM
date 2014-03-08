@@ -574,6 +574,10 @@
 #define MVM_OP_semacquire 570
 #define MVM_OP_semtryacquire 571
 #define MVM_OP_semrelease 572
+#define MVM_OP_getlockcondvar 573
+#define MVM_OP_condwait 574
+#define MVM_OP_condsignalone 575
+#define MVM_OP_condsignalall 576
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

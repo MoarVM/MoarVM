@@ -4035,6 +4035,47 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(getlockcondvar): {
+                MVMObject *lock = GET_REG(cur_op, 2).o;
+                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex)
+                    GET_REG(cur_op, 0).o = MVM_conditionvariable_from_lock(tc,
+                        (MVMReentrantMutex *)lock, GET_REG(cur_op, 4).o);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "getlockcondvar requires an object with REPR ReentrantMutex");
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(condwait): {
+                MVMObject *cv = GET_REG(cur_op, 0).o;
+                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable)
+                    MVM_conditionvariable_wait(tc, (MVMConditionVariable *)cv);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "condwait requires an object with REPR ConditionVariable");
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(condsignalone): {
+                MVMObject *cv = GET_REG(cur_op, 0).o;
+                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable)
+                    MVM_conditionvariable_signal_one(tc, (MVMConditionVariable *)cv);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "condsignalone requires an object with REPR ConditionVariable");
+                cur_op += 2;
+                goto NEXT;
+            }
+            OP(condsignalall): {
+                MVMObject *cv = GET_REG(cur_op, 0).o;
+                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable)
+                    MVM_conditionvariable_signal_all(tc, (MVMConditionVariable *)cv);
+                else
+                    MVM_exception_throw_adhoc(tc,
+                        "condsignalall requires an object with REPR ConditionVariable");
+                cur_op += 2;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

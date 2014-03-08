@@ -120,6 +120,7 @@ OBJECTS = src/core/args@obj@ \
           src/6model/reprs/MVMMultiCache@obj@ \
           src/6model/reprs/MVMContinuation@obj@ \
           src/6model/reprs/ReentrantMutex@obj@ \
+          src/6model/reprs/ConditionVariable@obj@ \
           src/6model/reprs/Semaphore@obj@ \
           src/6model/reprs/ConcBlockingQueue@obj@ \
           src/6model/6model@obj@ \
@@ -212,6 +213,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMMultiCache.h \
           src/6model/reprs/MVMContinuation.h \
           src/6model/reprs/ReentrantMutex.h \
+          src/6model/reprs/ConditionVariable.h \
           src/6model/reprs/Semaphore.h \
           src/6model/reprs/ConcBlockingQueue.h \
           src/6model/sc.h \
