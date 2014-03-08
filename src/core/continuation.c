@@ -94,10 +94,13 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     }
 
     /* Move back to the frame with the reset in it (which is already on the
-     * call stack, so has a "I'm running" ref count already). Current frame
-     * is no longer running so has its count decremented. */
-    MVM_frame_dec_ref(tc, tc->cur_frame);
-    tc->cur_frame = jump_frame;
+     * call stack, so has a "I'm running" ref count already). Frames from the
+     * current one through to the root are no longer running, so get their
+     * reference count decremented by 1 as a result. */
+    while (tc->cur_frame != jump_frame) {
+        MVM_frame_dec_ref(tc, tc->cur_frame);
+        tc->cur_frame = tc->cur_frame->caller;
+    }
     *(tc->interp_cur_op) = tc->cur_frame->return_address;
     *(tc->interp_bytecode_start) = tc->cur_frame->static_info->body.bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
@@ -133,8 +136,17 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     tc->cur_frame->return_type = MVM_RETURN_OBJ;
     tc->cur_frame->return_address = *(tc->interp_cur_op);
 
-    /* Switch to the target frame; bump its count as it's the running one. */
-    tc->cur_frame = MVM_frame_inc_ref(tc, cont->body.top);
+    /* Switch to the target frame; bump ref count of all frames we just added
+     * back into the call chain as they are active again. */
+    tc->cur_frame = cont->body.top;
+    {
+        MVMFrame *cur  = tc->cur_frame;
+        MVMFrame *stop = cont->body.root->caller;
+        while (cur != stop) {
+            MVM_frame_inc_ref(tc, cur);
+            cur = cur->caller;
+        }
+    }
     *(tc->interp_cur_op) = cont->body.addr;
     *(tc->interp_bytecode_start) = tc->cur_frame->static_info->body.bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
