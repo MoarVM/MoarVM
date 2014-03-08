@@ -71,6 +71,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         /* We made our own copy of the args buffer and processing context, so
          * free them both. */
         if (ctx->body.apc) {
+            MVM_checked_free_null(ctx->body.apc->named_used);
             MVM_checked_free_null(ctx->body.apc->args);
             MVM_checked_free_null(ctx->body.apc);
         }
