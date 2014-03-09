@@ -129,7 +129,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
 #define SPAWN(shell) do { \
     process->data               = &result; \
-    process_stdio[0].flags      = UV_IGNORE; \
+    process_stdio[0].flags      = UV_INHERIT_FD; \
+    process_stdio[0].data.fd    = 0; \
     process_stdio[1].flags      = UV_INHERIT_FD; \
     process_stdio[1].data.fd    = 1; \
     process_stdio[2].flags      = UV_INHERIT_FD; \
