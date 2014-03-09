@@ -5,6 +5,9 @@
 # you on how to do that.
 # If it doesn't, you may need to copy or symlink this script right next to the
 # moar binary in install/bin.
+#
+#     cd /path/to/install/bin
+#     ln -s path/to/moarvm/tools/moar-gdb.py
 
 # This script contains a few helpers to make debugging MoarVM a bit more pleasant.
 #
