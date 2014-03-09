@@ -269,8 +269,8 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
     """Works almost exactly like show_histogram, but takes two histograms that
     should have matching keys and displays the difference both in graphical
     form and as numbers on the side."""
-    max_hist = defaultdict(lambda: 0)
-    min_hist = defaultdict(lambda: 0)
+    max_hist = defaultdict(int)
+    min_hist = defaultdict(int)
     zip_hist = {}
     max_val = 0
     max_key = 0
@@ -330,13 +330,13 @@ class CommonHeapData(object):
     def __init__(self, generation):
         self.generation = generation
 
-        self.size_histogram = defaultdict(lambda: 0)
-        self.repr_histogram = defaultdict(lambda: 0)
-        self.opaq_histogram = defaultdict(lambda: 0)
-        self.arrstr_hist    = defaultdict(lambda: 0)
-        self.arrusg_hist    = defaultdict(lambda: 0)
+        self.size_histogram = defaultdict(int)
+        self.repr_histogram = defaultdict(int)
+        self.opaq_histogram = defaultdict(int)
+        self.arrstr_hist    = defaultdict(int)
+        self.arrusg_hist    = defaultdict(int)
 
-        self.string_histogram = defaultdict(lambda: 0)
+        self.string_histogram = defaultdict(int)
 
         self.number_objects = 0
         self.number_stables = 0
@@ -495,8 +495,8 @@ class Gen2Data(CommonHeapData):
         self.size_bucket = size_bucket
         self.g2sc = gen2sizeclass
         self.bucket_size = bucket_index_to_size(self.size_bucket)
-        self.repr_histogram = defaultdict(lambda: 0)
-        self.size_histogram = defaultdict(lambda: 0)
+        self.repr_histogram = defaultdict(int)
+        self.size_histogram = defaultdict(int)
 
     def analyze(self, tc):
         if int(self.g2sc['pages'].cast(gdb.lookup_type("int"))) == 0:
@@ -565,7 +565,7 @@ class Gen2Data(CommonHeapData):
             free_cursor = free_cursor.dereference().cast(gdb.lookup_type("char").pointer().pointer())
         print ""
 
-        #doubles = defaultdict(lambda: 0)
+        #doubles = defaultdict(int)
 
         # now we can actually sample our objects
         for stooge, page, idx in sample_stooges:
