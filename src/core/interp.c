@@ -3967,6 +3967,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_args_assert_nameds_used(tc, ctx);
                 goto NEXT;
             }
+            OP(nativecallbuild):
+                MVM_nativecall_build(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).s,
+                    GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o);
+                cur_op += 12;
+                goto NEXT;
+            OP(nativecallinvoke):
+                GET_REG(cur_op, 0).o = MVM_nativecall_invoke(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
+                cur_op += 8;
+                goto NEXT;
+            OP(nativecallrefresh):
+                MVM_nativecall_refresh(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
