@@ -566,7 +566,10 @@ BEGIN {
     1325,
     1328,
     1331,
-    1334);
+    1334,
+    1338,
+    1344,
+    1348);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1130,7 +1133,10 @@ BEGIN {
     3,
     3,
     3,
-    4);
+    4,
+    6,
+    4,
+    1);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -2468,7 +2474,18 @@ BEGIN {
     34,
     33,
     33,
-    33);
+    33,
+    65,
+    57,
+    57,
+    57,
+    65,
+    65,
+    66,
+    65,
+    65,
+    65,
+    65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -3032,7 +3049,10 @@ BEGIN {
     'getuniprop_int', 560,
     'getuniprop_bool', 561,
     'getuniprop_str', 562,
-    'matchuniprop', 563);
+    'matchuniprop', 563,
+    'nativecallbuild', 564,
+    'nativecallinvoke', 565,
+    'nativecallrefresh', 566);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3596,5 +3616,8 @@ BEGIN {
     'getuniprop_int',
     'getuniprop_bool',
     'getuniprop_str',
-    'matchuniprop');
+    'matchuniprop',
+    'nativecallbuild',
+    'nativecallinvoke',
+    'nativecallrefresh');
 }

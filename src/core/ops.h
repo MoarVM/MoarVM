@@ -565,6 +565,9 @@
 #define MVM_OP_getuniprop_bool 561
 #define MVM_OP_getuniprop_str 562
 #define MVM_OP_matchuniprop 563
+#define MVM_OP_nativecallbuild 564
+#define MVM_OP_nativecallinvoke 565
+#define MVM_OP_nativecallrefresh 566
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
