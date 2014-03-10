@@ -380,7 +380,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
 
     /* Locate the thread to pass the work to. */
     MVMThreadContext *target_tc = NULL;
-    if (target == 0) {
+    if (target == 1) {
         /* It's going to the main thread. */
         target_tc = tc->instance->main_thread;
     }
