@@ -387,7 +387,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
     else {
         MVMThread *t = (MVMThread *)MVM_load(&tc->instance->threads);
         do {
-            if (t->body.tc->thread_id == target) {
+            if (t->body.tc && t->body.tc->thread_id == target) {
                 target_tc = t->body.tc;
                 break;
             }
