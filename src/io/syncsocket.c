@@ -35,9 +35,12 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     do_close(tc, data);
 }
 
+// actually, it may return sockaddr_in6 as well; it's not a problem for us, because we just
+// pass is straight to uv, and the first thing it does is it looks at the address family,
+// but it's a thing to remember if someone feels like peeking inside the returned struct
 static struct sockaddr * resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
     char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
-    struct sockaddr *dest = malloc(sizeof(struct sockaddr));
+    struct sockaddr *dest;
     struct addrinfo *result;
     int error;
     char port_cstr[8];
@@ -46,7 +49,13 @@ static struct sockaddr * resolve_host_name(MVMThreadContext *tc, MVMString *host
     error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
     free(host_cstr);
     if (error == 0) {
-        memcpy(dest, result->ai_addr, sizeof(struct sockaddr));
+        if (result->ai_addr->sa_family == AF_INET6) {
+            dest = malloc(sizeof(struct sockaddr_in6));
+            memcpy(dest, result->ai_addr, sizeof(struct sockaddr_in6));
+        } else {
+            dest = malloc(sizeof(struct sockaddr));
+            memcpy(dest, result->ai_addr, sizeof(struct sockaddr));
+        }
     }
     else {
         free(dest);
