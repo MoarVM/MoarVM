@@ -63,6 +63,8 @@ typedef struct MVMLoadedCompUnitName MVMLoadedCompUnitName;
 typedef struct MVMNFA MVMNFA;
 typedef struct MVMNFABody MVMNFABody;
 typedef struct MVMNFAStateInfo MVMNFAStateInfo;
+typedef struct MVMNativeCall MVMNativeCall;
+typedef struct MVMNativeCallBody MVMNativeCallBody;
 typedef struct MVMMultiCache MVMMultiCache;
 typedef struct MVMMultiCacheBody MVMMultiCacheBody;
 typedef struct MVMMultiArityCache MVMMultiArityCache;
