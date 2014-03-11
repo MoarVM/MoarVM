@@ -258,15 +258,28 @@ def show_histogram(hist, sort="value", multiply=False):
         print "sorting mode", sort, "not implemented"
     maximum = max(hist.values())
     keymax = min(max([len(str(key)) for key in hist.keys()]), 20)
+    lines_so_far = 0
+    group = -1
+    num_in_group = 0
     for key, val in items:
-        try:
-            str(key)
-        except TypeError:
-            key = repr(key)
-        if val < 2:
-            continue
-        appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
-        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
+        if lines_so_far < 50:
+            try:
+                str(key)
+            except TypeError:
+                key = repr(key)
+            if val < 2:
+                continue
+            appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
+            print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
+        else:
+            if val == group:
+                num_in_group += 1
+            else:
+                if num_in_group > 1:
+                    print num_in_group, " x ", group
+                group = val
+                num_in_group = 1
+        lines_so_far += 1
     print
 
 def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
