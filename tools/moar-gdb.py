@@ -660,6 +660,36 @@ class Gen2Data(CommonHeapData):
         print "strings:"
         show_histogram(self.string_histogram)
 
+class OverflowData(CommonHeapData):
+    def analyze(self, tc):
+        g2a = tc['gen2']
+
+        num_overflows = g2a["num_overflows"]
+
+        for of_idx in range(num_overflows):
+            of_obj = g2a["overflows"][of_idx]
+            self.analyze_single_object(of_obj)
+
+    def summarize(self):
+        print "overflows in the gen2"
+
+        print self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables"
+
+        print "sizes of objects/stables:"
+        show_histogram(self.size_histogram, "key", True)
+        print "sizes of P6opaques only:"
+        show_histogram(self.opaq_histogram, "key", True)
+        print "REPRs:"
+        show_histogram(self.repr_histogram)
+        print "VMArray storage types:"
+        show_histogram(self.arrstr_hist)
+        print "VMArray usage percentages:"
+        show_histogram(self.arrusg_hist, "key")
+
+        print "strings:"
+        show_histogram(self.string_histogram)
+
+
 class HeapData(object):
     run_nursery = None
     run_gen2    = None
@@ -696,10 +726,15 @@ class AnalyzeHeapCommand(gdb.Command):
             sizeclass_data.append(g2sc)
             g2sc.analyze(tc)
 
+        overflowdata = OverflowData(generation)
+        overflowdata.analyze(tc)
+
         for g2sc in sizeclass_data:
             g2sc.summarize()
 
         nursery.summarize()
+
+        overflowdata.summarize()
 
 class DiffHeapCommand(gdb.Command):
     """Display the difference between two snapshots of the nursery."""
