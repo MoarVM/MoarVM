@@ -391,7 +391,7 @@ class CommonHeapData(object):
         elif REPRname == "MVMString":
             try:
                 casted = cursor.cast(gdb.lookup_type('MVMString').pointer())
-                self.string_histogram[int(casted['body']['flags'])] += 1
+                self.string_histogram[MVMStringPPrinter(casted).stringify()] += 1
             except gdb.MemoryError as e:
                 print e
                 print cursor.cast(gdb.lookup_type('MVMString').pointer())
