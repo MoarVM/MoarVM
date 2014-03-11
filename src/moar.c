@@ -129,6 +129,15 @@ static void string_consts(MVMThreadContext *tc) {
 
     instance->str_consts.accepts_type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "accepts_type");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.accepts_type);
+
+    instance->str_consts.type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.type);
+
+    instance->str_consts.free_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "free_str");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.free_str);
+
+    instance->str_consts.callback_args = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "callback_args");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.callback_args);
 }
 
 /* Set up some standard file handles. */
