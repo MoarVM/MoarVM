@@ -265,7 +265,7 @@ def show_histogram(hist, sort="value", multiply=False):
         if val < 2:
             continue
         appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
-        print str(key).ljust(keymax + 1), (u"╞" + "═" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
+        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
     print
 
 def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
@@ -298,7 +298,7 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
     for key, (val1, val2) in items:
         lv, rv = min(val1, val2), max(val1, val2)
         lc, rc = ("+", "-") if val1 > val2 else ("-", "+")
-        bars = u"│" \
+        bars = "[" \
                + lc * int((float(lv) / max_val) * PRETTY_WIDTH) \
                + rc * int((float(rv - lv) / max_val) * PRETTY_WIDTH)
 
