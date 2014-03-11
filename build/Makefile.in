@@ -34,6 +34,7 @@ CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty/tinymt \
             @ccinc@3rdparty/dyncall/dynload \
+            @ccinc@3rdparty/dyncall/dyncall \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
