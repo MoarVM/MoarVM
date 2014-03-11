@@ -164,19 +164,16 @@ class MVMStringPPrinter(object):
             data = self.val['body'][stringtyp]
             i = 0
             pieces = []
+            graphs = self.val['body']['graphs']
             # XXX are the strings actually null-terminated, or do we have to
             # XXX check the graphs attribute?
-            while not zero_reached:
+            for i in range(graphs):
                 pdata = int((data + i).dereference())
-                if pdata == 0:
-                    zero_reached = True
-                else:
-                    try:
-                        # ugh, unicode woes ...
-                        pieces.append(chr(pdata))
-                    except:
-                        pieces.append("\\x%x" % pdata)
-                i += 1
+                try:
+                    # ugh, unicode woes ...
+                    pieces.append(chr(pdata))
+                except:
+                    pieces.append("\\x%x" % pdata)
             return "".join(pieces)
         elif stringtyp == "rope":
             # XXX here be dragons and/or wrong code
