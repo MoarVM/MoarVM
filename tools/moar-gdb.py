@@ -259,6 +259,10 @@ def show_histogram(hist, sort="value", multiply=False):
     maximum = max(hist.values())
     keymax = min(max([len(str(key)) for key in hist.keys()]), 20)
     for key, val in items:
+        try:
+            str(key)
+        except TypeError:
+            key = repr(key)
         if val < 2:
             continue
         appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
