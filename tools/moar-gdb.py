@@ -355,7 +355,7 @@ class CommonHeapData(object):
         the size of the object analysed."""
         stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
         size = stooge['common']['header']['size']
-        flags = stooge['common']['header']['flags']
+        flags = int(stooge['common']['header']['flags'])
 
         is_typeobj = flags & 1
         is_stable = flags & 2
