@@ -58,7 +58,6 @@ static struct sockaddr * resolve_host_name(MVMThreadContext *tc, MVMString *host
         }
     }
     else {
-        free(dest);
         MVM_exception_throw_adhoc(tc, "Failed to resolve host name");
     }
     freeaddrinfo(result);
