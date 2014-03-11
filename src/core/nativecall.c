@@ -117,6 +117,64 @@ static char get_signature_char(MVMint16 type_id) {
     }
 }
 
+static DCchar unmarshal_char(MVMThreadContext *tc, MVMObject *value) {
+    return (DCchar)MVM_repr_get_int(tc, value);
+}
+
+static DCshort unmarshal_short(MVMThreadContext *tc, MVMObject *value) {
+    return (DCshort)MVM_repr_get_int(tc, value);
+}
+
+static DCint unmarshal_int(MVMThreadContext *tc, MVMObject *value) {
+    return (DCint)MVM_repr_get_int(tc, value);
+}
+
+static DClong unmarshal_long(MVMThreadContext *tc, MVMObject *value) {
+    return (DClong)MVM_repr_get_int(tc, value);
+}
+
+static DClonglong unmarshal_longlong(MVMThreadContext *tc, MVMObject *value) {
+    return (DClonglong)MVM_repr_get_int(tc, value);
+}
+
+static DCfloat unmarshal_float(MVMThreadContext *tc, MVMObject *value) {
+    return (DCfloat)MVM_repr_get_num(tc, value);
+}
+
+static DCdouble unmarshal_double(MVMThreadContext *tc, MVMObject *value) {
+    return (DCdouble)MVM_repr_get_num(tc, value);
+}
+
+static char * unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
+    if (IS_CONCRETE(value)) {
+        MVMString *value_str = MVM_repr_get_str(tc, value);
+
+        /* Encode string. */
+        char *str;
+        switch (type & MVM_NATIVECALL_ARG_TYPE_MASK) {
+            case MVM_NATIVECALL_ARG_ASCIISTR:
+                str = MVM_string_ascii_encode_any(tc, value_str);
+                break;
+            case MVM_NATIVECALL_ARG_UTF16STR:
+                str = MVM_string_utf16_encode(tc, value_str);
+                break;
+            default:
+                str = MVM_string_utf8_encode_C_string(tc, value_str);
+        }
+
+        /* Set whether to free it or not. */
+        if (free && type & MVM_NATIVECALL_ARG_FREE_STR_MASK)
+            *free = 1;
+        else
+            *free = 0;
+
+        return str;
+    }
+    else {
+        return NULL;
+    }
+}
+
 /* Builds up a native call site out of the supplied arguments. */
 void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
@@ -126,7 +184,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     
     /* Initialize the object; grab native call part of its body. */
     MVMNativeCallBody *body = get_nc_body(tc, site);
-    
+
     /* Try to load the library. */
     body->lib_name = lib_name;
     body->lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
@@ -134,7 +192,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         free(sym_name);
         MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
     }
-    
+
     /* Try to locate the symbol. */
     body->entry_point = dlFindSymbol(body->lib_handle, sym_name);
     if (!body->entry_point)
@@ -167,7 +225,99 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
 
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *ret_type,
         MVMObject *site, MVMObject *args) {
-    MVM_exception_throw_adhoc(tc, "nativecallinvoke NYI");
+    MVMObject  *result = NULL;
+    char      **free_strs = NULL;
+    MVMint16    num_strs  = 0;
+    MVMint16    i;
+
+    /* Get native call body, so we can locate the call info. */
+    MVMNativeCallBody *body = get_nc_body(tc, site);
+
+    /* Create and set up call VM. */
+    DCCallVM *vm = dcNewCallVM(8192);
+    dcMode(vm, body->convention);
+
+    /* Process arguments. */
+    for (i = 0; i < body->num_args; i++) {
+        MVMObject *value = MVM_repr_at_pos_o(tc, args, i);
+        switch (body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+            case MVM_NATIVECALL_ARG_CHAR:
+                dcArgChar(vm, unmarshal_char(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_SHORT:
+                dcArgShort(vm, unmarshal_short(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_INT:
+                dcArgInt(vm, unmarshal_int(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_LONG:
+                dcArgLong(vm, unmarshal_long(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_LONGLONG:
+                dcArgLongLong(vm, unmarshal_longlong(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_FLOAT:
+                dcArgFloat(vm, unmarshal_float(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_DOUBLE:
+                dcArgDouble(vm, unmarshal_double(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_ASCIISTR:
+            case MVM_NATIVECALL_ARG_UTF8STR:
+            case MVM_NATIVECALL_ARG_UTF16STR:
+                {
+                    MVMint16 free;
+                    char *str = unmarshal_string(tc, value, body->arg_types[i], &free);
+                    if (free) {
+                        if (!free_strs)
+                            free_strs = (char**)malloc(body->num_args * sizeof(char *));
+                        free_strs[num_strs] = str;
+                        num_strs++;
+                    }
+                    dcArgPointer(vm, str);
+                }
+                break;
+            case MVM_NATIVECALL_ARG_CSTRUCT:
+                MVM_exception_throw_adhoc(tc, "passing cstruct NYI");
+                break;
+            case MVM_NATIVECALL_ARG_CPOINTER:
+                MVM_exception_throw_adhoc(tc, "passing cpointer NYI");
+                break;
+            case MVM_NATIVECALL_ARG_CARRAY:
+                MVM_exception_throw_adhoc(tc, "passing carray NYI");
+                break;
+            case MVM_NATIVECALL_ARG_CALLBACK:
+                MVM_exception_throw_adhoc(tc, "passing callback NYI");
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
+        }
+    }
+
+    /* Call and process return values. */
+    switch (body->ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
+        case MVM_NATIVECALL_ARG_VOID:
+            dcCallVoid(vm, body->entry_point);
+            result = ret_type;
+            break;
+        /* XXX Port the rest. */
+        default:
+            MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
+    }
+
+    /* XXX CArray/CStruct write barriering needs porting. */
+
+    /* Free any memory that we need to. */
+    if (free_strs) {
+        for (i = 0; i < num_strs; i++)
+            free(free_strs[i]);
+        free(free_strs);
+    }
+
+    /* Finally, free call VM. */
+    dcFree(vm);
+
+    return result;
 }
 
 void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
