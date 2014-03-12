@@ -78,7 +78,7 @@ static void fill_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable        *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -152,8 +152,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
  * embedded inside another one. Never called on a top-level object. */
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMCArrayBody *body = (MVMCArrayBody *)data;
+
     if (body->managed) {
         free(body->storage);
+
         if (body->child_objs)
             free(body->child_objs);
     }
@@ -197,7 +199,7 @@ static void die_pos_nyi(MVMThreadContext *tc) {
 
 
 static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArrayBody *body, MVMint32 min_size) {
-    MVMint8 is_complex = 0;
+    MVMint8 is_complex;
     MVMint32 next_size = body->allocated? 2 * body->allocated: 4;
 
     if (min_size > next_size)
@@ -247,7 +249,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMCArrayBody     *body      = (MVMCArrayBody *)data;
+    MVMCArrayBody *body = (MVMCArrayBody *)data;
 
     if (body->managed)
         return body->elems;

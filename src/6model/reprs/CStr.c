@@ -19,13 +19,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    MVMObject *obj = MVM_gc_allocate_object(tc, st);
-
-    /* XXX: Do we need it? */
-    obj->header.sc_forward_u.sc = NULL;
-    ((MVMCStr *)obj)->body.cstr = NULL;
-
-    return obj;
+    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Compose the representation. */
