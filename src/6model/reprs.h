@@ -27,8 +27,9 @@
 #include "6model/reprs/MVMDLLSym.h"
 #include "6model/reprs/MVMMultiCache.h"
 #include "6model/reprs/MVMContinuation.h"
-#include "6model/reprs/CPointer.h"
 #include "6model/reprs/NativeCall.h"
+#include "6model/reprs/CPointer.h"
+#include "6model/reprs/CStr.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -68,8 +69,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMContinuation         27
 #define MVM_REPR_ID_MVMNativeCall           28
 #define MVM_REPR_ID_MVMCPointer             29
+#define MVM_REPR_ID_MVMCStr                 30
 
-#define MVM_REPR_CORE_COUNT                 30
+#define MVM_REPR_CORE_COUNT                 31
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */

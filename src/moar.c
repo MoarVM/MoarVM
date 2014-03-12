@@ -138,6 +138,9 @@ static void string_consts(MVMThreadContext *tc) {
 
     instance->str_consts.callback_args = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "callback_args");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.callback_args);
+
+    instance->str_consts.encoding = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "encoding");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.encoding);
 }
 
 /* Set up some standard file handles. */

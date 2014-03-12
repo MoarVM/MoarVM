@@ -38,6 +38,7 @@ struct MVMStringConsts {
     MVMString *type;
     MVMString *free_str;
     MVMString *callback_args;
+    MVMString *encoding;
 };
 
 struct MVMReprRegistry {
@@ -55,7 +56,7 @@ struct MVMReprRegistry {
 typedef struct _MVMCallsiteProfileData {
     MVMuint32 static_frame_id;
     MVMuint8 *cuuid, *name;
-    
+
 } MVMCallsiteProfileData;
 #endif
 

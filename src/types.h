@@ -67,6 +67,8 @@ typedef struct MVMNativeCall MVMNativeCall;
 typedef struct MVMNativeCallBody MVMNativeCallBody;
 typedef struct MVMCPointer MVMCPointer;
 typedef struct MVMCPointerBody MVMCPointerBody;
+typedef struct MVMCStr MVMCStr;
+typedef struct MVMCStrBody MVMCStrBody;
 typedef struct MVMMultiCache MVMMultiCache;
 typedef struct MVMMultiCacheBody MVMMultiCacheBody;
 typedef struct MVMMultiArityCache MVMMultiArityCache;
