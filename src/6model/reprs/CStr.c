@@ -50,7 +50,7 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
     /* Look up "encoding" method. */
     MVMObject *encoding_method = MVM_6model_find_method_cache_only(tc, st->WHAT,
-        tc->instance->str_consts.encoding);;
+        tc->instance->str_consts.encoding);
 
     if(body->cstr)
         free(body->cstr);
@@ -75,16 +75,17 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMCStrBody *body = (MVMCStrBody *) data;
+    MVMObject   *encoding_method;
     MVMObject   *code;
     MVMRegister  res;
     MVMuint8 encoding_flag;
 
-    /* Look up "encoding" method. */
-    MVMObject *encoding_method = MVM_6model_find_method_cache_only(tc, st->WHAT,
-        tc->instance->str_consts.encoding);;
-
     if (!body->cstr)
         return NULL;
+
+    /* Look up "encoding" method. */
+    encoding_method = MVM_6model_find_method_cache_only(tc, st->WHAT,
+        tc->instance->str_consts.encoding);
 
     if (!encoding_method)
         MVM_exception_throw_adhoc(tc, "CStr representation expects an 'encoding' method, specifying the encoding");
@@ -95,7 +96,6 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVM_args_setup_thunk(tc, &res, MVM_CALLSITE_ARG_OBJ, &inv_arg_callsite);
     tc->cur_frame->args[0].o = st->WHAT;
     STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
-
 
     encoding_flag = MVM_string_find_encoding(tc, MVM_repr_get_str(tc, res.o));
 
