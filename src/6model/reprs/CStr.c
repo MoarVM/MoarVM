@@ -83,8 +83,8 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMObject *encoding_method = MVM_6model_find_method_cache_only(tc, st->WHAT,
         tc->instance->str_consts.encoding);;
 
-    if(body->cstr)
-        free(body->cstr);
+    if (!body->cstr)
+        return NULL;
 
     if (!encoding_method)
         MVM_exception_throw_adhoc(tc, "CStr representation expects an 'encoding' method, specifying the encoding");
