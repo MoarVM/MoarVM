@@ -17,11 +17,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
-}
-
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 
@@ -51,7 +46,7 @@ const MVMREPROps * MVMCPointer_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

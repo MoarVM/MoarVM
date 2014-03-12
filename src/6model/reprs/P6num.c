@@ -26,11 +26,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
-}
-
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMP6numBody *src_body  = (MVMP6numBody *)src;
@@ -136,7 +131,7 @@ const MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
