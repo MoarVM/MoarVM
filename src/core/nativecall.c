@@ -149,6 +149,19 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
     return result;
 }
 
+/* Constructs a boxed result using a CPointer REPR type. */
+MVMObject * make_cpointer_result(MVMThreadContext *tc, MVMObject *type, void *ptr) {
+    MVMObject *result = type;
+    if (ptr && type) {
+        if (REPR(type)->ID != MVM_REPR_ID_MVMCPointer)
+            MVM_exception_throw_adhoc(tc,
+                "Native call expected return type with CPointer representation, but got something else");
+        result = MVM_repr_alloc_init(tc, type);
+        ((MVMCPointer *)result)->body.ptr = ptr;
+    }
+    return result;
+}
+
 static DCchar unmarshal_char(MVMThreadContext *tc, MVMObject *value) {
     return (DCchar)MVM_repr_get_int(tc, value);
 }
@@ -205,6 +218,16 @@ static char * unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 
     else {
         return NULL;
     }
+}
+
+static void * unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
+    if (!IS_CONCRETE(value))
+        return NULL;
+    else if (REPR(value)->ID == MVM_REPR_ID_MVMCPointer)
+        return ((MVMCPointer *)value)->body.ptr;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected object with CPointer representation, but got something else");
 }
 
 /* Builds up a native call site out of the supplied arguments. */
@@ -318,7 +341,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 MVM_exception_throw_adhoc(tc, "passing cstruct NYI");
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
-                MVM_exception_throw_adhoc(tc, "passing cpointer NYI");
+                dcArgPointer(vm, unmarshal_cpointer(tc, value));
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
                 MVM_exception_throw_adhoc(tc, "passing carray NYI");
@@ -363,6 +386,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         case MVM_NATIVECALL_ARG_UTF16STR:
             result = make_str_result(tc, res_type, body->ret_type,
                 (char *)dcCallPointer(vm, entry_point));
+            break;
+        case MVM_NATIVECALL_ARG_CPOINTER:
+            result = make_cpointer_result(tc, res_type, dcCallPointer(vm, body->entry_point));
             break;
         /* XXX Port the rest. */
         default:
