@@ -11,7 +11,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-        st->size = sizeof(MVMP6str);
+        st->size = sizeof(MVMCPointer);
     });
 
     return st->WHAT;

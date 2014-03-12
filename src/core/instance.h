@@ -36,6 +36,7 @@ struct MVMStringConsts {
     MVMString *type_check;
     MVMString *accepts_type;
     MVMString *type;
+    MVMString *of;
     MVMString *free_str;
     MVMString *callback_args;
     MVMString *encoding;
