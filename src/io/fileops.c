@@ -45,11 +45,11 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
     MVMint64 r = -1;
 
     switch (status) {
-        case MVM_stat_exists:             r = MVM_file_exists(tc, filename); break;
-        case MVM_stat_filesize:           r = file_info(tc, filename).st_size; break;
-        case MVM_stat_isdir:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFDIR; break;
-        case MVM_stat_isreg:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFREG; break;
-        case MVM_stat_isdev: {
+        case MVM_STAT_EXISTS:             r = MVM_file_exists(tc, filename); break;
+        case MVM_STAT_FILESIZE:           r = file_info(tc, filename).st_size; break;
+        case MVM_STAT_ISDIR:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFDIR; break;
+        case MVM_STAT_ISREG:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFREG; break;
+        case MVM_STAT_ISDEV: {
             const int mode = file_info(tc, filename).st_mode;
 #ifdef _WIN32
             r = mode & S_IFMT == S_IFCHR;
@@ -58,21 +58,21 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
 #endif
             break;
         }
-        case MVM_stat_createtime:         r = file_info(tc, filename).st_ctim.tv_sec; break;
-        case MVM_stat_accesstime:         r = file_info(tc, filename).st_atim.tv_sec; break;
-        case MVM_stat_modifytime:         r = file_info(tc, filename).st_mtim.tv_sec; break;
-        case MVM_stat_changetime:         r = file_info(tc, filename).st_ctim.tv_sec; break;
-        case MVM_stat_backuptime:         r = -1; break;
-        case MVM_stat_uid:                r = file_info(tc, filename).st_uid; break;
-        case MVM_stat_gid:                r = file_info(tc, filename).st_gid; break;
-        case MVM_stat_islnk:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFLNK; break;
-        case MVM_stat_platform_dev:       r = file_info(tc, filename).st_dev; break;
-        case MVM_stat_platform_inode:     r = file_info(tc, filename).st_ino; break;
-        case MVM_stat_platform_mode:      r = file_info(tc, filename).st_mode; break;
-        case MVM_stat_platform_nlinks:    r = file_info(tc, filename).st_nlink; break;
-        case MVM_stat_platform_devtype:   r = file_info(tc, filename).st_rdev; break;
-        case MVM_stat_platform_blocksize: r = file_info(tc, filename).st_blksize; break;
-        case MVM_stat_platform_blocks:    r = file_info(tc, filename).st_blocks; break;
+        case MVM_STAT_CREATETIME:         r = file_info(tc, filename).st_ctim.tv_sec; break;
+        case MVM_STAT_ACCESSTIME:         r = file_info(tc, filename).st_atim.tv_sec; break;
+        case MVM_STAT_MODIFYTIME:         r = file_info(tc, filename).st_mtim.tv_sec; break;
+        case MVM_STAT_CHANGETIME:         r = file_info(tc, filename).st_ctim.tv_sec; break;
+        case MVM_STAT_BACKUPTIME:         r = -1; break;
+        case MVM_STAT_UID:                r = file_info(tc, filename).st_uid; break;
+        case MVM_STAT_GID:                r = file_info(tc, filename).st_gid; break;
+        case MVM_STAT_ISLNK:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFLNK; break;
+        case MVM_STAT_PLATFORM_DEV:       r = file_info(tc, filename).st_dev; break;
+        case MVM_STAT_PLATFORM_INODE:     r = file_info(tc, filename).st_ino; break;
+        case MVM_STAT_PLATFORM_MODE:      r = file_info(tc, filename).st_mode; break;
+        case MVM_STAT_PLATFORM_NLINKS:    r = file_info(tc, filename).st_nlink; break;
+        case MVM_STAT_PLATFORM_DEVTYPE:   r = file_info(tc, filename).st_rdev; break;
+        case MVM_STAT_PLATFORM_BLOCKSIZE: r = file_info(tc, filename).st_blksize; break;
+        case MVM_STAT_PLATFORM_BLOCKS:    r = file_info(tc, filename).st_blocks; break;
         default: break;
     }
 

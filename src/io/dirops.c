@@ -118,7 +118,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         if (error != ERROR_ALREADY_EXISTS) {
             free(pathname);
             free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", GetLastError());
+            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", error);
         }
     }
     free(wpathname);

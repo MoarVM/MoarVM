@@ -3,26 +3,26 @@
 #define MVM_FILE_FLOCK_TYPEMASK      0x000F  /* a mask of lock type */
 #define MVM_FILE_FLOCK_NONBLOCK      0x0010  /* asynchronous block during
                                               * locking the file */
-#define MVM_stat_exists              0
-#define MVM_stat_filesize            1
-#define MVM_stat_isdir               2
-#define MVM_stat_isreg               3
-#define MVM_stat_isdev               4
-#define MVM_stat_createtime          5
-#define MVM_stat_accesstime          6
-#define MVM_stat_modifytime          7
-#define MVM_stat_changetime          8
-#define MVM_stat_backuptime          9
-#define MVM_stat_uid                10
-#define MVM_stat_gid                11
-#define MVM_stat_islnk              12
-#define MVM_stat_platform_dev       -1
-#define MVM_stat_platform_inode     -2
-#define MVM_stat_platform_mode      -3
-#define MVM_stat_platform_nlinks    -4
-#define MVM_stat_platform_devtype   -5
-#define MVM_stat_platform_blocksize -6
-#define MVM_stat_platform_blocks    -7
+#define MVM_STAT_EXISTS              0
+#define MVM_STAT_FILESIZE            1
+#define MVM_STAT_ISDIR               2
+#define MVM_STAT_ISREG               3
+#define MVM_STAT_ISDEV               4
+#define MVM_STAT_CREATETIME          5
+#define MVM_STAT_ACCESSTIME          6
+#define MVM_STAT_MODIFYTIME          7
+#define MVM_STAT_CHANGETIME          8
+#define MVM_STAT_BACKUPTIME          9
+#define MVM_STAT_UID                10
+#define MVM_STAT_GID                11
+#define MVM_STAT_ISLNK              12
+#define MVM_STAT_PLATFORM_DEV       -1
+#define MVM_STAT_PLATFORM_INODE     -2
+#define MVM_STAT_PLATFORM_MODE      -3
+#define MVM_STAT_PLATFORM_NLINKS    -4
+#define MVM_STAT_PLATFORM_DEVTYPE   -5
+#define MVM_STAT_PLATFORM_BLOCKSIZE -6
+#define MVM_STAT_PLATFORM_BLOCKS    -7
 
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
