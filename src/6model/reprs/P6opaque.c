@@ -72,7 +72,6 @@ static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data,
 
 /* Helper for finding a slot number. */
 static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMObject *class_key, MVMString *name) {
-    MVMint64 slot = -1;
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
@@ -80,15 +79,14 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
                 MVMint16 i;
                 for (i = 0; i < cur_map_entry->num_attrs; i++) {
                     if (MVM_string_equal(tc, cur_map_entry->names[i], name)) {
-                        slot = cur_map_entry->slots[i];
-                        break;
+                        return cur_map_entry->slots[i];
                     }
                 }
             }
             cur_map_entry++;
         }
     }
-    return slot;
+    return -1;
 }
 
 /* Creates a new type object of this representation, and associates it with

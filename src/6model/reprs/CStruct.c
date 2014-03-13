@@ -284,20 +284,19 @@ static void set_ptr_at_offset(void *data, MVMint32 offset, void *value) {
 
 /* Helper for finding a slot number. */
 static MVMint32 try_get_slot(MVMThreadContext *tc, MVMCStructREPRData *repr_data, MVMObject *class_key, MVMString *name) {
-    MVMint32 slot = -1;
     if (repr_data->name_to_index_mapping) {
         MVMCStructNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             if (cur_map_entry->class_key == class_key) {
                 MVMObject *slot_obj = MVM_repr_at_key_o(tc, cur_map_entry->name_map, name);
                 if (IS_CONCRETE(slot_obj))
-                    slot = MVM_repr_get_int(tc, slot_obj);
+                    return MVM_repr_get_int(tc, slot_obj);
                 break;
             }
             cur_map_entry++;
         }
     }
-    return slot;
+    return -1;
 }
 
 /* Creates a new type object of this representation, and associates it with

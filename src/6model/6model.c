@@ -61,7 +61,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
             }
         }
     }
-    
+
     /* Otherwise, need to call the find_method method. We make the assumption
      * that the invocant's meta-object's type is composed. */
     HOW = STABLE(obj)->HOW;
@@ -85,12 +85,12 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
-    
+
     if (!obj)
         MVM_exception_throw_adhoc(tc,
             "Cannot look for method '%s' on a null object",
              MVM_string_utf8_encode_C_string(tc, name));
-    
+
     /* First consider method cache. */
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
@@ -104,7 +104,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
             return;
         }
     }
-    
+
     /* If no method in cache and the cache is not authoritative, need to make
      * a late-bound call to find_method. */
     HOW = STABLE(obj)->HOW;
@@ -206,7 +206,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
             return;
         }
     }
-    
+
     /* If we get here, need to call .^type_check on the value we're
      * checking, unless it's an accepts check. */
     if (!cache || (mode & MVM_TYPE_CHECK_CACHE_THEN_METHOD)) {
@@ -246,21 +246,17 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
 
 /* Checks if an object has a given type, using the cache only. */
 MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type) {
-    if (obj != NULL) {
-        MVMint64 i, result = 0, elems = STABLE(obj)->type_check_cache_length;
-        MVMObject **cache = STABLE(obj)->type_check_cache;
+    if (obj) {
+        MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
+        MVMObject  **cache = STABLE(obj)->type_check_cache;
         if (cache)
             for (i = 0; i < elems; i++) {
-                if (cache[i] == type) {
-                    result = 1;
-                    break;
-                }
+                if (cache[i] == type)
+                    return 1;
             }
-        return result;
     }
-    else {
-        return 0;
-    }
+
+    return 0;
 }
 
 /* Default invoke function on STables; for non-invokable objects */
