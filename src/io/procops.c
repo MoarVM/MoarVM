@@ -271,9 +271,12 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     {
         MVMint64 len = strlen(cmdin);
         MVMint64 i;
-        for (i = 0; i < len; i++)
+        for (i = 0; i < len; i++) {
+            if (cmdin[i] == ' ')
+                break;
             if (cmdin[i] == '/')
                 cmdin[i] = '\\';
+        }
     }
     args[1] = cmdin;
     args[2] = NULL;
