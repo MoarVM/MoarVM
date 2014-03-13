@@ -130,6 +130,12 @@ static void string_consts(MVMThreadContext *tc) {
     instance->str_consts.accepts_type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "accepts_type");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.accepts_type);
 
+    instance->str_consts.name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "name");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.name);
+
+    instance->str_consts.attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.attribute);
+
     instance->str_consts.of = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "of");
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.of);
 

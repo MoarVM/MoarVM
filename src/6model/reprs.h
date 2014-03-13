@@ -31,6 +31,7 @@
 #include "6model/reprs/CPointer.h"
 #include "6model/reprs/CStr.h"
 #include "6model/reprs/CArray.h"
+#include "6model/reprs/CStruct.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);

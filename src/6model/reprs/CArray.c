@@ -218,7 +218,7 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         const size_t new_size = next_size * sizeof(MVMObject *);
 
         body->child_objs = (MVMObject **) realloc(body->child_objs, new_size);
-        memset((char*)body->child_objs + old_size, 0, new_size - old_size);
+        memset((char *)body->child_objs + old_size, 0, new_size - old_size);
     }
 
     body->allocated = next_size;
