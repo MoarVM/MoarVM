@@ -370,7 +370,7 @@ MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *ac
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
     MVM_exception_throw_adhoc(tc,
         "Can not %s non-existent attribute '%Ss' on class '%Ss'",
-        action, name, VTABLE_get_string(tc, introspection_call(tc,
+        action, name, MVM_repr_get_str(tc, introspection_call(tc,
             class_handle, STABLE(class_handle)->HOW,
             tc->instance->str_consts.name, 0)));
 }
@@ -406,7 +406,7 @@ static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_h
     return MVM_NO_HINT;
 }
 
-/* This Parrot-specific addition to the API is used to mark an object. */
+/* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMCStructREPRData *repr_data = (MVMCStructREPRData *) st->REPR_data;
     MVMCStructBody *body = (MVMCStructBody *)data;
@@ -415,6 +415,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &body->child_objs[i]);
 }
 
+/* Marks the representation data in an STable.*/
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
     MVMCStructREPRData *repr_data = (MVMCStructREPRData *) st->REPR_data;
     MVMCStructNameMap *map = repr_data->name_to_index_mapping;
@@ -438,7 +439,7 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
         free(body->cstruct);
 }
 
-/* This Parrot-specific addition to the API is used to free an object. */
+/* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 	gc_cleanup(tc, STABLE(obj), OBJECT_BODY(obj));
 }
