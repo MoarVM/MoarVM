@@ -368,6 +368,7 @@ install: all
 	$(CP) 3rdparty/linenoise/*.h $(DESTDIR)$(PREFIX)/include/linenoise
 	$(CP) 3rdparty/tinymt/*.h $(DESTDIR)$(PREFIX)/include/tinymt
 	$(CP) 3rdparty/dyncall/dynload/*.h $(DESTDIR)$(PREFIX)/include/dyncall
+	$(CP) 3rdparty/dyncall/dyncall/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 
 lib: @moar@
 
