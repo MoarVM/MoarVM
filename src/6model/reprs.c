@@ -210,6 +210,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(CPointer);
     register_core_repr(CStr);
     register_core_repr(CArray);
+    register_core_repr(CStruct);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }
