@@ -96,9 +96,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Initialize string cclass handling. */
     MVM_string_cclass_init(instance->main_thread);
 
-    /* Set up some string constants commonly used. */
-    string_consts(instance->main_thread);
-
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 
@@ -106,47 +103,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
 
     return instance;
-}
-
-
-
-/* Sets up some string constants. */
-static void string_consts(MVMThreadContext *tc) {
-    MVMInstance * const instance = tc->instance;
-
-/* Set up some strings. */
-#define string_creator(variable, name) do { \
-    instance->str_consts.variable = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, (name)); \
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&(instance->str_consts.variable)); \
-} while (0)
-
-    string_creator(empty, "");
-    string_creator(Str, "Str");
-    string_creator(Num, "Num");
-    string_creator(integer, "integer");
-    string_creator(float_str, "float");
-    string_creator(bits, "bits");
-    string_creator(unsigned_str, "unsigned");
-    string_creator(find_method, "find_method");
-    string_creator(type_check, "type_check");
-    string_creator(accepts_type, "accepts_type");
-    string_creator(name, "name");
-    string_creator(attribute, "attribute");
-    string_creator(of, "of");
-    string_creator(type, "type");
-    string_creator(free_str, "free_str");
-    string_creator(callback_args, "callback_args");
-    string_creator(encoding, "encoding");
-    string_creator(repr, "repr");
-    string_creator(anon, "<anon>");
-    string_creator(P6opaque, "P6opaque");
-    string_creator(box_target, "box_target");
-    string_creator(array, "array");
-    string_creator(positional_delegate, "positional_delegate");
-    string_creator(associative_delegate, "associative_delegate");
-    string_creator(auto_viv_container, "auto_viv_container");
-
-
 }
 
 /* Set up some standard file handles. */

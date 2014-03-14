@@ -16,23 +16,7 @@ static void create_stub_VMString(MVMThreadContext *tc) {
      * this. */
     const MVMREPROps *repr = MVMString_initialize(tc);
 
-    /* Now we can create a type object; note we have no HOW yet,
-     * though. */
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, repr, NULL);
-    MVMROOT(tc, st, {
-        /* We can now go for the type object. */
-        MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-
-        /* Set the WHAT in the STable we just made to point to the type
-        * object (this is completely normal). */
-        MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-
-        /* REPR normally sets up size, but we'll have to do that manually
-        * here also. */
-        st->size = sizeof(MVMString);
-
-        tc->instance->VMString = obj;
-    });
+    tc->instance->VMString = repr->type_object_for(tc, NULL);
 }
 
 /* KnowHOW.new_type method. Creates a new type with this HOW as its meta-object. */
@@ -540,12 +524,52 @@ static void setup_core_sc(MVMThreadContext *tc) {
     add_to_sc_with_st_and_mo(tc, sc, tc->instance->boot_types.BOOTCode);
 }
 
+/* Sets up some string constants. */
+static void string_consts(MVMThreadContext *tc) {
+    MVMInstance * const instance = tc->instance;
+
+/* Set up some strings. */
+#define string_creator(variable, name) do { \
+    instance->str_consts.variable = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, (name)); \
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&(instance->str_consts.variable)); \
+} while (0)
+
+    string_creator(empty, "");
+    string_creator(Str, "Str");
+    string_creator(Num, "Num");
+    string_creator(integer, "integer");
+    string_creator(float_str, "float");
+    string_creator(bits, "bits");
+    string_creator(unsigned_str, "unsigned");
+    string_creator(find_method, "find_method");
+    string_creator(type_check, "type_check");
+    string_creator(accepts_type, "accepts_type");
+    string_creator(name, "name");
+    string_creator(attribute, "attribute");
+    string_creator(of, "of");
+    string_creator(type, "type");
+    string_creator(free_str, "free_str");
+    string_creator(callback_args, "callback_args");
+    string_creator(encoding, "encoding");
+    string_creator(repr, "repr");
+    string_creator(anon, "<anon>");
+    string_creator(P6opaque, "P6opaque");
+    string_creator(box_target, "box_target");
+    string_creator(array, "array");
+    string_creator(positional_delegate, "positional_delegate");
+    string_creator(associative_delegate, "associative_delegate");
+    string_creator(auto_viv_container, "auto_viv_container");
+}
+
 /* Drives the overall bootstrap process. */
 void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* First, we have to get the VMString type to exist; this has to
      * come even before REPR registry setup because it relies on
      * being able to create strings. */
     create_stub_VMString(tc);
+
+    /* Set up some string constants commonly used. */
+    string_consts(tc);
 
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
