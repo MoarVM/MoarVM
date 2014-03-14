@@ -10,13 +10,8 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
-
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-
-        repr_data->elem_size = 0;
         st->size = sizeof(MVMCArray);
-        st->REPR_data = repr_data;
     });
 
     return st->WHAT;
@@ -84,7 +79,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody     *body      = (MVMCArrayBody *)data;
 
-    if (!repr_data->elem_size)
+    if (!repr_data)
         MVM_exception_throw_adhoc(tc, "CArray type must be composed before use");
 
     body->storage = malloc(4 * repr_data->elem_size);
