@@ -3,11 +3,6 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* Helper to make an introspection call, possibly with :local. */
-static MVMObject * introspection_call(MVMThreadContext *tc, MVMObject *WHAT, MVMObject *HOW, MVMString *name, MVMint32 local) {
-    MVM_exception_throw_adhoc(tc, "NYI");
-}
-
 /* Locates all of the attributes. Puts them onto a flattened, ordered
  * list of attributes (populating the passed flat_list). Also builds
  * the index mapping for doing named lookups. Note index is not related
@@ -36,7 +31,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
     {
         /* Get current class in MRO. */
         MVMObject *type_info     = MVM_repr_at_pos_o(tc, mro, --mro_idx);
-        MVMObject *current_class; /* XXX = decontainerize(tc, MVM_repr_at_pos_o(tc, type_info, 0)); */
+        MVMObject *current_class = MVM_repr_at_pos_o(tc, type_info, 0);
 
         /* Get its local parents; make sure we're not doing MI. */
         MVMObject *parents     = MVM_repr_at_pos_o(tc, type_info, 2);
@@ -46,7 +41,6 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVMObject *attributes     = MVM_repr_at_pos_o(tc, type_info, 1);
             MVMIter * const attr_iter = (MVMIter *)MVM_iter(tc, attributes);
             MVMObject *attr_map = NULL;
-
 
             if (MVM_iter_istrue(tc, attr_iter)) {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_iter);
@@ -113,21 +107,8 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
  * "inlining" storage of attributes that are natively typed, as well as
  * noting unbox targets. */
 static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_info, MVMCStructREPRData *repr_data) {
-    MVMObject *flat_list;
-
-    /*
-     * We have to block GC mark here. Because "repr" is assotiated with some
-     * PMC which is not accessible in this function. And we have to write
-     * barrier this PMC because we are poking inside it guts directly. We
-     * do have WB in caller function, but it can be triggered too late is
-     * any of allocation will cause GC run.
-     *
-     * This is kind of minor evil until after I'll find better solution.
-     */
-    MVM_gc_mark_thread_blocked(tc); /* XXX: I'm not sure about it. */
-
     /* Compute index mapping table and get flat list of attributes. */
-    flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data);
+    MVMObject *flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data);
 
     /* If we have no attributes in the index mapping, then just the header. */
     if (repr_data->name_to_index_mapping[0].class_key == NULL) {
@@ -242,8 +223,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         if (repr_data->initialize_slots)
             repr_data->initialize_slots[cur_init_slot] = -1;
     }
-
-    MVM_gc_mark_thread_unblocked(tc);
 }
 
 /* Helper for reading an int at the specified offset. */
@@ -321,28 +300,19 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     compute_allocation_strategy(tc, attr_info, repr_data);
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    const MVMint32 num_child_objs = ((MVMCStructREPRData *) st->REPR_data)->num_child_objs;
-
-    MVMCStruct *obj = (MVMCStruct *)MVM_gc_allocate_object(tc, st);
-
-    /* Allocate child obj array. */
-    if(num_child_objs > 0) {
-        obj->body.child_objs = (MVMObject **)calloc(num_child_objs, sizeof(MVMObject *));
-    }
-
-    return (MVMObject *)obj;
-}
-
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMCStructREPRData * repr_data = (MVMCStructREPRData *) st->REPR_data;
+    MVMCStructREPRData * repr_data = (MVMCStructREPRData *)st->REPR_data;
 
     /* Allocate object body. */
     MVMCStructBody *body = (MVMCStructBody *)data;
     body->cstruct = malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
     memset(body->cstruct, 0, repr_data->struct_size);
+
+    /* Allocate child obj array. */
+    if (repr_data->num_child_objs > 0)
+        body->child_objs = (MVMObject **)calloc(repr_data->num_child_objs,
+            sizeof(MVMObject *));
 
     /* Initialize the slots. */
     if (repr_data->initialize_slots) {
@@ -368,10 +338,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) MVM_NO_RETURN_GCC;
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
     MVM_exception_throw_adhoc(tc,
-        "Can not %s non-existent attribute '%Ss' on class '%Ss'",
-        action, name, MVM_repr_get_str(tc, introspection_call(tc,
-            class_handle, STABLE(class_handle)->HOW,
-            tc->instance->str_consts.name, 0)));
+        "Can not %s non-existent attribute '%s'",
+        action, name);
 }
 
 /* Helper to die because this type doesn't support attributes. */
@@ -418,13 +386,12 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
     MVMCStructREPRData *repr_data = (MVMCStructREPRData *) st->REPR_data;
     MVMCStructNameMap *map = repr_data->name_to_index_mapping;
-    MVMint32 i;
-
-    if (!map) return;
-
-    for (i = 0; map[i].class_key; i++) {
-        MVM_gc_worklist_add(tc, worklist, &map[i].class_key);
-        MVM_gc_worklist_add(tc, worklist, &map[i].name_map);
+    if (map) {
+        MVMint32 i;
+        for (i = 0; map[i].class_key; i++) {
+            MVM_gc_worklist_add(tc, worklist, &map[i].class_key);
+            MVM_gc_worklist_add(tc, worklist, &map[i].name_map);
+        }
     }
 }
 
@@ -472,7 +439,7 @@ const MVMREPROps * MVMCStruct_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     initialize,
     copy_to,
     {
