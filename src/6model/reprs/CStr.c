@@ -29,66 +29,15 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->ptr = src_body->ptr;
 }
 
-static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 0 };
-
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
-    MVMCStrBody *body = (MVMCStrBody *) data;
-    MVMObject   *code;
-    MVMRegister  res;
-
-    /* Look up "encoding" method. */
-    MVMObject *encoding_method = MVM_6model_find_method_cache_only(tc, st->WHAT,
-        tc->instance->str_consts.encoding);
-
-    if(body->cstr)
-        free(body->cstr);
-
-    if (!encoding_method)
-        MVM_exception_throw_adhoc(tc, "CStr representation expects an 'encoding' method, specifying the encoding");
-
-    /* We need to do the invocation; just set it up with our result reg as
-     * the one for the call. */
-    code = MVM_frame_find_invokee(tc, encoding_method, NULL);
-    MVM_args_setup_thunk(tc, &res, MVM_CALLSITE_ARG_OBJ, &inv_arg_callsite);
-    tc->cur_frame->args[0].o = st->WHAT;
-    STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
-
-    MVMROOT(tc, value, {
-        MVMuint64 output_size;
-        const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, MVM_repr_get_str(tc, res.o));
-        body->cstr = MVM_string_encode(tc, value, 0, NUM_GRAPHS(value), &output_size,
-            encoding_flag);
-    });
+    MVMCStrBody *body = (MVMCStrBody *)data;
+    MVM_ASSIGN_REF(tc, &(root->header), body->orig, value);
+    body->cstr = MVM_string_utf8_encode_C_string(tc, value);
 }
 
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMCStrBody *body = (MVMCStrBody *) data;
-    MVMObject   *encoding_method;
-    MVMObject   *code;
-    MVMRegister  res;
-    MVMuint8 encoding_flag;
-
-    if (!body->cstr)
-        return NULL;
-
-    /* Look up "encoding" method. */
-    encoding_method = MVM_6model_find_method_cache_only(tc, st->WHAT,
-        tc->instance->str_consts.encoding);
-
-    if (!encoding_method)
-        MVM_exception_throw_adhoc(tc, "CStr representation expects an 'encoding' method, specifying the encoding");
-
-    /* We need to do the invocation; just set it up with our result reg as
-     * the one for the call. */
-    code = MVM_frame_find_invokee(tc, encoding_method, NULL);
-    MVM_args_setup_thunk(tc, &res, MVM_CALLSITE_ARG_OBJ, &inv_arg_callsite);
-    tc->cur_frame->args[0].o = st->WHAT;
-    STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
-
-    encoding_flag = MVM_string_find_encoding(tc, MVM_repr_get_str(tc, res.o));
-
-    return MVM_string_decode(tc, tc->instance->VMString, body->cstr, strlen(body->cstr), encoding_flag);
+    MVMCStrBody *body = (MVMCStrBody *)data;
+    return body->orig;
 }
 
 /* Gets the storage specification for this representation. */
@@ -102,11 +51,15 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return spec;
 }
 
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMCStrBody *body = (MVMCStrBody *) obj;
+static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
+    MVMCStrBody *body = (MVMCStrBody *)data;
+    MVM_gc_worklist_add(tc, worklist, &body->orig);
+}
 
-    if(obj && body->cstr)
-        free(body->cstr);
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    MVMCStr *cstr = (MVMCStr *)obj;
+    if (obj && cstr->body.cstr)
+        free(cstr->body.cstr);
 }
 
 /* Initializes the representation. */
@@ -139,7 +92,7 @@ static const MVMREPROps this_repr = {
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
-    NULL, /* gc_mark */
+    gc_mark,
     gc_free,
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
