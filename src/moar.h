@@ -44,7 +44,7 @@ typedef double   MVMnum64;
 #if HAVE_ALIGNOF
 /* A GCC extension. */
 #define ALIGNOF(t) __alignof__(t)
-#eli defined _MSC_VER
+#elif defined _MSC_VER
 /* MSVC extension. */
 #define ALIGNOF(t) __alignof(t)
 #else
