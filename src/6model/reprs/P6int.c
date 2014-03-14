@@ -3,11 +3,6 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* Some strings. */
-static MVMString *str_integer  = NULL;
-static MVMString *str_bits     = NULL;
-static MVMString *str_unsigned = NULL;
-
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -71,11 +66,12 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    MVMStringConsts  str_consts = tc->instance->str_consts;
 
-    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_integer);
+    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.integer);
     if (info != NULL) {
-        MVMObject *bits_o        = MVM_repr_at_key_o(tc, info, str_bits);
-        MVMObject *is_unsigned_o = MVM_repr_at_key_o(tc, info, str_unsigned);
+        MVMObject *bits_o        = MVM_repr_at_key_o(tc, info, str_consts.bits);
+        MVMObject *is_unsigned_o = MVM_repr_at_key_o(tc, info, str_consts.unsigned_str);
 
         if (bits_o != NULL) {
             repr_data->bits = MVM_repr_get_int(tc, bits_o);
@@ -136,14 +132,6 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 
 /* Initializes the representation. */
 const MVMREPROps * MVMP6int_initialize(MVMThreadContext *tc) {
-    /* Set up some constant strings we'll need. */
-    str_integer = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "integer");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_integer);
-    str_bits = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "bits");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_bits);
-    str_unsigned = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "unsigned");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_unsigned);
-
     return &this_repr;
 }
 

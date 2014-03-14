@@ -32,6 +32,10 @@ struct MVMStringConsts {
     MVMString *empty;
     MVMString *Str;
     MVMString *Num;
+    MVMString *integer;
+    MVMString *float_str;
+    MVMString *bits;
+    MVMString *unsigned_str;
     MVMString *find_method;
     MVMString *type_check;
     MVMString *accepts_type;
@@ -47,6 +51,9 @@ struct MVMStringConsts {
     MVMString *P6opaque;
     MVMString *array;
     MVMString *box_target;
+    MVMString *positional_delegate;
+    MVMString *associative_delegate;
+    MVMString *auto_viv_container;
 };
 
 struct MVMReprRegistry {

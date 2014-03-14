@@ -123,6 +123,10 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(empty, "");
     string_creator(Str, "Str");
     string_creator(Num, "Num");
+    string_creator(integer, "integer");
+    string_creator(float_str, "float");
+    string_creator(bits, "bits");
+    string_creator(unsigned_str, "unsigned");
     string_creator(find_method, "find_method");
     string_creator(type_check, "type_check");
     string_creator(accepts_type, "accepts_type");
@@ -138,6 +142,10 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(P6opaque, "P6opaque");
     string_creator(box_target, "box_target");
     string_creator(array, "array");
+    string_creator(positional_delegate, "positional_delegate");
+    string_creator(associative_delegate, "associative_delegate");
+    string_creator(auto_viv_container, "auto_viv_container");
+
 
 }
 
