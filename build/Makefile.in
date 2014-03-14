@@ -35,6 +35,7 @@ CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/tinymt \
             @ccinc@3rdparty/dyncall/dynload \
             @ccinc@3rdparty/dyncall/dyncall \
+            @ccinc@3rdparty/dyncall/dyncallback \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -369,6 +370,7 @@ install: all
 	$(CP) 3rdparty/tinymt/*.h $(DESTDIR)$(PREFIX)/include/tinymt
 	$(CP) 3rdparty/dyncall/dynload/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 	$(CP) 3rdparty/dyncall/dyncall/*.h $(DESTDIR)$(PREFIX)/include/dyncall
+	$(CP) 3rdparty/dyncall/dyncallback/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 
 lib: @moar@
 

@@ -21,9 +21,10 @@
 /* libatomic_ops */
 #include <atomic_ops.h>
 
-/* dynload/dyncall */
+/* dynload/dyncall/dyncallback */
 #include <dynload.h>
 #include <dyncall.h>
+#include <dyncall_callback.h>
 
 /* forward declarations */
 #include "types.h"
