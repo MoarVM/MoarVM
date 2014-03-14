@@ -341,8 +341,131 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 }
 
 /* Called to handle a callback. */
-static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data) {
-    MVM_exception_throw_adhoc(data->tc, "Callback invocation NYI");
+typedef struct {
+    MVMObject   *invokee;
+    MVMRegister *args;
+    MVMCallsite *cs;
+} CallbackInvokeData;
+static void callback_invoke(MVMThreadContext *tc, void *data) {
+    /* Invoke the coderef, to set up the nested interpreter. */
+    CallbackInvokeData *cid = (CallbackInvokeData *)data;
+    STABLE(cid->invokee)->invoke(tc, cid->invokee, cid->cs, cid->args);
+
+    /* Ensure we exit interp after callback. */
+    tc->thread_entry_frame = tc->cur_frame;
+}
+static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result, MVMNativeCallback *data) {
+    CallbackInvokeData cid;
+    MVMint32 i;
+
+    /* Build a callsite and arguments buffer. */
+    MVMRegister *args = malloc(data->num_types * sizeof(MVMRegister));
+    MVMCallsite *cs    = malloc(sizeof(MVMCallsite));
+    cs->arg_flags      = malloc(data->num_types * sizeof(MVMCallsiteEntry));
+    cs->arg_count      = data->num_types - 1;
+    cs->num_pos        = data->num_types - 1;
+    cs->has_flattening = 0;
+    cs->with_invocant  = NULL;
+    for (i = 1; i < data->num_types; i++) {
+        MVMObject *type     = data->types[i];
+        MVMint16   typeinfo = data->typeinfos[i];
+        switch (typeinfo & MVM_NATIVECALL_ARG_TYPE_MASK) {
+            case MVM_NATIVECALL_ARG_CHAR:
+                args[i - 1].i64      = dcbArgChar(cb_args);
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                break;
+            case MVM_NATIVECALL_ARG_SHORT:
+                args[i - 1].i64      = dcbArgShort(cb_args);
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                break;
+            case MVM_NATIVECALL_ARG_INT:
+                args[i - 1].i64      = dcbArgInt(cb_args);
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                break;
+            case MVM_NATIVECALL_ARG_LONG:
+                args[i - 1].i64      = dcbArgLong(cb_args);
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                break;
+            case MVM_NATIVECALL_ARG_LONGLONG:
+                args[i - 1].i64      = dcbArgLongLong(cb_args);
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                break;
+            case MVM_NATIVECALL_ARG_FLOAT:
+                args[i - 1].n64      = dcbArgFloat(cb_args);
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
+                break;
+            case MVM_NATIVECALL_ARG_DOUBLE:
+                args[i - 1].n64      = dcbArgDouble(cb_args);
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
+                break;
+            case MVM_NATIVECALL_ARG_ASCIISTR:
+            case MVM_NATIVECALL_ARG_UTF8STR:
+            case MVM_NATIVECALL_ARG_UTF16STR:
+                args[i - 1].o = make_str_result(data->tc, type, typeinfo,
+                    (char *)dcbArgPointer(cb_args));
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+                break;
+            case MVM_NATIVECALL_ARG_CSTRUCT:
+                args[i - 1].o = MVM_nativecall_make_cstruct(data->tc, type,
+                    dcbArgPointer(cb_args));
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+                break;
+            case MVM_NATIVECALL_ARG_CPOINTER:
+                args[i - 1].o = MVM_nativecall_make_cpointer(data->tc, type,
+                    dcbArgPointer(cb_args));
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+                break;
+            case MVM_NATIVECALL_ARG_CARRAY:
+                args[i - 1].o = MVM_nativecall_make_carray(data->tc, type,
+                    dcbArgPointer(cb_args));
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+                break;
+            case MVM_NATIVECALL_ARG_CALLBACK:
+                /* TODO: A callback -return- value means that we have a C method
+                * that needs to be wrapped similarly to a is native(...) Perl 6
+                * sub. */
+                dcbArgPointer(cb_args);
+                args[i - 1].o        = type;
+                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+            default:
+                MVM_exception_throw_adhoc(data->tc,
+                    "Internal error: unhandled dyncall callback argument type");
+        }
+    }
+
+    /* Call into a nested interpreter (since we already are in one). Need to
+     * save a bunch of state around each side of this. */
+    cid.invokee = data->target;
+    cid.args    = args;
+    cid.cs      = cs;
+    {
+        MVMThreadContext *tc = data->tc;
+        MVMuint8 **backup_interp_cur_op         = tc->interp_cur_op;
+        MVMuint8 **backup_interp_bytecode_start = tc->interp_bytecode_start;
+        MVMRegister **backup_interp_reg_base    = tc->interp_reg_base;
+        MVMCompUnit **backup_interp_cu          = tc->interp_cu;
+        MVMFrame *backup_cur_frame              = tc->cur_frame;
+        MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
+        jmp_buf backup_interp_jump;
+        memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
+
+        MVM_interp_run(tc, &callback_invoke, &cid);
+
+        tc->interp_cur_op         = backup_interp_cur_op;
+        tc->interp_bytecode_start = backup_interp_bytecode_start;
+        tc->interp_reg_base       = backup_interp_reg_base;
+        tc->interp_cu             = backup_interp_cu;
+        tc->cur_frame             = backup_cur_frame;
+        tc->thread_entry_frame    = backup_thread_entry_frame;
+        memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
+    }
+
+    /* Clean up. */
+    free(args);
+    free(cs);
+
+    /* Indicate what we're producing as a result. */
+    return get_signature_char(data->typeinfos[0]);
 }
 
 /* Builds up a native call site out of the supplied arguments. */
