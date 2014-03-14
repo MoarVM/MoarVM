@@ -153,11 +153,14 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
 MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct) {
     MVMObject *result = type;
     if (cstruct && type) {
+        MVMCStructREPRData *repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
         if (REPR(type)->ID != MVM_REPR_ID_MVMCStruct)
             MVM_exception_throw_adhoc(tc,
                 "Native call expected return type with CStruct representation, but got something else");
         result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCStruct *)result)->body.cstruct = cstruct;
+        if (repr_data->num_child_objs)
+            ((MVMCStruct *)result)->body.child_objs = calloc(repr_data->num_child_objs, sizeof(MVMObject *));
     }
     return result;
 }

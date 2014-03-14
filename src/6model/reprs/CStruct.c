@@ -363,7 +363,45 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVMSTable *attr_st = repr_data->flattened_stables[slot];
         switch (kind) {
         case MVM_reg_obj: {
-            die_no_attrs(tc);
+            MVMint32 type      = repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_MASK;
+            MVMint32 real_slot = repr_data->attribute_locations[slot] >> MVM_CSTRUCT_ATTR_SHIFT;
+
+            if (type == MVM_CSTRUCT_ATTR_IN_STRUCT) {
+                MVM_exception_throw_adhoc(tc,
+                    "CStruct can't perform boxed get on flattened attributes yet");
+            }
+            else {
+                MVMObject *typeobj = repr_data->member_types[slot];
+                MVMObject *obj     = body->child_objs[real_slot];
+                if (!obj) {
+                    /* No cached object. */
+                    void *cobj = get_ptr_at_offset(body->cstruct, repr_data->struct_offsets[slot]);
+                    if (cobj) {
+                        MVMObject **child_objs = body->child_objs;
+                        if (type == MVM_CSTRUCT_ATTR_CARRAY) {
+                            obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
+                        }
+                        else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
+                            obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                        }
+                        else if(type == MVM_CSTRUCT_ATTR_CPTR) {
+                            obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
+                        }
+                        else if(type == MVM_CSTRUCT_ATTR_STRING) {
+                            MVMROOT(tc, typeobj, {
+                                MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
+                                    cobj, strlen(cobj));
+                                obj = MVM_repr_box_str(tc, typeobj, str);
+                            });
+                        }
+                        child_objs[real_slot] = obj;
+                    }
+                    else {
+                        obj = typeobj;
+                    }
+                }
+                result_reg->o = obj;
+            }
             break;
         }
         case MVM_reg_int64: {
