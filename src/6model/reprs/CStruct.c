@@ -368,38 +368,67 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
         MVMSTable *attr_st   = repr_data->flattened_stables[slot];
-        MVMint32   type      = repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_MASK;
-        MVMint32   real_slot = repr_data->attribute_locations[slot] >> MVM_CSTRUCT_ATTR_SHIFT;
-        void      *ptr = ((char *)body->cstruct) + repr_data->struct_offsets[slot];
         switch (kind) {
         case MVM_reg_obj: {
             MVMObject *value = value_reg.o;
+
             if (attr_st) {
                 MVM_exception_throw_adhoc(tc,
                     "CStruct can't perform boxed bind on flattened attributes yet");
             }
             else {
-                die_no_attrs(tc);
+                MVMint32   type      = repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_MASK;
+                MVMint32   real_slot = repr_data->attribute_locations[slot] >> MVM_CSTRUCT_ATTR_SHIFT;
+
+                if(IS_CONCRETE(value)) {
+                    void *cobj       = NULL;
+
+                    body->child_objs[real_slot] = value;
+
+                    /* Set cobj to correct pointer based on type of value. */
+                    if(type == MVM_CSTRUCT_ATTR_CARRAY) {
+                        cobj = ((MVMCArrayBody *) OBJECT_BODY(value))->storage;
+                    }
+                    else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
+                        cobj = ((MVMCStructBody *) OBJECT_BODY(value))->cstruct;
+                    }
+                    else if(type == MVM_CSTRUCT_ATTR_CPTR) {
+                        cobj = ((MVMCPointerBody *) OBJECT_BODY(value))->ptr;
+                    }
+                    else if(type == MVM_CSTRUCT_ATTR_STRING) {
+                        MVMString *str  = MVM_repr_get_str(tc, value);
+                        cobj = MVM_string_utf8_encode_C_string(tc, str);
+                    }
+
+                    set_ptr_at_offset(body->cstruct, repr_data->struct_offsets[slot], cobj);
+                }
+                else {
+                    body->child_objs[real_slot] = NULL;
+                    set_ptr_at_offset(body->cstruct, repr_data->struct_offsets[slot], NULL);
+                }
             }
             break;
         }
         case MVM_reg_int64: {
             if (attr_st)
-                attr_st->REPR->box_funcs.set_int(tc, attr_st, root, ptr, value_reg.i64);
+                attr_st->REPR->box_funcs.set_int(tc, attr_st, root,
+                    ((char *)body->cstruct) + repr_data->struct_offsets[slot], value_reg.i64);
             else
                 MVM_exception_throw_adhoc(tc, "CStruct: invalid native binding to object attribute");
             break;
         }
         case MVM_reg_num64: {
             if (attr_st)
-                attr_st->REPR->box_funcs.set_num(tc, attr_st, root, ptr, value_reg.n64);
+                attr_st->REPR->box_funcs.set_num(tc, attr_st, root,
+                    ((char *)body->cstruct) + repr_data->struct_offsets[slot], value_reg.n64);
             else
                 MVM_exception_throw_adhoc(tc, "CStruct: invalid native binding to object attribute");
             break;
         }
         case MVM_reg_str: {
             if (attr_st)
-                attr_st->REPR->box_funcs.set_str(tc, attr_st, root, ptr, value_reg.s);
+                attr_st->REPR->box_funcs.set_str(tc, attr_st, root,
+                    ((char *)body->cstruct) + repr_data->struct_offsets[slot], value_reg.s);
             else
                 MVM_exception_throw_adhoc(tc, "CStruct: invalid native binding to object attribute");
             break;
