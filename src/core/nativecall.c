@@ -246,6 +246,16 @@ static char * unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 
     }
 }
 
+static void * unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value) {
+    if (!IS_CONCRETE(value))
+        return NULL;
+    else if (REPR(value)->ID == MVM_REPR_ID_MVMCStruct)
+        return ((MVMCStruct *)value)->body.cstruct;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected object with CStruct representation, but got something else");
+}
+
 static void * unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
     if (!IS_CONCRETE(value))
         return NULL;
@@ -254,6 +264,16 @@ static void * unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
     else
         MVM_exception_throw_adhoc(tc,
             "Native call expected object with CPointer representation, but got something else");
+}
+
+static void * unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
+    if (!IS_CONCRETE(value))
+        return NULL;
+    else if (REPR(value)->ID == MVM_REPR_ID_MVMCArray)
+        return ((MVMCArray *)value)->body.storage;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected object with CArray representation, but got something else");
 }
 
 /* Builds up a native call site out of the supplied arguments. */
@@ -364,13 +384,13 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 }
                 break;
             case MVM_NATIVECALL_ARG_CSTRUCT:
-                MVM_exception_throw_adhoc(tc, "passing cstruct NYI");
+                dcArgPointer(vm, unmarshal_cstruct(tc, value));
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
                 dcArgPointer(vm, unmarshal_cpointer(tc, value));
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
-                MVM_exception_throw_adhoc(tc, "passing carray NYI");
+                dcArgPointer(vm, unmarshal_carray(tc, value));
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 MVM_exception_throw_adhoc(tc, "passing callback NYI");
