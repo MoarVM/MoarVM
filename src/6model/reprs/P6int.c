@@ -25,17 +25,35 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
     MVMP6intBody *src_body  = (MVMP6intBody *)src;
     MVMP6intBody *dest_body = (MVMP6intBody *)dest;
-    dest_body->value = src_body->value;
+    switch (repr_data->bits) {
+        case 64: dest_body->value.i64 = src_body->value.i64; break;
+        case 32: dest_body->value.i32 = src_body->value.i32; break;
+        case 16: dest_body->value.i16 = src_body->value.i16; break;
+        default: dest_body->value.i8 = src_body->value.i8; break;
+    }
 }
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
-    ((MVMP6intBody *)data)->value = value;
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 64: ((MVMP6intBody *)data)->value.i64 = value; break;
+        case 32: ((MVMP6intBody *)data)->value.i32 = (MVMint32)value; break;
+        case 16: ((MVMP6intBody *)data)->value.i16 = (MVMint16)value; break;
+        default: ((MVMP6intBody *)data)->value.i8 = (MVMint8)value; break;
+    }
 }
 
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    return ((MVMP6intBody *)data)->value;
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 64: return ((MVMP6intBody *)data)->value.i64;
+        case 32: return ((MVMP6intBody *)data)->value.i32;
+        case 16: return ((MVMP6intBody *)data)->value.i16;
+        default: return ((MVMP6intBody *)data)->value.i8;
+    }
 }
 
 /* Marks the representation data in an STable.*/
@@ -129,11 +147,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    ((MVMP6intBody *)data)->value = reader->read_varint(tc, reader);
+    set_int(tc, st, root, data, reader->read_varint(tc, reader));
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_varint(tc, writer, ((MVMP6intBody *)data)->value);
+    writer->write_varint(tc, writer, get_int(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */

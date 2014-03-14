@@ -24,17 +24,29 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMP6numBody *src_body  = (MVMP6numBody *)src;
-    MVMP6numBody *dest_body = (MVMP6numBody *)dest;
-    dest_body->value = src_body->value;
+    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
+    MVMP6numBody     *src_body  = (MVMP6numBody *)src;
+    MVMP6numBody     *dest_body = (MVMP6numBody *)dest;
+    switch (repr_data->bits) {
+        case 32: dest_body->value.n32 = src_body->value.n32; break;
+        default: dest_body->value.n64 = src_body->value.n64; break;
+    }
 }
 
 static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
-    ((MVMP6numBody *)data)->value = value;
+    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 32: ((MVMP6numBody *)data)->value.n32 = (MVMnum32)value; break;
+        default: ((MVMP6numBody *)data)->value.n64 = value; break;
+    }
 }
 
 static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    return ((MVMP6numBody *)data)->value;
+    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 32: return ((MVMP6numBody *)data)->value.n32;
+        default: return ((MVMP6numBody *)data)->value.n64;
+    }
 }
 
 /* Marks the representation data in an STable.*/
@@ -74,9 +86,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
         if (bits_o != NULL) {
             repr_data->bits = MVM_repr_get_int(tc, bits_o);
-            if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
-             && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-                MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported int size (%dbit)", repr_data->bits);
+            if (repr_data->bits != 32 && repr_data->bits != 64)
+                MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported num size (%dbit)", repr_data->bits);
         }
     }
 }
@@ -113,11 +124,12 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    ((MVMP6numBody *)data)->value = reader->read_num(tc, reader);
+    MVMnum64 value = reader->read_num(tc, reader);
+    set_num(tc, st, root, data, value);
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_num(tc, writer, ((MVMP6numBody *)data)->value);
+    writer->write_num(tc, writer, get_num(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */
