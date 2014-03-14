@@ -192,7 +192,32 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
 }
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
-    die_pos_nyi(tc);
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
+    MVMCArrayBody     *body      = (MVMCArrayBody *)data;
+    void              *ptr       = ((char *)body->storage) + index * repr_data->elem_size;
+    switch (repr_data->elem_kind) {
+        case MVM_CARRAY_ELEM_KIND_NUMERIC:
+            if (kind == MVM_reg_int64)
+                value->i64 = body->managed && index >= body->elems
+                    ? 0
+                    : REPR(repr_data->elem_type)->box_funcs.get_int(tc,
+                        STABLE(repr_data->elem_type), root, ptr);
+            else if (kind == MVM_reg_num64)
+                value->n64 = body->managed && index >= body->elems
+                    ? 0.0
+                    : REPR(repr_data->elem_type)->box_funcs.get_num(tc,
+                        STABLE(repr_data->elem_type), root, ptr);
+            else
+                MVM_exception_throw_adhoc(tc, "Wrong kind of access to numeric CArray");
+            break;
+        case MVM_CARRAY_ELEM_KIND_STRING:
+        case MVM_CARRAY_ELEM_KIND_CPOINTER:
+        case MVM_CARRAY_ELEM_KIND_CARRAY:
+        case MVM_CARRAY_ELEM_KIND_CSTRUCT:
+            die_pos_nyi(tc);
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown element type in CArray");
+    }
 }
 
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
