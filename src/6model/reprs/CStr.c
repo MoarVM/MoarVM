@@ -98,6 +98,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
     spec.can_box = MVM_STORAGE_SPEC_CAN_BOX_STR;
     spec.bits = sizeof(void *) * 8;
+    spec.align = ALIGNOF(void *);
     return spec;
 }
 

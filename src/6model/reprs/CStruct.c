@@ -155,7 +155,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                      * repurpose it to store the bit-width of the type, so
                      * that get_attribute_ref can find it later. */
                     bits = spec.bits;
-                    /* align = spec.align; */
+                    align = spec.align;
 
                     if (bits % 8) {
                          MVM_exception_throw_adhoc(tc,
@@ -418,6 +418,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
     spec.can_box = 0;
     spec.bits = sizeof(void *) * 8;
+    spec.align = ALIGNOF(void *);
     return spec;
 }
 

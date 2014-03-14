@@ -54,6 +54,11 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
         spec.bits = repr_data->bits;
     else
         spec.bits = sizeof(MVMnum64) * 8;
+    switch (spec.bits) {
+        case 64: spec.align = ALIGNOF(MVMnum64); break;
+        case 32: spec.align = ALIGNOF(MVMnum32); break;
+        default: spec.align = ALIGNOF(MVMnum64); break;
+    }
 
     return spec;
 }

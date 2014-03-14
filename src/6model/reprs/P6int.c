@@ -55,6 +55,12 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
         spec.bits = repr_data->bits;
     else
         spec.bits = sizeof(MVMint64) * 8;
+    switch (spec.bits) {
+        case 64: spec.align = ALIGNOF(MVMint64); break;
+        case 32: spec.align = ALIGNOF(MVMint32); break;
+        case 16: spec.align = ALIGNOF(MVMint16); break;
+        default: spec.align = ALIGNOF(MVMint8);  break;
+    }
     if (repr_data && repr_data->is_unsigned)
         spec.is_unsigned = 1;
     else

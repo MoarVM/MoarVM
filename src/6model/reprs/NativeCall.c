@@ -45,6 +45,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
     spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
     spec.bits            = sizeof(MVMNativeCallBody) * 8;
+    spec.align           = ALIGNOF(MVMNativeCallBody);
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
     spec.can_box         = 0;
     return spec;
