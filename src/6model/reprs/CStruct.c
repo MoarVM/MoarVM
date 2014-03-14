@@ -351,7 +351,52 @@ static void die_no_attrs(MVMThreadContext *tc) {
 static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister *result_reg, MVMuint16 kind) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
+    MVMCStructBody *body = (MVMCStructBody *)data;
+    MVMint64 slot;
+
+    if (!repr_data)
+        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
+
+    slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
+    if (slot >= 0) {
+        MVMSTable *attr_st = repr_data->flattened_stables[slot];
+        switch (kind) {
+        case MVM_reg_obj: {
+            die_no_attrs(tc);
+            break;
+        }
+        case MVM_reg_int64: {
+            if (attr_st)
+                result_reg->i64 = attr_st->REPR->box_funcs.get_int(tc, attr_st, root,
+                    ((char *)body->cstruct) + repr_data->struct_offsets[slot]);
+            else
+                MVM_exception_throw_adhoc(tc, "CStruct: invalid native get of object attribute");
+            break;
+        }
+        case MVM_reg_num64: {
+            if (attr_st)
+                result_reg->n64 = attr_st->REPR->box_funcs.get_num(tc, attr_st, root,
+                    ((char *)body->cstruct) + repr_data->struct_offsets[slot]);
+            else
+                MVM_exception_throw_adhoc(tc, "CStruct: invalid native get of object attribute");
+            break;
+        }
+        case MVM_reg_str: {
+            if (attr_st)
+                result_reg->s = attr_st->REPR->box_funcs.get_str(tc, attr_st, root,
+                    ((char *)body->cstruct) + repr_data->struct_offsets[slot]);
+            else
+                MVM_exception_throw_adhoc(tc, "CStruct: invalid native get of object attribute");
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "CStruct: invalid kind in attribute get");
+        }
+    }
+    else {
+        no_such_attribute(tc, "bind", class_handle, name);
+    }
 }
 
 /* Binds the given value to the specified attribute. */
@@ -363,11 +408,11 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMint64 slot;
 
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute_boxed");
+        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute");
 
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
-        MVMSTable *attr_st   = repr_data->flattened_stables[slot];
+        MVMSTable *attr_st = repr_data->flattened_stables[slot];
         switch (kind) {
         case MVM_reg_obj: {
             MVMObject *value = value_reg.o;
@@ -433,9 +478,8 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 MVM_exception_throw_adhoc(tc, "CStruct: invalid native binding to object attribute");
             break;
         }
-        default: {
+        default:
             MVM_exception_throw_adhoc(tc, "CStruct: invalid kind in attribute bind");
-        }
         }
     }
     else {
