@@ -138,14 +138,14 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         /* Go over the attributes and arrange their allocation. */
         for (i = 0; i < num_attrs; i++) {
             /* Fetch its type; see if it's some kind of unboxed type. */
-            MVMObject *attr         = MVM_repr_at_pos_o(tc, flat_list, i);
-            MVMObject *type         = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.name);
-            MVMint32  type_id      = REPR(type)->ID;
-            MVMint32  bits         = sizeof(void *) * 8;
-            MVMint32  align; /*        = ALIGNOF1(void *); */
-            if (!type) {
+            MVMObject *attr  = MVM_repr_at_pos_o(tc, flat_list, i);
+            MVMObject *type  = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
+            MVMint32   bits  = sizeof(void *) * 8;
+            MVMint32   align = 8; /* = ALIGNOF1(void *); */
+            if (type) {
                 /* See if it's a type that we know how to handle in a C struct. */
                 MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+                MVMint32  type_id   = REPR(type)->ID;
                 if (spec.inlineable == MVM_STORAGE_SPEC_INLINED &&
                         (spec.boxed_primitive == MVM_STORAGE_SPEC_BP_INT ||
                          spec.boxed_primitive == MVM_STORAGE_SPEC_BP_NUM)) {
@@ -295,9 +295,10 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Composes the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
-    MVMCStructREPRData *repr_data = (MVMCStructREPRData *) st->REPR_data;
+    MVMCStructREPRData *repr_data = calloc(1, sizeof(MVMCStructREPRData));
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
     compute_allocation_strategy(tc, attr_info, repr_data);
+    st->REPR_data = repr_data;
 }
 
 /* Initialize a new instance. */
