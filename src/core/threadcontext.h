@@ -180,6 +180,9 @@ struct MVMThreadContext {
     /* Random number generator state. */
     MVMuint64 rand_state[2];
 
+    /* Cache of native code callback data. */
+    MVMNativeCallback *native_callback_cache;
+
 #if MVM_HLL_PROFILE_CALLS
     /* storage of profile timings */
     MVMProfileRecord *profile_data;

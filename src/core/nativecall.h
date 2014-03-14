@@ -21,6 +21,32 @@
 #define MVM_NATIVECALL_ARG_FREE_STR        1
 #define MVM_NATIVECALL_ARG_FREE_STR_MASK   1
 
+/* Native callback entry. Hung off ThreadContext, keyed on CUID of code ref.
+ * (May be better off a CompUnit, though that may cause an edge case where a
+ * premature collection is possible.) */
+struct MVMNativeCallback {
+    /* The dyncall callback object. */
+    DCCallback *cb;
+
+    /* The routine that we will call. */
+    MVMObject *target;
+
+    /* Thread context we expect to run the callback on. */
+    MVMThreadContext *tc;
+
+    /* Return and argument type flags. */
+    MVMint16 *typeinfos;
+
+    /* Return and argument types themselves. */
+    MVMObject **types;
+
+    /* The number of entries in typeinfos/types. */
+    MVMint32 num_types;
+
+    /* The uthash hash handle inline struct. */
+    UT_hash_handle hash_handle;
+};
+
 /* Functions for working with native callsites. */
 void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     MVMString *sym, MVMString *conv, MVMObject *arg_spec, MVMObject *ret_spec);
