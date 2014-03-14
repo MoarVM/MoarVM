@@ -127,13 +127,12 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     }
 }
 
-/* This Parrot-specific addition to the API is used to free an object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     gc_cleanup(tc, STABLE(obj), OBJECT_BODY(obj));
 }
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *) st->REPR_data;
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody *body = (MVMCArrayBody *)data;
     const MVMint32 elems = body->elems;
     MVMint32 i;
@@ -144,6 +143,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     for (i = 0; i < elems; i++)
         if (body->child_objs[i])
             MVM_gc_worklist_add(tc, worklist, &body->child_objs[i]);
+}
+
+/* Marks the representation data in an STable.*/
+static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
+    if (repr_data)
+        MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
 }
 
 /* Gets the storage specification for this representation. */
@@ -423,7 +429,7 @@ static const MVMREPROps this_repr = {
     gc_mark,
     gc_free,
     gc_cleanup,
-    NULL, /* gc_mark_repr_data */
+    gc_mark_repr_data,
     NULL, /* gc_free_repr_data */
     compose,
     "CArray", /* name */
