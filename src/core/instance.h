@@ -43,6 +43,7 @@ struct MVMStringConsts {
     MVMString *attribute;
     MVMString *of;
     MVMString *type;
+    MVMString *typeobj;
     MVMString *free_str;
     MVMString *callback_args;
     MVMString *encoding;

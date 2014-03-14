@@ -281,6 +281,70 @@ static void * unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
             "Native call expected object with CArray representation, but got something else");
 }
 
+/* Sets up a callback, caching the information to avoid duplicate work. */
+static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data);
+static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMObject *sig_info) {
+    MVMNativeCallback *callback_data;
+    MVMString         *cuid;
+
+    if (!IS_CONCRETE(callback))
+        return NULL;
+
+    /* Try to locate existing cached callback info. */
+    callback = MVM_frame_find_invokee(tc, callback, NULL);
+    cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
+    MVM_string_flatten(tc, cuid);
+    MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data);
+
+    if (!callback_data) {
+        /* Need to build/cache callback data entry. */
+        char      *signature;
+        MVMObject *typehash;
+        MVMint64   num_info, i;
+
+        num_info                 = MVM_repr_elems(tc, sig_info);
+        callback_data            = malloc(sizeof(MVMNativeCallback));
+        callback_data->typeinfos = malloc(num_info * sizeof(MVMint16));
+        callback_data->types     = malloc(num_info * sizeof(MVMObject *));
+
+        /* A dyncall signature looks like this: xxx)x
+        * Argument types before the ) and return type after it. Thus,
+        * num_info+1 must be NULL (zero-terminated string) and num_info-1
+        * must be the ).
+        */
+        signature = malloc(num_info + 2);
+        signature[num_info + 1] = '\0';
+        signature[num_info - 1] = ')';
+
+        typehash = MVM_repr_at_pos_o(tc, sig_info, 0);
+        callback_data->types[0] = MVM_repr_at_key_o(tc, typehash,
+            tc->instance->str_consts.typeobj);
+        callback_data->typeinfos[0] = get_arg_type(tc, typehash, 1);
+        signature[num_info] = get_signature_char(callback_data->typeinfos[0]);
+        for (i = 1; i < num_info; i++) {
+            typehash = MVM_repr_at_pos_o(tc, sig_info, i);
+            callback_data->types[i] = MVM_repr_at_key_o(tc, typehash,
+                tc->instance->str_consts.typeobj);
+            callback_data->typeinfos[i] = get_arg_type(tc, typehash, 0);
+            signature[i - 1] = get_signature_char(callback_data->typeinfos[i]);
+        }
+
+        callback_data->num_types = num_info;
+        callback_data->tc        = tc;
+        callback_data->target    = callback;
+        callback_data->cb        = dcbNewCallback(signature, &callback_handler, callback_data);
+
+        MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data);
+    }
+
+    return callback_data->cb;
+}
+
+/* Called to handle a callback. */
+static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data) {
+    MVM_exception_throw_adhoc(data->tc, "Callback invocation NYI");
+}
+
 /* Builds up a native call site out of the supplied arguments. */
 void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
@@ -398,7 +462,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 dcArgPointer(vm, unmarshal_carray(tc, value));
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
-                MVM_exception_throw_adhoc(tc, "passing callback NYI");
+                dcArgPointer(vm, unmarshal_callback(tc, value, body->arg_info[i]));
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
@@ -407,6 +471,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     /* Call and process return values. */
     MVMROOT(tc, args, {
+    MVMROOT(tc, res_type, {
         switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_VOID:
                 dcCallVoid(vm, entry_point);
@@ -448,10 +513,16 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_CARRAY:
                 result = MVM_nativecall_make_carray(tc, res_type, dcCallPointer(vm, body->entry_point));
                 break;
-            /* XXX Port the rest. */
+            case MVM_NATIVECALL_ARG_CALLBACK:
+                /* TODO: A callback -return- value means that we have a C method
+                * that needs to be wrapped similarly to a is native(...) Perl 6
+                * sub. */
+                dcCallPointer(vm, body->entry_point);
+                result = res_type;
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
         }
+    });
     });
 
     /* Perform CArray/CStruct write barriers. */
