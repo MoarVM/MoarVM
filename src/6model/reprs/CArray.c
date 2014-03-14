@@ -3,78 +3,6 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 0 };
-
-/* Gets size and type information to put it into the REPR data. */
-static void fill_repr_data(MVMThreadContext *tc, MVMSTable *st) {
-    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
-    MVMObject   *code;
-    MVMRegister  res;
-    MVMStorageSpec ss;
-    MVMint32 type_id;
-    /* Look up "of" method. */
-    MVMObject *of_method = MVM_6model_find_method_cache_only(tc, st->WHAT,
-        tc->instance->str_consts.of);
-
-    if (!of_method)
-        MVM_exception_throw_adhoc(tc,
-            "CArray representation expects an 'of' method, specifying the element type");
-
-    /* Call it to get the type. */
-    code = MVM_frame_find_invokee(tc, of_method, NULL);
-    MVM_args_setup_thunk(tc, &res, MVM_CALLSITE_ARG_OBJ, &inv_arg_callsite);
-    tc->cur_frame->args[0].o = st->WHAT;
-    STABLE(code)->invoke(tc, code, &inv_arg_callsite, tc->cur_frame->args);
-
-    /* Ensure we got a type. */
-    if (!IS_CONCRETE(res.o))
-        MVM_exception_throw_adhoc(tc,
-            "CArray representation expects an 'of' method, specifying the element type");
-
-    /* What we do next depends on what kind of type we have. */
-    ss = REPR(res.o)->get_storage_spec(tc, STABLE(res.o));
-    type_id = REPR(res.o)->ID;
-
-    repr_data->elem_type = res.o;
-    if (ss.boxed_primitive == MVM_STORAGE_SPEC_BP_INT) {
-        if (ss.bits == 8 || ss.bits == 16 || ss.bits == 32 || ss.bits == 64)
-            repr_data->elem_size = ss.bits / 8;
-        else
-            MVM_exception_throw_adhoc(tc,
-                "CArray representation can only have 8, 16, 32 or 64 bit integer elements");
-        repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
-    }
-    else if (ss.boxed_primitive == MVM_STORAGE_SPEC_BP_NUM) {
-        if (ss.bits == 32 || ss.bits == 64)
-            repr_data->elem_size = ss.bits / 8;
-        else
-            MVM_exception_throw_adhoc(tc,
-                "CArray representation can only have 32 or 64 bit floating point elements");
-        repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
-    }
-    else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
-        repr_data->elem_size = sizeof(MVMObject *);
-        repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_STRING;
-    }
-    else if (type_id == MVM_REPR_ID_MVMCArray) {
-        repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CARRAY;
-        repr_data->elem_size = sizeof(void *);
-    }
-    else if (type_id == MVM_REPR_ID_MVMCStruct) {
-        repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CSTRUCT;
-        repr_data->elem_size = sizeof(void *);
-    }
-    else if (type_id == MVM_REPR_ID_MVMCPointer) {
-        repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CPOINTER;
-        repr_data->elem_size = sizeof(void *);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc,
-            "CArray may only contain native integers and numbers, strings, C Structs or C Pointers");
-    }
-}
-
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -95,8 +23,58 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 }
 
 /* Composes the representation. */
-static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-    /* TODO */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
+    MVMStringConsts str_consts = tc->instance->str_consts;
+    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
+    if (info) {
+        MVMCArrayREPRData *repr_data = malloc(sizeof(MVMCArrayREPRData));
+        MVMObject *type   = MVM_repr_at_key_o(tc, info, str_consts.type);
+        MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+        MVMint32 type_id  = REPR(type)->ID;
+
+        MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
+        st->REPR_data = repr_data;
+
+        if (ss.boxed_primitive == MVM_STORAGE_SPEC_BP_INT) {
+            if (ss.bits == 8 || ss.bits == 16 || ss.bits == 32 || ss.bits == 64)
+                repr_data->elem_size = ss.bits / 8;
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "CArray representation can only have 8, 16, 32 or 64 bit integer elements");
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
+        }
+        else if (ss.boxed_primitive == MVM_STORAGE_SPEC_BP_NUM) {
+            if (ss.bits == 32 || ss.bits == 64)
+                repr_data->elem_size = ss.bits / 8;
+            else
+                MVM_exception_throw_adhoc(tc,
+                    "CArray representation can only have 32 or 64 bit floating point elements");
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
+        }
+        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+            repr_data->elem_size = sizeof(MVMObject *);
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_STRING;
+        }
+        else if (type_id == MVM_REPR_ID_MVMCArray) {
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CARRAY;
+            repr_data->elem_size = sizeof(void *);
+        }
+        else if (type_id == MVM_REPR_ID_MVMCStruct) {
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CSTRUCT;
+            repr_data->elem_size = sizeof(void *);
+        }
+        else if (type_id == MVM_REPR_ID_MVMCPointer) {
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CPOINTER;
+            repr_data->elem_size = sizeof(void *);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "CArray may only contain native integers and numbers, strings, C Structs or C Pointers");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "CArray representation requires a typed array");
+    }
 }
 
 /* Initialize a new instance. */
@@ -107,7 +85,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMCArrayBody     *body      = (MVMCArrayBody *)data;
 
     if (!repr_data->elem_size)
-        fill_repr_data(tc, st);
+        MVM_exception_throw_adhoc(tc, "CArray type must be composed before use");
 
     body->storage = malloc(4 * repr_data->elem_size);
     body->managed = 1;
