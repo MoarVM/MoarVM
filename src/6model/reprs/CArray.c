@@ -287,6 +287,15 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     }
 }
 
+static void bind_wrapper_and_ptr(MVMThreadContext *tc, MVMObject *root, MVMCArrayBody *body,
+        MVMint64 index, MVMObject *wrapper, void *cptr) {
+    if (index >= body->allocated)
+        expand(tc, STABLE(root)->REPR_data, body, index + 1);
+    if (index >= body->elems)
+        body->elems = index + 1;
+    MVM_ASSIGN_REF(tc, &(root->header), body->child_objs[index], wrapper);
+    ((void **)body->storage)[index] = cptr;
+}
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody     *body      = (MVMCArrayBody *)data;
@@ -309,6 +318,9 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
                 MVM_exception_throw_adhoc(tc, "Wrong kind of access to numeric CArray");
             break;
         case MVM_CARRAY_ELEM_KIND_STRING:
+            bind_wrapper_and_ptr(tc, root, body, index, value.o,
+                MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, value.o)));
+            break;
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
         case MVM_CARRAY_ELEM_KIND_CARRAY:
         case MVM_CARRAY_ELEM_KIND_CSTRUCT:
