@@ -511,13 +511,25 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
     MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
     if (repr_data) {
-        MVMCStructNameMap *map = repr_data->name_to_index_mapping;
-        if (map) {
-            MVMint32 i;
+        MVMint32 i;
+        if (repr_data->name_to_index_mapping) {
+            MVMCStructNameMap *map = repr_data->name_to_index_mapping;
             for (i = 0; map[i].class_key; i++) {
                 MVM_gc_worklist_add(tc, worklist, &map[i].class_key);
                 MVM_gc_worklist_add(tc, worklist, &map[i].name_map);
             }
+        }
+
+        if (repr_data->flattened_stables) {
+            MVMSTable **flattened_stables = repr_data->flattened_stables;
+            for (i = 0; i < repr_data->num_attributes; i++)
+                MVM_gc_worklist_add(tc, worklist, &flattened_stables[i]);
+        }
+
+        if (repr_data->member_types) {
+            MVMObject **member_types = repr_data->member_types;
+            for (i = 0; i < repr_data->num_attributes; i++)
+                MVM_gc_worklist_add(tc, worklist, &member_types[i]);
         }
     }
 }
