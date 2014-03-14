@@ -40,6 +40,18 @@ typedef uint64_t MVMuint64;
 typedef float    MVMnum32;
 typedef double   MVMnum64;
 
+/* Alignment. */
+#if HAVE_ALIGNOF
+/* A GCC extension. */
+#define ALIGNOF(t) __alignof__(t)
+#eli defined _MSC_VER
+/* MSVC extension. */
+#define ALIGNOF(t) __alignof(t)
+#else
+/* Alignment by measuring structure padding. */
+#define ALIGNOF(t) ((char *)(&((struct { char c; t _h; } *)0)->_h) - (char *)0)
+#endif
+
 #if defined MVM_BUILD_SHARED
 #  define MVM_PUBLIC  MVM_DLL_EXPORT
 #  define MVM_PRIVATE MVM_DLL_LOCAL
