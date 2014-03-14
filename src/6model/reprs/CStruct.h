@@ -1,4 +1,3 @@
-/* TODO: Better description here. */
 /* Attribute location flags. */
 #define MVM_CSTRUCT_ATTR_IN_STRUCT 0
 #define MVM_CSTRUCT_ATTR_CSTRUCT   1

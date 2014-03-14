@@ -331,23 +331,21 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMCStructREPRData * repr_data = (MVMCStructREPRData *) st->REPR_data;
     MVMCStructBody *src_body = (MVMCStructBody *)src;
     MVMCStructBody *dest_body = (MVMCStructBody *)dest;
-    /* XXX todo */
-    /* XXX also need to shallow copy the obj array */
+    MVM_exception_throw_adhoc(tc, "cloning a CStruct is NYI");
 }
 
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) MVM_NO_RETURN_GCC;
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
-    MVM_exception_throw_adhoc(tc,
-        "Can not %s non-existent attribute '%s'",
-        action, name);
+    MVM_exception_throw_adhoc(tc, "Can not %s non-existent attribute '%s'",
+        action, MVM_string_utf8_encode_C_string(tc, name));
 }
 
 /* Helper to die because this type doesn't support attributes. */
 MVM_NO_RETURN static void die_no_attrs(MVMThreadContext *tc) MVM_NO_RETURN_GCC;
 static void die_no_attrs(MVMThreadContext *tc) {
     MVM_exception_throw_adhoc(tc,
-            "CStruct representation attribute not yet fully implemented");
+        "CStruct representation attribute not yet fully implemented");
 }
 
 static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
@@ -360,7 +358,60 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister value_reg, MVMuint16 kind) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
+    MVMCStructBody *body = (MVMCStructBody *)data;
+    MVMint64 slot;
+
+    if (!repr_data)
+        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute_boxed");
+
+    slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
+    if (slot >= 0) {
+        MVMSTable *attr_st   = repr_data->flattened_stables[slot];
+        MVMint32   type      = repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_MASK;
+        MVMint32   real_slot = repr_data->attribute_locations[slot] >> MVM_CSTRUCT_ATTR_SHIFT;
+        void      *ptr = ((char *)body->cstruct) + repr_data->struct_offsets[slot];
+        switch (kind) {
+        case MVM_reg_obj: {
+            MVMObject *value = value_reg.o;
+            if (attr_st) {
+                MVM_exception_throw_adhoc(tc,
+                    "CStruct can't perform boxed bind on flattened attributes yet");
+            }
+            else {
+                die_no_attrs(tc);
+            }
+            break;
+        }
+        case MVM_reg_int64: {
+            if (attr_st)
+                attr_st->REPR->box_funcs.set_int(tc, attr_st, root, ptr, value_reg.i64);
+            else
+                MVM_exception_throw_adhoc(tc, "CStruct: invalid native binding to object attribute");
+            break;
+        }
+        case MVM_reg_num64: {
+            if (attr_st)
+                attr_st->REPR->box_funcs.set_num(tc, attr_st, root, ptr, value_reg.n64);
+            else
+                MVM_exception_throw_adhoc(tc, "CStruct: invalid native binding to object attribute");
+            break;
+        }
+        case MVM_reg_str: {
+            if (attr_st)
+                attr_st->REPR->box_funcs.set_str(tc, attr_st, root, ptr, value_reg.s);
+            else
+                MVM_exception_throw_adhoc(tc, "CStruct: invalid native binding to object attribute");
+            break;
+        }
+        default: {
+            MVM_exception_throw_adhoc(tc, "CStruct: invalid kind in attribute bind");
+        }
+        }
+    }
+    else {
+        no_such_attribute(tc, "bind", class_handle, name);
+    }
 }
 
 
@@ -385,13 +436,15 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Marks the representation data in an STable.*/
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
-    MVMCStructREPRData *repr_data = (MVMCStructREPRData *) st->REPR_data;
-    MVMCStructNameMap *map = repr_data->name_to_index_mapping;
-    if (map) {
-        MVMint32 i;
-        for (i = 0; map[i].class_key; i++) {
-            MVM_gc_worklist_add(tc, worklist, &map[i].class_key);
-            MVM_gc_worklist_add(tc, worklist, &map[i].name_map);
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
+    if (repr_data) {
+        MVMCStructNameMap *map = repr_data->name_to_index_mapping;
+        if (map) {
+            MVMint32 i;
+            for (i = 0; map[i].class_key; i++) {
+                MVM_gc_worklist_add(tc, worklist, &map[i].class_key);
+                MVM_gc_worklist_add(tc, worklist, &map[i].name_map);
+            }
         }
     }
 }
@@ -464,7 +517,7 @@ static const MVMREPROps this_repr = {
     gc_mark,
     gc_free,
     gc_cleanup,
-    NULL, /* gc_mark_repr_data */
+    gc_mark_repr_data,
     NULL, /* gc_free_repr_data */
     compose,
     "CStruct", /* name */
