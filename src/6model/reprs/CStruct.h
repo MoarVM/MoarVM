@@ -48,9 +48,6 @@ struct MVMCStructREPRData {
     /* Number of child objects we store. */
     MVMint32 num_child_objs;
 
-    /* Number of child strings we store. */
-    MVMint32 num_child_strs;
-
     /* Lower bits are flags indicating what kind of attribute we have;
      * whether it's one that is just a simple value that we can always
      * access directly in the C struct body, or a more complex one that
