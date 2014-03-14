@@ -11,11 +11,11 @@
 /* Creates a stub VMString. Note we didn't initialize the
  * representation yet, so have to do this somewhat pokily. */
 static void create_stub_VMString(MVMThreadContext *tc) {
-    /* Need to create the REPR function table "in advance"; the
-     * MVMString REPR specially knows not to duplicately create
-     * this. */
+    /* Need to create the REPR function table "in advance". */
     const MVMREPROps *repr = MVMString_initialize(tc);
 
+    /* Now we can create a type object; note we have no HOW yet,
+     * though. */
     tc->instance->VMString = repr->type_object_for(tc, NULL);
 }
 
