@@ -108,48 +108,37 @@ MVMInstance * MVM_vm_create_instance(void) {
     return instance;
 }
 
+
+
 /* Sets up some string constants. */
 static void string_consts(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
 
-    instance->str_consts.empty = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.empty);
+/* Set up some strings. */
+#define string_creator(variable, name) do { \
+    instance->str_consts.variable = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, (name)); \
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&(instance->str_consts.variable)); \
+} while (0)
 
-    instance->str_consts.Str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Str");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.Str);
+    string_creator(empty, "");
+    string_creator(Str, "Str");
+    string_creator(Num, "Num");
+    string_creator(find_method, "find_method");
+    string_creator(type_check, "type_check");
+    string_creator(accepts_type, "accepts_type");
+    string_creator(name, "name");
+    string_creator(attribute, "attribute");
+    string_creator(of, "of");
+    string_creator(type, "type");
+    string_creator(free_str, "free_str");
+    string_creator(callback_args, "callback_args");
+    string_creator(encoding, "encoding");
+    string_creator(repr, "repr");
+    string_creator(anon, "<anon>");
+    string_creator(P6opaque, "P6opaque");
+    string_creator(box_target, "box_target");
+    string_creator(array, "array");
 
-    instance->str_consts.Num = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Num");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.Num);
-
-    instance->str_consts.find_method = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "find_method");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.find_method);
-
-    instance->str_consts.type_check = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type_check");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.type_check);
-
-    instance->str_consts.accepts_type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "accepts_type");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.accepts_type);
-
-    instance->str_consts.name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "name");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.name);
-
-    instance->str_consts.attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.attribute);
-
-    instance->str_consts.of = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "of");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.of);
-
-    instance->str_consts.type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.type);
-
-    instance->str_consts.free_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "free_str");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.free_str);
-
-    instance->str_consts.callback_args = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "callback_args");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.callback_args);
-
-    instance->str_consts.encoding = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "encoding");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.encoding);
 }
 
 /* Set up some standard file handles. */

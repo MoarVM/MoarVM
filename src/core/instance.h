@@ -42,6 +42,11 @@ struct MVMStringConsts {
     MVMString *free_str;
     MVMString *callback_args;
     MVMString *encoding;
+    MVMString *repr;
+    MVMString *anon;
+    MVMString *P6opaque;
+    MVMString *array;
+    MVMString *box_target;
 };
 
 struct MVMReprRegistry {

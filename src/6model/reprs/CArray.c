@@ -99,23 +99,16 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* TODO */
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    MVMObject *obj = MVM_gc_allocate_object(tc, st);
-    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
-
-    if (!repr_data->elem_size)
-        fill_repr_data(tc, st);
-
-    return obj;
-}
-
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     /* If we're initialized, presumably we're going to be
      * managing the memory in this array ourself. */
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
-    MVMCArrayBody *body = (MVMCArrayBody *)data;
+    MVMCArrayBody     *body      = (MVMCArrayBody *)data;
+
+    if (!repr_data->elem_size)
+        fill_repr_data(tc, st);
+
     body->storage = malloc(4 * repr_data->elem_size);
     body->managed = 1;
 
@@ -282,7 +275,7 @@ const MVMREPROps * MVMCArray_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

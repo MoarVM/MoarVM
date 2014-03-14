@@ -8,16 +8,6 @@
  * due to the circular nature of things.
  */
 
-/* Can do something better than statics later... */
-static MVMString *str_repr       = NULL;
-static MVMString *str_name       = NULL;
-static MVMString *str_anon       = NULL;
-static MVMString *str_P6opaque   = NULL;
-static MVMString *str_type       = NULL;
-static MVMString *str_box_target = NULL;
-static MVMString *str_attribute  = NULL;
-static MVMString *str_array      = NULL;
-
 /* Creates a stub VMString. Note we didn't initialize the
  * representation yet, so have to do this somewhat pokily. */
 static void create_stub_VMString(MVMThreadContext *tc) {
@@ -51,20 +41,21 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVMArgInfo repr_arg, name_arg;
     MVMString *repr_name, *name;
     const MVMREPROps *repr_to_use;
+    MVMInstance       *instance = tc->instance;
 
     /* Get arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     self = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
-    repr_arg = MVM_args_get_named_str(tc, &arg_ctx, str_repr, MVM_ARG_OPTIONAL);
-    name_arg = MVM_args_get_named_str(tc, &arg_ctx, str_name, MVM_ARG_OPTIONAL);
+    repr_arg = MVM_args_get_named_str(tc, &arg_ctx, instance->str_consts.repr, MVM_ARG_OPTIONAL);
+    name_arg = MVM_args_get_named_str(tc, &arg_ctx, instance->str_consts.name, MVM_ARG_OPTIONAL);
     MVM_args_proc_cleanup(tc, &arg_ctx);
     if (REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object with REPR KnowHOWREPR");
 
     /* See if we have a representation name; if not default to P6opaque. */
-    repr_name = repr_arg.exists ? repr_arg.arg.s : str_P6opaque;
+    repr_name = repr_arg.exists ? repr_arg.arg.s : instance->str_consts.P6opaque;
     repr_to_use = MVM_repr_get_by_name(tc, repr_name);
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&name_arg);
@@ -82,7 +73,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     /* This may move name_arg.arg.s so do it first: */
     REPR(HOW)->initialize(tc, STABLE(HOW), HOW, OBJECT_BODY(HOW));
     /* See if we were given a name; put it into the meta-object if so. */
-    name = name_arg.exists ? name_arg.arg.s : str_anon;
+    name = name_arg.exists ? name_arg.arg.s : instance->str_consts.anon;
     MVM_ASSIGN_REF(tc, &(HOW->header), ((MVMKnowHOWREPR *)HOW)->body.name, name);
 
     /* Set .WHO to an empty hash. */
@@ -155,6 +146,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVMObject *self, *type_obj, *method_table, *attributes, *BOOTArray, *BOOTHash,
               *repr_info_hash, *repr_info, *type_info, *attr_info_list, *parent_info;
     MVMuint64   num_attrs, i;
+    MVMInstance *instance = tc->instance;
 
     /* Get arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
@@ -182,8 +174,8 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
 
     /* Use any attribute information to produce attribute protocol
      * data. The protocol consists of an array... */
-    BOOTArray = tc->instance->boot_types.BOOTArray;
-    BOOTHash = tc->instance->boot_types.BOOTHash;
+    BOOTArray = instance->boot_types.BOOTArray;
+    BOOTHash = instance->boot_types.BOOTHash;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTHash);
     repr_info = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
@@ -213,11 +205,11 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
                     MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
 
                 MVM_repr_init(tc, attr_info);
-                MVM_repr_bind_key_o(tc, attr_info, str_name, (MVMObject *)attribute->body.name);
-                MVM_repr_bind_key_o(tc, attr_info, str_type, attribute->body.type);
+                MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.name, (MVMObject *)attribute->body.name);
+                MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.type, attribute->body.type);
                 if (attribute->body.box_target) {
                     /* Merely having the key serves as a "yes". */
-                    MVM_repr_bind_key_o(tc, attr_info, str_box_target, attr_info);
+                    MVM_repr_bind_key_o(tc, attr_info, instance->str_consts.box_target, attr_info);
                 }
 
                 MVM_repr_push_o(tc, attr_info_list, attr_info);
@@ -235,7 +227,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     repr_info_hash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&repr_info_hash);
     MVM_repr_init(tc, repr_info_hash);
-    MVM_repr_bind_key_o(tc, repr_info_hash, str_attribute, repr_info);
+    MVM_repr_bind_key_o(tc, repr_info_hash, instance->str_consts.attribute, repr_info);
 
     /* Compose the representation using it. */
     MVM_repr_compose(tc, type_obj, repr_info_hash);
@@ -366,15 +358,16 @@ static void attr_new(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     MVMObject   *self, *obj;
     MVMArgInfo   type_arg, name_arg, bt_arg;
     const MVMREPROps  *repr;
+    MVMInstance       *instance = tc->instance;
 
     /* Process arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
-    name_arg = MVM_args_get_named_str(tc, &arg_ctx, str_name, MVM_ARG_REQUIRED);
-    type_arg = MVM_args_get_named_obj(tc, &arg_ctx, str_type, MVM_ARG_OPTIONAL);
-    bt_arg   = MVM_args_get_named_int(tc, &arg_ctx, str_box_target, MVM_ARG_OPTIONAL);
+    name_arg = MVM_args_get_named_str(tc, &arg_ctx, instance->str_consts.name, MVM_ARG_REQUIRED);
+    type_arg = MVM_args_get_named_obj(tc, &arg_ctx, instance->str_consts.type, MVM_ARG_OPTIONAL);
+    bt_arg   = MVM_args_get_named_int(tc, &arg_ctx, instance->str_consts.box_target, MVM_ARG_OPTIONAL);
     MVM_args_proc_cleanup(tc, &arg_ctx);
 
     /* Anchor all the things. */
@@ -482,6 +475,7 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
 static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject *type) {
     MVMBoolificationSpec *bs;
     MVMObject  *repr_info;
+    MVMInstance  *instance  = tc->instance;
     const MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
     MVMObject  *array = repr->type_object_for(tc, NULL);
     MVMROOT(tc, array, {
@@ -492,8 +486,8 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
         repr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
         MVMROOT(tc, repr_info, {
             MVMObject *arr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-            MVM_repr_bind_key_o(tc, arr_info, str_type, type);
-            MVM_repr_bind_key_o(tc, repr_info, str_array, arr_info);
+            MVM_repr_bind_key_o(tc, arr_info, instance->str_consts.type, type);
+            MVM_repr_bind_key_o(tc, repr_info, instance->str_consts.array, arr_info);
             MVM_repr_compose(tc, array, repr_info);
         });
 
@@ -589,20 +583,6 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCompUnit, boot_types.BOOTCompUnit, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMMultiCache, boot_types.BOOTMultiCache, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMContinuation, boot_types.BOOTContinuation, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
-
-    /* Set up some strings. */
-#define string_creator(tc, variable, name) do { \
-    variable = MVM_string_ascii_decode_nt((tc), (tc)->instance->VMString, (name)); \
-    MVM_gc_root_add_permanent((tc), (MVMCollectable **)&(variable)); \
-} while (0)
-    string_creator(tc, str_repr, "repr");
-    string_creator(tc, str_name, "name");
-    string_creator(tc, str_anon, "<anon>");
-    string_creator(tc, str_P6opaque, "P6opaque");
-    string_creator(tc, str_type, "type");
-    string_creator(tc, str_box_target, "box_target");
-    string_creator(tc, str_attribute, "attribute");
-    string_creator(tc, str_array, "array");
 
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
