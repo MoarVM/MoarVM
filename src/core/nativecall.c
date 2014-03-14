@@ -156,7 +156,7 @@ MVMObject * make_cstruct_result(MVMThreadContext *tc, MVMObject *type, void *cst
         if (REPR(type)->ID != MVM_REPR_ID_MVMCStruct)
             MVM_exception_throw_adhoc(tc,
                 "Native call expected return type with CStruct representation, but got something else");
-        result = MVM_repr_alloc_init(tc, type);
+        result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCStruct *)result)->body.cstruct = cstruct;
     }
     return result;
@@ -169,7 +169,7 @@ MVMObject * make_cpointer_result(MVMThreadContext *tc, MVMObject *type, void *pt
         if (REPR(type)->ID != MVM_REPR_ID_MVMCPointer)
             MVM_exception_throw_adhoc(tc,
                 "Native call expected return type with CPointer representation, but got something else");
-        result = MVM_repr_alloc_init(tc, type);
+        result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCPointer *)result)->body.ptr = ptr;
     }
     return result;
@@ -182,7 +182,7 @@ MVMObject * make_carray_result(MVMThreadContext *tc, MVMObject *type, void *carr
         if (REPR(type)->ID != MVM_REPR_ID_MVMCArray)
             MVM_exception_throw_adhoc(tc,
                 "Native call expected return type with CArray representation, but got something else");
-        result = MVM_repr_alloc_init(tc, type);
+        result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCArray *)result)->body.storage = carray;
     }
     return result;
