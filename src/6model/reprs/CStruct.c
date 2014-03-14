@@ -587,8 +587,10 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMCStructBody *body = (MVMCStructBody *)data;
     if (body->child_objs)
         free(body->child_objs);
-    if (body->cstruct)
-        free(body->cstruct);
+    /* XXX For some reason, this causes crashes at the moment. Need to
+     * work out why. */
+    /*if (body->cstruct)
+        free(body->cstruct);*/
 }
 
 /* Called by the VM in order to free memory associated with this object. */
