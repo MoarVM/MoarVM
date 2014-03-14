@@ -191,6 +191,20 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
     body->allocated = next_size;
 }
 
+static MVMObject * make_wrapper(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
+    switch (repr_data->elem_kind) {
+        case MVM_CARRAY_ELEM_KIND_STRING: {
+            MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
+                (char *)data, strlen((char *)data));
+            return MVM_repr_box_str(tc, repr_data->elem_type, str);
+        }
+        case MVM_CARRAY_ELEM_KIND_CPOINTER:
+        case MVM_CARRAY_ELEM_KIND_CARRAY:
+        case MVM_CARRAY_ELEM_KIND_CSTRUCT:
+            die_pos_nyi(tc);
+    }
+}
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody     *body      = (MVMCArrayBody *)data;
@@ -213,8 +227,61 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         case MVM_CARRAY_ELEM_KIND_STRING:
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
         case MVM_CARRAY_ELEM_KIND_CARRAY:
-        case MVM_CARRAY_ELEM_KIND_CSTRUCT:
-            die_pos_nyi(tc);
+        case MVM_CARRAY_ELEM_KIND_CSTRUCT: {
+            void **storage = (void **)body->storage;
+            if (kind != MVM_reg_obj)
+                MVM_exception_throw_adhoc(tc, "Wrong kind of access to object CArray");
+            if (body->managed) {
+                /* We manage this array. If we're out of range, just use type object. */
+                if (index >= body->elems) {
+                    value->o = repr_data->elem_type;
+                }
+
+                /* Otherwise we may have a cached object result. */
+                else if (body->child_objs[index]) {
+                    value->o = body->child_objs[index];
+                }
+
+                /* If not, we need to produce and cache it. */
+                else {
+                    MVMROOT(tc, root, {
+                        MVMObject **child_objs = body->child_objs;
+                        MVMObject *wrapped = make_wrapper(tc, st, storage[index]);
+                        MVM_ASSIGN_REF(tc, &(root->header), child_objs[index], wrapped);
+                        value->o = wrapped;
+                    });
+                }
+            }
+            else {
+                /* Array comes from C. Enlarge child_objs if needed. */
+                if (index >= body->allocated)
+                    expand(tc, repr_data, body, index + 1);
+                if (index >= body->elems)
+                    body->elems = index + 1;
+
+                /* We've already fetched this object; use cached one. */
+                if (storage[index] && body->child_objs[index]) {
+                    value->o = body->child_objs[index];
+                }
+
+                /* No cached object, but non-NULL pointer in array. Construct object,
+                 * put it in the cache and return it. */
+                else if (storage[index]) {
+                    MVMROOT(tc, root, {
+                        MVMObject **child_objs = body->child_objs;
+                        MVMObject *wrapped = make_wrapper(tc, st, storage[index]);
+                        MVM_ASSIGN_REF(tc, &(root->header), child_objs[index], wrapped);
+                        value->o = wrapped;
+                    });
+                }
+
+                /* NULL pointer in the array; result is the type object. */
+                else {
+                    value->o = repr_data->elem_type;
+                }
+            }
+            break;
+        }
         default:
             MVM_exception_throw_adhoc(tc, "Unknown element type in CArray");
     }
