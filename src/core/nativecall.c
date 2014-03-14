@@ -150,7 +150,7 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
 }
 
 /* Constructs a boxed result using a CStruct REPR type. */
-MVMObject * make_cstruct_result(MVMThreadContext *tc, MVMObject *type, void *cstruct) {
+MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct) {
     MVMObject *result = type;
     if (cstruct && type) {
         if (REPR(type)->ID != MVM_REPR_ID_MVMCStruct)
@@ -163,7 +163,7 @@ MVMObject * make_cstruct_result(MVMThreadContext *tc, MVMObject *type, void *cst
 }
 
 /* Constructs a boxed result using a CPointer REPR type. */
-MVMObject * make_cpointer_result(MVMThreadContext *tc, MVMObject *type, void *ptr) {
+MVMObject * MVM_nativecall_make_cpointer(MVMThreadContext *tc, MVMObject *type, void *ptr) {
     MVMObject *result = type;
     if (ptr && type) {
         if (REPR(type)->ID != MVM_REPR_ID_MVMCPointer)
@@ -176,7 +176,7 @@ MVMObject * make_cpointer_result(MVMThreadContext *tc, MVMObject *type, void *pt
 }
 
 /* Constructs a boxed result using a CArray REPR type. */
-MVMObject * make_carray_result(MVMThreadContext *tc, MVMObject *type, void *carray) {
+MVMObject * MVM_nativecall_make_carray(MVMThreadContext *tc, MVMObject *type, void *carray) {
     MVMObject *result = type;
     if (carray && type) {
         if (REPR(type)->ID != MVM_REPR_ID_MVMCArray)
@@ -434,13 +434,13 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 (char *)dcCallPointer(vm, entry_point));
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
-            result = make_cstruct_result(tc, res_type, dcCallPointer(vm, body->entry_point));
+            result = MVM_nativecall_make_cstruct(tc, res_type, dcCallPointer(vm, body->entry_point));
             break;
         case MVM_NATIVECALL_ARG_CPOINTER:
-            result = make_cpointer_result(tc, res_type, dcCallPointer(vm, body->entry_point));
+            result = MVM_nativecall_make_cpointer(tc, res_type, dcCallPointer(vm, body->entry_point));
             break;
         case MVM_NATIVECALL_ARG_CARRAY:
-            result = make_carray_result(tc, res_type, dcCallPointer(vm, body->entry_point));
+            result = MVM_nativecall_make_carray(tc, res_type, dcCallPointer(vm, body->entry_point));
             break;
         /* XXX Port the rest. */
         default:
