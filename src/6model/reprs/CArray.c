@@ -206,9 +206,13 @@ static MVMObject * make_wrapper(MVMThreadContext *tc, MVMSTable *st, void *data)
             return MVM_repr_box_str(tc, repr_data->elem_type, str);
         }
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
+            return MVM_nativecall_make_cpointer(tc, repr_data->elem_type, data);
         case MVM_CARRAY_ELEM_KIND_CARRAY:
+            return MVM_nativecall_make_carray(tc, repr_data->elem_type, data);
         case MVM_CARRAY_ELEM_KIND_CSTRUCT:
-            die_pos_nyi(tc);
+            return MVM_nativecall_make_cstruct(tc, repr_data->elem_type, data);
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown element type in CArray");
     }
 }
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
