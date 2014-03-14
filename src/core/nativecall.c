@@ -237,7 +237,9 @@ static char * unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 
         }
 
         /* Set whether to free it or not. */
-        if (free && type & MVM_NATIVECALL_ARG_FREE_STR_MASK)
+        if (REPR(value)->ID == MVM_REPR_ID_MVMCStr)
+            *free = 0; /* Manually managed. */
+        else if (free && type & MVM_NATIVECALL_ARG_FREE_STR_MASK)
             *free = 1;
         else
             *free = 0;
