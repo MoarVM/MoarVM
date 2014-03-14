@@ -463,22 +463,31 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 MVMint32   type      = repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_MASK;
                 MVMint32   real_slot = repr_data->attribute_locations[slot] >> MVM_CSTRUCT_ATTR_SHIFT;
 
-                if(IS_CONCRETE(value)) {
+                if (IS_CONCRETE(value)) {
                     void *cobj       = NULL;
 
-                    body->child_objs[real_slot] = value;
+                    MVM_ASSIGN_REF(tc, &(root->header), body->child_objs[real_slot], value);
 
                     /* Set cobj to correct pointer based on type of value. */
-                    if(type == MVM_CSTRUCT_ATTR_CARRAY) {
-                        cobj = ((MVMCArrayBody *) OBJECT_BODY(value))->storage;
+                    if (type == MVM_CSTRUCT_ATTR_CARRAY) {
+                        if (REPR(value)->ID != MVM_REPR_ID_MVMCArray)
+                            MVM_exception_throw_adhoc(tc,
+                                "Can only store CArray attribute in CArray slot in CStruct");
+                        cobj = ((MVMCArray *)value)->body.storage;
                     }
-                    else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
-                        cobj = ((MVMCStructBody *) OBJECT_BODY(value))->cstruct;
+                    else if (type == MVM_CSTRUCT_ATTR_CSTRUCT) {
+                        if (REPR(value)->ID != MVM_REPR_ID_MVMCStruct)
+                            MVM_exception_throw_adhoc(tc,
+                                "Can only store CStruct attribute in CStruct slot in CStruct");
+                        cobj = ((MVMCStruct *)value)->body.cstruct;
                     }
-                    else if(type == MVM_CSTRUCT_ATTR_CPTR) {
-                        cobj = ((MVMCPointerBody *) OBJECT_BODY(value))->ptr;
+                    else if (type == MVM_CSTRUCT_ATTR_CPTR) {
+                        if (REPR(value)->ID != MVM_REPR_ID_MVMCPointer)
+                            MVM_exception_throw_adhoc(tc,
+                                "Can only store CPointer attribute in CPointer slot in CStruct");
+                        cobj = ((MVMCPointer *)value)->body.ptr;
                     }
-                    else if(type == MVM_CSTRUCT_ATTR_STRING) {
+                    else if (type == MVM_CSTRUCT_ATTR_STRING) {
                         MVMString *str  = MVM_repr_get_str(tc, value);
                         cobj = MVM_string_utf8_encode_C_string(tc, str);
                     }
