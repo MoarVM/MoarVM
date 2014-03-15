@@ -200,11 +200,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
         }
 
-        /* If it's in to-space but *ahead* of our copy offset then it's an
-           out-of-date pointer and we have some kind of corruption. */
-        if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
-            MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
-
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
@@ -212,6 +207,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             pass_work_item(tc, wtp, item_ptr);
             continue;
         }
+
+        /* If it's in to-space but *ahead* of our copy offset then it's an
+           out-of-date pointer and we have some kind of corruption. */
+        if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
+            MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
 
         /* At this point, we didn't already see the object, which means we
          * need to take some action. Go on the generation... */
