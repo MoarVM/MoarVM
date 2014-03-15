@@ -27,6 +27,11 @@
 #include "6model/reprs/MVMDLLSym.h"
 #include "6model/reprs/MVMMultiCache.h"
 #include "6model/reprs/MVMContinuation.h"
+#include "6model/reprs/NativeCall.h"
+#include "6model/reprs/CPointer.h"
+#include "6model/reprs/CStr.h"
+#include "6model/reprs/CArray.h"
+#include "6model/reprs/CStruct.h"
 #include "6model/reprs/ReentrantMutex.h"
 #include "6model/reprs/ConditionVariable.h"
 #include "6model/reprs/Semaphore.h"
@@ -68,12 +73,17 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMDLLSym               25
 #define MVM_REPR_ID_MVMMultiCache           26
 #define MVM_REPR_ID_MVMContinuation         27
-#define MVM_REPR_ID_ReentrantMutex          28
-#define MVM_REPR_ID_ConditionVariable       29
-#define MVM_REPR_ID_Semaphore               30
-#define MVM_REPR_ID_ConcBlockingQueue       31
+#define MVM_REPR_ID_MVMNativeCall           28
+#define MVM_REPR_ID_MVMCPointer             29
+#define MVM_REPR_ID_MVMCStr                 30
+#define MVM_REPR_ID_MVMCArray               31
+#define MVM_REPR_ID_MVMCStruct              32
+#define MVM_REPR_ID_ReentrantMutex          33
+#define MVM_REPR_ID_ConditionVariable       34
+#define MVM_REPR_ID_Semaphore               35
+#define MVM_REPR_ID_ConcBlockingQueue       36
 
-#define MVM_REPR_CORE_COUNT                 32
+#define MVM_REPR_CORE_COUNT                 37
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */

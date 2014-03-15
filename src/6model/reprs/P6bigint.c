@@ -17,11 +17,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
-}
-
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
@@ -94,6 +89,7 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
     spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
     spec.bits            = sizeof(MVMP6bigintBody) * 8;
+    spec.align           = ALIGNOF(MVMP6bigintBody);
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
     spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
     return spec;
@@ -183,7 +179,7 @@ const MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

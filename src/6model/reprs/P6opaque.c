@@ -6,15 +6,6 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* Some strings. */
-static MVMString *str_name       = NULL;
-static MVMString *str_type       = NULL;
-static MVMString *str_box_target = NULL;
-static MVMString *str_attribute  = NULL;
-static MVMString *str_pos_del    = NULL;
-static MVMString *str_ass_del    = NULL;
-static MVMString *str_avc        = NULL;
-
 /* We need an "assigned null" sentinel to differentiate between this and an
  * uninitialized slot that should trigger auto-viv. */
 static MVMObject *ass_null = NULL;
@@ -72,7 +63,6 @@ static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data,
 
 /* Helper for finding a slot number. */
 static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMObject *class_key, MVMString *name) {
-    MVMint64 slot = -1;
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
@@ -80,15 +70,14 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
                 MVMint16 i;
                 for (i = 0; i < cur_map_entry->num_attrs; i++) {
                     if (MVM_string_equal(tc, cur_map_entry->names[i], name)) {
-                        slot = cur_map_entry->slots[i];
-                        break;
+                        return cur_map_entry->slots[i];
                     }
                 }
             }
             cur_map_entry++;
         }
     }
-    return slot;
+    return -1;
 }
 
 /* Creates a new type object of this representation, and associates it with
@@ -601,6 +590,15 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                cur_init_slot, cur_mark_slot, cur_cleanup_slot, cur_unbox_slot,
                unboxed_type, bits, i;
     MVMObject *info;
+
+    MVMStringConsts       str_consts = tc->instance->str_consts;
+    MVMString        * const str_avc = str_consts.auto_viv_container;
+    MVMString       * const str_name = str_consts.name;
+    MVMString       * const str_type = str_consts.type;
+    MVMString    * const str_ass_del = str_consts.associative_delegate;
+    MVMString    * const str_pos_del = str_consts.positional_delegate;
+    MVMString  * const str_attribute = str_consts.attribute;
+    MVMString * const str_box_target = str_consts.box_target;
 
     /* Allocate the representation data. */
     MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
@@ -1288,21 +1286,6 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Initializes the representation. */
 const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
-    /* Set up some constant strings we'll need. */
-    str_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "name");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_name);
-    str_type     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
-    str_box_target = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "box_target");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_box_target);
-    str_attribute = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "attribute");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_attribute);
-    str_pos_del = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "positional_delegate");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_pos_del);
-    str_ass_del = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "associative_delegate");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_ass_del);
-    str_avc     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "auto_viv_container");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_avc);
 
     ass_null = malloc(sizeof(MVMP6opaque));
     memset(ass_null, 0, sizeof(MVMP6opaque));

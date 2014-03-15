@@ -11,49 +11,40 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-        st->size = sizeof(MVMThread);
+        st->size = sizeof(MVMCPointer);
     });
 
     return st->WHAT;
 }
 
-/* Copies the body of one object to another. */
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+}
+
+/* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVM_exception_throw_adhoc(tc, "Cannot copy object with representation MVMThread");
-}
-
-/* Adds held objects to the GC worklist. */
-static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMThreadBody *body = (MVMThreadBody *)data;
-    MVM_gc_worklist_add(tc, worklist, &body->invokee);
-    MVM_gc_worklist_add(tc, worklist, &body->next);
-    MVM_gc_worklist_add(tc, worklist, &body->new_child);
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    /* The ThreadContext has already been destroyed by the GC. */
-    MVMThread *thread = (MVMThread *)obj;
-    thread->body.invokee = NULL;
-    thread->body.next = thread->body.new_child = NULL;
+    MVMCPointerBody *src_body = (MVMCPointerBody *)src;
+    MVMCPointerBody *dest_body = (MVMCPointerBody *)dest;
+    dest_body->ptr = src_body->ptr;
 }
 
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.inlineable = MVM_STORAGE_SPEC_REFERENCE;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
+    spec.can_box = 0;
+    spec.bits = sizeof(void *) * 8;
+    spec.align = ALIGNOF(void *);
     return spec;
 }
 
-/* Compose the representation. */
-static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-    /* Nothing to do for this REPR. */
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMCPointer);
 }
 
 /* Initializes the representation. */
-const MVMREPROps * MVMThread_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMCPointer_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
@@ -73,14 +64,14 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
-    NULL, /* deserialize_stable_size */
-    gc_mark,
-    gc_free,
+    deserialize_stable_size,
+    NULL, /* gc_mark */
+    NULL, /* gc_free */
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
-    "VMThread", /* name */
-    MVM_REPR_ID_MVMThread,
+    "CPointer", /* name */
+    MVM_REPR_ID_MVMCPointer,
     0, /* refs_frames */
 };

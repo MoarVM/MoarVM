@@ -14,10 +14,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
-}
-
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data) {
     MVMDLLSymBody *body = data;
@@ -69,7 +65,7 @@ const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

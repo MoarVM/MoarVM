@@ -98,9 +98,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Initialize string cclass handling. */
     MVM_string_cclass_init(instance->main_thread);
 
-    /* Set up some string constants commonly used. */
-    string_consts(instance->main_thread);
-
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 
@@ -108,29 +105,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
 
     return instance;
-}
-
-/* Sets up some string constants. */
-static void string_consts(MVMThreadContext *tc) {
-    MVMInstance * const instance = tc->instance;
-
-    instance->str_consts.empty = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.empty);
-
-    instance->str_consts.Str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Str");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.Str);
-
-    instance->str_consts.Num = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Num");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.Num);
-
-    instance->str_consts.find_method = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "find_method");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.find_method);
-
-    instance->str_consts.type_check = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type_check");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.type_check);
-
-    instance->str_consts.accepts_type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "accepts_type");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&instance->str_consts.accepts_type);
 }
 
 /* Set up some standard file handles. */

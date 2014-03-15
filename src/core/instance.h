@@ -32,9 +32,29 @@ struct MVMStringConsts {
     MVMString *empty;
     MVMString *Str;
     MVMString *Num;
+    MVMString *integer;
+    MVMString *float_str;
+    MVMString *bits;
+    MVMString *unsigned_str;
     MVMString *find_method;
     MVMString *type_check;
     MVMString *accepts_type;
+    MVMString *name;
+    MVMString *attribute;
+    MVMString *of;
+    MVMString *type;
+    MVMString *typeobj;
+    MVMString *free_str;
+    MVMString *callback_args;
+    MVMString *encoding;
+    MVMString *repr;
+    MVMString *anon;
+    MVMString *P6opaque;
+    MVMString *array;
+    MVMString *box_target;
+    MVMString *positional_delegate;
+    MVMString *associative_delegate;
+    MVMString *auto_viv_container;
 };
 
 struct MVMReprRegistry {
@@ -52,7 +72,7 @@ struct MVMReprRegistry {
 typedef struct _MVMCallsiteProfileData {
     MVMuint32 static_frame_id;
     MVMuint8 *cuuid, *name;
-    
+
 } MVMCallsiteProfileData;
 #endif
 

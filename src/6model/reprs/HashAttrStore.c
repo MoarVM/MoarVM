@@ -17,11 +17,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
-}
-
 /* Initialize a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
@@ -156,7 +151,7 @@ const MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     initialize,
     copy_to,
     {

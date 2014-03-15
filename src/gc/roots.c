@@ -62,6 +62,8 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 /* Adds anything that is a root thanks to being referenced by a thread,
  * context, but that isn't permanent. */
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMNativeCallback *current_cbce, *tmp_cbce;
+
     /* Any active exception handlers. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
@@ -84,6 +86,14 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* Current dispatcher. */
     MVM_gc_worklist_add(tc, worklist, &tc->cur_dispatcher);
+
+    /* Callback cache. */
+    HASH_ITER(hash_handle, tc->native_callback_cache, current_cbce, tmp_cbce) {
+        MVMint32 i;
+        for (i = 0; i < current_cbce->num_types; i++)
+            MVM_gc_worklist_add(tc, worklist, &current_cbce->types[i]);
+        MVM_gc_worklist_add(tc, worklist, &current_cbce->target);
+    }
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

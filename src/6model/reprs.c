@@ -206,6 +206,11 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(DLLSym);
     register_core_repr(MultiCache);
     register_core_repr(Continuation);
+    register_core_repr(NativeCall);
+    register_core_repr(CPointer);
+    register_core_repr(CStr);
+    register_core_repr(CArray);
+    register_core_repr(CStruct);
     register_core_repr(ReentrantMutex);
     register_core_repr(ConditionVariable);
     register_core_repr(Semaphore);

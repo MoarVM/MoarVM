@@ -5,6 +5,9 @@
 # you on how to do that.
 # If it doesn't, you may need to copy or symlink this script right next to the
 # moar binary in install/bin.
+#
+#     cd /path/to/install/bin
+#     ln -s path/to/moarvm/tools/moar-gdb.py
 
 # This script contains a few helpers to make debugging MoarVM a bit more pleasant.
 #
@@ -161,19 +164,16 @@ class MVMStringPPrinter(object):
             data = self.val['body'][stringtyp]
             i = 0
             pieces = []
+            graphs = self.val['body']['graphs']
             # XXX are the strings actually null-terminated, or do we have to
             # XXX check the graphs attribute?
-            while not zero_reached:
+            for i in range(graphs):
                 pdata = int((data + i).dereference())
-                if pdata == 0:
-                    zero_reached = True
-                else:
-                    try:
-                        # ugh, unicode woes ...
-                        pieces.append(chr(pdata))
-                    except:
-                        pieces.append("\\x%x" % pdata)
-                i += 1
+                try:
+                    # ugh, unicode woes ...
+                    pieces.append(chr(pdata))
+                except:
+                    pieces.append("\\x%x" % pdata)
             return "".join(pieces)
         elif stringtyp == "rope":
             # XXX here be dragons and/or wrong code
@@ -258,19 +258,36 @@ def show_histogram(hist, sort="value", multiply=False):
         print "sorting mode", sort, "not implemented"
     maximum = max(hist.values())
     keymax = min(max([len(str(key)) for key in hist.keys()]), 20)
+    lines_so_far = 0
+    group = -1
+    num_in_group = 0
     for key, val in items:
-        if val < 2:
-            continue
-        appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
-        print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
+        if lines_so_far < 50:
+            try:
+                str(key)
+            except TypeError:
+                key = repr(key)
+            if val < 2:
+                continue
+            appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
+            print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
+        else:
+            if val == group:
+                num_in_group += 1
+            else:
+                if num_in_group > 1:
+                    print num_in_group, " x ", group
+                group = val
+                num_in_group = 1
+        lines_so_far += 1
     print
 
 def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
     """Works almost exactly like show_histogram, but takes two histograms that
     should have matching keys and displays the difference both in graphical
     form and as numbers on the side."""
-    max_hist = defaultdict(lambda: 0)
-    min_hist = defaultdict(lambda: 0)
+    max_hist = defaultdict(int)
+    min_hist = defaultdict(int)
     zip_hist = {}
     max_val = 0
     max_key = 0
@@ -330,13 +347,13 @@ class CommonHeapData(object):
     def __init__(self, generation):
         self.generation = generation
 
-        self.size_histogram = defaultdict(lambda: 0)
-        self.repr_histogram = defaultdict(lambda: 0)
-        self.opaq_histogram = defaultdict(lambda: 0)
-        self.arrstr_hist    = defaultdict(lambda: 0)
-        self.arrusg_hist    = defaultdict(lambda: 0)
+        self.size_histogram = defaultdict(int)
+        self.repr_histogram = defaultdict(int)
+        self.opaq_histogram = defaultdict(int)
+        self.arrstr_hist    = defaultdict(int)
+        self.arrusg_hist    = defaultdict(int)
 
-        self.string_histogram = defaultdict(lambda: 0)
+        self.string_histogram = defaultdict(int)
 
         self.number_objects = 0
         self.number_stables = 0
@@ -351,7 +368,7 @@ class CommonHeapData(object):
         the size of the object analysed."""
         stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
         size = stooge['common']['header']['size']
-        flags = stooge['common']['header']['flags']
+        flags = int(stooge['common']['header']['flags'])
 
         is_typeobj = flags & 1
         is_stable = flags & 2
@@ -387,7 +404,7 @@ class CommonHeapData(object):
         elif REPRname == "MVMString":
             try:
                 casted = cursor.cast(gdb.lookup_type('MVMString').pointer())
-                self.string_histogram[int(casted['body']['flags'])] += 1
+                self.string_histogram[MVMStringPPrinter(casted).stringify()] += 1
             except gdb.MemoryError as e:
                 print e
                 print cursor.cast(gdb.lookup_type('MVMString').pointer())
@@ -495,8 +512,8 @@ class Gen2Data(CommonHeapData):
         self.size_bucket = size_bucket
         self.g2sc = gen2sizeclass
         self.bucket_size = bucket_index_to_size(self.size_bucket)
-        self.repr_histogram = defaultdict(lambda: 0)
-        self.size_histogram = defaultdict(lambda: 0)
+        self.repr_histogram = defaultdict(int)
+        self.size_histogram = defaultdict(int)
 
     def analyze(self, tc):
         if int(self.g2sc['pages'].cast(gdb.lookup_type("int"))) == 0:
@@ -565,7 +582,7 @@ class Gen2Data(CommonHeapData):
             free_cursor = free_cursor.dereference().cast(gdb.lookup_type("char").pointer().pointer())
         print ""
 
-        #doubles = defaultdict(lambda: 0)
+        #doubles = defaultdict(int)
 
         # now we can actually sample our objects
         for stooge, page, idx in sample_stooges:
@@ -643,6 +660,36 @@ class Gen2Data(CommonHeapData):
         print "strings:"
         show_histogram(self.string_histogram)
 
+class OverflowData(CommonHeapData):
+    def analyze(self, tc):
+        g2a = tc['gen2']
+
+        num_overflows = g2a["num_overflows"]
+
+        for of_idx in range(num_overflows):
+            of_obj = g2a["overflows"][of_idx]
+            self.analyze_single_object(of_obj)
+
+    def summarize(self):
+        print "overflows in the gen2"
+
+        print self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables"
+
+        print "sizes of objects/stables:"
+        show_histogram(self.size_histogram, "key", True)
+        print "sizes of P6opaques only:"
+        show_histogram(self.opaq_histogram, "key", True)
+        print "REPRs:"
+        show_histogram(self.repr_histogram)
+        print "VMArray storage types:"
+        show_histogram(self.arrstr_hist)
+        print "VMArray usage percentages:"
+        show_histogram(self.arrusg_hist, "key")
+
+        print "strings:"
+        show_histogram(self.string_histogram)
+
+
 class HeapData(object):
     run_nursery = None
     run_gen2    = None
@@ -679,10 +726,15 @@ class AnalyzeHeapCommand(gdb.Command):
             sizeclass_data.append(g2sc)
             g2sc.analyze(tc)
 
+        overflowdata = OverflowData(generation)
+        overflowdata.analyze(tc)
+
         for g2sc in sizeclass_data:
             g2sc.summarize()
 
         nursery.summarize()
+
+        overflowdata.summarize()
 
 class DiffHeapCommand(gdb.Command):
     """Display the difference between two snapshots of the nursery."""

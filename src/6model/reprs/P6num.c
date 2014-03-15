@@ -3,10 +3,6 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* Some strings. */
-static MVMString *str_float = NULL;
-static MVMString *str_bits  = NULL;
-
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -26,24 +22,31 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
-}
-
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMP6numBody *src_body  = (MVMP6numBody *)src;
-    MVMP6numBody *dest_body = (MVMP6numBody *)dest;
-    dest_body->value = src_body->value;
+    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
+    MVMP6numBody     *src_body  = (MVMP6numBody *)src;
+    MVMP6numBody     *dest_body = (MVMP6numBody *)dest;
+    switch (repr_data->bits) {
+        case 32: dest_body->value.n32 = src_body->value.n32; break;
+        default: dest_body->value.n64 = src_body->value.n64; break;
+    }
 }
 
 static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMnum64 value) {
-    ((MVMP6numBody *)data)->value = value;
+    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 32: ((MVMP6numBody *)data)->value.n32 = (MVMnum32)value; break;
+        default: ((MVMP6numBody *)data)->value.n64 = value; break;
+    }
 }
 
 static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    return ((MVMP6numBody *)data)->value;
+    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 32: return ((MVMP6numBody *)data)->value.n32;
+        default: return ((MVMP6numBody *)data)->value.n64;
+    }
 }
 
 /* Marks the representation data in an STable.*/
@@ -63,6 +66,11 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
         spec.bits = repr_data->bits;
     else
         spec.bits = sizeof(MVMnum64) * 8;
+    switch (spec.bits) {
+        case 64: spec.align = ALIGNOF(MVMnum64); break;
+        case 32: spec.align = ALIGNOF(MVMnum32); break;
+        default: spec.align = ALIGNOF(MVMnum64); break;
+    }
 
     return spec;
 }
@@ -70,16 +78,16 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
+    MVMStringConsts  str_consts = tc->instance->str_consts;
 
-    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_float);
+    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.float_str);
     if (info != NULL) {
-        MVMObject *bits_o = MVM_repr_at_key_o(tc, info, str_bits);
+        MVMObject *bits_o = MVM_repr_at_key_o(tc, info, str_consts.bits);
 
         if (bits_o != NULL) {
             repr_data->bits = MVM_repr_get_int(tc, bits_o);
-            if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
-             && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-                MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported int size (%dbit)", repr_data->bits);
+            if (repr_data->bits != 32 && repr_data->bits != 64)
+                MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported num size (%dbit)", repr_data->bits);
         }
     }
 }
@@ -116,27 +124,22 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    ((MVMP6numBody *)data)->value = reader->read_num(tc, reader);
+    MVMnum64 value = reader->read_num(tc, reader);
+    set_num(tc, st, root, data, value);
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_num(tc, writer, ((MVMP6numBody *)data)->value);
+    writer->write_num(tc, writer, get_num(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */
 const MVMREPROps * MVMP6num_initialize(MVMThreadContext *tc) {
-    /* Set up some constant strings we'll need. */
-    str_float = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "float");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_float);
-    str_bits = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "bits");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_bits);
-
     return &this_repr;
 }
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

@@ -17,35 +17,29 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
-}
-
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
-    MVMObject *BOOTArray    = tc->instance->boot_types.BOOTArray;
-    MVMObject *BOOTIntArray = tc->instance->boot_types.BOOTIntArray;
     MVMObject *root_codes, *rep_indexes, *rep_scs, *owned_objects;
 
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTArray);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&BOOTIntArray);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&root);
+    MVMInstance       *instance     = tc->instance;
+    MVMObject         *BOOTIntArray = instance->boot_types.BOOTIntArray;
+    MVMSerializationContextBody *sc = ((MVMSerializationContext *)root)->body;
 
-    root_codes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
-    MVM_ASSIGN_REF(tc, &(root->header), sc->root_codes, root_codes);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&root);
 
     rep_indexes = REPR(BOOTIntArray)->allocate(tc, STABLE(BOOTIntArray));
     MVM_ASSIGN_REF(tc, &(root->header), sc->rep_indexes, rep_indexes);
 
-    rep_scs = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    root_codes = REPR(instance->boot_types.BOOTArray)->allocate(tc, STABLE(instance->boot_types.BOOTArray));
+    MVM_ASSIGN_REF(tc, &(root->header), sc->root_codes, root_codes);
+
+    rep_scs = REPR(instance->boot_types.BOOTArray)->allocate(tc, STABLE(instance->boot_types.BOOTArray));
     MVM_ASSIGN_REF(tc, &(root->header), sc->rep_scs, rep_scs);
 
-    owned_objects = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
+    owned_objects = REPR(instance->boot_types.BOOTArray)->allocate(tc, STABLE(instance->boot_types.BOOTArray));
     MVM_ASSIGN_REF(tc, &(root->header), sc->owned_objects, owned_objects);
 
-    MVM_gc_root_temp_pop_n(tc, 3);
+    MVM_gc_root_temp_pop(tc);
 }
 
 /* Copies the body of one object to another. */
@@ -111,7 +105,7 @@ const MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

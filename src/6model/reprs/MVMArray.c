@@ -3,10 +3,6 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* Some strings. */
-static MVMString *str_array = NULL;
-static MVMString *str_type  = NULL;
-
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -26,11 +22,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     });
 
     return st->WHAT;
-}
-
-/* Creates a new instance based on the type object. */
-static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    return MVM_gc_allocate_object(tc, st);
 }
 
 /* Copies the body of one object to another. The result has the space
@@ -916,11 +907,12 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
-    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+    MVMStringConsts         str_consts = tc->instance->str_consts;
+    MVMArrayREPRData * const repr_data = (MVMArrayREPRData *)st->REPR_data;
 
-    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_array);
+    MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
     if (info != NULL) {
-        MVMObject *type = MVM_repr_at_key_o(tc, info, str_type);
+        MVMObject *type = MVM_repr_at_key_o(tc, info, str_consts.type);
         if (type != NULL) {
             MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
@@ -1174,18 +1166,12 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 
 /* Initializes the representation. */
 const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
-    /* Set up some constant strings we'll need. */
-    str_array = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "array");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_array);
-    str_type = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "type");
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&str_type);
-
     return &this_repr;
 }
 
 static const MVMREPROps this_repr = {
     type_object_for,
-    allocate,
+    MVM_gc_allocate_object,
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

@@ -1,7 +1,12 @@
 /* Representation used by P6 native ints. */
 struct MVMP6intBody {
     /* Integer storage slot. */
-    MVMint64 value;
+    union {
+        MVMint64 i64;
+        MVMint32 i32;
+        MVMint16 i16;
+        MVMint8  i8;
+    } value;
 };
 struct MVMP6int {
     MVMObject common;

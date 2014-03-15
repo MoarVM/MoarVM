@@ -11,63 +11,63 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-        st->size = sizeof(MVMP6str);
+        st->size = sizeof(MVMCStr);
     });
 
     return st->WHAT;
 }
 
-/* Copies the body of one object to another. */
+/* Compose the representation. */
+static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
+    /* TODO: move encoding stuff into here */
+}
+
+/* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMP6strBody *src_body  = (MVMP6strBody *)src;
-    MVMP6strBody *dest_body = (MVMP6strBody *)dest;
-    MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->value, src_body->value);
+    MVMCPointerBody *src_body = (MVMCPointerBody *)src;
+    MVMCPointerBody *dest_body = (MVMCPointerBody *)dest;
+    dest_body->ptr = src_body->ptr;
 }
 
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
-    MVM_ASSIGN_REF(tc, &(root->header), ((MVMP6strBody *)data)->value, value);
+    MVMCStrBody *body = (MVMCStrBody *)data;
+    MVM_ASSIGN_REF(tc, &(root->header), body->orig, value);
+    body->cstr = MVM_string_utf8_encode_C_string(tc, value);
 }
 
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    return ((MVMP6strBody *)data)->value;
+    MVMCStrBody *body = (MVMCStrBody *)data;
+    return body->orig;
 }
 
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.bits            = sizeof(MVMString *) * 8;
-    spec.align           = ALIGNOF(void *);
+    spec.inlineable = MVM_STORAGE_SPEC_REFERENCE;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
-    spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_STR;
+    spec.can_box = MVM_STORAGE_SPEC_CAN_BOX_STR;
+    spec.bits = sizeof(void *) * 8;
+    spec.align = ALIGNOF(void *);
     return spec;
 }
 
-/* Compose the representation. */
-static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-}
-
-/* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVM_gc_worklist_add(tc, worklist, &((MVMP6strBody *)data)->value);
+    MVMCStrBody *body = (MVMCStrBody *)data;
+    MVM_gc_worklist_add(tc, worklist, &body->orig);
 }
 
-/* Set the size of the STable. */
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    MVMCStr *cstr = (MVMCStr *)obj;
+    if (obj && cstr->body.cstr)
+        free(cstr->body.cstr);
+}
+
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    st->size = sizeof(MVMP6str);
-}
-
-static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    MVM_ASSIGN_REF(tc, &(root->header), ((MVMP6strBody *)data)->value,
-        reader->read_str(tc, reader));
-}
-
-static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_str(tc, writer, ((MVMP6strBody *)data)->value);
+    st->size = sizeof(MVMCStr);
 }
 
 /* Initializes the representation. */
-const MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMCStr_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
@@ -91,18 +91,18 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    serialize,
-    deserialize, /* deserialize */
+    NULL, /* serialize */
+    NULL, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
     gc_mark,
-    NULL, /* gc_free */
+    gc_free,
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
-    "P6str", /* name */
-    MVM_REPR_ID_P6str,
+    "CStr", /* name */
+    MVM_REPR_ID_MVMCStr,
     0, /* refs_frames */
 };

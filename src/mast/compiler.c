@@ -1,16 +1,5 @@
-#ifdef PARROT_OPS_BUILD
-#define PARROT_IN_EXTENSION
-#include "parrot/parrot.h"
-#include "parrot/extend.h"
-#include "sixmodelobject.h"
-#include "nodes_parrot.h"
-#include "../../src/core/ops.h"
-#include "../../3rdparty/uthash.h"
-#else
 #include "moar.h"
 #include "nodes_moar.h"
-#define MOARVM_IN_COMPILER
-#endif
 
 /* Some constants. */
 #define HEADER_SIZE                 92

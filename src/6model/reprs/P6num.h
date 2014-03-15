@@ -1,7 +1,10 @@
 /* Representation used by P6 nums. */
 struct MVMP6numBody {
     /* Float storage slot. */
-    MVMnum64 value;
+    union {
+        MVMnum64 n64;
+        MVMnum32 n32;
+    } value;
 };
 struct MVMP6num {
     MVMObject common;

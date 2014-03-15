@@ -129,7 +129,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
 #define SPAWN(shell) do { \
     process->data               = &result; \
-    process_stdio[0].flags      = UV_IGNORE; \
+    process_stdio[0].flags      = UV_INHERIT_FD; \
+    process_stdio[0].data.fd    = 0; \
     process_stdio[1].flags      = UV_INHERIT_FD; \
     process_stdio[1].data.fd    = 1; \
     process_stdio[2].flags      = UV_INHERIT_FD; \
@@ -158,7 +159,7 @@ static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_sign
 }
 
 MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
-    MVMint64 spawn_result = 0;
+    MVMint64 spawn_result;
     uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
@@ -198,7 +199,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 
     INIT_ENV();
     /* Making openpipe distinguish between :rp and :wp and all other options
-     * is left as an excercise for the reader. 
+     * is left as an excercise for the reader.
     readable = strncmp(cmdin, "/usr/bin/wc", 11) != 0; */
 
     if (readable) {
@@ -250,7 +251,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 }
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
-    MVMint64 result = 0, spawn_result = 0;
+    MVMint64 result = 0, spawn_result;
     uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
@@ -270,9 +271,12 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     {
         MVMint64 len = strlen(cmdin);
         MVMint64 i;
-        for (i = 0; i < len; i++)
+        for (i = 0; i < len; i++) {
+            if (cmdin[i] == ' ')
+                break;
             if (cmdin[i] == '/')
                 cmdin[i] = '\\';
+        }
     }
     args[1] = cmdin;
     args[2] = NULL;
@@ -300,7 +304,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 }
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
-    MVMint64 result = 0, spawn_result = 0;
+    MVMint64 result = 0, spawn_result;
     uv_process_t *process = calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
