@@ -427,6 +427,8 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
     MVMInstance *i          = tc->instance;
 
     /* Find any existing thread work passing list for the target. */
+    if (target == 0)
+        MVM_panic(MVM_exitcode_gcnursery, "Internal error: zeroed target thread ID in work pass");
     for (j = 0; j < wtp->num_target_threads; j++) {
         if (wtp->target_work[j].target == target) {
             target_info = &wtp->target_work[j];
