@@ -621,6 +621,10 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     st->REPR_data = calloc(1, sizeof(MVMCStructREPRData));
 }
 
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMCStruct);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCStruct_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -647,7 +651,7 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize */
     serialize_repr_data,
     deserialize_repr_data,
-    NULL, /* deserialize_stable_size */
+    deserialize_stable_size,
     gc_mark,
     gc_free,
     gc_cleanup,

@@ -19,7 +19,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
-
 }
 
 /* Copies to the body of one object to another. */
@@ -38,6 +37,10 @@ static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     spec.bits = sizeof(void *) * 8;
     spec.align = ALIGNOF(void *);
     return spec;
+}
+
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMCPointer);
 }
 
 /* Initializes the representation. */
@@ -61,7 +64,7 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
-    NULL, /* deserialize_stable_size */
+    deserialize_stable_size,
     NULL, /* gc_mark */
     NULL, /* gc_free */
     NULL, /* gc_cleanup */

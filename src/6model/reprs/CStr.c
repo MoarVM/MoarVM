@@ -62,6 +62,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         free(cstr->body.cstr);
 }
 
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMCStr);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCStr_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -91,7 +95,7 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
-    NULL, /* deserialize_stable_size */
+    deserialize_stable_size,
     gc_mark,
     gc_free,
     NULL, /* gc_cleanup */

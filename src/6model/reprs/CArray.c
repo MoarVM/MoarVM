@@ -380,6 +380,10 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
         "Don't know how many elements a C array returned from a library has");
 }
 
+static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    st->size = sizeof(MVMCArray);
+}
+
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
@@ -394,7 +398,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->elem_size = reader->read_int(tc, reader);
     repr_data->elem_type = reader->read_ref(tc, reader);
     repr_data->elem_kind = reader->read_int(tc, reader);
-    st->REPR_data = (MVMCArrayREPRData *) repr_data;
+    st->REPR_data = repr_data;
 }
 
 /* Initializes the CArray representation. */
@@ -429,7 +433,7 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize */
     serialize_repr_data,
     deserialize_repr_data,
-    NULL, /* deserialize_stable_size */
+    deserialize_stable_size,
     gc_mark,
     gc_free,
     gc_cleanup,
