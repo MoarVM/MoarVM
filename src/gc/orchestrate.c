@@ -242,18 +242,6 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
     }
 }
 
-static void signal_child(MVMThreadContext *tc) {
-    MVMThread *child = tc->thread_obj->body.new_child;
-    /* if we still have it, its state will be UNABLE, so steal it. */
-    if (child) {
-        /* this will never return nonzero, because the child's status
-         * will always be UNABLE or STOLEN. */
-        signal_one_thread(tc, child->body.tc);
-        while (!MVM_trycas(&tc->thread_obj->body.new_child,
-            tc->thread_obj->body.new_child, NULL));
-    }
-}
-
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint8   gen;
     MVMThread *child;
@@ -327,9 +315,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         add_work(tc, tc);
 
-        /* grab our child (if we created one) */
-        signal_child(tc);
-
         do {
             MVMThread *threads = (MVMThread *)MVM_load(&tc->instance->threads);
             if (threads && threads != last_starter) {
@@ -390,9 +375,6 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     tc->gc_work_count = 0;
 
     add_work(tc, tc);
-
-    /* grab our child */
-    signal_child(tc);
 
     /* Count us in to the GC run. Wait for a vote to steal. */
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");

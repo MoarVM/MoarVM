@@ -108,10 +108,8 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
         /* Push this to the *child* tc's temp roots. */
         MVM_gc_root_temp_push(child_tc, (MVMCollectable **)&ts->thread_obj);
 
-        /* Signal to the GC we have a childbirth in progress. The GC
-         * will null it for us. */
+        /* Mark thread as GC blocked until the thread actually starts. */
         MVM_gc_mark_thread_blocked(child_tc);
-        MVM_ASSIGN_REF(tc, &(tc->thread_obj->common.header), tc->thread_obj->body.new_child, child);
 
         /* Push to starting threads list */
         threads = &tc->instance->threads;
@@ -124,11 +122,6 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
         status = uv_thread_create(&child->body.thread, &start_thread, ts);
         if (status < 0)
             MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", status);
-
-        /* Need to run the GC to clear our new_child field in case we try
-         * try to launch another thread before the GC runs and before the
-         * thread starts. */
-        GC_SYNC_POINT(tc);
     }
     else {
         MVM_exception_throw_adhoc(tc,

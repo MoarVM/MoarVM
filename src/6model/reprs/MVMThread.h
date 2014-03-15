@@ -26,9 +26,6 @@ struct MVMThreadBody {
     /* The current stage the thread is in (one of MVMThreadStages). */
     AO_t stage;
 
-    /* Child currently spawning, so GC can steal it. */
-    MVMThread *new_child;
-
     /* Thread's OS-level thread ID. */
     MVMint64 thread_id;
 
