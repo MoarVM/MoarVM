@@ -43,6 +43,9 @@ struct MVMNativeCallback {
     /* The number of entries in typeinfos/types. */
     MVMint32 num_types;
 
+    /* The MoarVM callsite object for this call. */
+    MVMCallsite *cs;
+
     /* The uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
 };

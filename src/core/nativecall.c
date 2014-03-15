@@ -300,12 +300,14 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 
     if (!callback_data) {
         /* Need to build/cache callback data entry. */
-        char      *signature;
-        MVMObject *typehash;
-        MVMint64   num_info, i;
+        MVMCallsite *cs;
+        char        *signature;
+        MVMObject   *typehash;
+        MVMint64     num_info, i;
 
         num_info                 = MVM_repr_elems(tc, sig_info);
         callback_data            = malloc(sizeof(MVMNativeCallback));
+        callback_data->num_types = num_info;
         callback_data->typeinfos = malloc(num_info * sizeof(MVMint16));
         callback_data->types     = malloc(num_info * sizeof(MVMObject *));
 
@@ -318,6 +320,14 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         signature[num_info + 1] = '\0';
         signature[num_info - 1] = ')';
 
+        /* We'll also build up a MoarVM callsite as we go. */
+        cs                 = malloc(sizeof(MVMCallsite));
+        cs->arg_flags      = malloc(num_info * sizeof(MVMCallsiteEntry));
+        cs->arg_count      = num_info - 1;
+        cs->num_pos        = num_info - 1;
+        cs->has_flattening = 0;
+        cs->with_invocant  = NULL;
+
         typehash = MVM_repr_at_pos_o(tc, sig_info, 0);
         callback_data->types[0] = MVM_repr_at_key_o(tc, typehash,
             tc->instance->str_consts.typeobj);
@@ -329,10 +339,26 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                 tc->instance->str_consts.typeobj);
             callback_data->typeinfos[i] = get_arg_type(tc, typehash, 0);
             signature[i - 1] = get_signature_char(callback_data->typeinfos[i]);
+            switch (callback_data->typeinfos[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                case MVM_NATIVECALL_ARG_CHAR:
+                case MVM_NATIVECALL_ARG_SHORT:
+                case MVM_NATIVECALL_ARG_INT:
+                case MVM_NATIVECALL_ARG_LONG:
+                case MVM_NATIVECALL_ARG_LONGLONG:
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
+                case MVM_NATIVECALL_ARG_FLOAT:
+                case MVM_NATIVECALL_ARG_DOUBLE:
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
+                    break;
+                default:
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+                    break;
+            }
         }
 
-        callback_data->num_types = num_info;
         callback_data->tc        = tc;
+        callback_data->cs        = cs;
         callback_data->target    = callback;
         callback_data->cb        = dcbNewCallback(signature, &callback_handler, callback_data);
 
@@ -363,73 +389,55 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 
     /* Build a callsite and arguments buffer. */
     MVMRegister *args = malloc(data->num_types * sizeof(MVMRegister));
-    MVMCallsite *cs    = malloc(sizeof(MVMCallsite));
-    cs->arg_flags      = malloc(data->num_types * sizeof(MVMCallsiteEntry));
-    cs->arg_count      = data->num_types - 1;
-    cs->num_pos        = data->num_types - 1;
-    cs->has_flattening = 0;
-    cs->with_invocant  = NULL;
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
         MVMint16   typeinfo = data->typeinfos[i];
         switch (typeinfo & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_CHAR:
-                args[i - 1].i64      = dcbArgChar(cb_args);
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                args[i - 1].i64 = dcbArgChar(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_SHORT:
-                args[i - 1].i64      = dcbArgShort(cb_args);
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                args[i - 1].i64 = dcbArgShort(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_INT:
-                args[i - 1].i64      = dcbArgInt(cb_args);
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                args[i - 1].i64 = dcbArgInt(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_LONG:
-                args[i - 1].i64      = dcbArgLong(cb_args);
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                args[i - 1].i64 = dcbArgLong(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_LONGLONG:
-                args[i - 1].i64      = dcbArgLongLong(cb_args);
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                args[i - 1].i64 = dcbArgLongLong(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_FLOAT:
-                args[i - 1].n64      = dcbArgFloat(cb_args);
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
+                args[i - 1].n64 = dcbArgFloat(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_DOUBLE:
-                args[i - 1].n64      = dcbArgDouble(cb_args);
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
+                args[i - 1].n64 = dcbArgDouble(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR:
                 args[i - 1].o = make_str_result(data->tc, type, typeinfo,
                     (char *)dcbArgPointer(cb_args));
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
                 break;
             case MVM_NATIVECALL_ARG_CSTRUCT:
                 args[i - 1].o = MVM_nativecall_make_cstruct(data->tc, type,
                     dcbArgPointer(cb_args));
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
                 args[i - 1].o = MVM_nativecall_make_cpointer(data->tc, type,
                     dcbArgPointer(cb_args));
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
                 args[i - 1].o = MVM_nativecall_make_carray(data->tc, type,
                     dcbArgPointer(cb_args));
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 /* TODO: A callback -return- value means that we have a C method
                 * that needs to be wrapped similarly to a is native(...) Perl 6
                 * sub. */
                 dcbArgPointer(cb_args);
-                args[i - 1].o        = type;
-                cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+                args[i - 1].o = type;
             default:
                 MVM_exception_throw_adhoc(data->tc,
                     "Internal error: unhandled dyncall callback argument type");
@@ -440,7 +448,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
      * save a bunch of state around each side of this. */
     cid.invokee = data->target;
     cid.args    = args;
-    cid.cs      = cs;
+    cid.cs      = data->cs;
     {
         MVMThreadContext *tc = data->tc;
         MVMuint8 **backup_interp_cur_op         = tc->interp_cur_op;
@@ -519,7 +527,6 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 
     /* Clean up. */
     free(args);
-    free(cs);
 
     /* Indicate what we're producing as a result. */
     return get_signature_char(data->typeinfos[0]);
