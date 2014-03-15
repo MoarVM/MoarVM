@@ -3318,10 +3318,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(readlineint_fh):
-                /* XXX Avoid readline for now; spews infinite prompts on some
-                 * platforms. */
-                MVM_io_write_string(tc, tc->instance->stdout_handle, GET_REG(cur_op, 4).s, 0);
-                GET_REG(cur_op, 0).s = MVM_io_readline(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).s = MVM_file_readline_interactive_fh(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             OP(chdir):
