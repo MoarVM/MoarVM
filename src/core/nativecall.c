@@ -237,12 +237,14 @@ static char * unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 
         }
 
         /* Set whether to free it or not. */
-        if (REPR(value)->ID == MVM_REPR_ID_MVMCStr)
-            *free = 0; /* Manually managed. */
-        else if (free && type & MVM_NATIVECALL_ARG_FREE_STR_MASK)
-            *free = 1;
-        else
-            *free = 0;
+        if (free) {
+            if (REPR(value)->ID == MVM_REPR_ID_MVMCStr)
+                *free = 0; /* Manually managed. */
+            else if (free && type & MVM_NATIVECALL_ARG_FREE_STR_MASK)
+                *free = 1;
+            else
+                *free = 0;
+        }
 
         return str;
     }
@@ -356,7 +358,8 @@ static void callback_invoke(MVMThreadContext *tc, void *data) {
 }
 static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result, MVMNativeCallback *data) {
     CallbackInvokeData cid;
-    MVMint32 i;
+    MVMint32 num_roots, i;
+    MVMRegister res;
 
     /* Build a callsite and arguments buffer. */
     MVMRegister *args = malloc(data->num_types * sizeof(MVMRegister));
@@ -449,6 +452,8 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         jmp_buf backup_interp_jump;
         memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
 
+        tc->cur_frame->return_value = &res;
+        tc->cur_frame->return_type  = MVM_RETURN_OBJ;
         MVM_interp_run(tc, &callback_invoke, &cid);
 
         tc->interp_cur_op         = backup_interp_cur_op;
@@ -458,6 +463,58 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         tc->cur_frame             = backup_cur_frame;
         tc->thread_entry_frame    = backup_thread_entry_frame;
         memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
+    }
+
+    /* Handle return value. */
+    if (res.o) {
+        MVMContainerSpec const *contspec = STABLE(res.o)->container_spec;
+        if (contspec && contspec->fetch_never_invokes)
+            contspec->fetch(data->tc, res.o, &res);
+    }
+    switch (data->typeinfos[0] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+        case MVM_NATIVECALL_ARG_VOID:
+            break;
+        case MVM_NATIVECALL_ARG_CHAR:
+            cb_result->c = unmarshal_char(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_SHORT:
+            cb_result->s = unmarshal_short(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_INT:
+            cb_result->i = unmarshal_int(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_LONG:
+            cb_result->j = unmarshal_long(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_LONGLONG:
+            cb_result->l = unmarshal_longlong(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_FLOAT:
+            cb_result->f = unmarshal_float(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_DOUBLE:
+            cb_result->d = unmarshal_double(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_ASCIISTR:
+        case MVM_NATIVECALL_ARG_UTF8STR:
+        case MVM_NATIVECALL_ARG_UTF16STR:
+            cb_result->Z = unmarshal_string(data->tc, res.o, data->typeinfos[0], NULL);
+            break;
+        case MVM_NATIVECALL_ARG_CSTRUCT:
+            cb_result->p = unmarshal_cstruct(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CPOINTER:
+            cb_result->p = unmarshal_cpointer(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CARRAY:
+            cb_result->p = unmarshal_carray(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CALLBACK:
+            cb_result->p = unmarshal_callback(data->tc, res.o, data->types[0]);
+            break;
+        default:
+            MVM_exception_throw_adhoc(data->tc,
+                "Internal error: unhandled dyncall callback return type");
     }
 
     /* Clean up. */
