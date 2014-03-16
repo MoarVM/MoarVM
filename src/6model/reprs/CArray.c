@@ -85,7 +85,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     body->storage = malloc(4 * repr_data->elem_size);
     body->managed = 1;
 
-    /* Don't need child_objs for numerics or strings. */
+    /* Don't need child_objs for numerics. */
     if (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_NUMERIC)
         body->child_objs = NULL;
     else
@@ -238,7 +238,6 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
         case MVM_CARRAY_ELEM_KIND_CARRAY:
         case MVM_CARRAY_ELEM_KIND_CSTRUCT: {
-            void **storage = (void **)body->storage;
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "Wrong kind of access to object CArray");
             if (body->managed) {
@@ -254,6 +253,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
 
                 /* If not, we need to produce and cache it. */
                 else {
+                    void **storage = (void **)body->storage;
                     MVMROOT(tc, root, {
                         MVMObject **child_objs = body->child_objs;
                         MVMObject *wrapped = make_wrapper(tc, st, storage[index]);
@@ -263,11 +263,15 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 }
             }
             else {
+                void **storage;
+
                 /* Array comes from C. Enlarge child_objs if needed. */
                 if (index >= body->allocated)
                     expand(tc, repr_data, body, index + 1);
                 if (index >= body->elems)
                     body->elems = index + 1;
+
+                storage = (void **)body->storage;
 
                 /* We've already fetched this object; use cached one. */
                 if (storage[index] && body->child_objs[index]) {
@@ -309,13 +313,14 @@ static void bind_wrapper_and_ptr(MVMThreadContext *tc, MVMObject *root, MVMCArra
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody     *body      = (MVMCArrayBody *)data;
+    void *ptr;
 
     if (body->managed && index >= body->allocated)
         expand(tc, repr_data, body, index + 1);
     if (index >= body->elems)
         body->elems = index + 1;
 
-    void              *ptr       = ((char *)body->storage) + index * repr_data->elem_size;
+    ptr = ((char *)body->storage) + index * repr_data->elem_size;
 
     switch (repr_data->elem_kind) {
         case MVM_CARRAY_ELEM_KIND_NUMERIC:
