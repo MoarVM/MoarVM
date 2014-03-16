@@ -309,12 +309,13 @@ static void bind_wrapper_and_ptr(MVMThreadContext *tc, MVMObject *root, MVMCArra
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody     *body      = (MVMCArrayBody *)data;
-    void              *ptr       = ((char *)body->storage) + index * repr_data->elem_size;
 
     if (body->managed && index >= body->allocated)
         expand(tc, repr_data, body, index + 1);
     if (index >= body->elems)
         body->elems = index + 1;
+
+    void              *ptr       = ((char *)body->storage) + index * repr_data->elem_size;
 
     switch (repr_data->elem_kind) {
         case MVM_CARRAY_ELEM_KIND_NUMERIC:
