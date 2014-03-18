@@ -243,21 +243,15 @@ static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
 }
 
 /* Locks a file. */
-MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
+static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-#ifdef _WIN32
-    const DWORD len = 0xffffffff;
-    HANDLE hf;
-    OVERLAPPED offset;
-#else
-  struct flock l;
-  ssize_t r;
-  int fc;
-  const int fd = data->fd;
-#endif
 
 #ifdef _WIN32
-    hf = (HANDLE)_get_osfhandle(data->fd);
+
+    const DWORD len = 0xffffffff;
+    const HANDLE hf = (HANDLE)_get_osfhandle(data->fd);
+    OVERLAPPED offset;
+
     if (hf == INVALID_HANDLE_VALUE) {
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
     }
@@ -274,7 +268,14 @@ MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", GetLastError());
 
     return 0;
+
 #else
+
+    struct flock l;
+    ssize_t r;
+    int fc;
+    const int fd = data->fd;
+
     l.l_whence = SEEK_SET;
     l.l_start = 0;
     l.l_len = 0;
@@ -300,20 +301,15 @@ MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
 }
 
 /* Unlocks a file. */
-void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
+static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-#ifdef _WIN32
-    const DWORD len = 0xffffffff;
-    HANDLE hf;
-    OVERLAPPED offset;
-#else
-  struct flock l;
-  ssize_t r;
-  const int fd = data->fd;
-#endif
 
 #ifdef _WIN32
-    hf = (HANDLE)_get_osfhandle(data->fd);
+
+    const DWORD len = 0xffffffff;
+    const HANDLE hf = (HANDLE)_get_osfhandle(data->fd);
+    OVERLAPPED offset;
+
     if (hf == INVALID_HANDLE_VALUE) {
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
     }
@@ -325,6 +321,10 @@ void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
 
     MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
 #else
+
+    struct flock l;
+    ssize_t r;
+    const int fd = data->fd;
 
     l.l_whence = SEEK_SET;
     l.l_start = 0;
