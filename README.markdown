@@ -40,8 +40,8 @@ will do all the work for you, including creating an `nqp-m`.
 ## Status
 
 MoarVM is currently in development. It can run all of the NQP test suite, all
-of the Rakudo sanity tests, and >99% of the spectests that the current leading
-Rakudo backend (the JVM) can.
+of the Rakudo sanity tests, and passes more spectests than any other Rakudo
+Perl 6 backend (though some backends pass tests that it does not).
 
 Unlike the JVM backend of NQP, the MoarVM repo is not currently planned to be
 integrated into the main NQP source repo http://github.com/perl6/nqp but
@@ -63,13 +63,15 @@ Some key features provided by MoarVM include:
 * Runtime loading of code
 * Big integers
 * A range of IO and process support
+* Native calling
 * Basic threads
 
 ## Contributing
 
-Contributions by pull request are accepted. If you are interested in commit
-access so you can contribute more easily, drop by the `#moarvm` channel on
-freenode.org, or email diakopter@gmail.com if you're averse to IRC.
+Contributions by pull request are accepted. Commit bits are given to those who
+contribute quality work. If you are interested in contributing, drop by the
+`#moarvm` channel on freenode.org, or email jnthn@jnthn.net if you're averse
+to IRC.
 
 See the LICENSE file in the root directory for information on the license of
 the source code in the MoarVM repository.
