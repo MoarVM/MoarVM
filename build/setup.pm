@@ -38,7 +38,7 @@ our %TP_MT = (
 our %TP_DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
-    rule  => 'cd 3rdparty/dyncall &&  ./configure2 && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile ',
+    rule  => 'cd 3rdparty/dyncall &&  ./configure && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile ',
     clean => 'cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
 );
 
