@@ -31,7 +31,7 @@ GetOptions(\%args, qw(
     debug:s optimize:s instrument!
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s
-    static use-readline
+    static use-readline has-libtommath
     build=s host=s big-endian
     prefix=s make-install profilecalls
 )) or die "See --help for further information\n";
@@ -64,8 +64,9 @@ $args{instrument} //= 0;
 $args{static}     //= 0;
 $args{profilecalls} //= 0;
 
-$args{'use-readline'} //= 0;
-$args{'big-endian'}   //= 0;
+$args{'use-readline'}     //= 0;
+$args{'big-endian'}       //= 0;
+$args{'has-libtommath'}   //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -142,6 +143,7 @@ else { $config{hasreadline} = 0 }
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
+$config{ldlibs} .= ' -ltommath' if $args{'has-libtommath'};
 
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
@@ -295,6 +297,10 @@ write_backend_config();
 print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
 TERM
+
+# only this objects are needed to build, if moar is linked together with
+#  the libtommath library from the system
+$config{tomobjects} = '3rdparty/libtommath/bn_mp_get_long.o 3rdparty/libtommath/bn_mp_set_long.o' if $args{'has-libtommath'};
 
 # read list of files to generate
 
@@ -564,6 +570,7 @@ __END__
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
+                   [--has-libtommath]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -669,5 +676,9 @@ The default prefix is "install" if this option is not passed.
 =item --make-install
 
 Build and install MoarVM in addition to configuring it.
+
+=item --has-libtommath
+
+Link moar with the libtommath library of the system.
 
 =back
