@@ -30,7 +30,7 @@ New in 2014.03
 + Clean-up and optimization of many REPR allocate functions
 + Fixed over-eager / to \ conversion in nqp::shell on Windows
 + Implemented native callbacks
-+ Correct copy sie of args buffer, avoiding reading unmapped memory
++ Correct copy size of args buffer, avoiding reading unmapped memory
 + Updated to new liblinenoise and re-instated usage of it
 
 New in 2014.02
