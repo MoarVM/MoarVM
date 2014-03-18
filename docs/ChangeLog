@@ -1,3 +1,38 @@
+New in 2014.03
+
++ Implement a fast-path for string strand flattening
++ Fix character lookup by name sometimes giving wrong result
++ Control and printable now know about Latin-1 control characters
++ Fix bug in Latin-1 handling
++ Fix and optimize various character property lookups
++ Implement lookup of non-boolean Unicode properties
++ Implement character code to name lookup
++ Implement lookup of enum/stringy Unicode properties
++ Fix memory leak of active handlers in continuations
++ Clear up gen2 memory at exit
++ Clear up frame pool at exit
++ Don't leak static frame instruction offsets
++ Fix memory leak in MVMHash
++ Simplified/optimized frame reference count handling in continuations
++ Fixed missing exception resume reference count decrement
++ Correct "on stack" continuation reference count handling
++ Add missing cleanup in MAST assembler
++ Fixed used named args tracking memory leak
++ Fixed SEGV in eof of non-file-based filehandle
++ Pass STDIN to subprocess in shell()
++ Fixed resolution of IPv6 host names
++ Implemented native calling
++ Implemented CPointer representation
++ Implemented CArray representation
++ Implemented CStruct representation
++ Improve GDB plug-in string usage analysis
++ Make GDB plug-in aware of gen2 overflows
++ Clean-up and optimization of many REPR allocate functions
++ Fixed over-eager / to \ conversion in nqp::shell on Windows
++ Implemented native callbacks
++ Correct copy sie of args buffer, avoiding reading unmapped memory
++ Updated to new liblinenoise and re-instated usage of it
+
 New in 2014.02
 
 + Increased precision of num => str coercion
