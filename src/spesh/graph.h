@@ -45,6 +45,10 @@ struct MVMSpeshBB {
     MVMSpeshBB **succ;
     MVMuint16    num_succ;
 
+    /* Basic blocks that we may arrive into this one from. */
+    MVMSpeshBB **pred;
+    MVMuint16    num_pred;
+
     /* The next basic block in original linear code order. */
     MVMSpeshBB *linear_next;
 
