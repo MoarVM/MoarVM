@@ -89,12 +89,15 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMSpeshBB **ins_to_bb = NULL;
 
     /* Make first pass through the bytecode. In this pass, we make MVMSpeshIns
-     * nodes for each instruction and set the start/end of block bits. */
+     * nodes for each instruction and set the start/end of block bits. Also
+     * set handler targets as basic block starters. */
     MVMCompUnit *cu       = sf->body.cu;
     MVMuint8    *pc       = sf->body.bytecode;
     MVMuint8    *end      = sf->body.bytecode + sf->body.bytecode_size;
     MVMuint32    ins_idx  = 0;
     MVMuint8     next_bbs = 1; /* Next iteration (here, first) starts a BB. */
+    for (i = 0; i < sf->body.num_handlers; i++)
+        byte_to_ins_flags[sf->body.handlers[i].goto_offset] |= MVM_CFG_BB_START;
     while (pc < end) {
         /* Look up op info. */
         MVMuint16  opcode   = *(MVMuint16 *)pc;
@@ -235,13 +238,20 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Now for the second pass, where we assemble the basic blocks. Also we
      * build a lookup table of instructions that start a basic block to that
-     * basic block, for the final CFG construction. */
-    cur_bb    = NULL;
-    prev_bb   = NULL;
-    last_ins  = NULL;
-    ins_to_bb = calloc(ins_idx, sizeof(MVMSpeshBB *));
-    ins_idx   = 0;
-    bb_idx    = 0;
+     * basic block, for the final CFG construction. We make the entry block a
+     * special one, containing a noop; it will have any exception handler
+     * targets linked from it, so they show up in the graph. */
+    g->entry                  = spesh_alloc(tc, g, sizeof(MVMSpeshBB));
+    g->entry->first_ins       = spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    g->entry->first_ins->info = get_op_info(tc, cu, 0);
+    g->entry->last_ins        = g->entry->first_ins;
+    g->entry->idx             = 0;
+    cur_bb                    = NULL;
+    prev_bb                   = g->entry;
+    last_ins                  = NULL;
+    ins_to_bb                 = calloc(ins_idx, sizeof(MVMSpeshBB *));
+    ins_idx                   = 0;
+    bb_idx                    = 1;
     for (i = 0; i < sf->body.bytecode_size; i++) {
         MVMSpeshIns *cur_ins;
 
@@ -269,12 +279,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             /* Record instruction -> BB start mapping. */
             ins_to_bb[ins_idx] = cur_bb;
 
-            /* If it's the first instruction, we have the entry BB. If not,
-             * link it to the previous one. */
-            if (prev_bb)
-                prev_bb->linear_next = cur_bb;
-            else
-                g->entry = cur_bb;
+            /* Link it to the previous one. */
+            prev_bb->linear_next = cur_bb;
         }
 
         /* Should always be in a BB at this point. */
@@ -306,53 +312,67 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      * the instruction operands get the target BB stored. */
     cur_bb = g->entry;
     while (cur_bb) {
-        /* Consider the last instruction, to see how we leave the BB. */
-        switch (cur_bb->last_ins->info->opcode) {
-            case MVM_OP_jumplist: {
-                /* Jumplist, so successors are next N+1 basic blocks. */
-                MVMint64    num_bbs   = cur_bb->last_ins->operands[0].lit_i64 + 1;
-                MVMSpeshBB *bb_to_add = cur_bb->linear_next;
-                cur_bb->succ          = spesh_alloc(tc, g, num_bbs * sizeof(MVMSpeshBB *));
-                for (i = 0; i < num_bbs; i++) {
-                    cur_bb->succ[i] = bb_to_add;
-                    bb_to_add = bb_to_add->linear_next;
+        /* If it's the first block, it's a special case; successors are the
+         * real successor and all exception handlers. */
+        if (cur_bb == g->entry) {
+            cur_bb->num_succ = 1 + sf->body.num_handlers;
+            cur_bb->succ     = spesh_alloc(tc, g, cur_bb->num_succ * sizeof(MVMSpeshBB *));
+            cur_bb->succ[0]  = cur_bb->linear_next;
+            for (i = 0; i < sf->body.num_handlers; i++) {
+                MVMuint32 offset = sf->body.handlers[i].goto_offset;
+                cur_bb->succ[i + 1] = ins_to_bb[byte_to_ins_flags[offset] >> 2];
+            }
+        }
+
+        /* Otherwise, consider the last instruction, to see how we leave the BB. */
+        else {
+            switch (cur_bb->last_ins->info->opcode) {
+                case MVM_OP_jumplist: {
+                    /* Jumplist, so successors are next N+1 basic blocks. */
+                    MVMint64    num_bbs   = cur_bb->last_ins->operands[0].lit_i64 + 1;
+                    MVMSpeshBB *bb_to_add = cur_bb->linear_next;
+                    cur_bb->succ          = spesh_alloc(tc, g, num_bbs * sizeof(MVMSpeshBB *));
+                    for (i = 0; i < num_bbs; i++) {
+                        cur_bb->succ[i] = bb_to_add;
+                        bb_to_add = bb_to_add->linear_next;
+                    }
+                    cur_bb->num_succ = num_bbs;
                 }
-                cur_bb->num_succ = num_bbs;
-            }
-            break;
-            case MVM_OP_goto: {
-                /* Unconditional branch, so one successor. */
-                MVMuint32   offset = cur_bb->last_ins->operands[0].ins_offset;
-                MVMSpeshBB *tgt    = ins_to_bb[byte_to_ins_flags[offset] >> 2];
-                cur_bb->succ       = spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
-                cur_bb->succ[0]    = tgt;
-                cur_bb->num_succ   = 1;
-            }
-            break;
-            default: {
-                /* Probably conditional branch, so two successors: one from
-                 * the instruction, another from fall-through. Or may just be
-                 * a non-branch that exits for other reasons. */
-                cur_bb->succ = spesh_alloc(tc, g, 2 * sizeof(MVMSpeshBB *));
-                for (i = 0; i < cur_bb->last_ins->info->num_operands; i++) {
-                    if (cur_bb->last_ins->info->operands[i] == MVM_operand_ins) {
-                        MVMuint32 offset = cur_bb->last_ins->operands[i].ins_offset;
-                        cur_bb->succ[0] = ins_to_bb[byte_to_ins_flags[offset] >> 2];
+                break;
+                case MVM_OP_goto: {
+                    /* Unconditional branch, so one successor. */
+                    MVMuint32   offset = cur_bb->last_ins->operands[0].ins_offset;
+                    MVMSpeshBB *tgt    = ins_to_bb[byte_to_ins_flags[offset] >> 2];
+                    cur_bb->succ       = spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
+                    cur_bb->succ[0]    = tgt;
+                    cur_bb->num_succ   = 1;
+                }
+                break;
+                default: {
+                    /* Probably conditional branch, so two successors: one from
+                     * the instruction, another from fall-through. Or may just be
+                     * a non-branch that exits for other reasons. */
+                    cur_bb->succ = spesh_alloc(tc, g, 2 * sizeof(MVMSpeshBB *));
+                    for (i = 0; i < cur_bb->last_ins->info->num_operands; i++) {
+                        if (cur_bb->last_ins->info->operands[i] == MVM_operand_ins) {
+                            MVMuint32 offset = cur_bb->last_ins->operands[i].ins_offset;
+                            cur_bb->succ[0] = ins_to_bb[byte_to_ins_flags[offset] >> 2];
+                            cur_bb->num_succ++;
+                        }
+                    }
+                    if (cur_bb->num_succ > 1) {
+                        /* If we ever get instructions with multiple targets, this
+                         * area of the code needs an update. */
+                        MVM_spesh_graph_destroy(tc, g);
+                        MVM_exception_throw_adhoc(tc, "Spesh: unhandled multi-target branch");
+                    }
+                    if (cur_bb->linear_next) {
+                        cur_bb->succ[cur_bb->num_succ] = cur_bb->linear_next;
                         cur_bb->num_succ++;
                     }
                 }
-                if (cur_bb->num_succ > 1) {
-                    /* If we ever get instructions with multiple targets, this
-                     * area of the code needs an update. */
-                    MVM_spesh_graph_destroy(tc, g);
-                    MVM_exception_throw_adhoc(tc, "Spesh: missing instruction in conditional branch");
-                }
-                if (cur_bb->linear_next) {
-                    cur_bb->succ[cur_bb->num_succ] = cur_bb->linear_next;
-                    cur_bb->num_succ++;
-                }
+                break;
             }
-            break;
         }
 
         /* Move on to next block. */
