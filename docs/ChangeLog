@@ -32,6 +32,8 @@ New in 2014.03
 + Implemented native callbacks
 + Correct copy size of args buffer, avoiding reading unmapped memory
 + Updated to new liblinenoise and re-instated usage of it
++ Bump dyncall to latest version
++ Add --has-libtommath option to Configure for using system libtommath
 
 New in 2014.02
 
