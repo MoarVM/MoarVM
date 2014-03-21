@@ -578,8 +578,8 @@ void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
         store_bigint_result(bb, ib);
         clear_temp_bigints(tmp, 1);
     } else {
-        MVMint32 value = ba->u.smallint.value;
-        MVMint32 result = value >> n;
+        MVMuint64 value = ba->u.smallint.value;
+        MVMuint64 result = value >> n;
         store_int64_result(bb, result);
     }
 }
