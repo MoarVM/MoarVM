@@ -239,3 +239,27 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         src->gen2roots = NULL;
     }
 }
+
+
+void MVM_gc_gen2_compact_overflows(MVMGen2Allocator *al) {
+    MVMuint32 empty = 0, nonempty = 0;
+    /* Compact all overflow elements to the start of the overflow list.
+     * I'm not even sure why this exactly works. */
+    while (empty < al->num_overflows && nonempty < al->num_overflows) {
+        if (al->overflows[nonempty] == NULL) {
+            nonempty += 1;
+        }
+        else if (al->overflows[empty] != NULL) {
+            empty += 1;
+        }
+        else if (empty < nonempty) {
+            al->overflows[empty] = al->overflows[nonempty];
+            al->overflows[nonempty] = NULL;
+            empty += 1;
+        }
+        else {
+            nonempty += 1;
+        }
+    }
+    al->num_overflows = empty;
+}

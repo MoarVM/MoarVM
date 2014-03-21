@@ -697,4 +697,6 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
             }
         }
     }
+    /* And finally compact the overflow list */
+    MVM_gc_gen2_compact_overflows(gen2);
 }
