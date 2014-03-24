@@ -1504,6 +1504,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *s;
                 if (ord < 0)
                     MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
+		if ((ord >= 0xfdd0
+		     && (ord <= 0xfdef                     // non character
+			 || ((ord & 0xfffe) == 0xfffe)     // non character
+			 || ord > 0x10ffff)                // out of range
+		     )
+		    || (ord >= 0xd800 && ord <= 0xdfff)       // surrogate
+		    ) {
+		  MVM_exception_throw_adhoc(tc, "Invalid code-point U+%06X", ord);
+		}
+
                 s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
                 s->body.flags = MVM_STRING_TYPE_INT32;
                 s->body.int32s = malloc(sizeof(MVMCodepoint32));
