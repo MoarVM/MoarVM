@@ -253,7 +253,7 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     MVMuint32        cur_survivor;
 
     /* Find the first collected object. */
-    while(gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
+    while (i < num_roots && gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
         i++;
     cur_survivor = i;
 
