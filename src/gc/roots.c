@@ -53,7 +53,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         if (!current->sc)
             MVM_gc_worklist_add(tc, worklist, &current->handle);
     }
-    
+
     HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun) {
         MVM_gc_worklist_add(tc, worklist, &current_lcun->filename);
     }
@@ -249,8 +249,15 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     MVMCollectable **gen2roots    = tc->gen2roots;
     MVMuint32        num_roots    = tc->num_gen2roots;
-    MVMuint32        cur_survivor = 0;
-    MVMuint32        i;
+    MVMuint32        i = 0;
+    MVMuint32        cur_survivor;
+
+    /* minor optimization, ignore moving object until find the first collected object. */
+    while(gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
+        i++;
+
+    cur_survivor = i;
+
     for (i = 0; i < num_roots; i++)
         if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE) {
             assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
@@ -279,7 +286,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     if (cur_frame->code_ref)
         MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
     MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
-    
+
     /* Add any context object. */
     if (cur_frame->context_object)
         MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
