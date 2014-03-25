@@ -30,7 +30,7 @@ GetOptions(\%args, qw(
     help|?
     debug:s optimize:s instrument!
     os=s shell=s toolchain=s compiler=s
-    cc=s ld=s make=s
+    cc=s ld=s make=s has-sha
     static use-readline has-libtommath
     build=s host=s big-endian
     prefix=s make-install profilecalls
@@ -67,6 +67,7 @@ $args{profilecalls} //= 0;
 $args{'use-readline'}     //= 0;
 $args{'big-endian'}       //= 0;
 $args{'has-libtommath'}   //= 0;
+$args{'has-sha'}          //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -138,6 +139,13 @@ if ($args{'use-readline'}) {
     unshift @{$config{usrlibs}}, 'readline';
 }
 else { $config{hasreadline} = 0 }
+
+if ($args{'has-sha'}) {
+    $config{shaincludedir} = '/usr/include/sha';
+    $defaults{-thirdparty}->{sha} = undef;
+    unshift @{$config{usrlibs}}, 'sha';
+}
+else { $config{shaincludedir} = '3rdparty/sha1' }
 
 # mangle library names
 $config{ldlibs} = join ' ',
@@ -570,7 +578,7 @@ __END__
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
-                   [--has-libtommath]
+                   [--has-libtommath] [--has-sha]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -680,5 +688,9 @@ Build and install MoarVM in addition to configuring it.
 =item --has-libtommath
 
 Link moar with the libtommath library of the system.
+
+=item --has-sha
+
+Build moar with the sha1 funktions from the sha library of the system.
 
 =back

@@ -2185,13 +2185,11 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
     char *cstr = MVM_string_utf8_encode_C_string(tc, str);
 
     /* Compute its SHA-1 and encode it. */
-    SHA1_CTX      context;
-    unsigned char digest[20];
+    SHA1Context      context;
     char          output[80];
-    SHA1_Init(&context);
-    SHA1_Update(&context, (unsigned char*)cstr, strlen(cstr));
-    SHA1_Final(&context, digest);
-    SHA1_DigestToHex(digest, output);
+    SHA1Init(&context);
+    SHA1Update(&context, (unsigned char*)cstr, strlen(cstr));
+    SHA1Final(&context, output);
 
     /* Free the C-MVMString and put result into a new MVMString. */
     free(cstr);

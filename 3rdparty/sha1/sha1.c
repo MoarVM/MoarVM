@@ -159,7 +159,7 @@ void SHA1_Transform(unsigned int state[5], const unsigned char buffer[64])
 
 
 /* SHA1Init - Initialize new context */
-void SHA1_Init(SHA1_CTX* context)
+void SHA1Init(SHA1Context* context)
 {
     /* SHA1 initialization constants */
     context->state[0] = 0x67452301;
@@ -172,7 +172,7 @@ void SHA1_Init(SHA1_CTX* context)
 
 
 /* Run your data through this. */
-void SHA1_Update(SHA1_CTX* context, const unsigned char* data, const size_t len)
+void SHA1Update(SHA1Context* context, const unsigned char* data, const size_t len)
 {
     size_t i, j;
 
@@ -193,7 +193,7 @@ void SHA1_Update(SHA1_CTX* context, const unsigned char* data, const size_t len)
 
 
 /* Add padding and return the message digest. */
-void SHA1_Final(SHA1_CTX* context, unsigned char digest[SHA1_DIGEST_SIZE])
+void SHA1_Digest(SHA1Context* context, unsigned char digest[SHA1_DIGEST_SIZE])
 {
     unsigned int   i;
     unsigned char  finalcount[8];
@@ -202,11 +202,11 @@ void SHA1_Final(SHA1_CTX* context, unsigned char digest[SHA1_DIGEST_SIZE])
         finalcount[i] = (unsigned char)((context->count[(i >= 4 ? 0 : 1)]
          >> ((3-(i & 3)) * 8) ) & 255);  /* Endian independent */
     }
-    SHA1_Update(context, (unsigned char *)"\200", 1);
+    SHA1Update(context, (unsigned char *)"\200", 1);
     while ((context->count[0] & 504) != 448) {
-        SHA1_Update(context, (unsigned char *)"\0", 1);
+        SHA1Update(context, (unsigned char *)"\0", 1);
     }
-    SHA1_Update(context, finalcount, 8);  /* Should cause a SHA1_Transform() */
+    SHA1Update(context, finalcount, 8);  /* Should cause a SHA1_Transform() */
     for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
         digest[i] = (unsigned char)
          ((context->state[i>>2] >> ((3-(i & 3)) * 8) ) & 255);
@@ -222,10 +222,13 @@ void SHA1_Final(SHA1_CTX* context, unsigned char digest[SHA1_DIGEST_SIZE])
 
 
 /* Produces a hex output of the digest. */
-void SHA1_DigestToHex(const unsigned char digest[SHA1_DIGEST_SIZE], char *output)
+void SHA1Final(SHA1Context *context, char *output)
 {
+    unsigned char digest[20];
     int i,j;
     char *c = output;
+
+    SHA1_Digest(context, digest);
     
     for (i = 0; i < SHA1_DIGEST_SIZE/4; i++) {
         for (j = 0; j < 4; j++) {

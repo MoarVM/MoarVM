@@ -12,14 +12,14 @@ typedef struct {
     unsigned int  state[5];
     unsigned int  count[2];
     unsigned char buffer[64];
-} SHA1_CTX;
+} SHA1Context;
 
 #define SHA1_DIGEST_SIZE 20
 
-void SHA1_Init(SHA1_CTX* context);
-void SHA1_Update(SHA1_CTX* context, const unsigned char* data, const size_t len);
-void SHA1_Final(SHA1_CTX* context, unsigned char digest[SHA1_DIGEST_SIZE]);
-void SHA1_DigestToHex(const unsigned char digest[SHA1_DIGEST_SIZE], char *output);
+void SHA1Init(SHA1Context* context);
+void SHA1Update(SHA1Context* context, const unsigned char* data, const size_t len);
+void SHA1_Digest(SHA1Context* context, unsigned char digest[SHA1_DIGEST_SIZE]);
+void SHA1Final(SHA1Context* context, char *output);
 
 #ifdef __cplusplus
 }
