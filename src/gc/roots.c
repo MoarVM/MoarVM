@@ -252,17 +252,20 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     MVMuint32        i = 0;
     MVMuint32        cur_survivor;
 
-    /* minor optimization, ignore moving object until find the first collected object. */
+    /* Find the first collected object. */
     while(gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
         i++;
-
     cur_survivor = i;
 
-    for (i = 0; i < num_roots; i++)
+    /* Slide others back so the alive ones are at the start of the list. */
+    while (i < num_roots) {
         if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE) {
             assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
             gen2roots[cur_survivor++] = gen2roots[i];
         }
+        i++;
+    }
+
     tc->num_gen2roots = cur_survivor;
 }
 
