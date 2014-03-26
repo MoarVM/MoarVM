@@ -239,3 +239,15 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         src->gen2roots = NULL;
     }
 }
+
+
+void MVM_gc_gen2_compact_overflows(MVMGen2Allocator *al) {
+    /* compact the overflow list to prevent it from growing without bounds */
+    MVMuint32 live = 0, cursor = 0;
+    for (; cursor < al->num_overflows; cursor++) {
+        if (al->overflows[cursor] != NULL) {
+            al->overflows[live++] = al->overflows[cursor];
+        }
+    }
+    al->num_overflows = live;
+}
