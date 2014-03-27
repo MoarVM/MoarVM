@@ -118,7 +118,7 @@ void * MVM_gc_gen2_allocate_zeroed(MVMGen2Allocator *al, MVMuint32 size) {
 /* Frees all memory associated with the second generation. */
 void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
     MVMint32 j, k;
-    
+
     /* Remove all pages. */
     for (j = 0; j < MVM_GEN2_BINS; j++) {
         for (k = 0; k < al->size_classes[j].num_pages; k++)
@@ -243,11 +243,23 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
 
 void MVM_gc_gen2_compact_overflows(MVMGen2Allocator *al) {
     /* compact the overflow list to prevent it from growing without bounds */
-    MVMuint32 live = 0, cursor = 0;
-    for (; cursor < al->num_overflows; cursor++) {
-        if (al->overflows[cursor] != NULL) {
-            al->overflows[live++] = al->overflows[cursor];
+    MVMCollectable **overflows     = al->overflows;
+    const MVMuint32  num_overflows = al->num_overflows;
+    MVMuint32        cursor = 0;
+    MVMuint32        live;
+
+    /* Find the first NULL object. */
+    while (cursor < num_overflows && overflows[cursor])
+        cursor++;
+    live = cursor;
+
+    /* Slide others back so the alive ones are at the start of the list. */
+    while (cursor < num_overflows) {
+        if (overflows[cursor]) {
+            overflows[live++] = overflows[cursor];
         }
+        cursor++;
     }
+
     al->num_overflows = live;
 }
