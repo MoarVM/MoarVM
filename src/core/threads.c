@@ -98,7 +98,8 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
         child_tc = MVM_tc_create(tc->instance);
         child->body.tc = child_tc;
         child_tc->thread_obj = child;
-        child_tc->thread_id = MVM_incr(&tc->instance->next_user_thread_id);
+        child_tc->thread_id = 1 + MVM_incr(&tc->instance->next_user_thread_id);
+            /* Add one, since MVM_incr returns original. */
 
         /* Create thread state, to pass to the thread start callback. */
         ts = malloc(sizeof(ThreadStart));
