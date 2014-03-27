@@ -396,17 +396,6 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID in GC work pass");
     }
 
-    /* push to sent_items list */
-    if (tc->gc_sent_items) {
-        tc->gc_sent_items->next_by_sender = work;
-        work->last_by_sender = tc->gc_sent_items;
-    }
-    /* queue it up to check if the check list isn't clear */
-    if (!MVM_load(&tc->gc_next_to_check)) {
-        MVM_store(&tc->gc_next_to_check, work);
-    }
-    tc->gc_sent_items = work;
-
     /* Pass the work, chaining any other in-tray entries for the thread
      * after us. */
     target_tray = &target_tc->gc_in_tray;
@@ -494,7 +483,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
         MVMuint32 i;
         for (i = 0; i < head->num_items; i++)
             MVM_gc_worklist_add(tc, worklist, head->items[i]);
-        MVM_store(&head->completed, 1);
+        free(head);
         head = next;
     }
 }

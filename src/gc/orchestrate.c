@@ -101,92 +101,87 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
     return count;
 }
 
-/* Does work in a thread's in-tray, if any. */
-static void process_in_tray(MVMThreadContext *tc, MVMuint8 gen, MVMuint32 *put_vote) {
-    /* Do we have any more work given by another thread? If so, re-enter
-     * GC loop to process it. Note that since we're now doing GC stuff
-     * again, we take back our vote to finish. */
+/* Does work in a thread's in-tray, if any. Returns a non-zero value if work
+ * was found and done, and zero otherwise. */
+static int process_in_tray(MVMThreadContext *tc, MVMuint8 gen) {
+    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Considering extra work\n");
     if (MVM_load(&tc->gc_in_tray)) {
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Was given extra work by another thread; doing it\n");
-        if (!*put_vote) {
-            MVM_incr(&tc->instance->gc_finish);
-            *put_vote = 1;
-        }
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Was given extra work by another thread; doing it\n");
         MVM_gc_collect(tc, MVMGCWhatToDo_InTray, gen);
-    }
-}
-
-/* Checks whether our sent items have been completed. Returns 0 if all work is done. */
-static MVMuint32 process_sent_items(MVMThreadContext *tc, MVMuint32 *put_vote) {
-    /* Is any of our work outstanding? If so, take away our finish vote.
-     * If we successfully check all our work, add the finish vote back. */
-    MVMGCPassedWork *work = (MVMGCPassedWork *)MVM_load(&tc->gc_next_to_check);
-    MVMuint32 advanced = 0;
-    if (work) {
-        /* if we have a submitted work item we haven't claimed a vote for, get a vote. */
-        if (!*put_vote) {
-            MVM_incr(&tc->instance->gc_finish);
-            *put_vote = 1;
-        }
-        while (MVM_load(&work->completed)) {
-            advanced = 1;
-            work = work->next_by_sender;
-            if (!work) break;
-        }
-        if (advanced)
-            MVM_store(&tc->gc_next_to_check, work);
-        /* if all our submitted work items are completed, release the vote. */
-        /* otherwise indicate that something we submitted isn't finished */
-        return work ? (MVM_store(&work->upvoted, 1), 1) : 0;
+        return 1;
     }
     return 0;
 }
 
-static void cleanup_sent_items(MVMThreadContext *tc) {
-    MVMGCPassedWork *work, *next = tc->gc_sent_items;
-    while ((work = next)) {
-        next = work->last_by_sender;
-        free(work);
-    }
-    tc->gc_sent_items = NULL;
-}
-
 /* Called by a thread when it thinks it is done with GC. It may get some more
  * work yet, though. */
-static void finish_gc(MVMThreadContext *tc, MVMuint8 gen) {
-    MVMuint32 put_vote = 1, i;
+static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinator) {
+    MVMuint32 i, did_work;
 
-    /* Loop until other threads have terminated, processing any extra work
-     * that we are given. */
+    /* Do any extra work that we have been passed. */
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
-        "Thread %d run %d : arranging termination\n");
+        "Thread %d run %d : doing any work in thread in-trays\n");
+    did_work = 1;
+    while (did_work) {
+        did_work = 0;
+        for (i = 0; i < tc->gc_work_count; i++)
+            did_work += process_in_tray(tc->gc_work[i].tc, gen);
+    }
+
+    /* Decrement gc_finish to say we're done, and wait for termination. */
+    GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Voting to finish\n");
+    MVM_decr(&tc->instance->gc_finish);
     while (MVM_load(&tc->instance->gc_finish)) {
-        MVMuint32 failed = 0;
-        MVMuint32 i = 0;
-
-        for ( ; i < tc->gc_work_count; i++) {
-            process_in_tray(tc->gc_work[i].tc, gen, &put_vote);
-            failed |= process_sent_items(tc->gc_work[i].tc, &put_vote);
-        }
-
-        if (!failed && put_vote) {
-            MVM_decr(&tc->instance->gc_finish);
-            put_vote = 0;
-        }
+        for (i = 0; i < 1000; i++)
+            ; /* XXX Something HT-efficienter. */
+        /* XXX Here we can look to see if we got passed any work, and if so
+         * try to un-vote. */
     }
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Termination agreed\n");
 
-    /* Reset GC status flags and cleanup sent items for any work threads. */
-    /* This is also where thread destruction happens, and it needs to happen
-     * before we acknowledge this GC run is finished. */
+    /* Co-ordinator should do final check over all the in-trays, and trigger
+     * collection until all is settled. Rest should wait. */
+    if (is_coordinator) {
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Co-ordinator handling in-tray clearing completion\n");
+        did_work = 1;
+        while (did_work) {
+            MVMThread *cur_thread;
+            did_work = 0;
+            did_work += process_in_tray(tc->instance->main_thread, gen);
+            cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
+            while (cur_thread) {
+                if (cur_thread->body.tc)
+                    did_work += process_in_tray(cur_thread->body.tc, gen);
+                cur_thread = cur_thread->body.next;
+            }
+        }
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Co-ordinator signalling in-trays clear\n");
+        MVM_store(&tc->instance->gc_intrays_clearing, 0);
+    }
+    else {
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Waiting for in-tray clearing completion\n");
+        while (MVM_load(&tc->instance->gc_intrays_clearing))
+            for (i = 0; i < 1000; i++)
+                ; /* XXX Something HT-efficienter. */
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Got in-tray clearing complete notice\n");
+    }
+
+    /* Reset GC status flags. This is also where thread destruction happens,
+     * and it needs to happen before we acknowledge this GC run is finished. */
     for (i = 0; i < tc->gc_work_count; i++) {
         MVMThreadContext *other = tc->gc_work[i].tc;
         MVMThread *thread_obj = other->thread_obj;
-        cleanup_sent_items(other);
         if (MVM_load(&thread_obj->body.stage) == MVM_thread_stage_clearing_nursery) {
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+                "Thread %d run %d : transferring gen2 of thread %d\n", other->thread_id);
             MVM_gc_gen2_transfer(other, tc);
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : destroying thread %d\n", other->thread_id);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+                "Thread %d run %d : destroying thread %d\n", other->thread_id);
             MVM_tc_destroy(other);
             tc->gc_work[i].tc = thread_obj->body.tc = NULL;
             MVM_store(&thread_obj->body.stage, MVM_thread_stage_destroyed);
@@ -267,7 +262,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     }
 
     /* Wait for everybody to agree we're done. */
-    finish_gc(tc, gen);
+    finish_gc(tc, gen, what_to_do == MVMGCWhatToDo_All);
 
     /* Now we're all done, it's safe to finalize any objects that need it. */
 	/* XXX TODO explore the feasability of doing this in a background
@@ -308,6 +303,13 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
 
+        /* Need to wait for other threads to reset their gc_status. */
+        while (MVM_load(&tc->instance->gc_ack)) {
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+                "Thread %d run %d : waiting for other thread's gc_ack\n");
+            MVM_platform_thread_yield();
+        }
+
         /* We are the winner of the GC starting race. This gives us some
          * extra responsibilities as well as doing the usual things.
          * First, increment GC sequence number. */
@@ -319,16 +321,14 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
 
-        /* Need to wait for other threads to reset their gc_status. */
-        while (MVM_load(&tc->instance->gc_ack)) {
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
-                "Thread %d run %d : waiting for other thread's gc_ack\n");
-            MVM_platform_thread_yield();
-        }
+        /* Flag that we didn't agree on this run that all the in-trays are
+         * cleared (a responsibility of the co-ordinator. */
+        MVM_store(&tc->instance->gc_intrays_clearing, 1);
 
         /* We'll take care of our own work. */
         add_work(tc, tc);
 
+        /* Find other threads, and signal or steal. */
         do {
             MVMThread *threads = (MVMThread *)MVM_load(&tc->instance->threads);
             if (threads && threads != last_starter) {

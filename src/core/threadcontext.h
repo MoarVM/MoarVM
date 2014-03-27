@@ -146,10 +146,6 @@ struct MVMThreadContext {
     /* The GC's cross-thread in-tray of processing work. */
     MVMGCPassedWork *gc_in_tray;
 
-    /* The GC's thread-local "sent items" list, by next_by_sender. */
-    MVMGCPassedWork *gc_sent_items;
-    MVMGCPassedWork *gc_next_to_check;
-
     /* Threads we will do GC work for this run (ourself plus any that we stole
      * work from because they were blocked). */
     MVMWorkThread   *gc_work;

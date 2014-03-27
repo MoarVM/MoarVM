@@ -152,6 +152,8 @@ struct MVMInstance {
     AO_t gc_start;
     /* The number of threads that still need to vote for considering GC done. */
     AO_t gc_finish;
+    /* Whether the coordinator considers all in-trays clear. */
+    AO_t gc_intrays_clearing;
     /* The number of threads that have yet to acknowledge the finish. */
     AO_t gc_ack;
     /* Linked list (via forwarder) of STables to free. */
