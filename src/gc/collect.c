@@ -135,11 +135,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         pass_leftover_work(tc, &wtp);
         free(wtp.target_work);
     }
-
-    /* If it was a full collection, some of the things in gen2 that we root
-     * due to point to gen1 objects may be dead. */
-    if (gen != MVMGCGenerations_Nursery)
-        MVM_gc_root_gen2_cleanup(tc);
 }
 
 /* Processes the current worklist. */
@@ -200,11 +195,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
         }
 
-        /* If it's in to-space but *ahead* of our copy offset then it's an
-           out-of-date pointer and we have some kind of corruption. */
-        if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
-            MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
-
         /* If it's owned by a different thread, we need to pass it over to
          * the owning thread. */
         if (item->owner != tc->thread_id) {
@@ -212,6 +202,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             pass_work_item(tc, wtp, item_ptr);
             continue;
         }
+
+        /* If it's in to-space but *ahead* of our copy offset then it's an
+           out-of-date pointer and we have some kind of corruption. */
+        if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
+            MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
 
         /* At this point, we didn't already see the object, which means we
          * need to take some action. Go on the generation... */
@@ -380,14 +375,14 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
 
     /* Locate the thread to pass the work to. */
     MVMThreadContext *target_tc = NULL;
-    if (target == 0) {
+    if (target == 1) {
         /* It's going to the main thread. */
         target_tc = tc->instance->main_thread;
     }
     else {
         MVMThread *t = (MVMThread *)MVM_load(&tc->instance->threads);
         do {
-            if (t->body.tc->thread_id == target) {
+            if (t->body.tc && t->body.tc->thread_id == target) {
                 target_tc = t->body.tc;
                 break;
             }
@@ -395,17 +390,6 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
         if (!target_tc)
             MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID in GC work pass");
     }
-
-    /* push to sent_items list */
-    if (tc->gc_sent_items) {
-        tc->gc_sent_items->next_by_sender = work;
-        work->last_by_sender = tc->gc_sent_items;
-    }
-    /* queue it up to check if the check list isn't clear */
-    if (!MVM_load(&tc->gc_next_to_check)) {
-        MVM_store(&tc->gc_next_to_check, work);
-    }
-    tc->gc_sent_items = work;
 
     /* Pass the work, chaining any other in-tray entries for the thread
      * after us. */
@@ -427,6 +411,8 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
     MVMInstance *i          = tc->instance;
 
     /* Find any existing thread work passing list for the target. */
+    if (target == 0)
+        MVM_panic(MVM_exitcode_gcnursery, "Internal error: zeroed target thread ID in work pass");
     for (j = 0; j < wtp->num_target_threads; j++) {
         if (wtp->target_work[j].target == target) {
             target_info = &wtp->target_work[j];
@@ -492,7 +478,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
         MVMuint32 i;
         for (i = 0; i < head->num_items; i++)
             MVM_gc_worklist_add(tc, worklist, head->items[i]);
-        MVM_store(&head->completed, 1);
+        free(head);
         head = next;
     }
 }
@@ -550,20 +536,6 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
         /* Go to the next item. */
         scan = (char *)scan + item->size;
     }
-}
-
-/* Goes through the inter-generational roots and removes any that have been
-* determined dead. Should run just after gen2 GC has run but before building
-* the free list (which clears the marks). */
-void MVM_gc_collect_cleanup_gen2roots(MVMThreadContext *tc) {
-    MVMCollectable **gen2roots = tc->gen2roots;
-    MVMuint32        num_roots = tc->num_gen2roots;
-    MVMuint32        ins_pos   = 0;
-    MVMuint32        i;
-    for (i = 0; i < num_roots; i++)
-        if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
-            gen2roots[ins_pos++] = gen2roots[i];
-    tc->num_gen2roots = ins_pos;
 }
 
 /* Free STables (in any thread/generation!) queued to be freed. */

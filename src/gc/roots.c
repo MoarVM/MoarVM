@@ -80,8 +80,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* List of SCs currently being compiled. */
     MVM_gc_worklist_add(tc, worklist, &tc->compiling_scs);
 
-    /* compunit variable pointer */
-    MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
+    /* compunit variable pointer (and be null if thread finished) */
+    if (tc->interp_cu)
+        MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
 
     /* Current dispatcher. */
     MVM_gc_worklist_add(tc, worklist, &tc->cur_dispatcher);

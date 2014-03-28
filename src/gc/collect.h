@@ -32,24 +32,19 @@ typedef enum {
 
 /* The number of items we must reach in a bucket of work before passing it
  * off to the next thread. (Power of 2, minus 2, is a decent choice.) */
-#define MVM_GC_PASS_WORK_SIZE   30
+#define MVM_GC_PASS_WORK_SIZE   62
 
 /* Represents a piece of work (some addresses to visit) that have been passed
  * from one thread doing GC to another thread doing GC. */
 struct MVMGCPassedWork {
     MVMCollectable **items[MVM_GC_PASS_WORK_SIZE];
     MVMGCPassedWork *next;
-    MVMGCPassedWork *next_by_sender;
-    MVMGCPassedWork *last_by_sender;
-    AO_t             completed;
-    AO_t             upvoted;
     MVMint32         num_items;
 };
 
 /* Functions. */
 void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen);
 void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit);
-void MVM_gc_collect_cleanup_gen2roots(MVMThreadContext *tc);
 void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc);
 void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable *item);
 void MVM_gc_collect_free_stables(MVMThreadContext *tc);

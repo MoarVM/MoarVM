@@ -509,7 +509,7 @@
 #define MVM_OP_time_i 505
 #define MVM_OP_sleep 506
 #define MVM_OP_newthread 507
-#define MVM_OP_jointhread 508
+#define MVM_OP_threadjoin 508
 #define MVM_OP_time_n 509
 #define MVM_OP_exit 510
 #define MVM_OP_shell 511
@@ -568,6 +568,20 @@
 #define MVM_OP_nativecallbuild 564
 #define MVM_OP_nativecallinvoke 565
 #define MVM_OP_nativecallrefresh 566
+#define MVM_OP_threadrun 567
+#define MVM_OP_threadid 568
+#define MVM_OP_threadyield 569
+#define MVM_OP_currentthread 570
+#define MVM_OP_lock 571
+#define MVM_OP_unlock 572
+#define MVM_OP_semacquire 573
+#define MVM_OP_semtryacquire 574
+#define MVM_OP_semrelease 575
+#define MVM_OP_getlockcondvar 576
+#define MVM_OP_condwait 577
+#define MVM_OP_condsignalone 578
+#define MVM_OP_condsignalall 579
+#define MVM_OP_queuepoll 580
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

@@ -211,6 +211,10 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(CStr);
     register_core_repr(CArray);
     register_core_repr(CStruct);
+    register_core_repr(ReentrantMutex);
+    register_core_repr(ConditionVariable);
+    register_core_repr(Semaphore);
+    register_core_repr(ConcBlockingQueue);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }

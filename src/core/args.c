@@ -79,8 +79,11 @@ MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext 
 /* Puts the args passed to the specified frame into the current use_capture. */
 MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
     MVMCallCapture *capture = (MVMCallCapture *)tc->cur_usecapture;
-    capture->body.mode = MVM_CALL_CAPTURE_MODE_USE;
-    capture->body.apc  = &f->params;
+    if (capture->body.use_mode_frame)
+        MVM_frame_dec_ref(tc, capture->body.use_mode_frame);
+    capture->body.mode               = MVM_CALL_CAPTURE_MODE_USE;
+    capture->body.use_mode_frame     = MVM_frame_inc_ref(tc, f);
+    capture->body.apc                = &f->params;
     capture->body.effective_callsite = MVM_args_proc_to_callsite(tc, &f->params);
     return tc->cur_usecapture;
 }
