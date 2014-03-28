@@ -309,7 +309,7 @@ MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStr
                 *buf = malloc(required);
             memcpy(*buf + taken, cur_bytes->bytes + ds->bytes_head_pos, required);
             taken += required;
-            ds->bytes_head_pos += available;
+            ds->bytes_head_pos += required;
         }
     }
     if (ds->bytes_head == NULL)
