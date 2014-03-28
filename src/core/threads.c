@@ -33,7 +33,11 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Set up the cached current usecapture CallCapture (done here so
      * we allocate it on the correct thread, and once the thread is
      * active). */
-    tc->cur_usecapture = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
+    MVMROOT(tc, thread, {
+    MVMROOT(tc, invokee, {
+        tc->cur_usecapture = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
+    });
+    });
 
     /* Dummy, 0-arg callsite. */
     ts->no_arg_callsite.arg_flags      = NULL;
