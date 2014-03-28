@@ -149,7 +149,6 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         while (did_work) {
             MVMThread *cur_thread;
             did_work = 0;
-            did_work += process_in_tray(tc->instance->main_thread, gen);
             cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
             while (cur_thread) {
                 if (cur_thread->body.tc)
