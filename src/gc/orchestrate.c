@@ -156,6 +156,14 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
                 cur_thread = cur_thread->body.next;
             }
         }
+        if (gen == MVMGCGenerations_Both) {
+            MVMThread *cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
+            while (cur_thread) {
+                if (cur_thread->body.tc)
+                    MVM_gc_root_gen2_cleanup(cur_thread->body.tc);
+                cur_thread = cur_thread->body.next;
+            }
+        }
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator signalling in-trays clear\n");
         MVM_store(&tc->instance->gc_intrays_clearing, 0);
@@ -283,7 +291,6 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                 "Thread %d run %d : freeing gen2 of thread %d\n",
                 other->thread_id);
-            MVM_gc_collect_cleanup_gen2roots(other);
             MVM_gc_collect_free_gen2_unmarked(other);
         }
     }
@@ -435,7 +442,7 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
 
     /* Run the objects' finalizers */
     MVM_gc_collect_free_nursery_uncopied(tc, tc->nursery_alloc);
-    MVM_gc_collect_cleanup_gen2roots(tc);
+    MVM_gc_root_gen2_cleanup(tc);
     MVM_gc_collect_free_gen2_unmarked(tc);
     MVM_gc_collect_free_stables(tc);
 }
