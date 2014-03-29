@@ -61,6 +61,9 @@ struct MVMSpeshBB {
     MVMint32 idx;
 };
 
+/* The SSA phi instruction. */
+#define MVM_SSA_PHI 32767
+
 /* An instruction in the spesh graph. */
 struct MVMSpeshIns {
     /* Instruction information. */
@@ -88,8 +91,10 @@ union MVMSpeshOperand {
     MVMCode     *coderef;
     MVMuint32    ins_offset;
     MVMSpeshBB  *ins_bb;
-    MVMuint16    reg_orig;
-    MVMuint32    reg_ssa;
+    struct {
+        MVMuint16 orig; /* Original register number. */
+        MVMuint16 i;    /* SSA-computed version. */
+    } reg;
 };
 
 /* Functions to create/destory the spesh graph. */
