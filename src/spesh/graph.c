@@ -477,12 +477,35 @@ static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* 2-finger intersection algorithm, to find new immediate dominator. */
-static MVMint32 intersect(MVMint32 *doms, MVMint32 finger1, MVMint32 finger2) {
+static void iter_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms, MVMint32 iters) {
+    if (iters > 100000) {
+#ifdef NDEBUG
+        MVMint32 k;
+        printf("%s", MVM_spesh_dump(tc, g));
+        printf("RPO: ");
+        for (k = 0; k < g->num_bbs; k++)
+            printf("%d, ", rpo[k]->idx);
+        printf("\n");
+        printf("Doms: ");
+        for (k = 0; k < g->num_bbs; k++)
+            printf("%d (%d), ", doms[k], doms[k] >= 0 ? rpo[doms[k]]->idx : -1);
+        printf("\n");
+#endif
+        MVM_spesh_graph_destroy(tc, g);
+        MVM_exception_throw_adhoc(tc, "Spesh: dominator intersection went infinite");
+    }
+}
+static MVMint32 intersect(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms, MVMint32 finger1, MVMint32 finger2) {
+    MVMint32 iters = 0;
     while (finger1 != finger2) {
-        while (finger1 > finger2)
+        while (finger1 > finger2) {
+            iter_check(tc, g, rpo, doms, iters++);
             finger1 = doms[finger1];
-        while (finger2 > finger1)
+        }
+        while (finger2 > finger1) {
+            iter_check(tc, g, rpo, doms, iters++);
             finger2 = doms[finger2];
+        }
     }
     return finger1;
 }
@@ -516,19 +539,26 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             MVMSpeshBB *b = rpo[i];
 
             /* See if there's a better dominator. */
-            MVMint32 new_idom = rpo_idx(tc, g, rpo, b->pred[0]);
-            /*{
-                MVMint32 k;
-                printf("Iteration %d; new_idom = %d\n", i, new_idom);
-                printf("Doms: ");
-                for (k = 0; k < g->num_bbs; k++)
-                    printf("%d, ", doms[k]);
-                printf("\n");
-            }*/
-            for (j = 1; j < b->num_pred; j++) {
-                MVMint32 p_idx = rpo_idx(tc, g, rpo, b->pred[j]);
-                if (doms[p_idx] != -1)
-                    new_idom = intersect(doms, p_idx, new_idom);
+            MVMint32 chosen_pred = -1;
+            MVMint32 new_idom;
+            for (j = 0; j < b->num_pred; j++) {
+                new_idom = rpo_idx(tc, g, rpo, b->pred[j]);
+                if (doms[new_idom] != -1)
+                {
+                    chosen_pred = j;
+                    break;
+                }
+            }
+            if (chosen_pred == -1) {
+                MVM_spesh_graph_destroy(tc, g);
+                MVM_exception_throw_adhoc(tc, "Spesh: could not find processed initial dominator");
+            }
+            for (j = 0; j < b->num_pred; j++) {
+                if (j != chosen_pred) {
+                    MVMint32 p_idx = rpo_idx(tc, g, rpo, b->pred[j]);
+                    if (doms[p_idx] != -1)
+                        new_idom = intersect(tc, g, rpo, doms, p_idx, new_idom);
+                }
             }
             if (doms[i] != new_idom) {
                 doms[i] = new_idom;
