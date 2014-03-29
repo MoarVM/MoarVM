@@ -49,6 +49,10 @@ struct MVMSpeshBB {
     MVMSpeshBB **pred;
     MVMuint16    num_pred;
 
+    /* Dominance frontier set. */
+    MVMSpeshBB **df;
+    MVMuint16    num_df;
+
     /* The next basic block in original linear code order. */
     MVMSpeshBB *linear_next;
 

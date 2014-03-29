@@ -570,13 +570,49 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     return doms;
 }
 
+/* Builds the dominance frontier set for each node. */
+static void add_to_frontier_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *target, MVMSpeshBB *to_add) {
+    MVMSpeshBB **new_df;
+    MVMint32 i;
+
+    /* Already in the set? */
+    for (i = 0; i < target->num_df; i++)
+        if (target->df[i] == to_add)
+            return;
+
+    /* Nope, so insert. */
+    new_df = spesh_alloc(tc, g, (target->num_df + 1) * sizeof(MVMSpeshBB *));
+    memcpy(new_df, target->df, target->num_df * sizeof(MVMSpeshBB *));
+    new_df[target->num_df] = to_add;
+    target->df = new_df;
+    target->num_df++;
+}
+static void add_dominance_frontiers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms) {
+    MVMint32 i, j;
+    MVMSpeshBB *b = g->entry;
+    while (b) {
+        if (b->num_pred >= 2) { /* Thus it's a join point */
+            for (j = 0; j < b->num_pred; j++) {
+                MVMint32 runner      = rpo_idx(tc, g, rpo, b->pred[j]);
+                MVMint32 finish_line = doms[rpo_idx(tc, g, rpo, b)];
+                while (runner != finish_line) {
+                    add_to_frontier_set(tc, g, rpo[runner], b);
+                    runner = doms[runner];
+                }
+            }
+        }
+        b = b->linear_next;
+    }
+}
+
 /* Transforms a spesh graph into SSA form. After this, the graph will have all
  * register accesses given an SSA "version", and phi instructions inserted as
  * needed. */
 static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    /* Compute dominators. */
+    /* Compute dominance frontiers. */
     MVMSpeshBB **rpo  = reverse_postorder(tc, g);
     MVMint32    *doms = compute_dominators(tc, g, rpo);
+    add_dominance_frontiers(tc, g, rpo, doms);
 
     /* XXX TODO */
 
