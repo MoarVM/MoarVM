@@ -97,7 +97,7 @@ union MVMSpeshOperand {
     MVMSpeshBB  *ins_bb;
     struct {
         MVMuint16 orig; /* Original register number. */
-        MVMuint16 i;    /* SSA-computed version. */
+        MVMint32  i;    /* SSA-computed version. */
     } reg;
 };
 

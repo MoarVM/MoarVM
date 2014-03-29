@@ -638,19 +638,27 @@ typedef struct {
     /* Nodes that assign to the variable. */
     MVMSpeshBB **ass_nodes;
     MVMuint16    num_ass_nodes;
+
+    /* Count of processed assignments aka. C(V). */
+    MVMint32 count;
+
+    /* Stack of integers aka. S(V). */
+    MVMint32 *stack;
+    MVMint32  stack_top;
+    MVMint32  stack_alloc;
 } SSAVarInfo;
 
 /* Creates an SSAVarInfo for each local, initializing it with a list of nodes
  * that assign to the local. */
 SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
     SSAVarInfo *var_info = calloc(sizeof(SSAVarInfo), g->sf->body.num_locals);
+    MVMint32 i;
 
     /* Visit all instructions, looking for local writes. */
     MVMSpeshBB *bb = g->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
-            MVMint32 i;
             for (i = 0; i < ins->info->num_operands; i++) {
                 if (ins->info->operands[i] & MVM_operand_write_reg) {
                     MVMuint16 written = ins->operands[i].reg.orig;
@@ -676,6 +684,13 @@ SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
             ins = ins->next;
         }
         bb = bb->linear_next;
+    }
+
+    /* Set stack top to -1 sentinel for all nodes, and count = 1 (as we may
+     * read the default value of a register). */
+    for (i = 0; i < g->sf->body.num_locals; i++) {
+        var_info[i].count     = 1;
+        var_info[i].stack_top = -1;
     }
 
     return var_info;
@@ -744,6 +759,96 @@ static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarI
     }
 }
 
+/* Renames the local variables such that we end up with SSA form. */
+static MVMint32 which_pred(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *y, MVMSpeshBB *x) {
+    MVMint32 i;
+    for (i = 0; i < y->num_pred; i++)
+        if (y->pred[i] == x)
+            return i;
+    MVM_spesh_graph_destroy(tc, g);
+    MVM_exception_throw_adhoc(tc, "Spesh: which_pred failed to find x");
+}
+static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *var_info, MVMSpeshBB *x) {
+    MVMint32 i;
+
+    /* Visit instructions and do renames in normal (non-phi) instructions. */
+    MVMSpeshIns *a = x->first_ins;
+    while (a) {
+        /* Rename reads, provided it's not a PHI. */
+        MVMint32 is_phi = a->info->opcode == MVM_SSA_PHI;
+        if (!is_phi) {
+            for (i = 0; i < a->info->num_operands; i++) {
+                if (a->info->operands[i] & MVM_operand_read_reg) {
+                    MVMuint16 orig = a->operands[i].reg.orig;
+                    MVMint32  st   = var_info[orig].stack_top;
+                    if (st >= 0)
+                        a->operands[i].reg.i = var_info[orig].stack[st];
+                    else
+                        a->operands[i].reg.i = 0;
+                }
+            }
+        }
+
+        /* Rename writes. */
+        for (i = 0; i < a->info->num_operands; i++) {
+            if (is_phi || a->info->operands[i] & MVM_operand_write_reg) {
+                MVMuint16 orig = a->operands[i].reg.orig;
+                MVMint32 reg_i = var_info[orig].count;
+                a->operands[i].reg.i = reg_i;
+                if (var_info[orig].stack_top + 1 >= var_info[orig].stack_alloc) {
+                    if (var_info[orig].stack_alloc)
+                        var_info[orig].stack_alloc *= 2;
+                    else
+                        var_info[orig].stack_alloc = 8;
+                    var_info[orig].stack = realloc(var_info[orig].stack,
+                        var_info[orig].stack_alloc * sizeof(MVMint32));
+                }
+                var_info[orig].stack[++var_info[orig].stack_top] = reg_i;
+                var_info[orig].count++;
+            }
+            if (is_phi)
+                break;
+        }
+
+        a = a->next;
+    }
+
+    /* Visit successors and update their phi functions. */
+    for (i = 0; i < x->num_succ; i++) {
+        MVMSpeshBB  *y = x->succ[i];
+        MVMint32     j = which_pred(tc, g, y, x);
+        MVMSpeshIns *p = y->first_ins;
+        while (p && p->info->opcode == MVM_SSA_PHI) {
+            MVMuint16 orig = p->operands[j + 1].reg.orig;
+            MVMint32  st   = var_info[orig].stack_top;
+            if (st >= 0)
+                p->operands[j + 1].reg.i = var_info[orig].stack[st];
+            else
+                p->operands[j + 1].reg.i = 0;
+            p = p->next;
+        }
+    }
+
+    /* Rename for all the children in the dominator tree. */
+    for (i = 0; i < x->num_children; i++)
+        rename_locals(tc, g, var_info, x->children[i]);
+
+    /* Go over assignments and pop new variable names. */
+    a = x->first_ins;
+    while (a) {
+        MVMint32 is_phi = a->info->opcode == MVM_SSA_PHI;
+        for (i = 0; i < a->info->num_operands; i++) {
+            if (is_phi || a->info->operands[i] & MVM_operand_write_reg) {
+                MVMuint16 orig = a->operands[i].reg.orig;
+                var_info[orig].stack_top--;
+            }
+            if (is_phi)
+                break;
+        }
+        a = a->next;
+    }
+}
+
 /* Transforms a spesh graph into SSA form. After this, the graph will have all
  * register accesses given an SSA "version", and phi instructions inserted as
  * needed. */
@@ -760,8 +865,11 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Initialize per-local data for SSA analysis. */
     var_info = initialize_ssa_var_info(tc, g);
+
+    /* Compute SSA itself. */
     insert_phi_functions(tc, g, var_info);
-    /* ... */
+    rename_locals(tc, g, var_info, g->entry);
+
     free(var_info);
 }
 
