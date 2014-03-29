@@ -49,8 +49,28 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     cur_ins = bb->first_ins;
     while (cur_ins) {
         appendf(ds, "      %s ", cur_ins->info->name);
-        for (i = 0; i < cur_ins->info->num_operands; i++) {
-            /* XXX TODO */
+        if (cur_ins->info->opcode == MVM_SSA_PHI) {
+            for (i = 0; i < cur_ins->info->num_operands; i++) {
+                if (i)
+                    append(ds, ", ");
+                appendf(ds, "r%d(%d)", cur_ins->operands[i].reg.orig,
+                    cur_ins->operands[i].reg.i);
+            }
+        }
+        else {
+            for (i = 0; i < cur_ins->info->num_operands; i++) {
+                if (i)
+                    append(ds, ", ");
+                switch (cur_ins->info->operands[i] & MVM_operand_rw_mask) {
+                    case MVM_operand_read_reg:
+                    case MVM_operand_write_reg:
+                        appendf(ds, "r%d(%d)", cur_ins->operands[i].reg.orig,
+                            cur_ins->operands[i].reg.i);
+                        break;
+                    default:
+                        append(ds, "<nyi>");
+                }
+            }
         }
         append(ds, "\n");
         cur_ins = cur_ins->next;
