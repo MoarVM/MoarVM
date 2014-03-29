@@ -3,7 +3,8 @@
 /* This is where the spesh stuff all begins. The logic in here takes bytecode
  * and builds a spesh graph from it. This is a CFG in SSA form. Transforming
  * to SSA involves computing dominance frontiers, done by the algorithm found
- * in http://www.cs.rice.edu/~keith/EMBED/dom.pdf. */
+ * in http://www.cs.rice.edu/~keith/EMBED/dom.pdf. The SSA algorithm itself is
+ * from http://www.cs.utexas.edu/~pingali/CS380C/2010/papers/ssaCytron.pdf. */
 
 #define GET_I8(pc, idx)     *((MVMint8 *)(pc + idx))
 #define GET_UI8(pc, idx)    *((MVMuint8 *)(pc + idx))
@@ -605,20 +606,71 @@ static void add_dominance_frontiers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
+/* Per-local SSA info. */
+typedef struct {
+    /* Nodes that assign to the variable. */
+    MVMSpeshBB **ass_nodes;
+    MVMuint16    num_ass_nodes;
+} SSAVarInfo;
+
+/* Creates an SSAVarInfo for each local, initializing it with a list of nodes
+ * that assign to the local. */
+SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    SSAVarInfo *var_info = calloc(sizeof(SSAVarInfo), g->sf->body.num_locals);
+
+    /* Visit all instructions, looking for local writes. */
+    MVMSpeshBB *bb = g->entry;
+    while (bb) {
+        MVMSpeshIns *ins = bb->first_ins;
+        while (ins) {
+            MVMint32 i;
+            for (i = 0; i < ins->info->num_operands; i++) {
+                if (ins->info->operands[i] & MVM_operand_write_reg) {
+                    MVMuint16 written = ins->operands[i].reg_orig;
+                    MVMint32  found   = 0;
+                    MVMint32  j;
+                    for (j = 0; j < var_info[written].num_ass_nodes; j++)
+                        if (var_info[written].ass_nodes[j] == bb) {
+                            found = 1;
+                            break;
+                        }
+                    if (!found) {
+                        if (var_info[written].num_ass_nodes % 8 == 0) {
+                            MVMint32 new_size = var_info[written].num_ass_nodes + 8;
+                            var_info[written].ass_nodes = realloc(
+                                var_info[written].ass_nodes,
+                                new_size * sizeof(MVMSpeshBB *));
+                        }
+                        var_info[written].ass_nodes[var_info[written].num_ass_nodes] = bb;
+                        var_info[written].num_ass_nodes++;
+                    }
+                }
+            }
+            ins = ins->next;
+        }
+        bb = bb->linear_next;
+    }
+
+    return var_info;
+}
+
 /* Transforms a spesh graph into SSA form. After this, the graph will have all
  * register accesses given an SSA "version", and phi instructions inserted as
  * needed. */
 static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    SSAVarInfo *var_info;
+
     /* Compute dominance frontiers. */
     MVMSpeshBB **rpo  = reverse_postorder(tc, g);
     MVMint32    *doms = compute_dominators(tc, g, rpo);
     add_dominance_frontiers(tc, g, rpo, doms);
-
-    /* XXX TODO */
-
-    /* Clean up. */
     free(rpo);
     free(doms);
+
+    /* Initialize per-local data for SSA analysis. */
+    var_info = initialize_ssa_var_info(tc, g);
+    /* ... */
+    free(var_info);
 }
 
 /* Takes a static frame and creates a spesh graph for it. */
