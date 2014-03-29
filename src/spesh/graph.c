@@ -853,6 +853,7 @@ static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *va
  * needed. */
 static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     SSAVarInfo *var_info;
+    MVMint32 i;
 
     /* Compute dominance frontiers. */
     MVMSpeshBB **rpo  = reverse_postorder(tc, g);
@@ -869,6 +870,10 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     insert_phi_functions(tc, g, var_info);
     rename_locals(tc, g, var_info, g->entry);
 
+    /* Cleanup. */
+    /*for (i = 0; i < g->sf->body.num_locals; i++)
+        if (var_info[i].stack_alloc)
+            free(var_info[i].stack);*/
     free(var_info);
 }
 
