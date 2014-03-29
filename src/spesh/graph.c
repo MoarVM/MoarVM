@@ -659,7 +659,7 @@ SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
             for (i = 0; i < ins->info->num_operands; i++) {
-                if (ins->info->operands[i] & MVM_operand_write_reg) {
+                if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
                     MVMuint16 written = ins->operands[i].reg.orig;
                     MVMint32  found   = 0;
                     MVMint32  j;
@@ -777,7 +777,7 @@ static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *va
         MVMint32 is_phi = a->info->opcode == MVM_SSA_PHI;
         if (!is_phi) {
             for (i = 0; i < a->info->num_operands; i++) {
-                if (a->info->operands[i] & MVM_operand_read_reg) {
+                if ((a->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
                     MVMuint16 orig = a->operands[i].reg.orig;
                     MVMint32  st   = var_info[orig].stack_top;
                     if (st >= 0)
@@ -790,7 +790,7 @@ static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *va
 
         /* Rename writes. */
         for (i = 0; i < a->info->num_operands; i++) {
-            if (is_phi || a->info->operands[i] & MVM_operand_write_reg) {
+            if (is_phi || (a->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
                 MVMuint16 orig = a->operands[i].reg.orig;
                 MVMint32 reg_i = var_info[orig].count;
                 a->operands[i].reg.i = reg_i;
@@ -837,7 +837,7 @@ static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *va
     while (a) {
         MVMint32 is_phi = a->info->opcode == MVM_SSA_PHI;
         for (i = 0; i < a->info->num_operands; i++) {
-            if (is_phi || a->info->operands[i] & MVM_operand_write_reg) {
+            if (is_phi || (a->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
                 MVMuint16 orig = a->operands[i].reg.orig;
                 var_info[orig].stack_top--;
             }
