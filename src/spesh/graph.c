@@ -571,6 +571,33 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     return doms;
 }
 
+/* Builds the dominance tree children lists for each node. */
+static void add_child(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *target, MVMSpeshBB *to_add) {
+    MVMSpeshBB **new_children;
+    MVMint32 i;
+
+    /* Already in the child list? */
+    for (i = 0; i < target->num_children; i++)
+        if (target->children[i] == to_add)
+            return;
+
+    /* Nope, so insert. */
+    new_children = spesh_alloc(tc, g, (target->num_children + 1) * sizeof(MVMSpeshBB *));
+    memcpy(new_children, target->children, target->num_children * sizeof(MVMSpeshBB *));
+    new_children[target->num_children] = to_add;
+    target->children = new_children;
+    target->num_children++;
+}
+static void add_children(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms) {
+    MVMint32 i;
+    for (i = 0; i < g->num_bbs; i++) {
+        MVMSpeshBB *bb   = rpo[i];
+        MVMint32    idom = doms[i];
+        if (idom != i)
+            add_child(tc, g, rpo[idom], bb);
+    }
+}
+
 /* Builds the dominance frontier set for each node. */
 static void add_to_frontier_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *target, MVMSpeshBB *to_add) {
     MVMSpeshBB **new_df;
@@ -726,6 +753,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Compute dominance frontiers. */
     MVMSpeshBB **rpo  = reverse_postorder(tc, g);
     MVMint32    *doms = compute_dominators(tc, g, rpo);
+    add_children(tc, g, rpo, doms);
     add_dominance_frontiers(tc, g, rpo, doms);
     free(rpo);
     free(doms);

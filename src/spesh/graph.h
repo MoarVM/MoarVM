@@ -49,6 +49,10 @@ struct MVMSpeshBB {
     MVMSpeshBB **pred;
     MVMuint16    num_pred;
 
+    /* Children in the dominator tree. */
+    MVMSpeshBB **children;
+    MVMuint16    num_children;
+
     /* Dominance frontier set. */
     MVMSpeshBB **df;
     MVMuint16    num_df;
