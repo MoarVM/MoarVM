@@ -139,6 +139,7 @@ OBJECTS = src/core/args@obj@ \
           src/mast/driver@obj@ \
           src/spesh/dump@obj@ \
           src/spesh/graph@obj@ \
+          src/spesh/codegen@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -238,6 +239,7 @@ HEADERS = src/moar.h \
           src/mast/nodes_moar.h \
           src/spesh/dump.h \
           src/spesh/graph.h \
+          src/spesh/codegen.h \
           src/strings/unicode_gen.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \

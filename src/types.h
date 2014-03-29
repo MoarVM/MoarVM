@@ -128,6 +128,7 @@ typedef struct MVMSpeshMemBlock MVMSpeshMemBlock;
 typedef struct MVMSpeshBB MVMSpeshBB;
 typedef struct MVMSpeshIns MVMSpeshIns;
 typedef union MVMSpeshOperand MVMSpeshOperand;
+typedef struct MVMSpeshCode MVMSpeshCode;
 typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
 typedef struct MVMStaticFrameBody MVMStaticFrameBody;
