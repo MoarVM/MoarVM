@@ -346,6 +346,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     cur_bb->succ       = spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
                     cur_bb->succ[0]    = tgt;
                     cur_bb->num_succ   = 1;
+                    cur_bb->last_ins->operands[0].ins_bb = tgt;
                 }
                 break;
                 default: {
@@ -358,6 +359,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                             MVMuint32 offset = cur_bb->last_ins->operands[i].ins_offset;
                             cur_bb->succ[0] = ins_to_bb[byte_to_ins_flags[offset] >> 2];
                             cur_bb->num_succ++;
+                            cur_bb->last_ins->operands[i].ins_bb = cur_bb->succ[0];
                         }
                     }
                     if (cur_bb->num_succ > 1) {
