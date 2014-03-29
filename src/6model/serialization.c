@@ -408,20 +408,6 @@ static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer
 static void write_array_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
     MVMint32 i;
-
-    /* Write out element count. */
-    expand_storage_if_needed(tc, writer, 4);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
-    *(writer->cur_write_offset) += 4;
-
-    /* Write elements. */
-    for (i = 0; i < elems; i++)
-        write_int_func(tc, writer, MVM_repr_at_pos_i(tc, arr, i));
-}
-
-static void write_array_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
-    MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
-    MVMint32 i;
     size_t storage_needed;
 
     storage_needed = varintsize(elems);
@@ -642,7 +628,9 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     }
 
     /* Write the discriminator. */
-    write_int16_func(tc, writer, discrim);
+    expand_storage_if_needed(tc, writer, 2);
+    write_int16(*(writer->cur_write_buffer), *(writer->cur_write_offset), discrim);
+    *(writer->cur_write_offset) += 2;
 
     /* Now take appropriate action. */
     switch (discrim) {
@@ -669,7 +657,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
             write_array_str(tc, writer, ref);
             break;
         case REFVAR_VM_ARR_INT:
-            write_array_varint(tc, writer, ref);
+            write_array_int(tc, writer, ref);
             break;
         case REFVAR_VM_HASH_STR_VAR:
             write_hash_str_var(tc, writer, ref);
