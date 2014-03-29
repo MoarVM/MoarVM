@@ -654,6 +654,58 @@ SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
     return var_info;
 }
 
+/* Inserts SSA phi functions at the required places in the graph. */
+static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMuint16 var) {
+    /* XXX */
+}
+static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *var_info) {
+    MVMint32    *has_already  = calloc(g->num_bbs, sizeof(MVMint32));
+    MVMint32    *work         = calloc(g->num_bbs, sizeof(MVMint32));
+    MVMSpeshBB **worklist     = calloc(g->num_bbs, sizeof(MVMSpeshBB *));
+    MVMint32     worklist_top = 0;
+    MVMint32     iter_count   = 0;
+
+    /* Go over all locals. */
+    MVMint32 var, i, j, found;
+    for (var = 0; var < g->sf->body.num_locals; var++) {
+        /* Move to next iteration. */
+        iter_count++;
+
+        /* Add blocks assigning to this variable to the worklist. */
+        for (i = 0; i < var_info[var].num_ass_nodes; i++) {
+            MVMSpeshBB *bb = var_info[var].ass_nodes[i];
+            work[bb->idx] = iter_count;
+            worklist[worklist_top++] = bb; /* Algo unions, but ass_nodes unique */
+        }
+
+        /* Process the worklist. */
+        while (worklist_top) {
+            MVMSpeshBB *x = worklist[--worklist_top];
+            for (i = 0; i < x->num_df; i++) {
+                MVMSpeshBB *y = x->df[i];
+                if (has_already[y->idx] < iter_count) {
+                    /* Place phi function, and mark we have. */
+                    place_phi(tc, g, y, var);
+                    has_already[y->idx] = iter_count;
+
+                    /* Add this block to worklist if needed. */
+                    if (work[y->idx] < iter_count) {
+                        work[y->idx] = iter_count;
+                        found = 0;
+                        for (j = 0; j < worklist_top; j++)
+                            if (worklist[j] == y) {
+                                found = 1;
+                                break;
+                            }
+                        if (!found)
+                            worklist[worklist_top++] = y;
+                    }
+                }
+            }
+        }
+    }
+}
+
 /* Transforms a spesh graph into SSA form. After this, the graph will have all
  * register accesses given an SSA "version", and phi instructions inserted as
  * needed. */
@@ -669,6 +721,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Initialize per-local data for SSA analysis. */
     var_info = initialize_ssa_var_info(tc, g);
+    insert_phi_functions(tc, g, var_info);
     /* ... */
     free(var_info);
 }
