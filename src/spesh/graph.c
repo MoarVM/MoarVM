@@ -476,20 +476,28 @@ static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
     return rpo;
 }
 
-/* 2-finger insersection algorithm, to find new immediate dominator. */
+/* 2-finger intersection algorithm, to find new immediate dominator. */
 static MVMint32 intersect(MVMint32 *doms, MVMint32 finger1, MVMint32 finger2) {
     while (finger1 != finger2) {
-        while (finger1 < finger2)
+        while (finger1 > finger2)
             finger1 = doms[finger1];
-        while (finger2 < finger1)
+        while (finger2 > finger1)
             finger2 = doms[finger2];
     }
     return finger1;
 }
 
 /* Computes dominator information about the basic blocks. */
+static MVMint32 rpo_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMSpeshBB *bb) {
+    MVMint32 i;
+    for (i = 0; i < g->num_bbs; i++)
+        if (rpo[i] == bb)
+            return i;
+    MVM_spesh_graph_destroy(tc, g);
+    MVM_exception_throw_adhoc(tc, "Spesh: could not find block in reverse postorder");
+}
 static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo) {
-    MVMint32 i, changed;
+    MVMint32 i, j, changed;
 
     /* Create result list, with all initialized to undefined (use -1, as it's
      * not a valid basic block index). Start node dominates itself. */
@@ -502,9 +510,30 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     changed = 1;
     while (changed) {
         changed = 0;
+
+        /* Visit all except the start node in reverse postorder. */
         for (i = 1; i < g->num_bbs; i++) {
             MVMSpeshBB *b = rpo[i];
-            
+
+            /* See if there's a better dominator. */
+            MVMint32 new_idom = rpo_idx(tc, g, rpo, b->pred[0]);
+            /*{
+                MVMint32 k;
+                printf("Iteration %d; new_idom = %d\n", i, new_idom);
+                printf("Doms: ");
+                for (k = 0; k < g->num_bbs; k++)
+                    printf("%d, ", doms[k]);
+                printf("\n");
+            }*/
+            for (j = 1; j < b->num_pred; j++) {
+                MVMint32 p_idx = rpo_idx(tc, g, rpo, b->pred[j]);
+                if (doms[p_idx] != -1)
+                    new_idom = intersect(doms, p_idx, new_idom);
+            }
+            if (doms[i] != new_idom) {
+                doms[i] = new_idom;
+                changed = 1;
+            }
         }
     }
 
