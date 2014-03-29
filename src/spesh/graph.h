@@ -90,11 +90,15 @@ union MVMSpeshOperand {
     MVMint8      lit_i8;
     MVMnum64     lit_n64;
     MVMnum32     lit_n32;
-    MVMString   *lit_str;
-    MVMCallsite *callsite;
-    MVMCode     *coderef;
+    MVMuint32    lit_str_idx;
+    MVMuint16    callsite_idx;
+    MVMuint16    coderef_idx;
     MVMuint32    ins_offset;
     MVMSpeshBB  *ins_bb;
+    struct {
+        MVMuint16 idx;
+        MVMuint16 outers;
+    } lex;
     struct {
         MVMuint16 orig; /* Original register number. */
         MVMint32  i;    /* SSA-computed version. */

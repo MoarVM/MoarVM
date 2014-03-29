@@ -176,16 +176,15 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     arg_size += 8;
                     break;
                 case MVM_operand_callsite:
-                    ins_node->operands[i].callsite = cu->body.callsites[GET_UI16(args, arg_size)];
+                    ins_node->operands[i].callsite_idx = GET_UI16(args, arg_size);
                     arg_size += 2;
                     break;
                 case MVM_operand_coderef:
-                    ins_node->operands[i].coderef = (MVMCode *)
-                        cu->body.coderefs[GET_UI16(args, arg_size)];
+                    ins_node->operands[i].coderef_idx = GET_UI16(args, arg_size);
                     arg_size += 2;
                     break;
                 case MVM_operand_str:
-                    ins_node->operands[i].lit_str = cu->body.strings[GET_UI32(args, arg_size)];
+                    ins_node->operands[i].lit_str_idx = GET_UI32(args, arg_size);
                     arg_size += 4;
                     break;
                 case MVM_operand_ins: {
