@@ -860,9 +860,6 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMObject * const BOOTInt = tc->instance->boot_types.BOOTInt;
-    MVMObject * const    slot = MVM_repr_alloc_init(tc, BOOTInt);
-
     MVMuint16 i, num_classes;
 
     if (!repr_data->name_to_index_mapping)
@@ -914,9 +911,8 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
         writer->write_ref(tc, writer, repr_data->name_to_index_mapping[i].class_key);
         writer->write_varint(tc, writer, num_attrs);
         for (j = 0; j < num_attrs; j++) {
-            MVM_repr_set_int(tc, slot, repr_data->name_to_index_mapping[i].slots[j]);
             writer->write_str(tc, writer, repr_data->name_to_index_mapping[i].names[j]);
-            writer->write_ref(tc, writer, slot);
+            writer->write_varint(tc, writer, repr_data->name_to_index_mapping[i].slots[j]);
         }
     }
 
@@ -929,7 +925,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMuint16 i, j, num_classes, cur_offset;
     MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
 
-    MVMP6opaqueREPRData *repr_data = calloc(1, sizeof(MVMP6opaqueREPRData));
+    MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
 
     repr_data->num_attributes = (MVMuint16)reader->read_varint(tc, reader);
 
@@ -948,6 +944,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         repr_data->auto_viv_values = (MVMObject **)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMObject *));
         for (i = 0; i < repr_data->num_attributes; i++)
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->auto_viv_values[i], reader->read_ref(tc, reader));
+    } else {
+        repr_data->auto_viv_values = NULL;
     }
 
     repr_data->unbox_int_slot = reader->read_varint(tc, reader);
@@ -960,10 +958,12 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             repr_data->unbox_slots[i].repr_id = reader->read_varint(tc, reader);
             repr_data->unbox_slots[i].slot = reader->read_varint(tc, reader);
         }
+    } else {
+        repr_data->unbox_slots = NULL;
     }
 
     num_classes = (MVMuint16)reader->read_varint(tc, reader);
-    repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)calloc(1, (num_classes + 1) * sizeof(MVMP6opaqueNameMap));
+    repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)malloc((num_classes + 1) * sizeof(MVMP6opaqueNameMap));
     for (i = 0; i < num_classes; i++) {
         MVMint32 num_attrs = 0;
         MVMint8  is_hash_str_var = 0;
@@ -984,12 +984,19 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             for (j = 0; j < num_attrs; j++) {
                 MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].names[j],
                     reader->read_str(tc, reader));
-                repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)MVM_repr_get_int(tc,
-                    reader->read_ref(tc, reader));
+                if (reader->root.version >= 9) {
+                    repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)reader->read_varint(tc, reader);
+                } else {
+                    repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)MVM_repr_get_int(tc,
+                        reader->read_ref(tc, reader));
+                }
             }
         }
         repr_data->name_to_index_mapping[i].num_attrs = num_attrs;
     }
+
+    /* set the last one to be NULL */
+    repr_data->name_to_index_mapping[i].class_key = NULL;
 
     repr_data->pos_del_slot = (MVMint16)reader->read_varint(tc, reader);
     repr_data->ass_del_slot = (MVMint16)reader->read_varint(tc, reader);
@@ -1351,4 +1358,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_P6opaque,
     0, /* refs_frames */
 };
+
 
