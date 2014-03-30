@@ -80,6 +80,13 @@ struct MVMFrame {
     /* Reference count for the frame. */
     AO_t ref_count;
 
+    /* Effective bytecode for the frame (either the original bytecode or a
+     * specialization of it). */
+    MVMuint8 *effective_bytecode;
+
+    /* Effective set of frame handlers (to go with the effective bytecode). */
+    MVMFrameHandler *effective_handlers;
+
     /* Address of the next op to execute if we return to this frame. */
     MVMuint8 *return_address;
 

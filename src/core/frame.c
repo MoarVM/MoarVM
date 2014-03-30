@@ -133,9 +133,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!static_frame_body->invoked)
         prepare_and_verify_static_frame(tc, static_frame);
 
-    /* Bump the rough invocations count. */
-    static_frame_body->invocations++;
-
     /* Get frame body from the re-use pool, or allocate it. */
     pool_index = static_frame_body->pool_index;
     if (pool_index >= tc->frame_pool_table_size)
@@ -265,11 +262,21 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Clear frame flags. */
     frame->flags = 0;
 
+    /* See if any specializations apply. */
+    if (++static_frame_body->invocations >= 10 && callsite->is_interned) {
+        frame->effective_bytecode = static_frame_body->bytecode;
+        frame->effective_handlers = static_frame_body->handlers;
+    }
+    else {
+        frame->effective_bytecode = static_frame_body->bytecode;
+        frame->effective_handlers = static_frame_body->handlers;
+    }
+
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
-    *(tc->interp_cur_op) = static_frame_body->bytecode;
-    *(tc->interp_bytecode_start) = static_frame_body->bytecode;
+    *(tc->interp_cur_op) = frame->effective_bytecode;
+    *(tc->interp_bytecode_start) = frame->effective_bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame_body->cu;
 
@@ -424,7 +431,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
         *(tc->interp_cur_op) = caller->return_address;
-        *(tc->interp_bytecode_start) = caller->static_info->body.bytecode;
+        *(tc->interp_bytecode_start) = caller->effective_bytecode;
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
 

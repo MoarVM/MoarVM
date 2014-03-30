@@ -61,18 +61,17 @@ static MVMuint8 in_caller_chain(MVMThreadContext *tc, MVMFrame *f_maybe) {
  * match what we're looking for. Returns a pointer to it if so; if not,
  * returns NULL. */
 static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f, MVMuint32 cat) {
-    MVMStaticFrame *sf = f->static_info;
     MVMuint32 pc, i;
     if (f == tc->cur_frame)
         pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
     else
-        pc = (MVMuint32)(f->return_address - sf->body.bytecode);
-    for (i = 0; i < sf->body.num_handlers; i++) {
-        MVMuint32 category_mask = sf->body.handlers[i].category_mask;
+        pc = (MVMuint32)(f->return_address - f->effective_bytecode);
+    for (i = 0; i < f->static_info->body.num_handlers; i++) {
+        MVMuint32 category_mask = f->effective_handlers[i].category_mask;
         if ((category_mask & cat) || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH))
-            if (pc >= sf->body.handlers[i].start_offset && pc <= sf->body.handlers[i].end_offset)
-                if (!in_handler_stack(tc, &sf->body.handlers[i]))
-                    return &sf->body.handlers[i];
+            if (pc >= f->effective_handlers[i].start_offset && pc <= f->effective_handlers[i].end_offset)
+                if (!in_handler_stack(tc, &f->effective_handlers[i]))
+                    return &f->effective_handlers[i];
     }
     return NULL;
 }
@@ -225,7 +224,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
      * we can update it if necessary, and the caller can cache it. */
     char *o = malloc(1024);
     MVMuint8 *cur_op = not_top ? cur_frame->return_address : cur_frame->throw_address;
-    MVMuint32 offset = cur_op - cur_frame->static_info->body.bytecode;
+    MVMuint32 offset = cur_op - cur_frame->effective_bytecode;
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
     MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                         offset > 0 ? offset - 1 : 0);
@@ -289,7 +288,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
 
     while (cur_frame != NULL) {
         MVMuint8             *cur_op = count ? cur_frame->return_address : cur_frame->throw_address;
-        MVMuint32             offset = cur_op - cur_frame->static_info->body.bytecode;
+        MVMuint32             offset = cur_op - cur_frame->effective_bytecode;
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                             offset > 0 ? offset - 1 : 0);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
@@ -496,13 +495,14 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     MVMLexotic *lexotic;
 
     /* Locate handler associated with the specified label. */
-    MVMStaticFrame *sf = tc->cur_frame->static_info;
+    MVMFrame       *f  = tc->cur_frame;
+    MVMStaticFrame *sf = f->static_info;
     MVMFrameHandler *h = NULL;
     MVMuint32 i;
     for (i = 0; i < sf->body.num_handlers; i++) {
-        if (sf->body.handlers[i].action == MVM_EX_ACTION_GOTO &&
-                sf->body.handlers[i].goto_offset == offset) {
-            h = &sf->body.handlers[i];
+        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
+                f->effective_handlers[i].goto_offset == offset) {
+            h = &f->effective_handlers[i];
             break;
         }
     }
