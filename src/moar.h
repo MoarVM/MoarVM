@@ -70,6 +70,7 @@ typedef double   MVMnum64;
 #include "core/threadcontext.h"
 #include "core/instance.h"
 #include "core/interp.h"
+#include "core/callsite.h"
 #include "core/args.h"
 #include "core/exceptions.h"
 #include "core/frame.h"

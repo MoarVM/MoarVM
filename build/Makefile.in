@@ -158,6 +158,7 @@ HEADERS = src/moar.h \
           src/6model/6model.h \
           src/core/instance.h \
           src/core/threadcontext.h \
+          src/core/callsite.h \
           src/core/args.h \
           src/core/exceptions.h \
           src/core/interp.h \
