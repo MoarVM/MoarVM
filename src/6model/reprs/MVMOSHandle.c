@@ -21,6 +21,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
+/* Initializes the handle with the mutex all handles need. */
+static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMOSHandleBody *handle = (MVMOSHandleBody *)data;
+    handle->mutex = malloc(sizeof(uv_mutex_t));
+    uv_mutex_init(handle->mutex);
+}
+
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     /* can't be copied because then we could never know when gc_free should
@@ -43,6 +50,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMOSHandle *handle = (MVMOSHandle *)obj;
     if (handle->body.ops && handle->body.ops->gc_free)
         handle->body.ops->gc_free(tc, obj, handle->body.data);
+    if (handle->body.mutex) {
+        uv_mutex_destroy(handle->body.mutex);
+        free(handle->body.mutex);
+    }
 }
 
 /* Gets the storage specification for this representation. */
@@ -67,7 +78,7 @@ const MVMREPROps * MVMOSHandle_initialize(MVMThreadContext *tc) {
 static const MVMREPROps this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
-    NULL, /* initialize */
+    initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,

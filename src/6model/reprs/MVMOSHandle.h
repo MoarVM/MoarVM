@@ -6,6 +6,9 @@ struct MVMOSHandleBody {
 
     /* Any data a particular set of I/O functions wishes to store. */
     void *data;
+
+    /* Mutex protecting access to this I/O handle. */
+    uv_mutex_t *mutex;
 };
 struct MVMOSHandle {
     MVMObject common;
