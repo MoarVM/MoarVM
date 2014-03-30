@@ -223,9 +223,10 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     /* Produce result data structure. */
-    res = malloc(sizeof(MVMSpeshCode));
-    res->bytecode = ws->bytecode;
-    res->handlers = ws->handlers;
+    res                = malloc(sizeof(MVMSpeshCode));
+    res->bytecode      = ws->bytecode;
+    res->bytecode_size = ws->bytecode_pos;
+    res->handlers      = ws->handlers;
 
     /* Cleanup. */
     free(ws->bb_offsets);
