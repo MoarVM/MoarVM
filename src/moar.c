@@ -102,6 +102,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->callsite_interns = calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
 
+    /* Mutex for spesh installations. */
+    init_mutex(instance->mutex_spesh_install, "spesh installations");
+
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 
@@ -220,6 +223,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of hashes of symbol tables per hll. */
     uv_mutex_destroy(&instance->mutex_hll_syms);
+
+    /* Clean up spesh install mutex. */
+    uv_mutex_destroy(&instance->mutex_spesh_install);
 
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);

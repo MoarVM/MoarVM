@@ -227,6 +227,10 @@ struct MVMInstance {
     MVMCallsiteInterns *callsite_interns;
     uv_mutex_t          mutex_callsite_interns;
 
+    /* Specialization installation mutex (global, as it's low contention, so
+     * no real motivation to have it more fine-grained at present). */
+    uv_mutex_t mutex_spesh_install;
+
     /* Standard file handles. */
     MVMObject *stdin_handle;
     MVMObject *stdout_handle;

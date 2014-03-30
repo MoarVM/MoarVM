@@ -103,6 +103,7 @@ typedef double   MVMnum64;
 #include "spesh/dump.h"
 #include "spesh/graph.h"
 #include "spesh/codegen.h"
+#include "spesh/candidate.h"
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"

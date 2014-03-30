@@ -123,7 +123,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMFrame *outer, MVMObject *code_ref) {
     MVMFrame *frame;
 
-    MVMuint32 pool_index;
+    MVMuint32 pool_index, found_spesh;
     MVMFrame *node;
     int fresh = 0;
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
@@ -263,11 +263,33 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     frame->flags = 0;
 
     /* See if any specializations apply. */
+    found_spesh = 0;
     if (++static_frame_body->invocations >= 10 && callsite->is_interned) {
-        frame->effective_bytecode = static_frame_body->bytecode;
-        frame->effective_handlers = static_frame_body->handlers;
+        /* Look for specialized bytecode. */
+        MVMint32 num_spesh = static_frame_body->num_spesh_candidates;
+        MVMint32 i;
+        for (i = 0; i < num_spesh; i++) {
+            MVMSpeshCandidate *cand = &static_frame_body->spesh_candidates[i];
+            if (cand->cs == callsite) {
+                frame->effective_bytecode = cand->bytecode;
+                frame->effective_handlers = cand->handlers;
+                found_spesh = 1;
+            }
+        }
+
+        /* If we didn't find any, and we're below the limit, can generate a
+         * specialization. */
+        if (!found_spesh && num_spesh < MVM_SPESH_LIMIT) {
+            MVMSpeshCandidate *cand = MVM_spesh_candidate_generate(tc, static_frame,
+                callsite, args);
+            if (cand) {
+                frame->effective_bytecode = cand->bytecode;
+                frame->effective_handlers = cand->handlers;
+                found_spesh = 1;
+            }
+        }
     }
-    else {
+    if (!found_spesh) {
         frame->effective_bytecode = static_frame_body->bytecode;
         frame->effective_handlers = static_frame_body->handlers;
     }

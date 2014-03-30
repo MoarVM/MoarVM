@@ -29,6 +29,10 @@ struct MVMStaticFrameBody {
      * count, but that's fine; it's just a rough indicator, used to make
      * decisions about optimization. */
     MVMuint32 invocations;
+    
+    /* Specializations array, if there are any. */
+    MVMSpeshCandidate *spesh_candidates;
+    MVMuint32          num_spesh_candidates;
 
     /* The size in bytes to allocate for the lexical environment. */
     MVMuint32 env_size;

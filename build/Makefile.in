@@ -141,6 +141,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/dump@obj@ \
           src/spesh/graph@obj@ \
           src/spesh/codegen@obj@ \
+          src/spesh/candidate@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -242,6 +243,7 @@ HEADERS = src/moar.h \
           src/spesh/dump.h \
           src/spesh/graph.h \
           src/spesh/codegen.h \
+          src/spesh/candidate.h \
           src/strings/unicode_gen.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \
