@@ -133,11 +133,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!static_frame_body->invoked)
         prepare_and_verify_static_frame(tc, static_frame);
 
+    /* Bump the rough invocations count. */
+    static_frame_body->invocations++;
+
+    /* Get frame body from the re-use pool, or allocate it. */
     pool_index = static_frame_body->pool_index;
     if (pool_index >= tc->frame_pool_table_size)
         grow_frame_pool(tc, pool_index);
     node = tc->frame_pool_table[pool_index];
-
     if (node == NULL) {
         fresh = 1;
         frame = malloc(sizeof(MVMFrame));

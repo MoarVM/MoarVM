@@ -16,8 +16,6 @@ struct MVMStaticFrameBody {
     MVMLexicalRegistry *lexical_names;
     MVMLexicalRegistry **lexical_names_list;
 
-    /* The environment for this frame, which lives beyond its execution. */
-
     /* Defaults for lexicals upon new frame creation. */
     MVMRegister *static_env;
 
@@ -26,6 +24,11 @@ struct MVMStaticFrameBody {
 
     /* Flag for if this frame has been invoked ever. */
     MVMuint32 invoked;
+
+    /* Rough call count. May be hit up by multiple threads, and lose the odd
+     * count, but that's fine; it's just a rough indicator, used to make
+     * decisions about optimization. */
+    MVMuint32 invocations;
 
     /* The size in bytes to allocate for the lexical environment. */
     MVMuint32 env_size;
