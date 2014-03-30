@@ -98,6 +98,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Initialize string cclass handling. */
     MVM_string_cclass_init(instance->main_thread);
 
+    /* Create callsite intern pool. */
+    instance->callsite_interns = calloc(1, sizeof(MVMCallsiteInterns));
+    init_mutex(instance->mutex_callsite_interns, "callsite interns");
+
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 

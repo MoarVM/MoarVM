@@ -43,8 +43,12 @@ struct MVMCallsite {
     /* Number of positionals. */
     MVMuint16 num_pos;
 
-    /* whether it has a flattening arg. */
+    /* Whether it has any flattening args. */
     MVMuint8 has_flattening;
+
+    /* Whether it has been interned (which means it is suitable for using in
+     * specialization). */
+    MVMuint8 is_interned;
 
     /* Cached version of this callsite with an extra invocant arg. */
     MVMCallsite *with_invocant;
@@ -58,3 +62,18 @@ struct MVMCallsite {
 /* Minimum callsite size is due to certain things internally expecting us to
  * have that many slots available (e.g. find_method(how, obj, name)). */
 #define MVM_MIN_CALLSITE_SIZE 3
+
+/* Maximum arity + 1 that we'll intern callsites by. */
+#define MVM_INTERN_ARITY_LIMIT 8
+
+/* Interned callsites data structure. */
+struct MVMCallsiteInterns {
+    /* Array of callsites, by arity. */
+    MVMCallsite **by_arity[MVM_INTERN_ARITY_LIMIT];
+
+    /* Number of callsites we have interned by arity. */
+    MVMint32 num_by_arity[MVM_INTERN_ARITY_LIMIT];
+};
+
+/* Callsite interning function. */
+void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);

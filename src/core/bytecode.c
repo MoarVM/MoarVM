@@ -686,12 +686,19 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->num_pos        = positionals;
         callsites[i]->arg_count      = positionals + nameds;
         callsites[i]->has_flattening = has_flattening;
+        callsites[i]->is_interned    = 0;
         callsites[i]->with_invocant  = NULL; 
 
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
         if (positionals + nameds > cu_body->max_callsite_size)
             cu_body->max_callsite_size = positionals + nameds;
+
+        /* Try to intern the callsite (that is, see if it matches one the
+         * VM already knows about). If it does, it will free the memory
+         * associated and replace it with the interned one. Otherwise it
+         * will store this one, provided it meets the interning rules. */
+        MVM_callsite_try_intern(tc, &(callsites[i]));
     }
 
     /* Add one on to the maximum, to allow space for unshifting an extra

@@ -55,7 +55,8 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
 
 MAIN_OBJECTS = src/main@obj@
 
-OBJECTS = src/core/args@obj@ \
+OBJECTS = src/core/callsite@obj@ \
+          src/core/args@obj@ \
           src/core/exceptions@obj@ \
           src/core/interp@obj@ \
           src/core/threadcontext@obj@ \

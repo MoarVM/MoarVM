@@ -13,6 +13,7 @@ typedef struct MVMBytecodeAnnotation MVMBytecodeAnnotation;
 typedef struct MVMCallCapture MVMCallCapture;
 typedef struct MVMCallCaptureBody MVMCallCaptureBody;
 typedef struct MVMCallsite MVMCallsite;
+typedef struct MVMCallsiteInterns MVMCallsiteInterns;
 typedef struct MVMCFunction MVMCFunction;
 typedef struct MVMCFunctionBody MVMCFunctionBody;
 typedef struct MVMCode MVMCode;
