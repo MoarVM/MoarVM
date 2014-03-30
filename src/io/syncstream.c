@@ -14,12 +14,16 @@
 /* Sets the encoding used for string-based I/O. */
 void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    uv_mutex_lock(h->body.mutex);
     if (data->ds) {
-        if (data->ds->chars_head)
+        if (data->ds->chars_head) {
+            uv_mutex_unlock(h->body.mutex);
             MVM_exception_throw_adhoc(tc, "Too late to change handle encoding");
+        }
         data->ds->encoding = encoding;
     }
     data->encoding = encoding;
+    uv_mutex_unlock(h->body.mutex);
 }
 
 /* Cannot seek a TTY of named pipe (could fake the forward case, probably). */
@@ -32,16 +36,22 @@ void MVM_io_syncstream_seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offse
  * number of bytes we've written. */
 MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    return data->ds
+    MVMint64 result;
+    uv_mutex_lock(h->body.mutex);
+    result = data->ds
         ? MVM_string_decodestream_tell_bytes(tc, data->ds)
         : data->total_bytes_written;
+    uv_mutex_unlock(h->body.mutex);
+    return result;
 }
 
 /* Set the line separator. */
 void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
     /* For now, take last character. */
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    uv_mutex_lock(h->body.mutex);
     data->sep = (MVMCodepoint32)MVM_string_get_codepoint_at(tc, sep, NUM_GRAPHS(sep) - 1);
+    uv_mutex_unlock(h->body.mutex);
 }
 
 /* Read a bunch of bytes into the current decode stream. Returns true if we
@@ -92,6 +102,8 @@ static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data
  * already read enough data. */
 MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    MVMString *result;
+    uv_mutex_lock(h->body.mutex);
     ensure_decode_stream(tc, data);
 
     /* Pull data until we can read a line. */
@@ -102,26 +114,33 @@ MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h) {
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
 
     /* Reached end of stream, or last (non-termianted) line. */
-    return MVM_string_decodestream_get_all(tc, data->ds);
+    result = MVM_string_decodestream_get_all(tc, data->ds);
+    uv_mutex_unlock(h->body.mutex);
+    return result;
 }
 
 /* Reads the stream from the current position to the end into a string,
  * fetching as much data is available. */
 MVMString * MVM_io_syncstream_slurp(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    MVMString *result;
+    uv_mutex_lock(h->body.mutex);
     ensure_decode_stream(tc, data);
 
     /* Fetch as much data as we can (XXX this can be more efficient, by
      * passing on down that we want to get many buffers from libuv). */
     while (read_to_buffer(tc, data, CHUNK_SIZE))
         ;
-    return MVM_string_decodestream_get_all(tc, data->ds);
+    result = MVM_string_decodestream_get_all(tc, data->ds);
+    uv_mutex_unlock(h->body.mutex);
+    return result;
 }
 
 /* Gets the specified number of characters from the stream. */
 MVMString * MVM_io_syncstream_read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     MVMString *result;
+    uv_mutex_lock(h->body.mutex);
     ensure_decode_stream(tc, data);
 
     /* Do we already have the chars available? */
@@ -133,18 +152,24 @@ MVMString * MVM_io_syncstream_read_chars(MVMThreadContext *tc, MVMOSHandle *h, M
         /* No; read and try again. */
         read_to_buffer(tc, data, CHUNK_SIZE);
         result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
-        if (result != NULL)
+        if (result != NULL) {
+            uv_mutex_unlock(h->body.mutex);
             return result;
+        }
     }
 
     /* Fetched all we immediately can, so just take what we have. */
-    return MVM_string_decodestream_get_all(tc, data->ds);
+    result = MVM_string_decodestream_get_all(tc, data->ds);
+    uv_mutex_unlock(h->body.mutex);
+    return result;
 }
 
 /* Reads the specified number of bytes into a the supplied buffer, returing
  * the number actually read. */
 MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    MVMint64 result;
+    uv_mutex_lock(h->body.mutex);
     ensure_decode_stream(tc, data);
 
     /* See if we've already enough; if not, try and grab more. */
@@ -152,21 +177,27 @@ MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char
         read_to_buffer(tc, data, bytes > CHUNK_SIZE ? bytes : CHUNK_SIZE);
 
     /* Read as many as we can, up to the limit. */
-    return MVM_string_decodestream_bytes_to_buf(tc, data->ds, buf, bytes);
+    result = MVM_string_decodestream_bytes_to_buf(tc, data->ds, buf, bytes);
+    uv_mutex_unlock(h->body.mutex);
+    return result;
 }
 
 /* Checks if the end of stream has been reached. */
 MVMint64 MVM_io_syncstream_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-
+    MVMint64 result;
+    
     /* If we still have stuff in the buffer, certainly not the end (even if
      * data->eof is set; that just means we read all we can from libuv, not
      * that we processed it all). */
+    uv_mutex_lock(h->body.mutex);
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
-        return 0;
-
+        result = 0;
     /* Otherwise, go on the EOF flag from the underlying stream. */
-    return data->eof;
+    else
+        return data->eof;
+    uv_mutex_unlock(h->body.mutex);
+    return result;
 }
 
 /* Writes the specified string to the stream, maybe with a newline. */
@@ -182,6 +213,7 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
     uv_buf_t write_buf;
     int r;
 
+    uv_mutex_lock(h->body.mutex);
     output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
     if (newline) {
         output = (MVMuint8 *)realloc(output, ++output_size);
@@ -200,8 +232,9 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
         uv_run(tc->loop, UV_RUN_DEFAULT);
         free(output);
     }
-
     data->total_bytes_written += output_size;
+    uv_mutex_unlock(h->body.mutex);
+
     return output_size;
 }
 
@@ -211,16 +244,19 @@ MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, cha
     uv_write_t *req = malloc(sizeof(uv_write_t));
     uv_buf_t write_buf = uv_buf_init(buf, bytes);
     int r;
+    uv_mutex_lock(h->body.mutex);
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
         uv_unref((uv_handle_t *)data->handle);
         free(req);
+        uv_mutex_unlock(h->body.mutex);
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to stream: %s", uv_strerror(r));
     }
     else {
         uv_run(tc->loop, UV_RUN_DEFAULT);
     }
     data->total_bytes_written += bytes;
+    uv_mutex_unlock(h->body.mutex);
     return bytes;
 }
 
@@ -241,6 +277,7 @@ static MVMint64 not_std_handle(MVMThreadContext *tc, MVMObject *h) {
 }
 static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    uv_mutex_lock(h->body.mutex);
     if (data->handle && not_std_handle(tc, (MVMObject *)h)) {
          uv_close((uv_handle_t *)data->handle, NULL);
          data->handle = NULL;
@@ -249,6 +286,7 @@ static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
             data->ds = NULL;
         }
     }
+    uv_mutex_unlock(h->body.mutex);
 }
 
 /* Frees data associated with the handle, closing it if needed. */
