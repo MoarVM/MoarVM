@@ -98,8 +98,7 @@ static const MVMREPROps this_repr = {
 };
 
 MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
-    int r;
-    while ((r = uv_sem_trywait(&sem->body.sem)) == UV_EAGAIN);
+    int r = uv_sem_trywait(&sem->body.sem);
     return !r;
 }
 
