@@ -79,6 +79,9 @@ struct MVMSpeshIns {
     /* Previous and next instructions, within a basic block boundary. */
     MVMSpeshIns *prev;
     MVMSpeshIns *next;
+
+    /* Any annotations on the instruction. */
+    MVMSpeshAnn *annotations;
 };
 
 /* Union type of operands in a spesh instruction; the op info and phase of the
@@ -104,6 +107,25 @@ union MVMSpeshOperand {
         MVMint32  i;    /* SSA-computed version. */
     } reg;
 };
+
+/* Annotations base. */
+struct MVMSpeshAnn {
+    /* The next annotation in the chain, if any. */
+    MVMSpeshAnn *next;
+
+    /* The type of annotation we have. */
+    MVMint32 type;
+
+    /* Data (meaning depends on type). */
+    union {
+        MVMint32 frame_handler_index;
+    } data;
+};
+
+/* Annotation types. */
+#define MVM_SPESH_ANN_FH_START      1
+#define MVM_SPESH_ANN_FH_END        2
+#define MVM_SPESH_ANN_FH_GOTO       3
 
 /* Functions to create/destory the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf);

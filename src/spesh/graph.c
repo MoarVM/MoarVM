@@ -236,6 +236,31 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         pc += 2 + arg_size;
     }
 
+    /* Annotate instructions that are handler-significant. */
+    for (i = 0; i < sf->body.num_handlers; i++) {
+        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[sf->body.handlers[i].start_offset] >> 2];
+        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[sf->body.handlers[i].end_offset] >> 2];
+        MVMSpeshIns *goto_ins  = ins_flat[byte_to_ins_flags[sf->body.handlers[i].goto_offset] >> 2];
+        MVMSpeshAnn *start_ann = spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        MVMSpeshAnn *end_ann   = spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        MVMSpeshAnn *goto_ann  = spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+
+        start_ann->next = start_ins->annotations;
+        start_ann->type = MVM_SPESH_ANN_FH_START;
+        start_ann->data.frame_handler_index = i;
+        start_ins->annotations = start_ann;
+
+        end_ann->next = end_ins->annotations;
+        end_ann->type = MVM_SPESH_ANN_FH_END;
+        end_ann->data.frame_handler_index = i;
+        end_ins->annotations = end_ann;
+
+        goto_ann->next = goto_ins->annotations;
+        goto_ann->type = MVM_SPESH_ANN_FH_GOTO;
+        goto_ann->data.frame_handler_index = i;
+        goto_ins->annotations = goto_ann;
+    }
+
     /* Now for the second pass, where we assemble the basic blocks. Also we
      * build a lookup table of instructions that start a basic block to that
      * basic block, for the final CFG construction. We make the entry block a

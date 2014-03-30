@@ -48,6 +48,27 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     append(ds, "    Instructions:\n");
     cur_ins = bb->first_ins;
     while (cur_ins) {
+        MVMSpeshAnn *ann = cur_ins->annotations;
+        while (ann) {
+            switch (ann->type) {
+                case MVM_SPESH_ANN_FH_START:
+                    appendf(ds, "      [Annotation: FH Start (%d)]\n",
+                        ann->data.frame_handler_index);
+                    break;
+                case MVM_SPESH_ANN_FH_END:
+                    appendf(ds, "      [Annotation: FH End (%d)]\n",
+                        ann->data.frame_handler_index);
+                    break;
+                case MVM_SPESH_ANN_FH_GOTO:
+                    appendf(ds, "      [Annotation: FH Goto (%d)]\n",
+                        ann->data.frame_handler_index);
+                    break;
+                default:
+                    appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
+            }
+            ann = ann->next;
+        }
+
         appendf(ds, "      %s ", cur_ins->info->name);
         if (cur_ins->info->opcode == MVM_SSA_PHI) {
             for (i = 0; i < cur_ins->info->num_operands; i++) {
