@@ -88,7 +88,25 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
             }
 
             /* Real instruction, not a phi. Emit opcode. */
-            write_int16(ws, ins->info->opcode);
+            if (ins->info->opcode == (MVMuint16)-1) {
+                /* Ext op; resolve. */
+                MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
+                MVMuint16       num_extops = g->sf->body.cu->body.num_extops;
+                MVMint32        found      = 0;
+                for (i = 0; i < num_extops; i++) {
+                    if (extops[i].info == ins->info) {
+                        write_int16(ws, MVM_OP_EXT_BASE + i);
+                        found = 1;
+                        break;
+                    }
+                }
+                if (!found)
+                    MVM_exception_throw_adhoc(tc, "Spesh: failed to resolve extop in code-gen");
+            }
+            else {
+                /* Core op. */
+                write_int16(ws, ins->info->opcode);
+            }
 
             /* Write out operands. */
             for (i = 0; i < ins->info->num_operands; i++) {
