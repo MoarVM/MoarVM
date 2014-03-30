@@ -18,6 +18,9 @@ typedef struct {
     MVMSpeshBB **fixup_bbs;
     MVMint32     num_fixups;
     MVMint32     alloc_fixups;
+
+    /* Copied frame handlers (which we'll update offsets of). */
+    MVMFrameHandler *handlers;
 } SpeshWriterState;
 
 /* Write functions; all native endian. */
@@ -64,6 +67,26 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
     while (ins) {
         MVMint32 i;
         if (ins->info->opcode != MVM_SSA_PHI) {
+            /* Process any annotations. */
+            MVMSpeshAnn *ann = ins->annotations;
+            while (ann) {
+                switch (ann->type) {
+                case MVM_SPESH_ANN_FH_START:
+                    ws->handlers[ann->data.frame_handler_index].start_offset =
+                        ws->bytecode_pos;
+                    break;
+                case MVM_SPESH_ANN_FH_END:
+                    ws->handlers[ann->data.frame_handler_index].end_offset =
+                        ws->bytecode_pos;
+                    break;
+                case MVM_SPESH_ANN_FH_GOTO:
+                    ws->handlers[ann->data.frame_handler_index].goto_offset =
+                        ws->bytecode_pos;
+                    break;
+                }
+                ann = ann->next;
+            }
+
             /* Real instruction, not a phi. Emit opcode. */
             write_int16(ws, ins->info->opcode);
 
@@ -151,7 +174,7 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
 MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshCode *res;
     MVMSpeshBB   *bb;
-    MVMint32      i;
+    MVMint32      i, hanlen;
 
     /* Initialize writer state. */
     SpeshWriterState *ws     = malloc(sizeof(SpeshWriterState));
@@ -165,6 +188,17 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     ws->fixup_bbs       = malloc(ws->alloc_fixups * sizeof(MVMSpeshBB *));
     for (i = 0; i < g->num_bbs; i++)
         ws->bb_offsets[i] = -1;
+
+    /* Create copy of handlers, and -1 all offsets so we can catch missing
+     * updates. */
+    hanlen = g->sf->body.num_handlers * sizeof(MVMFrameHandler);
+    ws->handlers = malloc(hanlen);
+    memcpy(ws->handlers, g->sf->body.handlers, hanlen);
+    for (i = 0; i < g->sf->body.num_handlers; i++) {
+        ws->handlers[i].start_offset = -1;
+        ws->handlers[i].end_offset   = -1;
+        ws->handlers[i].goto_offset  = -1;
+    }
 
     /* Write out each of the basic blocks, in linear order. Skip the first,
      * dummy, block. */
@@ -180,9 +214,18 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         *((MVMuint32 *)(ws->bytecode + ws->fixup_locations[i])) =
             ws->bb_offsets[ws->fixup_bbs[i]->idx];
 
+    /* Ensure all handlers got fixed up. */
+    for (i = 0; i < g->sf->body.num_handlers; i++) {
+        if (ws->handlers[i].start_offset == -1 ||
+            ws->handlers[i].end_offset   == -1 ||
+            ws->handlers[i].goto_offset  == -1)
+            MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up handlers");
+    }
+
     /* Produce result data structure. */
     res = malloc(sizeof(MVMSpeshCode));
     res->bytecode = ws->bytecode;
+    res->handlers = ws->handlers;
 
     /* Cleanup. */
     free(ws->bb_offsets);
