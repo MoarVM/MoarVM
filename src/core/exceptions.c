@@ -606,9 +606,10 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
      * interpreter so that when we return to it, we'll be at the handler. */
     run_handler(tc, lh, (MVMObject *)ex);
 
-    /* Clear an C stack temporaries that code may have pushed before throwing
-     * the exception. */
+    /* Clear any C stack temporaries that code may have pushed before throwing
+     * the exception, and release any needed mutex. */
     MVM_gc_root_temp_pop_all(tc);
+    MVM_tc_release_ex_release_mutex(tc);
 
     /* Jump back into the interpreter. */
     longjmp(tc->interp_jump, 1);

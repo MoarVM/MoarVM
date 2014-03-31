@@ -78,3 +78,18 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     memset(tc, 0, sizeof(MVMThreadContext));
     free(tc);
 }
+
+/* Setting and clearing mutex to release on exception throw. */
+void MVM_tc_set_ex_release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex) {
+    if (tc->ex_release_mutex)
+        MVM_exception_throw_adhoc(tc, "Internal error: multiple ex_release_mutex");
+    tc->ex_release_mutex = mutex;
+}
+void MVM_tc_release_ex_release_mutex(MVMThreadContext *tc) {
+    if (tc->ex_release_mutex)
+        uv_mutex_unlock(tc->ex_release_mutex);
+    tc->ex_release_mutex = NULL;
+}
+void MVM_tc_clear_ex_release_mutex(MVMThreadContext *tc) {
+    tc->ex_release_mutex = NULL;
+}

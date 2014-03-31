@@ -103,6 +103,10 @@ struct MVMThreadContext {
     /* Result object of the last-run exception handler. */
     MVMObject *last_handler_result;
 
+    /* Mutex that must be released if we throw an exception. Used in places
+     * like I/O, which grab a mutex but may throw an exception. */
+    uv_mutex_t *ex_release_mutex;
+
     /* The VM instance that this thread belongs to. */
     MVMInstance *instance;
 
@@ -192,3 +196,6 @@ struct MVMThreadContext {
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);
 void MVM_tc_destroy(MVMThreadContext *tc);
+void MVM_tc_set_ex_release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex);
+void MVM_tc_release_ex_release_mutex(MVMThreadContext *tc);
+void MVM_tc_clear_ex_release_mutex(MVMThreadContext *tc);
