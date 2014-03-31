@@ -12,6 +12,10 @@
 # boring mapping code and rendering old bytecode impossible to simply
 # run from the mmap'd file.
 #
+# The exception to this rule is the spesh ops, which must come at the
+# very end of the file, and since they are never emitted into bytecode
+# files (the specializer inserts them) can be renumbered any time.
+# 
 # Each entry specifies an opname, an optional annotation used by the
 # bytecode validator as well as the op arguments:
 #
