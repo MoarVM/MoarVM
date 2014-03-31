@@ -30,8 +30,8 @@ GetOptions(\%args, qw(
     help|?
     debug:s optimize:s instrument!
     os=s shell=s toolchain=s compiler=s
-    cc=s ld=s make=s has-sha
-    static use-readline has-libtommath
+    cc=s ld=s make=s has-sha has-libuv
+    static use-readline has-libtommath has-libatomic_ops
     build=s host=s big-endian
     prefix=s make-install profilecalls
 )) or die "See --help for further information\n";
@@ -64,10 +64,12 @@ $args{instrument} //= 0;
 $args{static}     //= 0;
 $args{profilecalls} //= 0;
 
-$args{'use-readline'}     //= 0;
-$args{'big-endian'}       //= 0;
-$args{'has-libtommath'}   //= 0;
-$args{'has-sha'}          //= 0;
+$args{'use-readline'}      //= 0;
+$args{'big-endian'}        //= 0;
+$args{'has-libtommath'}    //= 0;
+$args{'has-sha'}           //= 0;
+$args{'has-libuv'}         //= 0;
+$args{'has-libatomic_ops'} //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -146,6 +148,16 @@ if ($args{'has-sha'}) {
     unshift @{$config{usrlibs}}, 'sha';
 }
 else { $config{shaincludedir} = '3rdparty/sha1' }
+
+if ($args{'has-libuv'}) {
+    $defaults{-thirdparty}->{uv} = undef;
+    unshift @{$config{usrlibs}}, 'uv';
+}
+
+if ($args{'has-libatomic_ops'}) {
+    $defaults{-thirdparty}->{lao} = undef;
+#    unshift @{$config{usrlibs}}, 'atomic_ops';
+}
 
 # mangle library names
 $config{ldlibs} = join ' ',
@@ -578,7 +590,8 @@ __END__
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
-                   [--has-libtommath] [--has-sha]
+                   [--has-libtommath] [--has-sha] [--has-libuv]
+                   [--has-libatomic_ops]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -692,5 +705,13 @@ Link moar with the libtommath library of the system.
 =item --has-sha
 
 Build moar with the sha1 funktions from the sha library of the system.
+
+=item --has-libuv
+
+Link moar with the libuv library of the system.
+
+=item --has-libatomic_ops
+
+Disable the build of libatomic_ops.
 
 =back
