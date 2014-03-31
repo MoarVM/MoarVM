@@ -4069,9 +4069,37 @@ static MVMOpInfo MVM_op_infos[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_sp_getarg_o,
+        "sp_getarg_o",
+        ".s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_getarg_i,
+        "sp_getarg_i",
+        ".s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_getarg_n,
+        "sp_getarg_n",
+        ".s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_getarg_s,
+        "sp_getarg_s",
+        ".s",
+        2,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
 };
 
-static unsigned short MVM_op_counts = 581;
+static unsigned short MVM_op_counts = 585;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

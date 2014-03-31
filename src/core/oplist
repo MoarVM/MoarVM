@@ -614,3 +614,10 @@ condwait            r(obj)
 condsignalone       r(obj)
 condsignalall       r(obj)
 queuepoll           w(obj) r(obj)
+
+# Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
+# is how the validator knows to exclude them.
+sp_getarg_o      .s w(obj) int16
+sp_getarg_i      .s w(obj) int16
+sp_getarg_n      .s w(obj) int16
+sp_getarg_s      .s w(obj) int16

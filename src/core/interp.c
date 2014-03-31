@@ -4099,6 +4099,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(sp_getarg_o):
+                GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_getarg_i):
+                GET_REG(cur_op, 0).i64 = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_getarg_n):
+                GET_REG(cur_op, 0).n64 = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].n64;
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_getarg_s):
+                GET_REG(cur_op, 0).s = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].s;
+                cur_op += 4;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

@@ -582,6 +582,10 @@
 #define MVM_OP_condsignalone 578
 #define MVM_OP_condsignalall 579
 #define MVM_OP_queuepoll 580
+#define MVM_OP_sp_getarg_o 581
+#define MVM_OP_sp_getarg_i 582
+#define MVM_OP_sp_getarg_n 583
+#define MVM_OP_sp_getarg_s 584
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
