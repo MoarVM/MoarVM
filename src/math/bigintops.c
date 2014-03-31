@@ -577,6 +577,8 @@ void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
         two_complement_shl(ib, ia, -n);
         store_bigint_result(bb, ib);
         clear_temp_bigints(tmp, 1);
+    } else if (n >= 32) {
+        store_int64_result(bb, 0);
     } else {
         MVMint32 value = ba->u.smallint.value;
         MVMint32 result = value >> n;
