@@ -9,7 +9,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
 
     /* Generate the specialization. */
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, static_frame);
-    /* XXX Apply the specialization here, of course. */
+    MVM_spesh_args(tc, sg, callsite, args);
     sc = MVM_spesh_codegen(tc, sg);
     MVM_spesh_graph_destroy(tc, sg);
 
