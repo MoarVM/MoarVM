@@ -13,7 +13,7 @@ static void string_consts(MVMThreadContext *tc);
 static void setup_std_handles(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
-    char *spesh_log;
+    char *spesh_log, *spesh_disable;
     int init_stat;
 
     /* Set up instance data structure. */
@@ -109,6 +109,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     spesh_log = getenv("MVM_SPESH_LOG");
     if (spesh_log && strlen(spesh_log))
         instance->spesh_log_fh = fopen(spesh_log, "w");
+    spesh_disable = getenv("MVM_SPESH_DISABLE");
+    if (!spesh_disable || strlen(spesh_disable) == 0)
+        instance->spesh_enabled = 1;
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);

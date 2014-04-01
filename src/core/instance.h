@@ -234,6 +234,9 @@ struct MVMInstance {
     /* Log file for specializations, if we're to log them. */
     FILE *spesh_log_fh;
 
+    /* Flag for if spesh is enabled. */
+    MVMint32 spesh_enabled;
+
     /* Standard file handles. */
     MVMObject *stdin_handle;
     MVMObject *stdout_handle;

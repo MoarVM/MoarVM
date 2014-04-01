@@ -280,7 +280,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
         /* If we didn't find any, and we're below the limit, can generate a
          * specialization. */
-        if (!found_spesh && num_spesh < MVM_SPESH_LIMIT) {
+        if (!found_spesh && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled) {
             MVMSpeshCandidate *cand = MVM_spesh_candidate_generate(tc, static_frame,
                 callsite, args);
             if (cand) {
