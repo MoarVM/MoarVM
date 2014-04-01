@@ -1,5 +1,28 @@
 use v6;
 
+multi sub MAIN() {
+    say q:to/USAGE/;
+        This tool can be used as followed:
+
+            spesh_diff.p6 output_from_mvm.txt
+
+            spesh_diff.p6 --matcher="'foobar'" output.txt
+
+            spesh_diff.p6 --matcher="/^ to $/" output.txt
+
+            spesh_diff.p6 --matcher="diff => / '+' .*? 'nyi' /" output.txt
+
+
+        This tool takes the output MoarVM generates to a file when you call it
+        with MVM_SPESH_LOG environment variable set to a filename and splits it
+        into two folders, optionally selects a subset of the participating cuids
+        and then diffs everything for you using git diff.
+
+        It will output colors always, so if you want to use less to paginate, you
+        will need to supply -r to less.
+        USAGE
+}
+
 class Spesh is rw {
     has Str $.before;
     has Str $.after;
@@ -28,7 +51,7 @@ sub supersmartmatch($thing) {
     }
 }
 
-sub MAIN($filename?, :$matcher?) {
+multi sub MAIN($filename?, :$matcher?) {
     my %speshes;
     my Spesh  $current;
     my Target $target;
@@ -42,7 +65,12 @@ sub MAIN($filename?, :$matcher?) {
     }
 
     my $ssm = do if $matcher {
-        supersmartmatch EVAL $matcher
+        my Mu $matcher_evald = EVAL $matcher;
+        if $matcher_evald.WHAT ~~ Str | Regex | Junction {
+            supersmartmatch (name => $matcher_evald);
+        } else {
+            supersmartmatch $matcher_evald;
+        }
     } else {
         True
     }
