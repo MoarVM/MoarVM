@@ -7,6 +7,10 @@ struct MVMSpeshGraph {
     /* The entry basic block. */
     MVMSpeshBB *entry;
 
+    /* Gathered facts about each version of a local (top-level array is per
+     * local, then array hanging off it is per version). */
+    MVMSpeshFacts **facts;
+
     /* Memory blocks we allocate to store spesh nodes, and which we free along
      * with the graph. Contains a link to previous blocks. */
     MVMSpeshMemBlock *mem_block;
