@@ -88,6 +88,17 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         appendf(ds, "r%d(%d)", cur_ins->operands[i].reg.orig,
                             cur_ins->operands[i].reg.i);
                         break;
+                    case MVM_operand_literal: {
+                        MVMuint32 type = cur_ins->info->operands[i] & MVM_operand_type_mask;
+                        switch (type) {
+                        case MVM_operand_ins:
+                            appendf(ds, "BB(%d)", cur_ins->operands[i].ins_bb->idx);
+                            break;
+                        default:
+                            append(ds, "<nyi(lit)>");
+                        }
+                        break;
+                    }
                     default:
                         append(ds, "<nyi>");
                 }
