@@ -36,6 +36,12 @@ static void append_str(MVMThreadContext *tc, DumpStr *ds, MVMString *s) {
     free(cs);
 }
 
+/* Appends a null at the end. */
+static void append_null(DumpStr *ds) {
+    append(ds, " "); /* Delegate realloc if we're really unlucky. */
+    ds->buffer[ds->pos - 1] = '\0';
+}
+
 /* Dumps a basic block. */
 static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshIns *cur_ins;
@@ -163,6 +169,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
         cur_bb = cur_bb->linear_next;
     }
 
-    append(&ds, "\n\0");
+    append(&ds, "\n");
+    append_null(&ds);
     return ds.buffer;
 }

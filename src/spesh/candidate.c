@@ -59,6 +59,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
                     "Specialized '%s' (cuid: %s)\n\n", c_name, c_cuid);
                 fprintf(tc->instance->spesh_log_fh,
                     "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
+                free(before);
+                free(after);
                 free(c_name);
                 free(c_cuid);
             }
