@@ -41,6 +41,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             /* Could compile-time resolve the method. Add it in a spesh slot
              * and tweak instruction to grab it from there. */
             MVMint16 ss = add_spesh_slot(tc, g, (MVMCollectable *)meth);
+            get_facts(tc, g, ins->operands[1])->usages--;
             ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             ins->operands[1].lit_i16 = ss;
             resolved = 1;
@@ -88,6 +89,40 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
         optimize_bb(tc, g, bb->children[i]);
+
+    /* Now walk backwards through the instructions, eliminating any that are
+     * pure and unused. */
+    ins = bb->last_ins;
+    while (ins) {
+        MVMSpeshIns *prev = ins->prev;
+        if (ins->info->opcode == MVM_SSA_PHI) {
+            MVMSpeshFacts *facts = get_facts(tc, g, ins->operands[0]);
+            if (facts->usages == 0) {
+                /* Propagate non-usage. */
+                for (i = 1; i < ins->info->num_operands; i++)
+                    get_facts(tc, g, ins->operands[i])->usages--;
+
+                /* Remove this phi. */
+                MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+            }
+        }
+        else if (ins->info->pure) {
+            /* Sanity check to make sure it's a write reg as first operand. */
+            if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+                MVMSpeshFacts *facts = get_facts(tc, g, ins->operands[0]);
+                if (facts->usages == 0) {
+                    /* Propagate non-usage. */
+                    for (i = 1; i < ins->info->num_operands; i++)
+                        if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                            get_facts(tc, g, ins->operands[i])->usages--;
+
+                    /* Remove this instruction. */
+                    MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                }
+            }
+        }
+        ins = prev;
+    }
 }
 
 /* Drives the overall optimization work taking place on a spesh graph. */
