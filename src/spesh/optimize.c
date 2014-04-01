@@ -60,6 +60,13 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     }
 }
 
+/* Turns a decont into a set, if we know it's not needed. */
+static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
+    if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ))
+        ins->info = MVM_op_get_op(MVM_OP_set);
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMint32 i;
@@ -70,6 +77,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         switch (ins->info->opcode) {
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
+            break;
+        case MVM_OP_decont:
+            optimize_decont(tc, g, ins);
             break;
         }
         ins = ins->next;
