@@ -3,6 +3,9 @@ struct MVMSpeshFacts {
     /* Flags indicating things we know. */
     MVMint32 flags;
 
+    /* The number of usages it has. */
+    MVMint32 usages;
+
     /* Known type, if any. */
     MVMObject *type;
 

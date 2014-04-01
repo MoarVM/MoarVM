@@ -87,6 +87,14 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
     /* Look for instructions that provide or propagate facts. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
+        /* Look through operands for usages and record them. */
+        MVMint32 is_phi = ins->info->opcode == MVM_SSA_PHI;
+        for (i = 0; i < ins->info->num_operands; i++)
+            if (is_phi && i > 0 || !is_phi &&
+                (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i].usages++;
+
+        /* Look for ops that are fact-interesting. */
         switch (ins->info->opcode) {
         case MVM_OP_set:
             copy_facts(tc, g,
