@@ -734,8 +734,9 @@ static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MV
     ins->operands        = MVM_spesh_alloc(tc, g, phi_op->num_operands * sizeof(MVMSpeshOperand));
     for (i = 0; i < phi_op->num_operands; i++)
         ins->operands[i].reg.orig = var;
-    ins->next     = bb->first_ins;
-    bb->first_ins = ins;
+    ins->next           = bb->first_ins;
+    bb->first_ins->prev = ins;
+    bb->first_ins       = ins;
 }
 static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *var_info) {
     MVMint32    *has_already  = calloc(g->num_bbs, sizeof(MVMint32));
