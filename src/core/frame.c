@@ -271,8 +271,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         for (i = 0; i < num_spesh; i++) {
             MVMSpeshCandidate *cand = &static_frame_body->spesh_candidates[i];
             if (cand->cs == callsite) {
-                frame->effective_bytecode = cand->bytecode;
-                frame->effective_handlers = cand->handlers;
+                frame->effective_bytecode    = cand->bytecode;
+                frame->effective_handlers    = cand->handlers;
+                frame->effective_spesh_slots = cand->spesh_slots;
                 found_spesh = 1;
             }
         }
@@ -283,8 +284,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             MVMSpeshCandidate *cand = MVM_spesh_candidate_generate(tc, static_frame,
                 callsite, args);
             if (cand) {
-                frame->effective_bytecode = cand->bytecode;
-                frame->effective_handlers = cand->handlers;
+                frame->effective_bytecode    = cand->bytecode;
+                frame->effective_handlers    = cand->handlers;
+                frame->effective_spesh_slots = cand->spesh_slots;
                 found_spesh = 1;
             }
         }

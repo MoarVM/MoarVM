@@ -125,6 +125,14 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &body->static_env[i].o);
     }
+
+    /* Spesh slots. */
+    if (body->num_spesh_candidates) {
+        MVMint32 i, j;
+        for (i = 0; i < body->num_spesh_candidates; i++)
+            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */

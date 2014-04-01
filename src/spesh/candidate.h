@@ -11,6 +11,12 @@ struct MVMSpeshCandidate {
 
     /* Frame handlers for this specialization. */
     MVMFrameHandler *handlers;
+
+    /* Spesh slots, used to hold information for fast access. */
+    MVMCollectable **spesh_slots;
+
+    /* Number of spesh slots. */
+    MVMint32 num_spesh_slots;
 };
 
 /* The number of specializations we'll allow per static frame. */

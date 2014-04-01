@@ -15,6 +15,13 @@ struct MVMSpeshGraph {
      * with the graph. Contains a link to previous blocks. */
     MVMSpeshMemBlock *mem_block;
 
+    /* Values placed in spesh slots. */
+    MVMCollectable **spesh_slots;
+
+    /* Number of spesh slots we have used and allocated. */
+    MVMint32 num_spesh_slots;
+    MVMint32 alloc_spesh_slots;
+
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
 };
