@@ -13,7 +13,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshIns  *paramnamesused_ins = NULL;
     MVMSpeshBB   *paramnamesused_bb  = NULL;
     MVMSpeshIns **req_pos_ins        = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **req_pos_bb         = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **req_pos_bb         = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
     MVMint32      req_max            = -1;
 
     /* Walk through the graph, looking for arg related instructions. */
