@@ -898,9 +898,9 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     rename_locals(tc, g, var_info, g->entry);
 
     /* Cleanup. */
-    /*for (i = 0; i < g->sf->body.num_locals; i++)
+    for (i = 0; i < g->sf->body.num_locals; i++)
         if (var_info[i].stack_alloc)
-            free(var_info[i].stack);*/
+            free(var_info[i].stack);
     free(var_info);
 }
 
