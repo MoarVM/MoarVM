@@ -43,7 +43,20 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             MVMint16 ss = add_spesh_slot(tc, g, (MVMCollectable *)meth);
             ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             ins->operands[1].lit_i16 = ss;
+            resolved = 1;
         }
+    }
+
+    /* If not, add space to cache a single type/method pair, to save hash
+     * lookups in the (common) monomorphic case, and rewrite to caching
+     * version of the instruction. */
+    if (!resolved) {
+        MVMSpeshOperand *orig_o = ins->operands;
+        ins->info = MVM_op_get_op(MVM_OP_sp_findmeth);
+        ins->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+        memcpy(ins->operands, orig_o, 3 * sizeof(MVMSpeshOperand));
+        ins->operands[3].lit_i16 = add_spesh_slot(tc, g, NULL);
+        add_spesh_slot(tc, g, NULL);
     }
 }
 

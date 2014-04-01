@@ -19,7 +19,7 @@
 
 /* Allocate a piece of memory from the spesh graph's buffer. Deallocated when
  * the spesh graph is. */
-void * spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
+void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     char *result = NULL;
     if (g->mem_block) {
         MVMSpeshMemBlock *block = g->mem_block;
@@ -40,7 +40,7 @@ void * spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
         /* Now allocate out of it. */
         if (bytes > MVM_SPESH_MEMBLOCK_SIZE) {
             MVM_spesh_graph_destroy(tc, g);
-            MVM_exception_throw_adhoc(tc, "spesh_alloc: requested oversized block");
+            MVM_exception_throw_adhoc(tc, "MVM_spesh_alloc: requested oversized block");
         }
         result = block->alloc;
         block->alloc += bytes;
@@ -107,7 +107,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         MVMOpInfo *info     = get_op_info(tc, cu, opcode);
 
         /* Create an instruction node, add it, and record its position. */
-        MVMSpeshIns *ins_node = spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        MVMSpeshIns *ins_node = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         ins_flat[ins_idx] = ins_node;
         byte_to_ins_flags[pc - sf->body.bytecode] |= ins_idx << 2;
 
@@ -132,7 +132,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         ins_node->info = info;
 
         /* Go over operands. */
-        ins_node->operands = spesh_alloc(tc, g, info->num_operands * sizeof(MVMSpeshOperand));
+        ins_node->operands = MVM_spesh_alloc(tc, g, info->num_operands * sizeof(MVMSpeshOperand));
         for (i = 0; i < info->num_operands; i++) {
             MVMuint8 flags = info->operands[i];
             MVMuint8 rw    = flags & MVM_operand_rw_mask;
@@ -241,9 +241,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[sf->body.handlers[i].start_offset] >> 2];
         MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[sf->body.handlers[i].end_offset] >> 2];
         MVMSpeshIns *goto_ins  = ins_flat[byte_to_ins_flags[sf->body.handlers[i].goto_offset] >> 2];
-        MVMSpeshAnn *start_ann = spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-        MVMSpeshAnn *end_ann   = spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-        MVMSpeshAnn *goto_ann  = spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        MVMSpeshAnn *goto_ann  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
 
         start_ann->next = start_ins->annotations;
         start_ann->type = MVM_SPESH_ANN_FH_START;
@@ -266,8 +266,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      * basic block, for the final CFG construction. We make the entry block a
      * special one, containing a noop; it will have any exception handler
      * targets linked from it, so they show up in the graph. */
-    g->entry                  = spesh_alloc(tc, g, sizeof(MVMSpeshBB));
-    g->entry->first_ins       = spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    g->entry                  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
+    g->entry->first_ins       = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     g->entry->first_ins->info = get_op_info(tc, cu, 0);
     g->entry->last_ins        = g->entry->first_ins;
     g->entry->idx             = 0;
@@ -296,7 +296,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             }
 
             /* Create it, and set first instruction and index. */
-            cur_bb = spesh_alloc(tc, g, sizeof(MVMSpeshBB));
+            cur_bb = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
             cur_bb->first_ins = cur_ins;
             cur_bb->idx = bb_idx;
             bb_idx++;
@@ -341,7 +341,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
          * real successor and all exception handlers. */
         if (cur_bb == g->entry) {
             cur_bb->num_succ = 1 + sf->body.num_handlers;
-            cur_bb->succ     = spesh_alloc(tc, g, cur_bb->num_succ * sizeof(MVMSpeshBB *));
+            cur_bb->succ     = MVM_spesh_alloc(tc, g, cur_bb->num_succ * sizeof(MVMSpeshBB *));
             cur_bb->succ[0]  = cur_bb->linear_next;
             for (i = 0; i < sf->body.num_handlers; i++) {
                 MVMuint32 offset = sf->body.handlers[i].goto_offset;
@@ -356,7 +356,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     /* Jumplist, so successors are next N+1 basic blocks. */
                     MVMint64    num_bbs   = cur_bb->last_ins->operands[0].lit_i64 + 1;
                     MVMSpeshBB *bb_to_add = cur_bb->linear_next;
-                    cur_bb->succ          = spesh_alloc(tc, g, num_bbs * sizeof(MVMSpeshBB *));
+                    cur_bb->succ          = MVM_spesh_alloc(tc, g, num_bbs * sizeof(MVMSpeshBB *));
                     for (i = 0; i < num_bbs; i++) {
                         cur_bb->succ[i] = bb_to_add;
                         bb_to_add = bb_to_add->linear_next;
@@ -368,7 +368,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     /* Unconditional branch, so one successor. */
                     MVMuint32   offset = cur_bb->last_ins->operands[0].ins_offset;
                     MVMSpeshBB *tgt    = ins_to_bb[byte_to_ins_flags[offset] >> 2];
-                    cur_bb->succ       = spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
+                    cur_bb->succ       = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
                     cur_bb->succ[0]    = tgt;
                     cur_bb->num_succ   = 1;
                     cur_bb->last_ins->operands[0].ins_bb = tgt;
@@ -378,7 +378,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     /* Probably conditional branch, so two successors: one from
                      * the instruction, another from fall-through. Or may just be
                      * a non-branch that exits for other reasons. */
-                    cur_bb->succ = spesh_alloc(tc, g, 2 * sizeof(MVMSpeshBB *));
+                    cur_bb->succ = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshBB *));
                     for (i = 0; i < cur_bb->last_ins->info->num_operands; i++) {
                         if (cur_bb->last_ins->info->operands[i] == MVM_operand_ins) {
                             MVMuint32 offset = cur_bb->last_ins->operands[i].ins_offset;
@@ -466,7 +466,7 @@ static void add_predecessors(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVMuint16 i;
         for (i = 0; i < cur_bb->num_succ; i++) {
             MVMSpeshBB  *tgt = cur_bb->succ[i];
-            MVMSpeshBB **new_pred = spesh_alloc(tc, g,
+            MVMSpeshBB **new_pred = MVM_spesh_alloc(tc, g,
                 (tgt->num_pred + 1) * sizeof(MVMSpeshBB *));
             memcpy(new_pred, tgt->pred, tgt->num_pred * sizeof(MVMSpeshBB *));
             new_pred[tgt->num_pred] = cur_bb;
@@ -608,7 +608,7 @@ static void add_child(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *target
             return;
 
     /* Nope, so insert. */
-    new_children = spesh_alloc(tc, g, (target->num_children + 1) * sizeof(MVMSpeshBB *));
+    new_children = MVM_spesh_alloc(tc, g, (target->num_children + 1) * sizeof(MVMSpeshBB *));
     memcpy(new_children, target->children, target->num_children * sizeof(MVMSpeshBB *));
     new_children[target->num_children] = to_add;
     target->children = new_children;
@@ -635,7 +635,7 @@ static void add_to_frontier_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
             return;
 
     /* Nope, so insert. */
-    new_df = spesh_alloc(tc, g, (target->num_df + 1) * sizeof(MVMSpeshBB *));
+    new_df = MVM_spesh_alloc(tc, g, (target->num_df + 1) * sizeof(MVMSpeshBB *));
     memcpy(new_df, target->df, target->num_df * sizeof(MVMSpeshBB *));
     new_df[target->num_df] = to_add;
     target->df = new_df;
@@ -725,13 +725,13 @@ SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Inserts SSA phi functions at the required places in the graph. */
 static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
     MVMint32     i;
-    MVMSpeshIns *ins     = spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-    MVMOpInfo   *phi_op  = spesh_alloc(tc, g, sizeof(MVMOpInfo));
+    MVMSpeshIns *ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    MVMOpInfo   *phi_op  = MVM_spesh_alloc(tc, g, sizeof(MVMOpInfo));
     phi_op->opcode       = MVM_SSA_PHI;
     phi_op->name         = "PHI";
     phi_op->num_operands = n + 1;
     ins->info            = phi_op;
-    ins->operands        = spesh_alloc(tc, g, phi_op->num_operands * sizeof(MVMSpeshOperand));
+    ins->operands        = MVM_spesh_alloc(tc, g, phi_op->num_operands * sizeof(MVMSpeshOperand));
     for (i = 0; i < phi_op->num_operands; i++)
         ins->operands[i].reg.orig = var;
     ins->next     = bb->first_ins;
@@ -900,9 +900,9 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Allocate space for spesh facts for each local; clean up stacks while
      * we're at it. */
     num_locals = g->sf->body.num_locals;
-    g->facts = spesh_alloc(tc, g, num_locals * sizeof(MVMSpeshFacts *));
+    g->facts = MVM_spesh_alloc(tc, g, num_locals * sizeof(MVMSpeshFacts *));
     for (i = 0; i < num_locals; i++) {
-        g->facts[i] = spesh_alloc(tc, g, var_info[i].count * sizeof(MVMSpeshFacts));
+        g->facts[i] = MVM_spesh_alloc(tc, g, var_info[i].count * sizeof(MVMSpeshFacts));
         if (var_info[i].stack_alloc)
             free(var_info[i].stack);
     }

@@ -4120,6 +4120,47 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 4;
                 goto NEXT;
+            OP(sp_findmeth): {
+                /* Obtain object and cache index; see if we get a match. */
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMuint16  idx = GET_UI16(cur_op, 8);
+                if ((MVMSTable *)tc->cur_frame->effective_spesh_slots[idx] == STABLE(obj)) {
+                    GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame->effective_spesh_slots[idx + 1];
+                    cur_op += 10;
+                    goto NEXT;
+                }
+                else {
+                    /* Missed mono-morph; try cache-only lookup. */
+                    MVMString *name = cu->body.strings[GET_UI32(cur_op, 4)];
+                    MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj, name);
+                    if (meth) {
+                        /* Got it; cache. Must be careful due to threads
+                         * reading, races, etc. */
+                        MVMStaticFrame *sf = tc->cur_frame->static_info;
+                        uv_mutex_lock(&tc->instance->mutex_spesh_install);
+                        if (!tc->cur_frame->effective_spesh_slots[idx + 1]) {
+                            MVM_ASSIGN_REF(tc, &(sf->common.header),
+                                tc->cur_frame->effective_spesh_slots[idx + 1],
+                                (MVMCollectable *)meth);
+                            MVM_barrier();
+                            MVM_ASSIGN_REF(tc, &(sf->common.header),
+                                tc->cur_frame->effective_spesh_slots[idx],
+                                (MVMCollectable *)STABLE(obj));
+                        }
+                        uv_mutex_unlock(&tc->instance->mutex_spesh_install);
+                        GET_REG(cur_op, 0).o = meth;
+                        cur_op += 10;
+                        goto NEXT;
+                    }
+                    else {
+                        /* Fully late-bound. */
+                        MVMRegister *res  = &GET_REG(cur_op, 0);
+                        cur_op += 10;
+                        MVM_6model_find_method(tc, obj, name, res);
+                        goto NEXT;
+                    }
+                }
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

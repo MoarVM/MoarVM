@@ -588,7 +588,8 @@ BEGIN {
     1369,
     1371,
     1373,
-    1375);
+    1375,
+    1377);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1174,7 +1175,8 @@ BEGIN {
     2,
     2,
     2,
-    2);
+    2,
+    4);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -2551,6 +2553,10 @@ BEGIN {
     66,
     16,
     66,
+    16,
+    66,
+    65,
+    56,
     16);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
@@ -3137,7 +3143,8 @@ BEGIN {
     'sp_getarg_i', 582,
     'sp_getarg_n', 583,
     'sp_getarg_s', 584,
-    'sp_getspeshslot', 585);
+    'sp_getspeshslot', 585,
+    'sp_findmeth', 586);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3723,5 +3730,6 @@ BEGIN {
     'sp_getarg_i',
     'sp_getarg_n',
     'sp_getarg_s',
-    'sp_getspeshslot');
+    'sp_getspeshslot',
+    'sp_findmeth');
 }

@@ -4104,9 +4104,16 @@ static MVMOpInfo MVM_op_infos[] = {
         2,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
+    {
+        MVM_OP_sp_findmeth,
+        "sp_findmeth",
+        ".s",
+        4,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_int16 }
+    },
 };
 
-static unsigned short MVM_op_counts = 586;
+static unsigned short MVM_op_counts = 587;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
