@@ -136,27 +136,25 @@ struct MVMFrame {
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
- * an invokable thing, or alternatively a method to call. */
+ * an invokable thing, a method to call, and maybe a multi-dispatch cache to
+ * look in first for an answer. */
 struct MVMInvocationSpec {
-    /*
-     * Class handle where we find the attribute to invoke.
-     */
+    /* Class handle, name and hint for attribute holding code to invoke. */
     MVMObject *class_handle;
-
-    /*
-     * Attribute name where we find the attribute to invoke.
-     */
     MVMString *attr_name;
+    MVMint64   hint;
 
-    /*
-     * Attribute lookup hint used in gradual typing.
-     */
-    MVMint64 hint;
-
-    /*
-     * Thing that handles invocation.
-     */
+    /* Thing that handles invocation. */
     MVMObject *invocation_handler;
+
+    /* Multi-dispatch info class handle, and name/hint of attribute that
+     * holds the cache itself and a flag to check if it's allowed to
+     * consider the cache. */
+    MVMObject *md_class_handle;
+    MVMString *md_cache_attr_name;
+    MVMint64   md_cache_hint;
+    MVMString *md_valid_attr_name;
+    MVMint64   md_valid_hint;
 };
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
@@ -182,5 +180,6 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
 MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
+MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMRegister *args);
 MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);
 MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f);

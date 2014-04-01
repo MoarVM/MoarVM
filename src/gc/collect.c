@@ -356,6 +356,9 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->class_handle);
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->attr_name);
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->invocation_handler);
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_class_handle);
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_cache_attr_name);
+            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_valid_attr_name);
         }
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
 

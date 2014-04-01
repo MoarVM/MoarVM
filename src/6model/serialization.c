@@ -8,7 +8,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 10
+#define CURRENT_VERSION 11
 #define VARINT_MIN_VERSION 9
 #define MIN_VERSION     5
 
@@ -869,6 +869,11 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         write_str_func(tc, writer, st->invocation_spec->attr_name);
         write_int_func(tc, writer, st->invocation_spec->hint);
         write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
+        write_ref_func(tc, writer, st->invocation_spec->md_class_handle);
+        write_str_func(tc, writer, st->invocation_spec->md_cache_attr_name);
+        write_int_func(tc, writer, st->invocation_spec->md_cache_hint);
+        write_str_func(tc, writer, st->invocation_spec->md_valid_attr_name);
+        write_int_func(tc, writer, st->invocation_spec->md_valid_hint);
     }
 
     /* Store offset we save REPR data at. */
@@ -1958,11 +1963,18 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Invocation spec. */
     if (read_int_func(tc, reader)) {
-        st->invocation_spec = (MVMInvocationSpec *)malloc(sizeof(MVMInvocationSpec));
+        st->invocation_spec = (MVMInvocationSpec *)calloc(1, sizeof(MVMInvocationSpec));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, read_ref_func(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, read_str_func(tc, reader));
         st->invocation_spec->hint = read_int_func(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, read_ref_func(tc, reader));
+        if (reader->root.version >= 11) {
+            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, read_ref_func(tc, reader));
+            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, read_str_func(tc, reader));
+            st->invocation_spec->md_cache_hint = read_int_func(tc, reader);
+            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, read_str_func(tc, reader));
+            st->invocation_spec->md_valid_hint = read_int_func(tc, reader);
+        }
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */

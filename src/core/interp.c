@@ -412,57 +412,62 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(invoke_v):
                 {
-                    MVMObject *code = GET_REG(cur_op, 0).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 0).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = NULL;
                     tc->cur_frame->return_type = MVM_RETURN_VOID;
                     cur_op += 2;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_i):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_INT;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_n):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_NUM;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_s):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_STR;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_o):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(add_n):
@@ -2790,7 +2795,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
                     *invocation_handler = GET_REG(cur_op, 6).o;
                 MVMString *name = GET_REG(cur_op, 4).s;
-                MVMInvocationSpec *is = malloc(sizeof(MVMInvocationSpec));
+                MVMInvocationSpec *is = calloc(1, sizeof(MVMInvocationSpec));
                 MVMSTable *st = STABLE(obj);
                 MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
                 MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);
@@ -4097,6 +4102,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc,
                         "queuepoll requires an object with REPR ConcBlockingQueue");
                 cur_op += 4;
+                goto NEXT;
+            }
+            OP(setmultispec): {
+                MVMObject *obj        = GET_REG(cur_op, 0).o;
+                MVMSTable *st         = STABLE(obj);
+                MVMInvocationSpec *is = st->invocation_spec;
+                if (!is)
+                    MVM_exception_throw_adhoc(tc,
+                        "Can only use setmultispec after setinvokespec");
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_class_handle, GET_REG(cur_op, 2).o);
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_valid_attr_name, GET_REG(cur_op, 4).o);
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_cache_attr_name, GET_REG(cur_op, 6).o);
+                is->md_cache_hint = MVM_NO_HINT;
+                is->md_valid_hint = MVM_NO_HINT;
+                cur_op += 8;
                 goto NEXT;
             }
 #if MVM_CGOTO
