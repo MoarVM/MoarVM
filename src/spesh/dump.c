@@ -94,6 +94,24 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         case MVM_operand_ins:
                             appendf(ds, "BB(%d)", cur_ins->operands[i].ins_bb->idx);
                             break;
+                        case MVM_operand_int8:
+                            appendf(ds, "liti8(%d)", cur_ins->operands[i].lit_i8);
+                            break;
+                        case MVM_operand_int16:
+                            appendf(ds, "liti16(%d)", cur_ins->operands[i].lit_i16);
+                            break;
+                        case MVM_operand_int32:
+                            appendf(ds, "liti32(%d)", cur_ins->operands[i].lit_i32);
+                            break;
+                        case MVM_operand_int64:
+                            appendf(ds, "liti64(%d)", cur_ins->operands[i].lit_i64);
+                            break;
+                        case MVM_operand_num32:
+                            appendf(ds, "litn32(%d)", cur_ins->operands[i].lit_n32);
+                            break;
+                        case MVM_operand_num64:
+                            appendf(ds, "litn64(%d)", cur_ins->operands[i].lit_n64);
+                            break;
                         default:
                             append(ds, "<nyi(lit)>");
                         }
