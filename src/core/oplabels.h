@@ -586,7 +586,7 @@ static const void * const LABELS[] = {
     &&OP_sp_getarg_i,
     &&OP_sp_getarg_n,
     &&OP_sp_getarg_s,
-    NULL,
+    &&OP_sp_getspeshslot,
     NULL,
     NULL,
     NULL,

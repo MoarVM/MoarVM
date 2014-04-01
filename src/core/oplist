@@ -621,3 +621,4 @@ sp_getarg_o      .s w(obj) int16
 sp_getarg_i      .s w(obj) int16
 sp_getarg_n      .s w(obj) int16
 sp_getarg_s      .s w(obj) int16
+sp_getspeshslot  .s w(obj) int16

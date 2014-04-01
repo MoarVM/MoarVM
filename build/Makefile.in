@@ -145,6 +145,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/manipulate@obj@ \
           src/spesh/args@obj@ \
           src/spesh/facts@obj@ \
+          src/spesh/optimize@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -250,6 +251,7 @@ HEADERS = src/moar.h \
           src/spesh/manipulate.h \
           src/spesh/args.h \
           src/spesh/facts.h \
+          src/spesh/optimize.h \
           src/strings/unicode_gen.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \

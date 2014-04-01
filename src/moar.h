@@ -107,6 +107,7 @@ typedef double   MVMnum64;
 #include "spesh/manipulate.h"
 #include "spesh/args.h"
 #include "spesh/facts.h"
+#include "spesh/optimize.h"
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"

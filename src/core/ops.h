@@ -586,6 +586,7 @@
 #define MVM_OP_sp_getarg_i 582
 #define MVM_OP_sp_getarg_n 583
 #define MVM_OP_sp_getarg_s 584
+#define MVM_OP_sp_getspeshslot 585
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

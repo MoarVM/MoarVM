@@ -13,6 +13,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, static_frame);
     MVM_spesh_args(tc, sg, callsite, args);
     MVM_spesh_facts_discover(tc, sg);
+    MVM_spesh_optimize(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
     num_spesh_slots = sg->num_spesh_slots;
     spesh_slots = sg->spesh_slots;
