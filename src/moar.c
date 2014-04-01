@@ -13,6 +13,7 @@ static void string_consts(MVMThreadContext *tc);
 static void setup_std_handles(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
+    char *spesh_log;
     int init_stat;
 
     /* Set up instance data structure. */
@@ -102,8 +103,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->callsite_interns = calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
 
-    /* Mutex for spesh installations. */
+    /* Mutex for spesh installations, and check if we've a file we
+     * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");
+    spesh_log = getenv("MVM_SPESH_LOG");
+    if (spesh_log && strlen(spesh_log))
+        instance->spesh_log_fh = fopen(spesh_log, "w");
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
@@ -224,8 +229,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up Hash of hashes of symbol tables per hll. */
     uv_mutex_destroy(&instance->mutex_hll_syms);
 
-    /* Clean up spesh install mutex. */
+    /* Clean up spesh install mutex and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);
+    if (instance->spesh_log_fh)
+        fclose(instance->spesh_log_fh);
 
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);

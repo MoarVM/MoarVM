@@ -8,12 +8,17 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     MVMSpeshCode *sc;
     MVMint32 num_spesh_slots;
     MVMCollectable **spesh_slots;
+    char *before, *after;
 
     /* Generate the specialization. */
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, static_frame);
+    if (tc->instance->spesh_log_fh)
+        before = MVM_spesh_dump(tc, sg);
     MVM_spesh_args(tc, sg, callsite, args);
     MVM_spesh_facts_discover(tc, sg);
     MVM_spesh_optimize(tc, sg);
+    if (tc->instance->spesh_log_fh)
+        after = MVM_spesh_dump(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
     num_spesh_slots = sg->num_spesh_slots;
     spesh_slots = sg->spesh_slots;
@@ -47,6 +52,16 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
             result->spesh_slots     = spesh_slots;
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
+            if (tc->instance->spesh_log_fh) {
+                char *c_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
+                char *c_cuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
+                fprintf(tc->instance->spesh_log_fh,
+                    "Specialized '%s' (cuid: %s)\n\n", c_name, c_cuid);
+                fprintf(tc->instance->spesh_log_fh,
+                    "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
+                free(c_name);
+                free(c_cuid);
+            }
         }
     }
     if (!result) {

@@ -231,6 +231,9 @@ struct MVMInstance {
      * no real motivation to have it more fine-grained at present). */
     uv_mutex_t mutex_spesh_install;
 
+    /* Log file for specializations, if we're to log them. */
+    FILE *spesh_log_fh;
+
     /* Standard file handles. */
     MVMObject *stdin_handle;
     MVMObject *stdout_handle;
