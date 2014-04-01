@@ -85,7 +85,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         /* Ensure we've got all the arg fetch instructions we need, and that
          * types match. (TODO: insert box/unbox instructions.) */
         MVMint32 i;
-        for (i = 0; i < req_max; i++) {
+        for (i = 0; i <= req_max; i++) {
             if (!req_pos_ins[i])
                 goto cleanup;
             switch (req_pos_ins[i]->info->opcode) {
@@ -114,7 +114,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             MVM_spesh_manipulate_delete_ins(tc, paramnamesused_bb, paramnamesused_ins);
 
         /* Re-write the others to spesh ops. */
-        for (i = 0; i < req_max; i++) {
+        for (i = 0; i <= req_max; i++) {
             switch (req_pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
                 req_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
