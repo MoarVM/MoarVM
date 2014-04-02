@@ -207,9 +207,14 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 op->ins_bb = opt_pos_ins[i]->operands[2].ins_bb;
 
                 MVM_spesh_manipulate_insert_ins(tc, opt_pos_bb[i], opt_pos_ins[i], inserted_goto);
+
+                /* Inserting an unconditional goto makes the linear_next BB
+                 * unreachable, so we remove it from the succ list. */
+                 MVM_spesh_manipulate_remove_successor(tc, opt_pos_bb[i], opt_pos_bb[i]->linear_next);
             } else {
                 /* If we didn't pass this, just fall through the original
                  * operation and we'll get the default value set. */
+                MVM_spesh_manipulate_remove_successor(tc, opt_pos_bb[i], opt_pos_ins[i]->operands[2].ins_bb);
                 MVM_spesh_manipulate_delete_ins(tc, opt_pos_bb[i], opt_pos_ins[i]);
             }
         }
