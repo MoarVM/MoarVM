@@ -50,6 +50,8 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
         bb->succ[k] = bb->succ[k+1];
     }
     bb->succ[bb->num_succ - 1] = NULL;
+    bb->num_succ--;
+
     /* Now hunt the bb in the succ's pred, so that we remove all traces of the connection */
     for (i = 0; i < succ->num_pred; i++) {
         if (succ->pred[i] == bb) {
@@ -63,4 +65,5 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
         succ->pred[k] = succ->pred[k+1];
     }
     succ->pred[succ->num_pred - 1] = NULL;
+    succ->num_pred--;
 }
