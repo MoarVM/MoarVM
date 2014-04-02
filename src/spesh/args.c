@@ -97,8 +97,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     if (!checkarity_ins)
         goto cleanup;
 
-    /* If required exactly matches the number of passed args... */
-    if (req_max + 1 <= cs->num_pos && req_max + 1 + opt_max + 1 ) {
+    /* If every required positional has been passed ... */
+    if (cs->num_pos >= req_max + 1) {
         /* Ensure we've got all the arg fetch instructions we need, and that
          * types match. (TODO: insert box/unbox instructions.) */
         MVMint32 i;
@@ -206,9 +206,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 inserted_goto->annotations = NULL;
 
                 op->ins_bb = opt_pos_ins[i]->operands[2].ins_bb;
-
-                /* null out the third operand, the block to jump to */
-                opt_pos_ins[i]->operands[2].lit_i16 = 0;
 
                 MVM_spesh_manipulate_insert_ins(tc, opt_pos_bb[i], opt_pos_ins[i], inserted_goto);
             } else {
