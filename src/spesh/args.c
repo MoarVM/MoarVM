@@ -197,7 +197,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     opt_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
                     break;
                 }
-                opt_pos_ins[i]->operands[1].lit_i16 = (MVMint16)( req_max + i );
 
                 MVMSpeshIns *inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
                 MVMSpeshOperand *op = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
