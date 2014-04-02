@@ -179,7 +179,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         }
 
         for (i = 0; i <= opt_max; i++) {
-            MVMuint8 passed = i - (req_max + 1) < cs->num_pos;
+            MVMuint8 passed = i + (req_max + 1) < cs->num_pos;
             if (passed) {
                 /* If we know the argument has been passed, we can pretend it's
                  * a required parameter instead */
