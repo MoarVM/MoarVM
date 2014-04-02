@@ -125,8 +125,55 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     }
 }
 
+/* Eliminates any unreachable basic blocks (that is, dead code). Not having
+ * to consider them any further simplifies all that follows. */
+static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* Iterate to fixed point. */
+    MVMint8  *seen     = malloc(g->num_bbs);
+    MVMint32  orig_bbs = g->num_bbs;
+    MVMint8   death    = 1;
+    while (death) {
+        /* First pass: mark every basic block that is the entry point or the
+         * successor of some other block. */
+        MVMSpeshBB *cur_bb = g->entry;
+        memset(seen, 0, g->num_bbs);
+        seen[0] = 1;
+        while (cur_bb) {
+            MVMuint16 i;
+            for (i = 0; i < cur_bb->num_succ; i++)
+                seen[cur_bb->succ[i]->idx] = 1;
+            cur_bb = cur_bb->linear_next;
+        }
+
+        /* Second pass: eliminate dead BBs from consideration. */
+        death = 0;
+        cur_bb = g->entry;
+        while (cur_bb->linear_next) {
+            if (!seen[cur_bb->linear_next->idx]) {
+                cur_bb->linear_next = cur_bb->linear_next->linear_next;
+                g->num_bbs--;
+                death = 1;
+            }
+            cur_bb = cur_bb->linear_next;
+        }
+    }
+    free(seen);
+
+    if (g->num_bbs != orig_bbs) {
+        printf("%d bbs -> %d bbs\n", orig_bbs, g->num_bbs);
+        MVMint32    new_idx  = 0;
+        MVMSpeshBB *cur_bb   = g->entry;
+        while (cur_bb) {
+            cur_bb->idx = new_idx;
+            new_idx++;
+            cur_bb = cur_bb->linear_next;
+        }
+    }
+}
+
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Kick off the optimization run over the graph. */
     optimize_bb(tc, g, g->entry);
+    eliminate_dead(tc, g);
 }
