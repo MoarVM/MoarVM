@@ -156,7 +156,7 @@ multi sub MAIN($filename?, :$matcher?) {
         spurt "spesh_diffs_after/{.cuid}.txt", "{.name} (after)\n{.after}";
 
         @results.push: $_.diff = qq:x"git diff --patience --color=always --no-index spesh_diffs_before/{.cuid}.txt spesh_diffs_after/{.cuid}.txt";
-        my $matched = $matcher and $_ ~~ $ssm;
+        my $matched = $matcher && $_ ~~ $ssm;
         @interesting.push: $_.diff if $matched;
 
         printf "%30s %s (%s)\n", .cuid, ($matched ?? "*" !! " "), .name;
