@@ -145,8 +145,8 @@ multi sub MAIN($filename?, :$matcher?) {
     say "we've parsed $linecount lines";
     say "we have the following cuids:";
 
-    mkdir "spesh_diffs_before";
-    mkdir "spesh_diffs_after";
+    try mkdir "spesh_diffs_before";
+    try mkdir "spesh_diffs_after";
 
     my @results;
     my @interesting;
