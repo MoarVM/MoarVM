@@ -20,12 +20,25 @@ multi sub MAIN() {
 
         It will output colors always, so if you want to use less to paginate, you
         will need to supply -r to less.
+
+        You can supply any valid Perl 6 code for the matcher flag. If you don't
+        supply a Pair, a Pair from name to your matcher will be generated for
+        you. You can filter based on these properties:
+
+            before      all text in the "before" section
+            after       all text in the "after" section
+            name        the name of the method/sub/...
+            cuid        the cuid
+            diff        the output of the diff command
+                        (watch out, these contain ansi color codes)
         USAGE
 }
 
 class Spesh is rw {
-    has Str $.before;
-    has Str $.after;
+    has @.beforelines;
+    has @.afterlines;
+    has $.before;
+    has $.after;
     has Str $.name;
     has Str $.cuid;
     has Str $.diff;
@@ -75,27 +88,56 @@ multi sub MAIN($filename?, :$matcher?) {
         True
     }
 
+    sub notegraph($kind) {
+        state $printed = 0;
+        state $few = 0;
+        my $did_print = False;
+        if $kind eq "." {
+            if ++$few %% 50 {
+                $*ERR.print(".");
+                $did_print = True;
+            }
+        } else {
+            $*ERR.print($kind);
+            $did_print = True;
+        }
+        if $did_print and ++$printed %% 80 {
+            $*ERR.print("\n");
+        }
+    }
+
     for lines() {
         my $line = $_;
         when /^ 'Specialized ' \' $<name>=[<-[\']>*] \' ' (cuid: ' $<cuid>=[<-[\)]>+] ')'/ {
-            if $current and %speshes{$current.cuid}:exists {
-                $current.cuid ~= "_";
+            if $current {
+                if %speshes{$current.cuid}:exists {
+                    $current.cuid ~= "_";
+                }
+                %speshes{$current.cuid} = $current if $current;
+
+                $current.before = $current.beforelines.join("\n");
+                $current.after  = $current.afterlines.join("\n");
+                $current.beforelines = Any;
+                $current.afterlines = Any;
             }
-            %speshes{$current.cuid} = $current if $current;
             $current .= new(name => $<name>.Str, cuid => $<cuid>.Str, diff => "");
+            notegraph("c");
         }
         when /^ 'Before:'/ {
             $target = Before;
+            notegraph("b");
         }
         when /^ 'After:'/ {
             $target = After;
+            notegraph("a");
         }
         when /^'  ' (.*)/ {
             if $target ~~ Before {
-                $current.before ~= $line ~ "\n";
+                $current.beforelines.push: $line;
             } elsif $target ~~ After {
-                $current.after ~= $line ~ "\n";
+                $current.afterlines.push: $line;
             }
+            notegraph(".");
         }
         $linecount++;
     }
@@ -114,12 +156,10 @@ multi sub MAIN($filename?, :$matcher?) {
         spurt "spesh_diffs_after/{.cuid}.txt", "{.name} (after)\n{.after}";
 
         @results.push: $_.diff = qq:x"git diff --patience --color=always --no-index spesh_diffs_before/{.cuid}.txt spesh_diffs_after/{.cuid}.txt";
-        @interesting.push: $_.diff if $_ ~~ $ssm;
+        my $matched = $matcher and $_ ~~ $ssm;
+        @interesting.push: $_.diff if $matched;
 
-        printf "%30s %s (%s)\n", .cuid, ($_ ~~ $ssm ?? "*" !! " "), .name;
-    }
-
-    for %speshes.values {
+        printf "%30s %s (%s)\n", .cuid, ($matched ?? "*" !! " "), .name;
     }
 
     for @interesting || @results {
