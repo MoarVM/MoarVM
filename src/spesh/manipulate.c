@@ -33,3 +33,34 @@ void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
     }
     to_insert->prev = previous;
 }
+
+void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *succ) {
+    MVMuint16 i;
+    MVMuint16 k;
+    for (i = 0; i < bb->num_succ; i++) {
+        if (bb->succ[i] == succ) {
+            break;
+        }
+    }
+    if (bb->succ[i] != succ) {
+        MVM_exception_throw_adhoc(tc, "Didn't find the successor to remove from a Spesh Basic Block");
+    }
+    /* Remove the succ from the list, shuffle other successors back in place */
+    for (k = i; k < bb->num_succ - 1; k++) {
+        bb->succ[k] = bb->succ[k+1];
+    }
+    bb->succ[bb->num_succ - 1] = NULL;
+    /* Now hunt the bb in the succ's pred, so that we remove all traces of the connection */
+    for (i = 0; i < succ->num_pred; i++) {
+        if (succ->pred[i] == bb) {
+            break;
+        }
+    }
+    if (succ->pred[i] != bb) {
+        MVM_exception_throw_adhoc(tc, "Didn't find the predecessor to remove from a Spesh Basic Block");
+    }
+    for (k = i; k < succ->num_pred - 1; k++) {
+        succ->pred[k] = succ->pred[k+1];
+    }
+    succ->pred[succ->num_pred - 1] = NULL;
+}
