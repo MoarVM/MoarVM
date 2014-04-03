@@ -64,7 +64,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts  = get_facts(tc, g, ins->operands[1]);
     MVMSpeshFacts *type_facts = get_facts(tc, g, ins->operands[2]);
-    MVMSPeshFacts *result_facts;
+    MVMSpeshFacts *result_facts;
 
     if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         MVMRegister result;
