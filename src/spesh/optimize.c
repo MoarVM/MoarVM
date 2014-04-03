@@ -94,6 +94,22 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
+/* using the set op with a register we know the value of should
+ * propagate that knowledge */
+static void optimize_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *dst_facts = get_facts(tc, g, ins->operands[0]);
+    MVMSpeshFacts *src_facts = get_facts(tc, g, ins->operands[1]);
+
+    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        dst_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+        dst_facts->type = src_facts->type;
+    }
+    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        dst_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        dst_facts->value = src_facts->value;
+    }
+}
+
 /* Turns a decont into a set, if we know it's not needed. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
@@ -117,6 +133,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
+            break;
+        case MVM_OP_set:
+            optimize_set(tc, g, ins);
             break;
         }
         ins = ins->next;
