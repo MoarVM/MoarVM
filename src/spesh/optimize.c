@@ -110,6 +110,60 @@ static void optimize_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *in
     }
 }
 
+/* iffy ops that operate on a known value register can turn into goto
+ * or be dropped. */
+static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+    MVMSpeshFacts *flag_facts = get_facts(tc, g, ins->operands[0]);
+    MVMuint8 negated_op;
+    MVMuint8 truthvalue;
+
+    switch (ins->info->opcode) {
+        case MVM_OP_if_i:
+        case MVM_OP_if_s:
+        case MVM_OP_if_n:
+        case MVM_OP_if_o:
+            negated_op = 0;
+            break;
+        case MVM_OP_unless_i:
+        case MVM_OP_unless_s:
+        case MVM_OP_unless_n:
+        case MVM_OP_unless_o:
+            negated_op = 1;
+            break;
+        default:
+            return;
+    }
+
+    if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        switch (ins->info->opcode) {
+            case MVM_OP_if_i:
+            case MVM_OP_unless_i:
+                truthvalue = flag_facts->value.i64;
+            default:
+                return;
+        }
+    } else {
+        return;
+    }
+
+    if (truthvalue == negated_op) {
+        /* this conditional can be turned into an unconditional jump */
+        ins->info = MVM_op_get_op(MVM_OP_goto);
+        ins->operands[0] = ins->operands[1];
+
+        /* since we have an unconditional jump now, we can remove the successor
+         * that's in the linear_next */
+        MVM_spesh_manipulate_remove_successor(tc, bb, bb->linear_next);
+
+        printf("turned an iffy op into a goto\n");
+    } else {
+        /* this conditional can be dropped completely */
+        MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
+        MVM_spesh_manipulate_remove_ins(tc, bb, ins);
+        printf("removed an iffy op completely");
+    }
+}
+
 /* Turns a decont into a set, if we know it's not needed. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
@@ -136,6 +190,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_set:
             optimize_set(tc, g, ins);
+            break;
+        case MVM_OP_if_i:
+        case MVM_OP_unless_i:
+            optimize_iffy(tc, g, ins, bb);
             break;
         }
         ins = ins->next;
