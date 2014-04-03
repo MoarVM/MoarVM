@@ -147,7 +147,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         return;
     }
 
-    if (truthvalue == negated_op) {
+    if (truthvalue != negated_op) {
         /* this conditional can be turned into an unconditional jump */
         ins->info = MVM_op_get_op(MVM_OP_goto);
         ins->operands[0] = ins->operands[1];
