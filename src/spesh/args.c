@@ -136,19 +136,19 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 goto cleanup;
             switch (opt_pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_INT)
+                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_INT)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_n:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_NUM)
+                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_NUM)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_s:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_STR)
+                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_STR)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_o:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_OBJ)
+                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_OBJ)
                     goto cleanup;
                 break;
             }
