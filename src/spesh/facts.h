@@ -13,6 +13,9 @@ struct MVMSpeshFacts {
     union {
         MVMObject *o;
         MVMint64 i64;
+        MVMint32 i32;
+        MVMint16 i16;
+        MVMint8  i8;
     } value;
 };
 
