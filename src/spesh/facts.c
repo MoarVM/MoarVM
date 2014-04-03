@@ -80,6 +80,24 @@ static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_ori
     }
 }
 
+/* constant ops on literals give us a specialize-time-known value */
+static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *tgt_facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+    if (ins->info->opcode == MVM_OP_const_i64) {
+        tgt_facts->value.i64 = ins->operands[1].lit_i64;
+    } else if (ins->info->opcode == MVM_OP_const_i32) {
+        tgt_facts->value.i32 = ins->operands[1].lit_i32;
+    } else if (ins->info->opcode == MVM_OP_const_i16) {
+        tgt_facts->value.i32 = ins->operands[1].lit_i16;
+    } else if (ins->info->opcode == MVM_OP_const_i8) {
+        tgt_facts->value.i32 = ins->operands[1].lit_i8;
+    } else {
+        return;
+    }
+    tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+}
+
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMint32 i;
@@ -185,6 +203,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
             wval_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[1].lit_i16, ins->operands[2].lit_i64);
+            break;
+        case MVM_OP_const_i64:
+            literal_facts(tc, g, ins);
             break;
         }
         ins = ins->next;
