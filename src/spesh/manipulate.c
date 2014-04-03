@@ -53,18 +53,20 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
     bb->num_succ--;
 
     /* We also need to remove the bb from the dominance children list */
-    for (i = 0; i < bb->num_children; i++) {
+    if (bb->children) {
+        for (i = 0; i < bb->num_children; i++) {
+            if (bb->children[i] == succ) {
+                break;
+            }
+        }
         if (bb->children[i] == succ) {
-            break;
+            /* Remove the succ from the list, shuffle other successors back in place */
+            for (k = i; k < bb->num_children - 1; k++) {
+                bb->children[k] = bb->children[k+1];
+            }
+            bb->children[bb->num_children - 1] = NULL;
+            bb->num_children--;
         }
-    }
-    if (bb->children[i] == succ) {
-        /* Remove the succ from the list, shuffle other successors back in place */
-        for (k = i; k < bb->num_children - 1; k++) {
-            bb->children[k] = bb->children[k+1];
-        }
-        bb->children[bb->num_children - 1] = NULL;
-        bb->num_children--;
     }
 
     /* Now hunt the bb in the succ's pred, so that we remove all traces of the connection */
