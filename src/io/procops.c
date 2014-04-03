@@ -376,6 +376,13 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
     return (MVMnum64)MVM_platform_now() / 1000000000.0;
 }
 
+MVMString * MVM_executable_name(MVMThreadContext *tc) {
+    MVMInstance * const instance = tc->instance;
+    return MVM_string_utf8_decode(tc,
+        instance->VMString,
+        instance->exec_name, strlen(instance->exec_name));
+}
+
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
     MVMObject            *clargs = instance->clargs;

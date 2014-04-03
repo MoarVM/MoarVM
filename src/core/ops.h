@@ -583,6 +583,7 @@
 #define MVM_OP_condsignalall 579
 #define MVM_OP_queuepoll 580
 #define MVM_OP_setmultispec 581
+#define MVM_OP_execname 582
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

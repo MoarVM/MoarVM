@@ -583,7 +583,7 @@ static const void * const LABELS[] = {
     &&OP_condsignalall,
     &&OP_queuepoll,
     &&OP_setmultispec,
-    NULL,
+    &&OP_execname,
     NULL,
     NULL,
     NULL,

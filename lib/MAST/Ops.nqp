@@ -584,7 +584,8 @@ BEGIN {
     1363,
     1364,
     1365,
-    1367);
+    1367,
+    1371);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1166,7 +1167,8 @@ BEGIN {
     1,
     1,
     2,
-    4);
+    4,
+    1);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -2537,7 +2539,8 @@ BEGIN {
     65,
     65,
     57,
-    57);
+    57,
+    58);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -3119,7 +3122,8 @@ BEGIN {
     'condsignalone', 578,
     'condsignalall', 579,
     'queuepoll', 580,
-    'setmultispec', 581);
+    'setmultispec', 581,
+    'execname', 582);
     MAST::Ops.WHO<@names> := nqp::list('no_op',
     'const_i8',
     'const_i16',
@@ -3701,5 +3705,6 @@ BEGIN {
     'condsignalone',
     'condsignalall',
     'queuepoll',
-    'setmultispec');
+    'setmultispec',
+    'execname');
 }

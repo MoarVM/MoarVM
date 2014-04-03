@@ -138,6 +138,7 @@ int main(int argc, char *argv[])
     /* stash the rest of the raw command line args in the instance */
     instance->num_clargs = argc - argi;
     instance->raw_clargs = argv + argi;
+    instance->exec_name  = argv[0];
     instance->prog_name  = input_file;
     for( argi = 0; argi < lib_path_i; argi++)
         instance->lib_path[argi] = lib_path[argi];
