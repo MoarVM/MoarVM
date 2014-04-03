@@ -139,6 +139,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             case MVM_OP_if_i:
             case MVM_OP_unless_i:
                 truthvalue = flag_facts->value.i64;
+                break;
             default:
                 return;
         }
@@ -159,7 +160,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     } else {
         /* this conditional can be dropped completely */
         MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
-        MVM_spesh_manipulate_remove_ins(tc, bb, ins);
+        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
         printf("removed an iffy op completely");
     }
 }
