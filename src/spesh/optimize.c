@@ -64,6 +64,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
 static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts  = get_facts(tc, g, ins->operands[1]);
     MVMSpeshFacts *type_facts = get_facts(tc, g, ins->operands[2]);
+    MVMSPeshFacts *result_facts;
 
     if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         MVMRegister result;
@@ -77,13 +78,16 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
             return;
         }
         ins->info = MVM_op_get_op(MVM_OP_const_i64);
-        /* TODO add the "value known" fact to the result register */
+        result_facts = get_facts(tc, g, ins->operands[0]);
+        result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
         if (result.i64) {
             printf("we found out that some istype always returns 1\n");
             ins->operands[1].lit_i64 = 1;
+            result_facts->value.i64 = 1;
         } else {
             printf("we found out that some istype always returns 0\n");
             ins->operands[1].lit_i64 = 0;
+            result_facts->value.i64 = 0;
         }
         obj_facts->usages--;
         type_facts->usages--;

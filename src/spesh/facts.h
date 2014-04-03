@@ -12,6 +12,7 @@ struct MVMSpeshFacts {
     /* Known value, if any. */
     union {
         MVMObject *o;
+        MVMint64 i64;
     } value;
 };
 
