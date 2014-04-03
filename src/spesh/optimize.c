@@ -61,6 +61,35 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     }
 }
 
+static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts  = get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *type_facts = get_facts(tc, g, ins->operands[2]);
+
+    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        MVMRegister result;
+        if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            MVM_6model_istype(tc, obj_facts->value.o, type_facts->type, &result);
+            printf("based on the value of something ");
+        } else if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+            MVM_6model_istype(tc, obj_facts->type, type_facts->type, &result);
+            printf("based on the type of something ");
+        } else {
+            return;
+        }
+        ins->info = MVM_op_get_op(MVM_OP_const_i64);
+        /* TODO add the "value known" fact to the result register */
+        if (result.i64) {
+            printf("we found out that some istype always returns 1\n");
+            ins->operands[1].lit_i64 = 1;
+        } else {
+            printf("we found out that some istype always returns 0\n");
+            ins->operands[1].lit_i64 = 0;
+        }
+        obj_facts->usages--;
+        type_facts->usages--;
+    }
+}
+
 /* Turns a decont into a set, if we know it's not needed. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
@@ -81,6 +110,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_decont:
             optimize_decont(tc, g, ins);
+            break;
+        case MVM_OP_istype:
+            optimize_istype(tc, g, ins);
             break;
         }
         ins = ins->next;
