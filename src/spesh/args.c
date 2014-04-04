@@ -13,13 +13,11 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshIns  *paramnamesused_ins = NULL;
     MVMSpeshBB   *paramnamesused_bb  = NULL;
 
-    MVMSpeshIns **req_pos_ins        = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **req_pos_bb         = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
-    MVMint32      req_max            = -1;
-
-    MVMSpeshIns **opt_pos_ins        = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **opt_pos_bb         = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
-    MVMint32      opt_max            = -1;
+    MVMSpeshIns **pos_ins = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **pos_bb  = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
+    MVMint32      req_max = -1;
+    MVMint32      opt_min = -1;
+    MVMint32      opt_max = -1;
 
     /* Walk through the graph, looking for arg related instructions. */
     MVMSpeshBB *bb = g->entry;
@@ -41,10 +39,10 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 MVMint16 idx = ins->operands[1].lit_i16;
                 if (idx < 0 || idx >= MAX_POS_ARGS)
                     goto cleanup;
-                if (req_pos_ins[idx]) /* Dupe; weird. */
+                if (pos_ins[idx]) /* Dupe; weird. */
                     goto cleanup;
-                req_pos_ins[idx] = ins;
-                req_pos_bb[idx]  = bb;
+                pos_ins[idx] = ins;
+                pos_bb[idx]  = bb;
                 if (idx > req_max)
                     req_max = idx;
                 break;
@@ -57,12 +55,14 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 MVMint16 idx = ins->operands[1].lit_i16;
                 if (idx < 0 || idx >= MAX_POS_ARGS)
                     goto cleanup;
-                if (req_pos_ins[idx]) /* Dupe; weird. */
+                if (pos_ins[idx]) /* Dupe; weird. */
                     goto cleanup;
-                opt_pos_ins[idx] = ins;
-                opt_pos_bb[idx]  = bb;
-                if (idx > req_max)
+                pos_ins[idx] = ins;
+                pos_bb[idx]  = bb;
+                if (idx > opt_max)
                     opt_max = idx;
+                if (opt_min == -1 || idx < opt_min)
+                    opt_min = idx;
                 break;
             }
             case MVM_OP_param_on_i:
@@ -97,58 +97,37 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     if (!checkarity_ins)
         goto cleanup;
 
-    /* If every required positional has been passed ... */
-    if (cs->num_pos >= req_max + 1) {
+    /* If required and optional aren't contiguous, bail. */
+    if (opt_min >= 0 && req_max + 1 != opt_min)
+        goto cleanup;
+
+    /* If the number of passed args is in range... */
+    if (cs->num_pos >= req_max + 1 && (opt_max < 0 || cs->num_pos <= opt_max + 1)) {
         /* Ensure we've got all the arg fetch instructions we need, and that
          * types match. (TODO: insert box/unbox instructions.) */
         MVMint32 i;
-        for (i = 0; i <= req_max; i++) {
-            if (!req_pos_ins[i])
+        for (i = 0; i < cs->num_pos; i++) {
+            if (!pos_ins[i])
                 goto cleanup;
-            switch (req_pos_ins[i]->info->opcode) {
+            switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
+            case MVM_OP_param_op_i:
                 if (cs->arg_flags[i] != MVM_CALLSITE_ARG_INT)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_n:
+            case MVM_OP_param_op_n:
                 if (cs->arg_flags[i] != MVM_CALLSITE_ARG_NUM)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_s:
+            case MVM_OP_param_op_s:
                 if (cs->arg_flags[i] != MVM_CALLSITE_ARG_STR)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_o:
+            case MVM_OP_param_op_o:
                 if (cs->arg_flags[i] != MVM_CALLSITE_ARG_OBJ)
-                    goto cleanup;
-                break;
-            }
-        }
-
-        for (i = 0; i <= opt_max; i++) {
-            MVMuint8 passed = i - (req_max + 1) < cs->num_pos;
-            /* If we have reached the first optional parameter that was not
-             * passed, we can stop checking the types. */
-            if (!passed) {
-                break;
-            }
-            if (!opt_pos_ins[i])
-                goto cleanup;
-            switch (opt_pos_ins[i]->info->opcode) {
-            case MVM_OP_param_rp_i:
-                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_INT)
-                    goto cleanup;
-                break;
-            case MVM_OP_param_rp_n:
-                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_NUM)
-                    goto cleanup;
-                break;
-            case MVM_OP_param_rp_s:
-                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_STR)
-                    goto cleanup;
-                break;
-            case MVM_OP_param_rp_o:
-                if (cs->arg_flags[i + req_max] != MVM_CALLSITE_ARG_OBJ)
                     goto cleanup;
                 break;
             }
@@ -159,70 +138,59 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         if (paramnamesused_ins)
             MVM_spesh_manipulate_delete_ins(tc, paramnamesused_bb, paramnamesused_ins);
 
-        /* Re-write the others to spesh ops. */
-        for (i = 0; i <= req_max; i++) {
-            switch (req_pos_ins[i]->info->opcode) {
+        /* Re-write the passed things to spesh ops. */
+        for (i = 0; i < cs->num_pos; i++) {
+            switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
-                req_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+            case MVM_OP_param_op_i:
+                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                 break;
             case MVM_OP_param_rp_n:
-                req_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
+            case MVM_OP_param_op_n:
+                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
                 break;
             case MVM_OP_param_rp_s:
-                req_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
+            case MVM_OP_param_op_s:
+                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
                 break;
             case MVM_OP_param_rp_o:
-                req_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
+            case MVM_OP_param_op_o:
+                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
                 break;
             }
-            req_pos_ins[i]->operands[1].lit_i16 = (MVMint16)i;
+            pos_ins[i]->operands[1].lit_i16 = (MVMint16)i;
         }
 
-        for (i = 0; i <= opt_max; i++) {
-            MVMuint8 passed = i + (req_max + 1) < cs->num_pos;
-            if (passed) {
-                /* If we know the argument has been passed, we can pretend it's
-                 * a required parameter instead */
-                MVMSpeshIns *inserted_goto;
-                MVMSpeshOperand *op;
-                switch (opt_pos_ins[i]->info->opcode) {
-                case MVM_OP_param_op_i:
-                    opt_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
-                    break;
-                case MVM_OP_param_op_n:
-                    opt_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
-                    break;
-                case MVM_OP_param_op_s:
-                    opt_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
-                    break;
-                case MVM_OP_param_op_o:
-                    opt_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
-                    break;
+        /* Now consider any optionals. */
+        if (opt_min >= 0) {
+            for (i = opt_min; i <= opt_max; i++) {
+                MVMuint8 passed = i < cs->num_pos;
+                if (passed) {
+                    /* If we know the argument has been passed, then add a goto
+                    * to the "passed" code. */
+                    MVMSpeshIns *inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+                    MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
+                    inserted_goto->info        = MVM_op_get_op(MVM_OP_goto);
+                    inserted_goto->operands    = operands;
+                    operands[0].ins_bb         = pos_ins[i]->operands[2].ins_bb;
+                    MVM_spesh_manipulate_insert_ins(tc, pos_bb[i], pos_ins[i], inserted_goto);
+    
+                    /* Inserting an unconditional goto makes the linear_next BB
+                    * unreachable, so we remove it from the succ list. */
+                    MVM_spesh_manipulate_remove_successor(tc, pos_bb[i],
+                        pos_bb[i]->linear_next);
+                } else {
+                    /* If we didn't pass this, just fall through the original
+                    * operation and we'll get the default value set. */
+                    MVM_spesh_manipulate_delete_ins(tc, pos_bb[i], pos_ins[i]);
+                    MVM_spesh_manipulate_remove_successor(tc, pos_bb[i],
+                        pos_ins[i]->operands[2].ins_bb);
                 }
-
-                inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-                op = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
-                inserted_goto->info = MVM_op_get_op(MVM_OP_goto);
-                inserted_goto->operands = op;
-                inserted_goto->annotations = NULL;
-
-                op->ins_bb = opt_pos_ins[i]->operands[2].ins_bb;
-
-                MVM_spesh_manipulate_insert_ins(tc, opt_pos_bb[i], opt_pos_ins[i], inserted_goto);
-
-                /* Inserting an unconditional goto makes the linear_next BB
-                 * unreachable, so we remove it from the succ list. */
-                 MVM_spesh_manipulate_remove_successor(tc, opt_pos_bb[i], opt_pos_bb[i]->linear_next);
-            } else {
-                /* If we didn't pass this, just fall through the original
-                 * operation and we'll get the default value set. */
-                MVM_spesh_manipulate_remove_successor(tc, opt_pos_bb[i], opt_pos_ins[i]->operands[2].ins_bb);
-                MVM_spesh_manipulate_delete_ins(tc, opt_pos_bb[i], opt_pos_ins[i]);
             }
         }
     }
 
   cleanup:
-    free(req_pos_ins);
-    free(req_pos_bb);
+    free(pos_ins);
+    free(pos_bb);
 }
