@@ -9,3 +9,6 @@ build/Makefile.in
 
 tools/check.mk
 build/check.mk.in
+
+tools/gen-moar-runner.pl
+build/gen-moar-runner.pl.in

@@ -1,0 +1,65 @@
+#!/usr/bin/perl
+# Copyright (C) 2013, The Perl Foundation.
+
+use strict;
+use warnings;
+use 5.008;
+use File::Spec;
+
+my ($moar) = @ARGV;
+
+if ($^O eq 'MSWin32') {
+    my $install_to = 'nqp-m.bat';    
+    open my $fh, ">", $install_to
+        or die "Could not open $install_to: $!";
+    print $fh '@ "' . $moar . '" nqp.moarvm %*' . "\n";
+    close $fh
+        or die "Could not close $install_to: $!";
+}
+else {
+    my $install_to = 'nqp-m';
+    my $prefix     = '/home/froggs/dev/nqp/install';
+    my @source     = <DATA>;
+    my $source     = join '', @source;
+    open my $fh, ">", "$install_to.c"
+        or die "Could not open $install_to.c: $!";
+    printf $fh $source, 'nqp.moarvm';
+    close $fh
+        or die "Could not close $install_to.c: $!";
+    system("@cc@ @ccswitch@ @cflags@ @ccdef@MVM_TRACING=0 @ccdef@MVM_CGOTO=0 @objflags@ " .
+           "@ccinc@$prefix/include/libuv @ccinc@$prefix/include/libuv/src " .
+           "@ccinc@$prefix/include/libatomic_ops @ccinc@$prefix/include/libtommath " .
+           "@ccinc@$prefix/include/@shaincludedir@ @ccinc@$prefix/include/linenoise " .
+           "@ccinc@$prefix/include/tinymt @ccinc@$prefix/include/dyncall/dynload " .
+           "@ccinc@$prefix/include/dyncall @ccinc@$prefix/include/moar " .
+           "@ccinc@$prefix/include @ccout@$install_to@obj@ $install_to.c")
+        and die "Could not compile $install_to.c: $!";
+    system("@ld@ -o $install_to@exe@ @ldflags@ $install_to@obj@ -L$prefix/lib -lmoar")
+        and die "Could not link $install_to: $!";
+    chmod 0755, "$install_to@exe@";
+}
+
+__DATA__
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <moar.h>
+
+int main(int argc, char *argv[])
+{
+    MVMInstance *instance = MVM_vm_create_instance();
+    const char  *input_file = "%s";
+
+    /* stash the raw command line args in the instance */
+    instance->num_clargs  = argc - 1;
+    instance->raw_clargs  = argv + 1;
+    instance->exec_name   = argv[0];
+    instance->prog_name   = input_file;
+    instance->lib_path[0] = NULL;
+
+    MVM_vm_run_file(instance, input_file);
+
+    MVM_vm_destroy_instance(instance);
+
+    return EXIT_SUCCESS;
+}

@@ -29,6 +29,7 @@ Makefile
 3rdparty/dyncall/ConfigVars
 3rdparty/dyncall/Makefile.config
 src/gen/
+tools/gen-moar-runner.pl
 *.la
 *.obj
 *.exe
