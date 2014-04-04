@@ -61,6 +61,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     }
 }
 
+/* Sees if we can resolve an istype at compile time. */
 static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts  = get_facts(tc, g, ins->operands[1]);
     MVMSpeshFacts *type_facts = get_facts(tc, g, ins->operands[2]);
@@ -70,10 +71,8 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         MVMRegister result;
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             MVM_6model_istype(tc, obj_facts->value.o, type_facts->type, &result);
-            printf("based on the value of something ");
         } else if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
             MVM_6model_istype(tc, obj_facts->type, type_facts->type, &result);
-            printf("based on the type of something ");
         } else {
             return;
         }
@@ -81,11 +80,9 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         result_facts = get_facts(tc, g, ins->operands[0]);
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
         if (result.i64) {
-            printf("we found out that some istype always returns 1\n");
             ins->operands[1].lit_i64 = 1;
             result_facts->value.i64 = 1;
         } else {
-            printf("we found out that some istype always returns 0\n");
             ins->operands[1].lit_i64 = 0;
             result_facts->value.i64 = 0;
         }
@@ -155,13 +152,10 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         /* since we have an unconditional jump now, we can remove the successor
          * that's in the linear_next */
         MVM_spesh_manipulate_remove_successor(tc, bb, bb->linear_next);
-
-        printf("turned an iffy op into a goto\n");
     } else {
         /* this conditional can be dropped completely */
         MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
         MVM_spesh_manipulate_delete_ins(tc, bb, ins);
-        printf("removed an iffy op completely");
     }
 }
 
@@ -286,7 +280,6 @@ static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    /* Kick off the optimization run over the graph. */
     optimize_bb(tc, g, g->entry);
     eliminate_dead(tc, g);
 }
