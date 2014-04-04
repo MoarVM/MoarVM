@@ -6,38 +6,31 @@ use warnings;
 use 5.008;
 use File::Spec;
 
-my ($moar) = @ARGV;
+my $install_to = shift @ARGV;
+my $prefix     = shift @ARGV;
+my $input_file = shift @ARGV;
+my $lib_path_i = 0;
+my $lib_paths  = join "\n",
+    map { "    instance->lib_path[@{[$lib_path_i++]}] = \"$_\";" } @ARGV;
 
-if ($^O eq 'MSWin32') {
-    my $install_to = 'nqp-m.bat';    
-    open my $fh, ">", $install_to
-        or die "Could not open $install_to: $!";
-    print $fh '@ "' . $moar . '" nqp.moarvm %*' . "\n";
-    close $fh
-        or die "Could not close $install_to: $!";
-}
-else {
-    my $install_to = 'nqp-m';
-    my $prefix     = '/home/froggs/dev/nqp/install';
-    my @source     = <DATA>;
-    my $source     = join '', @source;
-    open my $fh, ">", "$install_to.c"
-        or die "Could not open $install_to.c: $!";
-    printf $fh $source, 'nqp.moarvm';
-    close $fh
-        or die "Could not close $install_to.c: $!";
-    system("@cc@ @ccswitch@ @cflags@ @ccdef@MVM_TRACING=0 @ccdef@MVM_CGOTO=0 @objflags@ " .
-           "@ccinc@$prefix/include/libuv @ccinc@$prefix/include/libuv/src " .
-           "@ccinc@$prefix/include/libatomic_ops @ccinc@$prefix/include/libtommath " .
-           "@ccinc@$prefix/include/@shaincludedir@ @ccinc@$prefix/include/linenoise " .
-           "@ccinc@$prefix/include/tinymt @ccinc@$prefix/include/dyncall/dynload " .
-           "@ccinc@$prefix/include/dyncall @ccinc@$prefix/include/moar " .
-           "@ccinc@$prefix/include @ccout@$install_to@obj@ $install_to.c")
-        and die "Could not compile $install_to.c: $!";
-    system("@ld@ -o $install_to@exe@ @ldflags@ $install_to@obj@ -L$prefix/lib -lmoar")
-        and die "Could not link $install_to: $!";
-    chmod 0755, "$install_to@exe@";
-}
+my @source     = <DATA>;
+my $source     = join '', @source;
+open my $fh, ">", "$install_to.c"
+    or die "Could not open $install_to.c: $!";
+printf $fh $source, $input_file, $lib_paths, $lib_path_i;
+close $fh
+    or die "Could not close $install_to.c: $!";
+system("@cc@ @ccswitch@ @cflags@ @ccdef@MVM_TRACING=0 @ccdef@MVM_CGOTO=0 @objflags@ " .
+       "@ccinc@$prefix/include/libuv @ccinc@$prefix/include/libuv/src " .
+       "@ccinc@$prefix/include/libatomic_ops @ccinc@$prefix/include/libtommath " .
+       "@ccinc@$prefix/include/@shaincludedir@ @ccinc@$prefix/include/linenoise " .
+       "@ccinc@$prefix/include/tinymt @ccinc@$prefix/include/dyncall/dynload " .
+       "@ccinc@$prefix/include/dyncall @ccinc@$prefix/include/moar " .
+       "@ccinc@$prefix/include @ccout@$install_to@obj@ $install_to.c")
+    and die "Could not compile $install_to.c: $!";
+system("@ld@ -o $install_to@exe@ @ldflags@ $install_to@obj@ -L$prefix/lib -lmoar")
+    and die "Could not link $install_to: $!";
+chmod 0755, "$install_to@exe@" if $^O ne 'MSWin32';
 
 __DATA__
 #include <stdio.h>
@@ -55,7 +48,8 @@ int main(int argc, char *argv[])
     instance->raw_clargs  = argv + 1;
     instance->exec_name   = argv[0];
     instance->prog_name   = input_file;
-    instance->lib_path[0] = NULL;
+%s
+    instance->lib_path[%d] = NULL;
 
     MVM_vm_run_file(instance, input_file);
 
