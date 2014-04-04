@@ -274,7 +274,6 @@ static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
     free(seen);
 
     if (g->num_bbs != orig_bbs) {
-        printf("%d bbs -> %d bbs\n", orig_bbs, g->num_bbs);
         MVMint32    new_idx  = 0;
         MVMSpeshBB *cur_bb   = g->entry;
         while (cur_bb) {

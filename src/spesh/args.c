@@ -183,6 +183,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             if (passed) {
                 /* If we know the argument has been passed, we can pretend it's
                  * a required parameter instead */
+                MVMSpeshIns *inserted_goto;
+                MVMSpeshOperand *op;
                 switch (opt_pos_ins[i]->info->opcode) {
                 case MVM_OP_param_op_i:
                     opt_pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
@@ -198,8 +200,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     break;
                 }
 
-                MVMSpeshIns *inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-                MVMSpeshOperand *op = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
+                inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+                op = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
                 inserted_goto->info = MVM_op_get_op(MVM_OP_goto);
                 inserted_goto->operands = op;
                 inserted_goto->annotations = NULL;
