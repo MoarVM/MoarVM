@@ -36,7 +36,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         /* Try to resolve. */
         MVMString *name = get_string(tc, g, ins->operands[2]);
-        MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj_facts->value.o, name);
+        MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj_facts->type, name);
         if (meth) {
             /* Could compile-time resolve the method. Add it in a spesh slot
              * and tweak instruction to grab it from there. */
