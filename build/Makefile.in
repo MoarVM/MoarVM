@@ -317,6 +317,8 @@ install: all
 	$(MKPATH) $(DESTDIR)$(PREFIX)/bin
 	$(CP) moar@exe@ $(DESTDIR)$(PREFIX)/bin
 	$(CHMOD) 755 $(DESTDIR)$(PREFIX)/bin/moar@exe@
+	$(CP) tools/gen-moar-runner.pl $(DESTDIR)$(PREFIX)/bin
+	$(CHMOD) 755 $(DESTDIR)$(PREFIX)/bin/gen-moar-runner.pl
 	$(MKPATH) $(DESTDIR)$(PREFIX)/lib/MAST
 	$(CP) @moar@ @impinst@ $(DESTDIR)$(PREFIX)/@moarinst@
 	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(PREFIX)/lib/MAST
