@@ -191,6 +191,15 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
+/* Optimize away assertparamcheck if we know it will pass. */
+static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *facts = get_facts(tc, g, ins->operands[0]);
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i64) {
+        facts->usages--;
+        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+    }
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMint32 i;
@@ -220,6 +229,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_decont:
             optimize_decont(tc, g, ins);
+            break;
+        case MVM_OP_assertparamcheck:
+            optimize_assertparamcheck(tc, g, bb, ins);
             break;
         }
         ins = ins->next;
