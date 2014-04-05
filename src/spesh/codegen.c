@@ -68,7 +68,8 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
         MVMint32 i;
         if (ins->info->opcode != MVM_SSA_PHI) {
             /* Process any annotations. */
-            MVMSpeshAnn *ann = ins->annotations;
+            MVMSpeshAnn *ann       = ins->annotations;
+            MVMSpeshAnn *deopt_ann = NULL;
             while (ann) {
                 switch (ann->type) {
                 case MVM_SPESH_ANN_FH_START:
@@ -82,6 +83,9 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                 case MVM_SPESH_ANN_FH_GOTO:
                     ws->handlers[ann->data.frame_handler_index].goto_offset =
                         ws->bytecode_pos;
+                    break;
+                case MVM_SPESH_ANN_DEOPT_INS:
+                    deopt_ann = ann;
                     break;
                 }
                 ann = ann->next;
@@ -183,6 +187,10 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                     MVM_exception_throw_adhoc(tc, "Spesh: unknown operand type in codegen");
                 }
             }
+
+            /* If there was a deopt point annotation, update table. */
+            if (deopt_ann)
+                g->deopt_addrs[2 * deopt_ann->data.deopt_idx + 1] = ws->bytecode_pos;
         }
         ins = ins->next;
     }

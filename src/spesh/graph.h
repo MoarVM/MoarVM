@@ -28,6 +28,15 @@ struct MVMSpeshGraph {
     MVMint32 num_spesh_slots;
     MVMint32 alloc_spesh_slots;
 
+    /* De-opt indexes, as pairs of integers. The first integer, set when we
+     * build the graph, is the return address in the original bytecode. The
+     * code-gen phase for the specialized bytecode will fill in the second
+     * integers afterwards, which are the return address in the specialized
+     * bytecode. */
+    MVMint32 *deopt_addrs;
+    MVMint32  num_deopt_addrs;
+    MVMint32  alloc_deopt_addrs;
+
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
 };
@@ -136,6 +145,7 @@ struct MVMSpeshAnn {
     /* Data (meaning depends on type). */
     union {
         MVMint32 frame_handler_index;
+        MVMint32 deopt_idx;
     } data;
 };
 
@@ -143,6 +153,7 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_FH_START      1
 #define MVM_SPESH_ANN_FH_END        2
 #define MVM_SPESH_ANN_FH_GOTO       3
+#define MVM_SPESH_ANN_DEOPT_INS     4
 
 /* Functions to create/destory the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf);

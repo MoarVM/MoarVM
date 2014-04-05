@@ -231,9 +231,33 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         if (pc + 2 + arg_size == end)
             byte_to_ins_flags[pc - sf->body.bytecode] |= MVM_CFG_BB_END;
 
+        /* Caculate next instruction's PC. */
+        pc += 2 + arg_size;
+
+        /* If this is a deopt point opcode... */
+        if (info->deopt_point) {
+            /* Add an the annotations. */
+            MVMSpeshAnn *ann      = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+            ann->type             = MVM_SPESH_ANN_DEOPT_INS;
+            ann->data.deopt_idx   = g->num_deopt_addrs;
+            ann->next             = ins_node->annotations;
+            ins_node->annotations = ann;
+
+            /* Record PC in the deopt entries table. */
+            if (g->num_deopt_addrs == g->alloc_deopt_addrs) {
+                g->alloc_deopt_addrs += 4;
+                if (g->deopt_addrs)
+                    g->deopt_addrs = realloc(g->deopt_addrs,
+                        g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+                else
+                    g->deopt_addrs = malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+            }
+            g->deopt_addrs[2 * g->num_deopt_addrs] = pc - sf->body.bytecode;
+            g->num_deopt_addrs++;
+        }
+
         /* Go to next instruction. */
         ins_idx++;
-        pc += 2 + arg_size;
     }
 
     /* Annotate instructions that are handler-significant. */
