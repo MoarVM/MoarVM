@@ -8,7 +8,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 10
+#define CURRENT_VERSION 11
 #define VARINT_MIN_VERSION 9
 #define MIN_VERSION     5
 
@@ -870,6 +870,12 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         write_int_func(tc, writer, st->invocation_spec->hint);
         write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
     }
+
+    /* HLL owner. */
+    if (st->hll_owner)
+        write_str_func(tc, writer, st->hll_owner->name);
+    else
+        write_str_func(tc, writer, NULL);
 
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
@@ -1963,6 +1969,13 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, read_str_func(tc, reader));
         st->invocation_spec->hint = read_int_func(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, read_ref_func(tc, reader));
+    }
+
+    /* HLL owner. */
+    if (reader->root.version >= 11) {
+        MVMString *hll_name = read_str_func(tc, reader);
+        if (hll_name)
+            st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */
