@@ -93,6 +93,19 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
+/* Sees if we can resolve an isconcrete at compile time. */
+static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
+    if (obj_facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ)) {
+        MVMSpeshFacts *result_facts = get_facts(tc, g, ins->operands[0]);
+        ins->info                   = MVM_op_get_op(MVM_OP_const_i64);
+        result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
+        ins->operands[1].lit_i64    = obj_facts->flags & MVM_SPESH_FACT_CONCRETE;
+        result_facts->value.i64     = obj_facts->flags & MVM_SPESH_FACT_CONCRETE;
+        obj_facts->usages--;
+    }
+}
+
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -195,6 +208,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
+            break;
+        case MVM_OP_isconcrete:
+            optimize_isconcrete(tc, g, ins);
             break;
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
