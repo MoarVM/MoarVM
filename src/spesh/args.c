@@ -3,6 +3,37 @@
 /* Maximum number of positional args we'll consider for optimization purposes. */
 #define MAX_POS_ARGS 8
 
+/* Adds guards and facts for an object arg. */
+void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
+                          MVMObject *arg, MVMSpeshIns *arg_ins) {
+    /* Grab type and concreteness. */
+    MVMObject *type     = STABLE(arg)->WHAT;
+    MVMint32   concrete = IS_CONCRETE(arg);
+
+    /* Add appropriate facts. */
+    MVMint16 orig = arg_ins->operands[0].reg.orig;
+    MVMint16 i    = arg_ins->operands[0].reg.i;
+    g->facts[orig][i].type   = type;
+    g->facts[orig][i].flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+    if (concrete) {
+        g->facts[orig][i].flags |= MVM_SPESH_FACT_CONCRETE;
+        if (!STABLE(type)->container_spec)
+            g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONTED;
+    }
+    else {
+        g->facts[orig][i].flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
+    }
+
+    /* Add guard record. */
+    g->guards[g->num_guards].slot  = slot;
+    g->guards[g->num_guards].match = (MVMCollectable *)STABLE(type);
+    if (concrete)
+        g->guards[g->num_guards].kind = MVM_SPESH_GUARD_CONC;
+    else
+        g->guards[g->num_guards].kind = MVM_SPESH_GUARD_TYPE;
+    g->num_guards++;
+}
+
 /* Takes information about the incoming callsite and arguments, and performs
  * various optimizations based on that information. */
 void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVMRegister *args) {
@@ -138,7 +169,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         if (paramnamesused_ins)
             MVM_spesh_manipulate_delete_ins(tc, paramnamesused_bb, paramnamesused_ins);
 
-        /* Re-write the passed things to spesh ops. */
+        /* Re-write the passed things to spesh ops, and store any gurads. */
+        if (cs->num_pos)
+            g->guards = malloc(cs->num_pos * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
@@ -156,6 +189,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
                 pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
+                if (args[i].o)
+                    add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
                 break;
             }
             pos_ins[i]->operands[1].lit_i16 = (MVMint16)i;

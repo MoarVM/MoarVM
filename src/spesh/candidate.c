@@ -5,8 +5,9 @@
 MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
         MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args) {
     MVMSpeshCandidate *result;
+    MVMSpeshGuard *guards;
     MVMSpeshCode *sc;
-    MVMint32 num_spesh_slots;
+    MVMint32 num_spesh_slots, num_guards;
     MVMCollectable **spesh_slots;
     char *before, *after;
 
@@ -22,6 +23,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     sc = MVM_spesh_codegen(tc, sg);
     num_spesh_slots = sg->num_spesh_slots;
     spesh_slots = sg->spesh_slots;
+    num_guards = sg->num_guards;
+    guards = sg->guards;
     MVM_spesh_graph_destroy(tc, sg);
 
     /* Now try to add it. Note there's a slim chance another thread beat us
@@ -33,20 +36,23 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     if (static_frame->body.num_spesh_candidates < MVM_SPESH_LIMIT) {
         MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
         MVMint32 i;
-        for (i = 0; i < num_spesh; i++)
-            if (static_frame->body.spesh_candidates[i].cs == callsite) {
+        for (i = 0; i < num_spesh; i++) {
+            MVMSpeshCandidate *compare = &static_frame->body.spesh_candidates[i];
+            if (compare->cs == callsite && compare->num_guards == num_guards &&
+                memcmp(compare->guards, guards, num_guards * sizeof(MVMSpeshGuard)) == 0) {
                 /* Beaten! */
                 result = &static_frame->body.spesh_candidates[i];
                 break;
             }
+        }
         if (!result) {
             if (!static_frame->body.spesh_candidates)
                 static_frame->body.spesh_candidates = malloc(
                     MVM_SPESH_LIMIT * sizeof(MVMSpeshCandidate));
             result                  = &static_frame->body.spesh_candidates[num_spesh];
             result->cs              = callsite;
-            result->guards          = NULL;
-            result->num_guards      = 0;
+            result->num_guards      = num_guards;
+            result->guards          = guards;
             result->bytecode        = sc->bytecode;
             result->bytecode_size   = sc->bytecode_size;
             result->handlers        = sc->handlers;

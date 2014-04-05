@@ -11,6 +11,12 @@ struct MVMSpeshGraph {
      * local, then array hanging off it is per version). */
     MVMSpeshFacts **facts;
 
+    /* Argument guards added. */
+    MVMSpeshGuard *guards;
+
+    /* Number of guards we have. */
+    MVMint32 num_guards;
+
     /* Memory blocks we allocate to store spesh nodes, and which we free along
      * with the graph. Contains a link to previous blocks. */
     MVMSpeshMemBlock *mem_block;
