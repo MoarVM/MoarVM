@@ -149,6 +149,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->info.mark[0] = '.';
     entry->info.mark[1] = 'x';
     entry->info.num_operands = num_operands;
+    entry->info.pure = 0;
     memcpy(entry->info.operands, operands, num_operands);
     memset(entry->info.operands + num_operands, 0,
             MVM_MAX_OPERANDS - num_operands);
