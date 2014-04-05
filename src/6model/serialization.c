@@ -1168,48 +1168,48 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
  * ***************************************************************************/
 
 /* Reads an int64 from a buffer. */
-static MVMint64 read_int64(char *buffer, size_t offset) {
+static MVMint64 read_int64(const char *buffer, size_t offset) {
     MVMint64 value;
-#ifdef MVM_BIGENDIAN
-    switch_endian(buffer + offset, 8);
-#endif
     memcpy(&value, buffer + offset, 8);
+#ifdef MVM_BIGENDIAN
+    switch_endian(&value, 8);
+#endif
     return value;
 }
 
 /* Reads an int32 from a buffer. */
-static MVMint32 read_int32(char *buffer, size_t offset) {
+static MVMint32 read_int32(const char *buffer, size_t offset) {
     MVMint32 value;
-#ifdef MVM_BIGENDIAN
-    switch_endian(buffer + offset, 4);
-#endif
     memcpy(&value, buffer + offset, 4);
+#ifdef MVM_BIGENDIAN
+    switch_endian(&value, 4);
+#endif
     return value;
 }
 
 /* Reads an int16 from a buffer. */
-static MVMint16 read_int16(char *buffer, size_t offset) {
+static MVMint16 read_int16(const char *buffer, size_t offset) {
     MVMint16 value;
-#ifdef MVM_BIGENDIAN
-    switch_endian(buffer + offset, 2);
-#endif
     memcpy(&value, buffer + offset, 2);
+#ifdef MVM_BIGENDIAN
+    switch_endian(&value, 2);
+#endif
     return value;
 }
 
 /* Reads double from a buffer. */
-static MVMnum64 read_double(char *buffer, size_t offset) {
+static MVMnum64 read_double(const char *buffer, size_t offset) {
     MVMnum64 value;
-#ifdef MVM_BIGENDIAN
-    switch_endian(buffer + offset, 8);
-#endif
     memcpy(&value, buffer + offset, 8);
+#ifdef MVM_BIGENDIAN
+    switch_endian(&value, 8);
+#endif
     return value;
 }
 
 /* Reads an int64 from up to 128bits of storage.
  * Returns how far to advance the offset. */
-static size_t read_varint9(MVMuint8 *buffer, size_t offset, int64_t *value) {
+static size_t read_varint9(const MVMuint8 *buffer, size_t offset, int64_t *value) {
     size_t inner_offset = 0;
     size_t shift_amount = 0;
     int64_t negation_mask = 0;
