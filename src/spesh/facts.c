@@ -114,6 +114,13 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
 
         /* Look for ops that are fact-interesting. */
         switch (ins->info->opcode) {
+        case MVM_OP_inc_i:
+        case MVM_OP_inc_u:
+        case MVM_OP_dec_i:
+        case MVM_OP_dec_u:
+            /* These all read as well as write a value, so bump usages. */
+            g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i - 1].usages++;
+            break;
         case MVM_OP_set:
             copy_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
