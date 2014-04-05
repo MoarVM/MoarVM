@@ -67,25 +67,16 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     MVMSpeshFacts *type_facts = get_facts(tc, g, ins->operands[2]);
     MVMSpeshFacts *result_facts;
 
-    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        MVMRegister result;
-        if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-            MVM_6model_istype(tc, obj_facts->value.o, type_facts->type, &result);
-        } else if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-            MVM_6model_istype(tc, obj_facts->type, type_facts->type, &result);
-        } else {
+    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
+         obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        MVMint32 result;
+        if (!MVM_6model_try_cache_type_check(tc, obj_facts->type, type_facts->type, &result))
             return;
-        }
         ins->info = MVM_op_get_op(MVM_OP_const_i64);
         result_facts = get_facts(tc, g, ins->operands[0]);
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-        if (result.i64) {
-            ins->operands[1].lit_i64 = 1;
-            result_facts->value.i64 = 1;
-        } else {
-            ins->operands[1].lit_i64 = 0;
-            result_facts->value.i64 = 0;
-        }
+        ins->operands[1].lit_i64 = result;
+        result_facts->value.i64  = result;
         obj_facts->usages--;
         type_facts->usages--;
     }
