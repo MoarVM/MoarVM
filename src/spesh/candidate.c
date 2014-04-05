@@ -7,7 +7,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     MVMSpeshCandidate *result;
     MVMSpeshGuard *guards;
     MVMSpeshCode *sc;
-    MVMint32 num_spesh_slots, num_guards;
+    MVMint32 num_spesh_slots, num_guards, *deopts, num_deopts;
     MVMCollectable **spesh_slots;
     char *before, *after;
 
@@ -25,6 +25,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     spesh_slots = sg->spesh_slots;
     num_guards = sg->num_guards;
     guards = sg->guards;
+    num_deopts = sg->num_deopt_addrs;
+    deopts = sg->deopt_addrs;
     MVM_spesh_graph_destroy(tc, sg);
 
     /* Now try to add it. Note there's a slim chance another thread beat us
@@ -58,6 +60,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
             result->handlers        = sc->handlers;
             result->num_spesh_slots = num_spesh_slots;
             result->spesh_slots     = spesh_slots;
+            result->num_deopts      = num_deopts;
+            result->deopts          = deopts;
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)

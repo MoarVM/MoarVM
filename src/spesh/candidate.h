@@ -23,6 +23,12 @@ struct MVMSpeshCandidate {
 
     /* Number of spesh slots. */
     MVMint32 num_spesh_slots;
+
+    /* Deoptimization mappings. */
+    MVMint32 *deopts;
+
+    /* The number of deoptimization mappings we have. */
+    MVMint32 num_deopts;
 };
 
 /* The number of specializations we'll allow per static frame. */

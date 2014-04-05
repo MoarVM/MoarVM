@@ -90,6 +90,9 @@ struct MVMFrame {
     /* Effective set of spesh slots, if any. */
     MVMCollectable **effective_spesh_slots;
 
+    /* The spesh candidate information, if we're in one. */
+    MVMSpeshCandidate *spesh_cand;
+
     /* Address of the next op to execute if we return to this frame. */
     MVMuint8 *return_address;
 

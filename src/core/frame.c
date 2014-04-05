@@ -311,6 +311,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                     frame->effective_bytecode    = cand->bytecode;
                     frame->effective_handlers    = cand->handlers;
                     frame->effective_spesh_slots = cand->spesh_slots;
+                    frame->spesh_cand            = cand;
                     found_spesh = 1;
                     break;
                 }
@@ -326,6 +327,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 frame->effective_bytecode    = cand->bytecode;
                 frame->effective_handlers    = cand->handlers;
                 frame->effective_spesh_slots = cand->spesh_slots;
+                frame->spesh_cand            = cand;
                 found_spesh = 1;
             }
         }
@@ -333,6 +335,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!found_spesh) {
         frame->effective_bytecode = static_frame_body->bytecode;
         frame->effective_handlers = static_frame_body->handlers;
+        frame->spesh_cand         = NULL;
     }
 
     /* Update interpreter and thread context, so next execution will use this
