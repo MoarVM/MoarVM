@@ -2976,6 +2976,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
+                MVM_spesh_deopt(tc);
                 cur_op += 6;
                 goto NEXT;
             OP(istype): {
