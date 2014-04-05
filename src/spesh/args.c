@@ -9,8 +9,9 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
     /* Grab type and concreteness. */
     MVMObject *type     = STABLE(arg)->WHAT;
     MVMint32   concrete = IS_CONCRETE(arg);
+    MVMint32   is_cont  = 0;
 
-    /* Add appropriate facts. */
+    /* Add appropriate facts from arg itself. */
     MVMint16 orig = arg_ins->operands[0].reg.orig;
     MVMint16 i    = arg_ins->operands[0].reg.i;
     g->facts[orig][i].type   = type;
@@ -19,12 +20,14 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
         g->facts[orig][i].flags |= MVM_SPESH_FACT_CONCRETE;
         if (!STABLE(type)->container_spec)
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONTED;
+        else
+            is_cont = 1;
     }
     else {
         g->facts[orig][i].flags |= MVM_SPESH_FACT_TYPEOBJ | MVM_SPESH_FACT_DECONTED;
     }
 
-    /* Add guard record. */
+    /* Add guard record for the arg type. */
     g->guards[g->num_guards].slot  = slot;
     g->guards[g->num_guards].match = (MVMCollectable *)STABLE(type);
     if (concrete)
@@ -32,6 +35,34 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
     else
         g->guards[g->num_guards].kind = MVM_SPESH_GUARD_TYPE;
     g->num_guards++;
+
+    /* If we know it's a container, might be able to look inside it to
+     * further optimize. */
+    if (is_cont && STABLE(type)->container_spec->fetch_never_invokes) {
+        /* Fetch argument from the container. */
+        MVMRegister r;
+        STABLE(type)->container_spec->fetch(tc, arg, &r);
+        arg = r.o;
+
+        /* Add facts about it. */
+        type                           = STABLE(arg)->WHAT;
+        concrete                       = IS_CONCRETE(arg);
+        g->facts[orig][i].decont_type  = type;
+        g->facts[orig][i].flags       |= MVM_SPESH_FACT_KNOWN_DECONT_TYPE;
+        if (concrete)
+            g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+        else
+            g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+
+        /* Add guard for contained value. */
+        g->guards[g->num_guards].slot  = slot;
+        g->guards[g->num_guards].match = (MVMCollectable *)STABLE(type);
+        if (concrete)
+            g->guards[g->num_guards].kind = MVM_SPESH_GUARD_DC_CONC;
+        else
+            g->guards[g->num_guards].kind = MVM_SPESH_GUARD_DC_TYPE;
+        g->num_guards++;
+    }
 }
 
 /* Takes information about the incoming callsite and arguments, and performs
@@ -171,7 +202,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
 
         /* Re-write the passed things to spesh ops, and store any gurads. */
         if (cs->num_pos)
-            g->guards = malloc(cs->num_pos * sizeof(MVMSpeshGuard));
+            g->guards = malloc(2 * cs->num_pos * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:

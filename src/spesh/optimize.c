@@ -18,9 +18,10 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand t
                        MVMSpeshOperand from) {
     MVMSpeshFacts *tfacts = get_facts(tc, g, to);
     MVMSpeshFacts *ffacts = get_facts(tc, g, from);
-    tfacts->flags = ffacts->flags;
-    tfacts->type  = ffacts->type;
-    tfacts->value = ffacts->value;
+    tfacts->flags         = ffacts->flags;
+    tfacts->type          = ffacts->type;
+    tfacts->decont_type   = ffacts->decont_type;
+    tfacts->value         = ffacts->value;
 }
 
 /* Adds a value into a spesh slot and returns its index. */
@@ -92,22 +93,6 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
-/* using the set op with a register we know the value of should
- * propagate that knowledge */
-static void optimize_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    MVMSpeshFacts *dst_facts = get_facts(tc, g, ins->operands[0]);
-    MVMSpeshFacts *src_facts = get_facts(tc, g, ins->operands[1]);
-
-    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        dst_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
-        dst_facts->type = src_facts->type;
-    }
-    if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        dst_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-        dst_facts->value = src_facts->value;
-    }
-}
-
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -172,11 +157,25 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
-/* Turns a decont into a set, if we know it's not needed. */
+/* Turns a decont into a set, if we know it's not needed. Also make sure we
+ * propagate any needed information. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
-    if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ))
+    if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ)) {
         ins->info = MVM_op_get_op(MVM_OP_set);
+        copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+    }
+    else {
+        MVMSpeshFacts *res_facts = get_facts(tc, g, ins->operands[0]);
+        if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
+            res_facts->type   = obj_facts->decont_type;
+            res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+        }
+        if (obj_facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE)
+            res_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+        else if (obj_facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ)
+            res_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+    }
 }
 
 /* Visits the blocks in dominator tree order, recursively. */
@@ -188,7 +187,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     while (ins) {
         switch (ins->info->opcode) {
         case MVM_OP_set:
-            optimize_set(tc, g, ins);
+            copy_facts(tc, g, ins->operands[0], ins->operands[1]);
             break;
         case MVM_OP_if_i:
         case MVM_OP_unless_i:

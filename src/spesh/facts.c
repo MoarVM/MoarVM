@@ -62,11 +62,23 @@ static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 out_o
                          MVMuint16 out_i, MVMuint16 in_orig, MVMuint16 in_i) {
     /* If we know the original is decontainerized already, just copy its
      * info. */
-    if (g->facts[in_orig][in_i].flags & MVM_SPESH_FACT_DECONTED)
+    MVMint32 in_flags = g->facts[in_orig][in_i].flags;
+    if (in_flags & MVM_SPESH_FACT_DECONTED)
         copy_facts(tc, g, out_orig, out_i, in_orig, in_i);
 
     /* We know the result is decontainerized. */
     g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_DECONTED;
+
+    /* We may also know the original was containerized, and have some facts
+     * about its contents. */
+    if (in_flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
+        g->facts[out_orig][out_i].type = g->facts[in_orig][in_i].decont_type;
+        g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+    }
+    if (in_flags & MVM_SPESH_FACT_DECONT_CONCRETE)
+        g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_CONCRETE;
+    else if (in_flags & MVM_SPESH_FACT_DECONT_TYPEOBJ)
+        g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_TYPEOBJ;
 }
 
 /* Looks up a wval and adds information based on it. */
