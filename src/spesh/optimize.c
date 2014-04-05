@@ -13,6 +13,16 @@ static MVMString * get_string(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOp
     return g->sf->body.cu->body.strings[o.lit_str_idx];
 }
 
+/* Copy facts between two register operands. */
+static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to,
+                       MVMSpeshOperand from) {
+    MVMSpeshFacts *tfacts = get_facts(tc, g, to);
+    MVMSpeshFacts *ffacts = get_facts(tc, g, from);
+    tfacts->flags = ffacts->flags;
+    tfacts->type  = ffacts->type;
+    tfacts->value = ffacts->value;
+}
+
 /* Adds a value into a spesh slot and returns its index. */
 static MVMint16 add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
     if (g->num_spesh_slots >= g->alloc_spesh_slots) {
@@ -150,6 +160,18 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     }
 }
 
+/* Optimizes a hllize instruction away if the type is known and already in the
+ * right HLL, by turning it into a set. */
+static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
+    if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
+        if (STABLE(obj_facts->type)->hll_owner == g->sf->body.cu->body.hll_config) {
+            ins->info = MVM_op_get_op(MVM_OP_set);
+            copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+        }
+    }
+}
+
 /* Turns a decont into a set, if we know it's not needed. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = get_facts(tc, g, ins->operands[1]);
@@ -177,6 +199,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
+            break;
+        case MVM_OP_hllize:
+            optimize_hllize(tc, g, ins);
             break;
         case MVM_OP_decont:
             optimize_decont(tc, g, ins);
