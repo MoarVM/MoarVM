@@ -45,6 +45,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
                     MVM_SPESH_LIMIT * sizeof(MVMSpeshCandidate));
             result                  = &static_frame->body.spesh_candidates[num_spesh];
             result->cs              = callsite;
+            result->guards          = NULL;
+            result->num_guards      = 0;
             result->bytecode        = sc->bytecode;
             result->bytecode_size   = sc->bytecode_size;
             result->handlers        = sc->handlers;

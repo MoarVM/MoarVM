@@ -3,11 +3,17 @@ struct MVMSpeshCandidate {
     /* The callsite we should have for a match. */
     MVMCallsite *cs;
 
-    /* The specialized bytecode. */
-    MVMuint8 *bytecode;
+    /* Guards on incoming args. */
+    MVMSpeshGuard *guards;
+
+    /* Number of guards we have. */
+    MVMuint32 num_guards;
 
     /* Length of the specialized bytecode in bytes. */
     MVMuint32 bytecode_size;
+
+    /* The specialized bytecode. */
+    MVMuint8 *bytecode;
 
     /* Frame handlers for this specialization. */
     MVMFrameHandler *handlers;
@@ -21,6 +27,24 @@ struct MVMSpeshCandidate {
 
 /* The number of specializations we'll allow per static frame. */
 #define MVM_SPESH_LIMIT 4
+
+/* A specialization guard. */
+struct MVMSpeshGuard {
+    /* The kind of guard this is. */
+    MVMint32 kind;
+
+    /* The incoming argument slot it applies to. */
+    MVMint32 slot;
+
+    /* Object we might be wanting to match against. */
+    MVMCollectable *match;
+};
+
+/* Kinds of guard we have. */
+#define MVM_SPESH_GUARD_CONC    1   /* Value is concrete with match type. */
+#define MVM_SPESH_GUARD_TYPE    2   /* Value is type object with match type. */
+#define MVM_SPESH_GUARD_DC_CONC 3   /* Decont'd value is concrete with match type. */
+#define MVM_SPESH_GUARD_DC_TYPE 4   /* Decont'd value is type object with match type. */
 
 /* Functions for generating a specialization. */
 MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,

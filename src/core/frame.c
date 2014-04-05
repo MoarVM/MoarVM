@@ -267,14 +267,53 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (++static_frame_body->invocations >= 10 && callsite->is_interned) {
         /* Look for specialized bytecode. */
         MVMint32 num_spesh = static_frame_body->num_spesh_candidates;
-        MVMint32 i;
+        MVMint32 i, j;
         for (i = 0; i < num_spesh; i++) {
             MVMSpeshCandidate *cand = &static_frame_body->spesh_candidates[i];
             if (cand->cs == callsite) {
-                frame->effective_bytecode    = cand->bytecode;
-                frame->effective_handlers    = cand->handlers;
-                frame->effective_spesh_slots = cand->spesh_slots;
-                found_spesh = 1;
+                MVMint32 match = 1;
+                for (j = 0; j < cand->num_guards; j++) {
+                    MVMint32   pos = cand->guards[j].slot;
+                    MVMSTable *st  = (MVMSTable *)cand->guards[j].match;
+                    MVMObject *arg = args[pos].o;
+                    if (!arg) {
+                        match = 0;
+                        break;
+                    }
+                    switch (cand->guards[j].kind) {
+                    case MVM_SPESH_GUARD_CONC:
+                        if (!IS_CONCRETE(arg) || STABLE(arg) != st)
+                            match = 0;
+                        break;
+                    case MVM_SPESH_GUARD_TYPE:
+                        if (IS_CONCRETE(arg) || STABLE(arg) != st)
+                            match = 0;
+                        break;
+                    case MVM_SPESH_GUARD_DC_CONC: {
+                        MVMRegister dc;
+                        STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                        if (!IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                            match = 0;
+                        break;
+                    }
+                    case MVM_SPESH_GUARD_DC_TYPE: {
+                        MVMRegister dc;
+                        STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                        if (IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                            match = 0;
+                        break;
+                    }
+                    }
+                    if (!match)
+                        break;
+                }
+                if (match) {
+                    frame->effective_bytecode    = cand->bytecode;
+                    frame->effective_handlers    = cand->handlers;
+                    frame->effective_spesh_slots = cand->spesh_slots;
+                    found_spesh = 1;
+                    break;
+                }
             }
         }
 

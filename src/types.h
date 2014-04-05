@@ -133,6 +133,7 @@ typedef struct MVMSpeshAnn MVMSpeshAnn;
 typedef struct MVMSpeshFacts MVMSpeshFacts;
 typedef struct MVMSpeshCode MVMSpeshCode;
 typedef struct MVMSpeshCandidate MVMSpeshCandidate;
+typedef struct MVMSpeshGuard MVMSpeshGuard;
 typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
 typedef struct MVMStaticFrameBody MVMStaticFrameBody;

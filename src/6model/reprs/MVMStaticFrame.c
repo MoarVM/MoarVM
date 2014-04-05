@@ -129,9 +129,12 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     /* Spesh slots. */
     if (body->num_spesh_candidates) {
         MVMint32 i, j;
-        for (i = 0; i < body->num_spesh_candidates; i++)
+        for (i = 0; i < body->num_spesh_candidates; i++) {
+            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].guards[j].match);
             for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
+        }
     }
 }
 
