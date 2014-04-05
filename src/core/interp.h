@@ -37,6 +37,7 @@ struct MVMOpInfo {
     char        mark[2];
     MVMuint8    num_operands;
     MVMuint8    pure;
+    MVMuint8    deopt_point;
     MVMuint8    operands[MVM_MAX_OPERANDS];
 };
 
