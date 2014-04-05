@@ -165,21 +165,21 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         switch (ins->info->opcode) {
-        case MVM_OP_findmeth:
-            optimize_method_lookup(tc, g, ins);
-            break;
-        case MVM_OP_decont:
-            optimize_decont(tc, g, ins);
-            break;
-        case MVM_OP_istype:
-            optimize_istype(tc, g, ins);
-            break;
         case MVM_OP_set:
             optimize_set(tc, g, ins);
             break;
         case MVM_OP_if_i:
         case MVM_OP_unless_i:
             optimize_iffy(tc, g, ins, bb);
+            break;
+        case MVM_OP_findmeth:
+            optimize_method_lookup(tc, g, ins);
+            break;
+        case MVM_OP_istype:
+            optimize_istype(tc, g, ins);
+            break;
+        case MVM_OP_decont:
+            optimize_decont(tc, g, ins);
             break;
         }
         ins = ins->next;
