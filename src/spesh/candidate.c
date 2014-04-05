@@ -60,6 +60,9 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
             result->spesh_slots     = spesh_slots;
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
+            if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
+                if (!(static_frame->common.header.flags & MVM_CF_IN_GEN2_ROOT_LIST))
+                    MVM_gc_root_gen2_add(tc, (MVMCollectable *)static_frame);
             if (tc->instance->spesh_log_fh) {
                 char *c_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
                 char *c_cuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
