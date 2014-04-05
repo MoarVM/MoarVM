@@ -19,8 +19,9 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
 
         /* Unwind to the lexotic handler. */
         {
-            MVMLexotic *lex = (MVMLexotic *)invokee;
-            MVM_exception_gotolexotic(tc, lex->body.handler, lex->body.frame);
+            MVMLexotic      *lex = (MVMLexotic *)invokee;
+            MVMFrameHandler *fh  = &lex->body.frame->effective_handlers[lex->body.handler_idx];
+            MVM_exception_gotolexotic(tc, fh, lex->body.frame);
         }
     }
     else {

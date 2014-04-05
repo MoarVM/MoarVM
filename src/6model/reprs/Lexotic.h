@@ -5,11 +5,11 @@ struct MVMLexoticBody {
     /* The frame to unwind to. */
     MVMFrame *frame;
 
-    /* The frame handler to unwind to. */
-    MVMFrameHandler *handler;
-
     /* The result object. */
     MVMObject *result;
+
+    /* Index of the frame handler to use. */
+    MVMint32 handler_idx;
 };
 
 struct MVMLexotic {

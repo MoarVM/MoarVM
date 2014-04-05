@@ -497,21 +497,21 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     /* Locate handler associated with the specified label. */
     MVMFrame       *f  = tc->cur_frame;
     MVMStaticFrame *sf = f->static_info;
-    MVMFrameHandler *h = NULL;
+    MVMint32 handler_idx = -1;
     MVMuint32 i;
     for (i = 0; i < sf->body.num_handlers; i++) {
         if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
                 f->effective_handlers[i].goto_offset == offset) {
-            h = &f->effective_handlers[i];
+            handler_idx = i;
             break;
         }
     }
-    if (h == NULL)
+    if (handler_idx < 0)
         MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
 
     /* Allocate lexotic object and set it up. */
     lexotic = (MVMLexotic *)MVM_repr_alloc_init(tc, tc->instance->Lexotic);
-    lexotic->body.handler = h;
+    lexotic->body.handler_idx = handler_idx;
     lexotic->body.frame = MVM_frame_inc_ref(tc, tc->cur_frame);
 
     return (MVMObject *)lexotic;
