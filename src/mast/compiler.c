@@ -214,7 +214,7 @@ static void write_int8(char *buffer, size_t offset, unsigned char value) {
 
 /* Writes an double into a buffer. */
 static void write_double(char *buffer, size_t offset, double value) {
-    memcpy(buffer + offset, &value, 8);
+    memcpy_endian(buffer + offset, &value, 8);
 }
 
 /* Ensures the specified buffer has enough space and expands it if so. */

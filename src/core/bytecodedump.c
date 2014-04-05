@@ -40,7 +40,33 @@ static const char * get_typename(MVMuint16 type) {
 /* Macros for getting things from the bytecode stream. */
 /* GET_REG is defined differently here from interp.c */
 #define GET_I8(pc, idx)     *((MVMint8 *)(pc + idx))
-#define GET_REG(pc, idx)    *((MVMuint16 *)(pc + idx))
+#define GET_REG(pc, idx)    GET_UI16(pc, idx)
+#ifdef MVM_BIGENDIAN
+#define GET_I16(pc, idx)    ((pc)[idx] | ((MVMint8)(pc)[(idx)+1] << 8))
+#define GET_UI16(pc, idx)   ((pc)[idx] | ((pc)[(idx)+1] << 8))
+#define GET_I32(pc, idx)    (GET_UI16(pc, idx) | (GET_I16(pc, (idx)+2) << 16))
+#define GET_UI32(pc, idx)   (GET_UI16(pc, idx) | (GET_UI16(pc, (idx)+2) << 16))
+#define GET_I64(pc, idx)    (GET_UI32(pc, idx) | ((MVMint64)GET_I32(pc, (idx) + 4) << 32))
+#define GET_UI64(pc, idx)   (GET_UI32(pc, idx) | ((MVMuint64)GET_UI32(pc, (idx) + 4) << 32))
+static MVMnum32 GET_N32(MVMuint8 *pc, int idx)
+{
+    MVMnum32 value;
+    MVMuint32 tmp;
+
+    tmp = GET_UI32(pc, idx);
+    memcpy(&value, &tmp, sizeof(value));
+    return value;
+}
+static MVMnum64 GET_N64(MVMuint8 *pc, int idx)
+{
+    MVMnum64 value;
+    MVMuint64 tmp;
+
+    tmp = GET_UI64(pc, idx);
+    memcpy(&value, &tmp, sizeof(value));
+    return value;
+}
+#else
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
@@ -49,6 +75,7 @@ static const char * get_typename(MVMuint16 type) {
 #define GET_UI64(pc, idx)   *((MVMuint64 *)(pc + idx))
 #define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
+#endif
 
 enum {
     MVM_val_branch_target = 1,
@@ -176,7 +203,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         /* mark that this point in the bytestream is an op boundary */
         labels[lineloc] |= MVM_val_op_boundary;
 
-        op_num = *((MVMint16 *)cur_op);
+        op_num = GET_I16(cur_op, 0);
         cur_op += 2;
         if (op_num < MVM_OP_EXT_BASE) {
             op_info = MVM_op_get_op(op_num);
@@ -230,7 +257,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         break;
                     case MVM_operand_int64:
                         operand_size = 8;
-                        a("%d", GET_I64(cur_op, 0));
+                        a("%lld", (long long) GET_I64(cur_op, 0));
                         break;
                     case MVM_operand_num32:
                         operand_size = 4;

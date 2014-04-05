@@ -3,8 +3,34 @@
 #include "platform/time.h"
 
 /* Macros for getting things from the bytecode stream. */
-#define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
-#define GET_LEX(pc, idx, f) f->env[*((MVMuint16 *)(pc + idx))]
+#define GET_REG(pc, idx)    reg_base[GET_UI16(pc, idx)]
+#define GET_LEX(pc, idx, f) f->env[GET_UI16(pc,  idx)]
+#ifdef MVM_BIGENDIAN
+#define GET_I16(pc, idx)    ((pc)[idx] | ((MVMint8)(pc)[(idx)+1] << 8))
+#define GET_UI16(pc, idx)   ((pc)[idx] | ((pc)[(idx)+1] << 8))
+#define GET_I32(pc, idx)    (GET_UI16(pc, idx) | (GET_I16(pc, (idx)+2) << 16))
+#define GET_UI32(pc, idx)   (GET_UI16(pc, idx) | (GET_UI16(pc, (idx)+2) << 16))
+#define GET_I64(pc, idx)    (GET_UI32(pc, idx) | ((MVMint64)GET_I32(pc, (idx) + 4) << 32))
+#define GET_UI64(pc, idx)   (GET_UI32(pc, idx) | ((MVMuint64)GET_UI32(pc, (idx) + 4) << 32))
+static MVMnum32 GET_N32(MVMuint8 *pc, int idx)
+{
+    MVMnum32 value;
+    MVMuint32 tmp;
+
+    tmp = GET_UI32(pc, idx);
+    memcpy(&value, &tmp, sizeof(value));
+    return value;
+}
+static MVMnum64 GET_N64(MVMuint8 *pc, int idx)
+{
+    MVMnum64 value;
+    MVMuint64 tmp;
+
+    tmp = GET_UI64(pc, idx);
+    memcpy(&value, &tmp, sizeof(value));
+    return value;
+}
+#else
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
@@ -13,8 +39,9 @@
 #define GET_UI64(pc, idx)   *((MVMuint64 *)(pc + idx))
 #define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
 #define GET_N64(pc, idx)    *((MVMnum64 *)(pc + idx))
+#endif
 
-#define NEXT_OP (op = *(MVMuint16 *)(cur_op), cur_op += 2, op)
+#define NEXT_OP (op = GET_UI16(cur_op, 0), cur_op += 2, op)
 
 #if MVM_CGOTO
 #define DISPATCH(op)
