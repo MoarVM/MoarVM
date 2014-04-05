@@ -218,9 +218,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
             break;
-        case MVM_OP_isconcrete:
+        /*case MVM_OP_isconcrete:
             optimize_isconcrete(tc, g, ins);
-            break;
+            break;*/
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
             break;
