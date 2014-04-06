@@ -4174,6 +4174,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_p6obind_o): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 4).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 2))),
+                    value ? value : MVM_p6opague_ass_null(tc));
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_i): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                *((MVMint64 *)(data + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_n): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                *((MVMnum64 *)(data + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_s): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMString **)(data + GET_UI16(cur_op, 2))),
+                    GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

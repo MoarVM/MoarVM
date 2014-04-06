@@ -17,6 +17,11 @@ MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
     return body->replaced ? body->replaced : data;
 }
 
+/* Gets the "assigned null" magic value. */
+MVMObject * MVM_p6opague_ass_null(MVMThreadContext *tc) {
+    return ass_null;
+}
+
 /* Helpers for reading/writing values. */
 static MVMint64 get_int_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
