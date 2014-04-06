@@ -27,7 +27,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&methods);
     MVM_ASSIGN_REF(tc, &(root->header), ((MVMKnowHOWREPR *)root)->body.methods, methods);
-    REPR(methods)->initialize(tc, STABLE(methods), methods, OBJECT_BODY(methods));
 
     BOOTArray  = tc->instance->boot_types.BOOTArray;
     attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
