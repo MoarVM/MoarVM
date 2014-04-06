@@ -149,6 +149,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     case MVM_BOOL_MODE_BIGINT:
                     case MVM_BOOL_MODE_ITER:
                     case MVM_BOOL_MODE_HAS_ELEMS:
+                    case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
                         MVM_coerce_istrue(tc, objval, resultreg, NULL, NULL, 0);
                         truthvalue = resultreg->i64;
                         break;
