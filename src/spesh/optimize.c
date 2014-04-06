@@ -136,6 +136,28 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             case MVM_OP_unless_i:
                 truthvalue = flag_facts->value.i64;
                 break;
+            case MVM_OP_if_o:
+            case MVM_OP_unless_o: {
+                MVMObject *objval = flag_facts->value.o;
+                MVMBoolificationSpec *bs = objval->st->boolification_spec;
+                MVMRegister *resultreg = malloc(sizeof( MVMRegister ));
+                switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
+                    case MVM_BOOL_MODE_UNBOX_INT:
+                    case MVM_BOOL_MODE_UNBOX_NUM:
+                    case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
+                    case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO:
+                    case MVM_BOOL_MODE_BIGINT:
+                    case MVM_BOOL_MODE_ITER:
+                    case MVM_BOOL_MODE_HAS_ELEMS:
+                        MVM_coerce_istrue(tc, objval, resultreg, NULL, NULL, 0);
+                        truthvalue = resultreg->i64;
+                        break;
+                    case MVM_BOOL_MODE_CALL_METHOD:
+                    default:
+                        return;
+                }
+                break;
+            }
             default:
                 return;
         }
@@ -213,6 +235,8 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_if_i:
         case MVM_OP_unless_i:
+        case MVM_OP_if_o:
+        case MVM_OP_unless_o:
             optimize_iffy(tc, g, ins, bb);
             break;
         case MVM_OP_findmeth:
