@@ -621,9 +621,43 @@ queuepoll           w(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
+
+# Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
 sp_getarg_i      .s w(obj) int16 :pure
 sp_getarg_n      .s w(obj) int16 :pure
 sp_getarg_s      .s w(obj) int16 :pure
+
+# Look up a spesh slot.
 sp_getspeshslot  .s w(obj) int16 :pure
+
+# Find method, using int16 spesh slot and the one after it as a cache.
 sp_findmeth      .s w(obj) r(obj) str int16 :pure
+
+# Create an object with the first int16's number of bytes size and then
+# set its STable to the STable in the spesh slot with the second int16.
+sp_fastcreate    .s w(obj) int16 int16
+
+# Retrieve or store a value by pointer offset.
+sp_get_o         .s w(obj) r(obj) int16
+sp_get_i         .s w(int64) r(obj) int16
+sp_get_n         .s w(num64) r(obj) int16
+sp_get_s         .s w(str) r(obj) int16
+sp_bind_o        .s r(obj) int16 r(obj)
+sp_bind_i        .s r(obj) int16 r(int64)
+sp_bind_n        .s r(obj) int16 r(num64)
+sp_bind_s        .s r(obj) int16 r(str)
+
+# Same as above, but for p6opaques, handling the NULL sentinel and the
+# real_data thing for mixins. The vt variant vivifies a NULL with a
+# type object; the vc does it with a clone.
+sp_p6oget_o      .s w(obj) r(obj) int16
+sp_p6ogetvt_o    .s w(obj) r(obj) int16 int16
+sp_p6ogetvc_o    .s w(obj) r(obj) int16 int16
+sp_p6oget_i      .s w(int64) r(obj) int16
+sp_p6oget_n      .s w(num64) r(obj) int16
+sp_p6oget_s      .s w(str) r(obj) int16
+sp_p6obind_o     .s r(obj) int16 r(obj)
+sp_p6obind_i     .s r(obj) int16 r(int64)
+sp_p6obind_n     .s r(obj) int16 r(num64)
+sp_p6obind_s     .s r(obj) int16 r(str)

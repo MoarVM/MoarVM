@@ -588,6 +588,25 @@
 #define MVM_OP_sp_getarg_s 584
 #define MVM_OP_sp_getspeshslot 585
 #define MVM_OP_sp_findmeth 586
+#define MVM_OP_sp_fastcreate 587
+#define MVM_OP_sp_get_o 588
+#define MVM_OP_sp_get_i 589
+#define MVM_OP_sp_get_n 590
+#define MVM_OP_sp_get_s 591
+#define MVM_OP_sp_bind_o 592
+#define MVM_OP_sp_bind_i 593
+#define MVM_OP_sp_bind_n 594
+#define MVM_OP_sp_bind_s 595
+#define MVM_OP_sp_p6oget_o 596
+#define MVM_OP_sp_p6ogetvt_o 597
+#define MVM_OP_sp_p6ogetvc_o 598
+#define MVM_OP_sp_p6oget_i 599
+#define MVM_OP_sp_p6oget_n 600
+#define MVM_OP_sp_p6oget_s 601
+#define MVM_OP_sp_p6obind_o 602
+#define MVM_OP_sp_p6obind_i 603
+#define MVM_OP_sp_p6obind_n 604
+#define MVM_OP_sp_p6obind_s 605
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
