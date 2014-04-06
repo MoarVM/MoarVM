@@ -292,14 +292,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                     case MVM_SPESH_GUARD_DC_CONC: {
                         MVMRegister dc;
                         STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                        if (!IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                        if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
                             match = 0;
                         break;
                     }
                     case MVM_SPESH_GUARD_DC_TYPE: {
                         MVMRegister dc;
                         STABLE(arg)->container_spec->fetch(tc, arg, &dc);
-                        if (IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                        if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
                             match = 0;
                         break;
                     }
