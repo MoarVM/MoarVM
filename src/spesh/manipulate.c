@@ -35,35 +35,43 @@ void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
 }
 
 void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *succ) {
-    MVMuint16 i;
-    MVMuint16 k;
-    for (i = 0; i < bb->num_succ; i++) {
-        if (bb->succ[i] == succ) {
+    MVMSpeshBB ** const   bb_succ = bb->succ;
+    MVMSpeshBB ** const succ_pred = succ->pred;
+    const MVMuint16   bb_num_succ = --bb->num_succ;
+    const MVMuint16 succ_num_pred = --succ->num_pred;
+    MVMuint16 i, k;
+
+    for (i = 0; i <= bb_num_succ; i++) {
+        if (bb_succ[i] == succ) {
             break;
         }
     }
-    if (bb->succ[i] != succ) {
+
+    if (bb_succ[i] != succ) {
         MVM_exception_throw_adhoc(tc, "Didn't find the successor to remove from a Spesh Basic Block");
     }
+
     /* Remove the succ from the list, shuffle other successors back in place */
-    for (k = i; k < bb->num_succ - 1; k++) {
-        bb->succ[k] = bb->succ[k+1];
+    for (k = i; k < bb_num_succ; k++) {
+        bb_succ[k] = bb_succ[k + 1];
     }
-    bb->succ[bb->num_succ - 1] = NULL;
-    bb->num_succ--;
+
+    bb_succ[bb_num_succ] = NULL;
 
     /* Now hunt the bb in the succ's pred, so that we remove all traces of the connection */
-    for (i = 0; i < succ->num_pred; i++) {
-        if (succ->pred[i] == bb) {
+    for (i = 0; i <= succ_num_pred; i++) {
+        if (succ_pred[i] == bb) {
             break;
         }
     }
-    if (succ->pred[i] != bb) {
+
+    if (succ_pred[i] != bb) {
         MVM_exception_throw_adhoc(tc, "Didn't find the predecessor to remove from a Spesh Basic Block");
     }
-    for (k = i; k < succ->num_pred - 1; k++) {
-        succ->pred[k] = succ->pred[k+1];
+
+    for (k = i; k < succ_num_pred; k++) {
+        succ_pred[k] = succ_pred[k + 1];
     }
-    succ->pred[succ->num_pred - 1] = NULL;
-    succ->num_pred--;
+
+    succ_pred[succ_num_pred] = NULL;
 }
