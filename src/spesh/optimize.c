@@ -228,6 +228,16 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     }
 }
 
+/* If we know the type of a significant operand, we might try to specialize by
+ * representation. */
+static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                             MVMSpeshIns *ins, MVMint32 type_operand) {
+    MVMSpeshFacts *facts = get_facts(tc, g, ins->operands[type_operand]);
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && facts->type)
+        if (REPR(facts->type)->spesh)
+            REPR(facts->type)->spesh(tc, STABLE(facts->type), g, bb, ins);
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMint32 i;
@@ -250,11 +260,39 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
             break;
+        case MVM_OP_create:
+            optimize_repr_op(tc, g, bb, ins, 1);
+            break;
         /*case MVM_OP_isconcrete:
             optimize_isconcrete(tc, g, ins);
             break;*/
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
+            break;
+        case MVM_OP_bindattr_i:
+        case MVM_OP_bindattr_n:
+        case MVM_OP_bindattr_s:
+        case MVM_OP_bindattr_o:
+            optimize_repr_op(tc, g, bb, ins, 0);
+            break;
+        case MVM_OP_getattr_i:
+        case MVM_OP_getattr_n:
+        case MVM_OP_getattr_s:
+        case MVM_OP_getattr_o:
+            optimize_repr_op(tc, g, bb, ins, 1);
+            break;
+        case MVM_OP_box_i:
+        case MVM_OP_box_n:
+        case MVM_OP_box_s:
+            optimize_repr_op(tc, g, bb, ins, 2);
+            break;
+        case MVM_OP_unbox_i:
+        case MVM_OP_unbox_n:
+        case MVM_OP_unbox_s:
+            optimize_repr_op(tc, g, bb, ins, 1);
+            break;
+        case MVM_OP_elems:
+            optimize_repr_op(tc, g, bb, ins, 1);
             break;
         case MVM_OP_hllize:
             optimize_hllize(tc, g, ins);
