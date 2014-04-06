@@ -107,6 +107,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
+    NULL, /* spesh */
     "Lexotic", /* name */
     MVM_REPR_ID_Lexotic,
     1, /* refs_frames */

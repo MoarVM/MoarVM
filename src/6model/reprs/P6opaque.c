@@ -1354,6 +1354,7 @@ static const MVMREPROps this_repr = {
     gc_mark_repr_data,
     gc_free_repr_data,
     compose,
+    NULL, /* spesh */
     "P6opaque", /* name */
     MVM_REPR_ID_P6opaque,
     0, /* refs_frames */

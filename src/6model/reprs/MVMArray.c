@@ -1203,6 +1203,7 @@ static const MVMREPROps this_repr = {
     gc_mark_repr_data,
     gc_free_repr_data,
     compose,
+    NULL, /* spesh */
     "VMArray", /* name */
     MVM_REPR_ID_MVMArray,
     0, /* refs_frames */

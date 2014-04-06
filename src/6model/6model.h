@@ -488,6 +488,11 @@ struct MVMREPROps {
      * to compute memory layout. */
     void (*compose) (MVMThreadContext *tc, MVMSTable *st, MVMObject *info);
 
+    /* Allows the REPR to produce specialized bytecode versions of various
+     * instructions, when we know some of the types involved. */
+    void (*spesh) (MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins);
+
     /* The representation's name. */
     const char *name;
 
