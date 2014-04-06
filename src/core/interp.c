@@ -4162,6 +4162,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                 }
             }
+            OP(sp_fastcreate): {
+                /* Assume we're in normal code, so doing a nursery allocation.
+                 * Also, that there is no initialize. */
+                MVMuint16 size       = GET_UI16(cur_op, 2);
+                MVMObject *obj       = MVM_gc_allocate_zeroed(tc, size);
+                obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                obj->header.size     = size;
+                obj->header.owner    = tc->thread_id;
+                GET_REG(cur_op, 0).o = obj;
+                cur_op += 6;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
