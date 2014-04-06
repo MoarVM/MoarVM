@@ -1291,6 +1291,29 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     }
 }
 
+/* Bytecode specialization for this REPR. */
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    if (!repr_data)
+        return;
+    switch (ins->info->opcode) {
+    case MVM_OP_create: {
+        /* Create can be optimized if there are no initialization slots. */
+        if (repr_data->initialize_slots[0] < 0) {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand type     = ins->operands[1];
+            ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1].lit_i16 = st->size;
+            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+            MVM_spesh_get_facts(tc, g, type)->usages--;
+            break;
+        }
+    }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
 
@@ -1354,10 +1377,8 @@ static const MVMREPROps this_repr = {
     gc_mark_repr_data,
     gc_free_repr_data,
     compose,
-    NULL, /* spesh */
+    spesh,
     "P6opaque", /* name */
     MVM_REPR_ID_P6opaque,
     0, /* refs_frames */
 };
-
-
