@@ -160,11 +160,11 @@ MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > strgraphs)
+    if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(length + 1);
-    for (i = 0; i < length; i++) {
+    result = malloc(lengthu + 1);
+    for (i = 0; i < lengthu; i++) {
         MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
         if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256)) {
             result[i] = (MVMuint8)codepoint;
@@ -178,6 +178,6 @@ MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString 
     }
     result[i] = 0;
     if (output_size)
-        *output_size = length;
+        *output_size = lengthu;
     return result;
 }
