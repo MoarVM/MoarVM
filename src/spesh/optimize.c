@@ -118,6 +118,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         case MVM_OP_if_s:
         case MVM_OP_if_n:
         case MVM_OP_if_o:
+        case MVM_OP_ifnonnull:
             negated_op = 0;
             break;
         case MVM_OP_unless_i:
@@ -162,6 +163,9 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             case MVM_OP_if_n:
             case MVM_OP_unless_n:
                 truthvalue = flag_facts->value.n64 != 0;
+                break;
+            case MVM_OP_ifnonnull:
+                truthvalue = flag_facts->value.o != 0;
                 break;
             default:
                 return;
@@ -244,6 +248,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_unless_n:
         case MVM_OP_if_o:
         case MVM_OP_unless_o:
+        case MVM_OP_ifnonnull:
             optimize_iffy(tc, g, ins, bb);
             break;
         case MVM_OP_findmeth:
