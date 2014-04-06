@@ -1313,8 +1313,22 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             ins->operands[1].lit_i16 = st->size;
             ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
             MVM_spesh_get_facts(tc, g, type)->usages--;
-            break;
         }
+        break;
+    }
+    case MVM_OP_bindattr_o: {
+        MVMSpeshFacts *ch_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        if (ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type,
+                MVM_spesh_get_string(tc, g, ins->operands[2]));
+            if (slot >= 0 && !repr_data->flattened_stables[slot]) {
+                MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+                ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_o);
+                ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
+                ins->operands[2] = ins->operands[3];
+            }
+        }
+        break;
     }
     }
 }
