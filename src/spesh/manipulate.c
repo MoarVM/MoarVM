@@ -4,6 +4,7 @@
  * as adding/removing/replacing instructions. */
 
 void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    /* Remove it from the double linked list. */
     MVMSpeshIns *prev = ins->prev;
     MVMSpeshIns *next = ins->next;
     if (prev)
@@ -14,6 +15,27 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
         next->prev = prev;
     else
         bb->last_ins = prev;
+
+    /* Move it's annotations. */
+    while (ins->annotations) {
+        MVMSpeshAnn *ann = ins->annotations;
+        switch (ann->type) {
+            case MVM_SPESH_ANN_FH_START:
+            case MVM_SPESH_ANN_FH_GOTO:
+                if (next) {
+                    ann->next = next->annotations;
+                    next->annotations = ann;
+                }
+                break;
+            case MVM_SPESH_ANN_FH_END:
+                if (prev) {
+                    ann->next = prev->annotations;
+                    prev->annotations = ann;
+                }
+                break;
+        }
+        ins->annotations = ann->next;
+    }
 }
 
 void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *previous, MVMSpeshIns *to_insert) {
