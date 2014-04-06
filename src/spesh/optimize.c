@@ -141,7 +141,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             case MVM_OP_unless_o: {
                 MVMObject *objval = flag_facts->value.o;
                 MVMBoolificationSpec *bs = objval->st->boolification_spec;
-                MVMRegister *resultreg = malloc(sizeof( MVMRegister ));
+                MVMRegister resultreg;
                 switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
                     case MVM_BOOL_MODE_UNBOX_INT:
                     case MVM_BOOL_MODE_UNBOX_NUM:
@@ -151,8 +151,8 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     case MVM_BOOL_MODE_ITER:
                     case MVM_BOOL_MODE_HAS_ELEMS:
                     case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-                        MVM_coerce_istrue(tc, objval, resultreg, NULL, NULL, 0);
-                        truthvalue = resultreg->i64;
+                        MVM_coerce_istrue(tc, objval, &resultreg, NULL, NULL, 0);
+                        truthvalue = resultreg.i64;
                         break;
                     case MVM_BOOL_MODE_CALL_METHOD:
                     default:
@@ -162,7 +162,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             }
             case MVM_OP_if_n:
             case MVM_OP_unless_n:
-                truthvalue = flag_facts->value.n64 != 0;
+                truthvalue = flag_facts->value.n64 != 0.0;
                 break;
             default:
                 return;
