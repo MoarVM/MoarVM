@@ -7,7 +7,12 @@
 /* Copies facts from one var to another. */
 static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 to_orig,
                        MVMuint16 to_i, MVMuint16 from_orig, MVMuint16 from_i) {
-    g->facts[to_orig][to_i] = g->facts[from_orig][from_i];
+    MVMSpeshFacts *tfacts = &g->facts[to_orig][to_i];
+    MVMSpeshFacts *ffacts = &g->facts[from_orig][from_i];
+    tfacts->flags         = ffacts->flags;
+    tfacts->type          = ffacts->type;
+    tfacts->decont_type   = ffacts->decont_type;
+    tfacts->value         = ffacts->value;
 }
 
 /* Handles object-creating instructions. */
