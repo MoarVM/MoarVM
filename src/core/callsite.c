@@ -5,16 +5,17 @@
 void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
     MVMCallsiteInterns *interns = tc->instance->callsite_interns;
     MVMCallsite        *cs      = *cs_ptr;
+    MVMint32            num_pos = cs->num_pos;
     MVMint32 i, found;
 
     /* Can't intern anything with named or flattening, for now. */
-    if (cs->arg_count != cs->num_pos)
+    if (cs->arg_count != num_pos)
         return;
     if (cs->has_flattening)
         return;
 
     /* Also can't intern past the max arity. */
-    if (cs->num_pos >= MVM_INTERN_ARITY_LIMIT)
+    if (num_pos >= MVM_INTERN_ARITY_LIMIT)
         return;
 
     /* Obtain mutex protecting interns store. */
@@ -22,14 +23,14 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
 
     /* Search for a match. */
     found = 0;
-    for (i = 0; i < interns->num_by_arity[cs->num_pos]; i++) {
-        if (memcmp(interns->by_arity[cs->num_pos][i]->arg_flags, cs->arg_flags, cs->num_pos) == 0) {
+    for (i = 0; i < interns->num_by_arity[num_pos]; i++) {
+        if (memcmp(interns->by_arity[num_pos][i]->arg_flags, cs->arg_flags, num_pos) == 0) {
             /* Got a match! Free the one we were passed and replace it with
              * the interned one. */
-            if (cs->num_pos)
+            if (num_pos)
                 free(cs->arg_flags);
             free(cs);
-            *cs_ptr = interns->by_arity[cs->num_pos][i];
+            *cs_ptr = interns->by_arity[num_pos][i];
             found = 1;
             break;
         }
