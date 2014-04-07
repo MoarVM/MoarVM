@@ -509,20 +509,48 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     if (handler_idx < 0)
         MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
 
-    /* Allocate lexotic object and set it up. */
-    lexotic = (MVMLexotic *)MVM_repr_alloc_init(tc, tc->instance->Lexotic);
+    /* See if we've got this lexotic cached; return it if so. */
+    lexotic = NULL;
+    for (i = 0; i < sf->body.num_lexotics; i++)
+        if (sf->body.lexotics[i]->body.handler_idx == handler_idx)
+            return (MVMObject *)sf->body.lexotics[i];
+
+    /* Allocate lexotic object, set it up, and cache it. */
+    MVMROOT(tc, sf, {
+        lexotic = (MVMLexotic *)MVM_repr_alloc_init(tc, tc->instance->Lexotic);
+    });
     lexotic->body.handler_idx = handler_idx;
-    lexotic->body.frame = MVM_frame_inc_ref(tc, tc->cur_frame);
+    MVM_ASSIGN_REF(tc, &(lexotic->common.header), lexotic->body.sf, sf);
+    if (sf->body.num_lexotics)
+        sf->body.lexotics = realloc(sf->body.lexotics,
+            (sf->body.num_lexotics + 1) * sizeof(MVMLexotic *));
+    else
+        sf->body.lexotics = malloc(sizeof(MVMLexotic *));
+    MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.lexotics[sf->body.num_lexotics], lexotic);
+    sf->body.num_lexotics++;
 
     return (MVMObject *)lexotic;
 }
 
 /* Unwinds to a lexotic captured handler. */
-void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFrame *f) {
-    if (in_caller_chain(tc, f)) {
+void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf) {
+    MVMFrame *f, *search;
+    search = tc->cur_frame;
+    while (search) {
+        f = search;
+        while (f) {
+            if (f->static_info == sf)
+                break;
+            f = f->outer;
+        }
+        if (f)
+            break;
+        search = search->caller;
+    }
+    if (f && in_caller_chain(tc, f)) {
         LocatedHandler lh;
         lh.frame = f;
-        lh.handler = h;
+        lh.handler = &(f->effective_handlers[handler_idx]);
         run_handler(tc, lh, NULL);
     }
     else {

@@ -64,7 +64,7 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *exObj);
 MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);
-void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMFrameHandler *h, MVMFrame *f);
+void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf);
 MVM_PUBLIC MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_PUBLIC MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) MVM_NO_RETURN_GCC;

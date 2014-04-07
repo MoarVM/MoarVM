@@ -55,6 +55,10 @@ struct MVMStaticFrameBody {
     /* Frame exception handlers information. */
     MVMFrameHandler *handlers;
 
+    /* Lexotics cache. */
+    MVMLexotic **lexotics;
+    MVMint32 num_lexotics;
+
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
 

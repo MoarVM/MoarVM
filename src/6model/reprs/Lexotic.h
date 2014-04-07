@@ -2,8 +2,8 @@
  * return. */
 
 struct MVMLexoticBody {
-    /* The frame to unwind to. */
-    MVMFrame *frame;
+    /* The target frame type. */
+    MVMStaticFrame *sf;
 
     /* The result object. */
     MVMObject *result;
