@@ -74,6 +74,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshBB   *checkarity_bb      = NULL;
     MVMSpeshIns  *paramnamesused_ins = NULL;
     MVMSpeshBB   *paramnamesused_bb  = NULL;
+    MVMSpeshIns  *param_sn_ins       = NULL;
+    MVMSpeshBB   *param_sn_bb        = NULL;
 
     MVMSpeshIns **pos_ins = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **pos_bb  = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
@@ -136,9 +138,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_rn_s:
             case MVM_OP_param_rn_o:
             case MVM_OP_param_sp:
-            case MVM_OP_param_sn:
                 /* Don't know how to handle these yet; bail out. */
                 goto cleanup;
+            case MVM_OP_param_sn:
+                param_sn_ins = ins;
+                param_sn_bb  = bb;
+                break;
             case MVM_OP_usecapture:
             case MVM_OP_savecapture:
                 /* Require full args processing context for now; bail. */
@@ -192,6 +197,25 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 if (cs->arg_flags[i] != MVM_CALLSITE_ARG_OBJ)
                     goto cleanup;
                 break;
+            }
+        }
+
+        /* Since we know there's no incoming nameds (due to spesh limitation)
+         * we can always turn param_sn into a simple hash creation. This will
+         * typically be further lowered in optimize. */
+        if (param_sn_ins) {
+            MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
+            if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
+                MVMSpeshOperand target    = param_sn_ins->operands[0];
+                param_sn_ins->info        = MVM_op_get_op(MVM_OP_sp_fastcreate);
+                param_sn_ins->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                param_sn_ins->operands[0] = target;
+                param_sn_ins->operands[1].lit_i16 = sizeof(MVMHash);
+                param_sn_ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
+                    (MVMCollectable *)STABLE(hash_type));
+            }
+            else {
+                goto cleanup;
             }
         }
 
