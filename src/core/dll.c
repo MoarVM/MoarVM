@@ -4,6 +4,7 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     MVMDLLRegistry *entry;
     char *cpath;
     DLLib *lib;
+    int jen_hash_pad_to_32;
     
     MVMROOT(tc, name, {
         MVMROOT(tc, path, {
@@ -14,6 +15,7 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
     MVM_string_flatten(tc, name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->dll_registry, name, entry);
 
     /* already loaded */
@@ -50,10 +52,12 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
 
 int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
     MVMDLLRegistry *entry;
+    int jen_hash_pad_to_32;
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
     MVM_string_flatten(tc, name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->dll_registry, name, entry);
 
     if (!entry) {
@@ -84,10 +88,12 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
     MVMDLLSym *obj;
     char *csym;
     void *address;
+    int jen_hash_pad_to_32;
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
     MVM_string_flatten(tc, lib);
+    jen_hash_pad_to_32 = (lib->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->dll_registry, lib, entry);
 
     if (!entry) {

@@ -5,6 +5,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     MVMExtRegistry *entry;
     MVMDLLSym *sym;
     void (*init)(MVMThreadContext *);
+    int jen_hash_pad_to_32;
 
     MVMROOT(tc, lib, {
     MVMROOT(tc, ext, {
@@ -18,6 +19,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     uv_mutex_lock(&tc->instance->mutex_ext_registry);
 
     MVM_string_flatten(tc, name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->ext_registry, name, entry);
 
     /* Extension already loaded. */
@@ -55,10 +57,12 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     MVMExtOpRegistry *entry;
     MVMString *name = MVM_string_ascii_decode_nt(
             tc, tc->instance->VMString, cname);
+    int jen_hash_pad_to_32;
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
     MVM_string_flatten(tc, name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->extop_registry, name, entry);
 
     /* Op already registered, so just verify its signature. */
@@ -164,6 +168,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
 const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
         MVMExtOpRecord *record) {
     MVMExtOpRegistry *entry;
+    int jen_hash_pad_to_32;
 
     /* Already resolved. */
     if (record->info)
@@ -172,6 +177,7 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
     MVM_string_flatten(tc, record->name);
+    jen_hash_pad_to_32 = (record->name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->extop_registry, record->name, entry);
 
     if (!entry) {

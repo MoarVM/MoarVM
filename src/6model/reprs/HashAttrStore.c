@@ -39,11 +39,16 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
         size_t klen;
         void *kdata;
+        int jen_hash_pad_to_32;
         MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         extract_key(tc, &kdata, &klen, new_entry->key);
 
+        if (REPR(current->key)->ID == MVM_REPR_ID_MVMString)
+            jen_hash_pad_to_32 = (((MVMString *)current->key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
+        else if (REPR(current->key)->ID == MVM_REPR_ID_P6str)
+            jen_hash_pad_to_32 = (((MVMP6str *)current->key)->body.value->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
         HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
     }
 }
@@ -73,7 +78,9 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMHashEntry *entry;
     size_t klen;
     if (kind == MVM_reg_obj) {
+        int jen_hash_pad_to_32;
         extract_key(tc, &kdata, &klen, (MVMObject *)name);
+        jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
         HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
         result_reg->o = entry != NULL ? entry->value : NULL;
     }
@@ -91,8 +98,10 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMHashEntry *entry;
     size_t klen;
     if (kind == MVM_reg_obj) {
+        int jen_hash_pad_to_32;
         extract_key(tc, &kdata, &klen, (MVMObject *)name);
 
+        jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
         /* first check whether we must update the old entry. */
         HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
         if (!entry) {
@@ -115,8 +124,10 @@ static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, vo
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
+    int jen_hash_pad_to_32;
 
     extract_key(tc, &kdata, &klen, (MVMObject *)name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
     return entry != NULL;
 }

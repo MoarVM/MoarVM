@@ -34,6 +34,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMHashBody *src_body  = (MVMHashBody *)src;
     MVMHashBody *dest_body = (MVMHashBody *)dest;
     MVMHashEntry *current, *tmp;
+    int jen_hash_pad_to_32 = 0;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
@@ -44,6 +45,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         extract_key(tc, &kdata, &klen, new_entry->key);
 
+        if (REPR(current->key)->ID == MVM_REPR_ID_MVMString)
+            jen_hash_pad_to_32 = (((MVMString *)current->key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
+        else if (REPR(current->key)->ID == MVM_REPR_ID_P6str)
+            jen_hash_pad_to_32 = (((MVMP6str *)current->key)->body.value->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
         HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
     }
 }
@@ -70,7 +75,14 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
+    int jen_hash_pad_to_32 = 0;
+
     extract_key(tc, &kdata, &klen, key);
+
+    if (REPR(key)->ID == MVM_REPR_ID_MVMString)
+        jen_hash_pad_to_32 = (((MVMString *)key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
+    else if (REPR(key)->ID == MVM_REPR_ID_P6str)
+        jen_hash_pad_to_32 = (((MVMP6str *)key)->body.value->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
     if (kind == MVM_reg_obj)
         result->o = entry != NULL ? entry->value : NULL;
@@ -84,8 +96,14 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
+    int jen_hash_pad_to_32 = 0;
 
     extract_key(tc, &kdata, &klen, key);
+
+    if (REPR(key)->ID == MVM_REPR_ID_MVMString)
+        jen_hash_pad_to_32 = (((MVMString *)key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
+    else if (REPR(key)->ID == MVM_REPR_ID_P6str)
+        jen_hash_pad_to_32 = (((MVMP6str *)key)->body.value->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
 
     /* first check whether we can must update the old entry. */
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
@@ -115,8 +133,14 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     void *kdata;
     MVMHashEntry *entry;
     size_t klen;
+    int jen_hash_pad_to_32 = 0;
+
     extract_key(tc, &kdata, &klen, key);
 
+    if (REPR(key)->ID == MVM_REPR_ID_MVMString)
+        jen_hash_pad_to_32 = (((MVMString *)key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
+    else if (REPR(key)->ID == MVM_REPR_ID_P6str)
+        jen_hash_pad_to_32 = (((MVMP6str *)key)->body.value->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
     return entry != NULL;
 }
@@ -126,8 +150,14 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMHashEntry *old_entry;
     size_t klen;
     void *kdata;
+    int jen_hash_pad_to_32;
+
     extract_key(tc, &kdata, &klen, key);
 
+    if (REPR(key)->ID == MVM_REPR_ID_MVMString)
+        jen_hash_pad_to_32 = (((MVMString *)key)->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
+    else if (REPR(key)->ID == MVM_REPR_ID_P6str)
+        jen_hash_pad_to_32 = (((MVMP6str *)key)->body.value->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, old_entry);
     if (old_entry) {
         HASH_DELETE(hash_handle, body->hash_head, old_entry);

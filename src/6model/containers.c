@@ -123,11 +123,13 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
     void *kdata;
     MVMContainerRegistry *entry;
     size_t klen;
+    int jen_hash_pad_to_32;
 
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "add container config needs concrete string");
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
 
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     HASH_FIND(hash_handle, tc->instance->container_registry, kdata, klen, entry);
 
     if (!entry) {
@@ -147,9 +149,11 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
     void *kdata;
     MVMContainerRegistry *entry;
     size_t klen;
+    int jen_hash_pad_to_32;
 
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get container config needs concrete string");
 
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     HASH_FIND(hash_handle, tc->instance->container_registry, kdata, klen, entry);
     return entry != NULL ? entry->configurer : NULL;
 }

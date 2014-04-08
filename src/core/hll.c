@@ -4,8 +4,10 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     void *kdata;
     MVMHLLConfig *entry;
     size_t klen;
+    int jen_hash_pad_to_32;
 
     MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get hll config needs concrete string");
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
 
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 

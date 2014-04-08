@@ -13,6 +13,7 @@ static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *w
 void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     MVMCompUnit *cu, *try_cu;
     MVMLoadedCompUnitName *loaded_name;
+    int jen_hash_pad_to_32;
 
     /* Work out actual filename to use, taking --libpath into account. */
     filename = MVM_file_in_libpath(tc, filename);
@@ -20,6 +21,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
     MVM_string_flatten(tc, filename);
+    jen_hash_pad_to_32 = (filename->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->loaded_compunits, filename, loaded_name);
     if (loaded_name) {
         /* already loaded */

@@ -288,6 +288,7 @@ static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMN
 static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMObject *sig_info) {
     MVMNativeCallback *callback_data;
     MVMString         *cuid;
+    int jen_hash_pad_to_32;
 
     if (!IS_CONCRETE(callback))
         return NULL;
@@ -296,6 +297,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     callback = MVM_frame_find_invokee(tc, callback, NULL);
     cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
     MVM_string_flatten(tc, cuid);
+    jen_hash_pad_to_32 = (cuid->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data);
 
     if (!callback_data) {

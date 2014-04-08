@@ -48,6 +48,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
     {
         MVMLexicalRegistry *current, *tmp;
+        int jen_hash_pad_to_32;
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
         HASH_ITER(hash_handle, src_body->lexical_names, current, tmp) {
@@ -60,6 +61,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             new_entry->value = current->value;
 
             MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, current->key, "really broken")
+            jen_hash_pad_to_32 = (current->key->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
             HASH_ADD_KEYPTR(hash_handle, dest_body->lexical_names, kdata, klen, new_entry);
         }
     }

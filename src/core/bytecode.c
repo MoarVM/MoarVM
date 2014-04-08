@@ -303,6 +303,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     for (i = 0; i < rs->expected_scs; i++) {
         MVMSerializationContextBody *scb;
         MVMString *handle;
+        int jen_hash_pad_to_32;
 
         /* Grab string heap index. */
         ensure_can_read(tc, cu, rs, pos, 4);
@@ -319,6 +320,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
         MVM_string_flatten(tc, handle);
+        jen_hash_pad_to_32 = (handle->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
         MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
         if (scb && scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
@@ -569,6 +571,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             for (j = 0; j < static_frame_body->num_lexicals; j++) {
                 MVMString *name = get_heap_string(tc, cu, rs, pos, 6 * j + 2);
                 MVMLexicalRegistry *entry = calloc(1, sizeof(MVMLexicalRegistry));
+                int jen_hash_pad_to_32;
 
                 MVM_ASSIGN_REF(tc, &(static_frame->common.header), entry->key, name);
                 static_frame_body->lexical_names_list[j] = entry;
@@ -576,6 +579,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
                 static_frame_body->lexical_types[j] = read_int16(pos, 6 * j);
                 MVM_string_flatten(tc, name);
+                jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
                 MVM_HASH_BIND(tc, static_frame_body->lexical_names, name, entry)
             }
             pos += 6 * static_frame_body->num_lexicals;

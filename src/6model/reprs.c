@@ -121,6 +121,7 @@ GCC_DIAG_ON(return-type)
 /* Registers a representation. */
 static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMString *name) {
     MVMReprRegistry *entry;
+    int jen_hash_pad_to_32;
 
     if (!name)
         name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString,
@@ -137,17 +138,21 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
     /* Enter into registry. */
     tc->instance->repr_list[repr->ID] = entry;
     MVM_string_flatten(tc, name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_BIND(tc, tc->instance->repr_hash, name, entry);
 }
 
 int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     MVMReprRegistry *entry;
     MVMString *name;
+    int jen_hash_pad_to_32;
 
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
 
+    /* XXX this decode + flatten could probably be optimized */
     name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
     MVM_string_flatten(tc, name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry);
     if (entry) {
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
@@ -222,8 +227,10 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
 static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
         MVMString *name) {
     MVMReprRegistry *entry;
+    int jen_hash_pad_to_32;
 
     MVM_string_flatten(tc, name);
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry)
 
     if (entry == NULL)
