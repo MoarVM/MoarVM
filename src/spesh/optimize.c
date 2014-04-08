@@ -100,7 +100,7 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        ins->operands[1].lit_i64    = obj_facts->flags & MVM_SPESH_FACT_CONCRETE;
+        ins->operands[0].lit_i64    = obj_facts->flags & MVM_SPESH_FACT_CONCRETE;
         result_facts->value.i64     = obj_facts->flags & MVM_SPESH_FACT_CONCRETE;
         obj_facts->usages--;
     }
@@ -263,9 +263,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
-        /*case MVM_OP_isconcrete:
+        case MVM_OP_isconcrete:
             optimize_isconcrete(tc, g, ins);
-            break;*/
+            break;
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
             break;
