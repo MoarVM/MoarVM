@@ -868,6 +868,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
                 codepoint_table_index = codepoint_extents[extent_index][2];
+                int jen_hash_pad_to_32 = 0;
                 for (; extent_span_index < length
                     && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
@@ -887,6 +888,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                 break;
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
+                int jen_hash_pad_to_32 = 0;
                 if (name) {
                     MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
                     entry->name = (char *)name;

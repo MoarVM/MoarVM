@@ -526,6 +526,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
     unsigned short i;
     CallsiteReuseEntry *entry = NULL;
     unsigned char *identifier = (unsigned char *)malloc(elems);
+    int jen_hash_pad_to_32 = 0;
 
     for (i = 0; i < elems; i++)
         identifier[i] = (unsigned char)ATPOS_I_C(vm, flags, i);

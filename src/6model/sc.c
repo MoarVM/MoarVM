@@ -6,6 +6,7 @@
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContext     *sc;
     MVMSerializationContextBody *scb;
+    int jen_hash_pad_to_32;
 
     /* Allocate. */
     MVMROOT(tc, handle, {
@@ -14,6 +15,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             /* Add to weak lookup hash. */
             uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
             MVM_string_flatten(tc, handle);
+            jen_hash_pad_to_32 = (handle->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
             MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
             if (!scb) {
                 sc->body = scb = calloc(1, sizeof(MVMSerializationContextBody));
@@ -236,7 +238,9 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 /* Resolves an SC handle using the SC weakhash. */
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContextBody *scb;
+    int jen_hash_pad_to_32;
     MVM_string_flatten(tc, handle);
+    jen_hash_pad_to_32 = (handle->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
     MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);

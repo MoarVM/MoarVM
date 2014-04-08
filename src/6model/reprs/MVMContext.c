@@ -43,11 +43,13 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMContextBody *body  = (MVMContextBody *)data;
     MVMFrame       *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    int jen_hash_pad_to_32;
     if (!lexical_names) {
        MVM_exception_throw_adhoc(tc,
             "Lexical with name '%s' does not exist in this frame",
                 MVM_string_utf8_encode_C_string(tc, name));
     }
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
        MVM_exception_throw_adhoc(tc,
@@ -67,11 +69,13 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMContextBody *body  = (MVMContextBody *)data;
     MVMFrame       *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    int jen_hash_pad_to_32;
     if (!lexical_names) {
        MVM_exception_throw_adhoc(tc,
             "Lexical with name '%s' does not exist in this frame",
                 MVM_string_utf8_encode_C_string(tc, name));
     }
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
        MVM_exception_throw_adhoc(tc,
@@ -96,8 +100,10 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMFrame *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
     MVMString *name = (MVMString *)key;
+    int jen_hash_pad_to_32;
     if (!lexical_names)
         return 0;
+    jen_hash_pad_to_32 = (name->body.flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_UINT8;
     MVM_HASH_GET(tc, lexical_names, name, entry);
     return entry ? 1 : 0;
 }
