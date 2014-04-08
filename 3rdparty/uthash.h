@@ -448,42 +448,103 @@ do {                                                                            
   c -= a; c -= b; c ^= ( b >> 15 );                                              \
 } while (0)
 
+#ifdef #MVM_BIGENDIAN
+#define MVM_ENDIANNESS_BIG 1
+#else
+#define MVM_ENDIANNESS_BIG 0
+#endif
+
+#define PADDED_KEY_ACCESS(_hj_key, index, res)                                   \
+    do {                                                                         \
+        if (jen_hash_pad_to_32) {                                                \
+            res = 0;                                                             \
+            if (MVM_ENDIANNESS_BIG) {                                            \
+                res = (unsigned)((index % 4 == 3) ? _hj_key[int(index / 4)] : 0);\
+            } else {                                                             \
+                res = (unsigned)((index % 4 == 0) ? _hj_key[int(index / 4)] : 0);\
+            }                                                                    \
+        } else                                                                   \
+            res = (unsigned)_hj_key[index];                                      \
+    } while(0);
+
 #define HASH_JEN(key,keylen,num_bkts,hashv,bkt)                                  \
 do {                                                                             \
   unsigned _hj_i,_hj_j,_hj_k;                                                    \
+  unsigned ra, rb, rc, rd;                                                       \
   char *_hj_key=(char*)(key);                                                    \
   hashv = 0xfeedbeef;                                                            \
   _hj_i = _hj_j = 0x9e3779b9;                                                    \
-  _hj_k = (unsigned)keylen;                                                                \
+  if (jen_hash_pad_to_32)                                                        \
+      _hj_k = (unsigned)keylen;                                                  \
+  else                                                                           \
+      _hj_k = (unsigned)keylen * 4;                                              \
   while (_hj_k >= 12) {                                                          \
-    _hj_i +=    (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 )                      \
-        + ( (unsigned)_hj_key[2] << 16 )                                         \
-        + ( (unsigned)_hj_key[3] << 24 ) );                                      \
-    _hj_j +=    (_hj_key[4] + ( (unsigned)_hj_key[5] << 8 )                      \
-        + ( (unsigned)_hj_key[6] << 16 )                                         \
-        + ( (unsigned)_hj_key[7] << 24 ) );                                      \
-    hashv += (_hj_key[8] + ( (unsigned)_hj_key[9] << 8 )                         \
-        + ( (unsigned)_hj_key[10] << 16 )                                        \
-        + ( (unsigned)_hj_key[11] << 24 ) );                                     \
+    PADDED_KEY_ACCESS(_hj_key, 0, ra);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 1, rb);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 2, rc);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 3, rd);                                           \
+    _hj_i += ra + ( rb << 8 ) + ( rc << 16 ) + ( rd << 24 ) ;                    \
+    PADDED_KEY_ACCESS(_hj_key, 4, ra);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 5, rb);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 6, rc);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 7, rd);                                           \
+    _hj_j += ra + ( rb << 8 )  + ( rc << 16 ) + ( rd << 24 );                    \
+    PADDED_KEY_ACCESS(_hj_key, 8, ra);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 9, rb);                                           \
+    PADDED_KEY_ACCESS(_hj_key, 10, rc);                                          \
+    PADDED_KEY_ACCESS(_hj_key, 11, rd);                                          \
+    hashv += ra + ( rb << 8 ) + ( rc << 16 ) + ( rd << 24 );                     \
                                                                                  \
      HASH_JEN_MIX(_hj_i, _hj_j, hashv);                                          \
                                                                                  \
-     _hj_key += 12;                                                              \
+     if (jen_hash_pad_to_32)                                                     \
+         _hj_key += 12;                                                          \
+     else                                                                        \
+         _hj_key += 3;                                                           \
      _hj_k -= 12;                                                                \
   }                                                                              \
-  hashv += keylen;                                                               \
+  if (jen_hash_pad_to_32)                                                        \
+      hashv += keylen * 4;                                                       \
+  else                                                                           \
+      hashv += keylen;                                                           \
+  ra = 0;                                                                        \
+  rb = 0;                                                                        \
+  rc = 0;                                                                        \
+  rd = 0;                                                                        \
   switch ( _hj_k ) {                                                             \
-     case 11: hashv += ( (unsigned)_hj_key[10] << 24 );                          \
-     case 10: hashv += ( (unsigned)_hj_key[9] << 16 );                           \
-     case 9:  hashv += ( (unsigned)_hj_key[8] << 8 );                            \
-     case 8:  _hj_j += ( (unsigned)_hj_key[7] << 24 );                           \
-     case 7:  _hj_j += ( (unsigned)_hj_key[6] << 16 );                           \
-     case 6:  _hj_j += ( (unsigned)_hj_key[5] << 8 );                            \
-     case 5:  _hj_j += _hj_key[4];                                               \
-     case 4:  _hj_i += ( (unsigned)_hj_key[3] << 24 );                           \
-     case 3:  _hj_i += ( (unsigned)_hj_key[2] << 16 );                           \
-     case 2:  _hj_i += ( (unsigned)_hj_key[1] << 8 );                            \
-     case 1:  _hj_i += _hj_key[0];                                               \
+     case 11:                                                                    \
+              PADDED_KEY_ACCESS(_hj_key, 10, rc);                                \
+              hashv += ( rc << 24 );                                             \
+     case 10:                                                                    \
+              PADDED_KEY_ACCESS(_hj_key, 9, rb);                                 \
+              hashv += ( rb << 16 );                                             \
+     case 9:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 8, ra);                                 \
+              hashv += ( ra << 8 );                                              \
+     case 8:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 7, rd);                                 \
+              _hj_j += ( rd << 24 );                                             \
+     case 7:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 6, rc);                                 \
+              _hj_j += ( rc << 16 );                                             \
+     case 6:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 5, rb);                                 \
+              _hj_j += ( rb << 8 );                                              \
+     case 5:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 4, ra);                                 \
+              _hj_j += ra;                                                       \
+     case 4:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 3, rd);                                 \
+              _hj_i += ( rd << 24 );                                             \
+     case 3:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 2, rc);                                 \
+              _hj_i += ( rc << 16 );                                             \
+     case 2:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 1, rb);                                 \
+              _hj_i += ( rb << 8 );                                              \
+     case 1:                                                                     \
+              PADDED_KEY_ACCESS(_hj_key, 0, ra);                                 \
+              _hj_i += ra;                                                       \
   }                                                                              \
   HASH_JEN_MIX(_hj_i, _hj_j, hashv);                                             \
   bkt = hashv & (num_bkts-1);                                                    \
