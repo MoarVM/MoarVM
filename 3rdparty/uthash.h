@@ -448,7 +448,7 @@ do {                                                                            
   c -= a; c -= b; c ^= ( b >> 15 );                                              \
 } while (0)
 
-#ifdef #MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
 #define MVM_ENDIANNESS_BIG 1
 #else
 #define MVM_ENDIANNESS_BIG 0
@@ -459,9 +459,9 @@ do {                                                                            
         if (jen_hash_pad_to_32) {                                                \
             res = 0;                                                             \
             if (MVM_ENDIANNESS_BIG) {                                            \
-                res = (unsigned)((index % 4 == 3) ? _hj_key[int(index / 4)] : 0);\
+                res = (unsigned)((index % 4 == 3) ? _hj_key[(int)(index / 4)] : 0);\
             } else {                                                             \
-                res = (unsigned)((index % 4 == 0) ? _hj_key[int(index / 4)] : 0);\
+                res = (unsigned)((index % 4 == 0) ? _hj_key[(int)(index / 4)] : 0);\
             }                                                                    \
         } else                                                                   \
             res = (unsigned)_hj_key[index];                                      \
