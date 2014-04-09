@@ -138,7 +138,7 @@ allocate more) are the way we make sure it isn't collected too early.
     +---------------------------------------------------------+
 
 The operand descriptor follows the same format as used by MVMOpInfo.
-The 8 bytes limit corresponds to MVM_MAX_OPERANDS.
+The 8 bytes limit corresponds to `MVM_MAX_OPERANDS`.
 
 ## Frames Data
 The frames data segment contains data that describes all of the frames in
