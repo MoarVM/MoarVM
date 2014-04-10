@@ -123,6 +123,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
+    NULL, /* spesh */
     "MVMCompUnit", /* name */
     MVM_REPR_ID_MVMCompUnit,
     0, /* refs_frames */

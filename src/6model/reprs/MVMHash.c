@@ -17,14 +17,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Initialize a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMHashBody *body = (MVMHashBody *)data;
-
-    /* this must be initialized to NULL */
-    body->hash_head = NULL;
-}
-
 static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
     MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, "MVMHash representation requires MVMString keys")
 }
@@ -162,6 +154,23 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMHash);
 }
 
+/* Bytecode specialization for this REPR. */
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    switch (ins->info->opcode) {
+    case MVM_OP_create: {
+        MVMSpeshOperand target   = ins->operands[0];
+        MVMSpeshOperand type     = ins->operands[1];
+        ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
+        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        ins->operands[0]         = target;
+        ins->operands[1].lit_i16 = sizeof(MVMHash);
+        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+        MVM_spesh_get_facts(tc, g, type)->usages--;
+        break;
+    }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -170,7 +179,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
 static const MVMREPROps this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
-    initialize,
+    NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
@@ -196,6 +205,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
+    spesh,
     "VMHash", /* name */
     MVM_REPR_ID_MVMHash,
     0, /* refs_frames */

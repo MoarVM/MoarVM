@@ -20,7 +20,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
         /* Unwind to the lexotic handler. */
         {
             MVMLexotic *lex = (MVMLexotic *)invokee;
-            MVM_exception_gotolexotic(tc, lex->body.handler, lex->body.frame);
+            MVM_exception_gotolexotic(tc, lex->body.handler_idx, lex->body.sf);
         }
     }
     else {
@@ -51,17 +51,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMLexoticBody *lb = (MVMLexoticBody *)data;
+    MVM_gc_worklist_add(tc, worklist, &lb->sf);
     MVM_gc_worklist_add(tc, worklist, &lb->result);
-    if (lb->frame)
-        MVM_gc_worklist_add_frame(tc, worklist, lb->frame);
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMLexotic *lex = (MVMLexotic *)obj;
-    if (lex->body.frame) {
-        lex->body.frame = MVM_frame_dec_ref(tc, lex->body.frame);
-    }
 }
 
 /* Gets the storage specification for this representation. */
@@ -101,12 +92,13 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
     gc_mark,
-    gc_free,
+    NULL, /* gc_free */
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
+    NULL, /* spesh */
     "Lexotic", /* name */
     MVM_REPR_ID_Lexotic,
-    1, /* refs_frames */
+    0, /* refs_frames */
 };

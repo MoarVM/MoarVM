@@ -125,6 +125,24 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &body->static_env[i].o);
     }
+
+    /* Lexotics cache. */
+    if (body->num_lexotics) {
+        MVMint32 i;
+        for (i = 0; i < body->num_lexotics; i++)
+            MVM_gc_worklist_add(tc, worklist, &body->lexotics[i]);
+    }
+
+    /* Spesh slots. */
+    if (body->num_spesh_candidates) {
+        MVMint32 i, j;
+        for (i = 0; i < body->num_spesh_candidates; i++) {
+            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].guards[j].match);
+            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
+        }
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -184,6 +202,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
+    NULL, /* spesh */
     "MVMStaticFrame", /* name */
     MVM_REPR_ID_MVMStaticFrame,
     0, /* refs_frames */

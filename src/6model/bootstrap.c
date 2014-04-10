@@ -64,7 +64,6 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     BOOTHash = tc->instance->boot_types.BOOTHash;
     stash = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&stash);
-    REPR(stash)->initialize(tc, STABLE(stash), stash, OBJECT_BODY(stash));
     MVM_ASSIGN_REF(tc, &(STABLE(type_object)->header), STABLE(type_object)->WHO, stash);
 
     /* Return the type object. */

@@ -55,7 +55,8 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
 
 MAIN_OBJECTS = src/main@obj@
 
-OBJECTS = src/core/args@obj@ \
+OBJECTS = src/core/callsite@obj@ \
+          src/core/args@obj@ \
           src/core/exceptions@obj@ \
           src/core/interp@obj@ \
           src/core/threadcontext@obj@ \
@@ -137,6 +138,15 @@ OBJECTS = src/core/args@obj@ \
           src/6model/serialization@obj@ \
           src/mast/compiler@obj@ \
           src/mast/driver@obj@ \
+          src/spesh/dump@obj@ \
+          src/spesh/graph@obj@ \
+          src/spesh/codegen@obj@ \
+          src/spesh/candidate@obj@ \
+          src/spesh/manipulate@obj@ \
+          src/spesh/args@obj@ \
+          src/spesh/facts@obj@ \
+          src/spesh/optimize@obj@ \
+          src/spesh/deopt@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -155,6 +165,7 @@ HEADERS = src/moar.h \
           src/6model/6model.h \
           src/core/instance.h \
           src/core/threadcontext.h \
+          src/core/callsite.h \
           src/core/args.h \
           src/core/exceptions.h \
           src/core/interp.h \
@@ -234,6 +245,15 @@ HEADERS = src/moar.h \
           src/mast/compiler.h \
           src/mast/driver.h \
           src/mast/nodes_moar.h \
+          src/spesh/dump.h \
+          src/spesh/graph.h \
+          src/spesh/codegen.h \
+          src/spesh/candidate.h \
+          src/spesh/manipulate.h \
+          src/spesh/args.h \
+          src/spesh/facts.h \
+          src/spesh/optimize.h \
+          src/spesh/deopt.h \
           src/strings/unicode_gen.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \
@@ -331,6 +351,7 @@ install: all
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/math
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(CP) 3rdparty/*.h $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/*.h $(DESTDIR)$(PREFIX)/include/moar
@@ -343,6 +364,7 @@ install: all
 	$(CP) src/mast/*.h $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(CP) src/math/*.h $(DESTDIR)$(PREFIX)/include/moar/math
 	$(CP) src/platform/*.h $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(CP) src/spesh/*.h $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc

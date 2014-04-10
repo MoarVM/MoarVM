@@ -1164,6 +1164,23 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     }
 }
 
+/* Bytecode specialization for this REPR. */
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    switch (ins->info->opcode) {
+    case MVM_OP_create: {
+        MVMSpeshOperand target   = ins->operands[0];
+        MVMSpeshOperand type     = ins->operands[1];
+        ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
+        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        ins->operands[0]         = target;
+        ins->operands[1].lit_i16 = sizeof(MVMArray);
+        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+        MVM_spesh_get_facts(tc, g, type)->usages--;
+        break;
+    }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -1203,6 +1220,7 @@ static const MVMREPROps this_repr = {
     gc_mark_repr_data,
     gc_free_repr_data,
     compose,
+    spesh,
     "VMArray", /* name */
     MVM_REPR_ID_MVMArray,
     0, /* refs_frames */

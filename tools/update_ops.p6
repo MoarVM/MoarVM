@@ -9,6 +9,7 @@ class Op {
     has $.name;
     has $.mark;
     has @.operands;
+    has %.adverbs;
 }
 
 sub MAIN($file = "src/core/oplist") {
@@ -73,6 +74,13 @@ sub parse_ops($file) {
         if $line !~~ /^\s*['#'|$]/ {
             my ($name, $mark, @operands) = $line.split(/\s+/);
 
+            # Look for operands that are actually adverbs.
+            my %adverbs;
+            while @operands && @operands[*-1] ~~ /^ ':' (\w+) $/ {
+                %adverbs{$0} = 1;
+                @operands.pop;
+            }
+
             # Look for validation mark.
             unless $mark ~~ /^ <[:.+*-]> \w $/ {
                 @operands.unshift($mark) if $mark;
@@ -83,7 +91,8 @@ sub parse_ops($file) {
                 code     => $i,
                 name     => $name,
                 mark     => $mark,
-                operands => @operands
+                operands => @operands,
+                adverbs  => %adverbs
             ));
             $i = $i + 1;
         }
@@ -184,6 +193,8 @@ sub opcode_details(@ops) {
             take "        \"$op.name()\",";
             take "        \"$op.mark()\",";
             take "        $op.operands.elems(),";
+            take "        $($op.adverbs<pure> ?? '1' !! '0'),";
+            take "        $($op.adverbs<deoptpoint> ?? '1' !! '0'),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }

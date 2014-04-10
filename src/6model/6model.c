@@ -259,6 +259,33 @@ MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMO
     return 0;
 }
 
+/* Tries to do a type check using the cache. If the type is in the cache, then
+ * result will be set to a true value and a true value will be returned. If it
+ * is not in the cache and the cache is authoritative, then we know the answer
+ * too; result is set to zero and a true value is returned. Otherwise, we can
+ * not tell and a false value is returned and result is undefined. */
+MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMint32 *result) {
+    if (obj) {
+        MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
+        MVMObject  **cache = STABLE(obj)->type_check_cache;
+        if (cache) {
+            MVMint64 mode;
+            for (i = 0; i < elems; i++) {
+                if (cache[i] == type) {
+                    *result = 1;
+                    return 1;
+                }
+            }
+            if ((STABLE(obj)->mode_flags & MVM_TYPE_CHECK_CACHE_THEN_METHOD) == 0 &&
+                (STABLE(type)->mode_flags & MVM_TYPE_CHECK_NEEDS_ACCEPTS) == 0) {
+                *result = 0;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Default invoke function on STables; for non-invokable objects */
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
     MVM_exception_throw_adhoc(tc, "non-invokable object is non-invokable");

@@ -80,6 +80,19 @@ struct MVMFrame {
     /* Reference count for the frame. */
     AO_t ref_count;
 
+    /* Effective bytecode for the frame (either the original bytecode or a
+     * specialization of it). */
+    MVMuint8 *effective_bytecode;
+
+    /* Effective set of frame handlers (to go with the effective bytecode). */
+    MVMFrameHandler *effective_handlers;
+
+    /* Effective set of spesh slots, if any. */
+    MVMCollectable **effective_spesh_slots;
+
+    /* The spesh candidate information, if we're in one. */
+    MVMSpeshCandidate *spesh_cand;
+
     /* Address of the next op to execute if we return to this frame. */
     MVMuint8 *return_address;
 

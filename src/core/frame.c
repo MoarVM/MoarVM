@@ -123,7 +123,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMFrame *outer, MVMObject *code_ref) {
     MVMFrame *frame;
 
-    MVMuint32 pool_index;
+    MVMuint32 pool_index, found_spesh;
     MVMFrame *node;
     int fresh = 0;
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
@@ -133,11 +133,11 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!static_frame_body->invoked)
         prepare_and_verify_static_frame(tc, static_frame);
 
+    /* Get frame body from the re-use pool, or allocate it. */
     pool_index = static_frame_body->pool_index;
     if (pool_index >= tc->frame_pool_table_size)
         grow_frame_pool(tc, pool_index);
     node = tc->frame_pool_table[pool_index];
-
     if (node == NULL) {
         fresh = 1;
         frame = malloc(sizeof(MVMFrame));
@@ -262,11 +262,87 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Clear frame flags. */
     frame->flags = 0;
 
+    /* See if any specializations apply. */
+    found_spesh = 0;
+    if (++static_frame_body->invocations >= 10 && callsite->is_interned) {
+        /* Look for specialized bytecode. */
+        MVMint32 num_spesh = static_frame_body->num_spesh_candidates;
+        MVMint32 i, j;
+        for (i = 0; i < num_spesh; i++) {
+            MVMSpeshCandidate *cand = &static_frame_body->spesh_candidates[i];
+            if (cand->cs == callsite) {
+                MVMint32 match = 1;
+                for (j = 0; j < cand->num_guards; j++) {
+                    MVMint32   pos = cand->guards[j].slot;
+                    MVMSTable *st  = (MVMSTable *)cand->guards[j].match;
+                    MVMObject *arg = args[pos].o;
+                    if (!arg) {
+                        match = 0;
+                        break;
+                    }
+                    switch (cand->guards[j].kind) {
+                    case MVM_SPESH_GUARD_CONC:
+                        if (!IS_CONCRETE(arg) || STABLE(arg) != st)
+                            match = 0;
+                        break;
+                    case MVM_SPESH_GUARD_TYPE:
+                        if (IS_CONCRETE(arg) || STABLE(arg) != st)
+                            match = 0;
+                        break;
+                    case MVM_SPESH_GUARD_DC_CONC: {
+                        MVMRegister dc;
+                        STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                        if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                            match = 0;
+                        break;
+                    }
+                    case MVM_SPESH_GUARD_DC_TYPE: {
+                        MVMRegister dc;
+                        STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                        if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                            match = 0;
+                        break;
+                    }
+                    }
+                    if (!match)
+                        break;
+                }
+                if (match) {
+                    frame->effective_bytecode    = cand->bytecode;
+                    frame->effective_handlers    = cand->handlers;
+                    frame->effective_spesh_slots = cand->spesh_slots;
+                    frame->spesh_cand            = cand;
+                    found_spesh = 1;
+                    break;
+                }
+            }
+        }
+
+        /* If we didn't find any, and we're below the limit, can generate a
+         * specialization. */
+        if (!found_spesh && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled) {
+            MVMSpeshCandidate *cand = MVM_spesh_candidate_generate(tc, static_frame,
+                callsite, args);
+            if (cand) {
+                frame->effective_bytecode    = cand->bytecode;
+                frame->effective_handlers    = cand->handlers;
+                frame->effective_spesh_slots = cand->spesh_slots;
+                frame->spesh_cand            = cand;
+                found_spesh = 1;
+            }
+        }
+    }
+    if (!found_spesh) {
+        frame->effective_bytecode = static_frame_body->bytecode;
+        frame->effective_handlers = static_frame_body->handlers;
+        frame->spesh_cand         = NULL;
+    }
+
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
-    *(tc->interp_cur_op) = static_frame_body->bytecode;
-    *(tc->interp_bytecode_start) = static_frame_body->bytecode;
+    *(tc->interp_cur_op) = frame->effective_bytecode;
+    *(tc->interp_bytecode_start) = frame->effective_bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame_body->cu;
 
@@ -421,7 +497,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
         *(tc->interp_cur_op) = caller->return_address;
-        *(tc->interp_bytecode_start) = caller->static_info->body.bytecode;
+        *(tc->interp_bytecode_start) = caller->effective_bytecode;
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
 

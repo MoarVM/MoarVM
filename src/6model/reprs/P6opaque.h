@@ -103,3 +103,6 @@ const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc);
 /* If an object gets mixed in to, we need to be sure we look at its real body,
  * which may have been moved to hang off the specified pointer. */
 MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data);
+
+/* Gets the "assigned null" sentinel value. */
+MVMObject * MVM_p6opague_ass_null(MVMThreadContext *tc);

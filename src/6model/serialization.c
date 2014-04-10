@@ -876,6 +876,12 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         write_int_func(tc, writer, st->invocation_spec->md_valid_hint);
     }
 
+    /* HLL owner. */
+    if (st->hll_owner)
+        write_str_func(tc, writer, st->hll_owner->name);
+    else
+        write_str_func(tc, writer, NULL);
+
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
 
@@ -1975,6 +1981,13 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
             MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, read_str_func(tc, reader));
             st->invocation_spec->md_valid_hint = read_int_func(tc, reader);
         }
+    }
+
+    /* HLL owner. */
+    if (reader->root.version >= 11) {
+        MVMString *hll_name = read_str_func(tc, reader);
+        if (hll_name)
+            st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */

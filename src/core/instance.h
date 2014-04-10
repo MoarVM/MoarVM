@@ -223,6 +223,21 @@ struct MVMInstance {
     MVMLoadedCompUnitName *loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
 
+    /* Interned callsites. */
+    MVMCallsiteInterns *callsite_interns;
+    uv_mutex_t          mutex_callsite_interns;
+
+    /* Specialization installation mutex (global, as it's low contention, so
+     * no real motivation to have it more fine-grained at present). */
+    uv_mutex_t mutex_spesh_install;
+
+    /* Log file for specializations, if we're to log them. */
+    FILE *spesh_log_fh;
+
+    /* Flag for if spesh is enabled. */
+    MVMint32 spesh_enabled;
+
+    /* Standard file handles. */
     MVMObject *stdin_handle;
     MVMObject *stdout_handle;
     MVMObject *stderr_handle;

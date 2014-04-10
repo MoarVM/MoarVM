@@ -2981,6 +2981,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
+                MVM_spesh_deopt(tc);
                 cur_op += 6;
                 goto NEXT;
             OP(istype): {
@@ -4117,6 +4118,111 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 is->md_cache_hint = MVM_NO_HINT;
                 is->md_valid_hint = MVM_NO_HINT;
                 cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_getarg_o):
+                GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_getarg_i):
+                GET_REG(cur_op, 0).i64 = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_getarg_n):
+                GET_REG(cur_op, 0).n64 = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].n64;
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_getarg_s):
+                GET_REG(cur_op, 0).s = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].s;
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_getspeshslot):
+                GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 4;
+                goto NEXT;
+            OP(sp_findmeth): {
+                /* Obtain object and cache index; see if we get a match. */
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMuint16  idx = GET_UI16(cur_op, 8);
+                if ((MVMSTable *)tc->cur_frame->effective_spesh_slots[idx] == STABLE(obj)) {
+                    GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame->effective_spesh_slots[idx + 1];
+                    cur_op += 10;
+                    goto NEXT;
+                }
+                else {
+                    /* Missed mono-morph; try cache-only lookup. */
+                    MVMString *name = cu->body.strings[GET_UI32(cur_op, 4)];
+                    MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj, name);
+                    if (meth) {
+                        /* Got it; cache. Must be careful due to threads
+                         * reading, races, etc. */
+                        MVMStaticFrame *sf = tc->cur_frame->static_info;
+                        uv_mutex_lock(&tc->instance->mutex_spesh_install);
+                        if (!tc->cur_frame->effective_spesh_slots[idx + 1]) {
+                            MVM_ASSIGN_REF(tc, &(sf->common.header),
+                                tc->cur_frame->effective_spesh_slots[idx + 1],
+                                (MVMCollectable *)meth);
+                            MVM_barrier();
+                            MVM_ASSIGN_REF(tc, &(sf->common.header),
+                                tc->cur_frame->effective_spesh_slots[idx],
+                                (MVMCollectable *)STABLE(obj));
+                        }
+                        uv_mutex_unlock(&tc->instance->mutex_spesh_install);
+                        GET_REG(cur_op, 0).o = meth;
+                        cur_op += 10;
+                        goto NEXT;
+                    }
+                    else {
+                        /* Fully late-bound. */
+                        MVMRegister *res  = &GET_REG(cur_op, 0);
+                        cur_op += 10;
+                        MVM_6model_find_method(tc, obj, name, res);
+                        goto NEXT;
+                    }
+                }
+            }
+            OP(sp_fastcreate): {
+                /* Assume we're in normal code, so doing a nursery allocation.
+                 * Also, that there is no initialize. */
+                MVMuint16 size       = GET_UI16(cur_op, 2);
+                MVMObject *obj       = MVM_gc_allocate_zeroed(tc, size);
+                obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                obj->header.size     = size;
+                obj->header.owner    = tc->thread_id;
+                GET_REG(cur_op, 0).o = obj;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_o): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 4).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 2))),
+                    value ? value : MVM_p6opague_ass_null(tc));
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_i): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                *((MVMint64 *)(data + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_n): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                *((MVMnum64 *)(data + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_s): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMString **)(data + GET_UI16(cur_op, 2))),
+                    GET_REG(cur_op, 4).s);
+                cur_op += 6;
                 goto NEXT;
             }
 #if MVM_CGOTO

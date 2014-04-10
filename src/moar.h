@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <setjmp.h>
 
 /* Configuration. */
@@ -70,6 +71,7 @@ typedef double   MVMnum64;
 #include "core/threadcontext.h"
 #include "core/instance.h"
 #include "core/interp.h"
+#include "core/callsite.h"
 #include "core/args.h"
 #include "core/exceptions.h"
 #include "core/frame.h"
@@ -99,6 +101,14 @@ typedef double   MVMnum64;
 #include "gc/orchestrate.h"
 #include "gc/gen2.h"
 #include "gc/roots.h"
+#include "spesh/dump.h"
+#include "spesh/graph.h"
+#include "spesh/codegen.h"
+#include "spesh/candidate.h"
+#include "spesh/manipulate.h"
+#include "spesh/args.h"
+#include "spesh/facts.h"
+#include "spesh/optimize.h"
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"

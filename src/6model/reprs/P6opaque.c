@@ -17,6 +17,11 @@ MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
     return body->replaced ? body->replaced : data;
 }
 
+/* Gets the "assigned null" magic value. */
+MVMObject * MVM_p6opague_ass_null(MVMThreadContext *tc) {
+    return ass_null;
+}
+
 /* Helpers for reading/writing values. */
 static MVMint64 get_int_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
@@ -1291,6 +1296,97 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     }
 }
 
+/* Bytecode specialization for this REPR. */
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMP6opaqueREPRData * repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    if (!repr_data)
+        return;
+    switch (ins->info->opcode) {
+    case MVM_OP_create: {
+        /* Create can be optimized if there are no initialization slots. */
+        if (repr_data->initialize_slots[0] < 0) {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand type     = ins->operands[1];
+            ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1].lit_i16 = st->size;
+            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+            MVM_spesh_get_facts(tc, g, type)->usages--;
+        }
+        break;
+    }
+    case MVM_OP_bindattr_o: {
+        MVMSpeshFacts *ch_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        if (ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type,
+                MVM_spesh_get_string(tc, g, ins->operands[2]));
+            if (slot >= 0 && !repr_data->flattened_stables[slot]) {
+                MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+                ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_o);
+                ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
+                ins->operands[2] = ins->operands[3];
+            }
+        }
+        break;
+    }
+    case MVM_OP_bindattr_i: {
+        MVMSpeshFacts *ch_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        if (ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type,
+                MVM_spesh_get_string(tc, g, ins->operands[2]));
+            if (slot >= 0 && repr_data->flattened_stables[slot]) {
+                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss.bits == 64) {
+                    MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_i);
+                    ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
+                    ins->operands[2] = ins->operands[3];
+                }
+            }
+        }
+        break;
+    }
+    case MVM_OP_bindattr_n: {
+        MVMSpeshFacts *ch_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        if (ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type,
+                MVM_spesh_get_string(tc, g, ins->operands[2]));
+            if (slot >= 0 && repr_data->flattened_stables[slot]) {
+                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6num && flat_ss.bits == 64) {
+                    MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_n);
+                    ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
+                    ins->operands[2] = ins->operands[3];
+                }
+            }
+        }
+        break;
+    }
+    case MVM_OP_bindattr_s: {
+        MVMSpeshFacts *ch_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        if (ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type,
+                MVM_spesh_get_string(tc, g, ins->operands[2]));
+            if (slot >= 0 && repr_data->flattened_stables[slot]) {
+                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6str) {
+                    MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_s);
+                    ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
+                    ins->operands[2] = ins->operands[3];
+                }
+            }
+        }
+        break;
+    }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
 
@@ -1354,9 +1450,8 @@ static const MVMREPROps this_repr = {
     gc_mark_repr_data,
     gc_free_repr_data,
     compose,
+    spesh,
     "P6opaque", /* name */
     MVM_REPR_ID_P6opaque,
     0, /* refs_frames */
 };
-
-
