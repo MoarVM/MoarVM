@@ -13,9 +13,7 @@ typedef enum {
     /* Argument is a native NFG string (MVMString REPR). */
     MVM_CALLSITE_ARG_STR = 8,
 
-    /* Argument is named; in this case, there are two entries in
-     * the argument list, the first a MVMString naming the arg and
-     * after that the arg. */
+    /* Argument is named. The name is placed in the MVMCallsite. */
     MVM_CALLSITE_ARG_NAMED = 32,
 
     /* Argument is flattened. What this means is up to the target. */
@@ -52,6 +50,11 @@ struct MVMCallsite {
 
     /* Cached version of this callsite with an extra invocant arg. */
     MVMCallsite *with_invocant;
+
+    /* Names that go with the named parameters.
+     * The first entry to this is the first named's name.
+     * Potentially a null pointer */
+    MVMString **arg_name;
 
 #if MVM_HLL_PROFILE_CALLS
     MVMuint32 static_frame_id;

@@ -3,7 +3,7 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        1
-#define MAX_BYTECODE_VERSION        2
+#define MAX_BYTECODE_VERSION        3
 #define FRAME_HEADER_SIZE           (9 * 4 + (rs->version >= 2 ? 2 : 1) * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SCDEP_HEADER_OFFSET         12
@@ -687,7 +687,20 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->arg_count      = positionals + nameds;
         callsites[i]->has_flattening = has_flattening;
         callsites[i]->is_interned    = 0;
-        callsites[i]->with_invocant  = NULL; 
+        callsites[i]->with_invocant  = NULL;
+
+        if (rs->version >= 3) {
+            ensure_can_read(tc, cu, rs, pos, (nameds / 2) * 4);
+            callsites[i]->arg_name = malloc((nameds / 2) * sizeof(MVMString));
+
+            for (j = 0; j < nameds / 2; j++) {
+                callsites[i]->arg_name[j] = get_heap_string(tc, cu, rs, pos, 0);
+                printf("[%d][%d]=%d\n", i, j, callsites[i]->arg_name[j]);
+                pos += 4;
+            }
+        } else {
+            callsites[i]->arg_name = 0;
+        }
 
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */

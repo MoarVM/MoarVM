@@ -3,7 +3,7 @@
 
 /* Some constants. */
 #define HEADER_SIZE                 92
-#define BYTECODE_VERSION            2
+#define BYTECODE_VERSION            3
 #define FRAME_HEADER_SIZE           (9 * 4 + 2 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SC_DEP_SIZE                 4
@@ -169,7 +169,7 @@ unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval);
 unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame);
 unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type);
 void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand);
-unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags);
+unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags, MASTNode *args);
 void compile_instruction(VM, WriterState *ws, MASTNode *node);
 void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx);
 char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size);
@@ -519,13 +519,14 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
 
 /* Takes a set of flags describing a callsite. Writes out a callsite
  * descriptor and returns the index of it. */
-unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
+unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags, MASTNode *args) {
     /* Work out callsite size. */
     unsigned short elems = (unsigned short)ELEMS(vm, flags);
     unsigned short align = elems % 2;
     unsigned short i;
     CallsiteReuseEntry *entry = NULL;
     unsigned char *identifier = (unsigned char *)malloc(elems);
+    unsigned int num_nameds = 0;
 
     for (i = 0; i < elems; i++)
         identifier[i] = (unsigned char)ATPOS_I_C(vm, flags, i);
@@ -543,11 +544,31 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags) {
         2 + elems + align);
     write_int16(ws->callsite_seg, ws->callsite_pos, elems);
     ws->callsite_pos += 2;
-    for (i = 0; i < elems; i++)
-        write_int8(ws->callsite_seg, ws->callsite_pos++,
-            (unsigned char)ATPOS_I_C(vm, flags, i));
+    for (i = 0; i < elems; i++) {
+        unsigned char flag = (unsigned char)ATPOS_I_C(vm, flags, i);
+        write_int8(ws->callsite_seg, ws->callsite_pos++, flag);
+        if (flag & (MVM_CALLSITE_ARG_NAMED)) { /* | MVM_CALLSITE_ARG_FLAT_NAMED)) { */
+            /*printf("%d  %d  \n", flag & MVM_CALLSITE_ARG_NAMED, flag & MVM_CALLSITE_ARG_FLAT_NAMED);*/
+            num_nameds++;
+        }
+    }
     if (align)
         write_int8(ws->callsite_seg, ws->callsite_pos++, 0);
+
+    ensure_space(vm, &ws->callsite_seg, &ws->callsite_alloc, ws->callsite_pos,
+            4 * num_nameds);
+
+    printf("elems: %d\n", ELEMS(vm, args));
+
+    for (i = 0; i < num_nameds; i++) {
+        printf(".");
+        MAST_SVal *argname = ATPOS(vm, args, (elems - num_nameds) + i * 2);
+        write_int32(ws->callsite_seg, ws->callsite_pos,
+                    get_string_heap_index(vm, ws, argname->value));
+        printf("%d is the string heap index\n", get_string_heap_index(vm, ws, argname->value));
+        ws->callsite_pos += 4;
+    }
+    printf("\n");
 
     return (unsigned short)ws->num_callsites++;
 }
@@ -654,7 +675,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         unsigned short num_flags, num_args, flag_pos, arg_pos;
 
         /* Emit callsite (may re-use existing one) and emit loading of it. */
-        unsigned short callsite_id = get_callsite_id(vm, ws, c->flags);
+        unsigned short callsite_id = get_callsite_id(vm, ws, c->flags, c->args);
         ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
         write_int16(ws->bytecode_seg, ws->bytecode_pos, MVM_OP_prepargs);
         ws->bytecode_pos += 2;

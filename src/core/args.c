@@ -69,6 +69,7 @@ MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext 
         res->arg_count = ctx->arg_count;
         res->num_pos   = ctx->num_pos;
         res->has_flattening = 0;
+        res->arg_name  = NULL;
         return res;
     }
     else {

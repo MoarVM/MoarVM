@@ -977,6 +977,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
                     new->num_pos        = orig->num_pos + 1;
                     new->has_flattening = orig->has_flattening;
                     new->with_invocant  = NULL;
+                    new->arg_name       = NULL;
                     *tweak_cs = orig->with_invocant = new;
                 }
                 memmove(tc->cur_frame->args + 1, tc->cur_frame->args,

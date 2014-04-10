@@ -329,6 +329,8 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan arg buffer if needed. */
     if (frame->args && frame->cur_args_callsite) {
+        MVMuint16 num_nameds = 0;
+
         flag_map = frame->cur_args_callsite->arg_flags;
         count = frame->cur_args_callsite->arg_count;
         for (i = 0, flag = 0; i < count; i++, flag++) {
@@ -336,9 +338,18 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
                 /* Current position is name, then next is value. */
                 MVM_gc_worklist_add(tc, worklist, &frame->args[i].s);
                 i++;
+                num_nameds++;
             }
             if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
                 MVM_gc_worklist_add(tc, worklist, &frame->args[i].o);
+        }
+        /* Scan all the nameds stashed away in the callsite */
+        if (frame->cur_args_callsite->arg_name) {
+            for (i = 0; i < num_nameds; i++) {
+                /* XXX this ought to never be the case, but it is. */
+                if (frame->cur_args_callsite->arg_name[i])
+                    MVM_gc_worklist_add(tc, worklist, frame->cur_args_callsite->arg_name[i]);
+            }
         }
     }
 
