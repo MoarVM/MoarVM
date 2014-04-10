@@ -4120,6 +4120,43 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
+            OP(ctxouterskipthunks): {
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx;
+                MVMFrame *frame;
+                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                    MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
+                }
+                frame = ((MVMContext *)this_ctx)->body.context->outer;
+                while (frame && frame->static_info->body.is_thunk)
+                    frame = frame->caller;
+                if (frame) {
+                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                    GET_REG(cur_op, 0).o = ctx;
+                }
+                else {
+                    GET_REG(cur_op, 0).o = NULL;
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(ctxcallerskipthunks): {
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
+                MVMFrame *frame;
+                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                    MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
+                }
+                frame = ((MVMContext *)this_ctx)->body.context->caller;
+                while (frame && frame->static_info->body.is_thunk)
+                    frame = frame->caller;
+                if (frame) {
+                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                }
+                GET_REG(cur_op, 0).o = ctx;
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;
