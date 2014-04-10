@@ -17,6 +17,10 @@
 #define HLL_NAME_HEADER_OFFSET      76
 #define SPECIAL_FRAME_HEADER_OFFSET 80
 
+/* Frame flags. */
+#define FRAME_FLAG_EXIT_HANDLER     1
+#define FRAME_FLAG_IS_THUNK         2
+
 /* Describes the current reader state. */
 typedef struct {
     /* General info. */
@@ -542,8 +546,11 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         static_frame_body->num_handlers = read_int32(pos, 34);
 
         /* Read exit handler flag (version 2 and higher). */
-        if (rs->version >= 2)
-            static_frame_body->has_exit_handler = read_int16(pos, 38);
+        if (rs->version >= 2) {
+            MVMint16 flags = read_int16(pos, 38);
+            static_frame_body->has_exit_handler = flags & FRAME_FLAG_EXIT_HANDLER;
+            static_frame_body->is_thunk         = flags & FRAME_FLAG_IS_THUNK;
+        }
 
         pos += FRAME_HEADER_SIZE;
 

@@ -192,8 +192,10 @@ class MAST::Frame is MAST::Node {
     # Mapping of lexical names to lexical index, for lookups.
     has %!lexical_map;
 
-    # Does the frame have an exit handler?
-    has int $!has_exit_handler;
+    # Flag bits.
+    my int $FRAME_FLAG_EXIT_HANDLER := 1;
+    my int $FRAME_FLAG_IS_THUNK     := 2;
+    has int $!flags;
 
     my $cuuid_src := 0;
     sub fresh_id() {
@@ -255,8 +257,17 @@ class MAST::Frame is MAST::Node {
     method name() { $!name }
 
     method has_exit_handler($value = -1) {
-        $!has_exit_handler := $value if $value >= 0;
-        $!has_exit_handler
+        if $value > 0 {
+            $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_EXIT_HANDLER);
+        }
+        nqp::bitand_i($!flags, $FRAME_FLAG_EXIT_HANDLER)
+    }
+
+    method is_thunk($value = -1) {
+        if $value > 0 {
+            $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_IS_THUNK);
+        }
+        nqp::bitand_i($!flags, $FRAME_FLAG_IS_THUNK)
     }
 
     method dump_lines(@lines, $indent) {

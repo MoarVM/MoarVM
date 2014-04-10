@@ -83,6 +83,9 @@ struct MVMStaticFrameBody {
 
     /* Does the frame have an exit handler we need to run? */
     MVMuint8 has_exit_handler;
+
+    /* Is the frame a thunk, and thus hidden to caller/outer? */
+    MVMuint8 is_thunk;
 };
 struct MVMStaticFrame {
     MVMObject common;

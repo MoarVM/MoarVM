@@ -20,6 +20,10 @@
 #define SPECIAL_FRAME_HEADER_OFFSET 80
 #define EXTOP_BASE                  1024
 
+/* Frame flags. */
+#define FRAME_FLAG_EXIT_HANDLER     1
+#define FRAME_FLAG_IS_THUNK         2
+
 typedef struct {
     /* callsite ID */
     unsigned short callsite_id;
@@ -950,7 +954,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     write_int32(ws->frame_seg, ws->frame_pos + 26, ws->annotation_pos);
     write_int32(ws->frame_seg, ws->frame_pos + 30, 0); /* number of annotation; fill in later */
     write_int32(ws->frame_seg, ws->frame_pos + 34, 0); /* number of handlers; fill in later */
-    write_int16(ws->frame_seg, ws->frame_pos + 38, f->has_exit_handler == 1 ? 1 : 0);
+    write_int16(ws->frame_seg, ws->frame_pos + 38, (MVMint16)f->flags);
 
     ws->frame_pos += FRAME_HEADER_SIZE;
 
