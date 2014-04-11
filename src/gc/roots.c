@@ -343,14 +343,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
             if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
                 MVM_gc_worklist_add(tc, worklist, &frame->args[i].o);
         }
-        /* Scan all the nameds stashed away in the callsite */
-        if (frame->cur_args_callsite->arg_name) {
-            for (i = 0; i < num_nameds; i++) {
-                /* XXX this ought to never be the case, but it is. */
-                if (frame->cur_args_callsite->arg_name[i])
-                    MVM_gc_worklist_add(tc, worklist, frame->cur_args_callsite->arg_name[i]);
-            }
-        }
+        /* For flattened callsites, scan the names here */
     }
 
     /* Scan lexicals. */
