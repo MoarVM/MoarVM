@@ -236,6 +236,8 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
     MVMString *return_str = NULL;
     char *line;
     char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
+    MVMOSHandle *h = (MVMOSHandle *) oshandle;
+    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
 
 #if MVM_HAS_READLINE
     line = readline(prompt_str);
@@ -249,6 +251,8 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
         return_str = MVM_string_decode(tc, tc->instance->VMString, line, strlen(line), MVM_encoding_type_utf8);
 
         free(line);
+    } else {
+        data->eof = 1;
     }
 
 #else /* !MVM_HAS_READLINE */
@@ -264,7 +268,10 @@ MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *os
         return_str = MVM_string_decode(tc, tc->instance->VMString, line, strlen(line), MVM_encoding_type_utf8);
 
         free(line);
+    } else {
+        data->eof = 1;
     }
+
 #endif /* MVM_HAS_READLINE */
 
     return return_str;
