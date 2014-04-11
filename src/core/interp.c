@@ -2799,7 +2799,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *st = STABLE(obj);
                 MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
                 MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);
-                is->hint = MVM_NO_HINT;
+                if (ch && name)
+                    is->hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch, name);
                 MVM_ASSIGN_REF(tc, &(st->header), is->invocation_handler, invocation_handler);
                 /* XXX not thread safe, but this should occur on non-shared objects anyway... */
                 if (st->invocation_spec)
@@ -4107,16 +4108,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setmultispec): {
                 MVMObject *obj        = GET_REG(cur_op, 0).o;
+                MVMObject *ch         = GET_REG(cur_op, 2).o;
+                MVMString *valid_attr = GET_REG(cur_op, 4).s;
+                MVMString *cache_attr = GET_REG(cur_op, 6).s;
                 MVMSTable *st         = STABLE(obj);
                 MVMInvocationSpec *is = st->invocation_spec;
                 if (!is)
                     MVM_exception_throw_adhoc(tc,
                         "Can only use setmultispec after setinvokespec");
-                MVM_ASSIGN_REF(tc, &(st->header), is->md_class_handle, GET_REG(cur_op, 2).o);
-                MVM_ASSIGN_REF(tc, &(st->header), is->md_valid_attr_name, GET_REG(cur_op, 4).o);
-                MVM_ASSIGN_REF(tc, &(st->header), is->md_cache_attr_name, GET_REG(cur_op, 6).o);
-                is->md_cache_hint = MVM_NO_HINT;
-                is->md_valid_hint = MVM_NO_HINT;
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_class_handle, ch);
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_valid_attr_name, valid_attr);
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_cache_attr_name, cache_attr);
+                is->md_valid_hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch,
+                    valid_attr);
+                is->md_cache_hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch,
+                    cache_attr);
                 cur_op += 8;
                 goto NEXT;
             }
