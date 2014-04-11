@@ -558,17 +558,12 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags, MASTNode *a
     ensure_space(vm, &ws->callsite_seg, &ws->callsite_alloc, ws->callsite_pos,
             4 * num_nameds);
 
-    printf("elems: %d\n", ELEMS(vm, args));
-
     for (i = 0; i < num_nameds; i++) {
-        printf(".");
         MAST_SVal *argname = ATPOS(vm, args, (elems - num_nameds) + i * 2);
         write_int32(ws->callsite_seg, ws->callsite_pos,
                     get_string_heap_index(vm, ws, argname->value));
-        printf("%d is the string heap index\n", get_string_heap_index(vm, ws, argname->value));
         ws->callsite_pos += 4;
     }
-    printf("\n");
 
     return (unsigned short)ws->num_callsites++;
 }

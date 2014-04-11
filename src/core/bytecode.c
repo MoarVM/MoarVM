@@ -695,7 +695,6 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 
             for (j = 0; j < nameds / 2; j++) {
                 callsites[i]->arg_name[j] = get_heap_string(tc, cu, rs, pos, 0);
-                printf("[%d][%d]=%d\n", i, j, callsites[i]->arg_name[j]);
                 pos += 4;
             }
         } else {
