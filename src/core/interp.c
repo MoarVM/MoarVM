@@ -4237,6 +4237,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_get_o):
+            OP(sp_get_i):
+            OP(sp_get_n):
+            OP(sp_get_s):
+            OP(sp_bind_o):
+            OP(sp_bind_i):
+            OP(sp_bind_n):
+            OP(sp_bind_s):
+            OP(sp_p6oget_o):
+            OP(sp_p6ogetvt_o):
+            OP(sp_p6ogetvc_o):
+            OP(sp_p6oget_i):
+            OP(sp_p6oget_n):
+            OP(sp_p6oget_s):
+                MVM_exception_throw_adhoc(tc, "Unimplemented spesh ops hit");
             OP(sp_p6obind_o): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 MVMObject *value = GET_REG(cur_op, 4).o;
