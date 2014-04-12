@@ -181,9 +181,29 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     free(dump);
 }
 
-/* Destroys a VM instance. This must be called only from
- * the main thread. */
+/* Exits the process as quickly as is gracefully possible, respecting that
+ * foreground threads should join first. Leaves all cleanup to the OS, as it
+ * will be able to do it much more swiftly than we could. This is typically
+ * not the right thing for embedding; see MVM_vm_destroy_instance for that. */
+void MVM_vm_exit(MVMInstance *instance) {
+    /* Join any foreground threads. */
+    MVM_thread_join_foreground(instance->main_thread);
+
+    /* Close any spesh log. */
+    if (instance->spesh_log_fh)
+        fclose(instance->spesh_log_fh);
+
+    /* And, we're done. */
+    exit(0);
+}
+
+/* Destroys a VM instance. This must be called only from the main thread. It
+ * should clear up all resources and free all memory; in practice, it falls
+ * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
+    /* Join any foreground threads. */
+    MVM_thread_join_foreground(instance->main_thread);
+
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);

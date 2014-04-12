@@ -135,21 +135,24 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
 }
 
 /* Waits for a thread to finish. */
+static int try_join(MVMThreadContext *tc, MVMThread *thread) {
+    int status;
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&thread);
+    MVM_gc_mark_thread_blocked(tc);
+    if (thread->body.stage < MVM_thread_stage_exited) {
+        status = uv_thread_join(&thread->body.thread);
+    }
+    else {
+        /* the target already ended */
+        status = 0;
+    }
+    MVM_gc_mark_thread_unblocked(tc);
+    MVM_gc_root_temp_pop(tc);
+    return status;
+}
 void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
-        MVMThread *thread = (MVMThread *)thread_obj;
-        int status;
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&thread);
-        MVM_gc_mark_thread_blocked(tc);
-        if (((MVMThread *)thread_obj)->body.stage < MVM_thread_stage_exited) {
-            status = uv_thread_join(&thread->body.thread);
-        }
-        else {
-            /* the target already ended */
-            status = 0;
-        }
-        MVM_gc_mark_thread_unblocked(tc);
-        MVM_gc_root_temp_pop(tc);
+        int status = try_join(tc, (MVMThread *)thread_obj);
         if (status < 0)
             MVM_panic(MVM_exitcode_compunit, "Could not join thread: errorcode %d", status);
     }
@@ -210,4 +213,28 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
         this = next;
     }
     *head = new_list;
+}
+
+/* Goes through all non-app-lifetime threads and joins them. */
+void MVM_thread_join_foreground(MVMThreadContext *tc) {
+    MVMint64 work = 1;
+    while (work) {
+        MVMThread *cur_thread = tc->instance->threads;
+        work = 0;
+        while (cur_thread) {
+            if (cur_thread->body.tc != tc->instance->main_thread) {
+                if (!cur_thread->body.app_lifetime) {
+                    if (MVM_load(&cur_thread->body.stage) < MVM_thread_stage_exited) {
+                        /* Join may trigger GC and invalidate cur_thread, so we
+                        * just set work to 1 and do another trip around the main
+                        * loop. */
+                        try_join(tc, cur_thread);
+                        work = 1;
+                        break;
+                    }
+                }
+            }
+            cur_thread = cur_thread->body.next;
+        }
+    }
 }
