@@ -138,6 +138,7 @@ struct MVMThreadContext {
      * will get updated if a GC run happens. Note that this is used as a
      * stack and is also thread-local, so it's cheap to push/pop. */
     MVMuint32             num_temproots;
+    MVMuint32             mark_temproots;
     MVMuint32             alloc_temproots;
     MVMCollectable     ***temproots;
 
