@@ -273,3 +273,81 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
 
     return NULL;
 }
+
+/* Does a lookup in the multi-dispatch cache using a callsite and args. Some
+ * code dupe with above; may be nice to factor it out some day. */
+MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *cache_obj,
+    MVMCallsite *cs, MVMRegister *args) {
+    MVMMultiCacheBody *cache;
+    MVMuint16          num_args, i, j, entries, t_pos;
+    MVMuint8           has_nameds;
+    MVMuint64          arg_tup[MVM_MULTICACHE_MAX_ARITY];
+
+    /* If no cache, no result. */
+    if (!cache_obj || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache)
+        return NULL;
+    cache = &((MVMMultiCache *)cache_obj)->body;
+
+    /* Ensure we got a capture in to look up; bail if unflattened. */
+    if (cs->has_flattening)
+        return NULL;
+    num_args   = cs->num_pos;
+    has_nameds = cs->arg_count != cs->num_pos;
+
+    /* If it's zero-arity, return result right off. */
+    if (num_args == 0 && !has_nameds)
+        return cache->zero_arity;
+
+    /* If there's more args than the maximum, won't be in the cache. */
+    if (num_args > MVM_MULTICACHE_MAX_ARITY)
+        return NULL;
+
+    /* Create arg tuple. */
+    for (i = 0; i < num_args; i++) {
+        MVMuint8 arg_type = cs->arg_flags[i] & MVM_CALLSITE_ARG_MASK;
+        if (arg_type == MVM_CALLSITE_ARG_OBJ) {
+            MVMObject *arg = args[i].o;
+            if (arg) {
+                MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
+                if (contspec) {
+                    if (contspec->fetch_never_invokes) {
+                        MVMRegister r;
+                        contspec->fetch(tc, arg, &r);
+                        arg = r.o;
+                    }
+                    else {
+                        return NULL;
+                    }
+                }
+                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
+            }
+            else {
+                return NULL;
+            }
+        }
+        else {
+            arg_tup[i] = (arg_type << 1) | 1;
+        }
+    }
+
+    /* Look through entries. */
+    entries = cache->arity_caches[num_args - 1].num_entries;
+    t_pos = 0;
+    for (i = 0; i < entries; i++) {
+        MVMint64 match = 1;
+        for (j = 0; j < num_args; j++) {
+            if (cache->arity_caches[num_args - 1].type_ids[t_pos + j] != arg_tup[j]) {
+                match = 0;
+                break;
+            }
+        }
+        if (match) {
+            MVMuint8 match_nameds = cache->arity_caches[num_args - 1].named_ok[i];
+            if (has_nameds == match_nameds)
+                return cache->arity_caches[num_args - 1].results[i];
+        }
+        t_pos += num_args;
+    }
+
+    return NULL;
+}

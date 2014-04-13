@@ -19,6 +19,7 @@ enum {
 
     FLAG_CRASH,
     FLAG_DUMP,
+    FLAG_FULL_CLEANUP,
     FLAG_HELP,
     FLAG_TRACING,
     FLAG_VERSION,
@@ -29,6 +30,7 @@ enum {
 static const char *const FLAGS[] = {
     "--crash",
     "--dump",
+    "--full-cleanup",
     "--help",
     "--tracing",
     "--version",
@@ -38,11 +40,12 @@ static const char USAGE[] = "\
 USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]\n\
        moar [--help]\n\
 \n\
-    --help     display this message\n\
-    --dump     dump the bytecode to stdout instead of executing\n\
-    --crash    abort instead of exiting on unhandled exception\n\
-    --libpath  specify path loadbytecode should search in\n\
-    --version  show version information"
+    --help            display this message\n\
+    --dump            dump the bytecode to stdout instead of executing\n\
+    --full-cleanup    try to free all memory and exit cleanly\n\
+    --crash           abort instead of exiting on unhandled exception\n\
+    --libpath         specify path loadbytecode should search in\n\
+    --version         show version information"
     TRACING_USAGE;
 
 static int cmp_flag(const void *key, const void *value)
@@ -81,10 +84,11 @@ int main(int argc, char *argv[])
     const char  *input_file;
     const char  *lib_path[8];
 
-    int dump = 0;
-    int argi = 1;
+    int dump         = 0;
+    int full_cleanup = 0;
+    int argi         = 1;
+    int lib_path_i   = 0;
     int flag;
-    int lib_path_i = 0;
 
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
@@ -94,6 +98,10 @@ int main(int argc, char *argv[])
 
             case FLAG_DUMP:
             dump = 1;
+            continue;
+
+            case FLAG_FULL_CLEANUP:
+            full_cleanup = 1;
             continue;
 
             case FLAG_HELP:
@@ -145,7 +153,11 @@ int main(int argc, char *argv[])
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
 
-    MVM_vm_destroy_instance(instance);
-
-    return EXIT_SUCCESS;
+    if (full_cleanup) {
+        MVM_vm_destroy_instance(instance);
+        return EXIT_SUCCESS;
+    }
+    else {
+        MVM_vm_exit(instance);
+    }
 }

@@ -326,6 +326,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         cs->arg_count      = num_info - 1;
         cs->num_pos        = num_info - 1;
         cs->has_flattening = 0;
+        cs->is_interned    = 0;
         cs->with_invocant  = NULL;
         cs->arg_name       = NULL;
 
@@ -458,6 +459,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         MVMCompUnit **backup_interp_cu          = tc->interp_cu;
         MVMFrame *backup_cur_frame              = tc->cur_frame;
         MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
+        MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
         jmp_buf backup_interp_jump;
         memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
 
@@ -472,6 +474,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         tc->cur_frame             = backup_cur_frame;
         tc->thread_entry_frame    = backup_thread_entry_frame;
         memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
+        MVM_gc_root_temp_mark_reset(tc, backup_mark);
     }
 
     /* Handle return value. */

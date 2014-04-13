@@ -184,8 +184,11 @@ Each frame starts with the following data.
     | Number of handlers                                      |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
-    | Frame need exit handler invoked                         |
-    |    16-bit integer; 0 = no, 1 = yes                      |
+    | Frame flag bits                                         |
+    |    16-bit integer                                       |
+    |    1 = frame has an exit handler                        |
+    |    2 = frame is a thunk                                 |
+    |    Remaining values reserved                            |
     | [NEW IN VERSION 2]                                      |
     +---------------------------------------------------------+
 

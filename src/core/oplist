@@ -618,6 +618,9 @@ condwait            r(obj)
 condsignalone       r(obj)
 condsignalall       r(obj)
 queuepoll           w(obj) r(obj)
+setmultispec        r(obj) r(obj) r(str) r(str)
+ctxouterskipthunks  w(obj) r(obj)
+ctxcallerskipthunks w(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

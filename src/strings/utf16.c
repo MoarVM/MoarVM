@@ -116,7 +116,7 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
             result_pos += 2;
         }
     }
-    result_pos[0] = result_pos[1] = 0;
+    result_pos[0] = 0;
     if (output_size)
         *output_size = (char *)result_pos - (char *)result;
     return (MVMuint8 *)result;

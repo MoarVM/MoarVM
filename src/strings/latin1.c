@@ -3,7 +3,7 @@
 /* Decodes the specified number of bytes of latin1 into an NFG string,
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
-MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_type, 
+MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_type,
                                      MVMuint8 *latin1, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
@@ -15,7 +15,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_typ
 
     for (i = 0; i < bytes; i++)
         result->body.int32s[i] = latin1[i];
-    
+
     return result;
 }
 
@@ -93,11 +93,11 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > strgraphs)
+    if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(length + 1);
-    for (i = 0; i < length; i++) {
+    result = malloc(lengthu + 1);
+    for (i = 0; i < lengthu; i++) {
         MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
         if (codepoint >= 0 && codepoint < 256)
             result[i] = (MVMuint8)codepoint;
@@ -106,6 +106,6 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     }
     result[i] = 0;
     if (output_size)
-        *output_size = length;
+        *output_size = lengthu;
     return result;
 }

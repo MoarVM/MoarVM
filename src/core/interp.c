@@ -412,57 +412,62 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(invoke_v):
                 {
-                    MVMObject *code = GET_REG(cur_op, 0).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 0).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = NULL;
                     tc->cur_frame->return_type = MVM_RETURN_VOID;
                     cur_op += 2;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_i):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_INT;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_n):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_NUM;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_s):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_STR;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(invoke_o):
                 {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    code = MVM_frame_find_invokee(tc, code, &cur_callsite);
+                    MVMObject   *code = GET_REG(cur_op, 2).o;
+                    MVMRegister *args = tc->cur_frame->args;
+                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args);
                     tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 4;
                     tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, cur_callsite, args);
                 }
                 goto NEXT;
             OP(add_n):
@@ -2790,11 +2795,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
                     *invocation_handler = GET_REG(cur_op, 6).o;
                 MVMString *name = GET_REG(cur_op, 4).s;
-                MVMInvocationSpec *is = malloc(sizeof(MVMInvocationSpec));
+                MVMInvocationSpec *is = calloc(1, sizeof(MVMInvocationSpec));
                 MVMSTable *st = STABLE(obj);
                 MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
                 MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);
-                is->hint = MVM_NO_HINT;
+                if (ch && name)
+                    is->hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch, name);
                 MVM_ASSIGN_REF(tc, &(st->header), is->invocation_handler, invocation_handler);
                 /* XXX not thread safe, but this should occur on non-shared objects anyway... */
                 if (st->invocation_spec)
@@ -4100,6 +4106,63 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(setmultispec): {
+                MVMObject *obj        = GET_REG(cur_op, 0).o;
+                MVMObject *ch         = GET_REG(cur_op, 2).o;
+                MVMString *valid_attr = GET_REG(cur_op, 4).s;
+                MVMString *cache_attr = GET_REG(cur_op, 6).s;
+                MVMSTable *st         = STABLE(obj);
+                MVMInvocationSpec *is = st->invocation_spec;
+                if (!is)
+                    MVM_exception_throw_adhoc(tc,
+                        "Can only use setmultispec after setinvokespec");
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_class_handle, ch);
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_valid_attr_name, valid_attr);
+                MVM_ASSIGN_REF(tc, &(st->header), is->md_cache_attr_name, cache_attr);
+                is->md_valid_hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch,
+                    valid_attr);
+                is->md_cache_hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch,
+                    cache_attr);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(ctxouterskipthunks): {
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx;
+                MVMFrame *frame;
+                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                    MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
+                }
+                frame = ((MVMContext *)this_ctx)->body.context->outer;
+                while (frame && frame->static_info->body.is_thunk)
+                    frame = frame->caller;
+                if (frame) {
+                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                    GET_REG(cur_op, 0).o = ctx;
+                }
+                else {
+                    GET_REG(cur_op, 0).o = NULL;
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(ctxcallerskipthunks): {
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx = NULL;
+                MVMFrame *frame;
+                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+                    MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
+                }
+                frame = ((MVMContext *)this_ctx)->body.context->caller;
+                while (frame && frame->static_info->body.is_thunk)
+                    frame = frame->caller;
+                if (frame) {
+                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                }
+                GET_REG(cur_op, 0).o = ctx;
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;
@@ -4174,6 +4237,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_get_o):
+            OP(sp_get_i):
+            OP(sp_get_n):
+            OP(sp_get_s):
+            OP(sp_bind_o):
+            OP(sp_bind_i):
+            OP(sp_bind_n):
+            OP(sp_bind_s):
+            OP(sp_p6oget_o):
+            OP(sp_p6ogetvt_o):
+            OP(sp_p6ogetvc_o):
+            OP(sp_p6oget_i):
+            OP(sp_p6oget_n):
+            OP(sp_p6oget_s):
+                MVM_exception_throw_adhoc(tc, "Unimplemented spesh ops hit");
             OP(sp_p6obind_o): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 MVMObject *value = GET_REG(cur_op, 4).o;

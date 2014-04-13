@@ -24,7 +24,7 @@ typedef struct {
     MVMObject   *instructions;
     MVMObject   *outer;
     MVMObject   *lexical_map;
-    MVMint64     has_exit_handler;
+    MVMint64     flags;
 } MAST_Frame;
 
 /* MAST::Op */

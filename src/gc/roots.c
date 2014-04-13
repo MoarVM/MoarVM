@@ -130,9 +130,24 @@ void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to pop insufficiently large temporary root stack");
 }
 
+/* Marks the temporary root stack at its current height as the limit for
+ * removing all roots. This is done so that in nested interpreter runs
+ * (at present, just nativecall callbacks) we don't clear things that
+ * are pushed by the native call itself. */
+MVMuint32 MVM_gc_root_temp_mark(MVMThreadContext *tc) {
+    MVMint32 current = tc->mark_temproots;
+    tc->mark_temproots = tc->num_temproots;
+    return current;
+}
+
+/* Resets the temporary root stack mark to the provided height. */
+void MVM_gc_root_temp_mark_reset(MVMThreadContext *tc, MVMuint32 mark) {
+    tc->mark_temproots = mark;
+}
+
 /* Pops all temporary roots off the thread-local roots list. */
 void MVM_gc_root_temp_pop_all(MVMThreadContext *tc) {
-    tc->num_temproots = 0;
+    tc->num_temproots = tc->mark_temproots;
 }
 
 /* Adds the set of thread-local temporary roots to a GC worklist. */

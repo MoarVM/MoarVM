@@ -136,6 +136,7 @@ MVMObject *MVM_backend_config(MVMThreadContext *tc);
 MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);
 MVM_PUBLIC void MVM_vm_run_file(MVMInstance *instance, const char *filename);
 MVM_PUBLIC void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
+MVM_PUBLIC void MVM_vm_exit(MVMInstance *instance);
 MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 
 /* Returns original. Use only on AO_t-sized values (including pointers). */

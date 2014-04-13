@@ -320,6 +320,8 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
 
         MVM_repr_push_o(tc, arr, row);
         cur_frame = cur_frame->caller;
+        while (cur_frame && cur_frame->static_info->body.is_thunk)
+            cur_frame = cur_frame->caller;
         count++;
     }
 
