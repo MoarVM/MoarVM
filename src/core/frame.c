@@ -969,6 +969,7 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 new->arg_count      = orig->arg_count + 1;
                 new->num_pos        = orig->num_pos + 1;
                 new->has_flattening = orig->has_flattening;
+                new->is_interned    = 0;
                 new->with_invocant  = NULL;
                 *tweak_cs = orig->with_invocant = new;
             }

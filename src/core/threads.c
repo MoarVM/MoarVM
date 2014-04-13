@@ -44,6 +44,7 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     ts->no_arg_callsite.arg_count      = 0;
     ts->no_arg_callsite.num_pos        = 0;
     ts->no_arg_callsite.has_flattening = 0;
+    ts->no_arg_callsite.is_interned    = 0;
 
     /* Create initial frame, which sets up all of the interpreter state also. */
     invokee = MVM_frame_find_invokee(tc, invokee, NULL);

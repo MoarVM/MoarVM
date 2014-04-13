@@ -326,6 +326,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         cs->arg_count      = num_info - 1;
         cs->num_pos        = num_info - 1;
         cs->has_flattening = 0;
+        cs->is_interned    = 0;
         cs->with_invocant  = NULL;
 
         typehash = MVM_repr_at_pos_o(tc, sig_info, 0);
