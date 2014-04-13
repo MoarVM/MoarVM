@@ -961,10 +961,11 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 *tweak_cs = orig->with_invocant;
             }
             else {
-                MVMCallsite *new  = malloc(sizeof(MVMCallsite));
-                new->arg_flags    = malloc((orig->arg_count + 1) * sizeof(MVMCallsiteEntry));
-                new->arg_flags[0] = MVM_CALLSITE_ARG_OBJ;
-                memcpy(new->arg_flags + 1, orig->arg_flags, orig->arg_count);
+                MVMCallsite *new   = malloc(sizeof(MVMCallsite));
+                MVMint32     fsize = orig->num_pos + (orig->arg_count - orig->num_pos) / 2;
+                new->arg_flags     = malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
+                new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
+                memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
                 new->arg_count      = orig->arg_count + 1;
                 new->num_pos        = orig->num_pos + 1;
                 new->has_flattening = orig->has_flattening;
