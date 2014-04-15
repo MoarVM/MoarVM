@@ -6,17 +6,24 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
     MVMCallsiteInterns *interns = tc->instance->callsite_interns;
     MVMCallsite        *cs      = *cs_ptr;
     MVMint32            num_pos = cs->num_pos;
-    MVMint32 i, found;
+    MVMint32          num_flags = num_pos + (cs->arg_count - num_pos) / 2;
+    MVMint32 i, j, found;
 
-    /* Can't intern anything with named or flattening, for now. */
-    if (cs->arg_count != num_pos)
-        return;
+    /* Can't intern anything with flattening, for now. */
     if (cs->has_flattening)
         return;
 
     /* Also can't intern past the max arity. */
-    if (num_pos >= MVM_INTERN_ARITY_LIMIT)
+    if (num_flags >= MVM_INTERN_ARITY_LIMIT)
         return;
+
+    if (num_flags > num_pos && !cs->arg_name)
+        return;
+
+    for (j = 0; j < num_flags - num_pos; j++) {
+        if (!cs->arg_name[j])
+            return;
+    }
 
     /* Obtain mutex protecting interns store. */
     uv_mutex_lock(&tc->instance->mutex_callsite_interns);
@@ -24,15 +31,29 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
     /* Search for a match. */
     found = 0;
     for (i = 0; i < interns->num_by_arity[num_pos]; i++) {
-        if (memcmp(interns->by_arity[num_pos][i]->arg_flags, cs->arg_flags, num_pos) == 0) {
+        if (cs->arg_count != interns->by_arity[num_pos][i]->arg_count)
+            continue;
+        if (memcmp(interns->by_arity[num_pos][i]->arg_flags, cs->arg_flags, num_flags) == 0) {
+            /* Now let's have a look at the named arguments. */
+            for (j = 0; j < num_flags - num_pos; j++) {
+                /* if any of the nameds are not known at this time, we skip this */
+                if (   !interns->by_arity[num_pos][i]->arg_name || !interns->by_arity[num_pos][i]->arg_name[j]
+                    || !MVM_string_equal(tc, cs->arg_name[j], interns->by_arity[num_pos][i]->arg_name[j])) {
+                    goto cancel;
+                }
+            }
             /* Got a match! Free the one we were passed and replace it with
              * the interned one. */
             if (num_pos)
                 free(cs->arg_flags);
+            if (num_flags > num_pos)
+                free(cs->arg_name);
             free(cs);
             *cs_ptr = interns->by_arity[num_pos][i];
+            if (num_flags > num_pos)
+                printf("interned a callsite with %d nameds\n", num_flags - num_pos);
             found = 1;
-            break;
+cancel:     break;
         }
     }
 
