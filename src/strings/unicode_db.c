@@ -833,7 +833,7 @@ static const MVMint32 case_changes[2091][3] = {
     /*2087*/{0x10424,0x0,0x10424}/* 1044C */,/*2088*/{0x10425,0x0,0x10425}/* 1044D */,
     /*2089*/{0x10426,0x0,0x10426}/* 1044E */,/*2090*/{0x10427,0x0,0x10427}/* 1044F */
 };
-static const MVMuint16 codepoint_bitfield_indexes[43829] = {
+static const MVMuint16 codepoint_bitfield_indexes[43830] = {
     /*0*/1/* 0000 */,/*1*/1/* 0001 */,/*2*/1/* 0002 */,/*3*/1/* 0003 */,/*4*/1/* 0004 */,/*5*/1/* 0005 */,/*6*/1/* 0006 */,
     /*7*/1/* 0007 */,/*8*/1/* 0008 */,/*9*/2/* 0009 */,/*10*/3/* 000A */,/*11*/4/* 000B */,/*12*/5/* 000C */,
     /*13*/6/* 000D */,/*14*/1/* 000E */,/*15*/1/* 000F */,/*16*/1/* 0010 */,/*17*/1/* 0011 */,/*18*/1/* 0012 */,
@@ -8713,9 +8713,10 @@ static const MVMuint16 codepoint_bitfield_indexes[43829] = {
     /*43813*/9095/* E01E4 */,/*43814*/9095/* E01E5 */,/*43815*/9095/* E01E6 */,/*43816*/9095/* E01E7 */,
     /*43817*/9095/* E01E8 */,/*43818*/9095/* E01E9 */,/*43819*/9095/* E01EA */,/*43820*/9095/* E01EB */,
     /*43821*/9095/* E01EC */,/*43822*/9095/* E01ED */,/*43823*/9095/* E01EE */,/*43824*/9095/* E01EF */,
-    /*43825*/9096/* F0000 */,/*43826*/9097/* F0001 */,/*43827*/9098/* 100000 */,/*43828*/9099/* 100001 */
+    /*43825*/9096/* F0000 */,/*43826*/9097/* F0001 */,/*43827*/9098/* 100000 */,/*43828*/9099/* 100001 */,
+    /*43829*/9100/* 110000 */
 };
-static const char *codepoint_names[43829] = {
+static const char *codepoint_names[43830] = {
     /*0*/"NULL"/* 0000 */,/*1*/"START OF HEADING"/* 0001 */,/*2*/"START OF TEXT"/* 0002 */,/*3*/"END OF TEXT"/* 0003 */,
     /*4*/"END OF TRANSMISSION"/* 0004 */,/*5*/"ENQUIRY"/* 0005 */,/*6*/"ACKNOWLEDGE"/* 0006 */,/*7*/"BELL"/* 0007 */,
     /*8*/"BACKSPACE"/* 0008 */,/*9*/"CHARACTER TABULATION"/* 0009 */,/*10*/"LINE FEED (LF)"/* 000A */,
@@ -23974,9 +23975,10 @@ static const char *codepoint_names[43829] = {
     /*43821*/"VARIATION SELECTOR-253"/* E01EC */,/*43822*/"VARIATION SELECTOR-254"/* E01ED */,
     /*43823*/"VARIATION SELECTOR-255"/* E01EE */,/*43824*/"VARIATION SELECTOR-256"/* E01EF */,
     /*43825*/"<Plane 15 Private Use>"/* F0000 */,/*43826*/"<Plane 15 Private Use>"/* F0001 */,
-    /*43827*/"<Plane 16 Private Use>"/* 100000 */,/*43828*/"<Plane 16 Private Use>"/* 100001 */
+    /*43827*/"<Plane 16 Private Use>"/* 100000 */,/*43828*/"<Plane 16 Private Use>"/* 100001 */,
+    /*43829*/"Out of Range"/* 110000 */
 };
-static const MVMuint32 props_bitfield[9100][7] = {
+static const MVMuint32 props_bitfield[9101][7] = {
     {0,0,0,0,0,0,0},/*1*/{0,17u,266262u,62939142u,6062080u,12288u,0}/* 0000 */,
     /*2*/{0,17u,266256u,62914758u,6062080u,12289u,4194304u}/* 0009 */,
     /*3*/{0,17u,266254u,734019652u,6062080u,12289u,4194304u}/* 000A */,
@@ -33074,7 +33076,7 @@ static const MVMuint32 props_bitfield[9100][7] = {
     /*9096*/{0,3506u,4096u,71303174u,6062352u,14848u,0}/* F0000 */,
     /*9097*/{0,3506u,4096u,71303168u,6062080u,12288u,0}/* F0001 */,
     /*9098*/{0,3522u,4096u,71303168u,6062080u,14336u,0}/* 100000 */,
-    /*9099*/{0,3522u,4096u,71303168u,6062080u,12288u,0}/* 100001 */
+    /*9099*/{0,3522u,4096u,71303168u,6062080u,12288u,0}/* 100001 */,/*9100*/{0,2u,4096u,0u,5799936u,14336u,0}/* 110000 */
 };
 
 static const MVMUnicodeNamedValue unicode_property_keypairs[3250] = {
@@ -42535,18 +42537,31 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
             return -1;
         }
         else {
-            if (codepoint >= 0x2092A) { /* <CJK Ideograph Extension B> */
-                if (codepoint >= 0x2626E) { /* <CJK Ideograph Extension B> */
-                    if (codepoint >= 0x2FA1E) { /* NULL */
-                        if (codepoint >= 0xF0000) { /* <Plane 15 Private Use> */
-                            if (codepoint >= 0xF0001) { /* <Plane 15 Private Use> */
-                                if (codepoint >= 0xFFFFE) { /* NULL */
-                                    if (codepoint >= 0x100000) { /* <Plane 16 Private Use> */
-                                        return codepoint - 1004749;
+            if (codepoint >= 0x2099D) { /* <CJK Ideograph Extension B> */
+                if (codepoint >= 0x2B740) { /* <CJK Ideograph Extension D> */
+                    if (codepoint >= 0xF0000) { /* <Plane 15 Private Use> */
+                        if (codepoint >= 0x100000) { /* <Plane 16 Private Use> */
+                            if (codepoint >= 0x100001) { /* <Plane 16 Private Use> */
+                                if (codepoint >= 0x10FFFE) { /* NULL */
+                                    if (codepoint >= 0x110000) { /* Out of Range */
+                                        return codepoint - 1070283;
                                     }
                                     else {
                                         return -1;
                                     }
+                                }
+                                else {
+                                    return 43828; /* 110000 Out of Range */
+                                }
+                            }
+                            else {
+                                return codepoint - 1004749;
+                            }
+                        }
+                        else {
+                            if (codepoint >= 0xF0001) { /* <Plane 15 Private Use> */
+                                if (codepoint >= 0xFFFFE) { /* NULL */
+                                    return -1;
                                 }
                                 else {
                                     return 43826; /* 100000 <Plane 16 Private Use> */
@@ -42556,202 +42571,204 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
                                 return codepoint - 939215;
                             }
                         }
-                        else {
-                            if (codepoint >= 0xE0001) { /* LANGUAGE TAG */
-                                if (codepoint >= 0xE01F0) { /* NULL */
-                                    return -1;
+                    }
+                    else {
+                        if (codepoint >= 0x2F800) { /* CJK COMPATIBILITY IDEOGRAPH-2F800 */
+                            if (codepoint >= 0x2FA1E) { /* NULL */
+                                if (codepoint >= 0xE0001) { /* LANGUAGE TAG */
+                                    if (codepoint >= 0xE01F0) { /* NULL */
+                                        return -1;
+                                    }
+                                    else {
+                                        return codepoint - 874175;
+                                    }
                                 }
                                 else {
-                                    return codepoint - 874175;
+                                    return -1;
                                 }
                             }
                             else {
-                                return -1;
+                                return codepoint - 151772;
                             }
                         }
-                    }
-                    else {
-                        if (codepoint >= 0x2B740) { /* <CJK Ideograph Extension D> */
+                        else {
                             if (codepoint >= 0x2B81E) { /* NULL */
-                                if (codepoint >= 0x2F800) { /* CJK COMPATIBILITY IDEOGRAPH-2F800 */
-                                    return codepoint - 151772;
-                                }
-                                else {
-                                    return -1;
-                                }
+                                return -1;
                             }
                             else {
                                 return 42787; /* 2F800 CJK COMPATIBILITY IDEOGRAPH-2F800 */
                             }
                         }
-                        else {
-                            if (codepoint >= 0x2A700) { /* <CJK Ideograph Extension C> */
-                                return 42775; /* 2B740 <CJK Ideograph Extension D> */
-                            }
-                            else {
-                                return 42733; /* 20064 <CJK Ideograph Extension B> */
-                            }
-                        }
                     }
                 }
                 else {
-                    if (codepoint >= 0x22391) { /* <CJK Ideograph Extension B> */
-                        if (codepoint >= 0x22999) { /* <CJK Ideograph Extension B> */
-                            if (codepoint >= 0x23B1B) { /* <CJK Ideograph Extension B> */
-                                if (codepoint >= 0x23B1C) { /* <CJK Ideograph Extension B> */
-                                    if (codepoint >= 0x2626D) { /* <CJK Ideograph Extension B> */
-                                        return codepoint - 113537;
+                    if (codepoint >= 0x22998) { /* <CJK Ideograph Extension B> */
+                        if (codepoint >= 0x23B1C) { /* <CJK Ideograph Extension B> */
+                            if (codepoint >= 0x2626D) { /* <CJK Ideograph Extension B> */
+                                if (codepoint >= 0x2626E) { /* <CJK Ideograph Extension B> */
+                                    if (codepoint >= 0x2A700) { /* <CJK Ideograph Extension C> */
+                                        return 42775; /* 2B740 <CJK Ideograph Extension D> */
                                     }
                                     else {
-                                        return 42731; /* 20064 <CJK Ideograph Extension B> */
+                                        return 42733; /* 20064 <CJK Ideograph Extension B> */
                                     }
                                 }
                                 else {
-                                    return codepoint - 103473;
+                                    return codepoint - 113537;
                                 }
                             }
                             else {
-                                return 42729; /* 20064 <CJK Ideograph Extension B> */
+                                return 42731; /* 20064 <CJK Ideograph Extension B> */
                             }
                         }
                         else {
-                            if (codepoint >= 0x22998) { /* <CJK Ideograph Extension B> */
-                                return codepoint - 98992;
+                            if (codepoint >= 0x22999) { /* <CJK Ideograph Extension B> */
+                                if (codepoint >= 0x23B1B) { /* <CJK Ideograph Extension B> */
+                                    return codepoint - 103473;
+                                }
+                                else {
+                                    return 42729; /* 20064 <CJK Ideograph Extension B> */
+                                }
                             }
                             else {
-                                return 42727; /* 20064 <CJK Ideograph Extension B> */
+                                return codepoint - 98992;
                             }
                         }
                     }
                     else {
-                        if (codepoint >= 0x20AEA) { /* <CJK Ideograph Extension B> */
-                            if (codepoint >= 0x20B1A) { /* <CJK Ideograph Extension B> */
-                                if (codepoint >= 0x22390) { /* <CJK Ideograph Extension B> */
-                                    return codepoint - 97450;
+                        if (codepoint >= 0x20B1A) { /* <CJK Ideograph Extension B> */
+                            if (codepoint >= 0x22390) { /* <CJK Ideograph Extension B> */
+                                if (codepoint >= 0x22391) { /* <CJK Ideograph Extension B> */
+                                    return 42727; /* 20064 <CJK Ideograph Extension B> */
                                 }
                                 else {
-                                    return 42725; /* 20064 <CJK Ideograph Extension B> */
+                                    return codepoint - 97450;
                                 }
                             }
                             else {
-                                return codepoint - 91189;
+                                return 42725; /* 20064 <CJK Ideograph Extension B> */
                             }
                         }
                         else {
-                            if (codepoint >= 0x2099D) { /* <CJK Ideograph Extension B> */
-                                return 42676; /* 20064 <CJK Ideograph Extension B> */
+                            if (codepoint >= 0x20AEA) { /* <CJK Ideograph Extension B> */
+                                return codepoint - 91189;
                             }
                             else {
-                                return codepoint - 90857;
+                                return 42676; /* 20064 <CJK Ideograph Extension B> */
                             }
                         }
                     }
                 }
             }
             else {
-                if (codepoint >= 0x16F00) { /* MIAO LETTER PA */
-                    if (codepoint >= 0x1D800) { /* NULL */
-                        if (codepoint >= 0x20000) { /* <CJK Ideograph Extension B> */
-                            if (codepoint >= 0x20065) { /* <CJK Ideograph Extension B> */
-                                if (codepoint >= 0x200E2) { /* <CJK Ideograph Extension B> */
-                                    if (codepoint >= 0x20122) { /* <CJK Ideograph Extension B> */
-                                        return 42560; /* 20064 <CJK Ideograph Extension B> */
+                if (codepoint >= 0x16FA0) { /* NULL */
+                    if (codepoint >= 0x1EE00) { /* ARABIC MATHEMATICAL ALEF */
+                        if (codepoint >= 0x20065) { /* <CJK Ideograph Extension B> */
+                            if (codepoint >= 0x200E2) { /* <CJK Ideograph Extension B> */
+                                if (codepoint >= 0x20122) { /* <CJK Ideograph Extension B> */
+                                    if (codepoint >= 0x2092A) { /* <CJK Ideograph Extension B> */
+                                        return codepoint - 90857;
                                     }
                                     else {
-                                        return codepoint - 88802;
+                                        return 42560; /* 20064 <CJK Ideograph Extension B> */
                                     }
                                 }
                                 else {
-                                    return 42495; /* 20064 <CJK Ideograph Extension B> */
+                                    return codepoint - 88802;
                                 }
                             }
                             else {
-                                return codepoint - 88678;
+                                return 42495; /* 20064 <CJK Ideograph Extension B> */
                             }
                         }
                         else {
-                            if (codepoint >= 0x1EE00) { /* ARABIC MATHEMATICAL ALEF */
-                                if (codepoint >= 0x1F774) { /* NULL */
-                                    return -1;
+                            if (codepoint >= 0x1F774) { /* NULL */
+                                if (codepoint >= 0x20000) { /* <CJK Ideograph Extension B> */
+                                    return codepoint - 88678;
                                 }
                                 else {
-                                    return codepoint - 86490;
+                                    return -1;
                                 }
                             }
                             else {
-                                return -1;
+                                return codepoint - 86490;
                             }
                         }
                     }
                     else {
-                        if (codepoint >= 0x1B000) { /* KATAKANA LETTER ARCHAIC E */
-                            if (codepoint >= 0x1B002) { /* NULL */
-                                if (codepoint >= 0x1D000) { /* BYZANTINE MUSICAL SYMBOL PSILI */
-                                    return codepoint - 80858;
+                        if (codepoint >= 0x1B002) { /* NULL */
+                            if (codepoint >= 0x1D000) { /* BYZANTINE MUSICAL SYMBOL PSILI */
+                                if (codepoint >= 0x1D800) { /* NULL */
+                                    return -1;
                                 }
                                 else {
-                                    return -1;
+                                    return codepoint - 80858;
                                 }
                             }
                             else {
-                                return codepoint - 72668;
+                                return -1;
                             }
                         }
                         else {
-                            if (codepoint >= 0x16FA0) { /* NULL */
-                                return -1;
+                            if (codepoint >= 0x1B000) { /* KATAKANA LETTER ARCHAIC E */
+                                return codepoint - 72668;
                             }
                             else {
-                                return codepoint - 56188;
+                                return -1;
                             }
                         }
                     }
                 }
                 else {
-                    if (codepoint >= 0x12000) { /* CUNEIFORM SIGN A */
-                        if (codepoint >= 0x13000) { /* EGYPTIAN HIEROGLYPH A001 */
-                            if (codepoint >= 0x1342F) { /* NULL */
-                                if (codepoint >= 0x16800) { /* BAMUM LETTER PHASE-A NGKUE MFON */
-                                    if (codepoint >= 0x16A39) { /* NULL */
-                                        return -1;
+                    if (codepoint >= 0x12474) { /* NULL */
+                        if (codepoint >= 0x1342F) { /* NULL */
+                            if (codepoint >= 0x16800) { /* BAMUM LETTER PHASE-A NGKUE MFON */
+                                if (codepoint >= 0x16A39) { /* NULL */
+                                    if (codepoint >= 0x16F00) { /* MIAO LETTER PA */
+                                        return codepoint - 56188;
                                     }
                                     else {
-                                        return codepoint - 54965;
+                                        return -1;
                                     }
                                 }
                                 else {
-                                    return -1;
+                                    return codepoint - 54965;
                                 }
                             }
                             else {
-                                return codepoint - 41700;
+                                return -1;
                             }
                         }
                         else {
-                            if (codepoint >= 0x12474) { /* NULL */
-                                return -1;
+                            if (codepoint >= 0x13000) { /* EGYPTIAN HIEROGLYPH A001 */
+                                return codepoint - 41700;
                             }
                             else {
-                                return codepoint - 38744;
+                                return -1;
                             }
                         }
                     }
                     else {
-                        if (codepoint >= 0x111DA) { /* NULL */
-                            if (codepoint >= 0x11680) { /* TAKRI LETTER A */
-                                if (codepoint >= 0x116CA) { /* NULL */
-                                    return -1;
+                        if (codepoint >= 0x11680) { /* TAKRI LETTER A */
+                            if (codepoint >= 0x116CA) { /* NULL */
+                                if (codepoint >= 0x12000) { /* CUNEIFORM SIGN A */
+                                    return codepoint - 38744;
                                 }
                                 else {
-                                    return codepoint - 36386;
+                                    return -1;
                                 }
                             }
                             else {
-                                return -1;
+                                return codepoint - 36386;
                             }
                         }
                         else {
-                            return codepoint - 35196;
+                            if (codepoint >= 0x111DA) { /* NULL */
+                                return -1;
+                            }
+                            else {
+                                return codepoint - 35196;
+                            }
                         }
                     }
                 }
@@ -42760,7 +42777,7 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint32 codepo
     }
 }
 
-static MVMint32 codepoint_extents[99][3] = {
+static MVMint32 codepoint_extents[102][3] = {
     {0x0000,0,0},
     {0x3406,2,13318},
     {0x3483,0,13319},
@@ -42859,6 +42876,9 @@ static MVMint32 codepoint_extents[99][3] = {
     {0xf0001,2,43826},
     {0xffffe,1,0},
     {0x100000,0,43827},
+    {0x100001,2,43828},
+    {0x10fffe,1,0},
+    {0x110000,0,43829},
     {0x10FFFE,0}
 };
 

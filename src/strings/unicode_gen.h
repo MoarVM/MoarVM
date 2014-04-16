@@ -1,5 +1,5 @@
 
-#define MVMNUMUNICODEEXTENTS 98
+#define MVMNUMUNICODEEXTENTS 101
 
 
 struct MVMUnicodeNamedValue {
@@ -10,7 +10,7 @@ struct MVMUnicodeNamedValue {
 
 MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);
 
-#define MVMCODEPOINTNAMESCOUNT 43829
+#define MVMCODEPOINTNAMESCOUNT 43830
 #define MVMNUMPROPERTYCODES 93
 
 

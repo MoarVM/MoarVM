@@ -1216,7 +1216,7 @@ sub UnicodeData {
     my $case_count = 1;
     my $decomp_keys = [ '' ];
     my $decomp_index = 1;
-    each_line('UnicodeData', sub {
+    my $s = sub {
         $_ = shift;
         my ($code_str, $name, $gencat, $ccclass, $bidiclass, $decmpspec,
             $num1, $num2, $num3, $bidimirrored, $u1name, $isocomment,
@@ -1293,7 +1293,10 @@ sub UnicodeData {
         else {
             $last_point = $first_point = $point;
         }
-    });
+    };
+    each_line('UnicodeData', $s);
+    $s->("110000;Out of Range;Cn;0;L;;;;;N;;;;;");
+
     register_enumerated_property('Case_Change_Index', {
         bit_width => least_int_ge_lg2($case_count)
     });
