@@ -27,7 +27,7 @@ New in 2014.04
 + Start interning positional callsites
 + Keep a rough call count per static frame
 + Add bytecdoe specialization infrastructure
-+ Optimize simple positoinal arg fetch in specialized bytecode
++ Optimize simple positional arg fetch in specialized bytecode
 + Resolve methods at specialization time when type is known
 + Add a monomorphic method cache
 + If MVM_SPESH_LOG is in env, log spesh work to it
