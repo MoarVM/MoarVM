@@ -1,3 +1,68 @@
+New in 2014.04
+
++ Brought thread ops in line with nqp:: op API
++ No longer inherit caller chain when starting a new thread
++ Fix a range of parallel garbage collection bugs
++ Block/unblock threads for GC while sleeping
++ Implement reentrant mutexes
++ Implemented semaphores
++ Implemented concurrent blocking queue support
++ Implement condition variables
++ Main thread has ID 1 now
++ Move nursery corruption check to after inter-thread work passing
++ Fix a gen2roots compaction optimization bug
++ Add flag '--has-sha' option to Configure to use a system SHA-1 library
++ GC orchestration cleanups and extra logging
++ Compact the gen2 overflows list
++ Fix decodestream_bytes_to_buf eating too much data
++ Added some missing MVMROOTs on config setup
++ Removed duplicate gen2 root cleanup call
++ Small cleanups to serialization
++ Avoid an extra level of function call in various REPR allocate functions
++ Add locking for IO handles
++ Add the Configure flags '--has-libuv and '--has-libatomic_ops'
++ Shortcut shr when we have a small lhs but rhs is >= 32
++ Add logic to turn bytecode into SSA form, and from SSA back to bytecode
++ Added infrastructure for "spesh ops", to use in type-specialized bytecode
++ Start interning positional callsites
++ Keep a rough call count per static frame
++ Add bytecdoe specialization infrastructure
++ Optimize simple positoinal arg fetch in specialized bytecode
++ Resolve methods at specialization time when type is known
++ Add a monomorphic method cache
++ If MVM_SPESH_LOG is in env, log spesh work to it
++ Turn known-unrequired decont into set
++ Make MVM_SPESH_DISABLE env var disable spesh
++ Add :pure annotations to side-effect-free ops; eliminate dead code
++ Add a tool for splitting and diffing spesh log output
++ Add setmultispec mechanism for optimizing away only-star proto
++ Optimize optional positoin arguments in bytecode specialization
++ Optimize out istype for a spesh-time-known value or type
++ Optimize if_i and unless_i for known values
++ Corrected atan2 op signature.
++ Implement de-optimization on mixins
++ Don't lose HLL owner during serialization
++ Optimize away hllize when possible
++ Optimize away assertparamcheck when possible
++ Infrastructure to allow REPRs to participate in spesh
++ Optimize object creation in common cases with known types
++ Small fixes to MVM_string_(latin1|windows1252)_encode_substr
++ Optimize bindattr_o on P6opaque when possible.
++ Change the way lexotic is handled to avoid the need for allocation
++ Specialize empty named slurpy args.
++ Add a way to flag a frame as a "thunk".
++ Add ctx[outer|caller]skipthunks ops.
++ Make backtrace generation ignore thunks.
++ When readline/linenoise see EOF, mark handle EOF
++ Set hint for invokespec and multispec, improving invocation performance
++ Improve the VM exit strategy, so non-app-lifetime threads are waited on
++ Correctly handle temp roots stack in callbacks
++ add sched_yield for NetBSD
++ Fix callsite size calculation in tweak_cs
++ Fix buffer overflow in UTF-16 encoding
++ Trigger repossession on OP(push_*)
++ Fake up a final entry off the end of Unicode, fixing some lookup bugs
+
 New in 2014.03
 
 + Implement a fast-path for string strand flattening
