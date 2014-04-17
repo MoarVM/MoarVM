@@ -19,7 +19,14 @@ static MVMCallsite     tc_callsite = { tc_flags, 3, 3, 0 };
 
 /* Locates a method by name, checking in the method cache only. */
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
-    MVMObject *cache = STABLE(obj)->method_cache;
+    MVMObject *cache;
+
+    if (!obj)
+        MVM_exception_throw_adhoc(tc,
+            "Cannot call method '%s' on a null object",
+             MVM_string_utf8_encode_C_string(tc, name));
+
+    cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache))
         return MVM_repr_at_key_o(tc, cache, name);
     return NULL;
