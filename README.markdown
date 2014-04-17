@@ -53,7 +53,7 @@ NQP repo, same as it can `--gen-parrot`.
 Some key features provided by MoarVM include:
 
 * Meta-object programming, using the 6model design
-* Precise, generational GC
+* Precise, generational, parallel, GC
 * Unicode support
 * First-class code objects, lexical variables and closures
 * Exceptions
@@ -64,7 +64,8 @@ Some key features provided by MoarVM include:
 * Big integers
 * A range of IO and process support
 * Native calling
-* Basic threads
+* Threads, mutexes, condition variables, semaphores, and blocking queues
+* Bytecode specialization by type, and a range of basic optimizations
 
 ## Contributing
 
