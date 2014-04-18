@@ -123,7 +123,7 @@ our %TC_POSIX = (
     ccshared   => '-fPIC',
     ldshared   => '-shared @ccshared@',
     moarshared => '',
-    ldrpath    => '-Wl,-rpath,$(PREFIX)/lib',
+    ldrpath    => '-Wl,-rpath,@prefix@/lib',
 
     arflags => 'rcs',
     arout   => '',
@@ -455,7 +455,7 @@ our %OS_DARWIN = (
 
     ccshared   => '',
     ldshared   => '-dynamiclib',
-    moarshared => '-install_name $(PREFIX)/lib/libmoar.dylib',
+    moarshared => '-install_name @prefix@/lib/libmoar.dylib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
