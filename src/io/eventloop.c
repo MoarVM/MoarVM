@@ -17,7 +17,7 @@ MVMint64 setup_work(MVMThreadContext *tc) {
     while ((task_obj = MVM_concblockingqueue_poll(tc,
             (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue)) != NULL) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
-        task->body.ops->setup(tc, tc->loop, task->body.data);
+        task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
         setup = 1;
     }
     return setup;

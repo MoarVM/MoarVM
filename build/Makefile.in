@@ -90,6 +90,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/io/fileops@obj@ \
           src/io/dirops@obj@ \
           src/io/procops@obj@ \
+          src/io/timers@obj@ \
           src/gc/collect@obj@ \
           src/gc/gen2@obj@ \
           src/gc/wb@obj@ \
@@ -196,6 +197,7 @@ HEADERS = src/moar.h \
           src/io/fileops.h \
           src/io/dirops.h \
           src/io/procops.h \
+          src/io/timers.h \
           src/gc/orchestrate.h \
           src/gc/allocation.h \
           src/gc/worklist.h \

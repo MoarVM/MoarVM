@@ -1,0 +1,79 @@
+#include "moar.h"
+
+/* Info we convey about a timer. */
+typedef struct {
+    int timeout;
+    int repeat;
+    uv_timer_t handle;
+    MVMThreadContext *tc;
+    int work_idx;
+} TimerInfo;
+
+/* Timer callback; dispatches schedulee to the queue. */
+void timer_cb(uv_timer_t *handle, int status) {
+    TimerInfo        *ti = (TimerInfo *)handle->data;
+    MVMThreadContext *tc = ti->tc;
+    MVMAsyncTask     *t  = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
+        tc->instance->event_loop_active, ti->work_idx);
+    MVM_repr_push_o(tc, t->body.queue, t->body.schedulee);
+}
+
+/* Sets the timer up on the event loop. */
+void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    TimerInfo *ti = (TimerInfo *)data;
+    uv_timer_init(loop, &ti->handle);
+    ti->work_idx    = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    ti->tc          = tc;
+    ti->handle.data = ti;
+    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    uv_timer_start(&ti->handle, timer_cb, ti->timeout, ti->repeat);
+}
+
+/* Frees data associated with a timer async task. */
+void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
+    if (data)
+        free(data);
+}
+
+/* Operations table for async timer task. */
+static const MVMAsyncTaskOps op_table = {
+    setup,
+    NULL,
+    gc_free
+};
+
+/* Creates a new timer. */
+MVMObject * MVM_io_timer_create(MVMThreadContext *tc, MVMObject *queue,
+                                MVMObject *schedulee, MVMint64 timeout,
+                                MVMint64 repeat, MVMObject *async_type) {
+    MVMAsyncTask *task;
+    TimerInfo *timer_info;
+
+    /* Validate REPRs. */
+    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+        MVM_exception_throw_adhoc(tc,
+            "timer target queue must have ConcBlockingQueue REPR");
+    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
+        MVM_exception_throw_adhoc(tc,
+            "timer result type must have REPR AsyncTask");
+
+    /* Create async task handle. */
+    MVMROOT(tc, queue, {
+    MVMROOT(tc, schedulee, {
+        task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    });
+    });
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
+    task->body.ops      = &op_table;
+    timer_info          = malloc(sizeof(TimerInfo));
+    timer_info->timeout = timeout;
+    timer_info->repeat  = repeat;
+    task->body.data     = timer_info;
+
+    /* Hand the task off to the event loop, which will set up the timer on the
+     * event loop. */
+    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+
+    return (MVMObject *)task;
+}
