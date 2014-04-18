@@ -20,6 +20,7 @@ struct MVMBootTypes {
     MVMObject *BOOTCompUnit;
     MVMObject *BOOTMultiCache;
     MVMObject *BOOTContinuation;
+    MVMObject *BOOTQueue;
 };
 
 /* Various raw types that don't need a HOW */
@@ -78,9 +79,6 @@ typedef struct _MVMCallsiteProfileData {
 
 /* Represents a MoarVM instance. */
 struct MVMInstance {
-    /* libuv loop */
-    uv_loop_t *default_loop;
-
     /* The main thread. */
     MVMThreadContext *main_thread;
 
@@ -89,6 +87,15 @@ struct MVMInstance {
 
     /* The number of active user threads. */
     MVMuint16 num_user_threads;
+
+    /* The event loop thread, a mutex to avoid start-races, a concurrent
+     * queue of tasks that need to be processed by the event loop thread
+     * and an array of active tasks, for the purpose of keeping them GC
+     * marked. */
+    MVMThreadContext *event_loop_thread;
+    uv_mutex_t        mutex_event_loop_start;
+    MVMObject        *event_loop_todo_queue;
+    MVMObject        *event_loop_active;
 
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */

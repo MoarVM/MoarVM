@@ -71,9 +71,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Fix up main thread's usecapture. */
     instance->main_thread->cur_usecapture = MVM_repr_alloc_init(instance->main_thread, instance->CallCapture);
 
-    /* get libuv default event loop. */
-    instance->default_loop = instance->main_thread->loop;
-
+    /* Initialize event loop thread starting mutex. */
+    init_mutex(instance->mutex_event_loop_start, "event loop thread start");
+    
     /* Create main thread object, and also make it the start of the all threads
      * linked list. */
     MVM_store(&instance->threads,
@@ -256,6 +256,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_spesh_install);
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
+
+    /* Clean up event loop starting mutex. */
+    uv_mutex_destroy(&instance->mutex_event_loop_start);
 
     /* Destroy main thread contexts. */
     MVM_tc_destroy(instance->main_thread);

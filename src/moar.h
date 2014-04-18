@@ -119,6 +119,7 @@ typedef double   MVMnum64;
 #include "strings/latin1.h"
 #include "strings/windows1252.h"
 #include "io/io.h"
+#include "io/eventloop.h"
 #include "io/syncfile.h"
 #include "io/syncpipe.h"
 #include "io/syncstream.h"

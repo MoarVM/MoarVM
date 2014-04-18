@@ -36,6 +36,7 @@
 #include "6model/reprs/ConditionVariable.h"
 #include "6model/reprs/Semaphore.h"
 #include "6model/reprs/ConcBlockingQueue.h"
+#include "6model/reprs/MVMAsyncTask.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -82,8 +83,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_ConditionVariable       34
 #define MVM_REPR_ID_Semaphore               35
 #define MVM_REPR_ID_ConcBlockingQueue       36
+#define MVM_REPR_ID_MVMAsyncTask            37
 
-#define MVM_REPR_CORE_COUNT                 37
+#define MVM_REPR_CORE_COUNT                 38
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */

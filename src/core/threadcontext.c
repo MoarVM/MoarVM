@@ -34,7 +34,8 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
     tc->frame_pool_table = calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
 
-    tc->loop = instance->default_loop ? uv_loop_new() : uv_default_loop();
+    /* Use default loop for main thread; create a new one for others. */
+    tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
 
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));

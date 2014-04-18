@@ -82,6 +82,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/gc/worklist@obj@ \
           src/gc/roots@obj@ \
           src/io/io@obj@ \
+          src/io/eventloop@obj@ \
           src/io/syncfile@obj@ \
           src/io/syncstream@obj@ \
           src/io/syncpipe@obj@ \
@@ -132,6 +133,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/ConditionVariable@obj@ \
           src/6model/reprs/Semaphore@obj@ \
           src/6model/reprs/ConcBlockingQueue@obj@ \
+          src/6model/reprs/MVMAsyncTask@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -186,6 +188,7 @@ HEADERS = src/moar.h \
           src/core/continuation.h \
           src/core/intcache.h \
           src/io/io.h \
+          src/io/eventloop.h \
           src/io/syncfile.h \
           src/io/syncstream.h \
           src/io/syncpipe.h \
@@ -241,6 +244,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/ConditionVariable.h \
           src/6model/reprs/Semaphore.h \
           src/6model/reprs/ConcBlockingQueue.h \
+          src/6model/reprs/MVMAsyncTask.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
