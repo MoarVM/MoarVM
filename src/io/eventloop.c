@@ -14,13 +14,11 @@
 static MVMint64 setup_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue;
     MVMint64 setup = 0;
-    MVMAsyncTask *task;
+    MVMObject *task_obj;
 
-    if ((task = (MVMAsyncTask *)MVM_concblockingqueue_poll(tc, queue)) != NULL) {
-        do {
-            task->body.ops->setup(tc, tc->loop, (MVMObject *)task, task->body.data);
-        } while ((task = (MVMAsyncTask *)MVM_concblockingqueue_poll(tc, queue)) != NULL);
-
+    while ((task_obj = MVM_concblockingqueue_poll(tc, queue)) != NULL) {
+        MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+        task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
         setup = 1;
     }
 
