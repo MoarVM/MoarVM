@@ -622,6 +622,15 @@ setmultispec        r(obj) r(obj) r(str) r(str)
 ctxouterskipthunks  w(obj) r(obj)
 ctxcallerskipthunks w(obj) r(obj)
 timer               w(obj) r(obj) r(obj) r(int64) r(int64) r(obj)
+cancel              r(obj)
+signal              w(obj) r(obj) r(obj) r(int64) r(obj)
+watchfile           w(obj) r(obj) r(obj) r(str) r(obj)
+asyncconnect        w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
+asynclisten         w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
+asyncwritestr       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
+asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
+asyncreadchars      w(obj) r(obj) r(obj) r(obj) r(obj)
+asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
