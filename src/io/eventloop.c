@@ -13,6 +13,7 @@
 /* Sets up an async task to be done on the loop. */
 static MVMint64 setup_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue;
+    MVMint64 setup = 0;
     MVMAsyncTask *task;
 
     if ((task = (MVMAsyncTask *)MVM_concblockingqueue_poll(tc, queue)) != NULL) {
@@ -20,10 +21,10 @@ static MVMint64 setup_work(MVMThreadContext *tc) {
             task->body.ops->setup(tc, tc->loop, (MVMObject *)task, task->body.data);
         } while ((task = (MVMAsyncTask *)MVM_concblockingqueue_poll(tc, queue)) != NULL);
 
-        return 1;
+        setup = 1;
     }
 
-    return 0;
+    return setup;
 }
 
 /* Sees if we have an event loop processing thread set up already, and
