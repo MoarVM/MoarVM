@@ -10,7 +10,7 @@ typedef struct {
 } TimerInfo;
 
 /* Timer callback; dispatches schedulee to the queue. */
-void timer_cb(uv_timer_t *handle, int status) {
+static void timer_cb(uv_timer_t *handle, int status) {
     TimerInfo        *ti = (TimerInfo *)handle->data;
     MVMThreadContext *tc = ti->tc;
     MVMAsyncTask     *t  = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
@@ -19,7 +19,7 @@ void timer_cb(uv_timer_t *handle, int status) {
 }
 
 /* Sets the timer up on the event loop. */
-void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     TimerInfo *ti = (TimerInfo *)data;
     uv_timer_init(loop, &ti->handle);
     ti->work_idx    = MVM_repr_elems(tc, tc->instance->event_loop_active);
@@ -30,7 +30,7 @@ void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *d
 }
 
 /* Frees data associated with a timer async task. */
-void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
+static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
         free(data);
 }
