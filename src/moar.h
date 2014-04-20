@@ -129,6 +129,7 @@ typedef double   MVMnum64;
 #include "io/procops.h"
 #include "io/timers.h"
 #include "io/signals.h"
+#include "io/asyncsocket.h"
 #include "math/bigintops.h"
 #include "mast/driver.h"
 #include "core/intcache.h"
