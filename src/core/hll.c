@@ -146,22 +146,25 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
         switch (STABLE(obj)->hll_role) {
             case MVM_HLL_ROLE_INT:
                 if (hll->foreign_type_int)
-                    res_reg->o = MVM_repr_box_int(tc, hll->foreign_type_int,
-                        MVM_repr_get_int(tc, obj));
+                    res_reg->o = IS_CONCRETE(obj)
+                        ? MVM_repr_box_int(tc, hll->foreign_type_int, MVM_repr_get_int(tc, obj))
+                        : hll->foreign_type_int;
                 else
                     res_reg->o = obj;
                 break;
             case MVM_HLL_ROLE_NUM:
                 if (hll->foreign_type_num)
-                    res_reg->o = MVM_repr_box_num(tc, hll->foreign_type_num,
-                        MVM_repr_get_num(tc, obj));
+                    res_reg->o = IS_CONCRETE(obj)
+                        ? MVM_repr_box_num(tc, hll->foreign_type_num, MVM_repr_get_num(tc, obj))
+                        : hll->foreign_type_num;
                 else
                     res_reg->o = obj;
                 break;
             case MVM_HLL_ROLE_STR:
                 if (hll->foreign_type_str)
-                    res_reg->o = MVM_repr_box_str(tc, hll->foreign_type_str,
-                        MVM_repr_get_str(tc, obj));
+                    res_reg->o = IS_CONCRETE(obj)
+                        ? MVM_repr_box_str(tc, hll->foreign_type_str, MVM_repr_get_str(tc, obj))
+                        : hll->foreign_type_str;
                 else
                     res_reg->o = obj;
                 break;
