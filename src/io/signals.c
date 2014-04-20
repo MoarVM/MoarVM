@@ -68,12 +68,14 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
     /* Transform the signal number. */
     switch (signal) {
     case MVM_SIG_INT:       signum = SIGINT;    break;
+#ifdef SIGBREAK
     case MVM_SIG_BREAK:     signum = SIGBREAK;  break;
+#endif
     case MVM_SIG_HUP:       signum = SIGHUP;    break;
     case MVM_SIG_WINCH:     signum = SIGWINCH;  break;
     default:
-        MVM_exception_throw_adhoc(tc,
-            "unknown signal handler code");
+        MVM_exception_throw_adhoc(tc, "Unsupported signal handler %d",
+            (int)signal);
     }
 
     /* Validate REPRs. */
