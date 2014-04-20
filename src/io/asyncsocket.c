@@ -12,9 +12,177 @@ typedef struct {
     MVMDecodeStream *ds;
 } MVMIOAsyncSocketData;
 
+/* Info we convey about a read task. */
+typedef struct {
+    MVMOSHandle      *handle;
+    MVMDecodeStream  *ds;
+    int               seq_number;
+    MVMThreadContext *tc;
+    int               work_idx;
+} ReadInfo;
+
+/* Allocates a buffer of the suggested size. */
+static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+    size_t size = suggested_size > 0 ? suggested_size : 4;
+    buf->base   = malloc(size);
+    buf->len    = size;
+}
+
+/* Read handler. */
+static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    ReadInfo         *ri  = (ReadInfo *)handle->data;
+    MVMThreadContext *tc  = ri->tc;
+    MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
+        tc->instance->event_loop_active, ri->work_idx);
+    MVM_repr_push_o(tc, arr, t->body.schedulee);
+    if (nread > 0) {
+        MVMROOT(tc, t, {
+        MVMROOT(tc, arr, {
+            /* Push the sequence number. */
+            MVMObject *seq_boxed = MVM_repr_box_int(tc,
+                tc->instance->boot_types.BOOTInt, ri->seq_number++);
+            MVM_repr_push_o(tc, arr, seq_boxed);
+
+            /* Either need to produce a buffer or decode characters. */
+            if (ri->ds) {
+                MVMString *str;
+                MVMObject *boxed_str;
+                MVM_string_decodestream_add_bytes(tc, ri->ds, buf->base, nread);
+                str = MVM_string_decodestream_get_all(tc, ri->ds);
+                boxed_str = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, str);
+                MVM_repr_push_o(tc, arr, boxed_str);
+            }
+            else {
+                MVM_panic(1, "socket buf creation NYI\n");
+            }
+
+            /* Finally, no error. */
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        });
+        });
+    }
+    else if (nread == UV_EOF) {
+        MVMROOT(tc, t, {
+        MVMROOT(tc, arr, {
+            MVMObject *minus_one = MVM_repr_box_int(tc,
+                tc->instance->boot_types.BOOTInt, -1);
+            MVM_repr_push_o(tc, arr, minus_one);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        });
+        });
+        if (buf->base)
+            free(buf->base);
+        uv_read_stop(handle);
+    }
+    else {
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        MVMROOT(tc, t, {
+        MVMROOT(tc, arr, {
+            MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
+                tc->instance->VMString, uv_strerror(nread));
+            MVMObject *msg_box = MVM_repr_box_str(tc,
+                tc->instance->boot_types.BOOTStr, msg_str);
+            MVM_repr_push_o(tc, arr, msg_box);
+        });
+        });
+        if (buf->base)
+            free(buf->base);
+        uv_read_stop(handle);
+    }
+    MVM_repr_push_o(tc, t->body.queue, arr);
+}
+
+/* Does setup work for setting up asynchronous reads. */
+static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    MVMIOAsyncSocketData *handle_data;
+    int                   r;
+
+    /* Add to work in progress. */
+    ReadInfo *ri  = (ReadInfo *)data;
+    ri->tc        = tc;
+    ri->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+
+    /* Start reading the stream. */
+    handle_data = (MVMIOAsyncSocketData *)ri->handle->body.data;
+    handle_data->handle->data = data;
+    if ((r = uv_read_start(handle_data->handle, on_alloc, on_read)) < 0) {
+        /* Error; need to notify. */
+        MVMROOT(tc, async_task, {
+            MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
+            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVMROOT(tc, arr, {
+                MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
+                    tc->instance->VMString, uv_strerror(r));
+                MVMObject *msg_box = MVM_repr_box_str(tc,
+                    tc->instance->boot_types.BOOTStr, msg_str);
+                MVM_repr_push_o(tc, arr, msg_box);
+            });
+            MVM_repr_push_o(tc, t->body.queue, arr);
+        });
+    }
+}
+
+/* Marks objects for a read task. */
+void read_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+    ReadInfo *ri = (ReadInfo *)data;
+    MVM_gc_worklist_add(tc, worklist, &ri->handle);
+}
+
+/* Frees info for a read task. */
+static void read_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
+    if (data) {
+        ReadInfo *ri = (ReadInfo *)data;
+        if (ri->ds)
+            MVM_string_decodestream_destory(tc, ri->ds);
+        free(data);
+    }
+}
+
+/* Operations table for async read task. */
+static const MVMAsyncTaskOps read_op_table = {
+    read_setup,
+    read_gc_mark,
+    read_gc_free
+};
+
 static MVMAsyncTask * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
                                  MVMObject *schedulee, MVMObject *async_type) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMAsyncTask *task;
+    ReadInfo    *ri;
+
+    /* Validate REPRs. */
+    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+        MVM_exception_throw_adhoc(tc,
+            "asyncreadchars target queue must have ConcBlockingQueue REPR");
+    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
+        MVM_exception_throw_adhoc(tc,
+            "asyncreadchars result type must have REPR AsyncTask");
+
+    /* Create async task handle. */
+    MVMROOT(tc, queue, {
+    MVMROOT(tc, schedulee, {
+        task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    });
+    });
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
+    task->body.ops  = &read_op_table;
+    ri              = calloc(1, sizeof(ReadInfo));
+    ri->ds          = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0);
+    MVM_ASSIGN_REF(tc, &(task->common.header), ri->handle, h);
+    task->body.data = ri;
+
+    /* Hand the task off to the event loop. */
+    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+
+    return task;
 }
 
 static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
