@@ -2,14 +2,16 @@
  * these sections. */
 struct MVMIOOps {
     /* The various sections that may be implemented. */
-    const MVMIOClosable     *closable;
-    const MVMIOEncodable    *encodable;
-    const MVMIOSyncReadable *sync_readable;
-    const MVMIOSyncWritable *sync_writable;
-    const MVMIOSeekable     *seekable;
-    const MVMIOSockety      *sockety;
-    const MVMIOInteractive  *interactive;
-    const MVMIOLockable     *lockable;
+    const MVMIOClosable      *closable;
+    const MVMIOEncodable     *encodable;
+    const MVMIOSyncReadable  *sync_readable;
+    const MVMIOSyncWritable  *sync_writable;
+    const MVMIOAsyncReadable *async_readable;
+    const MVMIOAsyncWritable *async_writable;
+    const MVMIOSeekable      *seekable;
+    const MVMIOSockety       *sockety;
+    const MVMIOInteractive   *interactive;
+    const MVMIOLockable      *lockable;
 
     /* How to mark the handle's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
@@ -44,6 +46,22 @@ struct MVMIOSyncWritable {
     MVMint64 (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
     void (*flush) (MVMThreadContext *tc, MVMOSHandle *h);
     void (*truncate) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);
+};
+
+/* I/O operations on handles that can do asynchronous reading. */
+struct MVMIOAsyncReadable {
+    MVMAsyncTask * (*read_chars) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
+        MVMObject *schedulee, MVMObject *async_type);
+    MVMAsyncTask * (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
+        MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type);
+};
+
+/* I/O operations on handles that can do asynchronous writing. */
+struct MVMIOAsyncWritable {
+    MVMAsyncTask * (*write_str) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
+        MVMObject *schedulee, MVMString *s, MVMObject *async_type);
+    MVMAsyncTask * (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
+        MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type);
 };
 
 /* I/O operations on handles that can seek/tell. */

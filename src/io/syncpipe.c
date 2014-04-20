@@ -68,6 +68,8 @@ static const MVMIOOps op_table = {
     &encodable,
     &sync_readable,
     &sync_writable,
+    NULL,
+    NULL,
     &seekable,
     NULL,
     NULL,
