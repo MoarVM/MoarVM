@@ -35,10 +35,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     do_close(tc, data);
 }
 
-// actually, it may return sockaddr_in6 as well; it's not a problem for us, because we just
-// pass is straight to uv, and the first thing it does is it looks at the address family,
-// but it's a thing to remember if someone feels like peeking inside the returned struct
-static struct sockaddr * resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
+/* Actually, it may return sockaddr_in6 as well; it's not a problem for us, because we just
+ * pass is straight to uv, and the first thing it does is it looks at the address family,
+ * but it's a thing to remember if someone feels like peeking inside the returned struct. */
+struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port) {
     char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
     struct sockaddr *dest;
     struct addrinfo *result;
@@ -76,7 +76,7 @@ static void on_connect(uv_connect_t* req, int status) {
 static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->ss.handle) {
-        struct sockaddr *dest    = resolve_host_name(tc, host, port);
+        struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
         uv_tcp_t        *socket  = malloc(sizeof(uv_tcp_t));
         uv_connect_t    *connect = malloc(sizeof(uv_connect_t));
         int r;
@@ -114,7 +114,7 @@ static void on_connection(uv_stream_t *server, int status) {
 static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->ss.handle) {
-        struct sockaddr *dest    = resolve_host_name(tc, host, port);
+        struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
         uv_tcp_t        *socket  = malloc(sizeof(uv_tcp_t));
         int r;
 
