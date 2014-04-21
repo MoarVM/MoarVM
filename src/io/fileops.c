@@ -42,7 +42,7 @@ static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
 }
 
 /* This will modify req and at the end it will be something other than a symlink. */
-MVMint64 MVM_file_follow_symlinks(MVMThreadContext *tc, char *filename, uv_fs_t *req) {
+MVMint64 MVM_file_stat_follow_symlink(MVMThreadContext *tc, char *filename, uv_fs_t *req) {
     if (uv_fs_lstat(tc->loop, req, filename, NULL) < 0)
         return -1;
 
@@ -50,7 +50,7 @@ MVMint64 MVM_file_follow_symlinks(MVMThreadContext *tc, char *filename, uv_fs_t 
         if (uv_fs_readlink(tc->loop, req, filename, NULL) < 0)
             return -1;
 
-        return MVM_file_follow_symlinks(tc, (char *)req->ptr, req);
+        return MVM_file_stat_follow_symlink(tc, (char *)req->ptr, req);
     }
 
     return 0;
@@ -65,7 +65,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
                 char * const a = MVM_string_utf8_encode_C_string(tc, filename);
                 uv_fs_t req;
 
-                if (MVM_file_follow_symlinks(tc, a, &req) < 0) {
+                if (MVM_file_stat_follow_symlink(tc, a, &req) < 0) {
                     free(a);
                     MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
                 }

@@ -184,7 +184,7 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
         return 0;
     if (data->filename) {
-        if (MVM_file_follow_symlinks(tc, data->filename, &req) < 0)
+        if (MVM_file_stat_follow_symlink(tc, data->filename, &req) < 0)
             MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %s", uv_strerror(req.result));
     }
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
