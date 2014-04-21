@@ -183,9 +183,10 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
     uv_fs_t  req;
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
         return 0;
-    if (data->filename)
-        if ((r = uv_fs_lstat(tc->loop, &req, data->filename, NULL)) == -1)
-            MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %d", errno);
+    if (data->filename) {
+        if (MVM_file_follow_symlinks(tc, data->filename, &req) < 0)
+            MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %s", uv_strerror(req.result));
+    }
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     return req.statbuf.st_size == seek_pos;
