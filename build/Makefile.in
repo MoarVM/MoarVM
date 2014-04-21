@@ -91,6 +91,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/io/dirops@obj@ \
           src/io/procops@obj@ \
           src/io/timers@obj@ \
+          src/io/filewatchers@obj@ \
           src/io/signals@obj@ \
           src/io/asyncsocket@obj@ \
           src/gc/collect@obj@ \
@@ -200,6 +201,7 @@ HEADERS = src/moar.h \
           src/io/dirops.h \
           src/io/procops.h \
           src/io/timers.h \
+          src/io/filewatchers.h \
           src/io/signals.h \
           src/io/asyncsocket.h \
           src/gc/orchestrate.h \

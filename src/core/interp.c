@@ -4178,6 +4178,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).o);
                 cur_op += 10;
                 goto NEXT;
+            OP(watchfile):
+                GET_REG(cur_op, 0).o = MVM_io_file_watch(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s, GET_REG(cur_op, 8).o);
+                cur_op += 10;
+                goto NEXT;
             OP(asyncconnect):
                 GET_REG(cur_op, 0).o = MVM_io_socket_connect_async(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
