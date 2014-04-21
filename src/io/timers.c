@@ -29,6 +29,12 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
     uv_timer_start(&ti->handle, timer_cb, ti->timeout, ti->repeat);
 }
 
+/* Stops the timer. */
+static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    TimerInfo *ti = (TimerInfo *)data;
+    uv_timer_stop(&ti->handle);
+}
+
 /* Frees data associated with a timer async task. */
 static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
@@ -38,7 +44,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 /* Operations table for async timer task. */
 static const MVMAsyncTaskOps op_table = {
     setup,
-    NULL,
+    cancel,
     NULL,
     gc_free
 };
