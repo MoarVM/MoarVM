@@ -46,6 +46,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     MVM_gc_worklist_add(tc, worklist, &tc->instance->hll_syms);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_todo_queue);
+    MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_cancel_queue);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_active);
 
     /* okay, so this makes the weak hash slightly less weak.. for certain

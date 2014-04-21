@@ -95,6 +95,7 @@ struct MVMInstance {
     MVMThreadContext *event_loop_thread;
     uv_mutex_t        mutex_event_loop_start;
     MVMObject        *event_loop_todo_queue;
+    MVMObject        *event_loop_cancel_queue;
     MVMObject        *event_loop_active;
 
     /* The KnowHOW meta-object; all other meta-objects (which are

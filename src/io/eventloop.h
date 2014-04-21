@@ -4,6 +4,9 @@ struct MVMAsyncTaskOps {
     /* How to set work up on the event loop. */
     void (*setup) (MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data);
 
+    /* How to cancel, if possible. */
+    void (*cancel) (MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data);
+
     /* How to mark the task's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
 

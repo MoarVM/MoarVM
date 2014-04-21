@@ -83,6 +83,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 static const MVMAsyncTaskOps op_table = {
     setup,
     NULL,
+    NULL,
     gc_free
 };
 

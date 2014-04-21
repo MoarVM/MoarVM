@@ -25,12 +25,29 @@ static MVMint64 setup_work(MVMThreadContext *tc) {
     return setup;
 }
 
+/* Performs an async cancellation on the loop. */
+static MVMint64 cancel_work(MVMThreadContext *tc) {
+    MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_cancel_queue;
+    MVMint64 cancelled = 0;
+    MVMObject *task_obj;
+
+    while ((task_obj = MVM_concblockingqueue_poll(tc, queue)) != NULL) {
+        MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+        if (task->body.ops->cancel)
+            task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
+        cancelled = 1;
+    }
+
+    return cancelled;
+}
+
 /* Sees if we have an event loop processing thread set up already, and
  * sets it up if not. */
 static void idle_handler(uv_idle_t *handle, int status) {
     MVMThreadContext *tc = (MVMThreadContext *)handle->data;
     GC_SYNC_POINT(tc);
-    setup_work(tc);
+    if (!setup_work(tc) && !cancel_work(tc))
+        MVM_thread_yield(tc);
 }
 
 static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
@@ -60,10 +77,12 @@ static uv_loop_t *get_or_vivify_loop(MVMThreadContext *tc) {
             ((MVMCFunction *)loop_runner)->body.func = enter_loop;
             thread = MVM_thread_new(tc, loop_runner, 1);
             MVM_thread_run(tc, thread);
-            instance->event_loop_thread     = ((MVMThread *)thread)->body.tc;
-            instance->event_loop_todo_queue = MVM_repr_alloc_init(tc,
+            instance->event_loop_thread       = ((MVMThread *)thread)->body.tc;
+            instance->event_loop_todo_queue   = MVM_repr_alloc_init(tc,
                 instance->boot_types.BOOTQueue);
-            instance->event_loop_active     = MVM_repr_alloc_init(tc,
+            instance->event_loop_cancel_queue = MVM_repr_alloc_init(tc,
+                instance->boot_types.BOOTQueue);
+            instance->event_loop_active       = MVM_repr_alloc_init(tc,
                 instance->boot_types.BOOTArray);
         }
 
@@ -79,4 +98,17 @@ void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work) {
         uv_loop_t *loop = get_or_vivify_loop(tc);
         MVM_repr_push_o(tc, tc->instance->event_loop_todo_queue, work);
     });
+}
+
+/* Cancels a piece of async work. */
+void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj) {
+    if (REPR(task_obj)->ID == MVM_REPR_ID_MVMAsyncTask) {
+        MVMROOT(tc, task_obj, {
+            uv_loop_t *loop = get_or_vivify_loop(tc);
+            MVM_repr_push_o(tc, tc->instance->event_loop_cancel_queue, task_obj);
+        });
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Can only cancel an AsyncTask handle");
+    }
 }
