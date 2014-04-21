@@ -52,6 +52,8 @@ MVMint64 MVM_file_follow_symlinks(MVMThreadContext *tc, char *filename, uv_fs_t 
 
         return MVM_file_follow_symlinks(tc, (char *)req->ptr, req);
     }
+
+    return 0;
 }
 
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status) {
