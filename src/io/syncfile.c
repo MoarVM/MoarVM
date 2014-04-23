@@ -187,6 +187,9 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
         if (MVM_file_stat_follow_symlink(tc, data->filename, &req) < 0)
             MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %s", uv_strerror(req.result));
     }
+    else if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) == -1) {
+        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", uv_strerror(req.result));
+    }
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     return req.statbuf.st_size == seek_pos;
