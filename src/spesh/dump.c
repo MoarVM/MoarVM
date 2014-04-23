@@ -69,6 +69,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     appendf(ds, "      [Annotation: FH Goto (%d)]\n",
                         ann->data.frame_handler_index);
                     break;
+                case MVM_SPESH_ANN_DEOPT_INS:
+                    appendf(ds, "      [Annotation: INS Deopt (idx %d -> pc %d)]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[ann->data.deopt_idx]);
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }
