@@ -4342,6 +4342,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(throwlabel): {
+                MVMRegister *rr = &GET_REG(cur_op, 0);
+                MVMuint32   cat = (MVMuint32)GET_I64(cur_op, 2);
+                MVMuint64 label = (MVMuint64)GET_I64(cur_op, 10);
+                cur_op += 18;
+                MVM_exception_throwcat_label(tc, MVM_EX_THROW_DYN, cat, label, rr);
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

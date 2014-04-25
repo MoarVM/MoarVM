@@ -603,6 +603,10 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 static_frame_body->handlers[j].block_reg = read_int16(pos, 14);
                 static_frame_body->handlers[j].goto_offset = read_int32(pos, 16);
                 pos += FRAME_HANDLER_SIZE;
+                if (static_frame_body->handlers[j].category_mask & MVM_EX_CAT_LABELED) {
+                    static_frame_body->handlers[j].block_label = read_int64(pos, 0);
+                    pos += 8;
+                }
             }
         }
 

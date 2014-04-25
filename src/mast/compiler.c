@@ -51,6 +51,9 @@ typedef struct {
 
     /* Label, which will need resolving. */
     MASTNode *label;
+
+    /* The label of the block the handler is attached to. */
+    MVMint64 block_label;
 } FrameHandler;
 
 /* Handler actions. */
@@ -826,6 +829,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         ws->cur_frame->handlers[i].end_offset = end;
         ws->cur_frame->handlers[i].category_mask = (unsigned int)hs->category_mask;
         ws->cur_frame->handlers[i].action = (unsigned short)hs->action;
+        ws->cur_frame->handlers[i].block_label = hs->block_label;
 
         /* Ensure we have a label. */
         if (ISTYPE(vm, hs->goto_label, ws->types->Label)) {
@@ -1041,6 +1045,10 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
             write_int32(ws->frame_seg, ws->frame_pos, 0);
         }
         ws->frame_pos += 4;
+        if (fs->handlers[i].category_mask & MVM_EX_CAT_LABELED) {
+            write_int64(ws->frame_seg, ws->frame_pos, (MVMint64)fs->handlers[i].block_label);
+            ws->frame_pos += 8;
+        }
     }
 
     /* Any leftover labels? */

@@ -31,6 +31,12 @@ static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
             return "succeed";
         case MVM_EX_CAT_PROCEED:
             return "proceed";
+        case MVM_EX_CAT_NEXT|MVM_EX_CAT_LABELED:
+            return "next_label";
+        case MVM_EX_CAT_REDO|MVM_EX_CAT_LABELED:
+            return "redo_label";
+        case MVM_EX_CAT_LAST|MVM_EX_CAT_LABELED:
+            return "last_label";
         default:
             return "unknown";
     }
@@ -60,7 +66,7 @@ static MVMuint8 in_caller_chain(MVMThreadContext *tc, MVMFrame *f_maybe) {
 /* Looks through the handlers of a particular scope, and sees if one will
  * match what we're looking for. Returns a pointer to it if so; if not,
  * returns NULL. */
-static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f, MVMuint32 cat) {
+static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f, MVMuint32 cat, MVMint64 label) {
     MVMuint32 pc, i;
     if (f == tc->cur_frame)
         pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
@@ -68,10 +74,13 @@ static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f
         pc = (MVMuint32)(f->return_address - f->effective_bytecode);
     for (i = 0; i < f->static_info->body.num_handlers; i++) {
         MVMuint32 category_mask = f->effective_handlers[i].category_mask;
-        if ((category_mask & cat) || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH))
+        MVMuint64   block_label = f->effective_handlers[i].block_label;
+        if ((((category_mask & cat) == cat) && (!(cat & MVM_EX_CAT_LABELED) || (label == block_label)))
+         || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH)) {
             if (pc >= f->effective_handlers[i].start_offset && pc <= f->effective_handlers[i].end_offset)
                 if (!in_handler_stack(tc, &f->effective_handlers[i]))
                     return &f->effective_handlers[i];
+        }
     }
     return NULL;
 }
@@ -85,14 +94,14 @@ typedef struct {
 /* Searches for a handler of the specified category, relative to the given
  * starting frame, searching according to the chosen mode. */
 static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
-        MVMuint8 mode, MVMuint32 cat) {
+        MVMuint8 mode, MVMuint32 cat, MVMint64 label) {
     LocatedHandler lh;
     lh.frame = NULL;
     lh.handler = NULL;
 
     if (mode == MVM_EX_THROW_LEXOTIC) {
         while (f != NULL) {
-            lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat);
+            lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, label);
             if (lh.frame != NULL)
                 return lh;
             f = f->caller;
@@ -100,7 +109,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     }
     else {
         while (f != NULL) {
-            MVMFrameHandler *h = search_frame_handlers(tc, f, cat);
+            MVMFrameHandler *h = search_frame_handlers(tc, f, cat, label);
             if (h != NULL) {
                 lh.frame = f;
                 lh.handler = h;
@@ -415,7 +424,14 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
  * will next run the instruction of the handler. If there is no handler,
  * it will panic and exit with a backtrace. */
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result) {
-    LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat);
+    LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, 0);
+    if (lh.frame == NULL)
+        panic_unhandled_cat(tc, cat);
+    run_handler(tc, lh, NULL);
+}
+
+void MVM_exception_throwcat_label(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMint64 label, MVMRegister *resume_result) {
+    LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, label);
     if (lh.frame == NULL)
         panic_unhandled_cat(tc, cat);
     run_handler(tc, lh, NULL);
@@ -438,7 +454,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         ex->body.category = MVM_EX_CAT_CATCH;
     if (resume_result)
         ex->body.resume_addr = *tc->interp_cur_op;
-    lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category);
+    lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, 0);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
 
@@ -612,7 +628,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
 
     /* Try to locate a handler, so long as we're in the interpreter. */
     if (tc->interp_cur_op)
-        lh = search_for_handler_from(tc, tc->cur_frame, MVM_EX_THROW_DYN, ex->body.category);
+        lh = search_for_handler_from(tc, tc->cur_frame, MVM_EX_THROW_DYN, ex->body.category, 0);
     else
         lh.frame = NULL;
 

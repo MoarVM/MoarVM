@@ -586,6 +586,7 @@ module HandlerCategory {
     our $warn    := 256;
     our $succeed := 512;
     our $proceed := 1024;
+    our $labeled := 4096;
 }
 
 # A region with a handler.
@@ -595,12 +596,14 @@ class MAST::HandlerScope is MAST::Node {
     has int $!action;
     has $!goto_label;
     has $!block_local;
+    has int $!label;
 
-    method new(:@instructions!, :$category_mask!, :$action!, :$goto!, :$block) {
+    method new(:@instructions!, :$category_mask!, :$action!, :$goto!, :$block, :$label = 0) {
         my $obj := nqp::create(self);
         nqp::bindattr($obj, MAST::HandlerScope, '@!instructions', @instructions);
         nqp::bindattr_i($obj, MAST::HandlerScope, '$!category_mask', $category_mask);
         nqp::bindattr_i($obj, MAST::HandlerScope, '$!action', $action);
+        nqp::bindattr_i($obj, MAST::HandlerScope, '$!label', $label);
         if nqp::istype($goto, MAST::Label) {
             nqp::bindattr($obj, MAST::HandlerScope, '$!goto_label', $goto);
         }
