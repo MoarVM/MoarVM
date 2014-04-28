@@ -631,7 +631,6 @@ asyncwritestr       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadchars      w(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj)
-throwlabel          w(obj) int64 int64
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

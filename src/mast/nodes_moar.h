@@ -104,7 +104,6 @@ typedef struct {
     MVMint64     action;
     MVMObject   *goto_label;
     MVMObject   *block_local;
-    MVMint64     block_label;
 } MAST_HandlerScope;
 
 /* Node types structure. */

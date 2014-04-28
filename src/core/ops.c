@@ -5349,15 +5349,6 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_throwlabel,
-        "throwlabel",
-        "  ",
-        3,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int64, MVM_operand_int64 }
-    },
-    {
         MVM_OP_sp_getarg_o,
         "sp_getarg_o",
         ".s",
@@ -5584,7 +5575,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 620;
+static unsigned short MVM_op_counts = 619;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
