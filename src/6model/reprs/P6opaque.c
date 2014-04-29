@@ -6,20 +6,11 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* We need an "assigned null" sentinel to differentiate between this and an
- * uninitialized slot that should trigger auto-viv. */
-static MVMObject *ass_null = NULL;
-
 /* If an object gets mixed in to, we need to be sure we look at its real body,
  * which may have been moved to hang off the specified pointer. */
 MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
     MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
     return body->replaced ? body->replaced : data;
-}
-
-/* Gets the "assigned null" magic value. */
-MVMObject * MVM_p6opague_ass_null(MVMThreadContext *tc) {
-    return ass_null;
 }
 
 /* Helpers for reading/writing values. */
@@ -49,8 +40,7 @@ static void set_str_at_offset(MVMThreadContext *tc, MVMObject *root, void *data,
 }
 static MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
-    MVMObject *result = *((MVMObject **)location);
-    return result == ass_null ? NULL : result;
+    return *((MVMObject **)location);
 }
 static MVMObject * get_obj_at_offset_direct(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
@@ -58,12 +48,7 @@ static MVMObject * get_obj_at_offset_direct(void *data, MVMint64 offset) {
 }
 static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
     void *location = (char *)data + offset;
-    if (value) {
-        MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
-    }
-    else {
-        *((MVMObject **)location) = ass_null;
-    }
+    MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
 }
 
 /* Helper for finding a slot number. */
@@ -154,9 +139,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     /* Mark objects. */
     for (i = 0; i < repr_data->gc_obj_mark_offsets_count; i++) {
         MVMuint16 offset = repr_data->gc_obj_mark_offsets[i];
-        if (*((MVMObject **)((char *)data + offset)) != ass_null) {
-            MVM_gc_worklist_add(tc, worklist, (char *)data + offset);
-        }
+        MVM_gc_worklist_add(tc, worklist, (char *)data + offset);
     }
 
     /* Mark any nested reprs that need it. */
@@ -281,7 +264,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
             if (!attr_st) {
                 MVMObject *result = get_obj_at_offset_direct(data, repr_data->attribute_offsets[slot]);
                 if (result) {
-                    result_reg->o = result == ass_null ? NULL : result;
+                    result_reg->o = result;
                 }
                 else {
                     /* Maybe we know how to auto-viv it to a container. */
@@ -312,11 +295,11 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             }
                         }
                         else {
-                            result_reg->o = NULL;
+                            result_reg->o = tc->instance->VMNull;
                         }
                     }
                     else {
-                        result_reg->o = NULL;
+                        result_reg->o = tc->instance->VMNull;
                     }
                 }
             }
@@ -1389,11 +1372,6 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 
 /* Initializes the representation. */
 const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
-
-    ass_null = malloc(sizeof(MVMP6opaque));
-    memset(ass_null, 0, sizeof(MVMP6opaque));
-    ass_null->header.flags = MVM_CF_TYPE_OBJECT;
-
     return &this_repr;
 }
 

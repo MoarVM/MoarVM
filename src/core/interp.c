@@ -4317,8 +4317,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 MVMObject *value = GET_REG(cur_op, 4).o;
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
-                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 2))),
-                    value ? value : MVM_p6opague_ass_null(tc));
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 2))), value);
                 cur_op += 6;
                 goto NEXT;
             }
