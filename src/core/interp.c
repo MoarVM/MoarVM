@@ -863,10 +863,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(ifnonnull):
-                if (GET_REG(cur_op, 0).o != NULL)
-                    cur_op = bytecode_start + GET_UI32(cur_op, 2);
-                else
+                if (MVM_is_null(tc, GET_REG(cur_op, 0).o))
                     cur_op += 6;
+                else
+                    cur_op = bytecode_start + GET_UI32(cur_op, 2);
                 GC_SYNC_POINT(tc);
                 goto NEXT;
             OP(cmp_i): {
