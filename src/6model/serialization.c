@@ -582,6 +582,9 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
     if (ref == NULL) {
         discrim = REFVAR_NULL;
     }
+    else if (ref == tc->instance->VMNull) {
+        discrim = REFVAR_VM_NULL;
+    }
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMMultiCache) {
         discrim = REFVAR_VM_NULL;
     }
@@ -1499,7 +1502,7 @@ MVMObject * read_ref_func(MVMThreadContext *tc, MVMSerializationReader *reader) 
         case REFVAR_OBJECT:
             return read_obj_ref(tc, reader);
         case REFVAR_VM_NULL:
-            return NULL;
+            return tc->instance->VMNull;
         case REFVAR_VM_INT: {
             MVMint64 value;
             if (reader->root.version < VARINT_MIN_VERSION) {
