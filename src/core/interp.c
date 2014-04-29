@@ -2595,10 +2595,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(isnull):
-                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).o ? 0 : 1;
+            OP(isnull): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = MVM_is_null(tc, obj);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(knowhowattr):
                 GET_REG(cur_op, 0).o = tc->instance->KnowHOWAttribute;
                 cur_op += 2;
@@ -2609,7 +2611,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(null):
-                GET_REG(cur_op, 0).o = NULL;
+                GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 2;
                 goto NEXT;
             OP(clone): {
