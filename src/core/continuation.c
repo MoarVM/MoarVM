@@ -54,7 +54,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         jump_frame->in_continuation = 1;
         tag_record = jump_frame->continuation_tags;
         while (tag_record) {
-            if (!tag || tag_record->tag == tag)
+            if (MVM_is_null(tc, tag) || tag_record->tag == tag)
                 break;
             tag_record = tag_record->next;
         }
@@ -167,13 +167,13 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
 
     /* Provided we have it, invoke the specified code, putting its result in
      * the specified result register. Otherwise, put a NULL there. */
-    if (code) {
+    if (MVM_is_null(tc, code)) {
+        cont->body.res_reg->o = tc->instance->VMNull;
+    }
+    else {
         code = MVM_frame_find_invokee(tc, code, NULL);
         MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
         STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
-    }
-    else {
-        cont->body.res_reg->o = NULL;
     }
 }
 
