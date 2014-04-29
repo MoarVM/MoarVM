@@ -69,6 +69,8 @@ typedef struct MVMNFABody MVMNFABody;
 typedef struct MVMNFAStateInfo MVMNFAStateInfo;
 typedef struct MVMNativeCall MVMNativeCall;
 typedef struct MVMNativeCallBody MVMNativeCallBody;
+typedef struct MVMNull MVMNull;
+typedef struct MVMNullBody MVMNullBody;
 typedef struct MVMCStr MVMCStr;
 typedef struct MVMCStrBody MVMCStrBody;
 typedef struct MVMCPointer MVMCPointer;

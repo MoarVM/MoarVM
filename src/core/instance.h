@@ -98,6 +98,9 @@ struct MVMInstance {
     MVMObject        *event_loop_cancel_queue;
     MVMObject        *event_loop_active;
 
+    /* The VM null object. */
+    MVMObject *VMNull;
+
     /* The KnowHOW meta-object; all other meta-objects (which are
      * built in user-space) are built out of this. */
     MVMObject *KnowHOW;

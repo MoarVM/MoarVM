@@ -574,8 +574,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Now we've enough to actually create the REPR registry. */
     MVM_repr_initialize_registry(tc);
 
-    /* Create stub BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash, BOOTCCode,
-     * BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
+    /* Create stub VMNull, BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash,
+     * BOOTCCode, BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
      * CallCapture, BOOTIO, BOOTException, and BOOTQueue types. */
 #define create_stub_boot_type(tc, reprid, slot, makeboolspec, boolspec) do { \
     const MVMREPROps *repr = MVM_repr_get_by_id(tc, reprid); \
@@ -588,6 +588,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
         type->st->boolification_spec = bs; \
     } \
 } while (0)
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMNull, VMNull, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_P6int, boot_types.BOOTInt, 1, MVM_BOOL_MODE_UNBOX_INT);
     create_stub_boot_type(tc, MVM_REPR_ID_P6num, boot_types.BOOTNum, 1, MVM_BOOL_MODE_UNBOX_NUM);
     create_stub_boot_type(tc, MVM_REPR_ID_P6str, boot_types.BOOTStr, 1, MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO);
@@ -619,6 +620,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVM_gc_root_add_permanent((tc), (MVMCollectable **)&(tc)->instance->slot); \
 } while (0)
     meta_objectifier(tc, VMString, "VMString");
+    meta_objectifier(tc, VMNull, "VMNull");
     meta_objectifier(tc, boot_types.BOOTInt, "BOOTInt");
     meta_objectifier(tc, boot_types.BOOTNum, "BOOTNum");
     meta_objectifier(tc, boot_types.BOOTStr, "BOOTStr");
