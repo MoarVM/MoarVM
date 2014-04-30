@@ -215,14 +215,14 @@ MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym
     MVMObject *syms = tc->instance->hll_syms, *hash, *result;
     uv_mutex_lock(&tc->instance->mutex_hll_syms);
     hash = MVM_repr_at_key_o(tc, syms, hll);
-    if (!hash) {
+    if (MVM_is_null(tc, hash)) {
         MVMROOT(tc, hll, {
         MVMROOT(tc, syms, {
             hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
         });
         });
         MVM_repr_bind_key_o(tc, syms, hll, hash);
-        result = NULL;
+        result = tc->instance->VMNull;
     }
     else {
         result = MVM_repr_at_key_o(tc, hash, sym);
