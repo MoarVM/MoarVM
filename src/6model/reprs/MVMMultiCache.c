@@ -102,7 +102,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     MVMuint64          arg_tup[MVM_MULTICACHE_MAX_ARITY];
 
     /* Allocate a cache if needed. */
-    if (!cache_obj || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache) {
+    if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache) {
         MVMROOT(tc, capture, {
         MVMROOT(tc, result, {
             cache_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTMultiCache);
@@ -198,7 +198,7 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
     MVMuint64          arg_tup[MVM_MULTICACHE_MAX_ARITY];
 
     /* If no cache, no result. */
-    if (!cache_obj || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache)
+    if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache)
         return NULL;
     cache = &((MVMMultiCache *)cache_obj)->body;
 
@@ -284,7 +284,7 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
     MVMuint64          arg_tup[MVM_MULTICACHE_MAX_ARITY];
 
     /* If no cache, no result. */
-    if (!cache_obj || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache)
+    if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache)
         return NULL;
     cache = &((MVMMultiCache *)cache_obj)->body;
 

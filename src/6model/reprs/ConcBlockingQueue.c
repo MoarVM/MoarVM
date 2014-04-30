@@ -102,11 +102,11 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         MVMConcBlockingQueueNode *peeked;
         uv_mutex_lock(&cbq->locks->head_lock);
         peeked = cbq->head->next;
-        value->o = peeked ? peeked->value : NULL;
+        value->o = peeked ? peeked->value : tc->instance->VMNull;
         uv_mutex_unlock(&cbq->locks->head_lock);
     }
     else {
-        value->o = NULL;
+        value->o = tc->instance->VMNull;
     }
 }
 
@@ -230,7 +230,7 @@ static const MVMREPROps this_repr = {
 MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueue *queue) {
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)queue;
     MVMConcBlockingQueueNode *taken;
-    MVMObject *result = NULL;
+    MVMObject *result = tc->instance->VMNull;
 
     uv_mutex_lock(&cbq->body.locks->head_lock);
 

@@ -142,7 +142,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMObject *type  = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
             MVMint32   bits  = sizeof(void *) * 8;
             MVMint32   align = ALIGNOF(void *);
-            if (type) {
+            if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
                 MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
                 MVMint32  type_id   = REPR(type)->ID;

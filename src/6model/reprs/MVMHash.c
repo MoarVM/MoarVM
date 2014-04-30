@@ -65,7 +65,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     extract_key(tc, &kdata, &klen, key);
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
     if (kind == MVM_reg_obj)
-        result->o = entry != NULL ? entry->value : NULL;
+        result->o = entry != NULL ? entry->value : tc->instance->VMNull;
     else
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");

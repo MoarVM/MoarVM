@@ -30,7 +30,7 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
 
-    if (!obj)
+    if (MVM_is_null(tc, obj))
         MVM_exception_throw_adhoc(tc,
             "Cannot call method '%s' on a null object",
              MVM_string_utf8_encode_C_string(tc, name));
@@ -40,13 +40,13 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
-        if (meth) {
+        if (!MVM_is_null(tc, meth)) {
             res->o = meth;
             return;
         }
         if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
             MVMObject *handler = MVM_hll_current(tc)->method_not_found_error;
-            if (handler) {
+            if (!MVM_is_null(tc, handler)) {
                 handler = MVM_frame_find_invokee(tc, handler, NULL);
                 MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &mnfe_callsite);
                 tc->cur_frame->args[0].o = obj;
@@ -67,7 +67,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     HOW = STABLE(obj)->HOW;
     find_method = MVM_6model_find_method_cache_only(tc, HOW,
         tc->instance->str_consts.find_method);
-    if (find_method == NULL)
+    if (MVM_is_null(tc, find_method))
         MVM_exception_throw_adhoc(tc,
             "Cannot find method '%s': no method cache and no .^find_method",
              MVM_string_utf8_encode_C_string(tc, name));
@@ -86,7 +86,7 @@ void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
 
-    if (!obj)
+    if (MVM_is_null(tc, obj))
         MVM_exception_throw_adhoc(tc,
             "Cannot look for method '%s' on a null object",
              MVM_string_utf8_encode_C_string(tc, name));
@@ -95,7 +95,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
-        if (meth) {
+        if (!MVM_is_null(tc, meth)) {
             res->i64 = 1;
             return;
         }
@@ -110,7 +110,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     HOW = STABLE(obj)->HOW;
     find_method = MVM_6model_find_method_cache_only(tc, HOW,
         tc->instance->str_consts.find_method);
-    if (find_method == NULL) {
+    if (MVM_is_null(tc, find_method)) {
         /* This'll count as a "no"... */
         res->i64 = 0;
         return;
@@ -139,7 +139,7 @@ static void do_accepts_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObjec
     MVMObject *HOW = STABLE(type)->HOW;
     MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
         tc->instance->str_consts.accepts_type);
-    if (meth) {
+    if (!MVM_is_null(tc, meth)) {
         /* Set up the call, using the result register as the target. */
         MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
         MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
@@ -179,7 +179,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
     MVMint64    mode;
 
     /* Null never type-checks. */
-    if (obj == NULL) {
+    if (MVM_is_null(tc, obj)) {
         res->i64 = 0;
         return;
     }
@@ -213,7 +213,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
         MVMObject *HOW = st->HOW;
         MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
             tc->instance->str_consts.type_check);
-        if (meth) {
+        if (!MVM_is_null(tc, meth)) {
             /* Set up the call, using the result register as the target. */
             MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
             MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
@@ -246,7 +246,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
 
 /* Checks if an object has a given type, using the cache only. */
 MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type) {
-    if (obj) {
+    if (!MVM_is_null(tc, obj)) {
         MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
         MVMObject  **cache = STABLE(obj)->type_check_cache;
         if (cache)
@@ -265,7 +265,7 @@ MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMO
  * too; result is set to zero and a true value is returned. Otherwise, we can
  * not tell and a false value is returned and result is undefined. */
 MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMint32 *result) {
-    if (obj) {
+    if (!MVM_is_null(tc, obj)) {
         MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
         MVMObject  **cache = STABLE(obj)->type_check_cache;
         if (cache) {

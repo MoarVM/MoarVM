@@ -93,18 +93,18 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts  str_consts = tc->instance->str_consts;
 
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.integer);
-    if (info != NULL) {
+    if (!MVM_is_null(tc, info)) {
         MVMObject *bits_o        = MVM_repr_at_key_o(tc, info, str_consts.bits);
         MVMObject *is_unsigned_o = MVM_repr_at_key_o(tc, info, str_consts.unsigned_str);
 
-        if (bits_o != NULL) {
+        if (!MVM_is_null(tc, bits_o)) {
             repr_data->bits = MVM_repr_get_int(tc, bits_o);
             if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
              && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
                 MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
         }
 
-        if (is_unsigned_o != NULL) {
+        if (!MVM_is_null(tc, is_unsigned_o)) {
             repr_data->is_unsigned = MVM_repr_get_int(tc, is_unsigned_o);
         }
     }

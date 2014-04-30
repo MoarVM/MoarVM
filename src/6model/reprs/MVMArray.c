@@ -119,10 +119,13 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected object register");
-            if (index >= body->elems)
-                value->o = NULL;
-            else
-                value->o = body->slots.o[body->start + index];
+            if (index >= body->elems) {
+                value->o = tc->instance->VMNull;
+            }
+            else {
+                MVMObject *found = body->slots.o[body->start + index];
+                value->o = found ? found : tc->instance->VMNull;
+            }
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
@@ -433,7 +436,7 @@ MVMint64 exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         return 0;
     }
 
-    return body->slots.o[body->start + index] != NULL;
+    return !MVM_is_null(tc, body->slots.o[body->start + index]);
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
@@ -911,9 +914,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMArrayREPRData * const repr_data = (MVMArrayREPRData *)st->REPR_data;
 
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
-    if (info != NULL) {
+    if (!MVM_is_null(tc, info)) {
         MVMObject *type = MVM_repr_at_key_o(tc, info, str_consts.type);
-        if (type != NULL) {
+        if (!MVM_is_null(tc, type)) {
             MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
             switch (spec.boxed_primitive) {

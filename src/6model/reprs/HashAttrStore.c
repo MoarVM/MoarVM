@@ -75,7 +75,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     if (kind == MVM_reg_obj) {
         extract_key(tc, &kdata, &klen, (MVMObject *)name);
         HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
-        result_reg->o = entry != NULL ? entry->value : NULL;
+        result_reg->o = entry != NULL ? entry->value : tc->instance->VMNull;
     }
     else {
         MVM_exception_throw_adhoc(tc,

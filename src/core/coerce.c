@@ -32,7 +32,7 @@ void flip_return(MVMThreadContext *tc, void *sr_data);
 void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
     MVMint64 result;
-    if (obj == NULL) {
+    if (MVM_is_null(tc, obj)) {
         result = 0;
     }
     else {
@@ -177,7 +177,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     MVMStorageSpec ss;
 
     /* Handle null case. */
-    if (!obj) {
+    if (MVM_is_null(tc, obj)) {
         res_reg->s = tc->instance->str_consts.empty;
         return;
     }
@@ -192,7 +192,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     /* Check if there is a Str method. */
     strmeth = MVM_6model_find_method_cache_only(tc, obj,
         tc->instance->str_consts.Str);
-    if (strmeth) {
+    if (!MVM_is_null(tc, strmeth)) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, strmeth, NULL);
@@ -247,7 +247,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
     MVMObject *nummeth;
 
     /* Handle null case. */
-    if (!obj) {
+    if (MVM_is_null(tc, obj)) {
         res_reg->n64 = 0.0;
         return;
     }
@@ -255,7 +255,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
     /* Check if there is a Num method. */
     nummeth = MVM_6model_find_method_cache_only(tc, obj,
         tc->instance->str_consts.Num);
-    if (nummeth) {
+    if (!MVM_is_null(tc, nummeth)) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, nummeth, NULL);
@@ -288,7 +288,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
 
 MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
     /* Handle null and non-concrete case. */
-    if (!obj || !IS_CONCRETE(obj)) {
+    if (MVM_is_null(tc, obj) || !IS_CONCRETE(obj)) {
         return 0;
     }
 

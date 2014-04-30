@@ -594,7 +594,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     /* Find attribute information. */
     info = MVM_repr_at_key_o(tc, info_hash, str_attribute);
-    if (info == NULL)
+    if (MVM_is_null(tc, info))
         MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute protocol in compose");
 
     /* In this first pass, we'll over the MRO entries, looking for if
@@ -686,7 +686,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVMint8 inlined = 0;
 
             /* Ensure we have a name. */
-            if (!name_obj)
+            if (MVM_is_null(tc, name_obj))
                 MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute name");
 
             /* Attribute will live at the current position in the object. */
@@ -702,7 +702,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             /* Consider the type. */
             unboxed_type = MVM_STORAGE_SPEC_BP_NONE;
             bits         = sizeof(MVMObject *) * 8;
-            if (type != NULL) {
+            if (!MVM_is_null(tc, type)) {
                 /* Get the storage spec of the type and see what it wants. */
                 MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
                 if (spec.inlineable == MVM_STORAGE_SPEC_INLINED) {

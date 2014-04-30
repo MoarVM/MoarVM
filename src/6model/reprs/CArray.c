@@ -21,7 +21,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts str_consts = tc->instance->str_consts;
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
-    if (info) {
+    if (!MVM_is_null(tc, info)) {
         MVMCArrayREPRData *repr_data = malloc(sizeof(MVMCArrayREPRData));
         MVMObject *type   = MVM_repr_at_key_o(tc, info, str_consts.type);
         MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
