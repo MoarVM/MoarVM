@@ -16,7 +16,7 @@ static MVMint64 setup_work(MVMThreadContext *tc) {
     MVMint64 setup = 0;
     MVMObject *task_obj;
 
-    while ((task_obj = MVM_concblockingqueue_poll(tc, queue)) != NULL) {
+    while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
         task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
         setup = 1;
@@ -31,7 +31,7 @@ static MVMint64 cancel_work(MVMThreadContext *tc) {
     MVMint64 cancelled = 0;
     MVMObject *task_obj;
 
-    while ((task_obj = MVM_concblockingqueue_poll(tc, queue)) != NULL) {
+    while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
         if (task->body.ops->cancel)
             task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
