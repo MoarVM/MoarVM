@@ -944,7 +944,7 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
 }
 
 static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMInvocationSpec *is) {
-    if (is->class_handle) {
+    if (!MVM_is_null(tc, is->class_handle)) {
         MVMRegister dest;
         REPR(code)->attr_funcs.get_attribute(tc,
             STABLE(code), code, OBJECT_BODY(code),
@@ -988,7 +988,7 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
 }
 
 MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs) {
-    if (!code)
+    if (MVM_is_null(tc, code))
         MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
         MVMInvocationSpec *is = STABLE(code)->invocation_spec;
@@ -1010,7 +1010,7 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
             MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s, cs = %d)",
                 REPR(code)->name, STABLE(code)->container_spec ? 1 : 0);
         }
-        if (is->md_class_handle) {
+        if (!MVM_is_null(tc, is->md_class_handle)) {
             /* We might be able to dig straight into the multi cache and not
              * have to invoke the proto. */
             MVMRegister dest;
@@ -1023,7 +1023,7 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
                     STABLE(code), code, OBJECT_BODY(code),
                     is->md_class_handle, is->md_cache_attr_name,
                     is->md_cache_hint, &dest, MVM_reg_obj);
-                if (dest.o) {
+                if (!MVM_is_null(tc, dest.o)) {
                     MVMObject *result = MVM_multi_cache_find_callsite_args(tc,
                         dest.o, *tweak_cs, args);
                     if (result)
