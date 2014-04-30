@@ -132,7 +132,7 @@ static MVMCallsite     obj_arg_callsite = { obj_arg_flags, 1, 1, 0 };
  * of it if not. */
 void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMRegister *res_reg) {
     /* Null objects get mapped to null_value. */
-    if (!obj) {
+    if (MVM_is_null(tc, obj)) {
         res_reg->o = hll->null_value;
     }
 
