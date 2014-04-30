@@ -4258,7 +4258,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     /* Missed mono-morph; try cache-only lookup. */
                     MVMString *name = cu->body.strings[GET_UI32(cur_op, 4)];
                     MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj, name);
-                    if (meth) {
+                    if (!MVM_is_null(tc, meth)) {
                         /* Got it; cache. Must be careful due to threads
                          * reading, races, etc. */
                         MVMStaticFrame *sf = tc->cur_frame->static_info;
