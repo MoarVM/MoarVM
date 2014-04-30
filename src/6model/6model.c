@@ -130,7 +130,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
 void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
     /* Transform to an integer result. */
     MVMRegister *reg = (MVMRegister *)sr_data;
-    reg->i64 = reg->o && IS_CONCRETE(reg->o) ? 1 : 0;
+    reg->i64 = !MVM_is_null(tc, reg->o) && IS_CONCRETE(reg->o) ? 1 : 0;
 }
 
 /* Checks if an object has a given type, delegating to the type_check or
