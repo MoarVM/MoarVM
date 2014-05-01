@@ -194,16 +194,18 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
      * environment into place. */
     if (static_frame_body->env_size) {
         if (fresh)
-            frame->env = malloc(static_frame_body->env_size);
-        memset(frame->env, 0, static_frame_body->env_size);
+            frame->env = calloc(1, static_frame_body->env_size);
+        else
+            memset(frame->env, 0, static_frame_body->env_size);
     }
     else {
         frame->env = NULL;
     }
     if (static_frame_body->work_size) {
         if (fresh || !frame->work)
-            frame->work = malloc(static_frame_body->work_size);
-        memset(frame->work, 0, static_frame_body->work_size);
+            frame->work = calloc(1, static_frame_body->work_size);
+        else
+            memset(frame->work, 0, static_frame_body->work_size);
     }
     else {
         frame->work = NULL;
