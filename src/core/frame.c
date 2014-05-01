@@ -262,8 +262,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Initial reference count is 1 by virtue of it being the currently
      * executing frame. */
-    MVM_store(&frame->ref_count, 1);
-    MVM_store(&frame->gc_seq_number, 0);
+    frame->ref_count = 1;
+    frame->gc_seq_number = 0;
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
