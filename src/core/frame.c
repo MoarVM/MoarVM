@@ -36,6 +36,18 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
         grow_frame_pool(tc, static_frame_body->pool_index);
     }
 
+    /* Check if we have any static lexicals. */
+    if (static_frame_body->static_env_flags) {
+        MVMuint8 *flags  = static_frame_body->static_env_flags;
+        MVMint64  numlex = static_frame_body->num_lexicals;
+        MVMint64  i;
+        for (i = 0; i < numlex; i++)
+            if (flags[i] == 2) {
+                static_frame_body->has_state_vars = 1;
+                break;
+            }
+    }
+
     /* Mark frame as invoked, so we need not do these calculations again. */
     static_frame_body->invoked = 1;
 }
@@ -183,7 +195,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (static_frame_body->env_size) {
         if (fresh)
             frame->env = malloc(static_frame_body->env_size);
-        memcpy(frame->env, static_frame_body->static_env, static_frame_body->env_size);
+        memset(frame->env, 0, static_frame_body->env_size);
     }
     else {
         frame->env = NULL;
@@ -350,57 +362,51 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
      * that need it. Note that we do this after tc->cur_frame became the
      * current frame, to make sure these new objects will certainly get
      * marked if GC is triggered along the way. */
-    if (static_frame_body->static_env_flags) {
+    if (static_frame_body->has_state_vars) {
         /* Drag everything out of static_frame_body before we start,
          * as GC action may invalidate it. */
+        MVMRegister *env       = static_frame_body->static_env;
         MVMuint8    *flags     = static_frame_body->static_env_flags;
         MVMint64     numlex    = static_frame_body->num_lexicals;
         MVMRegister *state     = NULL;
         MVMint64     state_act = 0; /* 0 = none so far, 1 = first time, 2 = later */
         MVMint64 i;
-        for (i = 0; i < numlex; i++) {
-            switch (flags[i]) {
-            case 0: break;
-            case 1:
-                frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
-                break;
-            case 2:
-                redo_state:
-                switch (state_act) {
-                case 0:
-                    if (!frame->code_ref)
-                        MVM_exception_throw_adhoc(tc,
-                            "Frame must have code-ref to have state variables");
-                    state = ((MVMCode *)frame->code_ref)->body.state_vars;
-                    if (state) {
-                        /* Already have state vars; pull them from this. */
-                        state_act = 2;
+        MVMROOT(tc, state, {
+            for (i = 0; i < numlex; i++) {
+                if (flags[i] == 2) {
+                    redo_state:
+                    switch (state_act) {
+                    case 0:
+                        if (!frame->code_ref)
+                            MVM_exception_throw_adhoc(tc,
+                                "Frame must have code-ref to have state variables");
+                        state = ((MVMCode *)frame->code_ref)->body.state_vars;
+                        if (state) {
+                            /* Already have state vars; pull them from this. */
+                            state_act = 2;
+                        }
+                        else {
+                            /* Allocate storage for state vars. */
+                            state = malloc(frame->static_info->body.env_size);
+                            memset(state, 0, frame->static_info->body.env_size);
+                            ((MVMCode *)frame->code_ref)->body.state_vars = state;
+                            state_act = 1;
+    
+                            /* Note that this frame should run state init code. */
+                            frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
+                        }
+                        goto redo_state;
+                    case 1:
+                        frame->env[i].o = MVM_repr_clone(tc, env[i].o);
+                        MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, frame->env[i].o);
+                        break;
+                    case 2:
+                        frame->env[i].o = state[i].o;
+                        break;
                     }
-                    else {
-                        /* Allocate storage for state vars. */
-                        state = malloc(frame->static_info->body.env_size);
-                        memset(state, 0, frame->static_info->body.env_size);
-                        ((MVMCode *)frame->code_ref)->body.state_vars = state;
-                        state_act = 1;
-
-                        /* Note that this frame should run state init code. */
-                        frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
-                    }
-                    goto redo_state;
-                case 1:
-                    frame->env[i].o = MVM_repr_clone(tc, frame->env[i].o);
-                    MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, frame->env[i].o);
-                    break;
-                case 2:
-                    frame->env[i].o = state[i].o;
-                    break;
                 }
-                break;
-            default:
-                MVM_exception_throw_adhoc(tc,
-                    "Unknown lexical environment setup flag");
             }
-        }
+        });
     }
 }
 
@@ -696,6 +702,23 @@ void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
     MVM_checked_free_null(tc->frame_pool_table);
 }
 
+/* Vivifies a lexical in a frame. */
+MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
+    MVMuint8 *flags = f->static_info->body.static_env_flags;
+    MVMuint8  flag  = flags ? flags[idx] : -1;
+    if (flag == 0) {
+        MVMObject *viv = f->static_info->body.static_env[idx].o;
+        return f->env[idx].o = viv ? viv : tc->instance->VMNull;
+    }
+    else if (flag == 1) {
+        MVMObject *viv = f->static_info->body.static_env[idx].o;
+        return f->env[idx].o = MVM_repr_clone(tc, viv);
+    }
+    else {
+        return tc->instance->VMNull;
+    }
+}
+
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Non-existing object lexicals produce NULL, expected
  * (for better or worse) by various things. Otherwise, an error is thrown
@@ -712,12 +735,17 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
-                if (cur_frame->static_info->body.lexical_types[entry->value] == type)
-                    return &cur_frame->env[entry->value];
-                else
+                if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
+                    MVMRegister *result = &cur_frame->env[entry->value];
+                    if (type == MVM_reg_obj && !result->o)
+                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                    return result;
+                }
+                else {
                    MVM_exception_throw_adhoc(tc,
                         "Lexical with name '%s' has wrong type",
                             MVM_string_utf8_encode_C_string(tc, name));
+                }
             }
         }
         cur_frame = cur_frame->outer;
@@ -741,12 +769,17 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
-                if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj)
-                    return &cur_frame->env[entry->value];
-                else
+                if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
+                    MVMRegister *result = &cur_frame->env[entry->value];
+                    if (!result->o)
+                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                    return result;
+                }
+                else {
                    MVM_exception_throw_adhoc(tc,
                         "Lexical with name '%s' has wrong type",
                             MVM_string_utf8_encode_C_string(tc, name));
+                }
             }
         }
         cur_frame = cur_frame->outer;
@@ -769,12 +802,17 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
                 MVM_HASH_GET(tc, lexical_names, name, entry)
 
                 if (entry) {
-                    if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj)
-                        return &cur_frame->env[entry->value];
-                    else
+                    if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
+                        MVMRegister *result = &cur_frame->env[entry->value];
+                        if (!result->o)
+                            MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                        return result;
+                    }
+                    else {
                        MVM_exception_throw_adhoc(tc,
                             "Lexical with name '%s' has wrong type",
                                 MVM_string_utf8_encode_C_string(tc, name));
+                    }
                 }
             }
             cur_frame = cur_frame->outer;
@@ -786,7 +824,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
 
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame) {
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
     if (!name) {
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     }
@@ -799,8 +837,11 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             MVM_HASH_GET(tc, lexical_names, name, entry)
 
             if (entry) {
+                MVMRegister *result = &cur_frame->env[entry->value];
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
-                return &cur_frame->env[entry->value];
+                if (vivify && *type == MVM_reg_obj && !result->o)
+                    MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                return result;
             }
         }
         cur_frame = cur_frame->caller;
@@ -810,7 +851,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
 
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
         switch (type) {
@@ -862,7 +903,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0);
     if (!lex_reg) {
         MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
             MVM_string_utf8_encode_C_string(tc, name));
@@ -888,7 +929,8 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
     }
 }
 
-/* Returns the storage unit for the lexical in the specified frame. */
+/* Returns the storage unit for the lexical in the specified frame. Does not
+ * try to vivify anything - gets exactly what is there. */
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
@@ -909,8 +951,12 @@ MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMSt
         MVMLexicalRegistry *entry;
         MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry && f->static_info->body.lexical_types[entry->value] == type)
-            return &f->env[entry->value];
+        if (entry && f->static_info->body.lexical_types[entry->value] == type) {
+            MVMRegister *result = &f->env[entry->value];
+            if (type == MVM_reg_obj && !result->o)
+                MVM_frame_vivify_lexical(tc, f, entry->value);
+            return result;
+        }
     }
     return NULL;
 }

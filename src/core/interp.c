@@ -185,15 +185,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(getlex): {
-                MVMFrame *f = tc->cur_frame;
-                MVMuint16 outers = GET_UI16(cur_op, 4);
+                MVMFrame    *f = tc->cur_frame;
+                MVMuint16    outers = GET_UI16(cur_op, 4);
+                MVMRegister  found;
                 while (outers) {
                     if (!f)
                         MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
                     f = f->outer;
                     outers--;
                 }
-                GET_REG(cur_op, 0) = GET_LEX(cur_op, 2, f);
+                GET_REG(cur_op, 0) = found = GET_LEX(cur_op, 2, f);
+                if (found.o == NULL) {
+                    MVMuint16 idx = GET_UI16(cur_op, 2);
+                    if (f->static_info->body.lexical_types[idx] == MVM_reg_obj)
+                        GET_REG(cur_op, 0).o = MVM_frame_vivify_lexical(tc, f, idx);
+                }
                 cur_op += 6;
                 goto NEXT;
             }

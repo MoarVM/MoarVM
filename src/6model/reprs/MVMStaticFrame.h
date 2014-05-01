@@ -22,8 +22,11 @@ struct MVMStaticFrameBody {
     /* Flags for static environment (0 = static, 1 = clone, 2 = state). */
     MVMuint8 *static_env_flags;
 
+    /* If the frame has state variables. */
+    MVMuint16 has_state_vars;
+
     /* Flag for if this frame has been invoked ever. */
-    MVMuint32 invoked;
+    MVMuint16 invoked;
 
     /* Rough call count. May be hit up by multiple threads, and lose the odd
      * count, but that's fine; it's just a rough indicator, used to make

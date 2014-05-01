@@ -60,6 +60,8 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 MVM_string_utf8_encode_C_string(tc, name));
     }
     *result = frame->env[entry->value];
+    if (kind == MVM_reg_obj && !result->o)
+        result->o = MVM_frame_vivify_lexical(tc, frame, entry->value);
 }
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
