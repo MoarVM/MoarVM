@@ -637,6 +637,22 @@ getlexperinvtype_o  w(obj) r(str) :pure
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
+# Used for logging what objects we saw during execution, which is used to do
+# speculative optimizations.
+sp_log           .s r(obj) int16
+
+# Guard operations. Trigger de-optimization if the guard is violated.
+#   guardconc = guard on concrete type; index is spesh slot with type
+#   guardtype = guard on type object; index is spesh slot with type
+#   guardcontconc = guard on container holding concrete type; indexes are
+#                   spesh slots with container type and then value type
+#   guardconttype = guard on container holding type object; indexes are
+#                   spesh slots with container type and then value type
+sp_guardconc     .s r(obj) int16 :deoptpoint
+sp_guardtype     .s r(obj) int16 :deoptpoint
+sp_guardcontconc .s r(obj) int16 int16 :deoptpoint
+sp_guardconttype .s r(obj) int16 int16 :deoptpoint
+
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
 sp_getarg_i      .s w(obj) int16 :pure

@@ -5367,6 +5367,51 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
+        MVM_OP_sp_log,
+        "sp_log",
+        ".s",
+        2,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_guardconc,
+        "sp_guardconc",
+        ".s",
+        2,
+        0,
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_guardtype,
+        "sp_guardtype",
+        ".s",
+        2,
+        0,
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_guardcontconc,
+        "sp_guardcontconc",
+        ".s",
+        3,
+        0,
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_guardconttype,
+        "sp_guardconttype",
+        ".s",
+        3,
+        0,
+        1,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_int16 }
+    },
+    {
         MVM_OP_sp_getarg_o,
         "sp_getarg_o",
         ".s",
@@ -5593,7 +5638,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 621;
+static unsigned short MVM_op_counts = 626;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
