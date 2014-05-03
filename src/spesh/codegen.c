@@ -250,7 +250,10 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         if (ws->handlers[i].start_offset == -1 ||
             ws->handlers[i].end_offset   == -1 ||
             ws->handlers[i].goto_offset  == -1)
-            MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up handlers");
+            MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up handlers (%d, %d, %d)",
+                (int)ws->handlers[i].start_offset,
+                (int)ws->handlers[i].end_offset,
+                (int)ws->handlers[i].goto_offset);
     }
 
     /* Produce result data structure. */
