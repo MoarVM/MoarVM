@@ -4238,6 +4238,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_log):
+                if (tc->cur_frame->spesh_log_idx >= 0) {
+                    MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
+                        tc->cur_frame->spesh_log_slots[
+                            GET_UI16(cur_op, 2) * MVM_SPESH_LOG_RUNS + tc->cur_frame->spesh_log_idx
+                        ],
+                        GET_REG(cur_op, 0).o);
+                }
+                cur_op += 4;
+                goto NEXT;
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;
