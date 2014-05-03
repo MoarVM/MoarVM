@@ -143,6 +143,11 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     candidate->num_spesh_slots = sg->num_spesh_slots;
     candidate->spesh_slots     = sg->spesh_slots;
 
+    /* May now be referencing nursery objects, so barrier just in case. */
+    if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
+        if (!(static_frame->common.header.flags & MVM_CF_IN_GEN2_ROOT_LIST))
+            MVM_gc_root_gen2_add(tc, (MVMCollectable *)static_frame);
+
     /* Destory spesh graph, and finally clear point to it in the candidate,
      * which unblocks use of the specialization. */
     MVM_spesh_graph_destroy(tc, sg);
