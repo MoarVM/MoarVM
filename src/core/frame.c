@@ -281,6 +281,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (++static_frame_body->invocations >= 10 && callsite->is_interned) {
         /* Look for specialized bytecode. */
         MVMint32 num_spesh = static_frame_body->num_spesh_candidates;
+        MVMSpeshCandidate *chosen_cand = NULL;
         MVMint32 i, j;
         for (i = 0; i < num_spesh; i++) {
             MVMSpeshCandidate *cand = &static_frame_body->spesh_candidates[i];
@@ -322,27 +323,45 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         break;
                 }
                 if (match) {
-                    frame->effective_bytecode    = cand->bytecode;
-                    frame->effective_handlers    = cand->handlers;
-                    frame->effective_spesh_slots = cand->spesh_slots;
-                    frame->spesh_cand            = cand;
-                    found_spesh = 1;
+                    chosen_cand = cand;
                     break;
                 }
             }
         }
 
-        /* If we didn't find any, and we're below the limit, can generate a
+        /* If we didn't find any, and we're below the limit, can set up a
          * specialization. */
-        if (!found_spesh && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled) {
-            MVMSpeshCandidate *cand = MVM_spesh_candidate_generate(tc, static_frame,
+        if (!chosen_cand && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled)
+            chosen_cand = MVM_spesh_candidate_setup(tc, static_frame,
                 callsite, args);
-            if (cand) {
-                frame->effective_bytecode    = cand->bytecode;
-                frame->effective_handlers    = cand->handlers;
-                frame->effective_spesh_slots = cand->spesh_slots;
-                frame->spesh_cand            = cand;
-                found_spesh = 1;
+
+        /* Now try to use specialized bytecode. We may need to compete to
+         * be a logging run of it. */
+        if (chosen_cand) {
+            if (chosen_cand->sg) {
+                /* In the logging phase. Try to get a logging index. */
+                AO_t cur_idx = MVM_load(&(chosen_cand->log_enter_idx));
+                if (cur_idx < MVM_SPESH_LOG_RUNS) {
+                    if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
+                        /* We get to log. */
+                        frame->effective_bytecode    = chosen_cand->bytecode;
+                        frame->effective_handlers    = chosen_cand->handlers;
+                        frame->effective_spesh_slots = chosen_cand->spesh_slots;
+                        frame->spesh_log_slots       = chosen_cand->log_slots;
+                        frame->spesh_cand            = chosen_cand;
+                        frame->spesh_log_idx         = (MVMint8)cur_idx;
+                        found_spesh                  = 1;
+                    }
+                }
+            }
+            else {
+                /* In the post-specialize phase; can safely used the code. */
+                frame->effective_bytecode    = chosen_cand->bytecode;
+                frame->effective_handlers    = chosen_cand->handlers;
+                frame->effective_spesh_slots = chosen_cand->spesh_slots;
+                frame->spesh_cand            = chosen_cand;
+                frame->spesh_log_idx         = -1;
+                found_spesh                  = 1;
             }
         }
     }
@@ -452,6 +471,13 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
     MVMFrame *caller   = returner->caller;
+
+    /* See if we were in a logging spesh frame, and need to complete the
+     * specialization. */
+    if (returner->spesh_cand && returner->spesh_log_idx >= 0)
+        if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1)
+            MVM_spesh_candidate_specialize(tc, returner->static_info,
+                returner->spesh_cand);
 
     /* Some cleanup we only need do if we're not a frame involved in a
      * continuation (otherwise we need to allow for multi-shot

@@ -1,8 +1,11 @@
 #include "moar.h"
 
-/* Tries to generate a specialization of the bytecode, for the given callsite
- * and argument tuple. */
-MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
+/* Tries to set up a specialization of the bytecode for a given arg tuple.
+ * Doesn't do the actual optimizations, just works out the guards and does
+ * any simple argument transformations, and then inserts logging to record
+ * what we see. Produces bytecode with those transformations and the logging
+ * instructions. */
+MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args) {
     MVMSpeshCandidate *result;
     MVMSpeshGuard *guards;
@@ -11,23 +14,22 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     MVMCollectable **spesh_slots;
     char *before, *after;
 
-    /* Generate the specialization. */
+    /* Do initial generation of the specialization, working out the argument
+     * guards and adding logging. */
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, static_frame);
     if (tc->instance->spesh_log_fh)
         before = MVM_spesh_dump(tc, sg);
     MVM_spesh_args(tc, sg, callsite, args);
-    MVM_spesh_facts_discover(tc, sg);
-    MVM_spesh_optimize(tc, sg);
+    MVM_spesh_log_add_logging(tc, sg);
     if (tc->instance->spesh_log_fh)
         after = MVM_spesh_dump(tc, sg);
-    sc = MVM_spesh_codegen(tc, sg);
+    sc              = MVM_spesh_codegen(tc, sg);
+    num_guards      = sg->num_guards;
+    guards          = sg->guards;
+    num_deopts      = sg->num_deopt_addrs;
+    deopts          = sg->deopt_addrs;
     num_spesh_slots = sg->num_spesh_slots;
-    spesh_slots = sg->spesh_slots;
-    num_guards = sg->num_guards;
-    guards = sg->guards;
-    num_deopts = sg->num_deopt_addrs;
-    deopts = sg->deopt_addrs;
-    MVM_spesh_graph_destroy(tc, sg);
+    spesh_slots     = sg->spesh_slots;
 
     /* Now try to add it. Note there's a slim chance another thread beat us
      * to doing so. Also other threads can read the specializations without
@@ -51,17 +53,22 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
             if (!static_frame->body.spesh_candidates)
                 static_frame->body.spesh_candidates = malloc(
                     MVM_SPESH_LIMIT * sizeof(MVMSpeshCandidate));
-            result                  = &static_frame->body.spesh_candidates[num_spesh];
-            result->cs              = callsite;
-            result->num_guards      = num_guards;
-            result->guards          = guards;
-            result->bytecode        = sc->bytecode;
-            result->bytecode_size   = sc->bytecode_size;
-            result->handlers        = sc->handlers;
-            result->num_spesh_slots = num_spesh_slots;
-            result->spesh_slots     = spesh_slots;
-            result->num_deopts      = num_deopts;
-            result->deopts          = deopts;
+            result                      = &static_frame->body.spesh_candidates[num_spesh];
+            result->cs                  = callsite;
+            result->num_guards          = num_guards;
+            result->guards              = guards;
+            result->bytecode            = sc->bytecode;
+            result->bytecode_size       = sc->bytecode_size;
+            result->handlers            = sc->handlers;
+            result->num_spesh_slots     = num_spesh_slots;
+            result->spesh_slots         = spesh_slots;
+            result->num_deopts          = num_deopts;
+            result->deopts              = deopts;
+            result->num_log_slots       = 0;
+            result->log_slots           = NULL;
+            result->sg                  = sg;
+            result->log_enter_idx       = 0;
+            result->log_exits_remaining = MVM_SPESH_LOG_RUNS;
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
@@ -71,7 +78,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
                 char *c_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
                 char *c_cuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
                 fprintf(tc->instance->spesh_log_fh,
-                    "Specialized '%s' (cuid: %s)\n\n", c_name, c_cuid);
+                    "Inserting logging for specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
                 fprintf(tc->instance->spesh_log_fh,
                     "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
                 free(before);
@@ -84,9 +91,59 @@ MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
     if (!result) {
         free(sc->bytecode);
         free(sc->handlers);
+        MVM_spesh_graph_destroy(tc, sg);
     }
     uv_mutex_unlock(&tc->instance->mutex_spesh_install);
 
     free(sc);
     return result;
+}
+
+/* Called at the point we have the finished logging for a specialization and
+ * so are ready to do the specialization work for it. We can be sure this
+ * will only be called once, and when nothing is running the logging version
+ * of the code. */
+void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMSpeshCandidate *candidate) {
+    MVMSpeshCode *sc;
+
+    /* Obtain the graph, add facts, and do optimization work. */
+    MVMSpeshGraph *sg = candidate->sg;
+    MVM_spesh_facts_discover(tc, sg);
+    MVM_spesh_optimize(tc, sg);
+
+    /* Dump updated graph if needed. */
+    if (tc->instance->spesh_log_fh) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
+        char *c_cuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
+        char *dump   = MVM_spesh_dump(tc, sg);
+        fprintf(tc->instance->spesh_log_fh,
+            "Finished specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
+        fprintf(tc->instance->spesh_log_fh,
+            "%s\n\n========\n\n", dump);
+        free(dump);
+        free(c_name);
+        free(c_cuid);
+    }
+
+    /* Generate code, and replace that in the candidate. */
+    sc = MVM_spesh_codegen(tc, sg);
+    free(candidate->bytecode);
+    free(candidate->handlers);
+    candidate->bytecode      = sc->bytecode;
+    candidate->bytecode_size = sc->bytecode_size;
+    candidate->handlers      = sc->handlers;
+    candidate->num_deopts    = sg->num_deopt_addrs;
+    candidate->deopts        = sg->deopt_addrs;
+    free(sc);
+
+    /* Update spesh slots. */
+    candidate->num_spesh_slots = sg->num_spesh_slots;
+    candidate->spesh_slots     = sg->spesh_slots;
+
+    /* Destory spesh graph, and finally clear point to it in the candidate,
+     * which unblocks use of the specialization. */
+    MVM_spesh_graph_destroy(tc, sg);
+    MVM_barrier();
+    candidate->sg = NULL;
 }

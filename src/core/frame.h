@@ -90,6 +90,9 @@ struct MVMFrame {
     /* Effective set of spesh slots, if any. */
     MVMCollectable **effective_spesh_slots;
 
+    /* Effective set of spesh logging slots, if any. */
+    MVMCollectable **spesh_log_slots;
+
     /* The spesh candidate information, if we're in one. */
     MVMSpeshCandidate *spesh_cand;
 
@@ -141,6 +144,11 @@ struct MVMFrame {
 
     /* Assorted frame flags. */
     MVMuint8 flags;
+
+    /* If we're in a logging spesh run, the index to log at in this
+     * invocation. -1 if we're not in a logging spesh run, junk if no
+     * spesh_cand is set in this frame at all. */
+    MVMint8 spesh_log_idx;
 
 #if MVM_HLL_PROFILE_CALLS
     /* Index of the profile data record. */

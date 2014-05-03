@@ -48,7 +48,7 @@ struct MVMSpeshCandidate {
 
     /* Logging slots, used when we're in the log phase of producing
      * a specialization. */
-    MVMObject **log_slots;
+    MVMCollectable **log_slots;
 
     /* Number of logging slots. */
     MVMuint32 num_log_slots;
@@ -76,5 +76,7 @@ struct MVMSpeshGuard {
 #define MVM_SPESH_GUARD_DC_TYPE 4   /* Decont'd value is type object with match type. */
 
 /* Functions for generating a specialization. */
-MVMSpeshCandidate * MVM_spesh_candidate_generate(MVMThreadContext *tc,
+MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args);
+void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMSpeshCandidate *candidate);

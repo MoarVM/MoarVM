@@ -924,10 +924,12 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Allocate space for spesh facts for each local; clean up stacks while
      * we're at it. */
-    num_locals = g->sf->body.num_locals;
-    g->facts = MVM_spesh_alloc(tc, g, num_locals * sizeof(MVMSpeshFacts *));
+    num_locals     = g->sf->body.num_locals;
+    g->facts       = MVM_spesh_alloc(tc, g, num_locals * sizeof(MVMSpeshFacts *));
+    g->fact_counts = MVM_spesh_alloc(tc, g, num_locals * sizeof(MVMuint16));
     for (i = 0; i < num_locals; i++) {
-        g->facts[i] = MVM_spesh_alloc(tc, g, var_info[i].count * sizeof(MVMSpeshFacts));
+        g->fact_counts[i] = var_info[i].count;
+        g->facts[i]       = MVM_spesh_alloc(tc, g, var_info[i].count * sizeof(MVMSpeshFacts));
         if (var_info[i].stack_alloc)
             free(var_info[i].stack);
     }
@@ -954,6 +956,27 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
 
     /* Hand back the completed graph. */
     return g;
+}
+
+/* Marks GCables held in a spesh graph. */
+void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist) {
+    MVMuint16 i, j, num_locals, num_facts;
+
+    /* Mark static frame. */
+    MVM_gc_worklist_add(tc, worklist, &g->sf);
+
+    /* Mark facts. */
+    num_locals = g->sf->body.num_locals;
+    for (i = 0; i < num_locals; i++) {
+        num_facts = g->fact_counts[i];
+        for (j = 0; j < num_facts; j++) {
+            MVMint32 flags = g->facts[i][j].flags;
+            if (flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].type));
+            if (flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE)
+                MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].type));
+        }
+    }
 }
 
 /* Destroys a spesh graph, deallocating all its associated memory. */

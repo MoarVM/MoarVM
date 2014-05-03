@@ -11,6 +11,9 @@ struct MVMSpeshGraph {
      * local, then array hanging off it is per version). */
     MVMSpeshFacts **facts;
 
+    /* Number of fact entries per local. */
+    MVMuint16 *fact_counts;
+
     /* Argument guards added. */
     MVMSpeshGuard *guards;
 
@@ -157,5 +160,6 @@ struct MVMSpeshAnn {
 
 /* Functions to create/destory the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf);
+void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist);
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);
