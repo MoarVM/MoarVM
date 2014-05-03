@@ -92,7 +92,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     }
     if (!result) {
         free(sc->bytecode);
-        free(sc->handlers);
+        if (sc->handlers)
+            free(sc->handlers);
         MVM_spesh_graph_destroy(tc, sg);
     }
     uv_mutex_unlock(&tc->instance->mutex_spesh_install);
@@ -131,7 +132,8 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     /* Generate code, and replace that in the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
     free(candidate->bytecode);
-    free(candidate->handlers);
+    if (candidate->handlers)
+        free(candidate->handlers);
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;

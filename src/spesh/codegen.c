@@ -218,12 +218,17 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Create copy of handlers, and -1 all offsets so we can catch missing
      * updates. */
     hanlen = g->sf->body.num_handlers * sizeof(MVMFrameHandler);
-    ws->handlers = malloc(hanlen);
-    memcpy(ws->handlers, g->sf->body.handlers, hanlen);
-    for (i = 0; i < g->sf->body.num_handlers; i++) {
-        ws->handlers[i].start_offset = -1;
-        ws->handlers[i].end_offset   = -1;
-        ws->handlers[i].goto_offset  = -1;
+    if (hanlen) {
+        ws->handlers = malloc(hanlen);
+        memcpy(ws->handlers, g->sf->body.handlers, hanlen);
+        for (i = 0; i < g->sf->body.num_handlers; i++) {
+            ws->handlers[i].start_offset = -1;
+            ws->handlers[i].end_offset   = -1;
+            ws->handlers[i].goto_offset  = -1;
+        }
+    }
+    else {
+        ws->handlers = NULL;
     }
 
     /* Write out each of the basic blocks, in linear order. Skip the first,
