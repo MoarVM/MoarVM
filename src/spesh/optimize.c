@@ -238,6 +238,30 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
             REPR(facts->type)->spesh(tc, STABLE(facts->type), g, bb, ins);
 }
 
+/* Optimizes away a lexical lookup when we know the value won't change from
+ * the logged one. */
+static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                  MVMSpeshIns *ins) {
+    /* Ensure we have a log instruction following this one. */
+    if (ins->next && ins->next->info->opcode == MVM_OP_sp_log) {
+        /* Locate logged object. */
+        MVMuint16       log_slot = ins->next->operands[1].lit_i16 * MVM_SPESH_LOG_RUNS;
+        MVMCollectable *log_obj  = g->log_slots[log_slot];
+        if (log_obj) {
+            /* Place in a spesh slot. */
+            MVMuint16 ss = MVM_spesh_add_spesh_slot(tc, g, log_obj);
+
+            /* Delete logging instructin. */
+            MVM_spesh_manipulate_delete_ins(tc, bb, ins->next);
+
+            /* Transform lookup instruction into spesh slot read. */
+            MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+            ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+            ins->operands[1].lit_i16 = ss;
+        }
+    }
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMint32 i;
@@ -302,6 +326,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_assertparamcheck:
             optimize_assertparamcheck(tc, g, bb, ins);
+            break;
+        case MVM_OP_getlexstatic_o:
+            optimize_getlex_known(tc, g, bb, ins);
             break;
         }
         ins = ins->next;
