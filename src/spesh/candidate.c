@@ -10,8 +10,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     MVMSpeshCandidate *result;
     MVMSpeshGuard *guards;
     MVMSpeshCode *sc;
-    MVMint32 num_spesh_slots, num_guards, *deopts, num_deopts;
-    MVMCollectable **spesh_slots;
+    MVMint32 num_spesh_slots, num_log_slots, num_guards, *deopts, num_deopts;
+    MVMCollectable **spesh_slots, **log_slots;
     char *before, *after;
 
     /* Do initial generation of the specialization, working out the argument
@@ -30,6 +30,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     deopts          = sg->deopt_addrs;
     num_spesh_slots = sg->num_spesh_slots;
     spesh_slots     = sg->spesh_slots;
+    num_log_slots   = sg->num_log_slots;
+    log_slots       = sg->log_slots;
 
     /* Now try to add it. Note there's a slim chance another thread beat us
      * to doing so. Also other threads can read the specializations without
@@ -64,8 +66,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->spesh_slots         = spesh_slots;
             result->num_deopts          = num_deopts;
             result->deopts              = deopts;
-            result->num_log_slots       = 0;
-            result->log_slots           = NULL;
+            result->num_log_slots       = num_log_slots;
+            result->log_slots           = log_slots;
             result->sg                  = sg;
             result->log_enter_idx       = 0;
             result->log_exits_remaining = MVM_SPESH_LOG_RUNS;

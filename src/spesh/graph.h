@@ -40,6 +40,10 @@ struct MVMSpeshGraph {
     MVMint32  num_deopt_addrs;
     MVMint32  alloc_deopt_addrs;
 
+    /* Logging slots, along with the number of them. */
+    MVMCollectable **log_slots;
+    MVMint32 num_log_slots;
+
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
 };
