@@ -141,6 +141,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].guards[j].match);
             for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].spesh_slots[j]);
+            if (body->spesh_candidates[i].log_slots)
+                for (j = 0; j < body->spesh_candidates[i].num_log_slots; j++)
+                    MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].log_slots[j]);
         }
     }
 }
