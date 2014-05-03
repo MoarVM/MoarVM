@@ -4233,9 +4233,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlexstatic_o):
             OP(getlexperinvtype_o): {
                 MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_obj);
+                    GET_REG(cur_op, 2).s, MVM_reg_obj);
                 GET_REG(cur_op, 0).o = found ? found->o : NULL;
-                cur_op += 6;
+                cur_op += 4;
                 goto NEXT;
             }
             OP(sp_log):
