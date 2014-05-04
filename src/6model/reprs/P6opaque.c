@@ -576,7 +576,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
                cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
                cur_init_slot, cur_mark_slot, cur_cleanup_slot, cur_unbox_slot,
-               unboxed_type, bits, i;
+               unboxed_type, i;
     MVMObject *info;
 
     MVMStringConsts       str_consts = tc->instance->str_consts;
@@ -684,6 +684,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVMint64 is_box_target = REPR(attr_info)->ass_funcs.exists_key(tc,
                 STABLE(attr_info), attr_info, OBJECT_BODY(attr_info), (MVMObject *)str_box_target);
             MVMint8 inlined = 0;
+            MVMuint32 bits;
+            MVMuint32 align;
 
             /* Ensure we have a name. */
             if (MVM_is_null(tc, name_obj))
@@ -700,6 +702,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             /* Consider the type. */
             unboxed_type = MVM_STORAGE_SPEC_BP_NONE;
             bits         = sizeof(MVMObject *) * 8;
+            align        = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
                 /* Get the storage spec of the type and see what it wants. */
                 MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -707,6 +710,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     /* Yes, it's something we'll flatten. */
                     unboxed_type = spec.boxed_primitive;
                     bits = spec.bits;
+                    align = spec.align;
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[cur_slot], STABLE(type));
                     inlined = 1;
 
@@ -761,6 +765,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         cur_unbox_slot++;
                     }
                 }
+            }
+
+            /* C structure needs careful alignment. If cur_alloc_addr is not
+             * aligned to align bytes (cur_alloc_addr % align), make sure it is
+             * before we add the next element. */
+            if (cur_alloc_addr % align) {
+                cur_alloc_addr += align - cur_alloc_addr % align;
             }
 
             /* Attribute will live at the current position in the object. */
@@ -826,15 +837,19 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     /* To calculate size, we need number of attributes and to know about
      * anything flattend in. */
     MVMint64  num_attributes = reader->read_varint(tc, reader);
-    MVMuint32 cur_offset = 0;
+    MVMuint32 cur_offset = sizeof(MVMP6opaque);
     MVMint64  i;
     for (i = 0; i < num_attributes; i++) {
         if (reader->read_varint(tc, reader)) {
             MVMSTable *st = reader->read_stable_ref(tc, reader);
             MVMStorageSpec ss = st->REPR->get_storage_spec(tc, st);
-            if (ss.inlineable)
+            if (ss.inlineable) {
                 /* TODO: Review if/when we get sub-byte things. */
+                if (cur_offset % ss.align) {
+                    cur_offset += ss.align - cur_offset % ss.align;
+                }
                 cur_offset += ss.bits / 8;
+            }
             else
                 cur_offset += sizeof(MVMObject *);
         }
@@ -843,7 +858,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
         }
     }
 
-    st->size = sizeof(MVMP6opaque) + cur_offset;
+    st->size = cur_offset;
 }
 
 /* Serializes the REPR data. */
@@ -1017,7 +1032,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         else {
             /* Store position. */
             MVMSTable *cur_st = repr_data->flattened_stables[i];
-            repr_data->attribute_offsets[i] = cur_offset;
+            MVMStorageSpec spec = cur_st->REPR->get_storage_spec(tc, cur_st);
 
             /* Set up flags for initialization and GC. */
             if (cur_st->REPR->initialize)
@@ -1027,8 +1042,14 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             if (cur_st->REPR->gc_cleanup)
                 repr_data->gc_cleanup_slots[cur_gc_cleanup_slot++] = i;
 
+            if (cur_offset % spec.align) {
+                cur_offset += spec.align - cur_offset % spec.align;
+            }
+
+            repr_data->attribute_offsets[i] = cur_offset;
+
             /* Increment by size reported by representation. */
-            cur_offset += cur_st->REPR->get_storage_spec(tc, cur_st).bits / 8;
+            cur_offset += spec.bits / 8;
         }
     }
     repr_data->initialize_slots[cur_initialize_slot] = -1;
