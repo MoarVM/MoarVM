@@ -689,8 +689,6 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             if (MVM_is_null(tc, name_obj))
                 MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute name");
 
-            /* Attribute will live at the current position in the object. */
-            repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
             if (REPR(name_obj)->ID == MVM_REPR_ID_MVMString) {
                 MVM_ASSIGN_REF(tc, &(st->header), name_map->names[i], (MVMString *)name_obj);
             }
@@ -764,6 +762,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     }
                 }
             }
+
+            /* Attribute will live at the current position in the object. */
+            repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
 
             /* Handle object attributes, which need marking and may have auto-viv needs. */
             if (!inlined) {
