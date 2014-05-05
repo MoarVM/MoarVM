@@ -38,3 +38,15 @@
 
 /* How this compiler does static inline functions. */
 #define MVM_STATIC_INLINE @static_inline@
+
+#if @can_unaligned_int32@
+#define MVM_CAN_UNALIGNED_INT32
+#endif
+
+#if @can_unaligned_int64@
+#define MVM_CAN_UNALIGNED_INT64
+#endif
+
+#if @can_unaligned_num64@
+#define MVM_CAN_UNALIGNED_NUM64
+#endif

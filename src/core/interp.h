@@ -81,3 +81,25 @@ struct MVMOpInfo {
 /* Functions. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data);
 MVM_PUBLIC void MVM_interp_enable_tracing();
+
+MVM_STATIC_INLINE MVMint64 MVM_BC_get_I64(const MVMuint8 *cur_op, int offset) {
+    const MVMuint8 *const where = cur_op + offset;
+#ifdef MVM_CAN_UNALIGNED_INT64
+    return *(MVMint64 *)where;
+#else
+    MVMint64 temp;
+    memmove(&temp, where, sizeof(MVMint64));
+    return temp;
+#endif
+}
+
+MVM_STATIC_INLINE MVMnum64 MVM_BC_get_N64(const MVMuint8 *cur_op, int offset) {
+    const MVMuint8 *const where = cur_op + offset;
+#ifdef MVM_CAN_UNALIGNED_NUM64
+    return *(MVMnum64 *)where;
+#else
+    MVMnum64 temp;
+    memmove(&temp, cur_op + offset, sizeof(MVMnum64));
+    return temp;
+#endif
+}

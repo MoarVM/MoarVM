@@ -172,4 +172,89 @@ sub static_inline_cross {
     $config->{static_inline} = 'static';
 }
 
+
+sub _gen_unaligned_access {
+    my ($config, $can) = @_;
+    my @align = qw(int32 int64 num64);
+    if ($can eq 'all') {
+        ++$config->{"can_unaligned_$_"}
+            foreach @align;
+        print "    your CPU can read unaligned values for all of @align\n";
+    } else {
+        my %can;
+        ++$can{$_}
+            for split ' ', $can;
+        $config->{"can_unaligned_$_"} = $can{$_} || 0
+            foreach @align;
+        if ($can) {
+            print "    your CPU can read unaligned values for only $can\n";
+        } else {
+            print "    your CPU can't read unaligned values for any of @align\n";
+        }
+    }
+}
+
+sub unaligned_access {
+    my ($config) = @_;
+
+    if ($^O eq 'MSWin32') {
+        # Needs FIXME for Windows on ARM, but not sure how to detect that
+        _gen_unaligned_access($config, 'all');
+    } else {
+        # AIX:
+        # uname -m: 00F84C0C4C00
+        # uname -p: powerpc
+        # HP/UX
+        # uname -m: 9000/800
+        # (but will be ia64 on Itanium)
+        # uname -p illegal
+        # Solaris
+        # uname -m: i86pc
+        # uname -p: i386
+        # FreeBSD
+        # uname -m: amd64
+        # uname -p: amd64
+        # NetBSD
+        # uname -m: amd64
+        # uname -p: x86_64
+        # OpenBSD
+        # uname -m: amd64
+        # uname -p: amd64
+        # Assuming that the 50 other *BSD variants are forks of the 3 above
+        # Linux
+        # uname -p can return 'unknown'
+
+        my $flag;
+        if ($^O eq 'aix' || $^O eq 'solaris') {
+            $flag = '-p';
+        } else {
+            $flag = '-m';
+        }
+        my $command = "uname $flag";
+        my $arch = `$command`;
+        if (defined $arch) {
+            chomp $arch;
+            if ($arch =~ /^(?:x86_64|amd64|i[0-9]86|armv7.*)$/) {
+                # ARMv7 not yet tested
+                # Don't know alignment constraints for ARMv8
+                _gen_unaligned_access($config, 'all');
+            } elsif ($arch =~ /^armv6/) {
+                _gen_unaligned_access($config, 'int32');
+            } else {
+                # ARMv5 and earlier do "interesting" things on unaligned 32 bit
+                # For other architectures, play it safe by default.
+                # Updates welcome.
+                _gen_unaligned_access($config, '');
+            }
+        } else {
+            print STDERR "Problem running $command, so assuming no unaligned access\n";
+        }
+    }
+}
+
+sub unaligned_access_cross {
+    my ($config) = @_;
+    _gen_unaligned_access($config, '');
+}
+
 '00';
