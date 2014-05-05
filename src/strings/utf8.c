@@ -200,10 +200,6 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMint32 line;
     MVMint32 col;
 
-    if (bytes >= 3 && utf8[0] == 0xEF && utf8[1] == 0xBB && utf8[0xBF]) {
-        /* disregard UTF-8 BOM if it's present */
-        utf8 += 3; bytes -= 3;
-    }
     orig_bytes = bytes;
     orig_utf8 = utf8;
 
