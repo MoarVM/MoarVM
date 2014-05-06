@@ -2994,8 +2994,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
-                MVM_spesh_deopt(tc);
                 cur_op += 6;
+                MVM_spesh_deopt(tc);
                 goto NEXT;
             OP(istype): {
                 /* Increment PC first, as we may make a method call. */
@@ -4248,6 +4248,62 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 cur_op += 4;
                 goto NEXT;
+            OP(sp_guardconc): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMSTable *want  = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 4;
+                if (!IS_CONCRETE(check) || STABLE(check) != want)
+                    MVM_spesh_deopt(tc);
+                goto NEXT;
+            }
+            OP(sp_guardtype): {
+                MVMObject *check = GET_REG(cur_op, 0).o;
+                MVMSTable *want  = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                cur_op += 4;
+                if (IS_CONCRETE(check) || STABLE(check) != want)
+                    MVM_spesh_deopt(tc);
+                goto NEXT;
+            }
+            OP(sp_guardcontconc): {
+                MVMint32   ok     = 0;
+                MVMObject *check  = GET_REG(cur_op, 0).o;
+                MVMSTable *want_c = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMSTable *want_v = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 6;
+                if (IS_CONCRETE(check) || STABLE(check) == want_c) {
+                    MVMContainerSpec const *contspec = STABLE(check)->container_spec;
+                    MVMRegister r;
+                    contspec->fetch(tc, check, &r);
+                    if (IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                        ok = 1;
+                }
+                if (!ok)
+                    MVM_spesh_deopt(tc);
+                goto NEXT;
+            }
+            OP(sp_guardconttype): {
+                MVMint32   ok     = 0;
+                MVMObject *check  = GET_REG(cur_op, 0).o;
+                MVMSTable *want_c = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMSTable *want_v = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 6;
+                if (IS_CONCRETE(check) || STABLE(check) == want_c) {
+                    MVMContainerSpec const *contspec = STABLE(check)->container_spec;
+                    MVMRegister r;
+                    contspec->fetch(tc, check, &r);
+                    if (!IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                        ok = 1;
+                }
+                if (!ok)
+                    MVM_spesh_deopt(tc);
+                goto NEXT;
+            }
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;
