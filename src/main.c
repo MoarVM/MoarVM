@@ -24,6 +24,7 @@ enum {
     FLAG_TRACING,
     FLAG_VERSION,
 
+    OPT_EXECNAME,
     OPT_LIBPATH
 };
 
@@ -74,6 +75,8 @@ static int parse_flag(const char *arg)
         return (int)(found - FLAGS);
     else if (starts_with(arg, "--libpath="))
         return OPT_LIBPATH;
+    else if (starts_with(arg, "--execname="))
+        return OPT_EXECNAME;
     else
         return UNKNOWN_FLAG;
 }
@@ -82,6 +85,7 @@ int main(int argc, char *argv[])
 {
     MVMInstance *instance;
     const char  *input_file;
+    const char  *executable_name = NULL;
     const char  *lib_path[8];
 
     int dump         = 0;
@@ -113,6 +117,10 @@ int main(int argc, char *argv[])
             MVM_interp_enable_tracing();
             continue;
 #endif
+
+            case OPT_EXECNAME:
+            executable_name = argv[argi] + strlen("--execname=");
+            continue;
 
             case OPT_LIBPATH:
             if (lib_path_i == 7) { /* 0..7 == 8 */
@@ -147,6 +155,7 @@ int main(int argc, char *argv[])
     instance->num_clargs = argc - argi;
     instance->raw_clargs = argv + argi;
     instance->prog_name  = input_file;
+    instance->exec_name  = executable_name;
     for( argi = 0; argi < lib_path_i; argi++)
         instance->lib_path[argi] = lib_path[argi];
 
