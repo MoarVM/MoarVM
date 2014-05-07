@@ -118,6 +118,73 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
 }
 
+/* Check for stability of what was logged, and if it looks sane then add facts
+ * and turn the log instruction into a  */
+static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMObject *stable_value = NULL;
+    MVMObject *stable_cont  = NULL;
+
+    /* See if all the recorded facts match up; a NULL means there was a code
+     * path that never reached making a log entry. */
+    MVMuint16 log_start = ins->operands[1].lit_i64;
+    MVMuint16 i;
+    for (i = log_start; i < log_start + MVM_SPESH_LOG_RUNS; i++) {
+        MVMObject *consider = (MVMObject *)g->log_slots[i];
+        if (consider) {
+            if (!stable_value) {
+                stable_value = consider;
+            }
+            else if (STABLE(stable_value) != STABLE(consider)) {
+                stable_value = NULL;
+                break;
+            }
+        }
+    }
+    if (!stable_value)
+        return;
+
+    /* If the value is a container type, need to look inside of it. */
+    if (STABLE(stable_value)->container_spec) {
+        MVMContainerSpec const *contspec = STABLE(stable_value)->container_spec;
+        if (!contspec->fetch_never_invokes)
+            return;
+        stable_cont  = stable_value;
+        stable_value = NULL;
+        for (i = log_start; i < log_start + MVM_SPESH_LOG_RUNS; i++) {
+            MVMRegister r;
+            contspec->fetch(tc, stable_cont, &r);
+            if (r.o) {
+                if (!stable_value) {
+                    stable_value = r.o;
+                }
+                else if (STABLE(stable_value) != STABLE(r.o)) {
+                    stable_value = NULL;
+                    break;
+                }
+            }
+        }
+        if (!stable_value)
+            return;
+    }
+
+    /* Produce a guard op and set facts. */
+    if (stable_cont) {
+    }
+    else {
+        MVMSpeshFacts *facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+        facts->type          = STABLE(stable_value)->WHAT;
+        facts->flags        |= (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_DECONTED);
+        if (IS_CONCRETE(stable_value)) {
+            facts->flags |= MVM_SPESH_FACT_CONCRETE;
+            ins->info = MVM_op_get_op(MVM_OP_sp_guardconc);
+        }
+        else {
+            facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+            ins->info = MVM_op_get_op(MVM_OP_sp_guardtype);
+        }
+        ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_value));
+    }
+}
 
 /* Visits the blocks in dominator tree order, recursively. */
 static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
@@ -246,6 +313,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
         case MVM_OP_const_n64:
         case MVM_OP_const_n32:
             literal_facts(tc, g, ins);
+            break;
+        case MVM_OP_sp_log:
+            log_facts(tc, g, ins);
             break;
         }
         ins = ins->next;
