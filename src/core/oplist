@@ -72,12 +72,12 @@ unless_s0           r(str) ins
 if_o                r(obj) ins
 unless_o            r(obj) ins
 jumplist         :j int64 r(int64)
-getlex              w(`1) rl(`1) :pure
+getlex              w(`1) rl(`1) :pure :deoptonepoint
 bindlex             wl(`1) r(`1)
 getlex_ni           w(int64) str :pure
 getlex_nn           w(num64) str :pure
 getlex_ns           w(str) str :pure
-getlex_no           w(obj) str :pure
+getlex_no           w(obj) str :pure :deoptonepoint
 bindlex_ni          str r(int64)
 bindlex_nn          str r(num64)
 bindlex_ns          str r(str)
@@ -172,11 +172,11 @@ arg_o            *a int16 r(obj)
 argconst_i       *a int16 int64
 argconst_n       *a int16 num64
 argconst_s       *a int16 str
-invoke_v         -a r(obj) :deoptpoint
-invoke_i         -a w(int64) r(obj) :deoptpoint
-invoke_n         -a w(num64) r(obj) :deoptpoint
-invoke_s         -a w(str) r(obj) :deoptpoint
-invoke_o         -a w(obj) r(obj) :deoptpoint
+invoke_v         -a r(obj) :deoptallpoint
+invoke_i         -a w(int64) r(obj) :deoptallpoint
+invoke_n         -a w(num64) r(obj) :deoptallpoint
+invoke_s         -a w(str) r(obj) :deoptallpoint
+invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint
 checkarity          int16 int16
 param_rp_i          w(int64) int16 :pure
 param_rp_n          w(num64) int16 :pure
@@ -315,11 +315,11 @@ bindattrs_o         r(obj) r(obj) r(str) r(obj)
 getattr_i           w(int64) r(obj) r(obj) str int16
 getattr_n           w(num64) r(obj) r(obj) str int16
 getattr_s           w(str) r(obj) r(obj) str int16
-getattr_o           w(obj) r(obj) r(obj) str int16
+getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint
 getattrs_i          w(int64) r(obj) r(obj) r(str)
 getattrs_n          w(num64) r(obj) r(obj) r(str)
 getattrs_s          w(str) r(obj) r(obj) r(str)
-getattrs_o          w(obj) r(obj) r(obj) r(str)
+getattrs_o          w(obj) r(obj) r(obj) r(str) :deoptonepoint
 attrinited          w(int64) r(obj) r(obj) r(str)
 box_i               w(obj) r(int64) r(obj) :pure
 box_n               w(obj) r(num64) r(obj) :pure
@@ -648,10 +648,10 @@ sp_log           .s r(obj) int16
 #                   spesh slots with container type and then value type
 #   guardconttype = guard on container holding type object; indexes are
 #                   spesh slots with container type and then value type
-sp_guardconc     .s r(obj) int16 :deoptpoint
-sp_guardtype     .s r(obj) int16 :deoptpoint
-sp_guardcontconc .s r(obj) int16 int16 :deoptpoint
-sp_guardconttype .s r(obj) int16 int16 :deoptpoint
+sp_guardconc     .s r(obj) int16
+sp_guardtype     .s r(obj) int16
+sp_guardcontconc .s r(obj) int16 int16
+sp_guardconttype .s r(obj) int16 int16
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure

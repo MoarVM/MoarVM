@@ -30,6 +30,10 @@ union MVMRegister {
 /* Most operands an operation will have. */
 #define MVM_MAX_OPERANDS 8
 
+/* Kind of de-opt mark. */
+#define MVM_DEOPT_MARK_ONE 1
+#define MVM_DEOPT_MARK_ALL 2
+
 /* Information about an opcode. */
 struct MVMOpInfo {
     MVMuint16   opcode;
