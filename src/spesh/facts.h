@@ -12,6 +12,9 @@ struct MVMSpeshFacts {
     /* Known type post-decontainerization, if any. */
     MVMObject *decont_type;
 
+    /* The instruction that's the origin of this register + version */
+    MVMSpeshIns *assigner;
+
     /* Known value, if any. */
     union {
         MVMObject *o;

@@ -133,6 +133,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
                 (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
                 g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i].usages++;
 
+        if (ins->info->num_operands >= 1 && (ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
+            g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i].assigner = ins;
+
         /* Look for ops that are fact-interesting. */
         switch (ins->info->opcode) {
         case MVM_OP_inc_i:
