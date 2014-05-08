@@ -251,7 +251,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
             /* Place in a spesh slot. */
             MVMuint16 ss = MVM_spesh_add_spesh_slot(tc, g, log_obj);
 
-            /* Delete logging instructin. */
+            /* Delete logging instruction. */
             MVM_spesh_manipulate_delete_ins(tc, bb, ins->next);
 
             /* Transform lookup instruction into spesh slot read. */
