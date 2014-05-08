@@ -4274,7 +4274,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *want_v = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 cur_op += 6;
-                if (IS_CONCRETE(check) || STABLE(check) == want_c) {
+                if (IS_CONCRETE(check) && STABLE(check) == want_c) {
                     MVMContainerSpec const *contspec = STABLE(check)->container_spec;
                     MVMRegister r;
                     contspec->fetch(tc, check, &r);
@@ -4293,7 +4293,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *want_v = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 cur_op += 6;
-                if (IS_CONCRETE(check) || STABLE(check) == want_c) {
+                if (IS_CONCRETE(check) && STABLE(check) == want_c) {
                     MVMContainerSpec const *contspec = STABLE(check)->container_spec;
                     MVMRegister r;
                     contspec->fetch(tc, check, &r);
