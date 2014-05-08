@@ -61,6 +61,29 @@ static MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint16 
     }
 }
 
+/* Records a de-optimization annotation and mapping pair. */
+static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
+                                 MVMuint8 *pc, MVMint32 type) {
+    /* Add an the annotations. */
+    MVMSpeshAnn *ann      = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type             = type;
+    ann->data.deopt_idx   = g->num_deopt_addrs;
+    ann->next             = ins_node->annotations;
+    ins_node->annotations = ann;
+
+    /* Record PC in the deopt entries table. */
+    if (g->num_deopt_addrs == g->alloc_deopt_addrs) {
+        g->alloc_deopt_addrs += 4;
+        if (g->deopt_addrs)
+            g->deopt_addrs = realloc(g->deopt_addrs,
+                g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+        else
+            g->deopt_addrs = malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+    }
+    g->deopt_addrs[2 * g->num_deopt_addrs] = pc - g->sf->body.bytecode;
+    g->num_deopt_addrs++;
+}
+
 /* Builds the control flow graph, populating the passed spesh graph structure
  * with it. This also makes nodes for all of the instruction. */
 #define MVM_CFG_BB_START    1
@@ -235,26 +258,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         pc += 2 + arg_size;
 
         /* If this is a deopt point opcode... */
-        if (info->deopt_point) {
-            /* Add an the annotations. */
-            MVMSpeshAnn *ann      = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-            ann->type             = MVM_SPESH_ANN_DEOPT_INS;
-            ann->data.deopt_idx   = g->num_deopt_addrs;
-            ann->next             = ins_node->annotations;
-            ins_node->annotations = ann;
-
-            /* Record PC in the deopt entries table. */
-            if (g->num_deopt_addrs == g->alloc_deopt_addrs) {
-                g->alloc_deopt_addrs += 4;
-                if (g->deopt_addrs)
-                    g->deopt_addrs = realloc(g->deopt_addrs,
-                        g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
-                else
-                    g->deopt_addrs = malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
-            }
-            g->deopt_addrs[2 * g->num_deopt_addrs] = pc - sf->body.bytecode;
-            g->num_deopt_addrs++;
-        }
+        if (info->deopt_point & MVM_DEOPT_MARK_ONE)
+            add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
+        if (info->deopt_point & MVM_DEOPT_MARK_ALL)
+            add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ALL_INS);
 
         /* Go to next instruction. */
         ins_idx++;

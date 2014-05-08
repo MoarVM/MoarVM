@@ -68,8 +68,9 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
         MVMint32 i;
         if (ins->info->opcode != MVM_SSA_PHI) {
             /* Process any annotations. */
-            MVMSpeshAnn *ann       = ins->annotations;
-            MVMSpeshAnn *deopt_ann = NULL;
+            MVMSpeshAnn *ann           = ins->annotations;
+            MVMSpeshAnn *deopt_one_ann = NULL;
+            MVMSpeshAnn *deopt_all_ann = NULL;
             while (ann) {
                 switch (ann->type) {
                 case MVM_SPESH_ANN_FH_START:
@@ -84,8 +85,11 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                     ws->handlers[ann->data.frame_handler_index].goto_offset =
                         ws->bytecode_pos;
                     break;
-                case MVM_SPESH_ANN_DEOPT_INS:
-                    deopt_ann = ann;
+                case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                    deopt_one_ann = ann;
+                    break;
+                case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                    deopt_all_ann = ann;
                     break;
                 }
                 ann = ann->next;
@@ -189,8 +193,10 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
             }
 
             /* If there was a deopt point annotation, update table. */
-            if (deopt_ann)
-                g->deopt_addrs[2 * deopt_ann->data.deopt_idx + 1] = ws->bytecode_pos;
+            if (deopt_one_ann)
+                g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx + 1] = ws->bytecode_pos;
+            if (deopt_all_ann)
+                g->deopt_addrs[2 * deopt_all_ann->data.deopt_idx + 1] = ws->bytecode_pos;
         }
         ins = ins->next;
     }

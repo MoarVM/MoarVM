@@ -160,7 +160,8 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_FH_START      1
 #define MVM_SPESH_ANN_FH_END        2
 #define MVM_SPESH_ANN_FH_GOTO       3
-#define MVM_SPESH_ANN_DEOPT_INS     4
+#define MVM_SPESH_ANN_DEOPT_ONE_INS 4
+#define MVM_SPESH_ANN_DEOPT_ALL_INS 5
 
 /* Functions to create/destory the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf);
