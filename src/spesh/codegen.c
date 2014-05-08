@@ -66,35 +66,36 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         MVMint32 i;
-        if (ins->info->opcode != MVM_SSA_PHI) {
-            /* Process any annotations. */
-            MVMSpeshAnn *ann           = ins->annotations;
-            MVMSpeshAnn *deopt_one_ann = NULL;
-            MVMSpeshAnn *deopt_all_ann = NULL;
-            while (ann) {
-                switch (ann->type) {
-                case MVM_SPESH_ANN_FH_START:
-                    ws->handlers[ann->data.frame_handler_index].start_offset =
-                        ws->bytecode_pos;
-                    break;
-                case MVM_SPESH_ANN_FH_END:
-                    ws->handlers[ann->data.frame_handler_index].end_offset =
-                        ws->bytecode_pos;
-                    break;
-                case MVM_SPESH_ANN_FH_GOTO:
-                    ws->handlers[ann->data.frame_handler_index].goto_offset =
-                        ws->bytecode_pos;
-                    break;
-                case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                    deopt_one_ann = ann;
-                    break;
-                case MVM_SPESH_ANN_DEOPT_ALL_INS:
-                    deopt_all_ann = ann;
-                    break;
-                }
-                ann = ann->next;
-            }
 
+        /* Process any annotations. */
+        MVMSpeshAnn *ann           = ins->annotations;
+        MVMSpeshAnn *deopt_one_ann = NULL;
+        MVMSpeshAnn *deopt_all_ann = NULL;
+        while (ann) {
+            switch (ann->type) {
+            case MVM_SPESH_ANN_FH_START:
+                ws->handlers[ann->data.frame_handler_index].start_offset =
+                    ws->bytecode_pos;
+                break;
+            case MVM_SPESH_ANN_FH_END:
+                ws->handlers[ann->data.frame_handler_index].end_offset =
+                    ws->bytecode_pos;
+                break;
+            case MVM_SPESH_ANN_FH_GOTO:
+                ws->handlers[ann->data.frame_handler_index].goto_offset =
+                    ws->bytecode_pos;
+                break;
+            case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                deopt_one_ann = ann;
+                break;
+            case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                deopt_all_ann = ann;
+                break;
+            }
+            ann = ann->next;
+        }
+
+        if (ins->info->opcode != MVM_SSA_PHI) {
             /* Real instruction, not a phi. Emit opcode. */
             if (ins->info->opcode == (MVMuint16)-1) {
                 /* Ext op; resolve. */
@@ -191,13 +192,14 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                     MVM_exception_throw_adhoc(tc, "Spesh: unknown operand type in codegen");
                 }
             }
-
-            /* If there was a deopt point annotation, update table. */
-            if (deopt_one_ann)
-                g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx + 1] = ws->bytecode_pos;
-            if (deopt_all_ann)
-                g->deopt_addrs[2 * deopt_all_ann->data.deopt_idx + 1] = ws->bytecode_pos;
         }
+
+        /* If there was a deopt point annotation, update table. */
+        if (deopt_one_ann)
+            g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx + 1] = ws->bytecode_pos;
+        if (deopt_all_ann)
+            g->deopt_addrs[2 * deopt_all_ann->data.deopt_idx + 1] = ws->bytecode_pos;
+
         ins = ins->next;
     }
 }
