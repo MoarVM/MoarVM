@@ -169,6 +169,24 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) 
 
     /* Produce a guard op and set facts. */
     if (stable_cont) {
+        MVMSpeshOperand reg   = ins->operands[0];
+        MVMSpeshFacts  *facts = &g->facts[reg.reg.orig][reg.reg.i];
+        facts->type           = STABLE(stable_cont)->WHAT;
+        facts->flags         |= (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE |
+                                MVM_SPESH_FACT_KNOWN_DECONT_TYPE);
+        facts->decont_type    = STABLE(stable_value)->WHAT;
+        if (IS_CONCRETE(stable_value)) {
+            facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+            ins->info = MVM_op_get_op(MVM_OP_sp_guardcontconc);
+        }
+        else {
+            facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+            ins->info = MVM_op_get_op(MVM_OP_sp_guardconttype);
+        }
+        ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        ins->operands[0] = reg;
+        ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_cont));
+        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_value));
     }
     else {
         MVMSpeshFacts *facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
