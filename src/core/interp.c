@@ -2995,7 +2995,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
                 MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 6;
-                MVM_spesh_deopt(tc);
+                MVM_spesh_deopt_all(tc);
                 goto NEXT;
             OP(istype): {
                 /* Increment PC first, as we may make a method call. */
@@ -4254,7 +4254,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 4;
                 if (!IS_CONCRETE(check) || STABLE(check) != want)
-                    MVM_spesh_deopt(tc);
+                    MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
             OP(sp_guardtype): {
@@ -4263,7 +4263,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 4;
                 if (IS_CONCRETE(check) || STABLE(check) != want)
-                    MVM_spesh_deopt(tc);
+                    MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
             OP(sp_guardcontconc): {
@@ -4282,7 +4282,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         ok = 1;
                 }
                 if (!ok)
-                    MVM_spesh_deopt(tc);
+                    MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
             OP(sp_guardconttype): {
@@ -4301,7 +4301,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         ok = 1;
                 }
                 if (!ok)
-                    MVM_spesh_deopt(tc);
+                    MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
             OP(sp_getarg_o):
