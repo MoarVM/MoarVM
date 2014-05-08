@@ -342,45 +342,59 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
         optimize_bb(tc, g, bb->children[i]);
+}
 
-    /* Now walk backwards through the instructions, eliminating any that are
-     * pure and unused. */
-    ins = bb->last_ins;
-    while (ins) {
-        MVMSpeshIns *prev = ins->prev;
-        if (ins->info->opcode == MVM_SSA_PHI) {
-            MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-            if (facts->usages == 0) {
-                /* Propagate non-usage. */
-                for (i = 1; i < ins->info->num_operands; i++)
-                    MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
-
-                /* Remove this phi. */
-                MVM_spesh_manipulate_delete_ins(tc, bb, ins);
-            }
-        }
-        else if (ins->info->pure) {
-            /* Sanity check to make sure it's a write reg as first operand. */
-            if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-                if (facts->usages == 0) {
-                    /* Propagate non-usage. */
-                    for (i = 1; i < ins->info->num_operands; i++)
-                        if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+/* Elimiantes any unused instructions. */
+static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* Keep eliminating to a fixed point. */
+    MVMint8 death = 1;
+    while (death) {
+        MVMSpeshBB *bb = g->entry;
+        death = 0;
+        while (bb) {
+            MVMSpeshIns *ins = bb->last_ins;
+            while (ins) {
+                MVMSpeshIns *prev = ins->prev;
+                if (ins->info->opcode == MVM_SSA_PHI) {
+                    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                    if (facts->usages == 0) {
+                        /* Propagate non-usage. */
+                        MVMint32 i;
+                        for (i = 1; i < ins->info->num_operands; i++)
                             MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
-
-                    /* Remove this instruction. */
-                    MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+        
+                        /* Remove this phi. */
+                        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                        death = 1;
+                    }
                 }
+                else if (ins->info->pure) {
+                    /* Sanity check to make sure it's a write reg as first operand. */
+                    if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+                        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                        if (facts->usages == 0) {
+                            /* Propagate non-usage. */
+                            MVMint32 i;
+                            for (i = 1; i < ins->info->num_operands; i++)
+                                if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                                    MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
+        
+                            /* Remove this instruction. */
+                            MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                            death = 1;
+                        }
+                    }
+                }
+                ins = prev;
             }
+            bb = bb->linear_next;
         }
-        ins = prev;
     }
 }
 
 /* Eliminates any unreachable basic blocks (that is, dead code). Not having
  * to consider them any further simplifies all that follows. */
-static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
+static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
     MVMint8  *seen     = malloc(g->num_bbs);
     MVMint32  orig_bbs = g->num_bbs;
@@ -426,5 +440,6 @@ static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     optimize_bb(tc, g, g->entry);
-    eliminate_dead(tc, g);
+    eliminate_dead_ins(tc, g);
+    eliminate_dead_bbs(tc, g);
 }
