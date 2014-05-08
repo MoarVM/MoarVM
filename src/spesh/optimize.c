@@ -200,11 +200,26 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 
 /* Turns a decont into a set, if we know it's not needed. Also make sure we
  * propagate any needed information. */
-static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ)) {
-        ins->info = MVM_op_get_op(MVM_OP_set);
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+
+        /* If the decont was the only user of the source register, we can tweak
+         * the original assigner to assign directly to the target register. */
+        if (obj_facts->usages == 1 && obj_facts->assigner) {
+            MVMuint16 orig;
+            MVMint32 i;
+            orig = ins->operands[0].reg.orig;
+            i = ins->operands[0].reg.i;
+            MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+            printf("there was only 1 usage of this.\n");
+            obj_facts->assigner->operands[0].reg.orig = orig;
+            obj_facts->assigner->operands[0].reg.i = i;
+        } else {
+            printf("there were %d usages of this decont's source\n", obj_facts->usages);
+            ins->info = MVM_op_get_op(MVM_OP_set);
+        }
     }
     else {
         MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
@@ -298,7 +313,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             optimize_hllize(tc, g, ins);
             break;
         case MVM_OP_decont:
-            optimize_decont(tc, g, ins);
+            optimize_decont(tc, g, bb, ins);
             break;
         case MVM_OP_assertparamcheck:
             optimize_assertparamcheck(tc, g, bb, ins);
