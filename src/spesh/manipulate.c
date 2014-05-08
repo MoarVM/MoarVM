@@ -18,7 +18,8 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
 
     /* Move it's annotations. */
     while (ins->annotations) {
-        MVMSpeshAnn *ann = ins->annotations;
+        MVMSpeshAnn *ann      = ins->annotations;
+        MVMSpeshAnn *ann_next = ann->next;
         switch (ann->type) {
             case MVM_SPESH_ANN_FH_START:
             case MVM_SPESH_ANN_FH_GOTO:
@@ -34,7 +35,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
                 }
                 break;
         }
-        ins->annotations = ann->next;
+        ins->annotations = ann_next;
     }
 }
 
