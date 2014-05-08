@@ -7,6 +7,7 @@
  * used as an additional "fact" source while specializing. */
 
 static void insert_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    /* Add the entry. */
     MVMSpeshIns *log_ins         = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     log_ins->info                = MVM_op_get_op(MVM_OP_sp_log);
     log_ins->operands            = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
@@ -14,6 +15,25 @@ static void insert_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, M
     log_ins->operands[1].lit_i16 = g->num_log_slots;
     MVM_spesh_manipulate_insert_ins(tc, bb, ins, log_ins);
     g->num_log_slots++;
+
+    /* Steal the de-opt annotation into the log instruction, if it exists. */
+    if (ins->annotations) {
+        MVMSpeshAnn *prev_ann = NULL;
+        MVMSpeshAnn *cur_ann  = ins->annotations;
+        while (cur_ann) {
+            if (cur_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
+                if (prev_ann)
+                    prev_ann->next = cur_ann->next;
+                else
+                    ins->annotations = cur_ann->next;
+                cur_ann->next = NULL;
+                log_ins->annotations = cur_ann;
+                break;
+            }
+            prev_ann = cur_ann;
+            cur_ann = cur_ann->next;
+        }
+    }
 }
  
 void MVM_spesh_log_add_logging(MVMThreadContext *tc, MVMSpeshGraph *g) {
