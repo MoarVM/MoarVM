@@ -153,6 +153,20 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     append(ds, "\n\n");
 }
 
+/* Dumps the facts table. */
+static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
+    MVMuint16 i, j, num_locals, num_facts;
+    num_locals = g->sf->body.num_locals;
+    for (i = 0; i < num_locals; i++) {
+        num_facts = g->fact_counts[i];
+        for (j = 0; j < num_facts; j++) {
+            MVMint32 usages = g->facts[i][j].usages;
+            MVMint32 flags  = g->facts[i][j].flags;
+            appendf(ds, "    r%d(%d): usages=%d, flags=%d\n", i, j, usages, flags);
+        }
+    }
+}
+
 /* Dump a spesh graph into string form, for debugging purposes. */
 char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *cur_bb;
@@ -176,6 +190,10 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
         dump_bb(tc, &ds, g, cur_bb);
         cur_bb = cur_bb->linear_next;
     }
+
+    /* Dump facts. */
+    append(&ds, "\nFacts:\n");
+    dump_facts(tc, &ds, g);
 
     append(&ds, "\n");
     append_null(&ds);
