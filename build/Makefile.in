@@ -345,7 +345,7 @@ TOM_OBJECTS = @tomobjects@
 
 THIRDPARTY = @thirdpartylibs@
 
-.SUFFIXES: .c @obj@ .i
+.SUFFIXES: .c @obj@ .i @asm@
 
 all: moar@exe@
 
@@ -468,6 +468,10 @@ switch no-tracing no-cgoto:
 .c.i:
 	$(MSG) pre-processing $@
 	$(CMD)$(CC) @cppswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @cppout@$@ $*.c
+
+.c@asm@:
+	$(MSG) generating assembler for $@
+	$(CMD)$(CC) @asmswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @asmout@$@ $*.c
 
 .c@obj@:
 	$(MSG) compiling $@
