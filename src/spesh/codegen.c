@@ -239,6 +239,11 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         ws->handlers = NULL;
     }
 
+    /* -1 all the deopt targets, so we'll easily catch those that don't get
+     * mapped if we try to use them. */
+    for (i = 0; i < g->num_deopt_addrs; i++)
+        g->deopt_addrs[i * 2 + 1] = -1;
+
     /* Write out each of the basic blocks, in linear order. Skip the first,
      * dummy, block. */
     bb = g->entry->linear_next;
