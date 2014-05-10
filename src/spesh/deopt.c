@@ -38,7 +38,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     /* Walk frames looking for any callers in specialized bytecode. */
     MVMFrame *f = tc->cur_frame->caller;
     while (f) {
-        if (f->effective_bytecode != f->static_info->body.bytecode) {
+        if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
             /* Found one. See if we can find the return address in the deopt
              * table. */
             MVMint32 ret_offset = f->return_address - f->effective_bytecode;
