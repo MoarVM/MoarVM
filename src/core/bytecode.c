@@ -518,6 +518,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         }
         static_frame_body->bytecode = rs->bytecode_seg + bytecode_pos;
         static_frame_body->bytecode_size = bytecode_size;
+        static_frame_body->orig_bytecode = static_frame_body->bytecode;
 
         /* Get number of locals and lexicals. */
         static_frame_body->num_locals = read_int32(pos, 8);

@@ -223,7 +223,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         /* We were provided with an outer frame; just ensure that it is
          * based on the correct static frame (compare on bytecode address
          * to come with nqp::freshcoderef). */
-        if (outer->static_info->body.bytecode == static_frame_body->outer->body.bytecode)
+        if (outer->static_info->body.orig_bytecode == static_frame_body->outer->body.orig_bytecode)
             frame->outer = outer;
         else
             MVM_exception_throw_adhoc(tc,
