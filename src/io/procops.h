@@ -9,3 +9,4 @@ void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed);
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc);
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc);
 MVMnum64 MVM_proc_time_n(MVMThreadContext *tc);
+MVMString * MVM_executable_name(MVMThreadContext *tc);

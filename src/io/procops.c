@@ -376,6 +376,22 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
     return (MVMnum64)MVM_platform_now() / 1000000000.0;
 }
 
+MVMString * MVM_executable_name(MVMThreadContext *tc) {
+    MVMInstance * const instance = tc->instance;
+    if (instance->exec_name) {
+        return MVM_string_utf8_decode(tc,
+            instance->VMString,
+            instance->exec_name, strlen(instance->exec_name));
+    }
+    else {
+        MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, instance->VMString);
+        result->body.int32s = malloc(1);
+        result->body.flags  = MVM_STRING_TYPE_INT32;
+        result->body.graphs = 0;
+        return result;
+    }
+}
+
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
     MVMObject            *clargs = instance->clargs;

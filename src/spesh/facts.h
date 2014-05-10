@@ -31,8 +31,8 @@ struct MVMSpeshFacts {
 #define MVM_SPESH_FACT_CONCRETE             8   /* Know it's a concrete object. */
 #define MVM_SPESH_FACT_TYPEOBJ              16  /* Know it's a type object. */
 #define MVM_SPESH_FACT_KNOWN_DECONT_TYPE    32  /* Has a known type after decont. */
-#define MVM_SPESH_FACT_DECONT_CONCRETE      64  /* Is concrete after after decont. */
-#define MVM_SPESH_FACT_DECONT_TYPEOBJ       128 /* Is a type object after after decont. */
+#define MVM_SPESH_FACT_DECONT_CONCRETE      64  /* Is concrete after decont. */
+#define MVM_SPESH_FACT_DECONT_TYPEOBJ       128 /* Is a type object after decont. */
 
 /* Discovers spesh facts and builds up information about them. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g);
