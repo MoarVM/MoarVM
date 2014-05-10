@@ -3435,6 +3435,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
                     MVM_sc_set_stable_sc(tc, st, (MVMSerializationContext *)sc);
                 }
+                MVM_SC_WB_OBJ(tc, obj);
                 cur_op += 6;
                 goto NEXT;
             }
