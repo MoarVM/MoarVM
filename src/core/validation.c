@@ -37,6 +37,8 @@ typedef struct {
     MVMuint32         bc_size;
     MVMuint8         *bc_start;
     MVMuint8         *bc_end;
+    MVMuint8         *src_cur_op;
+    MVMuint8         *src_bc_end;
     MVMuint8         *labels;
     MVMuint8         *cur_op;
     const MVMOpInfo  *cur_info;
@@ -69,8 +71,10 @@ static void fail_illegal_mark(Validator *val) {
 
 
 static void ensure_bytes(Validator *val, MVMuint32 count) {
-    if (val->cur_op + count > val->bc_end)
+    if (val->src_cur_op + count > val->src_bc_end)
         fail(val, MSG(val, "truncated stream"));
+    memcpy(val->cur_op, val->src_cur_op, count);
+    val->src_cur_op += count;
 }
 
 
@@ -149,6 +153,7 @@ printf(" %u %s %.2s\n", val->cur_instr, info->name, info->mark);
 
 
 static void unread_op(Validator *val) {
+    val->src_cur_op -= 2;
     val->cur_op    -= 2;
     val->cur_instr -= 1;
 }
@@ -564,10 +569,9 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->loc_count = fb->num_locals;
     val->loc_types = fb->local_types;
     val->bc_size   = fb->bytecode_size;
-    val->bc_start  = fb->bytecode;
-    val->bc_end    = fb->bytecode + fb->bytecode_size;
+    val->src_cur_op = fb->bytecode;
+    val->src_bc_end = fb->bytecode + fb->bytecode_size;
     val->labels    = calloc(fb->bytecode_size, 1);
-    val->cur_op    = fb->bytecode;
     val->cur_info  = NULL;
     val->cur_mark  = NULL;
     val->cur_instr = 0;
@@ -578,6 +582,14 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->remaining_positionals = 0;
     val->remaining_jumplabels  = 0;
     val->reg_type_var          = 0;
+
+    /* Proof of concept! */
+    assert(fb->bytecode == fb->orig_bytecode);
+    val->bc_start = malloc(fb->bytecode_size);
+    memset(val->bc_start, 0xDB, fb->bytecode_size);
+    val->bc_end = val->bc_start + fb->bytecode_size;
+    fb->bytecode = val->bc_start;
+    val->cur_op = val->bc_start;
 
     while (val->cur_op < val->bc_end) {
         read_op(val);
