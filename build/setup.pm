@@ -114,6 +114,9 @@ our %TC_POSIX = (
     ccinc    => '-I',
     ccdef    => '-D',
 
+    cppswitch => '-E',
+    cppout    => '> ',
+
     ldout => undef,
     lddir => '-L',
     ldusr => '-l%s',
@@ -186,6 +189,9 @@ our %TC_MSVC = (
     ccout    => '/Fo',
     ccinc    => '/I',
     ccdef    => '/D',
+
+    cppswitch => '/P',
+    cppout    => '/Fi',
 
     ldout => '/out:',
     lddir => '/libpath:',

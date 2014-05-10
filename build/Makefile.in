@@ -345,7 +345,7 @@ TOM_OBJECTS = @tomobjects@
 
 THIRDPARTY = @thirdpartylibs@
 
-.SUFFIXES: .c @obj@
+.SUFFIXES: .c @obj@ .i
 
 all: moar@exe@
 
@@ -463,6 +463,11 @@ switch no-tracing no-cgoto:
 	$(MSG) enable regular dispatch
 	-$(CMD)$(RM) src/main@obj@ src/core/interp@obj@
 	$(CMD)$(MAKE) TRACING=0 CGOTO=0 NOISY="$(NOISY)"
+
+# objflags can include -DMVM_BUILD_SHARED which affects pre-processed source
+.c.i:
+	$(MSG) pre-processing $@
+	$(CMD)$(CC) @cppswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @cppout@$@ $*.c
 
 .c@obj@:
 	$(MSG) compiling $@
