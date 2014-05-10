@@ -100,20 +100,33 @@ static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_ori
 /* constant ops on literals give us a specialize-time-known value */
 static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *tgt_facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
-    if (ins->info->opcode == MVM_OP_const_i64) {
-        tgt_facts->value.i64 = ins->operands[1].lit_i64;
-    } else if (ins->info->opcode == MVM_OP_const_i32) {
-        tgt_facts->value.i32 = ins->operands[1].lit_i32;
-    } else if (ins->info->opcode == MVM_OP_const_i16) {
-        tgt_facts->value.i32 = ins->operands[1].lit_i16;
-    } else if (ins->info->opcode == MVM_OP_const_i8) {
-        tgt_facts->value.i32 = ins->operands[1].lit_i8;
-    } else if (ins->info->opcode == MVM_OP_const_n32) {
-        tgt_facts->value.n32 = ins->operands[1].lit_n32;
-    } else if (ins->info->opcode == MVM_OP_const_n64) {
-        tgt_facts->value.n64 = ins->operands[1].lit_n64;
-    } else {
-        return;
+    switch (ins->info->opcode) {
+        case MVM_OP_const_i64:
+            tgt_facts->value.i64 = ins->operands[1].lit_i64;
+            break;
+        case MVM_OP_const_i32:
+            tgt_facts->value.i32 = ins->operands[1].lit_i32;
+            break;
+        case MVM_OP_const_i16:
+            tgt_facts->value.i32 = ins->operands[1].lit_i16;
+            break;
+        case MVM_OP_const_i8:
+            tgt_facts->value.i32 = ins->operands[1].lit_i8;
+            break;
+        case MVM_OP_const_n32:
+            tgt_facts->value.n32 = ins->operands[1].lit_n32;
+            break;
+        case MVM_OP_const_n64:
+            tgt_facts->value.n64 = ins->operands[1].lit_n64;
+            break;
+        case MVM_OP_const_i64_32:
+            tgt_facts->value.i64 = ins->operands[1].lit_i32;
+            break;
+        case MVM_OP_const_i64_16:
+            tgt_facts->value.i64 = ins->operands[1].lit_i16;
+            break;
+        default:
+            return;
     }
     tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
 }
@@ -332,6 +345,8 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
         case MVM_OP_const_i8:
         case MVM_OP_const_n64:
         case MVM_OP_const_n32:
+        case MVM_OP_const_i64_32:
+        case MVM_OP_const_i64_16:
             literal_facts(tc, g, ins);
             break;
         case MVM_OP_sp_log: {
