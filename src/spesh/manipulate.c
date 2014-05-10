@@ -29,6 +29,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
                 }
                 break;
             case MVM_SPESH_ANN_FH_END:
+            case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 if (prev) {
                     ann->next = prev->annotations;
                     prev->annotations = ann;
