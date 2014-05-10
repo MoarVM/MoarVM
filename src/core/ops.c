@@ -5470,7 +5470,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_fastcreate",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_int16 }
     },
@@ -5479,7 +5479,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_get_o",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5488,7 +5488,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_get_i",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5497,7 +5497,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_get_n",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5506,7 +5506,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_get_s",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5551,7 +5551,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_p6oget_o",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5578,7 +5578,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_p6oget_i",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5587,7 +5587,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_p6oget_n",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5596,7 +5596,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_p6oget_s",
         ".s",
         3,
-        0,
+        1,
         0,
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
