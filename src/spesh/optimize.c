@@ -266,6 +266,8 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         MVMuint16       log_slot = ins->next->operands[1].lit_i16 * MVM_SPESH_LOG_RUNS;
         MVMCollectable *log_obj  = g->log_slots[log_slot];
         if (log_obj) {
+            MVMSpeshFacts *facts;
+
             /* Place in a spesh slot. */
             MVMuint16 ss = MVM_spesh_add_spesh_slot(tc, g, log_obj);
 
@@ -276,6 +278,20 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
             MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
             ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             ins->operands[1].lit_i16 = ss;
+
+            /* Set up facts. */
+            facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+            facts->flags  |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_KNOWN_VALUE;
+            facts->type    = STABLE(log_obj)->WHAT;
+            facts->value.o = (MVMObject *)log_obj;
+            if (IS_CONCRETE(log_obj)) {
+                facts->flags |= MVM_SPESH_FACT_CONCRETE;
+                if (!STABLE(log_obj)->container_spec)
+                    facts->flags |= MVM_SPESH_FACT_DECONTED;
+            }
+            else {
+                facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+            }
         }
     }
 }
