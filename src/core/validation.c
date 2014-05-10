@@ -73,8 +73,17 @@ static void fail_illegal_mark(Validator *val) {
 static void ensure_bytes(Validator *val, MVMuint32 count) {
     if (val->src_cur_op + count > val->src_bc_end)
         fail(val, MSG(val, "truncated stream"));
-    memcpy(val->cur_op, val->src_cur_op, count);
+#ifdef MVM_BIGENDIAN
+    /* Endian swap equivalent of memcpy(val->cur_op, val->src_cur_op, count); */
+    {
+        MVMuint8 *d = val->cur_op + count;
+        while (count--) {
+            *--d = *val->src_cur_op++;
+        }
+    }
+#else
     val->src_cur_op += count;
+#endif
 }
 
 
@@ -285,9 +294,14 @@ static void validate_lex_operand(Validator *val, MVMuint32 flags) {
     MVMuint32 lex_count;
     MVMStaticFrame *frame = val->frame;
 
-    ensure_bytes(val, 4);
-
+    /* Two steps forward, two steps back to keep the error reporting happy,
+       and to make the endian conversion within ensure_bytes correct.
+       (Both are using val->cur_op, and want it to have different values.) */
+    ensure_bytes(val, 2);
     lex_index   = GET_UI16(val->cur_op, 0);
+    val->cur_op += 2;
+    ensure_bytes(val, 2);
+    val->cur_op -= 2;
     frame_index = GET_UI16(val->cur_op, 2);
 
     for (i = frame_index; i; i--) {
@@ -583,12 +597,15 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->remaining_jumplabels  = 0;
     val->reg_type_var          = 0;
 
-    /* Proof of concept! */
+#ifdef MVM_BIGENDIAN
     assert(fb->bytecode == fb->orig_bytecode);
     val->bc_start = malloc(fb->bytecode_size);
     memset(val->bc_start, 0xDB, fb->bytecode_size);
-    val->bc_end = val->bc_start + fb->bytecode_size;
     fb->bytecode = val->bc_start;
+#else
+    val->bc_start = fb->bytecode;
+#endif
+    val->bc_end = val->bc_start + fb->bytecode_size;
     val->cur_op = val->bc_start;
 
     while (val->cur_op < val->bc_end) {
