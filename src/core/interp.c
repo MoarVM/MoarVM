@@ -4255,7 +4255,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 /* Obtain object and cache index; see if we get a match. */
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMuint16  idx = GET_UI16(cur_op, 8);
-                if ((MVMSTable *)tc->cur_frame->effective_spesh_slots[idx] == STABLE(obj)) {
+                if (obj && (MVMSTable *)tc->cur_frame->effective_spesh_slots[idx] == STABLE(obj)) {
                     GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame->effective_spesh_slots[idx + 1];
                     cur_op += 10;
                     goto NEXT;
