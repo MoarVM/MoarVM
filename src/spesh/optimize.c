@@ -3,17 +3,6 @@
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
 
-/* Maximum args a call can take for us to consider it for optimization. */
-#define MAX_ARGS_FOR_OPT    4
-
-/* Information we've gathered about the current call we're optimizing, and the
- * arguments it will take. */
-typedef struct {
-    MVMCallsite   *cs;
-    MVMint8        arg_is_const[MAX_ARGS_FOR_OPT];
-    MVMSpeshFacts *arg_facts[MAX_ARGS_FOR_OPT];
-} CallArgInfo;
-
 /* Obtains facts for an operand. */
 MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     return &g->facts[o.reg.orig][o.reg.i];
@@ -298,7 +287,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
 /* Drives optimization of a call. */
 static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                          MVMSpeshIns *ins, MVMint32 callee_idx, CallArgInfo *arg_info) {
+                          MVMSpeshIns *ins, MVMint32 callee_idx, MVMSpeshCallInfo *arg_info) {
     /* Ensure we know what we're going to be invoking. */
     MVMSpeshFacts *callee_facts = MVM_spesh_get_facts(tc, g, ins->operands[callee_idx]);
     if (callee_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
@@ -312,8 +301,41 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             /* What kind of invocation will it be? */
             MVMInvocationSpec *is = STABLE(code)->invocation_spec;
             if (!MVM_is_null(tc, is->md_class_handle)) {
-                /* Multi-dispatch. */
-                return;
+                /* Multi-dispatch. Check if this is a dispatch where we can
+                 * use the cache directly. */
+                MVMRegister dest;
+                REPR(code)->attr_funcs.get_attribute(tc,
+                    STABLE(code), code, OBJECT_BODY(code),
+                    is->md_class_handle, is->md_valid_attr_name,
+                    is->md_valid_hint, &dest, MVM_reg_int64);
+                if (dest.i64) {
+                    /* Yes. Try to obtain the cache. */
+                    REPR(code)->attr_funcs.get_attribute(tc,
+                        STABLE(code), code, OBJECT_BODY(code),
+                        is->md_class_handle, is->md_cache_attr_name,
+                        is->md_cache_hint, &dest, MVM_reg_obj);
+                    if (!MVM_is_null(tc, dest.o)) {
+                        MVMObject *found = MVM_multi_cache_find_spesh(tc, dest.o, arg_info);
+                        if (found) {
+                            /* Found it. Is it a code object already, or do we
+                             * have futher unpacking to do? */
+                            if (REPR(found)->ID == MVM_REPR_ID_MVMCode) {
+                                target = found;
+                            }
+                            else if (STABLE(found)->invocation_spec) {
+                                MVMInvocationSpec *m_is = STABLE(found)->invocation_spec;
+                                if (!MVM_is_null(tc, m_is->class_handle)) {
+                                    REPR(found)->attr_funcs.get_attribute(tc,
+                                        STABLE(found), found, OBJECT_BODY(found),
+                                        is->class_handle, is->attr_name,
+                                        is->hint, &dest, MVM_reg_obj);
+                                    if (REPR(dest.o)->ID == MVM_REPR_ID_MVMCode)
+                                        target = dest.o;
+                                }
+                            }
+                        }
+                    }
+                }
             }
             else if (!MVM_is_null(tc, is->class_handle)) {
                 /* Single dispatch; retrieve the code object. */
@@ -345,7 +367,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
 
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
-    CallArgInfo arg_info;
+    MVMSpeshCallInfo arg_info;
     MVMint32 i;
 
     /* Look for instructions that are interesting to optimize. */

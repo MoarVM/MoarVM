@@ -351,3 +351,91 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
 
     return NULL;
 }
+
+/* Do a multi cache lookup based upon spesh arg facts. */
+MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_obj, MVMSpeshCallInfo *arg_info) {
+    MVMMultiCacheBody *cache;
+    MVMuint16          num_args, i, j, entries, t_pos;
+    MVMuint8           has_nameds;
+    MVMuint64          arg_tup[MVM_MULTICACHE_MAX_ARITY];
+
+    /* If no cache, no result. */
+    if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache)
+        return NULL;
+    cache = &((MVMMultiCache *)cache_obj)->body;
+
+    /* Ensure we got a capture in to look up; bail if unflattened. */
+    if (arg_info->cs->has_flattening)
+        return NULL;
+    num_args   = arg_info->cs->num_pos;
+    has_nameds = arg_info->cs->arg_count != arg_info->cs->num_pos;
+
+    /* If it's zero-arity, return result right off. */
+    if (num_args == 0 && !has_nameds)
+        return cache->zero_arity;
+
+    /* If there's more args than the maximum, won't be in the cache. Also
+     * check against maximum size of spesh call site. */
+    if (num_args > MVM_MULTICACHE_MAX_ARITY || num_args > MAX_ARGS_FOR_OPT)
+        return NULL;
+
+    /* Create arg tuple. */
+    for (i = 0; i < num_args; i++) {
+        MVMuint8 arg_type = arg_info->cs->arg_flags[i] & MVM_CALLSITE_ARG_MASK;
+        if (arg_type == MVM_CALLSITE_ARG_OBJ) {
+            MVMSpeshFacts *facts = arg_info->arg_facts[i];
+            if (facts) {
+                /* Must know type. */
+                if (!(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE))
+                    return NULL;
+
+                /* Must know if it's concrete or not. */
+                if (!(facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ)))
+                    return NULL;
+
+                /* If it's a container, must know what's inside it. Otherwise,
+                 * we're already good on type info. */
+                if ((facts->flags & MVM_SPESH_FACT_CONCRETE)&& STABLE(facts->type)->container_spec) {
+                    /* Again, need to know type and concreteness. */
+                    if (!(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE))
+                        return NULL;
+                    if (!(facts->flags & (MVM_SPESH_FACT_DECONT_CONCRETE | MVM_SPESH_FACT_DECONT_TYPEOBJ)))
+                        return NULL;
+                    arg_tup[i] = STABLE(facts->decont_type)->type_cache_id |
+                        ((facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ? 1 : 0);
+                }
+                else {
+                    arg_tup[i] = STABLE(facts->type)->type_cache_id |
+                        ((facts->flags & MVM_SPESH_FACT_CONCRETE) ? 1 : 0);
+                }
+            }
+            else {
+                return NULL;
+            }
+        }
+        else {
+            arg_tup[i] = (arg_type << 1) | 1;
+        }
+    }
+
+    /* Look through entries. */
+    entries = cache->arity_caches[num_args - 1].num_entries;
+    t_pos = 0;
+    for (i = 0; i < entries; i++) {
+        MVMint64 match = 1;
+        for (j = 0; j < num_args; j++) {
+            if (cache->arity_caches[num_args - 1].type_ids[t_pos + j] != arg_tup[j]) {
+                match = 0;
+                break;
+            }
+        }
+        if (match) {
+            MVMuint8 match_nameds = cache->arity_caches[num_args - 1].named_ok[i];
+            if (has_nameds == match_nameds)
+                return cache->arity_caches[num_args - 1].results[i];
+        }
+        t_pos += num_args;
+    }
+
+    return NULL;
+}
