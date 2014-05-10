@@ -3,6 +3,17 @@
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
 
+/* Maximum args a call can take for us to consider it for optimization. */
+#define MAX_ARGS_FOR_OPT    4
+
+/* Information we've gathered about the current call we're optimizing, and the
+ * arguments it will take. */
+typedef struct {
+    MVMCallsite   *cs;
+    MVMint8        arg_is_const[MAX_ARGS_FOR_OPT];
+    MVMSpeshFacts *arg_facts[MAX_ARGS_FOR_OPT];
+} CallArgInfo;
+
 /* Obtains facts for an operand. */
 MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     return &g->facts[o.reg.orig][o.reg.i];
@@ -262,8 +273,56 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     }
 }
 
+/* Drives optimization of a call. */
+static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                          MVMSpeshIns *ins, MVMint32 callee_idx, CallArgInfo *arg_info) {
+    /* Ensure we know what we're going to be invoking. */
+    MVMSpeshFacts *callee_facts = MVM_spesh_get_facts(tc, g, ins->operands[callee_idx]);
+    if (callee_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMObject *code   = callee_facts->value.o;
+        MVMObject *target = NULL;
+        if (REPR(code)->ID == MVM_REPR_ID_MVMCode) {
+            /* Already have a code object we know we'll call. */
+            target = code;
+        }
+        else if (STABLE(code)->invocation_spec) {
+            /* What kind of invocation will it be? */
+            MVMInvocationSpec *is = STABLE(code)->invocation_spec;
+            if (!MVM_is_null(tc, is->md_class_handle)) {
+                /* Multi-dispatch. */
+                return;
+            }
+            else if (!MVM_is_null(tc, is->class_handle)) {
+                /* Single dispatch; retrieve the code object. */
+                MVMRegister dest;
+                REPR(code)->attr_funcs.get_attribute(tc,
+                    STABLE(code), code, OBJECT_BODY(code),
+                    is->class_handle, is->attr_name,
+                    is->hint, &dest, MVM_reg_obj);
+                if (REPR(dest.o)->ID == MVM_REPR_ID_MVMCode)
+                    target = dest.o;
+            }
+        }
+
+        /* If we resolved to something better than the code object, then add
+         * the resolved item in a spesh slot and insert a lookup. */
+        if (target && target != code && !((MVMCode *)target)->body.is_compiler_stub) {
+            MVMSpeshIns *ss_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            ss_ins->info        = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+            ss_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+            ss_ins->operands[0] = ins->operands[callee_idx];
+            ss_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
+                (MVMCollectable *)target);
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, ss_ins);
+            /* XXX TODO: Do this differently so we can eliminate the original
+             * lookup of the enclosing code object also. */
+        }
+    }
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+    CallArgInfo arg_info;
     MVMint32 i;
 
     /* Look for instructions that are interesting to optimize. */
@@ -280,6 +339,37 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_if_o:
         case MVM_OP_unless_o:
             optimize_iffy(tc, g, ins, bb);
+            break;
+        case MVM_OP_prepargs:
+            arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
+            break;
+        case MVM_OP_arg_i:
+        case MVM_OP_arg_n:
+        case MVM_OP_arg_s:
+        case MVM_OP_arg_o: {
+            MVMint16 idx = ins->operands[0].lit_i16;
+            if (idx < MAX_ARGS_FOR_OPT) {
+                arg_info.arg_is_const[idx] = 0;
+                arg_info.arg_facts[idx]    = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+            }
+            break;
+        }
+        case MVM_OP_argconst_i:
+        case MVM_OP_argconst_n:
+        case MVM_OP_argconst_s: {
+            MVMint16 idx = ins->operands[0].lit_i16;
+            if (idx < MAX_ARGS_FOR_OPT)
+                arg_info.arg_is_const[idx] = 1;
+            break;
+        }
+        case MVM_OP_invoke_v:
+            optimize_call(tc, g, bb, ins, 0, &arg_info);
+            break;
+        case MVM_OP_invoke_i:
+        case MVM_OP_invoke_n:
+        case MVM_OP_invoke_s:
+        case MVM_OP_invoke_o:
+            optimize_call(tc, g, bb, ins, 1, &arg_info);
             break;
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
