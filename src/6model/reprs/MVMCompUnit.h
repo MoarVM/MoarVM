@@ -17,6 +17,13 @@ struct MVMExtOpRecord {
     MVMuint8 operand_descriptor[MVM_MAX_OPERANDS];
 };
 
+/* How to release memory. */
+typedef enum {
+    MVM_DEALLOCATE_NOOP,
+    MVM_DEALLOCATE_FREE,
+    MVM_DEALLOCATE_UNMAP
+} MVMDeallocate;
+
 /* Representation for a compilation unit in the VM. */
 struct MVMCompUnitBody {
     /* The start and size of the raw data for this compilation unit. */
@@ -66,6 +73,12 @@ struct MVMCompUnitBody {
 
     /* Filename, if any, that we loaded it from. */
     MVMString *filename;
+
+    /* Handle, if any, associated with a mapped file. */
+    void *handle;
+
+    /* How we should deallocate data_start. */
+    MVMDeallocate deallocate;
 };
 struct MVMCompUnit {
     MVMObject common;

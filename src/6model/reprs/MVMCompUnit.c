@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/mmap.h"
 
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
@@ -78,6 +79,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     body->hll_config = NULL;
     body->hll_name = NULL;
     body->filename = NULL;
+    switch (body->deallocate) {
+    case MVM_DEALLOCATE_NOOP:
+        break;
+    case MVM_DEALLOCATE_FREE:
+        MVM_checked_free_null(body->data_start);
+        break;
+    case MVM_DEALLOCATE_UNMAP:
+        MVM_platform_unmap_file(body->data_start, body->handle, body->data_size);
+        break;
+    default:
+        MVM_panic(MVM_exitcode_NYI, "Invalid deallocate of %u during MVMCompUnit gc_free", body->deallocate);
+    }
 }
 
 /* Gets the storage specification for this representation. */

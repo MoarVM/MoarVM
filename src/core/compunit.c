@@ -28,6 +28,7 @@ MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32
 MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     MVMCompUnit *cu          = NULL;
     void        *block       = NULL;
+    void        *handle      = NULL;
     uv_file      fd;
     MVMuint64    size;
     uv_fs_t req;
@@ -44,8 +45,7 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
         MVM_exception_throw_adhoc(tc, "While trying to open '%s': %s", filename, uv_strerror(req.result));
     }
 
-    /* leaks the mapping file handle on win32 */
-    if ((block = MVM_platform_map_file(fd, NULL, (size_t)size, 0)) == NULL) {
+    if ((block = MVM_platform_map_file(fd, &handle, (size_t)size, 0)) == NULL) {
         /* FIXME: check errno or GetLastError() */
         MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, "FIXME");
     }
@@ -55,5 +55,8 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     }
 
     /* Turn it into a compilation unit. */
-    return MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
+    cu = MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
+    cu->body.handle = handle;
+    cu->body.deallocate = MVM_DEALLOCATE_UNMAP;
+    return cu;
 }

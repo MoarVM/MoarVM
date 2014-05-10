@@ -53,6 +53,7 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
         /* Load it as a compilation unit; it is a kind of MVMObject, so cast
          * it to that. */
         loaded = MVM_cu_from_bytes(tc, (MVMuint8 *)bytecode, (MVMuint32)size);
+        loaded->body.deallocate = MVM_DEALLOCATE_FREE;
     });
 
     /* Stash loaded comp unit in result register. */
