@@ -291,14 +291,14 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     if (can_result == -1) {
         return;
     } else {
+        if (ins->info->opcode == MVM_OP_can_s)
+            MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
         ins->operands[1].lit_i64    = can_result;
         result_facts->value.i64     = can_result;
         obj_facts->usages--;
-        if (ins->info->opcode == MVM_OP_can_s)
-            MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
     }
 }
 
