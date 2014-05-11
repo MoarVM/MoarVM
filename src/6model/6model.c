@@ -83,7 +83,8 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
 /* Locates a method by name. Returns 1 if it exists; otherwise 0. */
 void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
-void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
+
+MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache, *HOW, *find_method, *code;
 
     if (MVM_is_null(tc, obj))
@@ -91,18 +92,28 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
             "Cannot look for method '%s' on a null object",
              MVM_string_utf8_encode_C_string(tc, name));
 
-    /* First consider method cache. */
+    /* Consider the method cache. */
     cache = STABLE(obj)->method_cache;
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (!MVM_is_null(tc, meth)) {
-            res->i64 = 1;
-            return;
+            return 1;
         }
         if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
-            res->i64 = 0;
-            return;
+            return 0;
         }
+    }
+    return -1;
+}
+
+void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
+    MVMObject *cache, *HOW, *find_method, *code;
+
+    MVMint64 can_cached = MVM_6model_can_method_cache_only(tc, obj, name);
+
+    if (can_cached == 0 || can_cached == 1) {
+        res->i64 = can_cached;
+        return;
     }
 
     /* If no method in cache and the cache is not authoritative, need to make
