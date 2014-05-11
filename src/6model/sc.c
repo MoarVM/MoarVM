@@ -30,6 +30,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 MVM_repr_init(tc, (MVMObject *)sc);
                 MVM_gc_allocate_gen2_default_clear(tc);
                 scb->sc = sc;
+                MVM_sc_add_all_scs_entry(tc, scb);
             }
             else if (scb->sc) {
                 /* we lost a race to create it! */
@@ -46,6 +47,28 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     });
 
     return (MVMObject *)sc;
+}
+
+/* Makes an entry in all SCs list, the index of which is used to refer to
+ * SCs in object headers. */
+void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody *scb) {
+    if (tc->instance->all_scs_next_idx == tc->instance->all_scs_alloc) {
+        tc->instance->all_scs_alloc += 32;
+        if (tc->instance->all_scs_next_idx == 0) {
+            /* First time; allocate, and NULL first slot as it is
+             * the "no SC" sentinel value. */
+            tc->instance->all_scs    = malloc(tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
+            tc->instance->all_scs[0] = NULL;
+            tc->instance->all_scs_next_idx++;
+        }
+        else {
+            tc->instance->all_scs = realloc(tc->instance->all_scs,
+                tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
+        }
+    }
+    scb->sc_idx = tc->instance->all_scs_next_idx;
+    tc->instance->all_scs[tc->instance->all_scs_next_idx] = scb;
+    tc->instance->all_scs_next_idx++;
 }
 
 /* Given an SC, returns its unique handle. */

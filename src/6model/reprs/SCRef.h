@@ -40,6 +40,9 @@ struct MVMSerializationContextBody {
 
     /* Inline handle to the SCs hash (in MVMInstance). */
     UT_hash_handle hash_handle;
+
+    /* SC's index in the all_scs list in instance. */
+    MVMint32 sc_idx;
 };
 
 struct MVMSerializationContext {

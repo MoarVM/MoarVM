@@ -3429,8 +3429,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (MVM_sc_get_stable_sc(tc, STABLE(obj)) == NULL) {
                     /* Need to claim the SC also; typical case for new type objects. */
                     MVMSTable *st = STABLE(obj);
-                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
                     MVM_sc_set_stable_sc(tc, st, (MVMSerializationContext *)sc);
+                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
                 }
                 cur_op += 6;
                 goto NEXT;

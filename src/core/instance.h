@@ -228,9 +228,15 @@ struct MVMInstance {
     uv_mutex_t  mutex_extop_registry;
 
     /* Hash of all known serialization contexts. Marked for GC iff
-     * the item is unresolved. */
-    MVMSerializationContextBody *sc_weakhash;
-    uv_mutex_t                   mutex_sc_weakhash;
+     * the item is unresolved. Also, array of all SCs, used for the
+     * index stored in object headers. When an SC goes away this is
+     * simply nulled. That makes it a small memory leak if a lot of
+     * SCs are created and go away over time. */
+    MVMSerializationContextBody  *sc_weakhash;
+    uv_mutex_t                    mutex_sc_weakhash;
+    MVMSerializationContextBody **all_scs;
+    MVMint32                      all_scs_next_idx;
+    MVMint32                      all_scs_alloc;
 
     /* Hash of filenames of compunits loaded from disk. */
     MVMLoadedCompUnitName *loaded_compunits;

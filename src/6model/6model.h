@@ -134,8 +134,12 @@ struct MVMCollectable {
     union {
         /* Forwarding pointer, for copying/compacting GC purposes. */
         MVMCollectable *forwarder;
-        /* Pointer to the serialization context this collectable lives in, if any. */
-        MVMSerializationContext *sc;
+        /* Index of the serialization context this collectable lives in, if
+         * any, and then location within that. */
+        struct {
+            MVMint32 sc_idx;
+            MVMint32 idx;
+        } sc;
         /* Used to chain STables queued to be freed. */
         MVMSTable *st;
     } sc_forward_u;

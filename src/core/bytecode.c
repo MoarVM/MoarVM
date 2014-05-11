@@ -333,6 +333,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
                 scb = calloc(1, sizeof(MVMSerializationContextBody));
                 scb->handle = handle;
                 MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
+                MVM_sc_add_all_scs_entry(tc, scb);
             }
             cu_body->scs_to_resolve[i] = scb;
             cu_body->scs[i] = NULL;
