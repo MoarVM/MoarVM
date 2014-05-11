@@ -69,8 +69,10 @@ multi sub MAIN($filename?, :$matcher?) {
     my Target $target;
 
     my $linecount;
+    my Int $lines_total;
 
     if $filename {
+        $lines_total = qqx/ wc -l '$filename' /.words[0].Int;
         $*ARGFILES = open($filename, :r);
     } else {
         $*ARGFILES = $*IN;
@@ -101,6 +103,12 @@ multi sub MAIN($filename?, :$matcher?) {
             $did_print = True;
         }
         if $did_print and ++$printed %% 80 {
+            if $lines_total {
+                my $part = $linecount / $lines_total;
+                $*ERR.print(($part * 100).fmt(" % 3.2f%%"));
+                my $est_time_left = (1 - $part) * (now - INIT now) / $part;
+                $*ERR.print(($est_time_left / 60).fmt(" %d") ~ ($est_time_left % 60).fmt(":%02ds"));
+            }
             $*ERR.print("\n");
         }
     }
@@ -109,6 +117,7 @@ multi sub MAIN($filename?, :$matcher?) {
 
     for lines() {
         my $line = $_;
+        $linecount++;
         when /^'  ' / {
             given $target {
                 when Before {
@@ -166,7 +175,6 @@ multi sub MAIN($filename?, :$matcher?) {
             }
             $target = Facts;
         }
-        $linecount++;
     }
 
     say "we've parsed $linecount lines";
