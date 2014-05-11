@@ -108,7 +108,7 @@ multi sub MAIN($filename?, :$matcher?) {
 
     for lines() {
         my $line = $_;
-        when /^ 'Specialized ' \' $<name>=[<-[\']>*] \' ' (cuid: ' $<cuid>=[<-[\)]>+] ')'/ {
+        when /^ ['Inserting logging for specialization of ' | 'Specialized '] \' $<name>=[<-[\']>*] \' ' (cuid: ' $<cuid>=[<-[\)]>+] ')'/ {
             if $current {
                 if %speshes{$current.cuid}:exists {
                     $current.cuid ~= "_";
