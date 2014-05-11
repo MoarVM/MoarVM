@@ -44,7 +44,7 @@ class Spesh is rw {
     has Str $.diff;
 }
 
-enum Target <Before After>;
+enum Target <Before After Facts>;
 
 sub supersmartmatch($thing) {
     given $thing {
@@ -108,6 +108,16 @@ multi sub MAIN($filename?, :$matcher?) {
 
     for lines() {
         my $line = $_;
+        when /^'  ' (.*)/ {
+            if $target ~~ Before {
+                $current.beforelines.push: $line;
+            } elsif $target ~~ After {
+                $current.afterlines.push: $line;
+            } else {
+                succeed;
+            }
+            notegraph(".");
+        }
         when /^ ['Inserting logging for specialization of ' | 'Specialized '] \' $<name>=[<-[\']>*] \' ' (cuid: ' $<cuid>=[<-[\)]>+] ')'/ {
             if $current {
                 if %speshes{$current.cuid}:exists {
@@ -131,13 +141,8 @@ multi sub MAIN($filename?, :$matcher?) {
             $target = After;
             notegraph("a");
         }
-        when /^'  ' (.*)/ {
-            if $target ~~ Before {
-                $current.beforelines.push: $line;
-            } elsif $target ~~ After {
-                $current.afterlines.push: $line;
-            }
-            notegraph(".");
+        when /^ 'Facts:'/ {
+            $target = Facts;
         }
         $linecount++;
     }
