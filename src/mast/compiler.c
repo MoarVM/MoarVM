@@ -569,7 +569,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         MAST_Op   *o = GET_Op(node);
         MVMOpInfo *info;
         int        i;
-        unsigned char override_second_argument;
+        unsigned char override_second_argument = 0;
 
         /* Look up opcode and get argument info. */
         unsigned short op   = o->op;
@@ -593,15 +593,12 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         /* If we're outputting a const_i64 instruction, we may want to */
         /* turn it into a const_i64_32 or const_i64_16 instead if it fits */
         if (op == MVM_OP_const_i64) {
-            /* Now we'll do a terrible thing */
             MASTNode *operand = ATPOS(vm, o->operands, 1);
             MAST_IVal *iv = GET_IVal(operand);
             if (INT16_MIN <= iv->value && iv->value <= INT16_MAX) {
                 override_second_argument = OVERRIDE_WITH_16;
             } else if (INT32_MIN <= iv->value && iv->value <= INT32_MAX) {
                 override_second_argument = OVERRIDE_WITH_32;
-            } else {
-                override_second_argument = 0;
             }
         }
 
