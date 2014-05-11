@@ -100,6 +100,40 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
+static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *result_facts;
+    MVMuint32 wanted_repr_id;
+    MVMuint64 result_value;
+
+    if (!(obj_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
+        return;
+    }
+
+    if (obj_facts->value.o == NULL) {
+        result_value = 0;
+        goto set_value;
+    }
+
+    switch (ins->info->opcode) {
+        case MVM_OP_islist: wanted_repr_id = MVM_REPR_ID_MVMArray; break;
+        case MVM_OP_ishash: wanted_repr_id = MVM_REPR_ID_MVMHash; break;
+        case MVM_OP_isint:  wanted_repr_id = MVM_REPR_ID_P6int; break;
+        case MVM_OP_isnum:  wanted_repr_id = MVM_REPR_ID_P6num; break;
+        case MVM_OP_isstr:  wanted_repr_id = MVM_REPR_ID_P6str; break;
+        default:            return;
+    }
+
+    result_value = REPR(obj_facts->value.o)->ID == wanted_repr_id;
+
+set_value:
+    obj_facts->usages--;
+
+    result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+    result_facts->value.i64 = result_value;
+}
+
 /* Sees if we can resolve an isconcrete at compile time. */
 static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
@@ -415,6 +449,12 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, 1, &arg_info);
+        case MVM_OP_islist:
+        case MVM_OP_ishash:
+        case MVM_OP_isint:
+        case MVM_OP_isnum:
+        case MVM_OP_isstr:
+            optimize_is_reprid(tc, g, ins);
             break;
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
