@@ -134,7 +134,8 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) 
             if (!stable_value) {
                 stable_value = consider;
             }
-            else if (STABLE(stable_value) != STABLE(consider)) {
+            else if (STABLE(stable_value) != STABLE(consider)
+                    || IS_CONCRETE(stable_value) != IS_CONCRETE(consider)) {
                 stable_value = NULL;
                 break;
             }
@@ -144,7 +145,7 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) 
         return;
 
     /* If the value is a container type, need to look inside of it. */
-    if (STABLE(stable_value)->container_spec) {
+    if (STABLE(stable_value)->container_spec && IS_CONCRETE(stable_value)) {
         MVMContainerSpec const *contspec = STABLE(stable_value)->container_spec;
         if (!contspec->fetch_never_invokes)
             return;
@@ -157,7 +158,8 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) 
                 if (!stable_value) {
                     stable_value = r.o;
                 }
-                else if (STABLE(stable_value) != STABLE(r.o)) {
+                else if (STABLE(stable_value) != STABLE(r.o)
+                        || IS_CONCRETE(stable_value) != IS_CONCRETE(r.o)) {
                     stable_value = NULL;
                     break;
                 }
