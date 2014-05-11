@@ -266,6 +266,40 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     }
 }
 
+static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMString *method_name;
+    MVMint64 can_result;
+
+    if (!(obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) || !obj_facts->type)
+        return;
+
+    if (ins->info->opcode == MVM_OP_can_s) {
+        MVMSpeshFacts *name_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+        if (!(name_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
+            return;
+        }
+        method_name = name_facts->value.s;
+    } else {
+        method_name = MVM_spesh_get_string(tc, g, ins->operands[2]);
+    }
+
+    can_result = MVM_6model_can_method_cache_only(tc, obj_facts->type, method_name);
+
+    if (can_result == -1) {
+        return;
+    } else {
+        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        ins->info                   = MVM_op_get_op(MVM_OP_const_i64);
+        result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
+        ins->operands[1].lit_i64    = can_result;
+        result_facts->value.i64     = can_result;
+        obj_facts->usages--;
+        if (ins->info->opcode == MVM_OP_can_s)
+            MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
+    }
+}
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -455,6 +489,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
+            break;
+        case MVM_OP_can:
+        case MVM_OP_can_s:
+            optimize_can_op(tc, g, bb, ins);
             break;
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
