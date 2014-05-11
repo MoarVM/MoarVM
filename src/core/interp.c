@@ -4239,6 +4239,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).s = MVM_executable_name(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(const_i64_16):
+                GET_REG(cur_op, 0).i64 = GET_I16(cur_op, 2);
+                cur_op += 4;
+                goto NEXT;
+            OP(const_i64_32):
+                GET_REG(cur_op, 0).i64 = GET_I32(cur_op, 2);
+                cur_op += 6;
+                goto NEXT;
+            OP(isnonnull): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                GET_REG(cur_op, 0).i64 = !MVM_is_null(tc, obj);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

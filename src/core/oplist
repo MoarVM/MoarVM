@@ -635,6 +635,12 @@ getlexstatic_o      w(obj) r(str) :pure
 getlexperinvtype_o  w(obj) r(str) :pure
 execname            w(str)
 
+# populate a 64bit integer register with a smaller integer
+const_i64_16        w(int64) int16 :pure
+const_i64_32        w(int64) int32 :pure
+
+isnonnull           w(int64) r(obj) :pure
+
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
