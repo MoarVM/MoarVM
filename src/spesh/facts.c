@@ -125,6 +125,9 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         case MVM_OP_const_i64_16:
             tgt_facts->value.i64 = ins->operands[1].lit_i16;
             break;
+        case MVM_OP_const_s:
+            tgt_facts->value.s   = g->sf->body.cu->body.strings[ins->operands[1].lit_str_idx];
+            break;
         default:
             return;
     }
@@ -347,6 +350,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
         case MVM_OP_const_n32:
         case MVM_OP_const_i64_32:
         case MVM_OP_const_i64_16:
+        case MVM_OP_const_s:
             literal_facts(tc, g, ins);
             break;
         case MVM_OP_sp_log: {

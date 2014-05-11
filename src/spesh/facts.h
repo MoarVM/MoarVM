@@ -21,6 +21,7 @@ struct MVMSpeshFacts {
         MVMint8  i8;
         MVMnum32 n32;
         MVMnum64 n64;
+        MVMString *s;
     } value;
 };
 
