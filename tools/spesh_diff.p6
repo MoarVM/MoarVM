@@ -113,6 +113,9 @@ multi sub MAIN($filename?, :$matcher?) {
         }
     }
 
+    try mkdir "spesh_diffs_before";
+    try mkdir "spesh_diffs_after";
+
     my Spesh $current;
 
     for lines() {
@@ -170,8 +173,16 @@ multi sub MAIN($filename?, :$matcher?) {
         }
         when /^ 'Facts:'/ {
             if $target ~~ Specialized {
-                $current.after = $current.afterlines.join("\n");
-                $current.afterlines = @();
+                given $current {
+                    .after = .afterlines.join("\n");
+                    .afterlines = @();
+                    spurt "spesh_diffs_before/{.cuid}.txt", "{.name} (before)\n{.before}";
+                    spurt "spesh_diffs_after/{.cuid}.txt", "{.name} (after)\n{.after}";
+                    unless $matcher {
+                        .before = "";
+                        .after = "";
+                    }
+                }
             }
             $target = Facts;
         }
@@ -180,16 +191,11 @@ multi sub MAIN($filename?, :$matcher?) {
     say "we've parsed $linecount lines";
     say "we have the following cuids:";
 
-    try mkdir "spesh_diffs_before";
-    try mkdir "spesh_diffs_after";
-
     my @results;
     my @interesting;
 
     for %speshes.values {
         next if not .after.defined;
-        spurt "spesh_diffs_before/{.cuid}.txt", "{.name} (before)\n{.before}";
-        spurt "spesh_diffs_after/{.cuid}.txt", "{.name} (after)\n{.after}";
 
         @results.push: $_.diff = qq:x"git diff --patience --color=always --no-index spesh_diffs_before/{.cuid}.txt spesh_diffs_after/{.cuid}.txt";
         my $matched = $matcher && $_ ~~ $ssm;
