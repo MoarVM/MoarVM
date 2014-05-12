@@ -18,6 +18,12 @@
  * the spesh graph is. */
 void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     char *result = NULL;
+
+#if !defined(MVM_CAN_UNALIGNED_INT64) || !defined(MVM_CAN_UNALIGNED_NUM64)
+    /* Round up size to next multiple of 8, to ensure alignment. */
+    bytes = (bytes + 7) & ~7;
+#endif
+
     if (g->mem_block) {
         MVMSpeshMemBlock *block = g->mem_block;
         if (block->alloc + bytes < block->limit) {
