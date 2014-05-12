@@ -186,44 +186,80 @@ static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
     }
 }
 
+/* Bitops on libtomath (no 2s compliment API) are horrendously inefficient and
+ * really should be hand-coded to work DIGIT-by-DIGIT with in-loop carry
+ * handling.  For now we have these fixups.
+ *
+ * The following inverts the bits of a negative bigint, adds 1 to that, and
+ * appends sign-bit extension DIGITs to it to give us a 2s compliment
+ * representation in memory.  Do not call it on positive bigints.
+ */
 static void grow_and_negate(mp_int *a, int size, mp_int *b) {
     int i;
-    int actual_size = MAX(size, USED(a));
-    mp_zero(b);
+    /* Always add an extra DIGIT so we can tell positive values
+     * with a one in the highest bit apart from negative values.
+     */
+    int actual_size = MAX(size, USED(a)) + 1;
+
+    SIGN(b) = MP_ZPOS;
     mp_grow(b, actual_size);
     USED(b) = actual_size;
-    for (i = 0; i < actual_size; i++) {
+    for (i = 0; i < USED(a); i++) {
         DIGIT(b, i) = (~DIGIT(a, i)) & MP_MASK;
     }
+    for (; i < actual_size; i++) {
+        DIGIT(b, i) = MP_MASK;
+    }
+    /* Note: This add cannot cause another grow assuming nobody ever
+     * tries to use tommath -0 for anything, and nobody tries to use
+     * this on positive bigints.
+     */
     mp_add_d(b, 1, b);
 }
 
-
 static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
-        int (*mp_bitop)(mp_int *, mp_int *, mp_int *)) {
-    mp_int d;
-    if (SIGN(a) ^ SIGN(b)) {
-        /* exactly one of them is negative, so need to perform
-         * some magic. tommath stores a sign bit, but Perl 6 expects
-         * 2's complement */
-        mp_init(&d);
-        if (MP_NEG == SIGN(a)) {
-            grow_and_negate(a, USED(b), &d);
-            mp_bitop(&d, b, c);
-        } else {
-            grow_and_negate(b, USED(a), &d);
-            mp_bitop(a, &d, c);
-        }
-        if (DIGIT(c, USED(c) - 1) & ((mp_digit)1<<(mp_digit)(DIGIT_BIT - 1))) {
-            grow_and_negate(c, c->used, &d);
-            mp_copy(&d, c);
-            mp_neg(c, c);
-        }
-        mp_clear(&d);
-    } else {
-        mp_bitop(a, b, c);
-    }
+				 int (*mp_bitop)(mp_int *, mp_int *, mp_int *)) {
 
+    mp_int d;
+    mp_int e;
+    mp_int *f;
+    mp_int *g;
+
+    f = a;
+    g = b;
+    if (MP_NEG == SIGN(a)) {
+        mp_init(&d);
+        grow_and_negate(a, USED(b), &d);
+        f = &d;
+    }
+    if (MP_NEG == SIGN(b)) {
+        mp_init(&e);
+        grow_and_negate(b, USED(a), &e);
+        g = &e;
+    }
+    /* f and g now guaranteed to each point to positive bigints containing
+     * a 2s compliment representation of the values in a and b.  If either
+     * a or b was negative, the representation is one tomath "digit" longer
+     * than it need be and sign extended.
+     */
+    mp_bitop(f, g, c);
+    if (f == &d) mp_clear(&d);
+    if (g == &e) mp_clear(&e);
+    /* Use the fact that tomath clamps to detect results that should be
+     * signed.  If we created extra tomath "digits" and they resulted in
+     * sign bits of 0, they have been clamped away.  If the resulting sign
+     * bits were 1, they remain, and c will have more digits than either of
+     * original operands.  Note this only works because we do not
+     * support NOR/NAND/NXOR, and so two zero sign bits can never create 1s.
+     */
+    if (USED(c) > MAX(USED(a),USED(b))) {
+        int i;
+        for (i = 0; i < USED(c); i++) {
+            DIGIT(c, i) = (~DIGIT(c, i)) & MP_MASK;
+        }
+        mp_add_d(c, 1, c);
+	mp_neg(c, c);
+    }
 }
 
 static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
