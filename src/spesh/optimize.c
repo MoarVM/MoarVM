@@ -291,9 +291,12 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     if (can_result == -1) {
         return;
     } else {
+        MVMSpeshFacts *result_facts;
+
         if (ins->info->opcode == MVM_OP_can_s)
             MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
-        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+
+        result_facts                = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
         ins->operands[1].lit_i64    = can_result;
@@ -574,7 +577,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                         MVMint32 i;
                         for (i = 1; i < ins->info->num_operands; i++)
                             MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
-        
+
                         /* Remove this phi. */
                         MVM_spesh_manipulate_delete_ins(tc, bb, ins);
                         death = 1;
@@ -590,7 +593,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                             for (i = 1; i < ins->info->num_operands; i++)
                                 if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
                                     MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
-        
+
                             /* Remove this instruction. */
                             MVM_spesh_manipulate_delete_ins(tc, bb, ins);
                             death = 1;
