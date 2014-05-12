@@ -970,32 +970,24 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)malloc((num_classes + 1) * sizeof(MVMP6opaqueNameMap));
     for (i = 0; i < num_classes; i++) {
         MVMint32 num_attrs = 0;
-        MVMint8  is_hash_str_var = 0;
 
         MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].class_key,
             reader->read_ref(tc, reader));
 
-        if (reader->root.version >= 9 || reader->read_int16(tc, reader) == REFVAR_VM_HASH_STR_VAR)
-            is_hash_str_var = 1;
-
-        if (is_hash_str_var) {
-            if (reader->root.version >= 9)
-                num_attrs = reader->read_varint(tc, reader);
-            else
-                num_attrs = reader->read_int32(tc, reader);
-            repr_data->name_to_index_mapping[i].names = (MVMString **)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMString *));
-            repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMuint16));
-            for (j = 0; j < num_attrs; j++) {
-                MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].names[j],
-                    reader->read_str(tc, reader));
-                if (reader->root.version >= 9) {
-                    repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)reader->read_varint(tc, reader);
-                } else {
-                    repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)MVM_repr_get_int(tc,
-                        reader->read_ref(tc, reader));
-                }
+        num_attrs = reader->read_varint(tc, reader);
+        repr_data->name_to_index_mapping[i].names = (MVMString **)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMString *));
+        repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMuint16));
+        for (j = 0; j < num_attrs; j++) {
+            MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].names[j],
+                reader->read_str(tc, reader));
+            if (reader->root.version >= 9) {
+                repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)reader->read_varint(tc, reader);
+            } else {
+                repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)MVM_repr_get_int(tc,
+                    reader->read_ref(tc, reader));
             }
         }
+
         repr_data->name_to_index_mapping[i].num_attrs = num_attrs;
     }
 

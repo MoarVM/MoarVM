@@ -78,8 +78,6 @@ struct MVMSerializationReader {
     /* Various reading functions. */
     MVMint64    (*read_int)   (MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMint64    (*read_varint)(MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMint32    (*read_int32) (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMint16    (*read_int16) (MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMnum64    (*read_num)   (MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMString * (*read_str)   (MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMObject * (*read_ref)   (MVMThreadContext *tc, MVMSerializationReader *reader);
@@ -107,7 +105,7 @@ struct MVMSerializationWriter {
     /* The code refs and contexts lists we're working through/adding to. */
     MVMObject  *codes_list;
     MVMObject  *contexts_list;
-    
+
     /* Current position in the stables, objects and contexts lists. */
     MVMint64 stables_list_pos;
     MVMint64 objects_list_pos;
@@ -116,7 +114,7 @@ struct MVMSerializationWriter {
     /* Hash of strings we've already seen while serializing to the index they
      * are placed at in the string heap. */
     MVMObject *seen_strings;
-    
+
     /* Amount of memory allocated for various things. */
     MVMuint32 dependencies_table_alloc;
     MVMuint32 stables_table_alloc;
@@ -127,25 +125,23 @@ struct MVMSerializationWriter {
     MVMuint32 contexts_table_alloc;
     MVMuint32 contexts_data_alloc;
     MVMuint32 repos_table_alloc;
-    
+
     /* Current offsets for the data chunks (also correspond to the amount of
      * data written in to them). */
     MVMuint32 stables_data_offset;
     MVMuint32 objects_data_offset;
     MVMuint32 contexts_data_offset;
-    
+
     /* Where to find details related to the current buffer we're writing in
      * to: the buffer pointer itself, the current offset and the amount that
      * is allocated. These are all pointers back into this data structure. */
     char      **cur_write_buffer;
     MVMuint32  *cur_write_offset;
     MVMuint32  *cur_write_limit;
-    
+
     /* Various writing functions. */
     void (*write_int) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
     void (*write_varint) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
-    void (*write_int32) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 value);
-    void (*write_int16) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint16 value);
     void (*write_num) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
     void (*write_str) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
     void (*write_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *value);
