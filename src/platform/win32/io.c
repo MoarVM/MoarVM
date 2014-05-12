@@ -40,8 +40,6 @@ MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
     return li.QuadPart;
 }
 
-/* XXX: this is not used in MVM_file_delete unless uv_fs_unlink doesn't work well enough.
- * i.e: uv_fs_unlink can't delete Read Only files. */
 MVMint64 MVM_platform_unlink(const char *pathname) {
     /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
     wchar_t *wpathname = UTF8ToUnicode(pathname);

@@ -159,29 +159,24 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     uv_fs_t req;
     char * const a = MVM_string_utf8_encode_C_string(tc, f);
+
 #ifdef _WIN32
-    DWORD attrs = GetFileAttributesA(a);
-    int r;
-    if (attrs == 0xFFFFFFFF) {
+    const int r = MVM_platform_unlink(a);
+
+    if( r < 0 && r != ENOENT) {
         free(a);
-        return;
+        MVM_exception_throw_adhoc(tc, "Failed to delete file: %d", errno);
     }
-    if (attrs & FILE_ATTRIBUTE_READONLY) {
-        (void)SetFileAttributesA(a, attrs & ~FILE_ATTRIBUTE_READONLY);
-        r = uv_fs_unlink(tc->loop, &req, a, NULL);
-        if (r < 0)
-            (void)SetFileAttributesA(a, attrs);
-    }
-    else
-        r = uv_fs_unlink(tc->loop, &req, a, NULL);
+
 #else
     const int r = uv_fs_unlink(tc->loop, &req, a, NULL);
-#endif
+
     if( r < 0 && r != UV_ENOENT) {
         free(a);
         MVM_exception_throw_adhoc(tc, "Failed to delete file: %s", uv_strerror(req.result));
     }
 
+#endif
     free(a);
 }
 
