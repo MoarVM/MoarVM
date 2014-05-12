@@ -142,7 +142,7 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) 
 
     /* See if all the recorded facts match up; a NULL means there was a code
      * path that never reached making a log entry. */
-    MVMuint16 log_start = ins->operands[1].lit_i64 * MVM_SPESH_LOG_RUNS;
+    MVMuint16 log_start = ins->operands[1].lit_i16 * MVM_SPESH_LOG_RUNS;
     MVMuint16 i;
     for (i = log_start; i < log_start + MVM_SPESH_LOG_RUNS; i++) {
         MVMObject *consider = (MVMObject *)g->log_slots[i];
