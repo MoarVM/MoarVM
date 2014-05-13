@@ -62,6 +62,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     a("\nMoarVM dump of binary compilation unit:\n\n");
 
+    for (k = 0; k < cu->body.num_scs; k++) {
+        char *tmpstr = MVM_string_utf8_encode_C_string(
+            tc, cu->body.strings[cu->body.sc_handle_idxs[k]]);
+        a("  SC_%u : %s\n", k, tmpstr);
+        free(tmpstr);
+    }
+
     for (k = 0; k < cu->body.num_callsites; k++) {
         MVMCallsite *callsite = cu->body.callsites[k];
         MVMuint16 arg_count = callsite->arg_count;

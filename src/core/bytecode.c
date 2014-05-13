@@ -300,6 +300,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     /* Allocate SC lists in compilation unit. */
     cu_body->scs = malloc(rs->expected_scs * sizeof(MVMSerializationContext *));
     cu_body->scs_to_resolve = malloc(rs->expected_scs * sizeof(MVMSerializationContextBody *));
+    cu_body->sc_handle_idxs = malloc(rs->expected_scs * sizeof(MVMint32));
     cu_body->num_scs = rs->expected_scs;
 
     /* Resolve all the things. */
@@ -318,6 +319,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             cleanup_all(tc, rs);
             MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
         }
+        cu_body->sc_handle_idxs[i] = sh_idx;
         handle = cu_body->strings[sh_idx];
 
         /* See if we can resolve it. */

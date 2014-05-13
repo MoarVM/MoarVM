@@ -67,6 +67,9 @@ struct MVMCompUnitBody {
      * all are resolved, this pointer itself becomes NULL. */
     MVMSerializationContextBody **scs_to_resolve;
 
+    /* List of SC handle string indexes. */
+    MVMint32 *sc_handle_idxs;
+
     /* HLL configuration for this compilation unit. */
     MVMHLLConfig *hll_config;
     MVMString    *hll_name;
