@@ -1733,6 +1733,7 @@ static void stub_stables(MVMThreadContext *tc, MVMSerializationReader *reader) {
 
         /* Set the STable's SC. */
         MVM_sc_set_stable_sc(tc, st, reader->root.sc);
+        MVM_set_idx_in_sc(&st->header, i);
     }
 }
 
@@ -1790,6 +1791,7 @@ static void stub_objects(MVMThreadContext *tc, MVMSerializationReader *reader) {
 
         /* Set the object's SC. */
         MVM_sc_set_obj_sc(tc, obj, reader->root.sc);
+        MVM_set_idx_in_sc(&obj->header, i);
     }
 }
 
