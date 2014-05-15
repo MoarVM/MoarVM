@@ -20,17 +20,41 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
 
 MVM_STATIC_INLINE MVMuint32 MVM_get_idx_of_sc(MVMCollectable *col) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
-    return col->sc_forward_u.sc.sc_idx;
+    return col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED
+        ? col->sc_forward_u.sci->sc_idx
+        : col->sc_forward_u.sc.sc_idx;
+}
+
+MVM_STATIC_INLINE MVMuint32 MVM_get_idx_in_sc_hacked(MVMCollectable *col) {
+    assert(!(col->flags & MVM_CF_FORWARDER_VALID));
+    if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
+        return col->sc_forward_u.sci->idx;
+    return col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL
+        ?  ~0 : col->sc_forward_u.sc.idx;
 }
 
 MVM_STATIC_INLINE MVMuint32 MVM_get_idx_in_sc(MVMCollectable *col) {
-    assert(!(col->flags & MVM_CF_FORWARDER_VALID));
-    return col->sc_forward_u.sc.idx;
+    MVMuint32 r = MVM_get_idx_in_sc_hacked(col);
+    assert(r == col->hackhack);
+    return r;
 }
 
 MVM_STATIC_INLINE void MVM_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
-    col->sc_forward_u.sc.idx = i;
+    assert(i >= 0);
+    if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+        col->sc_forward_u.sci->idx = i;
+    } else if (i >= MVM_DIRECT_SC_IDX_SENTINEL) {
+        struct MVMSerializationIndex *const sci
+            = malloc(sizeof(struct MVMSerializationIndex));
+        sci->sc_idx = col->sc_forward_u.sc.sc_idx;
+        sci->idx = i;
+        col->sc_forward_u.sci = sci;
+        col->flags |= MVM_CF_SERIALZATION_INDEX_ALLOCATED;
+    } else {
+        col->sc_forward_u.sc.idx = i;
+    }
+    col->hackhack = i;
 }
 
 /* Gets a collectable's SC. */
@@ -57,8 +81,15 @@ MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContex
 MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollectable *col, MVMSerializationContext *sc) {
     assert(!(col->flags & MVM_CF_GEN2_LIVE));
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
-    col->sc_forward_u.sc.sc_idx = sc->body->sc_idx;
-    col->sc_forward_u.sc.idx   = ~0;
+    if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+        col->sc_forward_u.sci->sc_idx = sc->body->sc_idx;
+        col->sc_forward_u.sci->idx    = ~0;
+    } else {
+      /* FIXME - need overflow check */
+        col->sc_forward_u.sc.sc_idx = sc->body->sc_idx;
+        col->sc_forward_u.sc.idx    = MVM_DIRECT_SC_IDX_SENTINEL;
+    }
+    col->hackhack    = ~0;
 }
 
 /* Sets an object's SC. */

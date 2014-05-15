@@ -107,9 +107,16 @@ typedef enum {
     MVM_CF_GEN2_LIVE = 64,
     /* This object in fromspace is live with a valid forwarder. */
     /* TODO - should be possible to use the same bit for these two flags. */
-    MVM_CF_FORWARDER_VALID = 128
+    MVM_CF_FORWARDER_VALID = 128,
+
+    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256
 
 } MVMCollectableFlags;
+
+struct MVMSerializationIndex {
+    MVMuint32 sc_idx;
+    MVMuint32 idx;
+};
 
 /* Things that every GC-collectable entity has. These fall into two
  * categories:
@@ -137,13 +144,16 @@ struct MVMCollectable {
         /* Index of the serialization context this collectable lives in, if
          * any, and then location within that. */
         struct {
-            MVMuint32 sc_idx;
-            MVMuint32 idx;
+            MVMuint16 sc_idx;
+            MVMuint8 idx;
         } sc;
+        struct MVMSerializationIndex *sci;
         /* Used to chain STables queued to be freed. */
         MVMSTable *st;
     } sc_forward_u;
+  MVMuint32 hackhack;
 };
+#define MVM_DIRECT_SC_IDX_SENTINEL 0xFF
 
 /* The common things every object has. */
 struct MVMObject {
