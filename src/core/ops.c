@@ -5452,7 +5452,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_getarg_o",
         ".s",
         2,
-        1,
+        0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5461,7 +5461,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_getarg_i",
         ".s",
         2,
-        1,
+        0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5470,7 +5470,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_getarg_n",
         ".s",
         2,
-        1,
+        0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
@@ -5479,7 +5479,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "sp_getarg_s",
         ".s",
         2,
-        1,
+        0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
