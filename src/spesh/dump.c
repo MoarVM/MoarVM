@@ -130,6 +130,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         {
                             char *cstr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[cur_ins->operands[i].lit_str_idx]);
                             appendf(ds, "lits(%s)", cstr);
+                            free(cstr);
                             break;
                         }
                         default:
