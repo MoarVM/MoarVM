@@ -113,10 +113,12 @@ typedef enum {
 
 } MVMCollectableFlags;
 
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
 struct MVMSerializationIndex {
     MVMuint32 sc_idx;
     MVMuint32 idx;
 };
+#endif
 
 /* Things that every GC-collectable entity has. These fall into two
  * categories:
@@ -143,16 +145,27 @@ struct MVMCollectable {
         MVMCollectable *forwarder;
         /* Index of the serialization context this collectable lives in, if
          * any, and then location within that. */
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
         struct {
             MVMuint16 sc_idx;
             MVMuint16 idx;
         } sc;
         struct MVMSerializationIndex *sci;
+#else
+        struct {
+            MVMuint32 sc_idx;
+            MVMuint32 idx;
+        } sc;
+#endif
         /* Used to chain STables queued to be freed. */
         MVMSTable *st;
     } sc_forward_u;
 };
-#define MVM_DIRECT_SC_IDX_SENTINEL 0xFFFF
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+#  define MVM_DIRECT_SC_IDX_SENTINEL 0xFFFF
+#else
+#  define MVM_DIRECT_SC_IDX_SENTINEL ~0
+#endif
 
 /* The common things every object has. */
 struct MVMObject {

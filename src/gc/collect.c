@@ -492,7 +492,9 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
 /* Save dead STable pointers to delete later.. */
 static void MVM_gc_collect_enqueue_stable_for_deletion(MVMThreadContext *tc, MVMSTable *st) {
     MVMSTable *old_head;
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
     assert(!(st->header.flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED));
+#endif
     do {
         old_head = tc->instance->stables_to_free;
         st->header.sc_forward_u.st = old_head;
@@ -524,24 +526,30 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %p in the nursery with reprid %d\n", item, REPR(obj)->ID);
             if (dead && REPR(obj)->gc_free)
                 REPR(obj)->gc_free(tc, obj);
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 free(item->sc_forward_u.sci);
+#endif
         }
         else if (item->flags & MVM_CF_TYPE_OBJECT) {
             /* Type object */
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 free(item->sc_forward_u.sci);
+#endif
         }
         else if (item->flags & MVM_CF_STABLE) {
             MVMSTable *st = (MVMSTable *)item;
             if (dead) {
 /*            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : enqueuing an STable %d in the nursery to be freed\n", item);*/
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                 if (item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
                     free(item->sc_forward_u.sci);
                     /* Arguably we don't need to do this, if we're always
                        consistent about what we put on the stable queue. */
                     item->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
                 }
+#endif
                 MVM_gc_collect_enqueue_stable_for_deletion(tc, st);
             }
         }
@@ -619,21 +627,29 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         MVMObject *obj = (MVMObject *)col;
                         if (REPR(obj)->gc_free)
                             REPR(obj)->gc_free(tc, obj);
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                             free(col->sc_forward_u.sci);
+#endif
                     }
                     else if (col->flags & MVM_CF_TYPE_OBJECT) {
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                             free(col->sc_forward_u.sci);
+#endif
                     }
                     else if (col->flags & MVM_CF_STABLE) {
-                        if (!(col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                            && col->sc_forward_u.sc.sc_idx == 0
+                        if (
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+                            !(col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) &&
+#endif
+                            col->sc_forward_u.sc.sc_idx == 0
                             && col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL) {
                             /* We marked it dead last time, kill it. */
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }
                         else {
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                             if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
                                 /* Whatever happens next, we can free this
                                    memory immediately, because no-one will be
@@ -644,6 +660,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 free(col->sc_forward_u.sci);
                                 col->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
                             }
+#endif
                             if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
                                 /* We're in global destruction, so enqueue to the end
                                  * like we do in the nursery */
@@ -693,8 +710,10 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     MVMObject *obj = (MVMObject *)col;
                     if (REPR(obj)->gc_free)
                         REPR(obj)->gc_free(tc, obj);
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                         free(col->sc_forward_u.sci);
+#endif
                 }
                 else {
                     MVM_panic(MVM_exitcode_gcnursery, "Internal error: gen2 overflow contains non-object");

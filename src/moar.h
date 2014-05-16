@@ -65,6 +65,10 @@ typedef double   MVMnum64;
 #  define MVM_PRIVATE
 #endif
 
+#if MVM_PTR_SIZE < 8
+#  define MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+#endif
+
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
 #include "gc/wb.h"

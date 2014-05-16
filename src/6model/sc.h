@@ -20,22 +20,28 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
 
 MVM_STATIC_INLINE MVMuint32 MVM_get_idx_of_sc(MVMCollectable *col) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
-    return col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED
-        ? col->sc_forward_u.sci->sc_idx
-        : col->sc_forward_u.sc.sc_idx;
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+    if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
+        return col->sc_forward_u.sci->sc_idx;
+#endif
+    return col->sc_forward_u.sc.sc_idx;
 }
 
 MVM_STATIC_INLINE MVMuint32 MVM_get_idx_in_sc(MVMCollectable *col) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
         return col->sc_forward_u.sci->idx;
-    return col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL
-        ?  ~0 : col->sc_forward_u.sc.idx;
+    if (col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL)
+        return ~0;
+#endif
+    return col->sc_forward_u.sc.idx;
 }
 
 MVM_STATIC_INLINE void MVM_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
     assert(i >= 0);
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
         col->sc_forward_u.sci->idx = i;
     } else if (i >= MVM_DIRECT_SC_IDX_SENTINEL) {
@@ -45,7 +51,9 @@ MVM_STATIC_INLINE void MVM_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
         sci->idx = i;
         col->sc_forward_u.sci = sci;
         col->flags |= MVM_CF_SERIALZATION_INDEX_ALLOCATED;
-    } else {
+    } else
+#endif
+    {
         col->sc_forward_u.sc.idx = i;
     }
 }
@@ -74,10 +82,13 @@ MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContex
 MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollectable *col, MVMSerializationContext *sc) {
     assert(!(col->flags & MVM_CF_GEN2_LIVE));
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
         col->sc_forward_u.sci->sc_idx = sc->body->sc_idx;
         col->sc_forward_u.sci->idx    = ~0;
-    } else {
+    } else
+#endif
+    {
       /* FIXME - need overflow check */
         col->sc_forward_u.sc.sc_idx = sc->body->sc_idx;
         col->sc_forward_u.sc.idx    = MVM_DIRECT_SC_IDX_SENTINEL;
