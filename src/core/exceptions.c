@@ -360,7 +360,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 }
 
 /* Dumps a backtrace relative to the current frame to stderr. */
-static void dump_backtrace(MVMThreadContext *tc) {
+void MVM_dump_backtrace(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVMuint32 count = 0;
     while (cur_frame != NULL) {
@@ -380,7 +380,7 @@ static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
     }
     else {
         fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
-        dump_backtrace(tc);
+        MVM_dump_backtrace(tc);
         if (crash_on_error)
             abort();
         else
@@ -402,7 +402,7 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
     /* Otherwise, dump message and a backtrace. */
     fprintf(stderr, "Unhandled exception: %s\n",
         MVM_string_utf8_encode_C_string(tc, ex->body.message));
-    dump_backtrace(tc);
+    MVM_dump_backtrace(tc);
     if (crash_on_error)
         abort();
     else
@@ -623,7 +623,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
             /* Yes, abort. */
             vfprintf(stderr, messageFormat, args);
             fwrite("\n", 1, 1, stderr);
-            dump_backtrace(tc);
+            MVM_dump_backtrace(tc);
             abort();
         }
         else {
