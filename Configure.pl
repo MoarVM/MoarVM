@@ -226,11 +226,13 @@ if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
     build::probe::static_inline_cross(\%config, \%defaults);
     build::probe::unaligned_access_cross(\%config, \%defaults);
+    build::probe::ptr_size_cross(\%config, \%defaults);
 }
 else {
     build::auto::detect_native(\%config, \%defaults);
     build::probe::static_inline_native(\%config, \%defaults);
     build::probe::unaligned_access(\%config, \%defaults);
+    build::probe::ptr_size_native(\%config, \%defaults);
 }
 
 my $order = $config{be} ? 'big endian' : 'little endian';

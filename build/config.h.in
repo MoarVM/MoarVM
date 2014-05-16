@@ -50,3 +50,5 @@
 #if @can_unaligned_num64@
 #define MVM_CAN_UNALIGNED_NUM64
 #endif
+
+#define MVM_PTR_SIZE @ptr_size@

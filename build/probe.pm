@@ -257,4 +257,38 @@ sub unaligned_access_cross {
     _gen_unaligned_access($config, '');
 }
 
+sub ptr_size_native {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char **argv) {
+    printf("%u\n", (unsigned int) sizeof(void *));
+    return EXIT_SUCCESS;
+}
+EOT
+
+    print ::dots('    probing the size of pointers');
+    compile($config, 'try')
+        or die "Can't compile simple probe, so something is badly wrong";
+    my $size = `./try`;
+    die "Unable to run probe, so something is badly wrong"
+        unless defined $size;
+    chomp $size;
+    die "Probe gave nonsensical answer '$size', so something it badly wrong"
+        unless $size =~ /\A[0-9]+\z/;
+    print "$size\n";
+    $config->{ptr_size} = $size;
+}
+
+# It would be good to find a robust way to do this without needing to *run* the
+# compiled code. At which point we could also use it for the native build.
+sub ptr_size_cross {
+    my ($config) = @_;
+    warn "Guessing :-(";
+    $config->{ptr_size} = 4;
+}
+
 '00';
