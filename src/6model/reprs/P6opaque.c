@@ -980,12 +980,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         for (j = 0; j < num_attrs; j++) {
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].names[j],
                 reader->read_str(tc, reader));
-            if (reader->root.version >= 9) {
-                repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)reader->read_varint(tc, reader);
-            } else {
-                repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)MVM_repr_get_int(tc,
-                    reader->read_ref(tc, reader));
-            }
+
+            repr_data->name_to_index_mapping[i].slots[j] = (MVMuint16)reader->read_varint(tc, reader);
         }
 
         repr_data->name_to_index_mapping[i].num_attrs = num_attrs;
