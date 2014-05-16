@@ -89,9 +89,20 @@ MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollec
     } else
 #endif
     {
-      /* FIXME - need overflow check */
         col->sc_forward_u.sc.sc_idx = sc->body->sc_idx;
-        col->sc_forward_u.sc.idx    = MVM_DIRECT_SC_IDX_SENTINEL;
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+        if (col->sc_forward_u.sc.sc_idx != sc->body->sc_idx) {
+            struct MVMSerializationIndex *const sci
+                = malloc(sizeof(struct MVMSerializationIndex));
+            sci->sc_idx = sc->body->sc_idx;
+            sci->idx = ~0;
+            col->sc_forward_u.sci = sci;
+            col->flags |= MVM_CF_SERIALZATION_INDEX_ALLOCATED;
+        } else
+#endif
+        {
+            col->sc_forward_u.sc.idx    = MVM_DIRECT_SC_IDX_SENTINEL;
+        }
     }
 }
 
