@@ -312,7 +312,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 /* Marks a collectable item (object, type object, STable). */
 void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable *new_addr) {
     MVMuint16 i;
-    MVMint32 sc_idx;
+    MVMuint32 sc_idx;
 
     assert(!(new_addr->flags & MVM_CF_FORWARDER_VALID));
     /*assert(REPR(new_addr));*/
@@ -613,7 +613,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         /* Type object; doesn't have anything extra that needs freeing. */
                     }
                     else if (col->flags & MVM_CF_STABLE) {
-                        if (col->sc_forward_u.sc.sc_idx == -1) {
+                        if (col->sc_forward_u.sc.sc_idx == ~0) {
                             /* We marked it dead last time, kill it. */
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }
@@ -624,7 +624,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);
                             } else {
                                 /* There will definitely be another gc run, so mark it as "died last time". */
-                                col->sc_forward_u.sc.sc_idx = -1;
+                                col->sc_forward_u.sc.sc_idx = ~0;
                             }
                             /* Skip the freelist updating. */
                             cur_ptr += obj_size;

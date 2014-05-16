@@ -235,8 +235,8 @@ struct MVMInstance {
     MVMSerializationContextBody  *sc_weakhash;
     uv_mutex_t                    mutex_sc_weakhash;
     MVMSerializationContextBody **all_scs;
-    MVMint32                      all_scs_next_idx;
-    MVMint32                      all_scs_alloc;
+    MVMuint32                     all_scs_next_idx;
+    MVMuint32                     all_scs_alloc;
 
     /* Hash of filenames of compunits loaded from disk. */
     MVMLoadedCompUnitName *loaded_compunits;

@@ -21,10 +21,11 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
 
 /* Gets a collectable's SC. */
 MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_collectable_sc(MVMThreadContext *tc, MVMCollectable *col) {
-    MVMint32 sc_idx;
+    MVMuint32 sc_idx;
     assert(!(col->flags & MVM_CF_GEN2_LIVE));
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
     sc_idx = col->sc_forward_u.sc.sc_idx;
+    assert(sc_idx != ~0);
     return sc_idx > 0 ? tc->instance->all_scs[sc_idx]->sc : NULL;
 }
 
@@ -43,7 +44,7 @@ MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollec
     assert(!(col->flags & MVM_CF_GEN2_LIVE));
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
     col->sc_forward_u.sc.sc_idx = sc->body->sc_idx;
-    col->sc_forward_u.sc.idx    = -1;
+    col->sc_forward_u.sc.idx   = ~0;
 }
 
 /* Sets an object's SC. */
@@ -76,7 +77,7 @@ MVM_STATIC_INLINE MVMuint64 MVM_sc_get_object_count(MVMThreadContext *tc, MVMSer
 
 /* Given an SC and an object, push it onto the SC. */
 MVM_STATIC_INLINE void MVM_sc_push_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
-    MVMint32 idx = sc->body->num_objects;
+    MVMuint32 idx = sc->body->num_objects;
     MVM_sc_set_object(tc, sc, idx, obj);
     if (obj->header.sc_forward_u.sc.sc_idx == sc->body->sc_idx)
         obj->header.sc_forward_u.sc.idx = idx;
@@ -89,6 +90,7 @@ void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st);
 MVM_STATIC_INLINE void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
     assert(!(obj->header.flags & MVM_CF_GEN2_LIVE));
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(obj->header.sc_forward_u.sc.sc_idx != ~0);
     if (obj->header.sc_forward_u.sc.sc_idx > 0)
         MVM_sc_wb_hit_obj(tc, obj);
 }
@@ -96,6 +98,7 @@ MVM_STATIC_INLINE void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
 MVM_STATIC_INLINE void MVM_SC_WB_ST(MVMThreadContext *tc, MVMSTable *st) {
     assert(!(st->header.flags & MVM_CF_GEN2_LIVE));
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(st->header.sc_forward_u.sc.sc_idx != ~0);
     if (st->header.sc_forward_u.sc.sc_idx > 0)
         MVM_sc_wb_hit_st(tc, st);
 }

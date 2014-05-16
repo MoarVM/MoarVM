@@ -42,7 +42,7 @@ struct MVMSerializationContextBody {
     UT_hash_handle hash_handle;
 
     /* SC's index in the all_scs list in instance. */
-    MVMint32 sc_idx;
+    MVMuint32 sc_idx;
 };
 
 struct MVMSerializationContext {

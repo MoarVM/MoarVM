@@ -262,7 +262,7 @@ static MVMint32 add_string_to_heap(MVMThreadContext *tc, MVMSerializationWriter 
 /* Gets the ID of a serialization context. Returns 0 if it's the current
  * one, or its dependency table offset (base-1) otherwise. Note that if
  * it is not yet in the dependency table, it will be added. */
-static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSerializationContext *sc) {
+static MVMuint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSerializationContext *sc) {
     MVMint64 i, num_deps, offset;
 
     /* Easy if it's in the current SC. */
@@ -273,7 +273,7 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
     num_deps = writer->root.num_dependencies;
     for (i = 0; i < num_deps; i++)
         if (writer->root.dependent_scs[i] == sc)
-            return (MVMint32)i + 1;
+            return (MVMuint32)i + 1;
 
     /* Otherwise, need to add it to our dependencies list. Ensure there's
      * space in the dependencies table; grow if not. */
@@ -302,7 +302,7 @@ static MVMint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer, 
  * to reference it. Otherwise, adds it to the current SC, effectively
  * placing it onto the work list. */
 static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *writer,
-                                MVMSTable *st, MVMint32 *sc, MVMint32 *sc_idx) {
+                                MVMSTable *st, MVMuint32 *sc, MVMuint32 *sc_idx) {
     /* Add to this SC if needed. */
     if (MVM_sc_get_stable_sc(tc, st) == NULL) {
         MVM_sc_set_stable_sc(tc, st, writer->root.sc);
@@ -311,7 +311,7 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
 
     /* Work out SC reference. */
     *sc     = get_sc_id(tc, writer, MVM_sc_get_stable_sc(tc, st));
-    *sc_idx = (MVMint32)MVM_sc_find_stable_idx(tc, MVM_sc_get_stable_sc(tc, st), st);
+    *sc_idx = (MVMuint32)MVM_sc_find_stable_idx(tc, MVM_sc_get_stable_sc(tc, st), st);
 }
 
 /* Expands current target storage as needed. */
@@ -664,7 +664,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 
 /* Writing function for references to STables. */
 static void write_stable_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
-    MVMint32 sc_id, idx;
+    MVMuint32 sc_id, idx;
     get_stable_ref_info(tc, writer, st, &sc_id, &idx);
     expand_storage_if_needed(tc, writer, 8);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
@@ -885,8 +885,8 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     MVMint32 offset;
 
     /* Get index of SC that holds the STable and its index. */
-    MVMint32 sc;
-    MVMint32 sc_idx;
+    MVMuint32 sc;
+    MVMuint32 sc_idx;
     get_stable_ref_info(tc, writer, STABLE(obj), &sc, &sc_idx);
 
     /* Ensure there's space in the objects table; grow if not. */
