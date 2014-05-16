@@ -263,7 +263,7 @@ struct MVMSTable {
 };
 
 /* The representation operations table. Note that representations are not
- * classes - there's no inheritance, so there's no polymprhism. If you know
+ * classes - there's no inheritance, so there's no polymorphism. If you know
  * a representation statically, you can statically dereference the call to
  * the representation op in question. In the dynamic case, you have to go
  * following the pointer, however. */
