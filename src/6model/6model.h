@@ -145,15 +145,14 @@ struct MVMCollectable {
          * any, and then location within that. */
         struct {
             MVMuint16 sc_idx;
-            MVMuint8 idx;
+            MVMuint16 idx;
         } sc;
         struct MVMSerializationIndex *sci;
         /* Used to chain STables queued to be freed. */
         MVMSTable *st;
     } sc_forward_u;
-  MVMuint32 hackhack;
 };
-#define MVM_DIRECT_SC_IDX_SENTINEL 0xFF
+#define MVM_DIRECT_SC_IDX_SENTINEL 0xFFFF
 
 /* The common things every object has. */
 struct MVMObject {

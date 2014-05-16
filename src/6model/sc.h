@@ -25,18 +25,12 @@ MVM_STATIC_INLINE MVMuint32 MVM_get_idx_of_sc(MVMCollectable *col) {
         : col->sc_forward_u.sc.sc_idx;
 }
 
-MVM_STATIC_INLINE MVMuint32 MVM_get_idx_in_sc_hacked(MVMCollectable *col) {
+MVM_STATIC_INLINE MVMuint32 MVM_get_idx_in_sc(MVMCollectable *col) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
         return col->sc_forward_u.sci->idx;
     return col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL
         ?  ~0 : col->sc_forward_u.sc.idx;
-}
-
-MVM_STATIC_INLINE MVMuint32 MVM_get_idx_in_sc(MVMCollectable *col) {
-    MVMuint32 r = MVM_get_idx_in_sc_hacked(col);
-    assert(r == col->hackhack);
-    return r;
 }
 
 MVM_STATIC_INLINE void MVM_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
@@ -54,7 +48,6 @@ MVM_STATIC_INLINE void MVM_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
     } else {
         col->sc_forward_u.sc.idx = i;
     }
-    col->hackhack = i;
 }
 
 /* Gets a collectable's SC. */
@@ -89,7 +82,6 @@ MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollec
         col->sc_forward_u.sc.sc_idx = sc->body->sc_idx;
         col->sc_forward_u.sc.idx    = MVM_DIRECT_SC_IDX_SENTINEL;
     }
-    col->hackhack    = ~0;
 }
 
 /* Sets an object's SC. */
