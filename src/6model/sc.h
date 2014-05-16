@@ -19,38 +19,41 @@ MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString 
 MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep);
 
 
+/* Gets a collectable's SC. */
+MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_collectable_sc(MVMThreadContext *tc, MVMCollectable *col) {
+    MVMint32 sc_idx;
+    assert(!(col->flags & MVM_CF_GEN2_LIVE));
+    assert(!(col->flags & MVM_CF_FORWARDER_VALID));
+    sc_idx = col->sc_forward_u.sc.sc_idx;
+    return sc_idx > 0 ? tc->instance->all_scs[sc_idx]->sc : NULL;
+}
+
 /* Gets an object's SC. */
 MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *tc, MVMObject *obj) {
-    MVMint32 sc_idx;
-    assert(!(obj->header.flags & MVM_CF_GEN2_LIVE));
-    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    sc_idx = obj->header.sc_forward_u.sc.sc_idx;
-    return sc_idx > 0 ? tc->instance->all_scs[sc_idx]->sc : NULL;
+    return MVM_sc_get_collectable_sc(tc, &obj->header);
 }
 
 /* Gets an STables's SC. */
 MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *st) {
-    MVMint32 sc_idx;
-    assert(!(st->header.flags & MVM_CF_GEN2_LIVE));
-    assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
-    sc_idx = st->header.sc_forward_u.sc.sc_idx;
-    return sc_idx > 0 ? tc->instance->all_scs[sc_idx]->sc : NULL;
+    return MVM_sc_get_collectable_sc(tc, &st->header);
+}
+
+/* Sets a collectable's SC. */
+MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollectable *col, MVMSerializationContext *sc) {
+    assert(!(col->flags & MVM_CF_GEN2_LIVE));
+    assert(!(col->flags & MVM_CF_FORWARDER_VALID));
+    col->sc_forward_u.sc.sc_idx = sc->body->sc_idx;
+    col->sc_forward_u.sc.idx    = -1;
 }
 
 /* Sets an object's SC. */
 MVM_STATIC_INLINE void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
-    assert(!(obj->header.flags & MVM_CF_GEN2_LIVE));
-    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    obj->header.sc_forward_u.sc.sc_idx = sc->body->sc_idx;
-    obj->header.sc_forward_u.sc.idx    = -1;
+    MVM_sc_set_collectable_sc(tc, &obj->header, sc);
 }
 
 /* Sets an STable's SC. */
 MVM_STATIC_INLINE void MVM_sc_set_stable_sc(MVMThreadContext *tc, MVMSTable *st, MVMSerializationContext *sc) {
-    assert(!(st->header.flags & MVM_CF_GEN2_LIVE));
-    assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
-    st->header.sc_forward_u.sc.sc_idx = sc->body->sc_idx;
-    st->header.sc_forward_u.sc.idx    = -1;
+    MVM_sc_set_collectable_sc(tc, &st->header, sc);
 }
 
 /* Given an SC, an index and a code ref, store it and the index. */
