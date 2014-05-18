@@ -919,7 +919,7 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
         mp_int *b = ba->u.bigint;
         MVMint64 is_big = b->used > 1;
         /* XXX somebody please check that on a 32 bit platform */
-        if ( sizeof(MVMint64) * 8 < DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
+        if ( sizeof(MVMint64) * 8 > DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
             is_big = 1;
         return is_big;
     } else {
