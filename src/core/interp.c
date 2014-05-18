@@ -4410,10 +4410,42 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_bind_i):
             OP(sp_bind_n):
             OP(sp_bind_s):
-            OP(sp_p6oget_o):
-            OP(sp_p6ogetvt_o):
-            OP(sp_p6ogetvc_o):
                 MVM_exception_throw_adhoc(tc, "Unimplemented spesh ops hit");
+            OP(sp_p6oget_o): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVMObject *val   = *((MVMObject **)(data + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).o = val ? val : tc->instance->VMNull;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6ogetvt_o): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVMObject *val   = *((MVMObject **)(data + GET_UI16(cur_op, 4)));
+                if (!val) {
+                    val = (MVMObject *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 6)];
+                    MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 4))), val);
+                }
+                GET_REG(cur_op, 0).o = val;
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(sp_p6ogetvc_o): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                MVMObject *val   = *((MVMObject **)(data + GET_UI16(cur_op, 4)));
+                if (!val) {
+                    /* Clone might allocate, so re-fetch things after it. */
+                    val  = MVM_repr_clone(tc, (MVMObject *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 6)]);
+                    o    = GET_REG(cur_op, 2).o;
+                    data = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                    MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(data + GET_UI16(cur_op, 4))), val);
+                }
+                GET_REG(cur_op, 0).o = val;
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(sp_p6oget_i): {
                 MVMObject *o     = GET_REG(cur_op, 2).o;
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
