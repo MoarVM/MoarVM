@@ -4413,10 +4413,28 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_p6oget_o):
             OP(sp_p6ogetvt_o):
             OP(sp_p6ogetvc_o):
-            OP(sp_p6oget_i):
-            OP(sp_p6oget_n):
-            OP(sp_p6oget_s):
                 MVM_exception_throw_adhoc(tc, "Unimplemented spesh ops hit");
+            OP(sp_p6oget_i): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+				GET_REG(cur_op, 0).i64 = *((MVMint64 *)(data + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6oget_n): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                GET_REG(cur_op, 0).n64 = *((MVMnum64 *)(data + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6oget_s): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                GET_REG(cur_op, 0).s = *((MVMString **)(data + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_p6obind_o): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 MVMObject *value = GET_REG(cur_op, 4).o;
