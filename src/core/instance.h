@@ -135,6 +135,16 @@ struct MVMInstance {
     /* Set of string constants. */
     MVMStringConsts str_consts;
 
+    /* Specialization installation mutex (global, as it's low contention, so
+     * no real motivation to have it more fine-grained at present). */
+    uv_mutex_t mutex_spesh_install;
+
+    /* Log file for specializations, if we're to log them. */
+    FILE *spesh_log_fh;
+
+    /* Flag for if spesh is enabled. */
+    MVMint32 spesh_enabled;
+
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;
 
@@ -174,10 +184,10 @@ struct MVMInstance {
     /* note: used atomically */
     MVMThread *threads;
 
-    /* Number of passed command-line args */
-    MVMint64        num_clargs;
     /* raw command line args from APR */
     char          **raw_clargs;
+    /* Number of passed command-line args */
+    MVMint64        num_clargs;
     /* executable name */
     const char     *exec_name;
     /* program name; becomes first clargs entry */
@@ -245,16 +255,6 @@ struct MVMInstance {
     /* Interned callsites. */
     MVMCallsiteInterns *callsite_interns;
     uv_mutex_t          mutex_callsite_interns;
-
-    /* Specialization installation mutex (global, as it's low contention, so
-     * no real motivation to have it more fine-grained at present). */
-    uv_mutex_t mutex_spesh_install;
-
-    /* Log file for specializations, if we're to log them. */
-    FILE *spesh_log_fh;
-
-    /* Flag for if spesh is enabled. */
-    MVMint32 spesh_enabled;
 
     /* Standard file handles. */
     MVMObject *stdin_handle;
