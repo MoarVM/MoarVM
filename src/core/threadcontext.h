@@ -67,6 +67,15 @@ struct MVMThreadContext {
     /* Where we're allocating. */
     MVMAllocationTarget allocate_in;
 
+    /* Internal ID of the thread. */
+    MVMuint32 thread_id;
+
+    /* Thread object representing the thread. */
+    MVMThread *thread_obj;
+
+    /* The frame lying at the base of the current thread. */
+    MVMFrame *thread_entry_frame;
+
     /* Pointer to where the interpreter's current opcode is stored. */
     MVMuint8 **interp_cur_op;
 
@@ -80,10 +89,6 @@ struct MVMThreadContext {
     /* Pointer to where the interpreter's current compilation unit pointer
      * is stored. */
     MVMCompUnit **interp_cu;
-
-    /* Jump buffer, used when an exception is thrown from C-land and we need
-     * to fall back into the interpreter. */
-    jmp_buf interp_jump;
 
     /* The frame we're currently executing. */
     MVMFrame *cur_frame;
@@ -122,14 +127,10 @@ struct MVMThreadContext {
     /* The second GC generation allocator. */
     MVMGen2Allocator *gen2;
 
-    /* Internal ID of the thread. */
-    MVMuint32 thread_id;
-
-    /* Thread object representing the thread. */
-    MVMThread *thread_obj;
-
-    /* The frame lying at the base of the current thread. */
-    MVMFrame *thread_entry_frame;
+    /* Memory buffer pointing to the last thing we serialized, intended to go
+     * into the next compilation unit we write. */
+    char         *serialized;
+    MVMint32      serialized_size;
 
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change
@@ -171,19 +172,19 @@ struct MVMThreadContext {
      * index 0. */
     MVMObject     *compiling_scs;
 
-    /* Memory buffer pointing to the last thing we serialized, intended to go
-     * into the next compilation unit we write. */
-    char         *serialized;
-    MVMint32      serialized_size;
-
     /* Dispatcher set for next invocation to take. */
     MVMObject     *cur_dispatcher;
+
+    /* Cache of native code callback data. */
+    MVMNativeCallback *native_callback_cache;
 
     /* Random number generator state. */
     MVMuint64 rand_state[2];
 
-    /* Cache of native code callback data. */
-    MVMNativeCallback *native_callback_cache;
+    /* Jump buffer, used when an exception is thrown from C-land and we need
+     * to fall back into the interpreter. These things are huge, so put it
+     * near the end to keep the hotter stuff on the same cacheline. */
+    jmp_buf interp_jump;
 
 #if MVM_HLL_PROFILE_CALLS
     /* storage of profile timings */
