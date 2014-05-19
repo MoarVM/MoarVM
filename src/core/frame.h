@@ -174,8 +174,8 @@ struct MVMInvocationSpec {
     MVMObject *md_class_handle;
     MVMString *md_cache_attr_name;
     MVMint64   md_cache_hint;
-    MVMString *md_valid_attr_name;
     MVMint64   md_valid_hint;
+    MVMString *md_valid_attr_name;
 };
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
