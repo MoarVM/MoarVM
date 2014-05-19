@@ -52,15 +52,15 @@ struct MVMStaticFrameBody {
     /* Count of lexicals. */
     MVMuint32 num_lexicals;
 
-    /* The number of exception handlers this frame has. */
-    MVMuint32 num_handlers;
-
     /* Frame exception handlers information. */
     MVMFrameHandler *handlers;
 
+    /* The number of exception handlers this frame has. */
+    MVMuint32 num_handlers;
+
     /* Lexotics cache. */
-    MVMLexotic **lexotics;
     MVMint32 num_lexotics;
+    MVMLexotic **lexotics;
 
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
