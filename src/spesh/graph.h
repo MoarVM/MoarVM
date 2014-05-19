@@ -76,18 +76,20 @@ struct MVMSpeshBB {
 
     /* Basic blocks we may go to after this one. */
     MVMSpeshBB **succ;
-    MVMuint16    num_succ;
 
     /* Basic blocks that we may arrive into this one from. */
     MVMSpeshBB **pred;
-    MVMuint16    num_pred;
 
     /* Children in the dominator tree. */
     MVMSpeshBB **children;
-    MVMuint16    num_children;
 
     /* Dominance frontier set. */
     MVMSpeshBB **df;
+
+    /* Counts for the above, grouped together to avoid alignment holes. */
+    MVMuint16    num_succ;
+    MVMuint16    num_pred;
+    MVMuint16    num_children;
     MVMuint16    num_df;
 
     /* The next basic block in original linear code order. */
