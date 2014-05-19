@@ -6,16 +6,16 @@ struct MVMSerializationRoot {
     /* The version of the serialization format. */
     MVMint32 version;
 
-    /* The number of dependencies, as well as a pointer to the
-     * dependencies table. */
-    MVMint32  num_dependencies;
-    char     *dependencies_table;
-
     /* The SC we're serializing/deserializing. */
     MVMSerializationContext *sc;
 
     /* List of the serialization context objects that we depend on. */
     MVMSerializationContext **dependent_scs;
+
+    /* The number of dependencies, as well as a pointer to the
+     * dependencies table. */
+    char     *dependencies_table;
+    MVMint32  num_dependencies;
 
     /* The number of STables, as well as pointers to the STables
      * table and data chunk. */
@@ -25,9 +25,9 @@ struct MVMSerializationRoot {
 
     /* The number of objects, as well as pointers to the objects
      * table and data chunk. */
-    MVMint32  num_objects;
     char     *objects_table;
     char     *objects_data;
+    MVMint32  num_objects;
 
     /* The number of closures, as we as a pointer to the closures
      * table. */
@@ -36,9 +36,9 @@ struct MVMSerializationRoot {
 
     /* The number of contexts (e.g. frames), as well as pointers to
      * the contexts table and data chunk. */
-    MVMint32  num_contexts;
     char     *contexts_table;
     char     *contexts_data;
+    MVMint32  num_contexts;
 
     /* The number of repossessions and pointer to repossessions table. */
     MVMint32  num_repos;
