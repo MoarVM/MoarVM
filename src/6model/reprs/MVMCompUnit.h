@@ -32,9 +32,9 @@ struct MVMCompUnitBody {
 
     /* The various static frames in the compilation unit, along with a
      * code object for each one. */
+    MVMuint32        num_frames;
     MVMStaticFrame **frames;
     MVMObject      **coderefs;
-    MVMuint32        num_frames;
     MVMStaticFrame  *main_frame;
     MVMStaticFrame  *load_frame;
     MVMStaticFrame  *deserialize_frame;
@@ -45,21 +45,24 @@ struct MVMCompUnitBody {
     MVMuint16     max_callsite_size;
 
     /* The extension ops used by the compilation unit. */
-    MVMExtOpRecord *extops;
     MVMuint16       num_extops;
+    MVMExtOpRecord *extops;
 
     /* The string heap and number of strings. */
     MVMString **strings;
     MVMuint32   num_strings;
 
     /* Serialized data, if any. */
-    char     *serialized;
     MVMint32  serialized_size;
+    char     *serialized;
 
     /* Array of the resolved serialization contexts, and how many we
      * have. A null in the list indicates not yet resolved */
     MVMSerializationContext **scs;
     MVMuint32                 num_scs;
+
+    /* How we should deallocate data_start. */
+    MVMDeallocate deallocate;
 
     /* List of serialization contexts in need of resolution. This is an
      * array of string handles; its length is determined by num_scs above.
@@ -79,9 +82,6 @@ struct MVMCompUnitBody {
 
     /* Handle, if any, associated with a mapped file. */
     void *handle;
-
-    /* How we should deallocate data_start. */
-    MVMDeallocate deallocate;
 };
 struct MVMCompUnit {
     MVMObject common;
