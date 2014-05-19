@@ -162,8 +162,9 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
         if (snprintf(buf, 64, "%.15g", n) < 0)
             MVM_exception_throw_adhoc(tc, "Could not stringify number");
         if (strstr(buf, ".")) {
+            MVMint64 is_not_scientific = !strstr(buf, "e");
             i = strlen(buf);
-            while (i > 1 && (buf[--i] == '0' || buf[i] == ' '))
+            while (i > 1 && ((buf[--i] == '0'  && is_not_scientific) || buf[i] == ' '))
                 buf[i] = '\0';
             if (buf[i] == '.')
                 buf[i] = '\0';
