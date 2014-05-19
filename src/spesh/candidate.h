@@ -24,11 +24,11 @@ struct MVMSpeshCandidate {
     /* Number of spesh slots. */
     MVMuint32 num_spesh_slots;
 
-    /* Deoptimization mappings. */
-    MVMint32 *deopts;
-
     /* The number of deoptimization mappings we have. */
     MVMuint32 num_deopts;
+
+    /* Deoptimization mappings. */
+    MVMint32 *deopts;
 
     /* Atomic integer for the number of times we've entered the code so far
      * for the purpose of logging, in the trace phase. We used this as an
