@@ -219,6 +219,9 @@ struct MVMSTable {
     /* The type-object. */
     MVMObject *WHAT;
 
+    /* The underlying package stash. */
+    MVMObject *WHO;
+
     /* By-name method dispatch cache. */
     MVMObject *method_cache;
 
@@ -273,9 +276,6 @@ struct MVMSTable {
     /* Information - if any - about how we can turn something of this type
      * into a boolean. */
     MVMBoolificationSpec *boolification_spec;
-
-    /* The underlying package stash. */
-    MVMObject *WHO;
     
     /* The HLL that this type is owned by, if any. */
     MVMHLLConfig *hll_owner;
