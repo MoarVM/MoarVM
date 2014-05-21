@@ -12,7 +12,6 @@ New in 2014.05
 + Add infrastructure for cancellation
 + Implement cancellation of timers
 + stat the target of a symlink when we query for filesize
-+ Optimize islist/isnum/... in spesh
 + Dump deopt instruction spesh annotations
 + stat file descriptor in eof() when filename is unset
 + Serialize CStruct repr_data
@@ -44,10 +43,12 @@ New in 2014.05
 + Ensure that MVMCompUnit can correctly free data_start
 + MVMStaticFrame now supports bytecode pointing to a private malloc()ed copy.
 + Do proper endian correction on bytecode
-+ Ops to for 32/16 bit 64 int literals and isnonnull, plus use in compiler
++ Add Ops for 32/16 bit 64 int literals
++ isnonnull op for use in spesh
 + turn islist/... into either isnonnull or a literal 0.
 + Teach spesh_diff.p6 about the new output of spesh dump
-+ Teach spesh_diff about Facts, put most common pattern first.
++ Teach spesh_diff.p6 about Facts
++ improve run time performance of spesh_diff.p6
 + Avoid using an uninitialized variable.
 + Harvest strings in facts discovery process
 + Specialise can and can_s ops into const_i64 when possible
