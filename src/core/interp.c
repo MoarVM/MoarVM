@@ -4268,7 +4268,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 4;
-                if (!IS_CONCRETE(check) || STABLE(check) != want)
+                if (!check || !IS_CONCRETE(check) || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
@@ -4277,7 +4277,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 4;
-                if (IS_CONCRETE(check) || STABLE(check) != want)
+                if (!check || IS_CONCRETE(check) || STABLE(check) != want)
                     MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
@@ -4289,11 +4289,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *want_v = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 cur_op += 6;
-                if (IS_CONCRETE(check) && STABLE(check) == want_c) {
+                if (check && IS_CONCRETE(check) && STABLE(check) == want_c) {
                     MVMContainerSpec const *contspec = STABLE(check)->container_spec;
                     MVMRegister r;
                     contspec->fetch(tc, check, &r);
-                    if (IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                    if (r.o && IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
                         ok = 1;
                 }
                 if (!ok)
@@ -4308,11 +4308,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *want_v = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 cur_op += 6;
-                if (IS_CONCRETE(check) && STABLE(check) == want_c) {
+                if (check && IS_CONCRETE(check) && STABLE(check) == want_c) {
                     MVMContainerSpec const *contspec = STABLE(check)->container_spec;
                     MVMRegister r;
                     contspec->fetch(tc, check, &r);
-                    if (!IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                    if (r.o && !IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
                         ok = 1;
                 }
                 if (!ok)
