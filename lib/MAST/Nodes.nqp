@@ -586,6 +586,7 @@ module HandlerCategory {
     our $warn    := 256;
     our $succeed := 512;
     our $proceed := 1024;
+    our $labeled := 4096;
 }
 
 # A region with a handler.
@@ -595,8 +596,9 @@ class MAST::HandlerScope is MAST::Node {
     has int $!action;
     has $!goto_label;
     has $!block_local;
+    has $!label_local;
 
-    method new(:@instructions!, :$category_mask!, :$action!, :$goto!, :$block) {
+    method new(:@instructions!, :$category_mask!, :$action!, :$goto!, :$block, :$label) {
         my $obj := nqp::create(self);
         nqp::bindattr($obj, MAST::HandlerScope, '@!instructions', @instructions);
         nqp::bindattr_i($obj, MAST::HandlerScope, '$!category_mask', $category_mask);
@@ -618,6 +620,14 @@ class MAST::HandlerScope is MAST::Node {
         elsif $action != $HandlerAction::unwind_and_goto &&
               $action != $HandlerAction::unwind_and_goto_obj {
             nqp::die("Unknown handler action");
+        }
+        if $category_mask +& $HandlerCategory::labeled {
+            if nqp::istype($label, MAST::Local) {
+                nqp::bindattr($obj, MAST::HandlerScope, '$!label_local', $label);
+            }
+            else {
+                nqp::die("Handler category 'labeled' needs a MAST::Local");
+            }
         }
         $obj
     }
