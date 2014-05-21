@@ -1,3 +1,75 @@
+New in 2014.05
+
++ Add a libuv-managed event loop thread
++ Implement timers
++ Implement nqp::signal; support various signals
++ Add async read/write sections to IO op table
++ Implement async socket listen/connect
++ Implement async read/write ops
++ Implement chars case of async socket reads
++ Fix HLL mapping of type objects
++ Implement file watchers
++ Add infrastructure for cancellation
++ Implement cancellation of timers
++ stat the target of a symlink when we query for filesize
++ Optimize islist/isnum/... in spesh
++ Dump deopt instruction spesh annotations
++ stat file descriptor in eof() when filename is unset
++ Serialize CStruct repr_data
++ Add MVMNull REPR and a singleton VMNull instance
++ Teach various parts of the VM about VMNull
++ Lazily allocate lexical containers
++ Optimize frame allocation
++ Remove BOM-discarding code from MVM_string_utf8_decode()
++ MVM_string_utf8_decode() should take a MVMuint8 *, not a char *
++ P6opaque now handles C structure member alignment, just like CStruct does
++ Steal P5's unlink magic for Windows; clear readonly flag when needed
++ Add lexical lookup lifetime hinting ops
++ Re-organize spesh to have log/specialize phases
++ Use spesh logging to emit guards into code
++ getlexstatic_o optimization in spesh
++ Better error on handler fixup failure in spesh
++ Implement op execname, which stores the path of the runner
++ Implement all vs. one deopt
++ Fix moving of handler annotations
++ Basic dumping of facts in spesh
++ Cope with annotations being moved to a phi
++ Make sure we don't clobber block handler setting in spesh
++ Iterate to fixed point when finding unused instructions, giving better results
++ Pre-invalidate all deopt target addresses, to catch fixup failures
++ Optimize simple calls and multi-dispatch at spesh time if possible
++ Add Makefile rules to generate pre-processed source
++ Add Makefile rules to generate assembler
++ Support for ARMv6. Don't try to read unaligned doubles or long longs
++ Ensure that MVMCompUnit can correctly free data_start
++ MVMStaticFrame now supports bytecode pointing to a private malloc()ed copy.
++ Do proper endian correction on bytecode
++ Ops to for 32/16 bit 64 int literals and isnonnull, plus use in compiler
++ turn islist/... into either isnonnull or a literal 0.
++ Teach spesh_diff.p6 about the new output of spesh dump
++ Teach spesh_diff about Facts, put most common pattern first.
++ Avoid using an uninitialized variable.
++ Harvest strings in facts discovery process
++ Specialise can and can_s ops into const_i64 when possible
++ Change the way we store SCs in object headers to allow faster lookups of indexes
++ Fix bigint bitops
++ Ensure spesh_alloc aligns on platforms needing it
++ Include SC identifiers in bytecode dump
++ Make dump_backtrace more widely available.
++ Merge the bodies of MVM_sc_get_{obj,stable}_sc and *_set_*
++ Change serialization context indexes to be unsigned. Use ~0 as a sentinel.
++ Add inline functions to wrap accesses to sc.sc_idx and sc.idx
++ Add struct MVMSerializationIndex to hold large STable indexes
++ Free any allocated MVMSerializationIndex structs
++ Add a probe to determine the pointer size
++ Conditionally compile the MVMSerializationIndex for 32 bit platforms only
++ Allocate a MVMSerializationIndex if sc_idx would overflow in the union
++ Specialize getattr_[ins] on P6opaque
++ Fix bigint upgrade check
++ Optimize object attribute accesses in spesh
++ Spesh indirect form of attr ops with known names
++ Rakudo Bug #121273 fixed - losing a 0 from end of exponent
+
 New in 2014.04
 
 + Brought thread ops in line with nqp:: op API
