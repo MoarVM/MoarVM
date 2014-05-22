@@ -27,8 +27,13 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
         make install
         install/bin/moar --version
 
-6. Provided step 5 works, you have a release! Upload it, or ask on the MoarVM
-   channel if you don't have access or know how to do that.
+6. Provided step 5 works, you have a release! Tag it:
 
-7. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
+        git tag -a 2014.01
+
+7. Upload it, or ask on the MoarVM channel if you don't have access or know
+   how to do that.
+
+8. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
    why not both?
+
