@@ -71,6 +71,7 @@ New in 2014.05
 + Spesh indirect form of attr ops with known names
 + Rakudo Bug #121273 fixed - losing a 0 from end of exponent
 + Re-arrange various structures for memory saving
++ Add handler infrastructure for supporting labeled loop exceptions
 
 New in 2014.04
 
