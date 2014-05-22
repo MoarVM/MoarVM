@@ -286,8 +286,10 @@ static void * unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
 /* Sets up a callback, caching the information to avoid duplicate work. */
 static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data);
 static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMObject *sig_info) {
-    MVMNativeCallback *callback_data;
-    MVMString         *cuid;
+    MVMNativeCallbackCacheHead *callback_data_head = NULL;
+    MVMNativeCallback **callback_data_handle = NULL;
+    MVMString          *cuid;
+    MVMuint8            found = 0;
 
     if (!IS_CONCRETE(callback))
         return NULL;
@@ -296,20 +298,38 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     callback = MVM_frame_find_invokee(tc, callback, NULL);
     cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
     MVM_string_flatten(tc, cuid);
-    MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data);
+    MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
-    if (!callback_data) {
-        /* Need to build/cache callback data entry. */
+    if (!callback_data_head) {
+        callback_data_head = malloc(sizeof(MVMNativeCallbackCacheHead));
+        callback_data_head->head = NULL;
+
+        MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data_head);
+    }
+
+    callback_data_handle = &(callback_data_head->head);
+
+    while (*callback_data_handle && !found) {
+        if ((*callback_data_handle)->target == callback) {
+            found = 1;
+        } else {
+            callback_data_handle = &((*callback_data_handle)->next);
+        }
+    }
+    if (!*callback_data_handle) {
+        /* First, build the MVMNativeCallback */
         MVMCallsite *cs;
         char        *signature;
         MVMObject   *typehash;
         MVMint64     num_info, i;
+        MVMNativeCallback *callback_data;
 
         num_info                 = MVM_repr_elems(tc, sig_info);
         callback_data            = malloc(sizeof(MVMNativeCallback));
         callback_data->num_types = num_info;
         callback_data->typeinfos = malloc(num_info * sizeof(MVMint16));
         callback_data->types     = malloc(num_info * sizeof(MVMObject *));
+        callback_data->next      = NULL;
 
         /* A dyncall signature looks like this: xxx)x
         * Argument types before the ) and return type after it. Thus,
@@ -363,10 +383,11 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         callback_data->target    = callback;
         callback_data->cb        = dcbNewCallback(signature, &callback_handler, callback_data);
 
-        MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data);
+        /* Now insert the MVMCallback into the linked list. */
+        *callback_data_handle = callback_data;
     }
 
-    return callback_data->cb;
+    return (*callback_data_handle)->cb;
 }
 
 /* Called to handle a callback. */

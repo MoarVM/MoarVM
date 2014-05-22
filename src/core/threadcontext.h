@@ -176,7 +176,7 @@ struct MVMThreadContext {
     MVMObject     *cur_dispatcher;
 
     /* Cache of native code callback data. */
-    MVMNativeCallback *native_callback_cache;
+    MVMNativeCallbackCacheHead *native_callback_cache;
 
     /* Random number generator state. */
     MVMuint64 rand_state[2];

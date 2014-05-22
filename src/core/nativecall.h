@@ -21,9 +21,10 @@
 #define MVM_NATIVECALL_ARG_FREE_STR        1
 #define MVM_NATIVECALL_ARG_FREE_STR_MASK   1
 
-/* Native callback entry. Hung off ThreadContext, keyed on CUID of code ref.
- * (May be better off a CompUnit, though that may cause an edge case where a
- * premature collection is possible.) */
+/* Native callback entry. Hung off MVMNativeCallbackCacheHead, which is
+ * a hash owned by the ThreadContext. All MVMNativeCallbacks in a linked
+ * list have the same cuid, which is the key to the CacheHead hash.
+ */
 struct MVMNativeCallback {
     /* The dyncall callback object. */
     DCCallback *cb;
@@ -45,6 +46,19 @@ struct MVMNativeCallback {
 
     /* The MoarVM callsite object for this call. */
     MVMCallsite *cs;
+
+    /* The next entry in the linked list */
+    MVMNativeCallback *next;
+};
+
+
+/* A hash of nativecall callbacks. Each entry is a linked
+ * list of MVMNativeCallback sharing the same cuid.
+ * Multiple callbacks with the same cuid get created when
+ * closures are taken and need to be differentiated.
+ */
+struct MVMNativeCallbackCacheHead {
+    MVMNativeCallback *head;
 
     /* The uthash hash handle inline struct. */
     UT_hash_handle hash_handle;
