@@ -4253,6 +4253,110 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(param_rn2_i): {
+                MVMArgInfo param = MVM_args_get_named_int(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (param.exists)
+                    GET_REG(cur_op, 0).i64 = param.arg.i64;
+                else
+                    GET_REG(cur_op, 0).i64 = MVM_args_get_named_int(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_REQUIRED).arg.i64;
+                cur_op += 10;
+                goto NEXT;
+            }
+            OP(param_rn2_n): {
+                MVMArgInfo param = MVM_args_get_named_num(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (param.exists)
+                    GET_REG(cur_op, 0).n64 = param.arg.n64;
+                else
+                    GET_REG(cur_op, 0).n64 = MVM_args_get_named_num(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_REQUIRED).arg.n64;
+                cur_op += 10;
+                goto NEXT;
+            }
+            OP(param_rn2_s): {
+                MVMArgInfo param = MVM_args_get_named_str(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (param.exists)
+                    GET_REG(cur_op, 0).s = param.arg.s;
+                else
+                    GET_REG(cur_op, 0).s = MVM_args_get_named_str(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_REQUIRED).arg.s;
+                cur_op += 10;
+                goto NEXT;
+            }
+            OP(param_rn2_o): {
+                MVMArgInfo param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (param.exists)
+                    GET_REG(cur_op, 0).o = param.arg.o;
+                else
+                    GET_REG(cur_op, 0).o = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_REQUIRED).arg.o;
+                cur_op += 10;
+                goto NEXT;
+            }
+            OP(param_on2_i): {
+                MVMArgInfo param = MVM_args_get_named_int(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (!param.exists)
+                    param = MVM_args_get_named_int(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_OPTIONAL);
+                if (param.exists) {
+                    GET_REG(cur_op, 0).i64 = param.arg.i64;
+                    cur_op = bytecode_start + GET_UI32(cur_op, 10);
+                }
+                else {
+                    cur_op += 14;
+                }
+                goto NEXT;
+            }
+            OP(param_on2_n): {
+                MVMArgInfo param = MVM_args_get_named_num(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (!param.exists)
+                    param = MVM_args_get_named_num(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_OPTIONAL);
+                if (param.exists) {
+                    GET_REG(cur_op, 0).n64 = param.arg.n64;
+                    cur_op = bytecode_start + GET_UI32(cur_op, 10);
+                }
+                else {
+                    cur_op += 14;
+                }
+                goto NEXT;
+            }
+            OP(param_on2_s): {
+                MVMArgInfo param = MVM_args_get_named_str(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (!param.exists)
+                    param = MVM_args_get_named_str(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_OPTIONAL);
+                if (param.exists) {
+                    GET_REG(cur_op, 0).s = param.arg.s;
+                    cur_op = bytecode_start + GET_UI32(cur_op, 10);
+                }
+                else {
+                    cur_op += 14;
+                }
+                goto NEXT;
+            }
+            OP(param_on2_o): {
+                MVMArgInfo param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_ARG_OPTIONAL);
+                if (!param.exists)
+                    param = MVM_args_get_named_obj(tc, &tc->cur_frame->params,
+                        cu->body.strings[GET_UI32(cur_op, 6)], MVM_ARG_OPTIONAL);
+                if (param.exists) {
+                    GET_REG(cur_op, 0).o = param.arg.o;
+                    cur_op = bytecode_start + GET_UI32(cur_op, 10);
+                }
+                else {
+                    cur_op += 14;
+                }
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
