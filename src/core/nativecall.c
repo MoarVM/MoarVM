@@ -287,9 +287,8 @@ static void * unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
 static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data);
 static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMObject *sig_info) {
     MVMNativeCallbackCacheHead *callback_data_head = NULL;
-    MVMNativeCallback **callback_data_handle = NULL;
+    MVMNativeCallback **callback_data_handle;
     MVMString          *cuid;
-    MVMuint8            found = 0;
 
     if (!IS_CONCRETE(callback))
         return NULL;
@@ -309,13 +308,13 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 
     callback_data_handle = &(callback_data_head->head);
 
-    while (*callback_data_handle && !found) {
-        if ((*callback_data_handle)->target == callback) {
-            found = 1;
-        } else {
-            callback_data_handle = &((*callback_data_handle)->next);
-        }
+    while (*callback_data_handle) {
+        if ((*callback_data_handle)->target == callback) /* found it, break */
+            break;
+
+        callback_data_handle = &((*callback_data_handle)->next);
     }
+
     if (!*callback_data_handle) {
         /* First, build the MVMNativeCallback */
         MVMCallsite *cs;
@@ -562,7 +561,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     char *lib_name = MVM_string_utf8_encode_C_string(tc, lib);
     char *sym_name = MVM_string_utf8_encode_C_string(tc, sym);
     MVMint16 i;
-    
+
     /* Initialize the object; grab native call part of its body. */
     MVMNativeCallBody *body = get_nc_body(tc, site);
 

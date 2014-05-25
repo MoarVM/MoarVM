@@ -17,14 +17,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-/* Initialize a new instance. */
-static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-
-    /* this must be initialized to NULL */
-    body->hash_head = NULL;
-}
-
 static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
     MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, "HashAttrStore representation requires MVMString keys")
 }
@@ -152,7 +144,7 @@ const MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
 static const MVMREPROps this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
-    initialize,
+    NULL, /* initialize */
     copy_to,
     {
         get_attribute,
