@@ -32,7 +32,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
-    build=s host=s big-endian
+    build=s host=s big-endian build-dynasm
     prefix=s make-install profilecalls
 )) or die "See --help for further information\n";
 
@@ -70,6 +70,7 @@ $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
 $args{'has-libuv'}         //= 0;
 $args{'has-libatomic_ops'} //= 0;
+$args{'build-dynasm'}      //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -157,6 +158,15 @@ if ($args{'has-libuv'}) {
 if ($args{'has-libatomic_ops'}) {
     $defaults{-thirdparty}->{lao} = undef;
 #    unshift @{$config{usrlibs}}, 'atomic_ops';
+}
+
+if ($args{'build-dynasm'}) {
+    if (system('lua -e \'require("bit")\'') == 0) {
+	# i don't know man
+	say "We can run DynASM. Now what?";
+    } else {
+	say "You requested DynASM but I don't think we can run it";
+    }
 }
 
 # mangle library names
