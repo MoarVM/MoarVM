@@ -9,4 +9,4 @@
 	url = https://github.com/MoarVM/dyncall.git
 [submodule "3rdparty/dynasm"]
 	path = 3rdparty/dynasm
-	url = git://github.com/bdw/dynasm.git
+	url = https://github.com/MoarVM/dynasm.git
