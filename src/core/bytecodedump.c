@@ -70,8 +70,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     }
 
     for (k = 0; k < cu->body.num_callsites; k++) {
-        MVMCallsite *callsite = cu->body.callsites[k];
-        MVMuint16 arg_count = callsite->arg_count;
+        MVMCallsite *callsite  = cu->body.callsites[k];
+        MVMuint16 arg_count    = callsite->arg_count;
+        MVMuint16 nameds_count = 0;
 
         a("  Callsite_%u :\n", k);
         a("    num_pos: %d\n", callsite->num_pos);
@@ -80,7 +81,15 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             MVMCallsiteEntry csitee = callsite->arg_flags[i++];
             a("    Arg %u :", i);
             if (csitee & MVM_CALLSITE_ARG_NAMED) {
-                a(" named");
+                if (callsite->arg_names) {
+                    char *arg_name = MVM_string_utf8_encode_C_string(tc,
+                        callsite->arg_names[nameds_count++]);
+                    a(" named(%s)", arg_name);
+                    free(arg_name);
+                }
+                else {
+                    a(" named");
+                }
                 j++;
             }
             else if (csitee & MVM_CALLSITE_ARG_FLAT_NAMED) {
