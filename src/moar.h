@@ -140,6 +140,7 @@ typedef double   MVMnum64;
 #include "math/bigintops.h"
 #include "mast/driver.h"
 #include "core/intcache.h"
+#include "jit/jit.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 

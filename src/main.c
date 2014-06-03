@@ -93,7 +93,12 @@ int main(int argc, char *argv[])
     int argi         = 1;
     int lib_path_i   = 0;
     int flag;
-
+    /* this is here temporarily */
+    if (MVM_can_jit(NULL)) {
+	puts("MVM can JIT :-)");
+    } else {
+	puts("MVM can't JIT yet");
+    }
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
             case FLAG_CRASH:

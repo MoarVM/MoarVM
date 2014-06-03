@@ -6,6 +6,7 @@ PERL   = @perl@
 RM     = @rm@
 CAT    = @cat@
 SHELL  = @sh@
+LUA    = @lua@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
@@ -36,6 +37,7 @@ CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/dyncall/dynload \
             @ccinc@3rdparty/dyncall/dyncall \
             @ccinc@3rdparty/dyncall/dyncallback \
+            @ccinc@3rdparty/dynasm \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -52,6 +54,10 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@ \
                  src/platform/posix/sys@obj@
+
+JIT_X64 = src/jit/x86_64@obj@
+
+JIT_STUB = src/jit/stub@obj@
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -155,6 +161,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/optimize@obj@ \
           src/spesh/deopt@obj@ \
           src/spesh/log@obj@ \
+          src/jit/jit@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -165,7 +172,9 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/windows1252@obj@ \
           src/math/bigintops@obj@ \
           src/moar@obj@ \
-          @platform@
+          @platform@ \
+          @jit@
+
 
 HEADERS = src/moar.h \
           src/types.h \
@@ -285,6 +294,7 @@ HEADERS = src/moar.h \
           src/platform/threads.h \
           src/platform/io.h \
           src/platform/sys.h \
+          src/jit/jit.h \
           src/gen/config.h \
           3rdparty/uthash.h
 
@@ -476,6 +486,10 @@ switch no-tracing no-cgoto:
 .c@obj@:
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @ccout@$@ $*.c
+
+%.c: %.dasc
+	$(MSG) preprocessing $< to $@
+	$(CMD)$(LUA) ./3rdparty/dynasm/dynasm.lua -o $@ $<
 
 src/main@obj@: src/main.c
 	$(MSG) compiling $@

@@ -32,7 +32,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
-    build=s host=s big-endian build-dynasm
+    build=s host=s big-endian enable-jit lua=s
     prefix=s make-install profilecalls
 )) or die "See --help for further information\n";
 
@@ -88,6 +88,7 @@ $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
 $config{profilecalls} = $args{profilecalls};
+$config{lua} = $args{lua} // 'lua';
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -160,14 +161,25 @@ if ($args{'has-libatomic_ops'}) {
 #    unshift @{$config{usrlibs}}, 'atomic_ops';
 }
 
-if ($args{'build-dynasm'}) {
-    if (system('lua -e \'require("bit")\'') == 0) {
-	# i don't know man
-	say "We can run DynASM. Now what?";
+if ($args{'enable-jit'}) {
+    if (system($config{lua} . ' -e \'require("bit")\'') == 0) {
+	# we can run lua and dynasm
+	if ($Config{archname} =~ m/^x86_64/) {
+	    $config{arch} = 'x86_64';
+	    $config{jit} = '$(JIT_X64)';
+	} else {
+	    say "JIT isn't supported on $Config{archname} yet.";
+	}
     } else {
-	say "You requested DynASM but I don't think we can run it";
+	say "You'll need lua and the bit module to run dynasm.";
     }
 }
+# fallback
+$config{arch} //= 'stub';
+$config{jit} //= '$(JIT_STUB)';
+
+
+
 
 # mangle library names
 $config{ldlibs} = join ' ',

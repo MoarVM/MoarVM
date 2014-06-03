@@ -1,0 +1,18 @@
+#include "moar.h"
+#include <dasm_proto.h>
+#include <dasm_x86.h>
+
+|.arch x64
+|.actionlist actions
+
+MVMuint32 MVM_can_jit(MVMSpeshGraph *graph) {
+    // can't jit anything right now
+    if (graph == NULL)
+	return 1;
+    return 0;
+}
+
+void MVM_jit_generate(dasm_State **Dst, MVMSpeshGraph *graph) {
+    | mov rax, 3
+    | ret
+}
