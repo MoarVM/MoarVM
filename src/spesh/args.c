@@ -200,10 +200,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             }
         }
 
-        /* Since we know there's no incoming nameds (due to spesh limitation)
-         * we can always turn param_sn into a simple hash creation. This will
-         * typically be further lowered in optimize. */
-        if (param_sn_ins) {
+        /* If we know there's no incoming nameds we can always turn param_sn into a
+         * simple hash creation. This will typically be further lowered in optimize. */
+        if (param_sn_ins && cs->num_pos == cs->arg_count) {
             MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
             if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
                 MVMSpeshOperand target    = param_sn_ins->operands[0];
