@@ -4,5 +4,9 @@
 #endif
 #include <dasm_proto.h>
 
-/* i'll put generic things here. or something like that */
+MVMJitGraph * MVM_jit_try_make_jit_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh) {
+    /* can't jit right now */
+    return NULL;
+}
+
 
