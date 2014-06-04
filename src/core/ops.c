@@ -5556,6 +5556,15 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
+        MVM_OP_sp_namedarg_used,
+        "sp_namedarg_used",
+        ".s",
+        1,
+        0,
+        0,
+        { MVM_operand_int16 }
+    },
+    {
         MVM_OP_sp_getspeshslot,
         "sp_getspeshslot",
         ".s",
@@ -5746,7 +5755,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 638;
+static unsigned short MVM_op_counts = 639;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

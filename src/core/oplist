@@ -671,6 +671,9 @@ sp_getarg_i      .s w(obj) int16
 sp_getarg_n      .s w(obj) int16
 sp_getarg_s      .s w(obj) int16
 
+# Marking named params used.
+sp_namedarg_used .s int16
+
 # Look up a spesh slot.
 sp_getspeshslot  .s w(obj) int16 :pure
 

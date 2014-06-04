@@ -4439,6 +4439,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).s = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].s;
                 cur_op += 4;
                 goto NEXT;
+            OP(sp_namedarg_used):
+                tc->cur_frame->params.named_used[GET_UI16(cur_op, 0)] = 1;
+                cur_op += 2;
+                goto NEXT;
             OP(sp_getspeshslot):
                 GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
