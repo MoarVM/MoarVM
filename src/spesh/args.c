@@ -261,8 +261,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
 
         /* Re-write the passed required positionals to spesh ops, and store
          * any gurads. */
-        if (cs->num_pos)
-            g->guards = malloc(2 * cs->num_pos * sizeof(MVMSpeshGuard));
+        if (cs->arg_count)
+            g->guards = malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
@@ -370,9 +370,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 if (found_idx == -1)
                     goto cleanup;
                 if (found_flag & MVM_CALLSITE_ARG_OBJ) {
+                    MVMuint16 arg_idx = found_idx + 1;
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
-                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    named_ins[i]->operands[1].lit_i16 = arg_idx;
                     add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    if (args[arg_idx].o)
+                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
                 }
                 break;
             case MVM_OP_param_on_i:
@@ -413,10 +416,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ) {
+                    MVMuint16 arg_idx = found_idx + 1;
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
-                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    named_ins[i]->operands[1].lit_i16 = arg_idx;
                     add_goto(tc, g, named_bb[i], named_ins[i], named_ins[i]->operands[2].ins_bb);
                     add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    if (args[arg_idx].o)
+                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
                 }
                 break;
             }
