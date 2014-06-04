@@ -3,6 +3,9 @@
 /* Maximum number of positional args we'll consider for optimization purposes. */
 #define MAX_POS_ARGS 8
 
+/* Maximum number of named args we'll consider for optimization purposes. */
+#define MAX_NAMED_ARGS 8
+
 /* Adds guards and facts for an object arg. */
 void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
                           MVMObject *arg, MVMSpeshIns *arg_ins) {
@@ -77,11 +80,15 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshIns  *param_sn_ins       = NULL;
     MVMSpeshBB   *param_sn_bb        = NULL;
 
-    MVMSpeshIns **pos_ins = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **pos_bb  = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
-    MVMint32      req_max = -1;
-    MVMint32      opt_min = -1;
-    MVMint32      opt_max = -1;
+    MVMSpeshIns **pos_ins   = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **pos_bb    = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
+    MVMSpeshIns **named_ins = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **named_bb  = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
+    MVMint32      req_max   = -1;
+    MVMint32      opt_min   = -1;
+    MVMint32      opt_max   = -1;
+    MVMint32      num_named = 0;
+    MVMint32      got_named = cs->num_pos != cs->arg_count;
 
     /* Walk through the graph, looking for arg related instructions. */
     MVMSpeshBB *bb = g->entry;
@@ -137,8 +144,15 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_rn_n:
             case MVM_OP_param_rn_s:
             case MVM_OP_param_rn_o:
+                /* Named (optional or required). */
+                if (num_named == MAX_NAMED_ARGS)
+                    goto cleanup;
+                named_ins[num_named] = ins;
+                named_bb[num_named]  = bb;
+                num_named++;
+                break;
             case MVM_OP_param_sp:
-                /* Don't know how to handle these yet; bail out. */
+                /* Don't know how to handle this yet; bail out. */
                 goto cleanup;
             case MVM_OP_param_sn:
                 param_sn_ins = ins;
@@ -202,7 +216,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
 
         /* If we know there's no incoming nameds we can always turn param_sn into a
          * simple hash creation. This will typically be further lowered in optimize. */
-        if (param_sn_ins && cs->num_pos == cs->arg_count) {
+        if (param_sn_ins && !got_named) {
             MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
             if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
                 MVMSpeshOperand target    = param_sn_ins->operands[0];
@@ -220,7 +234,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
 
         /* We can optimize. Toss checkarity and paramnamesused. */
         MVM_spesh_manipulate_delete_ins(tc, checkarity_bb, checkarity_ins);
-        if (paramnamesused_ins)
+        if (paramnamesused_ins && !got_named)
             MVM_spesh_manipulate_delete_ins(tc, paramnamesused_bb, paramnamesused_ins);
 
         /* Re-write the passed things to spesh ops, and store any gurads. */
@@ -282,4 +296,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
   cleanup:
     free(pos_ins);
     free(pos_bb);
+    free(named_ins);
+    free(named_bb);
 }
