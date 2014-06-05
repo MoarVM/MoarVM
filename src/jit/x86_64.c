@@ -22,16 +22,10 @@ static const unsigned char actions[9] = {
 
 #line 7 "src/jit/x86_64.dasc"
 
-MVMuint32 MVM_can_jit(MVMSpeshGraph *graph) {
-    // can't jit anything right now
-    if (graph == NULL)
-	return 1;
-    return 0;
-}
 
 void MVM_jit_generate(dasm_State **Dst, MVMSpeshGraph *graph) {
     //| mov rax, 3
     //| ret
     dasm_put(Dst, 0);
-#line 18 "src/jit/x86_64.dasc"
+#line 12 "src/jit/x86_64.dasc"
 }
