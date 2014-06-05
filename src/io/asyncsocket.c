@@ -16,6 +16,7 @@ typedef struct {
 typedef struct {
     MVMOSHandle      *handle;
     MVMDecodeStream  *ds;
+    MVMObject        *buf_type;
     int               seq_number;
     MVMThreadContext *tc;
     int               work_idx;
@@ -54,7 +55,12 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
                 MVM_repr_push_o(tc, arr, boxed_str);
             }
             else {
-                MVM_panic(1, "socket buf creation NYI\n");
+                MVMArray *res_buf      = (MVMArray *)MVM_repr_alloc_init(tc, ri->buf_type);
+                res_buf->body.slots.i8 = buf->base;
+                res_buf->body.start    = 0;
+                res_buf->body.ssize    = nread;
+                res_buf->body.elems    = nread;
+                MVM_repr_push_o(tc, arr, (MVMObject *)res_buf);
             }
 
             /* Finally, no error. */
@@ -132,6 +138,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
 /* Marks objects for a read task. */
 void read_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     ReadInfo *ri = (ReadInfo *)data;
+    MVM_gc_worklist_add(tc, worklist, &ri->buf_type);
     MVM_gc_worklist_add(tc, worklist, &ri->handle);
 }
 
@@ -188,7 +195,43 @@ static MVMAsyncTask * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
 
 static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
                                  MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMAsyncTask *task;
+    ReadInfo    *ri;
+
+    /* Validate REPRs. */
+    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+        MVM_exception_throw_adhoc(tc,
+            "asyncreadbytes target queue must have ConcBlockingQueue REPR");
+    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
+        MVM_exception_throw_adhoc(tc,
+            "asyncreadbytes result type must have REPR AsyncTask");
+    if (REPR(buf_type)->ID == MVM_REPR_ID_MVMArray) {
+        MVMint32 slot_type = ((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type;
+        if (slot_type != MVM_ARRAY_U8 && slot_type != MVM_ARRAY_I8)
+            MVM_exception_throw_adhoc(tc, "asyncreadbytes buffer type must be an array of uint8 or int8");
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "asyncreadbytes buffer type must be an array");
+    }
+
+    /* Create async task handle. */
+    MVMROOT(tc, queue, {
+    MVMROOT(tc, schedulee, {
+        task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    });
+    });
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
+    task->body.ops  = &read_op_table;
+    ri              = calloc(1, sizeof(ReadInfo));
+    MVM_ASSIGN_REF(tc, &(task->common.header), ri->buf_type, buf_type);
+    MVM_ASSIGN_REF(tc, &(task->common.header), ri->handle, h);
+    task->body.data = ri;
+
+    /* Hand the task off to the event loop. */
+    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+
+    return task;
 }
 
 /* Info we convey about a write task. */
