@@ -6,6 +6,7 @@
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *target,
                                                MVMSpeshCandidate *cand) {
     MVMSpeshGraph *ig;
+    MVMSpeshBB    *bb;
 
     /* Check bytecode size is below the inline limit. */
     if (target->body.sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
@@ -14,5 +15,26 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand);
 
+    /* Traverse graph, looking for anything that might prevent inlining. */
+    bb = ig->entry;
+    while (bb) {
+        MVMSpeshIns *ins = bb->first_ins;
+        while (ins) {
+            /* Instruction may be marked directly as not being inlinable, in
+             * which case we're done. */
+            if (ins->info->no_inline)
+                goto not_inlinable;
+
+            ins = ins->next;
+        }
+        bb = bb->linear_next;
+    }
+
+    /* If we found nothing we can't inline, inlining is fine. */
     return ig;
+
+    /* If we can't find a way to inline, we end up here. */
+  not_inlinable:
+    MVM_spesh_graph_destroy(tc, ig);
+    return NULL;
 }
